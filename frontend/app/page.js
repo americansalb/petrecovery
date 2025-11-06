@@ -1,10 +1,6 @@
-'use client';
+import Link from 'next/link';
 
 export default function Home() {
-  const handleClick = () => {
-    alert('Report Lost Pet feature coming soon!');
-  };
-
   return (
     <main style={{
       display: 'flex',
@@ -27,8 +23,8 @@ export default function Home() {
         Lost Your Pet? We'll Help You Get Them Back
       </h1>
 
-      <button
-        onClick={handleClick}
+      <Link
+        href="/report/new"
         style={{
           backgroundColor: '#2563eb',
           color: 'white',
@@ -40,12 +36,12 @@ export default function Home() {
           cursor: 'pointer',
           boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
           transition: 'all 0.2s',
+          textDecoration: 'none',
+          display: 'inline-block',
         }}
-        onMouseOver={(e) => e.target.style.backgroundColor = '#1d4ed8'}
-        onMouseOut={(e) => e.target.style.backgroundColor = '#2563eb'}
       >
         My Pet Is Missing
-      </button>
+      </Link>
     </main>
   );
 }
