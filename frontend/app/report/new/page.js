@@ -11,6 +11,31 @@ export default function ReportLostPet() {
   const [advice, setAdvice] = useState(null);
   const [copied, setCopied] = useState(false);
 
+  // Report submission data
+  const [reportData, setReportData] = useState({
+    // User info
+    email: '',
+    phone: '',
+    firstName: '',
+    // Pet info
+    petName: '',
+    breed: '',
+    color: '',
+    size: 'MEDIUM',
+    age: '',
+    sex: 'UNKNOWN',
+    distinctiveMarks: '',
+    microchipId: '',
+    // Location
+    lastSeenAddress: '',
+    lastSeenDetails: '',
+    // Photos
+    photos: [],
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [reportId, setReportId] = useState(null);
+
   const scenarios = {
     dog: [
       { value: 'jumped_fence', label: 'Jumped Fence' },
@@ -505,6 +530,19 @@ export default function ReportLostPet() {
               >
                 {copied ? '✓ Copied!' : '📱 Text This To Me'}
               </button>
+
+              <button
+                onClick={() => setStep(5)}
+                style={{
+                  ...buttonStyle,
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  maxWidth: '100%',
+                }}
+              >
+                🚨 Alert My Community
+              </button>
+
               <button
                 onClick={handleReset}
                 style={{
@@ -515,6 +553,562 @@ export default function ReportLostPet() {
                 }}
               >
                 🔄 Start Over
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Contact Info */}
+        {step === 5 && (
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '1rem',
+            padding: '2rem',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+          }}>
+            <h2 style={{
+              fontSize: '1.5rem',
+              fontWeight: 'bold',
+              marginBottom: '0.5rem',
+              textAlign: 'center',
+              color: '#1f2937',
+            }}>
+              Your Contact Information
+            </h2>
+            <p style={{
+              textAlign: 'center',
+              color: '#6b7280',
+              marginBottom: '2rem',
+            }}>
+              So community members can reach you if they spot your pet
+            </p>
+
+            {submitError && (
+              <div style={{
+                backgroundColor: '#fee2e2',
+                border: '1px solid #fecaca',
+                color: '#991b1b',
+                padding: '1rem',
+                borderRadius: '0.5rem',
+                marginBottom: '1.5rem',
+              }}>
+                {submitError}
+              </div>
+            )}
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Your First Name *
+              </label>
+              <input
+                type="text"
+                value={reportData.firstName}
+                onChange={(e) => setReportData({ ...reportData, firstName: e.target.value })}
+                placeholder="Jane"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  fontSize: '1rem',
+                }}
+                required
+              />
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Email Address *
+              </label>
+              <input
+                type="email"
+                value={reportData.email}
+                onChange={(e) => setReportData({ ...reportData, email: e.target.value })}
+                placeholder="jane@example.com"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  fontSize: '1rem',
+                }}
+                required
+              />
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Phone Number *
+              </label>
+              <input
+                type="tel"
+                value={reportData.phone}
+                onChange={(e) => setReportData({ ...reportData, phone: e.target.value })}
+                placeholder="555-0100"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  fontSize: '1rem',
+                }}
+                required
+              />
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                Community members will call/text if they spot your pet
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+              <button
+                onClick={() => setStep(4)}
+                style={{
+                  flex: 1,
+                  padding: '1rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#1f2937',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontSize: '1.125rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Back
+              </button>
+              <button
+                onClick={() => setStep(6)}
+                disabled={!reportData.firstName || !reportData.email || !reportData.phone}
+                style={{
+                  flex: 1,
+                  padding: '1rem',
+                  backgroundColor: (!reportData.firstName || !reportData.email || !reportData.phone) ? '#9ca3af' : '#2563eb',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontSize: '1.125rem',
+                  fontWeight: '600',
+                  cursor: (!reportData.firstName || !reportData.email || !reportData.phone) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 6: Pet Details */}
+        {step === 6 && (
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '1rem',
+            padding: '2rem',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+          }}>
+            <h2 style={{
+              fontSize: '1.5rem',
+              fontWeight: 'bold',
+              marginBottom: '0.5rem',
+              textAlign: 'center',
+              color: '#1f2937',
+            }}>
+              About Your Pet
+            </h2>
+            <p style={{
+              textAlign: 'center',
+              color: '#6b7280',
+              marginBottom: '2rem',
+            }}>
+              Details help people identify your pet
+            </p>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Pet's Name *
+              </label>
+              <input
+                type="text"
+                value={reportData.petName}
+                onChange={(e) => setReportData({ ...reportData, petName: e.target.value })}
+                placeholder="Max"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  fontSize: '1rem',
+                }}
+                required
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Breed
+                </label>
+                <input
+                  type="text"
+                  value={reportData.breed}
+                  onChange={(e) => setReportData({ ...reportData, breed: e.target.value })}
+                  placeholder="Golden Retriever"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '0.5rem',
+                    fontSize: '1rem',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Age
+                </label>
+                <input
+                  type="number"
+                  value={reportData.age}
+                  onChange={(e) => setReportData({ ...reportData, age: e.target.value })}
+                  placeholder="3"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '0.5rem',
+                    fontSize: '1rem',
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Primary Color/Markings *
+              </label>
+              <input
+                type="text"
+                value={reportData.color}
+                onChange={(e) => setReportData({ ...reportData, color: e.target.value })}
+                placeholder="Golden with white chest"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  fontSize: '1rem',
+                }}
+                required
+              />
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Size
+              </label>
+              <select
+                value={reportData.size}
+                onChange={(e) => setReportData({ ...reportData, size: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  fontSize: '1rem',
+                }}
+              >
+                <option value="TINY">Tiny (&lt; 10 lbs)</option>
+                <option value="SMALL">Small (10-25 lbs)</option>
+                <option value="MEDIUM">Medium (25-60 lbs)</option>
+                <option value="LARGE">Large (60-90 lbs)</option>
+                <option value="GIANT">Giant (&gt; 90 lbs)</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Distinctive Marks or Features
+              </label>
+              <textarea
+                value={reportData.distinctiveMarks}
+                onChange={(e) => setReportData({ ...reportData, distinctiveMarks: e.target.value })}
+                placeholder="Black spot on left ear, scar on right paw, very friendly..."
+                rows={3}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  fontSize: '1rem',
+                  fontFamily: 'inherit',
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Microchip ID (if applicable)
+              </label>
+              <input
+                type="text"
+                value={reportData.microchipId}
+                onChange={(e) => setReportData({ ...reportData, microchipId: e.target.value })}
+                placeholder="123456789012345"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  fontSize: '1rem',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+              <button
+                onClick={() => setStep(5)}
+                style={{
+                  flex: 1,
+                  padding: '1rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#1f2937',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontSize: '1.125rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Back
+              </button>
+              <button
+                onClick={() => setStep(7)}
+                disabled={!reportData.petName || !reportData.color}
+                style={{
+                  flex: 1,
+                  padding: '1rem',
+                  backgroundColor: (!reportData.petName || !reportData.color) ? '#9ca3af' : '#2563eb',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontSize: '1.125rem',
+                  fontWeight: '600',
+                  cursor: (!reportData.petName || !reportData.color) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 7: Location Details */}
+        {step === 7 && (
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '1rem',
+            padding: '2rem',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+          }}>
+            <h2 style={{
+              fontSize: '1.5rem',
+              fontWeight: 'bold',
+              marginBottom: '0.5rem',
+              textAlign: 'center',
+              color: '#1f2937',
+            }}>
+              Where Was Your Pet Last Seen?
+            </h2>
+            <p style={{
+              textAlign: 'center',
+              color: '#6b7280',
+              marginBottom: '2rem',
+            }}>
+              This helps us alert people in the right area
+            </p>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Address or Intersection *
+              </label>
+              <input
+                type="text"
+                value={reportData.lastSeenAddress}
+                onChange={(e) => setReportData({ ...reportData, lastSeenAddress: e.target.value })}
+                placeholder="123 Main St, Chicago, IL or Main St & Oak Ave"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  fontSize: '1rem',
+                }}
+                required
+              />
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                We'll show approximate area to protect your privacy
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Additional Details About Last Sighting
+              </label>
+              <textarea
+                value={reportData.lastSeenDetails}
+                onChange={(e) => setReportData({ ...reportData, lastSeenDetails: e.target.value })}
+                placeholder="Was in the backyard, jumped fence near the gate. Heading toward the park..."
+                rows={4}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  fontSize: '1rem',
+                  fontFamily: 'inherit',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+              <button
+                onClick={() => setStep(6)}
+                style={{
+                  flex: 1,
+                  padding: '1rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#1f2937',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontSize: '1.125rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Back
+              </button>
+              <button
+                onClick={async () => {
+                  // TODO: Submit to API
+                  setIsSubmitting(true);
+                  // Simulate API call
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  setReportId('temp-report-id');
+                  setStep(8);
+                  setIsSubmitting(false);
+                }}
+                disabled={!reportData.lastSeenAddress || isSubmitting}
+                style={{
+                  flex: 1,
+                  padding: '1rem',
+                  backgroundColor: (!reportData.lastSeenAddress || isSubmitting) ? '#9ca3af' : '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontSize: '1.125rem',
+                  fontWeight: '600',
+                  cursor: (!reportData.lastSeenAddress || isSubmitting) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {isSubmitting ? 'Creating Alert...' : '🚨 Create Community Alert'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 8: Success */}
+        {step === 8 && reportId && (
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '1rem',
+            padding: '2rem',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✅</div>
+            <h2 style={{
+              fontSize: '2rem',
+              fontWeight: 'bold',
+              marginBottom: '1rem',
+              color: '#10b981',
+            }}>
+              Community Alert Created!
+            </h2>
+            <p style={{
+              fontSize: '1.125rem',
+              color: '#4b5563',
+              marginBottom: '2rem',
+              lineHeight: '1.6',
+            }}>
+              Your alert for <strong>{reportData.petName}</strong> has been sent to community members in your area.
+              You'll be notified immediately if anyone spots them.
+            </p>
+
+            <div style={{
+              backgroundColor: '#f0fdf4',
+              border: '2px solid #10b981',
+              borderRadius: '0.75rem',
+              padding: '1.5rem',
+              marginBottom: '2rem',
+              textAlign: 'left',
+            }}>
+              <h3 style={{ fontWeight: '600', marginBottom: '1rem', color: '#047857' }}>
+                What Happens Next:
+              </h3>
+              <ul style={{ marginLeft: '1.5rem', color: '#065f46', lineHeight: '1.8' }}>
+                <li>Nearby community members are being alerted right now</li>
+                <li>They'll keep an eye out while going about their day</li>
+                <li>If anyone spots {reportData.petName}, they'll contact you directly</li>
+                <li>You can update or close this alert anytime</li>
+              </ul>
+            </div>
+
+            <div style={{
+              backgroundColor: '#fef3c7',
+              border: '2px solid #f59e0b',
+              borderRadius: '0.75rem',
+              padding: '1.5rem',
+              marginBottom: '2rem',
+              textAlign: 'left',
+            }}>
+              <h3 style={{ fontWeight: '600', marginBottom: '1rem', color: '#92400e' }}>
+                Continue Following the Advice:
+              </h3>
+              <p style={{ color: '#78350f', lineHeight: '1.6' }}>
+                Remember to follow the recovery advice we showed you earlier. Community alerts work best
+                when combined with active searching in your area.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <button
+                onClick={() => window.location.href = '/'}
+                style={{
+                  padding: '1rem',
+                  backgroundColor: '#2563eb',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontSize: '1.125rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                View My Alert
+              </button>
+              <button
+                onClick={handleReset}
+                style={{
+                  padding: '1rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#1f2937',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Report Another Pet
               </button>
             </div>
           </div>

@@ -123,13 +123,13 @@ export default function JoinPatrol() {
             color: '#1e40af',
             marginBottom: '0.5rem',
           }}>
-            Join Recovery Patrol
+            Join the Neighborhood Watch for Pets
           </h1>
           <p style={{
             fontSize: '1rem',
             color: '#4b5563',
           }}>
-            Help find lost pets in your community
+            Get alerts when pets go missing nearby - just keep an eye out while you go about your day
           </p>
         </div>
 
