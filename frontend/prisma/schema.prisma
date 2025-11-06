@@ -1,0 +1,337 @@
+// PetRecovery.org Database Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// CORE USER SYSTEM
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  emailVerified   DateTime?
+  phone           String?
+  phoneVerified   Boolean  @default(false)
+  firstName       String
+  lastName        String?
+  passwordHash    String?  // Null for quick signup
+  role            UserRole @default(USER)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastActive      DateTime @default(now())
+
+  // Relations
+  profile         UserProfile?
+  patrolProfile   PatrolProfile?
+  pets            Pet[]
+  lostReports     LostReport[]
+  alerts          Alert[]
+  sightings       Sighting[]
+  comments        Comment[]
+
+  @@index([email])
+}
+
+enum UserRole {
+  USER
+  PATROL
+  MODERATOR
+  ADMIN
+}
+
+model UserProfile {
+  userId          String   @id
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Location
+  latitude        Float?
+  longitude       Float?
+  address         String?
+  city            String?
+  state           String?
+  zip             String?
+  country         String   @default("US")
+
+  // Preferences
+  timezone        String   @default("America/Chicago")
+  notificationsEnabled Boolean @default(true)
+
+  updatedAt       DateTime @updatedAt
+
+  @@index([latitude, longitude])
+}
+
+// RECOVERY PATROL SYSTEM
+model PatrolProfile {
+  userId          String   @id
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Status
+  isActive        Boolean  @default(true)
+  isPaused        Boolean  @default(false)
+
+  // Coverage
+  radiusMiles     Int      @default(5)
+  maxActiveSearches Int    @default(3)
+
+  // Availability
+  availability    String[] // ["weekday_morning", "weekday_evening", "weekend_morning", "weekend_evening"]
+  transportation  String[] // ["foot", "bike", "car"]
+
+  // Pet preferences
+  searchesDogs    Boolean  @default(true)
+  searchesCats    Boolean  @default(true)
+  searchesBirds   Boolean  @default(false)
+  searchesOther   Boolean  @default(false)
+
+  // Notification preferences
+  alertMethod     AlertMethod @default(EMAIL)
+  quietHoursStart Int?     // Hour (0-23)
+  quietHoursEnd   Int?     // Hour (0-23)
+  instantAlerts   Boolean  @default(true)
+
+  // Stats
+  joinedAt        DateTime @default(now())
+  searchCount     Int      @default(0)
+  recoveryCount   Int      @default(0)
+
+  // Gamification
+  points          Int      @default(0)
+  level           PatrolLevel @default(ROOKIE)
+
+  updatedAt       DateTime @updatedAt
+}
+
+enum AlertMethod {
+  EMAIL
+  SMS
+  PUSH
+  ALL
+}
+
+enum PatrolLevel {
+  ROOKIE      // 0 recoveries
+  SCOUT       // 1 recovery
+  TRACKER     // 5 recoveries
+  EXPERT      // 10 recoveries
+  LEGEND      // 25+ recoveries
+}
+
+// PET SYSTEM
+model Pet {
+  id              String   @id @default(cuid())
+  ownerId         String
+  owner           User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Basic info
+  name            String
+  species         PetSpecies
+  breed           String?
+  age             Int?
+  sex             PetSex?
+  isNeutered      Boolean  @default(false)
+
+  // Physical description
+  color           String
+  size            PetSize
+  weight          Float?
+  distinctiveMarks String?
+
+  // Identification
+  microchipId     String?
+  collarInfo      String?
+
+  // Behavior
+  personality     String[]
+  medicalConditions String?
+
+  // Media
+  photos          String[]
+  primaryPhotoUrl String
+
+  // Metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  lostReports     LostReport[]
+
+  @@index([ownerId])
+}
+
+enum PetSpecies {
+  DOG
+  CAT
+  BIRD
+  RABBIT
+  OTHER
+}
+
+enum PetSex {
+  MALE
+  FEMALE
+  UNKNOWN
+}
+
+enum PetSize {
+  TINY     // < 10 lbs
+  SMALL    // 10-25 lbs
+  MEDIUM   // 25-60 lbs
+  LARGE    // 60-90 lbs
+  GIANT    // > 90 lbs
+}
+
+// LOST REPORT SYSTEM
+model LostReport {
+  id              String   @id @default(cuid())
+  petId           String
+  pet             Pet      @relation(fields: [petId], references: [id])
+  reporterId      String
+  reporter        User     @relation(fields: [reporterId], references: [id])
+
+  // Status
+  status          ReportStatus @default(ACTIVE)
+  priority        Priority @default(NORMAL)
+
+  // Incident details
+  lastSeenAt      DateTime
+  lastSeenLatitude Float
+  lastSeenLongitude Float
+  lastSeenAddress String
+  escapeScenario  String   // "jumped_fence", "door_left_open", etc
+  escapeDetails   String?
+
+  // Search information
+  searchRadius    Float    @default(5) // Miles
+  aiAdviceGiven   Json?    // Store what advice was shown
+
+  // Reward
+  hasReward       Boolean  @default(false)
+  rewardAmount    Float?
+
+  // Engagement metrics
+  viewCount       Int      @default(0)
+  shareCount      Int      @default(0)
+  patrolAlerted   Int      @default(0)
+  activeSearchers Int      @default(0)
+
+  // Resolution
+  foundAt         DateTime?
+  foundLatitude   Float?
+  foundLongitude  Float?
+  foundById       String?
+  recoveryStory   String?
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  expiresAt       DateTime?
+
+  // Relations
+  alerts          Alert[]
+  sightings       Sighting[]
+  comments        Comment[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([lastSeenLatitude, lastSeenLongitude])
+}
+
+enum ReportStatus {
+  DRAFT
+  ACTIVE
+  SIGHTED
+  RECOVERING
+  FOUND
+  CLOSED
+  EXPIRED
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// ALERT SYSTEM
+model Alert {
+  id              String   @id @default(cuid())
+  reportId        String
+  report          LostReport @relation(fields: [reportId], references: [id])
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+
+  // Delivery
+  method          AlertMethod
+  sentAt          DateTime @default(now())
+  deliveredAt     DateTime?
+  openedAt        DateTime?
+
+  // Response
+  respondedAt     DateTime?
+  response        AlertResponse?
+  responseNote    String?
+
+  @@index([reportId])
+  @@index([userId])
+  @@index([sentAt])
+}
+
+enum AlertResponse {
+  WILL_SEARCH
+  CANT_NOW
+  WATCHING
+  NOT_INTERESTED
+}
+
+// SIGHTINGS
+model Sighting {
+  id              String   @id @default(cuid())
+  reportId        String
+  report          LostReport @relation(fields: [reportId], references: [id])
+  reportedById    String
+  reportedBy      User     @relation(fields: [reportedById], references: [id])
+
+  // Sighting details
+  sightedAt       DateTime
+  latitude        Float
+  longitude       Float
+  address         String
+  description     String
+  certaintyLevel  Int      // 1-5 scale
+
+  // Media
+  photoUrls       String[]
+
+  // Verification
+  isVerified      Boolean  @default(false)
+  verifiedBy      String?
+  verifiedAt      DateTime?
+
+  createdAt       DateTime @default(now())
+
+  @@index([reportId])
+  @@index([latitude, longitude])
+}
+
+// COMMENTS & UPDATES
+model Comment {
+  id              String   @id @default(cuid())
+  reportId        String
+  report          LostReport @relation(fields: [reportId], references: [id])
+  authorId        String
+  author          User     @relation(fields: [authorId], references: [id])
+
+  content         String
+  isUpdate        Boolean  @default(false)
+  isPinned        Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+  editedAt        DateTime?
+
+  @@index([reportId])
+}
