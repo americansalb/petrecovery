@@ -1,16 +1,25 @@
 import SessionProvider from './components/SessionProvider';
+import { ModeProvider } from './contexts/ModeContext';
 
 export const metadata = {
-  title: 'PetRecovery.org - Lost Pet Recovery',
-  description: 'Help find your lost pet',
+  title: 'PetRecovery.org - Reunite Lost Pets with Their Families',
+  description: 'Beautiful community-powered pet recovery. Get instant help finding your lost pet.',
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>
+      <head>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossOrigin=""
+        />
+      </head>
+      <body style={{ margin: 0, padding: 0 }}>
         <SessionProvider>
-          {children}
+          <ModeProvider>
+            {children}
+          </ModeProvider>
         </SessionProvider>
       </body>
     </html>
