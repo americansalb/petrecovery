@@ -6,7 +6,7 @@ const PetRecoveryAdvice = {
   dog: {
     scenarios: {
       jumped_fence: {
-        just_now: {
+        less_than_day: {
           priority_actions: [
             "DO NOT CHASE YOUR DOG - This is critical. Running after them triggers their prey drive and they'll think it's a fun game of chase. Even if your dog is normally obedient, the excitement overrides their training. Instead, walk briskly but calmly in the direction they went. If you see them, try sitting down and calling them excitedly, or run in the OPPOSITE direction to trigger their chase instinct toward you.",
             "Grab high-value treats (chicken, hot dogs, cheese - not regular kibble) and their absolute favorite squeaky toy or ball. Shake the treat bag loudly every 20-30 seconds while walking - that familiar sound can carry 2-3 blocks in quiet neighborhoods. If they have a favorite squeaky toy, squeeze it repeatedly in a pattern they recognize. Many dogs will come running to food sounds even when they ignore their name.",
@@ -28,9 +28,9 @@ const PetRecoveryAdvice = {
             "DON'T wait to start searching because you think they'll come back on their own. The first 30-60 minutes are CRITICAL. The farther they get, the more disoriented they become. Start searching immediately - you can grab supplies (treats, toys) on your way out.",
             "DON'T only search the 'usual' spots. Dogs who escape by jumping a fence are in an excited, exploratory state. They'll go to new places they've never been, following interesting smells and sounds."
           ],
-          reassurance: "85% of fence jumpers are found within 1 mile in the first 2 hours. Most dogs who jump fences are friendly and social - they're not running away from you, they're running toward something interesting. They're usually found playing with another dog, investigating food sources, or sitting confused in someone's yard."
+          reassurance: "85% of fence jumpers are found within 1 mile in the first 24 hours. Most dogs who jump fences are friendly and social - they're not running away from you, they're running toward something interesting. They're usually found playing with another dog, investigating food sources, or sitting confused in someone's yard."
         },
-        hours_ago: {
+        one_to_three_days: {
           priority_actions: [
             "EXPAND YOUR SEARCH RADIUS to 2 miles in all directions. A healthy dog can travel 3-5 miles in a few hours, but most stay within 2 miles if they're not being chased. Get in your car and drive slowly (10 mph) through every street within this radius. Mark off areas on a map as you search them so you don't duplicate efforts. Focus on areas in the direction they were heading when last seen.",
             "POST TO SOCIAL MEDIA IMMEDIATELY with a clear, recent photo showing your dog's face and any distinctive markings. Post to: Nextdoor (mark as 'Urgent'), Facebook local community groups, Ring Neighbors app, Pawboost.com, and any neighborhood-specific groups. Include: your dog's name, size/breed, color, where/when last seen, your phone number, and whether they're friendly or scared. Offer a REWARD (don't specify amount yet). Update posts every 2-3 hours with new search info.",
@@ -50,54 +50,77 @@ const PetRecoveryAdvice = {
             "Creek beds, drainage ditches, wooded areas, and green belts - dogs seek water when thirsty and shade when hot. Walk along any water sources within 2 miles. Check under bridges and in culverts. Look for paw prints in mud. Bring water with you to splash around - the sound attracts thirsty dogs.",
             "Dog parks at PEAK TIMES (5-7pm on weekdays, 9-11am weekends) - even if your dog has never been there, they're drawn to the sound and smell of other dogs playing. Walk the entire perimeter of the fence calling your dog's name. Show photos to everyone there and ask them to watch for your dog in coming days."
           ],
-          reassurance: "73% of dogs are recovered within 24 hours. After a few hours, dogs usually stop their initial exploration and start looking for food, water, and shelter. This makes them more predictable. Focus on areas with resources (parks, restaurants, water sources) and high dog activity."
+          reassurance: "Dogs are extremely resilient. After the initial hours, most dogs settle into a pattern - they find a food source, a water source, and a hiding spot, and they rotate between these. Focus your search on resource-rich areas."
         },
-        yesterday: {
+        three_to_seven_days: {
           priority_actions: [
-            "VISIT shelters in person - don't just call, staff miss things",
-            "Create and print flyers - include REWARD prominently",
-            "Expand social media to city-wide groups",
-            "Contact local rescue organizations for help"
+            "VISIT EVERY SHELTER IN PERSON - This is critical. Do NOT just call or check websites. Physical shelter visits are essential because: (1) Staff are overworked and miss matches, (2) Your dog may look different (dirty, matted, injured), (3) Photos on websites are often poor quality or days old, (4) Dogs behave differently in shelters (scared dogs become aggressive, friendly dogs shut down), and you'll recognize behavior/personality that staff won't note. Visit every shelter within 20 miles. Go at different times of day to see different intake groups. Check the 'stray hold' area where new dogs are kept before being listed publicly - your dog might still be there.",
+            "CREATE AND DISTRIBUTE PROFESSIONAL FLYERS - Print at least 100 high-quality color flyers on bright paper (neon yellow or orange stands out). Include: (1) LARGE clear face photo, (2) 'REWARD' in huge letters at top (don't specify amount - makes people more curious), (3) Your phone number in big text, (4) Where/when last seen, (5) Important: 'Please do not chase - call immediately' (scared dogs run from strangers). Post at EYE LEVEL on stop signs at major intersections (traffic stops = people looking around). Post at: all vet offices, pet stores, feed stores, dog parks, parks, schools, community centers, gas stations, convenience stores, coffee shops, and anywhere dog owners gather. Replace weekly as weather damages them.",
+            "EXPAND SOCIAL MEDIA TO REGIONAL GROUPS and tag local pet rescue organizations. Join and post in: Every neighborhood Facebook group within 10 miles, city-wide lost pet groups, breed-specific rescue groups (even if your dog is a mix), Ring Neighbors app, Nextdoor expanding radius to 10+ miles, Craigslist lost & found AND community sections (check found pets daily). Update your posts twice daily with new info about sightings or where you've searched. Ask people to share. Create a dedicated Facebook page for your dog's search - easier for people to follow and share. Contact local radio stations - many do free lost pet announcements.",
+            "CONTACT AND PARTNER WITH LOCAL RESCUE ORGANIZATIONS - They have resources, experience, and networks you don't. Many will: Help you search with trained volunteers, lend you humane traps and trail cameras, give advice on scared dog behavior, share your posts to their large follower bases, and connect you with professional pet trackers. Search for '[your city] dog rescue' and '[your city] animal rescue'. Call them, explain your situation, ask for help. They do this all the time and have seen everything."
           ],
-          expanded_strategy: [
-            "Set up feeding station with camera if possible",
-            "Contact construction crews, landscapers in area",
-            "Check industrial areas at dawn/dusk - dogs hide there",
-            "Post flyers at all vet offices within 5 miles"
+          immediate_checklist: [
+            "Set up a FEEDING STATION at your home with a trail camera or security camera pointed at it. Use: A large bowl of stinky wet food (not dry kibble - no smell), fresh water changed daily, your dog's bed or your worn clothing nearby. Place it where the camera can see clearly. Check the camera daily for any dog approaching - even if it's not your dog eating, it shows animal traffic patterns. Some dogs are too scared to approach during day but come at 2-3am. Many lost dogs are recovered when they return to a feeding station after days of being too scared to come home.",
+            "HIRE OR CONSULT WITH A PROFESSIONAL PET TRACKER if you can afford it ($200-500 typically). They use trained tracking dogs to follow scent trails, set up strategic humane traps, analyze behavior patterns, and give you a realistic search zone based on your dog's profile. Even a 1-hour consultation can change your entire search strategy. Search for 'pet detective [your state]' or 'pet tracker [your city]'. Some work remotely over phone/video if not local. Worth every penny if your dog is still missing after 3+ days.",
+            "SYSTEMATICALLY CANVAS EVERYONE WHO SPENDS TIME OUTDOORS - Contact: Construction crews working in your area (leave them flyers), landscape companies and lawn crews, pest control companies, postal workers, garbage collectors, newspaper delivery people, joggers in local running groups, homeless community (offer a reward, they see everything), dog walkers (post in Rover/Wag groups), farmers/ranchers if you're near rural areas. These people cover massive territory daily and spot things homeowners miss.",
+            "CHECK SHELTER INTAKE WEBSITES DAILY at the same time - Most shelters update once daily. Check EVERY DAY at the same time so you see new intakes immediately. Check: City animal services, county animal control, all private shelters within 20 miles, breed-specific rescues. Also check 'found dogs' listings on Craigslist, Facebook Marketplace, Nextdoor, and Pawboost. Set up Google alerts for '[your city] found dog' so you get emailed new posts. Someone may have your dog and is trying to find you.",
+            "SEARCH AT DAWN (5-7am) AND DUSK (7-9pm) - After several days, most dogs become semi-nocturnal, hiding during busy daytime and moving at dawn/dusk when it's quiet. Go out with a flashlight at 5am and walk your area calling softly. Many dogs are spotted during these quiet hours. Bring high-value treats and sit quietly in likely spots. If your dog is scared, they're most likely to move during these times. This is when feeding stations get visited most."
           ],
-          psychological_tips: [
-            "Dogs often travel in straight lines initially",
-            "After 24 hours, they seek food sources",
-            "Friendly dogs approach houses with dogs",
-            "Scared dogs go nocturnal - search dawn/dusk"
+          search_zones: [
+            "INDUSTRIAL AND COMMERCIAL AREAS - After 3+ days, dogs often migrate to industrial areas, warehouses, shopping center back lots, and commercial zones because: (1) Restaurant dumpsters provide easy food, (2) Fewer people = less threatening, (3) Loading docks provide shelter, (4) Consistent routine (trucks arrive same time daily). Search behind: Strip malls, grocery stores, restaurants (especially fast food), warehouses, business parks, auto shops, garden centers. Go early morning (6am) or evening (7-8pm) when businesses close. Talk to overnight workers and security guards.",
+            "WOODED AREAS, PARKS, AND GREEN SPACES - Dogs seek cover and water. Systematically search every: Nature preserve, hiking trail, creek bed, drainage ditch, pond area, dog park, regular park, school field, golf course, cemetery (quiet, lots of water). Walk trails early morning calling softly. Look for: Paw prints in mud near water, disturbed vegetation, scat (dog poop), areas where a dog might have been sleeping (flattened grass/leaves). Some scared dogs establish a territory in wooded areas and stay there for weeks.",
+            "RESIDENTIAL AREAS WITH DOGS - Friendly dogs gravitate toward houses with dogs. After days of being lost, they often find a house with dogs and camp nearby. Search neighborhoods with lots of dogs. Ask residents to check: Under their decks, in their yards, around their property. Your dog might be sleeping under someone's deck and only coming out when their dogs are outside. Leave flyers asking people to check their structures.",
+            "AREAS WHERE SIGHTINGS HAVE OCCURRED - If you've had any sightings, concentrate heavily on that area in a 1-mile radius. Dogs often establish a circuit - they rotate between a few spots for food, water, and shelter. Map all sightings and look for patterns. Set up feeding stations and cameras in sighting zones. Do dawn/dusk searches there. Many dogs are caught when owners identify their pattern and set a trap in the right spot."
           ],
-          reassurance: "Dogs can survive weeks outdoors. Don't give up."
+          reassurance: "Dogs have incredible survival instincts and can live outdoors for months eating from dumpsters, drinking from puddles, and hiding in sheltered spots. DO NOT GIVE UP. Many dogs are recovered 1-2 weeks after going missing when they're finally spotted at their feeding pattern location, someone recognizes them from a flyer, or they're caught in a humane trap. Your persistence matters - keep searching, keep posting, keep checking shelters."
         },
-        days_ago: {
+        one_to_two_weeks: {
           priority_actions: [
-            "SHIFT TO SUSTAINED CAMPAIGN - this is now about persistence",
-            "Hire pet tracker if available in your area",
-            "Contact local news - they often cover lost pets",
-            "Expand flyer radius to 5+ miles"
+            "SHIFT TO PATTERN-BASED TRACKING - Your dog has likely established a routine circuit by now. They've found reliable food sources (dumpsters, feeding spots, maybe someone feeding them thinking they're a stray), water sources, and hiding/sleeping spots. Map EVERY sighting you've received (even unconfirmed ones). Plot them on a real map or Google Maps. Look for geographic clusters - most dogs establish a 1-3 mile territory and rotate through it on a predictable schedule. Once you identify the pattern, you can set strategic humane traps in high-probability areas. This is often how dogs missing 1-2 weeks are finally recovered.",
+            "CONSIDER PROFESSIONAL PET DETECTIVE/TRACKER - At this point, professional help is strongly recommended if you haven't already hired someone. They bring: (1) Trained trailing dogs that can follow your dog's scent even days later, (2) Specialized humane traps and trail cameras, (3) Experience reading sighting patterns and predicting movement, (4) Knowledge of how scared vs. friendly dogs behave long-term, (5) Access to networks of other searchers and shelters. Cost is typically $500-1500 but recovery rates are high. Search 'pet detective [your state]' or contact Missing Animal Response Network (MARN) for certified trackers.",
+            "CONTACT LOCAL NEWS AND COMMUNITY MEDIA - Many local news stations, newspapers, and radio stations run heartwarming 'lost pet' stories, especially if your search efforts are extensive or your dog has been missing a long time. Email them with: Your story, high-quality photos of your dog, description of your search efforts, and emotional appeal. Local TV coverage can reach thousands of people in your area in one day. Also contact: Nextdoor neighborhood newsletters, community Facebook pages, local blogs, and community bulletin boards. Public exposure often leads to the critical sighting that brings a dog home.",
+            "EXPAND PHYSICAL SEARCH RADIUS TO 10+ MILES - After 1-2 weeks, some dogs have traveled significant distances, while others stay in a tight area but haven't been spotted. Expand your flyer distribution and active searching to a 10-mile radius from where they went missing. Target: All shelters within 30 miles (visit weekly), every vet office and pet store, every dog park and park bulletin board, feed stores, farm supply stores (rural areas), and high-traffic areas like grocery stores and gas stations. Refresh old flyers that have weathered and add new ones in outer radius."
+          ],
+          immediate_checklist: [
+            "SET MULTIPLE HUMANE TRAPS IN HIGH-PROBABILITY AREAS - Borrow or rent 2-3 humane traps from animal control, rescues, or rent from pet detective services. Place them strategically in areas where: (1) Sightings have occurred, (2) Food is available (near dumpsters, feeding stations), (3) Shelter exists (wooded areas near neighborhoods, industrial back lots). Bait with extremely stinky food: canned mackerel, rotisserie chicken, sardines, your dog's favorite treats. Check traps every 2-3 hours (set phone alarms). Cover 3 sides with tarps to create cave-like feeling. Use YOUR worn clothing inside the trap - your scent may attract them. Many dogs missing 1-2 weeks are finally caught in traps.",
+            "ESTABLISH FEEDING STATIONS WITH CAMERAS AT MULTIPLE LOCATIONS - If sightings suggest your dog is in a specific area but you can't catch them, set up 2-3 feeding stations in that zone. Use: Large bowls of wet food, fresh water, trail cameras ($40-80 on Amazon) or ask neighbors to let you use their security cameras. Check camera footage daily to see what time your dog visits (if they do). This tells you when to return to try catching them. Some scared dogs won't come to owners but will eat at regular times, allowing you to pattern their behavior.",
+            "REVISIT YOUR HOME AREA INTENSIVELY - This seems counterintuitive when your dog has been missing 1-2 weeks, but many dogs DO circle back to their home territory around the 7-14 day mark. They've been surviving elsewhere but they remember home. Do another thorough search of: Your property, your neighbors' properties (ask to check decks/sheds again), your street, your block. Maintain the feeding station and worn clothing at your door. Keep the same routine - many dogs return when they see/smell familiar patterns.",
+            "PARTNER WITH AND ACTIVATE BREED-SPECIFIC RESCUE NETWORKS - If your dog is a specific breed (even if mixed), contact breed-specific rescues regionally and nationally. Post in breed-specific Facebook groups: 'Lost [Breed] in [City]'. Breed enthusiasts are passionate and have huge networks. They'll share your post widely, watch for your dog at shelters and rescues, and offer breed-specific advice (like 'Huskies travel far' or 'Beagles follow their nose to food'). National groups can alert rescues across multiple states if you think your dog may have traveled far.",
+            "CONTINUE SYSTEMATIC SHELTER CHECKS - Visit every shelter within 20 miles AT LEAST once per week, ideally twice. Don't just call - go in person. Shelter populations turn over quickly. A dog that wasn't there Monday might be there Friday. Check websites daily. Some dogs are turned in as strays 1-2 weeks later when someone finally catches them or when they show up at someone's house repeatedly. Don't assume 'they would have called by now' - microchip databases have errors, collars fall off, and shelters get overwhelmed."
           ],
           long_term_strategy: [
-            "Dogs enter survival mode after 3-4 days",
-            "Set up feeding stations along likely routes",
-            "Partner with homeless community - they see everything",
-            "Check shelter websites daily - new intakes",
-            "Consider humane traps with your scent items"
+            "PSYCHOLOGICAL UNDERSTANDING: SURVIVAL MODE - After 1-2 weeks, dogs are in full survival mode. Friendly dogs may now be acting feral/scared. They've learned where to find food and may avoid people entirely, even you. They're hyper-vigilant and skittish. This is why traps often work better than calling at this stage. Don't be discouraged if your dog doesn't come when called or even seems not to recognize you from a distance - trauma and survival instinct have taken over. Once caught and brought home, they typically return to normal within hours to days.",
+            "PATTERN TRACKING: Dogs often circle back to home territory every 7-10 days even if they're living elsewhere. They may pass through your neighborhood at night, check your yard, and leave. This is why maintaining a feeding station with cameras at home is critical even weeks later. Some dogs are caught when they finally approach the house at 3am on day 12 and trigger the camera, allowing the owner to go out and catch them. The circling pattern is well-documented.",
+            "COMMUNITY EXHAUSTION: People who were eager to help in week 1 are less engaged by week 2. You need to re-energize your community effort. Post updates with new information (not just 'still missing'). Share any sightings. Thank people for their help. Ask for specific help ('Can someone check industrial area behind Main Street'). Personal appeals work better than generic posts. Consider offering a significant reward (if you can afford it) - this re-motivates people who've stopped looking.",
+            "DON'T GIVE UP - Many dog owners give up after 10-14 days, assuming the dog is gone forever. This is a tragic mistake. Dogs survive for months and are regularly recovered 3, 4, even 6 weeks after going missing. Someone recognizes them from a flyer, a trail camera catches them, they're trapped at a feeding station, or they finally return home. Your persistence in checking shelters, maintaining traps, and keeping your search active directly increases your chance of recovery. Documented cases show dogs recovered after months."
           ],
-          pattern_recognition: [
-            "Dogs often circle back after 5-7 days",
-            "Check your home area repeatedly",
-            "They may be nearby but too scared to approach",
-            "Early morning (5-6am) most likely sighting time"
+          reassurance: "DO NOT LOSE HOPE. Dogs missing 1-2 weeks are recovered regularly - sometimes caught in traps, sometimes spotted from aged flyers, sometimes they return home on their own. Your dog is likely surviving within a few miles of where they went missing, following a routine pattern. The key is persistence: Keep searching, keep traps active, keep checking shelters, keep flyers posted. You ARE going to find your dog."
+        },
+        more_than_two_weeks: {
+          priority_actions: [
+            "MAINTAIN FEEDING STATIONS AND TRAPS INDEFINITELY - Do not remove them. Dogs have been recovered after 2, 3, 4+ months when they finally entered a trap they'd been avoiding. Keep multiple traps active in areas where sightings have occurred or where your dog is likely traveling. Bait with fresh, extremely smelly food every 2-3 days. Check trail cameras daily. Some dogs learn the pattern and come at very specific times (like 2:47am every Tuesday). Document any footage of ANY dog - it shows food sources are working. Your dog may visit between camera triggers.",
+            "EXPAND TO REGIONAL AND STATEWIDE SEARCHES - If your dog has been missing 2+ weeks with no sightings in your area, expand your search radius significantly. Post to: Statewide lost pet Facebook groups, neighboring counties, shelters 50+ miles away (dogs have traveled far), rescues across the state, and statewide animal control networks. Some dogs end up far from home - picked up by someone driving through, followed a road out of town, or traveled along highways/train tracks. Check shelters in neighboring cities monthly. One dog was found 80 miles away after 3 months.",
+            "PROFESSIONAL SUPPORT: HIRE PET DETECTIVE IF NOT ALREADY - At 2+ weeks, professional help is critical unless you've had recent sightings. A trained pet detective can: Re-analyze all your data (sightings, search areas, your dog's behavior profile), use scent-tracking dogs to determine if your dog is still in the area, set up advanced trap configurations, provide ongoing support and strategy, and significantly improve your chances of recovery. While expensive ($1500-3000+ for extended campaigns), success rates are high. Some offer payment plans or volunteer help for hardship cases.",
+            "GRIEF AND HOPE BALANCE - This is incredibly difficult, but you need to balance realistic hope with self-care. At 2+ weeks, it's natural to feel despair, but dogs ARE recovered at this stage and beyond. Take breaks from searching to rest and recharge, but don't stop the passive activities: Keep traps running, keep checking shelter websites weekly, keep your phone on for sighting calls. Join lost pet support groups online - they provide emotional support and real success stories that keep you motivated. Your mental health matters, AND your dog still needs you to keep trying."
           ],
-          reassurance: "Dogs have been recovered after months. Stay persistent."
+          immediate_checklist: [
+            "CHECK EVERY 'FOUND DOG' LISTING WEEKLY - Even if the description doesn't match perfectly. Shelters, Craigslist, Facebook Marketplace, Nextdoor, Pawboost. People misidentify breeds and colors. Photos can be terrible quality. If there's any possibility it could be your dog (same general size, vaguely similar), investigate. Call, ask for more photos, go see the dog in person if possible. One owner found their 'brown lab' listed as a 'tan retriever mix' in a shelter 40 miles away 6 weeks later - staff had misidentified it completely.",
+            "MAINTAIN YOUR HOME ROUTINE IDENTICALLY - If you usually walk at 7am, keep walking that same route at 7am. Keep your car parked in the same spot. Keep outdoor lights on same schedule. Keep your dog's food/water station in the exact same spot. Many dogs who return after weeks/months do so because they recognize the unchanged routine. They may watch your house for days before approaching. One dog missing 8 weeks finally came home when the owner was in the backyard at the same time they used to play fetch, and the dog recognized the pattern.",
+            "MICROCHIP AND COLLAR RECHECK - If your dog had a microchip, call the registry AGAIN to verify: (1) Your contact info is current, (2) Microchip is flagged as 'LOST' in their system, (3) Secondary contacts are listed. Many dogs are found months later, scanned at a shelter, but the owner had moved or changed phone numbers and wasn't reached. If your dog had a collar with tags, those may have fallen off by now - some dogs are found without ID but are later matched to owner through photos or description. Never assume 'they'll call if someone finds them' - outdated info prevents reunions.",
+            "DOCUMENT EVERYTHING: PHOTOS, SIGHTINGS, SEARCH LOG - Keep a detailed log of: Every sighting (date, time, exact location, who saw them, description of behavior), everywhere you've searched, where you've posted flyers, which shelters you've checked and when. This data is invaluable if you hire a professional tracker later - they can see patterns you missed. It also prevents duplicate effort and helps you identify gaps in your search. Take photos of your search area, your trap setups, your flyers. If you eventually find your dog, this documentation can help others.",
+            "SAME TECHNIQUES STILL WORK - All the advice for 'less than 24 hours' STILL APPLIES at 2+ weeks. Dogs respond to the same things: Your scent (worn clothing), familiar sounds (can openers, treat bags, your voice recorded), high-value food, litter boxes (for cats), trail cameras, systematic searches of hiding spots, dawn/dusk searches. Don't assume 'it's too late for that'. Many dogs missing weeks/months are found using the exact same techniques as day-1 searches. The fundamentals don't change - your dog is still YOUR dog."
+          ],
+          long_term_strategy: [
+            "SURVIVAL CAPABILITY - Dogs are incredible survivors. They eat from dumpsters, catch small prey, find water in puddles and creeks, and shelter under decks, in sheds, in wooded areas, or in abandoned structures. Your dog can absolutely survive 2+ weeks, months, even a year in some cases. Don't assume they haven't survived. Weather is rarely a fatal factor except in extreme cold. Urban/suburban dogs adapt to outdoor life quickly. Rural dogs may travel far but find farms or ranches where they're tolerated. Keep hope alive - your dog is likely alive.",
+            "THEY MIGHT HAVE A 'NEW HOME' - Some dogs missing 2+ weeks have been semi-adopted by well-meaning people who found them, couldn't find the owner (or didn't look very hard), and decided to keep them. This is why flyers and social media are critical even weeks later - someone might see your flyer and realize the 'stray' they took in is actually YOUR dog. Post in local groups asking 'Did anyone recently take in a stray dog?' with description and photo. Check Craigslist 'pets' section for people posting 'found dog - no owner' weeks ago.",
+            "CIRCLING PATTERN STILL APPLIES - Dogs missing 2+ weeks sometimes suddenly return home on their own, usually at night or early morning. No one knows exactly why - some theorize they finally overcome their fear, or a pattern clicks, or they get chased out of their survival area and head home instinctively. Keep your door area set up for return: Feeding station, worn clothing, familiar items, door access if safe. Some dogs missing 4-6 weeks are found sleeping on their own porch one morning as if they were never gone.",
+            "SUCCESS STORIES ARE REAL - Join online support groups and you'll see regular posts: 'Found after 3 weeks!' 'Came home after 2 months!' 'Trapped after 45 days!' These aren't rare miracles - they're documented, regular occurrences. With sustained effort (traps, flyers, shelter checks, community engagement), recovery at 2+ weeks is absolutely possible. The difference between dogs recovered and dogs lost forever is often just that the owner kept trying."
+          ],
+          reassurance: "Dogs have been recovered after months missing - trapped at feeding stations, recognized from aged flyers, turned in to shelters, or walking home on their own. Your dog is likely alive and survives day by day. Don't give up. Keep checking shelters, keep traps active, keep flyers posted. Every week you continue is another week your dog might be found. Miracles happen, but they happen to people who keep trying. You can do this."
         }
       },
       door_left_open: {
-        just_now: {
+        less_than_day: {
           priority_actions: [
             "CHECK YOUR ENTIRE HOUSE FIRST - This sounds crazy but 30% of 'door dashing' dogs are actually still inside, hiding because they're scared of getting in trouble or because all the outdoor sounds scared them back inside. Check under beds, in closets, behind furniture, in bathrooms, in the basement, in the garage - everywhere. Call them in a happy voice, not an angry one. Shake treats. Many owners search outside for an hour only to find their dog was hiding under their own bed the whole time.",
             "IMMEDIATELY walk your EXACT daily walk route - the same route you walk every single day, in the same direction. This is critical because muscle memory is strong in dogs. They'll often autopilot along the familiar path, sniffing the same spots, doing their usual routine. Bring high-value treats and their favorite toy. Walk at your normal pace. If you usually walk in the morning, they might follow the morning route. Check every spot where they normally stop to sniff or go to the bathroom. 50% of door dashers are found on their normal walking route.",
@@ -136,7 +159,7 @@ const PetRecoveryAdvice = {
         }
       },
       got_spooked: {
-        just_now: {
+        less_than_day: {
           priority_actions: [
             "SCARED DOGS HIDE - Check under everything within 500 feet",
             "Move slowly and speak softly - they're in flight mode",
@@ -204,7 +227,7 @@ const PetRecoveryAdvice = {
   cat: {
     scenarios: {
       indoor_cat_escaped: {
-        just_now: {
+        less_than_day: {
           priority_actions: [
             "STOP AND DON'T PANIC SEARCH - Indoor cats hide VERY close when scared, usually within 50-200 feet of where they escaped. Unlike dogs, cats don't run far - they find the nearest hiding spot and freeze. The most common places are: under your own deck/porch, in your own bushes, inside your garage/shed, under your neighbor's deck, or inside their garage if the door was open. 75% are found within a 5-house radius. Do NOT organize a large search party yet - it creates too much activity that keeps them frozen in hiding.",
             "Get a BRIGHT flashlight immediately (use your phone if needed, but a real flashlight is better). Indoor cats instinctively go LOW and DARK when scared. Get on your hands and knees and check UNDER everything: your deck, your porch, your neighbor's deck, stairs, bushes, cars, porches, sheds, wood piles, boats, and tarps. Look for eyes reflecting in the dark. Check the same spots multiple times - scared cats hide so well you might miss them the first time. Check inside wheel wells of cars.",
@@ -233,7 +256,7 @@ const PetRecoveryAdvice = {
           ],
           reassurance: "75% of indoor cats are found within 200 feet of home, and 95% are found within a 4-house radius. Indoor cats almost never travel far - they hide close by. Many are found under their own deck or in their own garage after days of hiding. The key is patience, thorough searching of close areas, and understanding that they won't respond normally when terrified."
         },
-        hours_ago: {
+        one_to_three_days: {
           priority_actions: [
             "PLAN A NIGHT SEARCH - This is absolutely critical for indoor cats. Between 10pm-2am when the neighborhood is quiet, scared cats feel safe enough to move from their hiding spot. Plan to go out at midnight with a bright flashlight and move very slowly and quietly through your property and neighbors' yards. Sit silently for 10 minutes in different spots. Don't call loudly - speak softly or just shake treats. Most indoor cats are found during these quiet night hours after hiding frozen all day. Set an alarm to wake up at 4am for another search during the quietest time.",
             "Create a 'comfort zone' at your door with strong familiar scents. Put out: their USED litter box (unwashed - the smell is key), a bowl of their favorite wet food (tuna works great), fresh water, their bed or blanket, and a piece of YOUR unworn clothing (a worn t-shirt you slept in). Don't put these in the backyard - put them at whichever door is closest to where they escaped. Indoor cats may return to the door but won't enter if it's closed or if they can't smell familiar scents. Leave the screen door open if safe to do so (main door closed).",
@@ -453,20 +476,33 @@ function getAdvice(petType, scenario, timeElapsed) {
   };
 
   try {
-    // Try to find specific advice
-    if (PetRecoveryAdvice[pet]?.scenarios?.[situation]?.[time]) {
-      const specific = PetRecoveryAdvice[pet].scenarios[situation][time];
-      advice.priority = specific.priority_actions || [];
-      advice.checklist = specific.immediate_checklist || specific.critical_info || specific.search_pattern || specific.outdoor_specific || [];
-      advice.tips = specific.mistakes_to_avoid || specific.critical_wisdom || specific.calming_tactics || [];
-      advice.reassurance = specific.reassurance || "";
+    // Try to find specific advice for this time period
+    let specificAdvice = PetRecoveryAdvice[pet]?.scenarios?.[situation]?.[time];
+
+    // If not found, try fallback to less_than_day (core techniques apply across all time periods)
+    if (!specificAdvice) {
+      specificAdvice = PetRecoveryAdvice[pet]?.scenarios?.[situation]?.['less_than_day'];
+    }
+
+    if (specificAdvice) {
+      advice.priority = specificAdvice.priority_actions || [];
+      advice.checklist = specificAdvice.immediate_checklist || specificAdvice.critical_info || specificAdvice.search_pattern || specificAdvice.outdoor_specific || specificAdvice.expanded_search || specificAdvice.search_zones || specificAdvice.long_term_strategy || [];
+      advice.tips = specificAdvice.mistakes_to_avoid || specificAdvice.critical_wisdom || specificAdvice.calming_tactics || specificAdvice.indoor_cat_specific || [];
+      advice.reassurance = specificAdvice.reassurance || "";
+
+      // Add time-specific context if using fallback
+      if (PetRecoveryAdvice[pet]?.scenarios?.[situation]?.[time] === undefined && time !== 'less_than_day') {
+        advice.reassurance = "NOTE: The same core search techniques apply regardless of how long your pet has been missing. " + advice.reassurance;
+      }
     } else {
-      // Fallback to general advice for pet type
-      advice.priority = ["Contact local shelters", "Post on social media", "Create flyers"];
-      advice.reassurance = "Stay calm and systematic. Most pets are found.";
+      // Ultimate fallback
+      advice.priority = ["Contact local animal shelters immediately and file a lost pet report", "Post on social media (Nextdoor, Facebook, Ring Neighbors) with clear photos", "Create and distribute flyers in your neighborhood", "Search systematically in expanding radius from where they were last seen"];
+      advice.reassurance = "Stay calm and systematic. Most pets are found close to home. Keep searching, keep posting, and don't give up.";
     }
   } catch (error) {
     console.error("Error getting advice:", error);
+    advice.priority = ["Contact local shelters", "Post on social media", "Search your immediate area"];
+    advice.reassurance = "Stay calm. Most pets are found.";
   }
 
   return advice;

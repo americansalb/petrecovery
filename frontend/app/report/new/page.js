@@ -225,44 +225,54 @@ export default function ReportLostPet() {
               gap: '0.75rem',
             }}>
               <button
-                onClick={() => handleTimeSelect('just_now')}
+                onClick={() => handleTimeSelect('less_than_day')}
                 style={{
                   ...buttonStyle,
                   backgroundColor: '#dc2626',
                   color: 'white',
                 }}
               >
-                ⏰ Just Now (within last hour)
+                ⏰ Less Than 24 Hours Ago
               </button>
               <button
-                onClick={() => handleTimeSelect('hours_ago')}
+                onClick={() => handleTimeSelect('one_to_three_days')}
                 style={{
                   ...buttonStyle,
                   backgroundColor: '#ea580c',
                   color: 'white',
                 }}
               >
-                🕐 Hours Ago (1-12 hours)
+                📅 1-3 Days Ago
               </button>
               <button
-                onClick={() => handleTimeSelect('yesterday')}
+                onClick={() => handleTimeSelect('three_to_seven_days')}
                 style={{
                   ...buttonStyle,
                   backgroundColor: '#f59e0b',
                   color: 'white',
                 }}
               >
-                📅 Yesterday (12-48 hours)
+                📆 3-7 Days Ago
               </button>
               <button
-                onClick={() => handleTimeSelect('days_ago')}
+                onClick={() => handleTimeSelect('one_to_two_weeks')}
                 style={{
                   ...buttonStyle,
                   backgroundColor: '#84cc16',
                   color: 'white',
                 }}
               >
-                📆 Days Ago (2+ days)
+                🗓️ 1-2 Weeks Ago
+              </button>
+              <button
+                onClick={() => handleTimeSelect('more_than_two_weeks')}
+                style={{
+                  ...buttonStyle,
+                  backgroundColor: '#0ea5e9',
+                  color: 'white',
+                }}
+              >
+                📊 More Than 2 Weeks Ago
               </button>
             </div>
             <button
