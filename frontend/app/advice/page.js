@@ -140,13 +140,13 @@ export default function AdvicePage() {
             backgroundClip: 'text',
             marginBottom: '0.5rem',
           }}>
-            Expert Pet Recovery Advice
+            What To Do If Your Pet Is Lost
           </h1>
           <p style={{
             fontSize: '1.1rem',
             color: theme.colors.gray[700],
           }}>
-            Get professional strategies tailored to your situation - no account needed
+            Proven recovery strategies tailored to your situation—no account needed
           </p>
         </div>
 
@@ -492,7 +492,7 @@ export default function AdvicePage() {
                   boxShadow: theme.shadows.md,
                 }}
               >
-                {copied ? '✓ Copied!' : '📱 Copy This Advice'}
+                {copied ? '✓ Copied to Clipboard!' : '📋 Copy to Clipboard'}
               </button>
 
               <Link
