@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { theme } from '../../lib/theme';
 import BreedSelector from '../../components/BreedSelector';
+import ColorSelector from '../../components/ColorSelector';
 
 export default function ReportLostPet() {
   const { data: session } = useSession();
@@ -830,21 +831,11 @@ export default function ReportLostPet() {
 
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
-                Primary Color/Pattern
+                Color/Pattern (select multiple)
               </label>
-              <input
-                type="text"
+              <ColorSelector
                 value={reportData.color}
-                onChange={(e) => setReportData({ ...reportData, color: e.target.value })}
-                placeholder="Brown, White and Black, Orange Tabby, etc."
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1rem',
-                }}
-                required
+                onChange={(color) => setReportData({ ...reportData, color })}
               />
             </div>
 

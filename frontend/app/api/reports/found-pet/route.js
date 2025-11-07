@@ -78,11 +78,60 @@ export async function POST(request) {
       accountCreated = true;
     }
 
+    // Auto-create patrol profile for found pet reporters (their entry point to the community)
+    const existingPatrolProfile = await prisma.patrolProfile.findUnique({
+      where: { userId: user.id }
+    });
+
+    if (!existingPatrolProfile) {
+      // Create user profile with location from where they found the pet
+      const existingProfile = await prisma.userProfile.findUnique({
+        where: { userId: user.id }
+      });
+
+      if (!existingProfile) {
+        await prisma.userProfile.create({
+          data: {
+            userId: user.id,
+            latitude: center[0],
+            longitude: center[1],
+            address: foundAddress,
+            // Extract city/state/zip from address if possible (simple approach)
+            city: foundAddress.split(',')[0]?.trim() || '',
+          }
+        });
+      }
+
+      // Create patrol profile with 10 mile radius (default for found pet reporters)
+      await prisma.patrolProfile.create({
+        data: {
+          userId: user.id,
+          radiusMiles: 10,
+          alertMethod: 'EMAIL',
+          instantAlerts: true,
+          isActive: true,
+        }
+      });
+    }
+
     // 3. Create pet record (finder is temporary owner until matched)
+    // Generate smart fallback name if pet name is unknown
+    let displayName = petName;
+    if (!displayName || displayName.trim() === '' || displayName.toLowerCase() === 'unknown') {
+      // Build name from breed/color/size
+      const parts = [];
+      if (color) parts.push(color);
+      if (size) parts.push(size);
+      if (breed) parts.push(breed);
+      if (petType) parts.push(petType.charAt(0).toUpperCase() + petType.slice(1).toLowerCase());
+
+      displayName = parts.length > 0 ? parts.join(' ') : 'Unknown Pet';
+    }
+
     const pet = await prisma.pet.create({
       data: {
         ownerId: user.id, // Finder is temporary owner
-        name: petName || 'Unknown',
+        name: displayName,
         species: petType.toUpperCase(),
         breed: breed || '',
         color,
@@ -170,6 +219,17 @@ export async function POST(request) {
               <p>We've created an account for you:</p>
               <p><strong>Email:</strong> ${email}<br/>
               <strong>Temporary Password:</strong> <code style="background: #d1fae5; padding: 2px 6px; border-radius: 3px;">${tempPassword}</code></p>
+            </div>
+
+            <div style="background: #dbeafe; border-left: 4px solid #0ea5e9; padding: 15px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #0c4a6e;">🦸 Welcome to the Patrol!</h3>
+              <p>You've been automatically added to our community patrol. You can now:</p>
+              <ul style="margin: 10px 0;">
+                <li>View all lost & found pets in your area</li>
+                <li>Access the searchable pet database</li>
+                <li>Receive alerts about missing pets nearby</li>
+                <li>Help reunite more pets with their families</li>
+              </ul>
             </div>
 
             <p><a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/login" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Login to Dashboard</a></p>
