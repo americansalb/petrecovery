@@ -38,6 +38,7 @@ export default function ReportLostPet() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [reportId, setReportId] = useState(null);
+  const [photos, setPhotos] = useState([]);
 
   // Initialize map
   useEffect(() => {
@@ -102,6 +103,36 @@ export default function ReportLostPet() {
     }
   }, [radiusMiles]);
 
+  const handlePhotoUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const maxPhotos = 5;
+
+    if (photos.length + files.length > maxPhotos) {
+      setError(`You can only upload up to ${maxPhotos} photos`);
+      return;
+    }
+
+    // Convert files to data URLs (base64)
+    files.forEach(file => {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        setError('Each photo must be under 5MB');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotos(prev => [...prev, reader.result]);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    setError(null);
+  };
+
+  const removePhoto = (index) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
   const geocodeAddress = async () => {
     if (!lastSeenAddress || lastSeenAddress.length < 3) {
       setError('Please enter a valid address or zip code');
@@ -160,7 +191,7 @@ export default function ReportLostPet() {
           radiusMiles,
           timeElapsed,
           petType,
-          photos: [], // TODO: Add photo upload in next update
+          photos: photos, // Base64 encoded photos
         }),
       });
 
@@ -824,6 +855,71 @@ export default function ReportLostPet() {
                   </>
                 )}
               </select>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
+                Photos of Your Pet
+              </label>
+              <p style={{ fontSize: '0.9rem', color: theme.colors.gray[600], marginBottom: '0.5rem' }}>
+                Upload up to 5 clear photos (max 5MB each)
+              </p>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handlePhotoUpload}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: theme.radius.lg,
+                  fontSize: '1rem',
+                }}
+              />
+              {photos.length > 0 && (
+                <div style={{
+                  display: 'flex',
+                  gap: '0.5rem',
+                  marginTop: '1rem',
+                  flexWrap: 'wrap',
+                }}>
+                  {photos.map((photo, index) => (
+                    <div key={index} style={{ position: 'relative' }}>
+                      <img
+                        src={photo}
+                        alt={`Pet photo ${index + 1}`}
+                        style={{
+                          width: '100px',
+                          height: '100px',
+                          objectFit: 'cover',
+                          borderRadius: theme.radius.md,
+                          border: '2px solid #e5e7eb',
+                        }}
+                      />
+                      <button
+                        onClick={() => removePhoto(index)}
+                        style={{
+                          position: 'absolute',
+                          top: '-8px',
+                          right: '-8px',
+                          background: '#dc2626',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: '24px',
+                          height: '24px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          fontSize: '14px',
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>

@@ -283,19 +283,53 @@ export default function DashboardPage() {
                           {report.sightings} sightings reported
                         </p>
                       </div>
-                      <Link
-                        href={`/reports/${report.id}`}
-                        style={{
-                          padding: '0.75rem 1.5rem',
-                          background: '#f1f5f9',
-                          color: theme.colors.gray[700],
-                          borderRadius: theme.radius.lg,
-                          textDecoration: 'none',
-                          fontWeight: '600',
-                        }}
-                      >
-                        View Details →
-                      </Link>
+                      <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        <button
+                          onClick={async () => {
+                            if (confirm(`Mark ${report.petName} as found?`)) {
+                              try {
+                                const res = await fetch('/api/reports/found', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ reportId: report.id }),
+                                });
+                                if (res.ok) {
+                                  // Refresh the page to show updated data
+                                  window.location.reload();
+                                } else {
+                                  alert('Failed to mark as found. Please try again.');
+                                }
+                              } catch (err) {
+                                alert('Error: ' + err.message);
+                              }
+                            }
+                          }}
+                          style={{
+                            padding: '0.75rem 1.5rem',
+                            background: '#10b981',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: theme.radius.lg,
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          ✓ Found!
+                        </button>
+                        <Link
+                          href={`/reports/${report.id}`}
+                          style={{
+                            padding: '0.75rem 1.5rem',
+                            background: '#f1f5f9',
+                            color: theme.colors.gray[700],
+                            borderRadius: theme.radius.lg,
+                            textDecoration: 'none',
+                            fontWeight: '600',
+                          }}
+                        >
+                          View Details →
+                        </Link>
+                      </div>
                     </div>
                   ))}
                 </div>
