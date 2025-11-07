@@ -588,7 +588,7 @@ export default function DashboardPage() {
                       </p>
                     </div>
                     <Link
-                      href="/patrol/database"
+                      href="/database"
                       style={{
                         padding: '1.25rem 2.5rem',
                         background: 'white',

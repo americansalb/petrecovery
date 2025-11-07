@@ -289,7 +289,7 @@ export default function JoinPatrol() {
               Go to Dashboard
             </Link>
             <Link
-              href="/patrol/database"
+              href="/database"
               style={{
                 padding: '1rem 2rem',
                 background: '#10b981',

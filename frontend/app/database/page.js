@@ -1,43 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-
-export default function PatrolDatabasePage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    // Redirect to the public database page
-    router.push('/database');
-  }, [router]);
-
-  return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)',
-    }}>
-      <div style={{ textAlign: 'center' }}>
-        <p>Redirecting to database...</p>
-      </div>
-    </div>
-  );
-}
-
-/*
-// OLD CODE - Now redirects to /database which is publicly accessible
-
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { theme } from '../../lib/theme';
+import { theme } from '../lib/theme';
 
-export default function PatrolDatabasePage() {
+export default function PublicDatabasePage() {
   const { data: session, status } = useSession();
-  const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [reports, setReports] = useState([]);
@@ -46,13 +15,7 @@ export default function PatrolDatabasePage() {
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [speciesFilter, setSpeciesFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ACTIVE');
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login');
-    }
-  }, [status, router]);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     async function fetchDatabase() {
@@ -63,27 +26,25 @@ export default function PatrolDatabasePage() {
         if (statusFilter) params.append('status', statusFilter);
         if (searchQuery) params.append('search', searchQuery);
 
-        const res = await fetch(`/api/patrol/database?${params.toString()}`);
+        const res = await fetch(`/api/database?${params.toString()}`);
 
         if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'Failed to load database');
+          throw new Error('Failed to load database');
         }
 
         const data = await res.json();
         setReports(data.reports);
         setFilteredReports(data.reports);
+        setIsAuthenticated(data.isAuthenticated);
         setLoading(false);
       } catch (err) {
-        setError(err.message);
+        console.error('Error fetching database:', err);
         setLoading(false);
       }
     }
 
-    if (status === 'authenticated') {
-      fetchDatabase();
-    }
-  }, [status, searchQuery, typeFilter, speciesFilter, statusFilter]);
+    fetchDatabase();
+  }, [searchQuery, typeFilter, speciesFilter, statusFilter]);
 
   if (loading) {
     return (
@@ -110,77 +71,7 @@ export default function PatrolDatabasePage() {
               100% { transform: rotate(360deg); }
             }
           `}</style>
-          <p style={{ color: theme.colors.gray[600] }}>Loading patrol database...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)',
-        padding: '2rem',
-      }}>
-        <div style={{
-          background: 'white',
-          borderRadius: theme.radius.xl,
-          padding: '3rem',
-          boxShadow: theme.shadows.lg,
-          textAlign: 'center',
-          maxWidth: '500px',
-        }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🚫</div>
-          <h1 style={{
-            fontSize: '1.75rem',
-            fontWeight: '800',
-            marginBottom: '1rem',
-            color: theme.colors.gray[900],
-          }}>
-            Access Denied
-          </h1>
-          <p style={{
-            fontSize: '1.05rem',
-            color: theme.colors.gray[600],
-            marginBottom: '2rem',
-          }}>
-            {error}
-          </p>
-          {error.includes('patrol members') && (
-            <Link
-              href="/patrol/join"
-              style={{
-                display: 'inline-block',
-                padding: '1rem 2rem',
-                background: '#0ea5e9',
-                color: 'white',
-                borderRadius: theme.radius.lg,
-                textDecoration: 'none',
-                fontWeight: '700',
-                marginRight: '1rem',
-              }}
-            >
-              Join Patrol
-            </Link>
-          )}
-          <Link
-            href="/dashboard"
-            style={{
-              display: 'inline-block',
-              padding: '1rem 2rem',
-              background: '#f1f5f9',
-              color: theme.colors.gray[700],
-              borderRadius: theme.radius.lg,
-              textDecoration: 'none',
-              fontWeight: '700',
-            }}
-          >
-            ← Back to Dashboard
-          </Link>
+          <p style={{ color: theme.colors.gray[600] }}>Loading pet database...</p>
         </div>
       </div>
     );
@@ -209,7 +100,7 @@ export default function PatrolDatabasePage() {
           gap: '1rem',
         }}>
           <Link
-            href="/dashboard"
+            href="/"
             style={{
               fontSize: '1.75rem',
               fontWeight: '800',
@@ -217,18 +108,53 @@ export default function PatrolDatabasePage() {
               textDecoration: 'none',
             }}
           >
-            ← PetRecovery
+            🐾 PetRecovery
           </Link>
-          <div style={{
-            padding: '0.5rem 1rem',
-            background: '#dbeafe',
-            border: '2px solid #0ea5e9',
-            borderRadius: theme.radius.lg,
-            fontSize: '0.9rem',
-            fontWeight: '600',
-            color: '#075985',
-          }}>
-            🦸 Patrol Member Database
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            {status === 'authenticated' ? (
+              <>
+                <div style={{
+                  padding: '0.5rem 1rem',
+                  background: '#d1fae5',
+                  border: '2px solid #10b981',
+                  borderRadius: theme.radius.lg,
+                  fontSize: '0.85rem',
+                  fontWeight: '600',
+                  color: '#065f46',
+                }}>
+                  ✓ Signed In
+                </div>
+                <Link
+                  href="/dashboard"
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: '#0ea5e9',
+                    color: 'white',
+                    borderRadius: theme.radius.md,
+                    textDecoration: 'none',
+                    fontWeight: '600',
+                    fontSize: '0.95rem',
+                  }}
+                >
+                  My Dashboard
+                </Link>
+              </>
+            ) : (
+              <Link
+                href="/login"
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#0ea5e9',
+                  color: 'white',
+                  borderRadius: theme.radius.md,
+                  textDecoration: 'none',
+                  fontWeight: '600',
+                  fontSize: '0.95rem',
+                }}
+              >
+                Sign In to View Contacts
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -246,15 +172,75 @@ export default function PatrolDatabasePage() {
             marginBottom: '0.5rem',
             color: theme.colors.gray[900],
           }}>
-            Pet Recovery Database
+            Lost & Found Pet Database
           </h1>
           <p style={{
             fontSize: '1.1rem',
             color: theme.colors.gray[600],
           }}>
-            Search and browse all lost and found pet reports. Exclusive access for patrol members.
+            Browse all lost and found pet reports. {!isAuthenticated && 'Sign in to view contact information.'}
           </p>
         </div>
+
+        {/* Alert for unauthenticated users */}
+        {!isAuthenticated && (
+          <div style={{
+            background: '#fef3c7',
+            border: '2px solid #f59e0b',
+            borderRadius: theme.radius.lg,
+            padding: '1.5rem',
+            marginBottom: '2rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+          }}>
+            <div style={{ fontSize: '2rem' }}>🔒</div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{
+                fontSize: '1.2rem',
+                fontWeight: '700',
+                marginBottom: '0.5rem',
+                color: '#78350f',
+              }}>
+                Sign In to View Contact Information
+              </h3>
+              <p style={{ color: '#92400e', marginBottom: '1rem' }}>
+                Create a free account to see contact details and help reunite pets with their families.
+              </p>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <Link
+                  href="/login"
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: '#f59e0b',
+                    color: 'white',
+                    borderRadius: theme.radius.md,
+                    textDecoration: 'none',
+                    fontWeight: '600',
+                    fontSize: '0.95rem',
+                  }}
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/patrol/join"
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: 'white',
+                    color: '#f59e0b',
+                    border: '2px solid #f59e0b',
+                    borderRadius: theme.radius.md,
+                    textDecoration: 'none',
+                    fontWeight: '600',
+                    fontSize: '0.95rem',
+                  }}
+                >
+                  Join Community Patrol
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Search & Filters */}
         <div style={{
@@ -554,20 +540,35 @@ export default function PatrolDatabasePage() {
                     {new Date(report.lastSeenAt).toLocaleDateString()}
                   </div>
 
-                  {/* Contact */}
-                  <div style={{
-                    padding: '0.75rem',
-                    background: '#f8fafc',
-                    borderRadius: theme.radius.md,
-                    fontSize: '0.9rem',
-                  }}>
-                    <div style={{ fontWeight: '600', color: theme.colors.gray[900] }}>
-                      Contact: {report.reporterName}
+                  {/* Contact - Conditional */}
+                  {isAuthenticated ? (
+                    <div style={{
+                      padding: '0.75rem',
+                      background: '#f8fafc',
+                      borderRadius: theme.radius.md,
+                      fontSize: '0.9rem',
+                    }}>
+                      <div style={{ fontWeight: '600', color: theme.colors.gray[900] }}>
+                        Contact: {report.reporterName}
+                      </div>
+                      <div style={{ color: theme.colors.gray[600], marginTop: '0.25rem' }}>
+                        {report.reporterPhone}
+                      </div>
                     </div>
-                    <div style={{ color: theme.colors.gray[600], marginTop: '0.25rem' }}>
-                      {report.reporterPhone}
+                  ) : (
+                    <div style={{
+                      padding: '0.75rem',
+                      background: '#fef3c7',
+                      border: '2px solid #f59e0b',
+                      borderRadius: theme.radius.md,
+                      fontSize: '0.9rem',
+                      textAlign: 'center',
+                      fontWeight: '600',
+                      color: '#78350f',
+                    }}>
+                      🔒 Sign in to view contact
                     </div>
-                  </div>
+                  )}
                 </div>
               </Link>
             ))}

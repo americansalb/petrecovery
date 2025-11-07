@@ -105,6 +105,98 @@ export default function Home() {
         </p>
       </div>
 
+      {/* Database CTA Banner */}
+      <div style={{
+        maxWidth: '1200px',
+        margin: '0 auto 3rem',
+        padding: '0 2rem',
+      }}>
+        <Link
+          href="/database"
+          style={{
+            display: 'block',
+            background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+            borderRadius: '20px',
+            padding: '2.5rem 3rem',
+            textDecoration: 'none',
+            boxShadow: '0 10px 30px rgba(14, 165, 233, 0.25)',
+            border: '3px solid rgba(255, 255, 255, 0.3)',
+            transition: 'all 0.3s ease',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px) scale(1.01)';
+            e.currentTarget.style.boxShadow = '0 20px 40px rgba(14, 165, 233, 0.35)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0) scale(1)';
+            e.currentTarget.style.boxShadow = '0 10px 30px rgba(14, 165, 233, 0.25)';
+          }}
+        >
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '2rem',
+            flexWrap: 'wrap',
+          }}>
+            <div style={{ flex: 1, minWidth: '300px' }}>
+              <div style={{
+                display: 'inline-block',
+                padding: '0.5rem 1rem',
+                background: 'rgba(255, 255, 255, 0.25)',
+                borderRadius: '20px',
+                fontSize: '0.85rem',
+                fontWeight: '800',
+                color: 'white',
+                marginBottom: '1rem',
+              }}>
+                🆓 FREE TO BROWSE
+              </div>
+              <h2 style={{
+                fontSize: '2.25rem',
+                fontWeight: '900',
+                color: 'white',
+                marginBottom: '0.75rem',
+              }}>
+                Search the Pet Database
+              </h2>
+              <p style={{
+                fontSize: '1.15rem',
+                color: 'rgba(255, 255, 255, 0.95)',
+                lineHeight: '1.6',
+                marginBottom: '0',
+              }}>
+                Browse all lost and found pets in your area. No signup required to search. Sign in to view contact information and help reunite pets with their families.
+              </p>
+            </div>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '5rem',
+              filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1))',
+            }}>
+              🔍
+            </div>
+          </div>
+          <div style={{
+            marginTop: '1.5rem',
+            padding: '1rem 2rem',
+            background: 'white',
+            color: '#0284c7',
+            borderRadius: '12px',
+            fontWeight: '700',
+            textAlign: 'center',
+            fontSize: '1.1rem',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+          }}>
+            Browse Database Now →
+          </div>
+        </Link>
+      </div>
+
       {/* Main 3 Options */}
       <div style={{
         maxWidth: '1400px',
