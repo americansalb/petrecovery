@@ -121,6 +121,7 @@ export default function DashboardPage() {
 
   const reports = userData.reports || [];
   const nearbyAlerts = userData.nearbyAlerts || [];
+  const foundByMe = userData.foundByMe || [];
   const hasPatrolProfile = userData.hasPatrolProfile || false;
 
   return (
@@ -543,113 +544,204 @@ export default function DashboardPage() {
                 </Link>
               </div>
             ) : (
-              <div style={{
-                background: 'white',
-                borderRadius: theme.radius.xl,
-                padding: '2.5rem',
-                marginBottom: '2rem',
-                boxShadow: theme.shadows.md,
-              }}>
-                <h2 style={{
-                  fontSize: '1.75rem',
-                  fontWeight: '800',
-                  marginBottom: '1.5rem',
-                  color: theme.colors.gray[900],
-                }}>
-                  Nearby Lost Pets
-                </h2>
-                <p style={{
-                  fontSize: '1.05rem',
-                  color: theme.colors.gray[600],
-                  marginBottom: '2rem',
-                }}>
-                  Keep an eye out for these pets in your patrol area
-                </p>
-
-                {nearbyAlerts.length === 0 ? (
+              <>
+                {/* Pets You Found Section */}
+                {foundByMe.length > 0 && (
                   <div style={{
-                    textAlign: 'center',
-                    padding: '3rem 1rem',
-                    background: '#f8fafc',
-                    borderRadius: theme.radius.lg,
+                    background: 'white',
+                    borderRadius: theme.radius.xl,
+                    padding: '2.5rem',
+                    marginBottom: '2rem',
+                    boxShadow: theme.shadows.md,
                   }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
-                    <p style={{
-                      fontSize: '1.1rem',
-                      color: theme.colors.gray[600],
+                    <h2 style={{
+                      fontSize: '1.75rem',
+                      fontWeight: '800',
+                      marginBottom: '1.5rem',
+                      color: theme.colors.gray[900],
                     }}>
-                      No lost pets in your area right now. Great news!
+                      🎉 Pets You Found
+                    </h2>
+                    <p style={{
+                      fontSize: '1.05rem',
+                      color: theme.colors.gray[600],
+                      marginBottom: '2rem',
+                    }}>
+                      Thank you for reporting these found pets!
                     </p>
-                  </div>
-                ) : (
-                  <div style={{ display: 'grid', gap: '1rem' }}>
-                    {nearbyAlerts.map((alert) => (
-                      <div
-                        key={alert.id}
-                        style={{
-                          padding: '1.5rem',
-                          border: '2px solid #fca5a5',
-                          background: '#fef2f2',
-                          borderRadius: theme.radius.lg,
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          flexWrap: 'wrap',
-                          gap: '1rem',
-                        }}
-                      >
-                        <div>
-                          <div style={{
-                            display: 'inline-block',
-                            padding: '0.25rem 0.75rem',
-                            background: '#dc2626',
-                            color: 'white',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            fontWeight: '700',
-                            marginBottom: '0.75rem',
-                          }}>
-                            LOST
-                          </div>
-                          <h3 style={{
-                            fontSize: '1.25rem',
-                            fontWeight: '700',
-                            marginBottom: '0.5rem',
-                            color: theme.colors.gray[900],
-                          }}>
-                            {alert.petName}
-                          </h3>
-                          <p style={{
-                            color: theme.colors.gray[600],
-                            marginBottom: '0.5rem',
-                          }}>
-                            Last seen: {alert.lastSeen}
-                          </p>
-                          <p style={{
-                            color: '#dc2626',
-                            fontWeight: '600',
-                          }}>
-                            📍 {alert.distance} from you
-                          </p>
-                        </div>
-                        <Link
-                          href={`/reports/${alert.id}`}
+
+                    <div style={{ display: 'grid', gap: '1rem' }}>
+                      {foundByMe.map((pet) => (
+                        <div
+                          key={pet.id}
                           style={{
-                            padding: '0.75rem 1.5rem',
-                            background: '#dc2626',
-                            color: 'white',
+                            padding: '1.5rem',
+                            border: '2px solid #10b981',
+                            background: '#f0fdf4',
                             borderRadius: theme.radius.lg,
-                            textDecoration: 'none',
-                            fontWeight: '700',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '1rem',
                           }}
                         >
-                          Help Find →
-                        </Link>
-                      </div>
-                    ))}
+                          <div>
+                            <div style={{
+                              display: 'inline-block',
+                              padding: '0.25rem 0.75rem',
+                              background: '#10b981',
+                              color: 'white',
+                              borderRadius: '12px',
+                              fontSize: '0.75rem',
+                              fontWeight: '700',
+                              marginBottom: '0.75rem',
+                            }}>
+                              FOUND
+                            </div>
+                            <h3 style={{
+                              fontSize: '1.25rem',
+                              fontWeight: '700',
+                              marginBottom: '0.5rem',
+                              color: theme.colors.gray[900],
+                            }}>
+                              {pet.petName}
+                            </h3>
+                            <p style={{
+                              color: theme.colors.gray[600],
+                              marginBottom: '0.5rem',
+                            }}>
+                              Found: {pet.foundAt}
+                            </p>
+                          </div>
+                          <Link
+                            href={`/reports/${pet.id}`}
+                            style={{
+                              padding: '0.75rem 1.5rem',
+                              background: '#10b981',
+                              color: 'white',
+                              borderRadius: theme.radius.lg,
+                              textDecoration: 'none',
+                              fontWeight: '700',
+                            }}
+                          >
+                            View Details →
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
-              </div>
+
+                {/* Nearby Lost Pets Section */}
+                <div style={{
+                  background: 'white',
+                  borderRadius: theme.radius.xl,
+                  padding: '2.5rem',
+                  marginBottom: '2rem',
+                  boxShadow: theme.shadows.md,
+                }}>
+                  <h2 style={{
+                    fontSize: '1.75rem',
+                    fontWeight: '800',
+                    marginBottom: '1.5rem',
+                    color: theme.colors.gray[900],
+                  }}>
+                    Nearby Lost Pets
+                  </h2>
+                  <p style={{
+                    fontSize: '1.05rem',
+                    color: theme.colors.gray[600],
+                    marginBottom: '2rem',
+                  }}>
+                    Keep an eye out for these pets in your patrol area
+                  </p>
+
+                  {nearbyAlerts.length === 0 ? (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '3rem 1rem',
+                      background: '#f8fafc',
+                      borderRadius: theme.radius.lg,
+                    }}>
+                      <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
+                      <p style={{
+                        fontSize: '1.1rem',
+                        color: theme.colors.gray[600],
+                      }}>
+                        No lost pets in your area right now. Great news!
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gap: '1rem' }}>
+                      {nearbyAlerts.map((alert) => (
+                        <div
+                          key={alert.id}
+                          style={{
+                            padding: '1.5rem',
+                            border: '2px solid #fca5a5',
+                            background: '#fef2f2',
+                            borderRadius: theme.radius.lg,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '1rem',
+                          }}
+                        >
+                          <div>
+                            <div style={{
+                              display: 'inline-block',
+                              padding: '0.25rem 0.75rem',
+                              background: '#dc2626',
+                              color: 'white',
+                              borderRadius: '12px',
+                              fontSize: '0.75rem',
+                              fontWeight: '700',
+                              marginBottom: '0.75rem',
+                            }}>
+                              LOST
+                            </div>
+                            <h3 style={{
+                              fontSize: '1.25rem',
+                              fontWeight: '700',
+                              marginBottom: '0.5rem',
+                              color: theme.colors.gray[900],
+                            }}>
+                              {alert.petName}
+                            </h3>
+                            <p style={{
+                              color: theme.colors.gray[600],
+                              marginBottom: '0.5rem',
+                            }}>
+                              Last seen: {alert.lastSeen}
+                            </p>
+                            <p style={{
+                              color: '#dc2626',
+                              fontWeight: '600',
+                            }}>
+                              📍 {alert.distance} from you
+                            </p>
+                          </div>
+                          <Link
+                            href={`/reports/${alert.id}`}
+                            style={{
+                              padding: '0.75rem 1.5rem',
+                              background: '#dc2626',
+                              color: 'white',
+                              borderRadius: theme.radius.lg,
+                              textDecoration: 'none',
+                              fontWeight: '700',
+                            }}
+                          >
+                            Help Find →
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </>
         )}

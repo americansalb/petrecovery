@@ -16,7 +16,10 @@ export async function GET(request) {
       include: {
         patrolProfile: true,
         lostReports: {
-          where: { status: 'ACTIVE' },
+          where: {
+            status: 'ACTIVE',
+            reportType: 'LOST' // Only fetch LOST reports for Owner View
+          },
           include: {
             pet: true,
             sightings: true,
@@ -40,16 +43,37 @@ export async function GET(request) {
       status: report.status,
     }));
 
-    // If patrol member, find nearby alerts
+    // If patrol member, find nearby alerts and user's found pets
     let nearbyAlerts = [];
+    let foundByMe = [];
     if (user.patrolProfile && user.profile) {
       const { latitude, longitude } = user.profile;
       const { radiusMiles } = user.patrolProfile;
 
-      // Get all active reports (REAL data from database)
+      // Get user's FOUND reports
+      const myFoundReports = await prisma.lostReport.findMany({
+        where: {
+          status: 'ACTIVE',
+          reporterId: user.id,
+          reportType: 'FOUND', // Pets I found
+        },
+        include: {
+          pet: true,
+        },
+      });
+
+      foundByMe = myFoundReports.map(report => ({
+        id: report.id,
+        petName: report.pet.name,
+        species: report.pet.species.toLowerCase(),
+        foundAt: formatTime(report.lastSeenAt),
+      }));
+
+      // Get all active LOST reports from others (REAL data from database)
       const allReports = await prisma.lostReport.findMany({
         where: {
           status: 'ACTIVE',
+          reportType: 'LOST', // Only show LOST pets to help find
           reporterId: { not: user.id }, // Don't show own reports
         },
         include: {
@@ -85,8 +109,9 @@ export async function GET(request) {
         hasReports: reports.length > 0,
       },
       hasPatrolProfile: !!user.patrolProfile,
-      reports, // Will be [] if no reports - NOT fake data
-      nearbyAlerts, // Will be [] if no nearby alerts - NOT fake data
+      reports, // LOST pets I reported - Will be [] if no reports
+      nearbyAlerts, // Nearby LOST pets from others - Will be [] if none
+      foundByMe, // FOUND pets I reported - Will be [] if none
     });
 
   } catch (error) {
