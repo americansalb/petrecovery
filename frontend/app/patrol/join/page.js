@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { theme } from '../../lib/theme';
@@ -24,13 +24,20 @@ export default function JoinPatrol() {
   const [success, setSuccess] = useState(false);
   const [alreadyMember, setAlreadyMember] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
+  const [accountInfo, setAccountInfo] = useState({
+    firstName: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
+  });
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
   const circleRef = useRef(null);
 
-  // Check if user is already a patrol member
+  // Check if user is already a patrol member (only for authenticated users)
   useEffect(() => {
     async function checkPatrolStatus() {
       if (status === 'authenticated' && session?.user) {
@@ -164,6 +171,52 @@ export default function JoinPatrol() {
     setError(null);
 
     try {
+      // If user is not authenticated, create account first
+      if (status !== 'authenticated') {
+        // Validate account info
+        if (!accountInfo.firstName || !accountInfo.email || !accountInfo.password) {
+          throw new Error('Please fill in all required account fields');
+        }
+
+        if (accountInfo.password !== accountInfo.confirmPassword) {
+          throw new Error('Passwords do not match');
+        }
+
+        if (accountInfo.password.length < 8) {
+          throw new Error('Password must be at least 8 characters');
+        }
+
+        // Create account
+        const registerRes = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: accountInfo.email,
+            password: accountInfo.password,
+            firstName: accountInfo.firstName,
+            phone: accountInfo.phone,
+          }),
+        });
+
+        const registerData = await registerRes.json();
+
+        if (!registerRes.ok) {
+          throw new Error(registerData.error || 'Failed to create account');
+        }
+
+        // Auto sign in
+        const signInResult = await signIn('credentials', {
+          redirect: false,
+          email: accountInfo.email,
+          password: accountInfo.password,
+        });
+
+        if (signInResult?.error) {
+          throw new Error('Account created but failed to sign in. Please try logging in.');
+        }
+      }
+
+      // Now create patrol profile
       const response = await fetch('/api/patrol/join', {
         method: 'POST',
         headers: {
@@ -1095,6 +1148,158 @@ export default function JoinPatrol() {
               </div>
             </label>
 
+            {/* Account Creation for Non-Authenticated Users */}
+            {status !== 'authenticated' && (
+              <div style={{
+                background: '#f0fdf4',
+                border: '2px solid #10b981',
+                borderRadius: theme.radius.lg,
+                padding: '2rem',
+                marginBottom: '2rem',
+              }}>
+                <h3 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '800',
+                  marginBottom: '0.5rem',
+                  color: theme.colors.gray[900],
+                }}>
+                  Create Your Account
+                </h3>
+                <p style={{
+                  fontSize: '1rem',
+                  color: theme.colors.gray[600],
+                  marginBottom: '1.5rem',
+                }}>
+                  We'll create your PetRecovery account to complete your patrol signup
+                </p>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: '0.5rem',
+                    fontWeight: '700',
+                    fontSize: '0.9rem',
+                    color: theme.colors.gray[700],
+                  }}>
+                    First Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={accountInfo.firstName}
+                    onChange={(e) => setAccountInfo({ ...accountInfo, firstName: e.target.value })}
+                    placeholder="Jane"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: theme.radius.md,
+                      fontSize: '1rem',
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: '0.5rem',
+                    fontWeight: '700',
+                    fontSize: '0.9rem',
+                    color: theme.colors.gray[700],
+                  }}>
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    value={accountInfo.email}
+                    onChange={(e) => setAccountInfo({ ...accountInfo, email: e.target.value })}
+                    placeholder="you@example.com"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: theme.radius.md,
+                      fontSize: '1rem',
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: '0.5rem',
+                    fontWeight: '700',
+                    fontSize: '0.9rem',
+                    color: theme.colors.gray[700],
+                  }}>
+                    Phone Number (Optional)
+                  </label>
+                  <input
+                    type="tel"
+                    value={accountInfo.phone}
+                    onChange={(e) => setAccountInfo({ ...accountInfo, phone: e.target.value })}
+                    placeholder="555-0100"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: theme.radius.md,
+                      fontSize: '1rem',
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: '0.5rem',
+                    fontWeight: '700',
+                    fontSize: '0.9rem',
+                    color: theme.colors.gray[700],
+                  }}>
+                    Password * (minimum 8 characters)
+                  </label>
+                  <input
+                    type="password"
+                    value={accountInfo.password}
+                    onChange={(e) => setAccountInfo({ ...accountInfo, password: e.target.value })}
+                    placeholder="••••••••"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: theme.radius.md,
+                      fontSize: '1rem',
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '0' }}>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: '0.5rem',
+                    fontWeight: '700',
+                    fontSize: '0.9rem',
+                    color: theme.colors.gray[700],
+                  }}>
+                    Confirm Password *
+                  </label>
+                  <input
+                    type="password"
+                    value={accountInfo.confirmPassword}
+                    onChange={(e) => setAccountInfo({ ...accountInfo, confirmPassword: e.target.value })}
+                    placeholder="••••••••"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: theme.radius.md,
+                      fontSize: '1rem',
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button
                 onClick={() => setStep(4)}
@@ -1127,7 +1332,11 @@ export default function JoinPatrol() {
                   cursor: agreedToWaiver && !isSubmitting ? 'pointer' : 'not-allowed',
                 }}
               >
-                {isSubmitting ? 'Joining Patrol...' : 'Join Patrol 🎉'}
+                {isSubmitting
+                  ? 'Processing...'
+                  : status !== 'authenticated'
+                    ? 'Create Account & Join Patrol 🎉'
+                    : 'Join Patrol 🎉'}
               </button>
             </div>
           </div>
