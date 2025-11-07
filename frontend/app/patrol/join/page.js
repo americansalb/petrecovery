@@ -24,16 +24,23 @@ export default function JoinPatrol() {
   const markerRef = useRef(null);
   const circleRef = useRef(null);
 
-  // Initialize map when center is set
+  // Initialize map only once when we first reach step 3 with a center
   useEffect(() => {
-    if (typeof window === 'undefined' || !mapRef.current || !center || step !== 3) return;
+    if (typeof window === 'undefined' || !mapRef.current || !center || step !== 3) {
+      // Clean up map if we're leaving step 3
+      if (step !== 3 && mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        markerRef.current = null;
+        circleRef.current = null;
+      }
+      return;
+    }
+
+    // Don't recreate if map already exists
+    if (mapInstanceRef.current) return;
 
     import('leaflet').then((L) => {
-      // Clean up existing map
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-      }
-
       // Create map
       const map = L.map(mapRef.current).setView(center, 12);
       mapInstanceRef.current = map;
@@ -61,16 +68,26 @@ export default function JoinPatrol() {
       marker.on('dragend', function(e) {
         const pos = e.target.getLatLng();
         setCenter([pos.lat, pos.lng]);
-        circle.setLatLng(pos);
       });
     });
 
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        markerRef.current = null;
+        circleRef.current = null;
       }
     };
-  }, [center, step]);
+  }, [step]);
+
+  // Update marker and circle position when center changes
+  useEffect(() => {
+    if (markerRef.current && circleRef.current && center) {
+      markerRef.current.setLatLng(center);
+      circleRef.current.setLatLng(center);
+    }
+  }, [center]);
 
   // Update circle radius when slider changes
   useEffect(() => {
@@ -207,7 +224,7 @@ export default function JoinPatrol() {
               lineHeight: '1.8',
             }}>
               <li>You'll receive alerts when pets go missing in your {radiusMiles}-mile patrol zone</li>
-              <li>Just keep an eye out during your normal routine—no active searching needed</li>
+              <li>Watch for lost pets during your daily routine</li>
               <li>If you spot a lost pet, report the sighting to help reunite families</li>
             </ul>
           </div>
@@ -306,7 +323,23 @@ export default function JoinPatrol() {
 
         {/* Step 1: Hero / Intro */}
         {step === 1 && (
-          <div style={{ textAlign: 'center', maxWidth: '700px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', maxWidth: '700px', margin: '0 auto', position: 'relative' }}>
+            {/* 100% FREE Badge */}
+            <div style={{
+              position: 'absolute',
+              top: '-1rem',
+              right: '0',
+              padding: '0.5rem 1rem',
+              background: '#10b981',
+              color: 'white',
+              borderRadius: '20px',
+              fontSize: '0.85rem',
+              fontWeight: '800',
+              letterSpacing: '0.5px',
+            }}>
+              100% FREE
+            </div>
+
             <div style={{ fontSize: '5rem', marginBottom: '1.5rem' }}>🦸</div>
             <h1 style={{
               fontSize: '3rem',
@@ -323,7 +356,7 @@ export default function JoinPatrol() {
               marginBottom: '2.5rem',
               lineHeight: '1.6',
             }}>
-              Help reunite lost pets with their families—without changing your routine
+              Help reunite lost pets with their families in your neighborhood
             </p>
 
             <div style={{
@@ -346,7 +379,7 @@ export default function JoinPatrol() {
                 {[
                   { emoji: '📍', title: 'Set Your Patrol Zone', desc: 'Choose your area with a customizable radius on the map' },
                   { emoji: '🔔', title: 'Receive Instant Alerts', desc: 'Get notified when pets go missing in your zone' },
-                  { emoji: '👀', title: 'Keep an Eye Out', desc: 'No active searching—just watch during your normal routine' },
+                  { emoji: '👀', title: 'Keep an Eye Out', desc: 'Watch during your daily walks, commutes, and errands' },
                   { emoji: '❤️', title: 'Help Reunite Families', desc: 'Report sightings to bring lost pets home' },
                 ].map((item, i) => (
                   <div key={i} style={{
@@ -404,7 +437,7 @@ export default function JoinPatrol() {
               color: theme.colors.gray[500],
               fontSize: '0.95rem',
             }}>
-              Takes less than 2 minutes • 100% FREE • No active searching required
+              Takes less than 2 minutes • 100% FREE
             </p>
           </div>
         )}
