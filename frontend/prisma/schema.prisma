@@ -192,6 +192,9 @@ model LostReport {
   reporterId      String
   reporter        User     @relation(fields: [reporterId], references: [id])
 
+  // Report Type
+  reportType      ReportType @default(LOST) // LOST or FOUND
+
   // Status
   status          ReportStatus @default(ACTIVE)
   priority        Priority @default(NORMAL)
@@ -238,6 +241,11 @@ model LostReport {
   @@index([status])
   @@index([createdAt])
   @@index([lastSeenLatitude, lastSeenLongitude])
+}
+
+enum ReportType {
+  LOST    // Owner reporting their lost pet
+  FOUND   // Someone reporting they found a pet
 }
 
 enum ReportStatus {

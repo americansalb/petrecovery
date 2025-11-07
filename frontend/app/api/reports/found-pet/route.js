@@ -3,24 +3,18 @@ import prisma from '../../../lib/prisma';
 import bcrypt from 'bcryptjs';
 import { sendEmail } from '../../../lib/email';
 
-// NOTE: Before using this API:
-// 1. Run: npm install bcryptjs nodemailer @prisma/client
-// 2. Run: npx prisma generate
-// 3. Run: npx prisma migrate dev --name init
-// 4. Configure .env.local with DATABASE_URL and SMTP settings
-
 export async function POST(request) {
   try {
     const body = await request.json();
     const {
       email, phone, firstName,
       petName, breed, color, size, distinctiveMarks,
-      lastSeenAddress, center, radiusMiles, timeElapsed, petType,
-      photos // Array of photo URLs/data
+      foundAddress, center, radiusMiles, timeElapsed, petType,
+      photos
     } = body;
 
     // Validate required fields
-    if (!email || !phone || !firstName || !petName || !color || !lastSeenAddress || !center) {
+    if (!email || !phone || !firstName || !color || !foundAddress || !center) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -66,72 +60,74 @@ export async function POST(request) {
       accountCreated = true;
     }
 
-    // 3. Create pet record
+    // 3. Create pet record (finder is temporary owner until matched)
     const pet = await prisma.pet.create({
       data: {
-        ownerId: user.id,
-        name: petName,
+        ownerId: user.id, // Finder is temporary owner
+        name: petName || 'Unknown',
         species: petType.toUpperCase(),
         breed: breed || '',
         color,
         size,
         distinctiveMarks: distinctiveMarks || '',
         primaryPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
-        photos: JSON.stringify(photos || []), // Store as JSON string for SQLite
-        personality: "[]", // Store as JSON string for SQLite
+        photos: JSON.stringify(photos || []),
+        personality: "[]",
       }
     });
 
-    // 4. Create lost report
-    const lastSeenAt = calculateLastSeenTime(timeElapsed);
+    // 4. Create found report
+    const foundAt = calculateFoundTime(timeElapsed);
 
     const report = await prisma.lostReport.create({
       data: {
         petId: pet.id,
         reporterId: user.id,
-        reportType: 'LOST',
-        lastSeenAt,
+        reportType: 'FOUND', // This is a FOUND pet report
+        lastSeenAt: foundAt,
         lastSeenLatitude: center[0],
         lastSeenLongitude: center[1],
-        lastSeenAddress,
-        escapeScenario: 'unknown',
+        lastSeenAddress: foundAddress,
+        escapeScenario: 'found_by_community',
         searchRadius: radiusMiles,
         status: 'ACTIVE',
-        priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'NORMAL',
+        priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'HIGH',
       }
     });
 
-    // 5. Find nearby patrol members
-    const patrolMembers = await prisma.user.findMany({
+    // 5. Find nearby users who reported LOST pets of the same species
+    const lostPetReports = await prisma.lostReport.findMany({
       where: {
-        patrolProfile: {
-          isActive: true,
-          isPaused: false,
-        }
+        reportType: 'LOST',
+        status: 'ACTIVE',
       },
       include: {
-        profile: true,
-        patrolProfile: true,
+        pet: true,
+        reporter: true,
       }
     });
 
-    // Filter by distance and create alerts
-    const nearbyPatrol = patrolMembers.filter(member => {
-      if (!member.profile?.latitude || !member.profile?.longitude) return false;
+    // Filter by species and distance
+    const nearbyMatches = lostPetReports.filter(lostReport => {
+      // Check species match
+      if (lostReport.pet.species !== petType.toUpperCase()) return false;
+
+      // Check distance
       const distance = calculateDistance(
         center[0], center[1],
-        member.profile.latitude, member.profile.longitude
+        lostReport.lastSeenLatitude, lostReport.lastSeenLongitude
       );
-      return distance <= member.patrolProfile.radiusMiles;
+      return distance <= (radiusMiles + lostReport.searchRadius);
     });
 
+    // Create alerts for potential matches
     await Promise.all(
-      nearbyPatrol.map(member =>
+      nearbyMatches.map(lostReport =>
         prisma.alert.create({
           data: {
-            reportId: report.id,
-            userId: member.id,
-            method: member.patrolProfile.alertMethod,
+            reportId: lostReport.id,
+            userId: lostReport.reporterId,
+            method: 'EMAIL',
           }
         })
       )
@@ -141,23 +137,25 @@ export async function POST(request) {
     if (accountCreated && tempPassword) {
       await sendEmail({
         to: email,
-        subject: 'Your PetRecovery.org Account - Lost Pet Alert Created',
+        subject: 'Thank You for Reporting a Found Pet - PetRecovery.org',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #dc2626;">🚨 Lost Pet Alert Created</h2>
+            <h2 style="color: #10b981;">🎉 Thank You for Helping!</h2>
             <p>Hi ${firstName},</p>
-            <p>Your lost pet alert for <strong>${petName}</strong> has been created and ${nearbyPatrol.length} patrol member${nearbyPatrol.length !== 1 ? 's' : ''} in your area ${nearbyPatrol.length !== 1 ? 'have' : 'has'} been notified.</p>
+            <p>Thank you for reporting a found ${petType}! Your kindness helps reunite pets with their families.</p>
 
-            <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
+            <p>We've notified <strong>${nearbyMatches.length} nearby owner${nearbyMatches.length !== 1 ? 's' : ''}</strong> who reported a lost ${petType} matching this description.</p>
+
+            <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
               <h3 style="margin-top: 0;">Your Account</h3>
               <p>We've created an account for you:</p>
               <p><strong>Email:</strong> ${email}<br/>
-              <strong>Temporary Password:</strong> <code style="background: #fee2e2; padding: 2px 6px; border-radius: 3px;">${tempPassword}</code></p>
+              <strong>Temporary Password:</strong> <code style="background: #d1fae5; padding: 2px 6px; border-radius: 3px;">${tempPassword}</code></p>
             </div>
 
-            <p><a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/login" style="display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Login to Dashboard</a></p>
+            <p><a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/login" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Login to Dashboard</a></p>
 
-            <p><small style="color: #6b7280;">We recommend changing your password after logging in.</small></p>
+            <p><small style="color: #6b7280;">Please keep the pet safe until the owner contacts you. If no one claims the pet, consider local animal shelters or rescue organizations.</small></p>
           </div>
         `
       });
@@ -167,11 +165,11 @@ export async function POST(request) {
       success: true,
       reportId: report.id,
       accountCreated,
-      patrolAlerted: nearbyPatrol.length,
+      matchesNotified: nearbyMatches.length,
     });
 
   } catch (error) {
-    console.error('❌ Report creation error:', error);
+    console.error('❌ Found pet report creation error:', error);
     return NextResponse.json(
       { error: 'Failed to create report', details: error.message },
       { status: 500 }
@@ -179,7 +177,7 @@ export async function POST(request) {
   }
 }
 
-function calculateLastSeenTime(timeElapsed) {
+function calculateFoundTime(timeElapsed) {
   const now = new Date();
   const hours = {
     'less_than_hour': 0.5,
