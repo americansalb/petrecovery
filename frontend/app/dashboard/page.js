@@ -1,27 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useMode } from '../contexts/ModeContext';
-import ModeSwitcher from '../components/ModeSwitcher';
-import PetMap from '../components/PetMap';
-import { theme, card } from '../lib/theme';
+import { theme } from '../lib/theme';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { mode } = useMode();
-  const [stats, setStats] = useState({
-    myActiveAlerts: 2,
-    totalSightings: 5,
-    nearbyAlerts: 12,
-    petsReunited: 847,
-    patrolMembers: 234,
-  });
-
-  const [mapMarkers, setMapMarkers] = useState([]);
+  const [mode, setMode] = useState('owner'); // 'owner' or 'patrol'
+  const [loading, setLoading] = useState(true);
+  const [reports, setReports] = useState([]);
+  const [nearbyAlerts, setNearbyAlerts] = useState([]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -30,56 +21,86 @@ export default function DashboardPage() {
   }, [status, router]);
 
   useEffect(() => {
-    // Mock map markers
-    setMapMarkers([
-      {
-        position: [41.8781, -87.6298],
-        type: 'lost',
-        popup: '<strong>Max - Golden Retriever</strong><br/>Last seen 2 hours ago',
-      },
-      {
-        position: [41.8801, -87.6258],
-        type: 'sighting',
-        popup: '<strong>Sighting of Max</strong><br/>1 hour ago',
-      },
-      {
-        position: [41.8761, -87.6338],
-        type: 'lost',
-        popup: '<strong>Luna - Tabby Cat</strong><br/>Last seen 5 hours ago',
-      },
-    ]);
-  }, []);
+    async function fetchData() {
+      if (!session?.user) return;
 
-  if (status === 'loading') {
+      try {
+        // Check if user has patrol profile
+        // TODO: Uncomment when Prisma is connected
+        // const res = await fetch(`/api/patrol/check?userId=${session.user.id}`);
+        // const data = await res.json();
+        // setMode(data.isPatrol ? 'patrol' : 'owner');
+
+        // Fetch user's reports or nearby alerts based on mode
+        // TODO: Replace with real API calls
+        setReports([
+          // Mock data structure - replace with real Prisma data
+          {
+            id: '1',
+            petName: 'Max',
+            species: 'dog',
+            lastSeen: '2 hours ago',
+            sightings: 3,
+            status: 'ACTIVE'
+          }
+        ]);
+
+        setNearbyAlerts([
+          {
+            id: '1',
+            petName: 'Luna',
+            species: 'cat',
+            lastSeen: '5 hours ago',
+            distance: '0.5 miles',
+          }
+        ]);
+
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setLoading(false);
+      }
+    }
+
+    if (status === 'authenticated') {
+      fetchData();
+    }
+  }, [session, status]);
+
+  if (status === 'loading' || loading) {
     return (
       <div style={{
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: theme.gradients.sky,
+        background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)',
       }}>
         <div style={{
           textAlign: 'center',
-          ...card(),
-          padding: '2rem',
+          background: 'white',
+          padding: '3rem',
+          borderRadius: theme.radius.xl,
+          boxShadow: theme.shadows.lg,
         }}>
           <div style={{
             width: '48px',
             height: '48px',
             border: '4px solid #f3f3f3',
-            borderTop: '4px solid #ff6b9d',
+            borderTop: '4px solid #dc2626',
             borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
             margin: '0 auto 1rem',
-          }}></div>
+          }} className="spin"></div>
           <style jsx>{`
+            .spin {
+              animation: spin 1s linear infinite;
+            }
             @keyframes spin {
               0% { transform: rotate(0deg); }
               100% { transform: rotate(360deg); }
             }
           `}</style>
-          <p style={{ color: theme.colors.gray[600], fontWeight: '500' }}>Loading your dashboard...</p>
+          <p style={{ color: theme.colors.gray[600], fontWeight: '600' }}>Loading...</p>
         </div>
       </div>
     );
@@ -89,632 +110,401 @@ export default function DashboardPage() {
     return null;
   }
 
-  const isPetOwner = mode === 'pet-owner';
-  const gradient = isPetOwner ? theme.gradients.warmth : theme.gradients.hope;
-  const primaryColor = isPetOwner ? theme.colors.petOwner.primary : theme.colors.patrol.primary;
-
   return (
     <div style={{
       minHeight: '100vh',
-      background: gradient,
+      background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)',
       fontFamily: theme.fonts.sans,
     }}>
-      {/* Beautiful Header */}
+      {/* Header */}
       <div style={{
-        background: 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(10px)',
-        padding: '1.5rem',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
+        background: 'white',
+        padding: '1.5rem 2rem',
+        boxShadow: theme.shadows.sm,
+        borderBottom: '1px solid #f1f5f9',
       }}>
         <div style={{
-          maxWidth: '1400px',
+          maxWidth: '1200px',
           margin: '0 auto',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
         }}>
           <div>
-            <h1 style={{
-              fontSize: '1.75rem',
-              fontWeight: '800',
-              background: gradient,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              marginBottom: '0.25rem',
-            }}>
-              Welcome Back, {session.user?.name || 'Friend'}!
-            </h1>
-            <p style={{
-              color: theme.colors.gray[600],
-              fontSize: '0.95rem',
-            }}>
-              {isPetOwner
-                ? "Managing your pet's recovery journey"
-                : "You're making a difference in your community 🦸"}
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <ModeSwitcher />
             <Link
-              href="/profile"
+              href="/"
               style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '50%',
-                background: gradient,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                fontSize: '1.75rem',
+                fontWeight: '800',
+                color: '#1e293b',
                 textDecoration: 'none',
-                fontSize: '1.5rem',
-                boxShadow: theme.shadows.sm,
               }}
             >
-              👤
+              🐾 PetRecovery
             </Link>
+          </div>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <button
+              onClick={() => signOut({ callbackUrl: '/' })}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: '#f1f5f9',
+                color: theme.colors.gray[700],
+                border: 'none',
+                borderRadius: theme.radius.lg,
+                fontWeight: '600',
+                cursor: 'pointer',
+              }}
+            >
+              Sign Out
+            </button>
           </div>
         </div>
       </div>
 
       <div style={{
-        maxWidth: '1400px',
+        maxWidth: '1200px',
         margin: '0 auto',
-        padding: '2rem 1rem',
+        padding: '3rem 2rem',
       }}>
-        {/* Pet Owner Mode */}
-        {isPetOwner && (
+        {/* Welcome Section */}
+        <div style={{ marginBottom: '3rem' }}>
+          <h1 style={{
+            fontSize: '2.5rem',
+            fontWeight: '900',
+            marginBottom: '0.5rem',
+            color: theme.colors.gray[900],
+          }}>
+            Welcome back, {session.user?.name || session.user?.email?.split('@')[0]}!
+          </h1>
+          <p style={{
+            fontSize: '1.1rem',
+            color: theme.colors.gray[600],
+          }}>
+            {mode === 'patrol'
+              ? "You're helping reunite pets with their families"
+              : "Manage your lost pet reports and community alerts"}
+          </p>
+        </div>
+
+        {/* Owner Mode: Active Reports */}
+        {mode === 'owner' && (
           <>
-            {/* Emergency CTA */}
             <div style={{
-              ...card('pet-owner'),
-              background: theme.gradients.sunset,
-              color: 'white',
+              background: 'white',
+              borderRadius: theme.radius.xl,
+              padding: '2.5rem',
               marginBottom: '2rem',
-              textAlign: 'center',
+              boxShadow: theme.shadows.md,
             }}>
-              <h2 style={{
-                fontSize: '1.75rem',
-                fontWeight: '800',
-                marginBottom: '0.5rem',
-              }}>
-                Missing a Pet?
-              </h2>
-              <p style={{
-                fontSize: '1.1rem',
-                marginBottom: '1.5rem',
-                opacity: 0.95,
-              }}>
-                Every second counts. Get expert advice and alert your community now.
-              </p>
-              <Link
-                href="/report/new"
-                style={{
-                  display: 'inline-block',
-                  padding: '1rem 2.5rem',
-                  background: 'white',
-                  color: theme.colors.petOwner.primary,
-                  borderRadius: theme.radius.full,
-                  textDecoration: 'none',
-                  fontWeight: '700',
-                  fontSize: '1.1rem',
-                  boxShadow: '0 8px 20px rgba(0, 0, 0, 0.15)',
-                  transition: 'transform 0.2s',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-              >
-                🚨 Report Lost Pet Now
-              </Link>
-            </div>
-
-            {/* Stats */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '1.5rem',
-              marginBottom: '2rem',
-            }}>
-              <div style={{
-                ...card('pet-owner'),
-                textAlign: 'center',
-              }}>
-                <div style={{
-                  fontSize: '3rem',
-                  fontWeight: '800',
-                  background: theme.gradients.sunset,
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  marginBottom: '0.5rem',
-                }}>
-                  {stats.myActiveAlerts}
-                </div>
-                <div style={{
-                  color: theme.colors.gray[600],
-                  fontWeight: '600',
-                  fontSize: '0.95rem',
-                }}>
-                  Active Alerts
-                </div>
-              </div>
-
-              <div style={{
-                ...card('pet-owner'),
-                textAlign: 'center',
-              }}>
-                <div style={{
-                  fontSize: '3rem',
-                  fontWeight: '800',
-                  background: theme.gradients.forest,
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  marginBottom: '0.5rem',
-                }}>
-                  {stats.totalSightings}
-                </div>
-                <div style={{
-                  color: theme.colors.gray[600],
-                  fontWeight: '600',
-                  fontSize: '0.95rem',
-                }}>
-                  Total Sightings
-                </div>
-              </div>
-
-              <div style={{
-                ...card('pet-owner'),
-                textAlign: 'center',
-              }}>
-                <div style={{
-                  fontSize: '3rem',
-                  fontWeight: '800',
-                  background: theme.gradients.ocean,
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  marginBottom: '0.5rem',
-                }}>
-                  {stats.patrolMembers}
-                </div>
-                <div style={{
-                  color: theme.colors.gray[600],
-                  fontWeight: '600',
-                  fontSize: '0.95rem',
-                }}>
-                  Heroes Helping
-                </div>
-              </div>
-            </div>
-
-            {/* Map View */}
-            <div style={{ ...card('pet-owner'), marginBottom: '2rem' }}>
-              <h3 style={{
-                fontSize: '1.5rem',
-                fontWeight: '700',
-                marginBottom: '1rem',
-                color: theme.colors.gray[800],
-              }}>
-                📍 Your Pet's Last Known Location
-              </h3>
-              <PetMap
-                center={[41.8781, -87.6298]}
-                zoom={14}
-                markers={mapMarkers}
-                height="450px"
-              />
-            </div>
-
-            {/* My Active Alerts */}
-            <div style={{ ...card('pet-owner'), marginBottom: '2rem' }}>
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: '1.5rem',
+                marginBottom: '2rem',
               }}>
-                <h3 style={{
-                  fontSize: '1.5rem',
-                  fontWeight: '700',
-                  color: theme.colors.gray[800],
+                <h2 style={{
+                  fontSize: '1.75rem',
+                  fontWeight: '800',
+                  color: theme.colors.gray[900],
                 }}>
-                  🐾 Your Lost Pets
-                </h3>
+                  Your Active Reports
+                </h2>
                 <Link
-                  href="/my-alerts"
+                  href="/report/new"
                   style={{
-                    color: primaryColor,
+                    padding: '1rem 2rem',
+                    background: '#dc2626',
+                    color: 'white',
+                    borderRadius: theme.radius.lg,
                     textDecoration: 'none',
-                    fontWeight: '600',
-                    fontSize: '0.95rem',
+                    fontWeight: '700',
+                    boxShadow: theme.shadows.sm,
                   }}
                 >
-                  View All →
+                  🚨 Report Lost Pet
                 </Link>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {[
-                  {
-                    name: 'Max',
-                    type: 'Golden Retriever',
-                    time: '2 days ago',
-                    sightings: 3,
-                    emoji: '🐕',
-                  },
-                  {
-                    name: 'Luna',
-                    type: 'Tabby Cat',
-                    time: '5 days ago',
-                    sightings: 2,
-                    emoji: '🐈',
-                  },
-                ].map((pet, idx) => (
-                  <div
-                    key={idx}
+              {reports.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '3rem 1rem',
+                  background: '#f8fafc',
+                  borderRadius: theme.radius.lg,
+                }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>😊</div>
+                  <p style={{
+                    fontSize: '1.1rem',
+                    color: theme.colors.gray[600],
+                    marginBottom: '1.5rem',
+                  }}>
+                    No active reports. Hope all your pets are safe!
+                  </p>
+                  <Link
+                    href="/patrol/join"
                     style={{
-                      padding: '1.25rem',
-                      background: theme.gradients.sky,
-                      borderRadius: theme.radius.md,
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
+                      display: 'inline-block',
+                      padding: '1rem 2rem',
+                      background: '#0ea5e9',
+                      color: 'white',
+                      borderRadius: theme.radius.lg,
+                      textDecoration: 'none',
+                      fontWeight: '700',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      <div style={{
-                        width: '60px',
-                        height: '60px',
-                        borderRadius: '50%',
-                        background: 'white',
+                    Join Community Pet Patrol
+                  </Link>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gap: '1rem' }}>
+                  {reports.map((report) => (
+                    <div
+                      key={report.id}
+                      style={{
+                        padding: '1.5rem',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: theme.radius.lg,
                         display: 'flex',
+                        justifyContent: 'space-between',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '2rem',
-                        boxShadow: theme.shadows.sm,
-                      }}>
-                        {pet.emoji}
-                      </div>
+                      }}
+                    >
                       <div>
-                        <h4 style={{
+                        <h3 style={{
                           fontSize: '1.25rem',
                           fontWeight: '700',
-                          marginBottom: '0.25rem',
+                          marginBottom: '0.5rem',
                           color: theme.colors.gray[900],
                         }}>
-                          {pet.name}
-                        </h4>
+                          {report.petName}
+                        </h3>
                         <p style={{
                           color: theme.colors.gray[600],
-                          fontSize: '0.9rem',
+                          marginBottom: '0.5rem',
                         }}>
-                          {pet.type} • Missing {pet.time}
+                          Last seen: {report.lastSeen}
+                        </p>
+                        <p style={{
+                          color: '#0ea5e9',
+                          fontWeight: '600',
+                        }}>
+                          {report.sightings} sightings reported
                         </p>
                       </div>
-                    </div>
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-end',
-                      gap: '0.5rem',
-                    }}>
-                      <div style={{
-                        padding: '0.5rem 1rem',
-                        background: theme.gradients.forest,
-                        color: 'white',
-                        borderRadius: theme.radius.full,
-                        fontWeight: '700',
-                        fontSize: '0.9rem',
-                      }}>
-                        👁️ {pet.sightings} sightings
-                      </div>
                       <Link
-                        href={`/alerts/${idx + 1}`}
+                        href={`/reports/${report.id}`}
                         style={{
-                          padding: '0.5rem 1rem',
-                          background: 'white',
-                          color: primaryColor,
-                          borderRadius: theme.radius.full,
+                          padding: '0.75rem 1.5rem',
+                          background: '#f1f5f9',
+                          color: theme.colors.gray[700],
+                          borderRadius: theme.radius.lg,
                           textDecoration: 'none',
                           fontWeight: '600',
-                          fontSize: '0.9rem',
-                          boxShadow: theme.shadows.sm,
                         }}
                       >
                         View Details →
                       </Link>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </>
         )}
 
-        {/* Patrol Mode */}
-        {!isPetOwner && (
+        {/* Patrol Mode: Nearby Alerts */}
+        {mode === 'patrol' && (
           <>
-            {/* Hero Banner */}
             <div style={{
-              ...card('patrol'),
-              background: theme.gradients.ocean,
-              color: 'white',
+              background: 'white',
+              borderRadius: theme.radius.xl,
+              padding: '2.5rem',
               marginBottom: '2rem',
-              textAlign: 'center',
+              boxShadow: theme.shadows.md,
             }}>
-              <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🦸‍♀️</div>
               <h2 style={{
                 fontSize: '1.75rem',
                 fontWeight: '800',
-                marginBottom: '0.5rem',
+                marginBottom: '1.5rem',
+                color: theme.colors.gray[900],
               }}>
-                You're a Neighborhood Hero!
+                Nearby Lost Pets
               </h2>
               <p style={{
-                fontSize: '1.1rem',
-                opacity: 0.95,
+                fontSize: '1.05rem',
+                color: theme.colors.gray[600],
+                marginBottom: '2rem',
               }}>
-                Thank you for being part of the recovery patrol. You make reunions possible.
+                Keep an eye out for these pets in your patrol area
               </p>
-            </div>
 
-            {/* Patrol Stats */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '1.5rem',
-              marginBottom: '2rem',
-            }}>
-              <div style={{
-                ...card('patrol'),
-                textAlign: 'center',
-              }}>
+              {nearbyAlerts.length === 0 ? (
                 <div style={{
-                  fontSize: '3rem',
-                  fontWeight: '800',
-                  background: theme.gradients.sunset,
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  marginBottom: '0.5rem',
+                  textAlign: 'center',
+                  padding: '3rem 1rem',
+                  background: '#f8fafc',
+                  borderRadius: theme.radius.lg,
                 }}>
-                  {stats.nearbyAlerts}
+                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
+                  <p style={{
+                    fontSize: '1.1rem',
+                    color: theme.colors.gray[600],
+                  }}>
+                    No lost pets in your area right now. Great news!
+                  </p>
                 </div>
-                <div style={{
-                  color: theme.colors.gray[600],
-                  fontWeight: '600',
-                  fontSize: '0.95rem',
-                }}>
-                  Nearby Alerts
-                </div>
-              </div>
-
-              <div style={{
-                ...card('patrol'),
-                textAlign: 'center',
-              }}>
-                <div style={{
-                  fontSize: '3rem',
-                  fontWeight: '800',
-                  background: theme.gradients.forest,
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  marginBottom: '0.5rem',
-                }}>
-                  {stats.petsReunited}
-                </div>
-                <div style={{
-                  color: theme.colors.gray[600],
-                  fontWeight: '600',
-                  fontSize: '0.95rem',
-                }}>
-                  Community Reunions
-                </div>
-              </div>
-
-              <div style={{
-                ...card('patrol'),
-                textAlign: 'center',
-              }}>
-                <div style={{
-                  fontSize: '3rem',
-                  fontWeight: '800',
-                  background: theme.gradients.ocean,
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  marginBottom: '0.5rem',
-                }}>
-                  5
-                </div>
-                <div style={{
-                  color: theme.colors.gray[600],
-                  fontWeight: '600',
-                  fontSize: '0.95rem',
-                }}>
-                  Your Sightings
-                </div>
-              </div>
-            </div>
-
-            {/* Map of Nearby Alerts */}
-            <div style={{ ...card('patrol'), marginBottom: '2rem' }}>
-              <h3 style={{
-                fontSize: '1.5rem',
-                fontWeight: '700',
-                marginBottom: '1rem',
-                color: theme.colors.gray[800],
-              }}>
-                🗺️ Lost Pets in Your Area
-              </h3>
-              <PetMap
-                center={[41.8781, -87.6298]}
-                zoom={13}
-                markers={mapMarkers}
-                height="450px"
-              />
-            </div>
-
-            {/* Recent Alerts to Help */}
-            <div style={{ ...card('patrol'), marginBottom: '2rem' }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '1.5rem',
-              }}>
-                <h3 style={{
-                  fontSize: '1.5rem',
-                  fontWeight: '700',
-                  color: theme.colors.gray[800],
-                }}>
-                  🚨 Active Alerts Near You
-                </h3>
-                <Link
-                  href="/alerts"
-                  style={{
-                    color: primaryColor,
-                    textDecoration: 'none',
-                    fontWeight: '600',
-                    fontSize: '0.95rem',
-                  }}
-                >
-                  View All →
-                </Link>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {[
-                  {
-                    name: 'Max',
-                    type: 'Golden Retriever',
-                    location: '0.3 mi away',
-                    time: '2 hours ago',
-                    emoji: '🐕',
-                    urgent: true,
-                  },
-                  {
-                    name: 'Buddy',
-                    type: 'Beagle',
-                    location: '0.8 mi away',
-                    time: '5 hours ago',
-                    emoji: '🐕',
-                    urgent: false,
-                  },
-                  {
-                    name: 'Luna',
-                    type: 'Tabby Cat',
-                    location: '1.2 mi away',
-                    time: '1 day ago',
-                    emoji: '🐈',
-                    urgent: false,
-                  },
-                ].map((pet, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      padding: '1.25rem',
-                      background: pet.urgent ? theme.gradients.reunion : theme.gradients.sky,
-                      borderRadius: theme.radius.md,
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      border: pet.urgent ? '2px solid #ff6b9d' : 'none',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      <div style={{
-                        width: '60px',
-                        height: '60px',
-                        borderRadius: '50%',
-                        background: 'white',
+              ) : (
+                <div style={{ display: 'grid', gap: '1rem' }}>
+                  {nearbyAlerts.map((alert) => (
+                    <div
+                      key={alert.id}
+                      style={{
+                        padding: '1.5rem',
+                        border: '2px solid #fca5a5',
+                        background: '#fef2f2',
+                        borderRadius: theme.radius.lg,
                         display: 'flex',
+                        justifyContent: 'space-between',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '2rem',
-                        boxShadow: theme.shadows.sm,
-                      }}>
-                        {pet.emoji}
-                      </div>
+                      }}
+                    >
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <h4 style={{
-                            fontSize: '1.25rem',
-                            fontWeight: '700',
-                            marginBottom: '0.25rem',
-                            color: theme.colors.gray[900],
-                          }}>
-                            {pet.name}
-                          </h4>
-                          {pet.urgent && (
-                            <span style={{
-                              padding: '0.25rem 0.75rem',
-                              background: theme.colors.status.active,
-                              color: 'white',
-                              borderRadius: theme.radius.full,
-                              fontSize: '0.75rem',
-                              fontWeight: '700',
-                            }}>
-                              URGENT
-                            </span>
-                          )}
+                        <div style={{
+                          display: 'inline-block',
+                          padding: '0.25rem 0.75rem',
+                          background: '#dc2626',
+                          color: 'white',
+                          borderRadius: '12px',
+                          fontSize: '0.75rem',
+                          fontWeight: '700',
+                          marginBottom: '0.75rem',
+                        }}>
+                          LOST
                         </div>
+                        <h3 style={{
+                          fontSize: '1.25rem',
+                          fontWeight: '700',
+                          marginBottom: '0.5rem',
+                          color: theme.colors.gray[900],
+                        }}>
+                          {alert.petName}
+                        </h3>
                         <p style={{
                           color: theme.colors.gray[600],
-                          fontSize: '0.9rem',
+                          marginBottom: '0.5rem',
                         }}>
-                          {pet.type} • {pet.location} • Missing {pet.time}
+                          Last seen: {alert.lastSeen}
+                        </p>
+                        <p style={{
+                          color: '#dc2626',
+                          fontWeight: '600',
+                        }}>
+                          📍 {alert.distance} from you
                         </p>
                       </div>
-                    </div>
-                    <div style={{
-                      display: 'flex',
-                      gap: '0.5rem',
-                    }}>
                       <Link
-                        href={`/sightings/report?alertId=${idx + 1}`}
+                        href={`/reports/${alert.id}`}
                         style={{
-                          padding: '0.75rem 1.25rem',
-                          background: theme.gradients.forest,
+                          padding: '0.75rem 1.5rem',
+                          background: '#dc2626',
                           color: 'white',
-                          borderRadius: theme.radius.full,
+                          borderRadius: theme.radius.lg,
                           textDecoration: 'none',
-                          fontWeight: '600',
-                          fontSize: '0.9rem',
-                          boxShadow: theme.shadows.sm,
+                          fontWeight: '700',
                         }}
                       >
-                        👁️ Report Sighting
-                      </Link>
-                      <Link
-                        href={`/alerts/${idx + 1}`}
-                        style={{
-                          padding: '0.75rem 1.25rem',
-                          background: 'white',
-                          color: primaryColor,
-                          borderRadius: theme.radius.full,
-                          textDecoration: 'none',
-                          fontWeight: '600',
-                          fontSize: '0.9rem',
-                          boxShadow: theme.shadows.sm,
-                        }}
-                      >
-                        Details
+                        Help Find →
                       </Link>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </>
         )}
+
+        {/* Quick Actions */}
+        <div style={{
+          background: 'white',
+          borderRadius: theme.radius.xl,
+          padding: '2.5rem',
+          boxShadow: theme.shadows.md,
+        }}>
+          <h2 style={{
+            fontSize: '1.5rem',
+            fontWeight: '800',
+            marginBottom: '1.5rem',
+            color: theme.colors.gray[900],
+          }}>
+            Quick Actions
+          </h2>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '1rem',
+          }}>
+            <Link
+              href="/advice"
+              style={{
+                padding: '1.5rem',
+                background: '#f8fafc',
+                borderRadius: theme.radius.lg,
+                textDecoration: 'none',
+                textAlign: 'center',
+                border: '2px solid #e5e7eb',
+              }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>💡</div>
+              <div style={{
+                fontWeight: '700',
+                color: theme.colors.gray[900],
+              }}>
+                Get Advice
+              </div>
+            </Link>
+            {mode === 'owner' && (
+              <Link
+                href="/patrol/join"
+                style={{
+                  padding: '1.5rem',
+                  background: '#eff6ff',
+                  borderRadius: theme.radius.lg,
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                  border: '2px solid #0ea5e9',
+                }}
+              >
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🦸</div>
+                <div style={{
+                  fontWeight: '700',
+                  color: theme.colors.gray[900],
+                }}>
+                  Join Patrol
+                </div>
+              </Link>
+            )}
+            <Link
+              href="/profile"
+              style={{
+                padding: '1.5rem',
+                background: '#f8fafc',
+                borderRadius: theme.radius.lg,
+                textDecoration: 'none',
+                textAlign: 'center',
+                border: '2px solid #e5e7eb',
+              }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⚙️</div>
+              <div style={{
+                fontWeight: '700',
+                color: theme.colors.gray[900],
+              }}>
+                Settings
+              </div>
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );
