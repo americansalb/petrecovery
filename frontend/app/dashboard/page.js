@@ -545,6 +545,67 @@ export default function DashboardPage() {
               </div>
             ) : (
               <>
+                {/* Patrol Database Access */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+                  borderRadius: theme.radius.xl,
+                  padding: '2.5rem',
+                  marginBottom: '2rem',
+                  boxShadow: theme.shadows.md,
+                  color: 'white',
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '1.5rem',
+                  }}>
+                    <div>
+                      <div style={{
+                        display: 'inline-block',
+                        padding: '0.5rem 1rem',
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        borderRadius: theme.radius.md,
+                        fontSize: '0.85rem',
+                        fontWeight: '700',
+                        marginBottom: '1rem',
+                      }}>
+                        🦸 PATROL MEMBER EXCLUSIVE
+                      </div>
+                      <h2 style={{
+                        fontSize: '1.75rem',
+                        fontWeight: '800',
+                        marginBottom: '0.75rem',
+                      }}>
+                        Pet Recovery Database
+                      </h2>
+                      <p style={{
+                        fontSize: '1.05rem',
+                        opacity: 0.95,
+                      }}>
+                        Search and browse all lost & found pet reports in one place. Full access to contact information and detailed records.
+                      </p>
+                    </div>
+                    <Link
+                      href="/patrol/database"
+                      style={{
+                        padding: '1.25rem 2.5rem',
+                        background: 'white',
+                        color: '#0ea5e9',
+                        borderRadius: theme.radius.lg,
+                        textDecoration: 'none',
+                        fontWeight: '700',
+                        fontSize: '1.1rem',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      🔍 Open Database →
+                    </Link>
+                  </div>
+                </div>
+
                 {/* Pets You Found Section */}
                 {foundByMe.length > 0 && (
                   <div style={{
