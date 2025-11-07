@@ -179,7 +179,7 @@ export default function ReportDetailPage() {
     );
   }
 
-  const { report, pet, reporter, sightings, isOwner } = data;
+  const { report, pet, reporter, sightings, potentialMatches, isOwner } = data;
 
   return (
     <div style={{
@@ -566,6 +566,7 @@ export default function ReportDetailPage() {
                 borderRadius: theme.radius.xl,
                 padding: '2.5rem',
                 boxShadow: theme.shadows.md,
+                marginBottom: '2rem',
               }}>
                 <h2 style={{
                   fontSize: '1.5rem',
@@ -608,6 +609,125 @@ export default function ReportDetailPage() {
                         {sighting.description}
                       </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Potential Matches (for FOUND pets) */}
+            {potentialMatches && potentialMatches.length > 0 && (
+              <div style={{
+                background: 'white',
+                borderRadius: theme.radius.xl,
+                padding: '2.5rem',
+                boxShadow: theme.shadows.md,
+              }}>
+                <h2 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '800',
+                  marginBottom: '1rem',
+                  color: theme.colors.gray[900],
+                }}>
+                  🔍 Potential Matches - Nearby Lost Pets
+                </h2>
+                <p style={{
+                  fontSize: '1rem',
+                  color: theme.colors.gray[600],
+                  marginBottom: '2rem',
+                }}>
+                  These pets were reported lost near where you found this pet. Could this be one of them?
+                </p>
+
+                <div style={{ display: 'grid', gap: '1.5rem' }}>
+                  {potentialMatches.map((match) => (
+                    <Link
+                      key={match.id}
+                      href={`/reports/${match.id}`}
+                      style={{
+                        display: 'block',
+                        padding: '1.5rem',
+                        background: '#fef2f2',
+                        borderRadius: theme.radius.lg,
+                        border: '2px solid #fca5a5',
+                        textDecoration: 'none',
+                        transition: 'all 0.2s',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{
+                        display: 'flex',
+                        gap: '1.5rem',
+                        alignItems: 'flex-start',
+                      }}>
+                        {match.primaryPhotoUrl && (
+                          <img
+                            src={match.primaryPhotoUrl}
+                            alt={match.petName}
+                            style={{
+                              width: '120px',
+                              height: '120px',
+                              objectFit: 'cover',
+                              borderRadius: theme.radius.md,
+                            }}
+                          />
+                        )}
+                        <div style={{ flex: 1 }}>
+                          <div style={{
+                            display: 'inline-block',
+                            padding: '0.25rem 0.75rem',
+                            background: '#dc2626',
+                            color: 'white',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            fontWeight: '700',
+                            marginBottom: '0.75rem',
+                          }}>
+                            LOST • {match.distance} miles away
+                          </div>
+                          <h3 style={{
+                            fontSize: '1.5rem',
+                            fontWeight: '700',
+                            marginBottom: '0.5rem',
+                            color: theme.colors.gray[900],
+                          }}>
+                            {match.petName}
+                          </h3>
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(2, 1fr)',
+                            gap: '0.5rem',
+                            marginBottom: '0.75rem',
+                          }}>
+                            <div>
+                              <span style={{ color: theme.colors.gray[500], fontSize: '0.9rem' }}>Breed: </span>
+                              <span style={{ color: theme.colors.gray[900], fontWeight: '600' }}>{match.breed || 'Unknown'}</span>
+                            </div>
+                            <div>
+                              <span style={{ color: theme.colors.gray[500], fontSize: '0.9rem' }}>Color: </span>
+                              <span style={{ color: theme.colors.gray[900], fontWeight: '600' }}>{match.color}</span>
+                            </div>
+                            <div>
+                              <span style={{ color: theme.colors.gray[500], fontSize: '0.9rem' }}>Size: </span>
+                              <span style={{ color: theme.colors.gray[900], fontWeight: '600' }}>{match.size}</span>
+                            </div>
+                          </div>
+                          <div style={{
+                            fontSize: '0.95rem',
+                            color: theme.colors.gray[600],
+                            marginBottom: '0.5rem',
+                          }}>
+                            📍 Last seen: {match.lastSeenAddress}
+                          </div>
+                          <div style={{
+                            fontSize: '0.95rem',
+                            color: theme.colors.gray[900],
+                            fontWeight: '600',
+                          }}>
+                            Owner: {match.reporterName} • {match.reporterPhone}
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
                   ))}
                 </div>
               </div>
