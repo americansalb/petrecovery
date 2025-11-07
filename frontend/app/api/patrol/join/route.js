@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-// Prisma import - uncomment after running: npx prisma generate
-// import prisma from '../../../lib/prisma';
+import prisma from '../../../lib/prisma';
+import { getServerSession } from 'next-auth';
 import { z } from 'zod';
 
 // Validation schema for patrol signup
 const PatrolSignupSchema = z.object({
-  userId: z.string().min(1),
   zipCode: z.string().length(5),
   centerLat: z.number().min(-90).max(90),
   centerLng: z.number().min(-180).max(180),
@@ -19,38 +18,120 @@ const PatrolSignupSchema = z.object({
 
 export async function POST(request) {
   try {
+    // Get session to identify the user
+    const session = await getServerSession();
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please login first' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
 
     // Validate input
     const validatedData = PatrolSignupSchema.parse(body);
 
-    // TODO: After setting up Prisma (see SETUP.md):
-    // 1. Check if user exists
-    // 2. Check if already in patrol
-    // 3. Create patrol profile
-    // 4. Update user role
-    // 5. Count nearby active reports
+    // Find the user
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      include: {
+        patrolProfile: true,
+        profile: true,
+      }
+    });
 
-    // For now, return success with validation
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user is already in patrol
+    if (user.patrolProfile) {
+      return NextResponse.json(
+        { error: 'You are already a patrol member' },
+        { status: 400 }
+      );
+    }
+
+    // Determine alert method based on preferences
+    let alertMethod = 'EMAIL';
+    if (validatedData.notifications.text && validatedData.notifications.email && validatedData.notifications.push) {
+      alertMethod = 'ALL';
+    } else if (validatedData.notifications.text) {
+      alertMethod = 'SMS';
+    } else if (validatedData.notifications.push) {
+      alertMethod = 'PUSH';
+    }
+
+    // Create or update user profile with location
+    if (user.profile) {
+      await prisma.userProfile.update({
+        where: { userId: user.id },
+        data: {
+          latitude: validatedData.centerLat,
+          longitude: validatedData.centerLng,
+          zip: validatedData.zipCode,
+        }
+      });
+    } else {
+      await prisma.userProfile.create({
+        data: {
+          userId: user.id,
+          latitude: validatedData.centerLat,
+          longitude: validatedData.centerLng,
+          zip: validatedData.zipCode,
+        }
+      });
+    }
+
+    // Create patrol profile
+    await prisma.patrolProfile.create({
+      data: {
+        userId: user.id,
+        radiusMiles: validatedData.radiusMiles,
+        alertMethod,
+        isActive: true,
+      }
+    });
+
+    // Update user account type to PATROL if not set
+    if (!user.accountType) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { accountType: 'PATROL' }
+      });
+    }
+
+    // Count nearby active reports
+    const activeReports = await prisma.lostReport.findMany({
+      where: {
+        status: 'ACTIVE',
+        reportType: 'LOST',
+      },
+      select: {
+        lastSeenLatitude: true,
+        lastSeenLongitude: true,
+      }
+    });
+
+    // Filter by distance
+    const nearbyReports = activeReports.filter(report => {
+      const distance = calculateDistance(
+        validatedData.centerLat,
+        validatedData.centerLng,
+        report.lastSeenLatitude,
+        report.lastSeenLongitude
+      );
+      return distance <= validatedData.radiusMiles;
+    });
+
     return NextResponse.json({
       success: true,
-      message: 'Patrol signup validated successfully',
-      note: 'Database not yet configured - see SETUP.md',
-      validatedData: {
-        zipCode: validatedData.zipCode,
-        center: {
-          lat: validatedData.centerLat,
-          lng: validatedData.centerLng,
-        },
-        radiusMiles: validatedData.radiusMiles,
-        notifications: validatedData.notifications,
-      },
-      nextSteps: [
-        'Run: npx prisma generate',
-        'Run: npx prisma migrate dev --name init',
-        'Uncomment prisma import in this file',
-        'Remove this placeholder response'
-      ]
+      message: 'Successfully joined patrol',
+      nearbyReports: nearbyReports.length,
     }, { status: 200 });
 
   } catch (error) {
@@ -63,7 +144,7 @@ export async function POST(request) {
 
     console.error('Error in patrol signup:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error.message },
       { status: 500 }
     );
   }
@@ -72,20 +153,31 @@ export async function POST(request) {
 // GET endpoint to check if user is in patrol
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
+    const session = await getServerSession();
+    if (!session?.user?.email) {
       return NextResponse.json(
-        { error: 'userId is required' },
-        { status: 400 }
+        { error: 'Unauthorized' },
+        { status: 401 }
       );
     }
 
-    // TODO: After setting up Prisma, query the database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      include: {
+        patrolProfile: true,
+      }
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({
-      isPatrol: false,
-      message: 'Database not yet configured - see SETUP.md'
+      isPatrol: !!user.patrolProfile,
+      isActive: user.patrolProfile?.isActive || false,
     }, { status: 200 });
 
   } catch (error) {
@@ -95,4 +187,16 @@ export async function GET(request) {
       { status: 500 }
     );
   }
+}
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 3959; // Earth's radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
 }

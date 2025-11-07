@@ -79,7 +79,11 @@ export async function GET(request) {
     }
 
     return NextResponse.json({
-      mode: user.patrolProfile ? 'patrol' : 'owner',
+      user: {
+        id: user.id,
+        accountType: user.accountType,
+      },
+      hasPatrolProfile: !!user.patrolProfile,
       reports, // Will be [] if no reports - NOT fake data
       nearbyAlerts, // Will be [] if no nearby alerts - NOT fake data
     });

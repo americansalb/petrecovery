@@ -747,25 +747,25 @@ export default function ReportFoundPet() {
               marginBottom: '0.5rem',
               color: theme.colors.gray[900],
             }}>
-              Tell us about your pet
+              Describe the pet you found
             </h2>
             <p style={{
               color: theme.colors.gray[600],
               marginBottom: '2rem',
               fontSize: '1.05rem',
             }}>
-              Help people identify your pet
+              Help us match this pet with their owner
             </p>
 
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
-                Pet's Name
+                Name (if visible on collar/tag)
               </label>
               <input
                 type="text"
                 value={reportData.petName}
                 onChange={(e) => setReportData({ ...reportData, petName: e.target.value })}
-                placeholder="Max"
+                placeholder="Unknown (leave blank if no tag)"
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -773,8 +773,10 @@ export default function ReportFoundPet() {
                   borderRadius: theme.radius.lg,
                   fontSize: '1rem',
                 }}
-                required
               />
+              <p style={{ fontSize: '0.85rem', color: theme.colors.gray[500], marginTop: '0.5rem' }}>
+                Optional - only if you can see the name on a collar or tag
+              </p>
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
@@ -859,10 +861,10 @@ export default function ReportFoundPet() {
 
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
-                Photos of Your Pet
+                Photos of the Pet You Found
               </label>
               <p style={{ fontSize: '0.9rem', color: theme.colors.gray[600], marginBottom: '0.5rem' }}>
-                Upload up to 5 clear photos (max 5MB each)
+                Upload up to 5 clear photos to help identify the pet (max 5MB each)
               </p>
               <input
                 type="file"
@@ -924,13 +926,13 @@ export default function ReportFoundPet() {
 
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
-                Distinctive Marks or Features
+                Distinctive Marks, Features, or Collar Information
               </label>
               <textarea
                 value={reportData.distinctiveMarks}
                 onChange={(e) => setReportData({ ...reportData, distinctiveMarks: e.target.value })}
-                placeholder="Black spot on left ear, scar on right paw, collar color, very friendly, scared of strangers..."
-                rows={3}
+                placeholder="Collar color and type, tags (if any), unique markings, scars, behavior when approached, microchip visible? Very friendly/scared/aggressive?"
+                rows={4}
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -940,6 +942,9 @@ export default function ReportFoundPet() {
                   fontFamily: 'inherit',
                 }}
               />
+              <p style={{ fontSize: '0.85rem', color: theme.colors.gray[500], marginTop: '0.5rem' }}>
+                Include any collar details, tags, behavior, and identifying features
+              </p>
             </div>
 
             <div style={{ display: 'flex', gap: '1rem' }}>
@@ -961,20 +966,20 @@ export default function ReportFoundPet() {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={!reportData.petName || !reportData.color || isSubmitting}
+                disabled={!reportData.color || isSubmitting}
                 style={{
                   flex: 2,
                   padding: '1rem',
-                  background: (reportData.petName && reportData.color && !isSubmitting) ? '#10b981' : '#cbd5e1',
+                  background: (reportData.color && !isSubmitting) ? '#10b981' : '#cbd5e1',
                   color: 'white',
                   border: 'none',
                   borderRadius: theme.radius.lg,
                   fontSize: '1.1rem',
                   fontWeight: '700',
-                  cursor: (reportData.petName && reportData.color && !isSubmitting) ? 'pointer' : 'not-allowed',
+                  cursor: (reportData.color && !isSubmitting) ? 'pointer' : 'not-allowed',
                 }}
               >
-                {isSubmitting ? 'Creating Alert...' : '🚨 Create Community Alert'}
+                {isSubmitting ? 'Creating Alert...' : '🎉 Report Found Pet'}
               </button>
             </div>
           </div>
@@ -1006,7 +1011,7 @@ export default function ReportFoundPet() {
               marginBottom: '2rem',
               lineHeight: '1.6',
             }}>
-              Your community has been notified. {radiusMiles === 1 ? '1 patrol member' : `${radiusMiles * 10} patrol members`} within {radiusMiles} {radiusMiles === 1 ? 'mile' : 'miles'} will receive alerts to help find {reportData.petName}.
+              Thank you for helping! We've notified nearby pet owners who reported a lost pet matching this description.
             </p>
 
             <div style={{
@@ -1031,10 +1036,10 @@ export default function ReportFoundPet() {
                 color: theme.colors.gray[700],
                 lineHeight: '1.8',
               }}>
-                <li>Community patrol members in your area will be notified</li>
-                <li>They'll keep an eye out for {reportData.petName} during their daily activities</li>
-                <li>You'll receive updates via email and phone when there are sightings</li>
-                <li>Check your dashboard to see any reported sightings on the map</li>
+                <li>Pet owners in your area who reported lost pets will be notified</li>
+                <li>If a match is found, the owner will contact you directly</li>
+                <li>Check your email and phone for messages from potential owners</li>
+                <li>Keep the pet safe until the owner contacts you</li>
               </ul>
             </div>
 
@@ -1052,7 +1057,7 @@ export default function ReportFoundPet() {
                 marginBottom: '0.75rem',
                 color: '#075985',
               }}>
-                💡 Additional Tips:
+                💡 While You Wait:
               </h3>
               <ul style={{
                 margin: 0,
@@ -1061,10 +1066,11 @@ export default function ReportFoundPet() {
                 lineHeight: '1.7',
                 fontSize: '0.95rem',
               }}>
-                <li>Leave food and water where they were last seen</li>
-                <li>Put out an item with your scent (worn clothing)</li>
-                <li>Contact local shelters and veterinary clinics</li>
-                <li>Post on social media and neighborhood groups</li>
+                <li>Provide food, water, and a safe place for the pet</li>
+                <li>Check for a microchip at a local vet or animal shelter (free service)</li>
+                <li>Take additional photos if possible</li>
+                <li>Post on local community groups and social media</li>
+                <li>If no owner is found, contact local animal shelters about next steps</li>
               </ul>
             </div>
 

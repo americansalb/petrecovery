@@ -134,16 +134,12 @@ export default function JoinPatrol() {
     setError(null);
 
     try {
-      // TODO: Get actual userId from auth session
-      const userId = 'temp-user-id';
-
       const response = await fetch('/api/patrol/join', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId,
           zipCode,
           centerLat: center[0],
           centerLng: center[1],

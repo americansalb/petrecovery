@@ -21,19 +21,23 @@ export async function POST(request) {
       );
     }
 
-    // 1. Check if user exists
+    // 1. Check if user exists by email
     let user = await prisma.user.findUnique({
       where: { email }
     });
 
-    // Check phone uniqueness
-    if (!user) {
+    // Check phone uniqueness only if phone is provided and user doesn't exist yet
+    if (!user && phone) {
       const phoneExists = await prisma.user.findFirst({
         where: { phone }
       });
-      if (phoneExists) {
+      // If phone exists with different email, suggest they login
+      if (phoneExists && phoneExists.email !== email) {
         return NextResponse.json(
-          { error: 'Phone number already registered. Please login or use a different number.' },
+          {
+            error: 'Phone number already registered with a different email. Please login or use the email associated with this phone number.',
+            existingEmail: phoneExists.email.substring(0, 3) + '***@' + phoneExists.email.split('@')[1]
+          },
           { status: 400 }
         );
       }
@@ -54,10 +58,19 @@ export async function POST(request) {
           firstName,
           passwordHash,
           role: 'USER',
+          accountType: 'PATROL', // Set account type to PATROL when reporting found pet
         }
       });
 
       accountCreated = true;
+    } else {
+      // If user exists but doesn't have accountType set yet, set it based on whether they have patrol profile
+      if (!user.accountType) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { accountType: 'PATROL' }
+        });
+      }
     }
 
     // 3. Create pet record (finder is temporary owner until matched)

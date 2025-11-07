@@ -9,10 +9,12 @@ import { theme } from '../lib/theme';
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [mode, setMode] = useState('owner'); // 'owner' or 'patrol'
+
   const [loading, setLoading] = useState(true);
-  const [reports, setReports] = useState([]);
-  const [nearbyAlerts, setNearbyAlerts] = useState([]);
+  const [userData, setUserData] = useState(null);
+  const [currentView, setCurrentView] = useState('owner'); // 'owner' or 'patrol'
+  const [showSwitchModal, setShowSwitchModal] = useState(false);
+  const [pendingView, setPendingView] = useState(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -25,7 +27,6 @@ export default function DashboardPage() {
       if (!session?.user) return;
 
       try {
-        // Fetch REAL data from database (no more mock data!)
         const res = await fetch('/api/dashboard');
 
         if (!res.ok) {
@@ -33,22 +34,25 @@ export default function DashboardPage() {
         }
 
         const data = await res.json();
+        setUserData(data);
 
-        // Set mode based on whether user has patrol profile
-        setMode(data.mode);
-
-        // Set reports - will be empty array [] if no reports (NOT fake data)
-        setReports(data.reports || []);
-
-        // Set nearby alerts - will be empty array [] if none (NOT fake data)
-        setNearbyAlerts(data.nearbyAlerts || []);
+        // Set initial view based on account type
+        // If user has both patrol and reports, default to their account type
+        // Otherwise default to what they have
+        if (data.user?.accountType === 'PATROL') {
+          setCurrentView('patrol');
+        } else if (data.user?.accountType === 'OWNER') {
+          setCurrentView('owner');
+        } else if (data.hasPatrolProfile) {
+          setCurrentView('patrol');
+        } else {
+          setCurrentView('owner');
+        }
 
         setLoading(false);
       } catch (error) {
         console.error('Error fetching data:', error);
-        // On error, set empty arrays (show 0, not fake data)
-        setReports([]);
-        setNearbyAlerts([]);
+        setUserData({ reports: [], nearbyAlerts: [], user: null, hasPatrolProfile: false });
         setLoading(false);
       }
     }
@@ -57,6 +61,25 @@ export default function DashboardPage() {
       fetchData();
     }
   }, [session, status]);
+
+  const handleViewSwitch = (newView) => {
+    // Check if user has access to this view
+    if (newView === 'patrol' && !userData?.hasPatrolProfile) {
+      // Redirect to join patrol page
+      router.push('/patrol/join');
+      return;
+    }
+
+    // Show explanation modal on first switch
+    setPendingView(newView);
+    setShowSwitchModal(true);
+  };
+
+  const confirmViewSwitch = () => {
+    setCurrentView(pendingView);
+    setShowSwitchModal(false);
+    setPendingView(null);
+  };
 
   if (status === 'loading' || loading) {
     return (
@@ -97,9 +120,13 @@ export default function DashboardPage() {
     );
   }
 
-  if (!session) {
+  if (!session || !userData) {
     return null;
   }
+
+  const reports = userData.reports || [];
+  const nearbyAlerts = userData.nearbyAlerts || [];
+  const hasPatrolProfile = userData.hasPatrolProfile || false;
 
   return (
     <div style={{
@@ -120,21 +147,65 @@ export default function DashboardPage() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
         }}>
-          <div>
-            <Link
-              href="/"
-              style={{
-                fontSize: '1.75rem',
-                fontWeight: '800',
-                color: '#1e293b',
-                textDecoration: 'none',
-              }}
-            >
-              🐾 PetRecovery
-            </Link>
-          </div>
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <Link
+            href="/"
+            style={{
+              fontSize: '1.75rem',
+              fontWeight: '800',
+              color: '#1e293b',
+              textDecoration: 'none',
+            }}
+          >
+            🐾 PetRecovery
+          </Link>
+
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* View Switcher */}
+            <div style={{
+              display: 'flex',
+              background: '#f1f5f9',
+              borderRadius: theme.radius.lg,
+              padding: '0.25rem',
+            }}>
+              <button
+                onClick={() => currentView !== 'owner' && handleViewSwitch('owner')}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: currentView === 'owner' ? 'white' : 'transparent',
+                  color: currentView === 'owner' ? '#dc2626' : theme.colors.gray[600],
+                  border: 'none',
+                  borderRadius: theme.radius.md,
+                  fontWeight: '700',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  boxShadow: currentView === 'owner' ? theme.shadows.sm : 'none',
+                  transition: 'all 0.2s',
+                }}
+              >
+                🏠 Owner View
+              </button>
+              <button
+                onClick={() => currentView !== 'patrol' && handleViewSwitch('patrol')}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: currentView === 'patrol' ? 'white' : 'transparent',
+                  color: currentView === 'patrol' ? '#0ea5e9' : theme.colors.gray[600],
+                  border: 'none',
+                  borderRadius: theme.radius.md,
+                  fontWeight: '700',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  boxShadow: currentView === 'patrol' ? theme.shadows.sm : 'none',
+                  transition: 'all 0.2s',
+                }}
+              >
+                🦸 Patrol View
+              </button>
+            </div>
+
             <button
               onClick={() => signOut({ callbackUrl: '/' })}
               style={{
@@ -145,6 +216,7 @@ export default function DashboardPage() {
                 borderRadius: theme.radius.lg,
                 fontWeight: '600',
                 cursor: 'pointer',
+                fontSize: '0.9rem',
               }}
             >
               Sign Out
@@ -152,6 +224,92 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal for View Switch Explanation */}
+      {showSwitchModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '2rem',
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: theme.radius.xl,
+            padding: '2.5rem',
+            maxWidth: '500px',
+            boxShadow: theme.shadows.xl,
+          }}>
+            <h2 style={{
+              fontSize: '1.75rem',
+              fontWeight: '800',
+              marginBottom: '1rem',
+              color: theme.colors.gray[900],
+            }}>
+              {pendingView === 'patrol' ? '🦸 Switching to Patrol View' : '🏠 Switching to Owner View'}
+            </h2>
+            <p style={{
+              fontSize: '1.05rem',
+              color: theme.colors.gray[700],
+              lineHeight: '1.6',
+              marginBottom: '1.5rem',
+            }}>
+              {pendingView === 'patrol'
+                ? "You'll now see lost pets in your patrol area and can help reunite them with their families."
+                : "You'll now see your active lost pet reports and can manage them from this view."}
+            </p>
+            <p style={{
+              fontSize: '0.95rem',
+              color: theme.colors.gray[600],
+              marginBottom: '2rem',
+              background: '#f8fafc',
+              padding: '1rem',
+              borderRadius: theme.radius.md,
+            }}>
+              💡 You can switch between views anytime using the toggle at the top of the page.
+            </p>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button
+                onClick={() => setShowSwitchModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  background: '#f1f5f9',
+                  color: theme.colors.gray[700],
+                  border: 'none',
+                  borderRadius: theme.radius.lg,
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmViewSwitch}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  background: pendingView === 'patrol' ? '#0ea5e9' : '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: theme.radius.lg,
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                }}
+              >
+                Switch View
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{
         maxWidth: '1200px',
@@ -172,14 +330,14 @@ export default function DashboardPage() {
             fontSize: '1.1rem',
             color: theme.colors.gray[600],
           }}>
-            {mode === 'patrol'
+            {currentView === 'patrol'
               ? "You're helping reunite pets with their families"
-              : "Manage your lost pet reports and community alerts"}
+              : "Manage your lost pet reports and track recovery progress"}
           </p>
         </div>
 
-        {/* Owner Mode: Active Reports */}
-        {mode === 'owner' && (
+        {/* Owner View */}
+        {currentView === 'owner' && (
           <>
             <div style={{
               background: 'white',
@@ -193,6 +351,8 @@ export default function DashboardPage() {
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 marginBottom: '2rem',
+                flexWrap: 'wrap',
+                gap: '1rem',
               }}>
                 <h2 style={{
                   fontSize: '1.75rem',
@@ -232,20 +392,22 @@ export default function DashboardPage() {
                   }}>
                     No active reports. Hope all your pets are safe!
                   </p>
-                  <Link
-                    href="/patrol/join"
-                    style={{
-                      display: 'inline-block',
-                      padding: '1rem 2rem',
-                      background: '#0ea5e9',
-                      color: 'white',
-                      borderRadius: theme.radius.lg,
-                      textDecoration: 'none',
-                      fontWeight: '700',
-                    }}
-                  >
-                    Join Community Pet Patrol
-                  </Link>
+                  {!hasPatrolProfile && (
+                    <Link
+                      href="/patrol/join"
+                      style={{
+                        display: 'inline-block',
+                        padding: '1rem 2rem',
+                        background: '#0ea5e9',
+                        color: 'white',
+                        borderRadius: theme.radius.lg,
+                        textDecoration: 'none',
+                        fontWeight: '700',
+                      }}
+                    >
+                      Join Community Pet Patrol
+                    </Link>
+                  )}
                 </div>
               ) : (
                 <div style={{ display: 'grid', gap: '1rem' }}>
@@ -259,6 +421,8 @@ export default function DashboardPage() {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '1rem',
                       }}
                     >
                       <div>
@@ -283,7 +447,7 @@ export default function DashboardPage() {
                           {report.sightings} sightings reported
                         </p>
                       </div>
-                      <div style={{ display: 'flex', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                         <button
                           onClick={async () => {
                             if (confirm(`Mark ${report.petName} as found?`)) {
@@ -294,7 +458,6 @@ export default function DashboardPage() {
                                   body: JSON.stringify({ reportId: report.id }),
                                 });
                                 if (res.ok) {
-                                  // Refresh the page to show updated data
                                   window.location.reload();
                                 } else {
                                   alert('Failed to mark as found. Please try again.');
@@ -338,114 +501,161 @@ export default function DashboardPage() {
           </>
         )}
 
-        {/* Patrol Mode: Nearby Alerts */}
-        {mode === 'patrol' && (
+        {/* Patrol View */}
+        {currentView === 'patrol' && (
           <>
-            <div style={{
-              background: 'white',
-              borderRadius: theme.radius.xl,
-              padding: '2.5rem',
-              marginBottom: '2rem',
-              boxShadow: theme.shadows.md,
-            }}>
-              <h2 style={{
-                fontSize: '1.75rem',
-                fontWeight: '800',
-                marginBottom: '1.5rem',
-                color: theme.colors.gray[900],
+            {!hasPatrolProfile ? (
+              <div style={{
+                background: 'white',
+                borderRadius: theme.radius.xl,
+                padding: '3rem 2.5rem',
+                textAlign: 'center',
+                boxShadow: theme.shadows.md,
               }}>
-                Nearby Lost Pets
-              </h2>
-              <p style={{
-                fontSize: '1.05rem',
-                color: theme.colors.gray[600],
-                marginBottom: '2rem',
-              }}>
-                Keep an eye out for these pets in your patrol area
-              </p>
-
-              {nearbyAlerts.length === 0 ? (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '3rem 1rem',
-                  background: '#f8fafc',
-                  borderRadius: theme.radius.lg,
+                <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🦸</div>
+                <h2 style={{
+                  fontSize: '2rem',
+                  fontWeight: '800',
+                  marginBottom: '1rem',
+                  color: theme.colors.gray[900],
                 }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
-                  <p style={{
+                  Join the Community Patrol
+                </h2>
+                <p style={{
+                  fontSize: '1.1rem',
+                  color: theme.colors.gray[600],
+                  marginBottom: '2rem',
+                  maxWidth: '600px',
+                  margin: '0 auto 2rem',
+                }}>
+                  Help reunite lost pets with their families by receiving alerts about missing pets in your area.
+                </p>
+                <Link
+                  href="/patrol/join"
+                  style={{
+                    display: 'inline-block',
+                    padding: '1.25rem 2.5rem',
+                    background: '#0ea5e9',
+                    color: 'white',
+                    borderRadius: theme.radius.lg,
+                    textDecoration: 'none',
+                    fontWeight: '700',
                     fontSize: '1.1rem',
-                    color: theme.colors.gray[600],
+                    boxShadow: theme.shadows.md,
+                  }}
+                >
+                  Join Patrol Now →
+                </Link>
+              </div>
+            ) : (
+              <div style={{
+                background: 'white',
+                borderRadius: theme.radius.xl,
+                padding: '2.5rem',
+                marginBottom: '2rem',
+                boxShadow: theme.shadows.md,
+              }}>
+                <h2 style={{
+                  fontSize: '1.75rem',
+                  fontWeight: '800',
+                  marginBottom: '1.5rem',
+                  color: theme.colors.gray[900],
+                }}>
+                  Nearby Lost Pets
+                </h2>
+                <p style={{
+                  fontSize: '1.05rem',
+                  color: theme.colors.gray[600],
+                  marginBottom: '2rem',
+                }}>
+                  Keep an eye out for these pets in your patrol area
+                </p>
+
+                {nearbyAlerts.length === 0 ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '3rem 1rem',
+                    background: '#f8fafc',
+                    borderRadius: theme.radius.lg,
                   }}>
-                    No lost pets in your area right now. Great news!
-                  </p>
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gap: '1rem' }}>
-                  {nearbyAlerts.map((alert) => (
-                    <div
-                      key={alert.id}
-                      style={{
-                        padding: '1.5rem',
-                        border: '2px solid #fca5a5',
-                        background: '#fef2f2',
-                        borderRadius: theme.radius.lg,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <div>
-                        <div style={{
-                          display: 'inline-block',
-                          padding: '0.25rem 0.75rem',
-                          background: '#dc2626',
-                          color: 'white',
-                          borderRadius: '12px',
-                          fontSize: '0.75rem',
-                          fontWeight: '700',
-                          marginBottom: '0.75rem',
-                        }}>
-                          LOST
-                        </div>
-                        <h3 style={{
-                          fontSize: '1.25rem',
-                          fontWeight: '700',
-                          marginBottom: '0.5rem',
-                          color: theme.colors.gray[900],
-                        }}>
-                          {alert.petName}
-                        </h3>
-                        <p style={{
-                          color: theme.colors.gray[600],
-                          marginBottom: '0.5rem',
-                        }}>
-                          Last seen: {alert.lastSeen}
-                        </p>
-                        <p style={{
-                          color: '#dc2626',
-                          fontWeight: '600',
-                        }}>
-                          📍 {alert.distance} from you
-                        </p>
-                      </div>
-                      <Link
-                        href={`/reports/${alert.id}`}
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
+                    <p style={{
+                      fontSize: '1.1rem',
+                      color: theme.colors.gray[600],
+                    }}>
+                      No lost pets in your area right now. Great news!
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gap: '1rem' }}>
+                    {nearbyAlerts.map((alert) => (
+                      <div
+                        key={alert.id}
                         style={{
-                          padding: '0.75rem 1.5rem',
-                          background: '#dc2626',
-                          color: 'white',
+                          padding: '1.5rem',
+                          border: '2px solid #fca5a5',
+                          background: '#fef2f2',
                           borderRadius: theme.radius.lg,
-                          textDecoration: 'none',
-                          fontWeight: '700',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '1rem',
                         }}
                       >
-                        Help Find →
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                        <div>
+                          <div style={{
+                            display: 'inline-block',
+                            padding: '0.25rem 0.75rem',
+                            background: '#dc2626',
+                            color: 'white',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            fontWeight: '700',
+                            marginBottom: '0.75rem',
+                          }}>
+                            LOST
+                          </div>
+                          <h3 style={{
+                            fontSize: '1.25rem',
+                            fontWeight: '700',
+                            marginBottom: '0.5rem',
+                            color: theme.colors.gray[900],
+                          }}>
+                            {alert.petName}
+                          </h3>
+                          <p style={{
+                            color: theme.colors.gray[600],
+                            marginBottom: '0.5rem',
+                          }}>
+                            Last seen: {alert.lastSeen}
+                          </p>
+                          <p style={{
+                            color: '#dc2626',
+                            fontWeight: '600',
+                          }}>
+                            📍 {alert.distance} from you
+                          </p>
+                        </div>
+                        <Link
+                          href={`/reports/${alert.id}`}
+                          style={{
+                            padding: '0.75rem 1.5rem',
+                            background: '#dc2626',
+                            color: 'white',
+                            borderRadius: theme.radius.lg,
+                            textDecoration: 'none',
+                            fontWeight: '700',
+                          }}
+                        >
+                          Help Find →
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
 
@@ -470,6 +680,25 @@ export default function DashboardPage() {
             gap: '1rem',
           }}>
             <Link
+              href="/report/found"
+              style={{
+                padding: '1.5rem',
+                background: '#f0fdf4',
+                borderRadius: theme.radius.lg,
+                textDecoration: 'none',
+                textAlign: 'center',
+                border: '2px solid #10b981',
+              }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🎉</div>
+              <div style={{
+                fontWeight: '700',
+                color: theme.colors.gray[900],
+              }}>
+                Report Found Pet
+              </div>
+            </Link>
+            <Link
               href="/advice"
               style={{
                 padding: '1.5rem',
@@ -488,27 +717,6 @@ export default function DashboardPage() {
                 Get Advice
               </div>
             </Link>
-            {mode === 'owner' && (
-              <Link
-                href="/patrol/join"
-                style={{
-                  padding: '1.5rem',
-                  background: '#eff6ff',
-                  borderRadius: theme.radius.lg,
-                  textDecoration: 'none',
-                  textAlign: 'center',
-                  border: '2px solid #0ea5e9',
-                }}
-              >
-                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🦸</div>
-                <div style={{
-                  fontWeight: '700',
-                  color: theme.colors.gray[900],
-                }}>
-                  Join Patrol
-                </div>
-              </Link>
-            )}
             <Link
               href="/profile"
               style={{
