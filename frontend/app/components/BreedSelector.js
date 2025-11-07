@@ -16,22 +16,17 @@ export default function BreedSelector({ species, value, onChange }) {
   const breeds = getBreedsForSpecies(species);
   const hasBreeds = breeds.length > 0;
 
-  // Initialize state from value
+  // Initialize state from value (only on mount or when explicitly set)
   useEffect(() => {
     if (value === 'Unknown') {
       setIsUnknown(true);
       setIsOther(false);
       setInputValue('Unknown');
-    } else if (value && !breeds.includes(value)) {
-      setIsOther(true);
-      setIsUnknown(false);
-      setInputValue(value);
     } else {
-      setIsOther(false);
-      setIsUnknown(false);
       setInputValue(value || '');
+      // Don't automatically set isOther - let user manually check it
     }
-  }, [value, breeds]);
+  }, [value]);
 
   // Filter breeds based on input
   useEffect(() => {
@@ -41,7 +36,7 @@ export default function BreedSelector({ species, value, onChange }) {
     }
 
     if (!inputValue || inputValue.trim() === '') {
-      setFilteredBreeds(breeds.slice(0, 20)); // Show first 20 breeds when empty
+      setFilteredBreeds(breeds); // Show ALL breeds when empty, not just first 20
     } else {
       const filtered = breeds.filter(breed =>
         breed.toLowerCase().includes(inputValue.toLowerCase())
@@ -168,7 +163,7 @@ export default function BreedSelector({ species, value, onChange }) {
             top: 'calc(100% + 0.25rem)',
             left: 0,
             right: 0,
-            maxHeight: '250px',
+            maxHeight: '300px',
             overflowY: 'auto',
             background: 'white',
             border: '2px solid #e5e7eb',
@@ -177,6 +172,21 @@ export default function BreedSelector({ species, value, onChange }) {
             zIndex: 1000,
           }}
         >
+          {/* Count header */}
+          {inputValue && (
+            <div style={{
+              padding: '0.5rem 1rem',
+              background: '#f8fafc',
+              borderBottom: '1px solid #e5e7eb',
+              fontSize: '0.85rem',
+              fontWeight: '600',
+              color: theme.colors.gray[600],
+              position: 'sticky',
+              top: 0,
+            }}>
+              {filteredBreeds.length} {filteredBreeds.length === 1 ? 'match' : 'matches'} found
+            </div>
+          )}
           {filteredBreeds.map((breed) => (
             <div
               key={breed}
