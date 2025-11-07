@@ -478,58 +478,6 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Account Stats */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '0.75rem',
-          padding: '1.5rem',
-          marginBottom: '1rem',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-        }}>
-          <h2 style={{
-            fontSize: '1.25rem',
-            fontWeight: 'bold',
-            color: '#1f2937',
-            marginBottom: '1rem',
-          }}>
-            Your Impact
-          </h2>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '1rem',
-          }}>
-            <div style={{
-              padding: '1rem',
-              backgroundColor: '#f9fafb',
-              borderRadius: '0.5rem',
-              textAlign: 'center',
-            }}>
-              <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#10b981' }}>
-                5
-              </div>
-              <div style={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: '600' }}>
-                Sightings Reported
-              </div>
-            </div>
-
-            <div style={{
-              padding: '1rem',
-              backgroundColor: '#f9fafb',
-              borderRadius: '0.5rem',
-              textAlign: 'center',
-            }}>
-              <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#2563eb' }}>
-                2
-              </div>
-              <div style={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: '600' }}>
-                Pets Reunited
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Danger Zone */}
         <div style={{
           backgroundColor: 'white',

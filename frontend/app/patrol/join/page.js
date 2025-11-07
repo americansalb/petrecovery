@@ -1,10 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { theme } from '../../lib/theme';
 
 export default function JoinPatrol() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [zipCode, setZipCode] = useState('');
   const [center, setCenter] = useState(null);
@@ -18,11 +22,37 @@ export default function JoinPatrol() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [alreadyMember, setAlreadyMember] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(true);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
   const circleRef = useRef(null);
+
+  // Check if user is already a patrol member
+  useEffect(() => {
+    async function checkPatrolStatus() {
+      if (status === 'authenticated' && session?.user) {
+        try {
+          const res = await fetch('/api/profile');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.patrolProfile) {
+              setAlreadyMember(true);
+            }
+          }
+        } catch (err) {
+          console.error('Error checking patrol status:', err);
+        }
+      }
+      setCheckingStatus(false);
+    }
+
+    if (status !== 'loading') {
+      checkPatrolStatus();
+    }
+  }, [status, session]);
 
   // Initialize map only once when we first reach step 3 with a center
   useEffect(() => {
@@ -161,6 +191,135 @@ export default function JoinPatrol() {
       setIsSubmitting(false);
     }
   };
+
+  if (checkingStatus) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)',
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            border: '4px solid #f3f3f3',
+            borderTop: '4px solid #0ea5e9',
+            borderRadius: '50%',
+            margin: '0 auto 1rem',
+            animation: 'spin 1s linear infinite',
+          }} />
+          <style jsx>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+          <p style={{ color: theme.colors.gray[600] }}>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (alreadyMember) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2rem',
+        background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)',
+      }}>
+        <div style={{
+          maxWidth: '600px',
+          backgroundColor: 'white',
+          borderRadius: theme.radius.xl,
+          padding: '3rem 2rem',
+          textAlign: 'center',
+          boxShadow: theme.shadows.lg,
+        }}>
+          <div style={{ fontSize: '5rem', marginBottom: '1.5rem' }}>🦸</div>
+          <h1 style={{
+            fontSize: '2.5rem',
+            fontWeight: '800',
+            marginBottom: '1rem',
+            color: theme.colors.gray[900],
+          }}>
+            You're Already a Patrol Member!
+          </h1>
+          <p style={{
+            fontSize: '1.2rem',
+            color: theme.colors.gray[600],
+            marginBottom: '2rem',
+          }}>
+            You're already part of the community helping reunite lost pets with their families.
+          </p>
+          <div style={{
+            background: '#dbeafe',
+            border: '2px solid #0ea5e9',
+            borderRadius: theme.radius.lg,
+            padding: '1.5rem',
+            marginBottom: '2rem',
+          }}>
+            <p style={{
+              margin: 0,
+              color: '#075985',
+              fontSize: '1rem',
+              fontWeight: '600',
+            }}>
+              💡 Manage your patrol settings or view the full pet database from your dashboard
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link
+              href="/dashboard"
+              style={{
+                padding: '1rem 2rem',
+                background: '#0ea5e9',
+                color: 'white',
+                borderRadius: theme.radius.lg,
+                textDecoration: 'none',
+                fontWeight: '700',
+                boxShadow: theme.shadows.sm,
+              }}
+            >
+              Go to Dashboard
+            </Link>
+            <Link
+              href="/patrol/database"
+              style={{
+                padding: '1rem 2rem',
+                background: '#10b981',
+                color: 'white',
+                borderRadius: theme.radius.lg,
+                textDecoration: 'none',
+                fontWeight: '700',
+                boxShadow: theme.shadows.sm,
+              }}
+            >
+              View Database
+            </Link>
+            <Link
+              href="/profile"
+              style={{
+                padding: '1rem 2rem',
+                background: '#f1f5f9',
+                color: theme.colors.gray[700],
+                borderRadius: theme.radius.lg,
+                textDecoration: 'none',
+                fontWeight: '700',
+              }}
+            >
+              Settings
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (success) {
     return (
