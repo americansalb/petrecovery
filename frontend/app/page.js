@@ -241,6 +241,7 @@ export default function Home() {
             border: '2px solid transparent',
             transition: 'all 0.2s ease',
             display: 'block',
+            position: 'relative',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.borderColor = '#0ea5e9';
@@ -253,6 +254,22 @@ export default function Home() {
             e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07)';
           }}
         >
+          {/* FREE Badge */}
+          <div style={{
+            position: 'absolute',
+            top: '1.5rem',
+            right: '1.5rem',
+            padding: '0.5rem 1rem',
+            background: '#10b981',
+            color: 'white',
+            borderRadius: '20px',
+            fontSize: '0.85rem',
+            fontWeight: '800',
+            letterSpacing: '0.5px',
+          }}>
+            FREE
+          </div>
+
           <div style={{
             width: '70px',
             height: '70px',
