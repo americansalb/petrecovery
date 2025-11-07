@@ -81,7 +81,8 @@ export async function GET(request) {
     return NextResponse.json({
       user: {
         id: user.id,
-        accountType: user.accountType,
+        hasPatrolProfile: !!user.patrolProfile,
+        hasReports: reports.length > 0,
       },
       hasPatrolProfile: !!user.patrolProfile,
       reports, // Will be [] if no reports - NOT fake data

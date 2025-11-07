@@ -64,19 +64,10 @@ export async function POST(request) {
           firstName,
           passwordHash,
           role: 'USER',
-          accountType: 'OWNER', // Set account type to OWNER when reporting lost pet
         }
       });
 
       accountCreated = true;
-    } else {
-      // If user exists but doesn't have accountType set, set it to OWNER
-      if (!user.accountType) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: { accountType: 'OWNER' }
-        });
-      }
     }
 
     // 3. Create pet record

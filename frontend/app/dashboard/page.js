@@ -36,14 +36,9 @@ export default function DashboardPage() {
         const data = await res.json();
         setUserData(data);
 
-        // Set initial view based on account type
-        // If user has both patrol and reports, default to their account type
-        // Otherwise default to what they have
-        if (data.user?.accountType === 'PATROL') {
-          setCurrentView('patrol');
-        } else if (data.user?.accountType === 'OWNER') {
-          setCurrentView('owner');
-        } else if (data.hasPatrolProfile) {
+        // Set initial view based on what the user has
+        // Default to patrol if they're in patrol, otherwise owner
+        if (data.hasPatrolProfile) {
           setCurrentView('patrol');
         } else {
           setCurrentView('owner');

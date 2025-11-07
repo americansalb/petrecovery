@@ -58,19 +58,10 @@ export async function POST(request) {
           firstName,
           passwordHash,
           role: 'USER',
-          accountType: 'PATROL', // Set account type to PATROL when reporting found pet
         }
       });
 
       accountCreated = true;
-    } else {
-      // If user exists but doesn't have accountType set yet, set it based on whether they have patrol profile
-      if (!user.accountType) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: { accountType: 'PATROL' }
-        });
-      }
     }
 
     // 3. Create pet record (finder is temporary owner until matched)

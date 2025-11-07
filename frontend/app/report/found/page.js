@@ -630,7 +630,7 @@ export default function ReportFoundPet() {
               marginBottom: '2rem',
               fontSize: '1.05rem',
             }}>
-              So community members can reach you if they spot your pet
+              So the pet owner can contact you if this is their pet
             </p>
 
             <div style={{ marginBottom: '1.5rem' }}>

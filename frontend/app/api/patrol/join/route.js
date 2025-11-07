@@ -97,14 +97,6 @@ export async function POST(request) {
       }
     });
 
-    // Update user account type to PATROL if not set
-    if (!user.accountType) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { accountType: 'PATROL' }
-      });
-    }
-
     // Count nearby active reports
     const activeReports = await prisma.lostReport.findMany({
       where: {
