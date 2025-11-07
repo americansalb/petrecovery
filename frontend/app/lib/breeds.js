@@ -188,6 +188,9 @@ export const RABBIT_BREEDS = [
 ];
 
 export function getBreedsForSpecies(species) {
+  // Convert to uppercase to handle both cases
+  const normalizedSpecies = species?.toUpperCase();
+
   const speciesMap = {
     'DOG': DOG_BREEDS,
     'CAT': CAT_BREEDS,
@@ -195,5 +198,5 @@ export function getBreedsForSpecies(species) {
     'RABBIT': RABBIT_BREEDS,
     'OTHER': [],
   };
-  return speciesMap[species] || [];
+  return speciesMap[normalizedSpecies] || [];
 }

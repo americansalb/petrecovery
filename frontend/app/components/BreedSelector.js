@@ -40,8 +40,8 @@ export default function BreedSelector({ species, value, onChange }) {
       return;
     }
 
-    if (!inputValue) {
-      setFilteredBreeds(breeds);
+    if (!inputValue || inputValue.trim() === '') {
+      setFilteredBreeds(breeds.slice(0, 20)); // Show first 20 breeds when empty
     } else {
       const filtered = breeds.filter(breed =>
         breed.toLowerCase().includes(inputValue.toLowerCase())
@@ -255,8 +255,8 @@ export default function BreedSelector({ species, value, onChange }) {
         marginTop: '0.5rem',
       }}>
         {isUnknown ? "Breed marked as unknown" :
-         isOther ? "Enter the breed name in the field above" :
-         hasBreeds ? `Type to search ${filteredBreeds.length} breeds` :
+         isOther ? "Enter any breed name in the field above" :
+         hasBreeds ? `${breeds.length} breeds available - click field to see list or start typing to search` :
          "Enter the breed name"}
       </p>
     </div>
