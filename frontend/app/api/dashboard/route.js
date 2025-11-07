@@ -69,12 +69,11 @@ export async function GET(request) {
         foundAt: formatTime(report.lastSeenAt),
       }));
 
-      // Get all active LOST reports from others (REAL data from database)
+      // Get all active LOST reports including own (REAL data from database)
       const allReports = await prisma.lostReport.findMany({
         where: {
           status: 'ACTIVE',
           reportType: 'LOST', // Only show LOST pets to help find
-          reporterId: { not: user.id }, // Don't show own reports
         },
         include: {
           pet: true,
