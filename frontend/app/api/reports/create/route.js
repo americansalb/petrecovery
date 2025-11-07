@@ -141,9 +141,10 @@ export async function POST(request) {
       )
     );
 
-    // 6. Send email if new account created
+    // 6. Send email in background (don't wait for it)
     if (accountCreated && tempPassword) {
-      await sendEmail({
+      // Send email asynchronously - don't block the response
+      sendEmail({
         to: email,
         subject: 'Your PetRecovery.org Account - Lost Pet Alert Created',
         html: `
@@ -164,9 +165,10 @@ export async function POST(request) {
             <p><small style="color: #6b7280;">We recommend changing your password after logging in.</small></p>
           </div>
         `
-      });
+      }).catch(err => console.error('Email send failed:', err));
     }
 
+    // Return immediately without waiting for email
     return NextResponse.json({
       success: true,
       reportId: report.id,

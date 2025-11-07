@@ -137,9 +137,10 @@ export async function POST(request) {
       )
     );
 
-    // 6. Send email if new account created
+    // 6. Send email in background (don't wait for it)
     if (accountCreated && tempPassword) {
-      await sendEmail({
+      // Send email asynchronously - don't block the response
+      sendEmail({
         to: email,
         subject: 'Thank You for Reporting a Found Pet - PetRecovery.org',
         html: `
@@ -162,9 +163,10 @@ export async function POST(request) {
             <p><small style="color: #6b7280;">Please keep the pet safe until the owner contacts you. If no one claims the pet, consider local animal shelters or rescue organizations.</small></p>
           </div>
         `
-      });
+      }).catch(err => console.error('Email send failed:', err));
     }
 
+    // Return immediately without waiting for email
     return NextResponse.json({
       success: true,
       reportId: report.id,

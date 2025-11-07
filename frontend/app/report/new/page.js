@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { theme } from '../../lib/theme';
 
 export default function ReportLostPet() {
+  const { data: session } = useSession();
   const [step, setStep] = useState(1);
   const [petType, setPetType] = useState('');
 
@@ -39,6 +41,17 @@ export default function ReportLostPet() {
   const [error, setError] = useState(null);
   const [reportId, setReportId] = useState(null);
   const [photos, setPhotos] = useState([]);
+
+  // Auto-fill user data from session
+  useEffect(() => {
+    if (session?.user) {
+      setReportData(prev => ({
+        ...prev,
+        email: session.user.email || '',
+        firstName: session.user.name || '',
+      }));
+    }
+  }, [session]);
 
   // Initialize map
   useEffect(() => {
@@ -241,6 +254,19 @@ export default function ReportLostPet() {
           >
             ← PetRecovery
           </Link>
+          {session?.user && (
+            <div style={{
+              padding: '0.5rem 1rem',
+              background: '#f0fdf4',
+              border: '2px solid #10b981',
+              borderRadius: theme.radius.lg,
+              fontSize: '0.9rem',
+              fontWeight: '600',
+              color: '#065f46',
+            }}>
+              ✓ Logged in as {session.user.email}
+            </div>
+          )}
         </div>
       </div>
 
@@ -627,11 +653,24 @@ export default function ReportLostPet() {
             </h2>
             <p style={{
               color: theme.colors.gray[600],
-              marginBottom: '2rem',
+              marginBottom: '1rem',
               fontSize: '1.05rem',
             }}>
               So community members can reach you if they spot your pet
             </p>
+            {session?.user && (
+              <div style={{
+                background: '#dbeafe',
+                border: '2px solid #0ea5e9',
+                borderRadius: theme.radius.lg,
+                padding: '1rem',
+                marginBottom: '2rem',
+                fontSize: '0.9rem',
+                color: '#075985',
+              }}>
+                <strong>✓ We've pre-filled your info from your account.</strong> Verify your phone number for text alerts.
+              </div>
+            )}
 
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
