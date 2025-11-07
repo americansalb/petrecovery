@@ -30,20 +30,43 @@ export default function ProfilePage() {
   }, [status, router]);
 
   useEffect(() => {
-    if (session) {
-      // TODO: Fetch from API
-      setProfileData({
-        firstName: session.user?.name || '',
-        email: session.user?.email || '',
-        phone: '(555) 123-4567',
-      });
+    async function fetchProfile() {
+      if (!session?.user) return;
 
-      setPatrolSettings({
-        isPatrolMember: true,
-        radiusMiles: 5,
-        alertMethod: 'EMAIL',
-        instantAlerts: true,
-      });
+      try {
+        const res = await fetch('/api/profile');
+        if (!res.ok) throw new Error('Failed to fetch profile');
+
+        const data = await res.json();
+
+        setProfileData({
+          firstName: data.user.firstName || '',
+          email: data.user.email || '',
+          phone: data.user.phone || '',
+        });
+
+        if (data.patrolProfile) {
+          setPatrolSettings({
+            isPatrolMember: true,
+            radiusMiles: data.patrolProfile.radiusMiles || 5,
+            alertMethod: data.patrolProfile.alertMethod || 'EMAIL',
+            instantAlerts: data.patrolProfile.instantAlerts !== undefined ? data.patrolProfile.instantAlerts : true,
+          });
+        } else {
+          setPatrolSettings({
+            isPatrolMember: false,
+            radiusMiles: 5,
+            alertMethod: 'EMAIL',
+            instantAlerts: true,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      }
+    }
+
+    if (session) {
+      fetchProfile();
     }
   }, [session]);
 
@@ -53,11 +76,24 @@ export default function ProfilePage() {
     setMessage('');
 
     try {
-      // TODO: API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: profileData.firstName,
+          phone: profileData.phone,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update profile');
+      }
+
       setMessage('Profile updated successfully!');
     } catch (error) {
-      setMessage('Failed to update profile');
+      setMessage('Failed to update profile: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -69,11 +105,25 @@ export default function ProfilePage() {
     setMessage('');
 
     try {
-      // TODO: API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const res = await fetch('/api/patrol/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          radiusMiles: patrolSettings.radiusMiles,
+          alertMethod: patrolSettings.alertMethod,
+          instantAlerts: patrolSettings.instantAlerts,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update patrol settings');
+      }
+
       setMessage('Patrol settings updated successfully!');
     } catch (error) {
-      setMessage('Failed to update patrol settings');
+      setMessage('Failed to update patrol settings: ' + error.message);
     } finally {
       setLoading(false);
     }
