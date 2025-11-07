@@ -69,13 +69,19 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Hero */}
+      {/* Hero Section */}
       <div style={{
         textAlign: 'center',
-        padding: '5rem 2rem 3rem',
-        maxWidth: '900px',
+        padding: '4rem 2rem 2rem',
+        maxWidth: '1000px',
         margin: '0 auto',
       }}>
+        <div style={{
+          fontSize: '5rem',
+          marginBottom: '1.5rem',
+        }}>
+          🦸‍♀️🐕🐈🦸‍♂️
+        </div>
         <h1 style={{
           fontSize: 'clamp(2.5rem, 6vw, 4.5rem)',
           fontWeight: '900',
@@ -83,561 +89,285 @@ export default function Home() {
           color: '#0f172a',
           lineHeight: '1.1',
         }}>
-          Reunite with Your Lost Pet
+          Join Your Community Pet Patrol
         </h1>
         <p style={{
           fontSize: '1.4rem',
           color: '#475569',
-          maxWidth: '700px',
-          margin: '0 auto 1rem',
-          lineHeight: '1.5',
+          maxWidth: '800px',
+          margin: '0 auto 2.5rem',
+          lineHeight: '1.6',
           fontWeight: '400',
         }}>
-          Instant community alerts and proven recovery strategies to bring your pet home safely
+          Receive instant alerts about lost pets in your area. Help neighbors find their pets and get help when you need it. <strong>It's completely free.</strong>
         </p>
+
+        {/* Main CTA */}
+        <Link
+          href="/patrol/join"
+          style={{
+            display: 'inline-block',
+            padding: '1.75rem 4rem',
+            background: '#0ea5e9',
+            color: 'white',
+            borderRadius: '16px',
+            textDecoration: 'none',
+            fontWeight: '800',
+            fontSize: '1.5rem',
+            boxShadow: '0 10px 40px rgba(14, 165, 233, 0.3)',
+            transition: 'all 0.2s ease',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 20px 50px rgba(14, 165, 233, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 10px 40px rgba(14, 165, 233, 0.3)';
+          }}
+        >
+          Join the Patrol - It's Free! →
+        </Link>
+
         <p style={{
           fontSize: '1.1rem',
           color: '#10b981',
           fontWeight: '700',
-          margin: '0',
+          marginTop: '1.5rem',
         }}>
           ✓ 847 pets reunited and counting
         </p>
       </div>
 
-      {/* Main 2 Options */}
+      {/* Benefits Grid */}
       <div style={{
         maxWidth: '1100px',
         margin: '0 auto',
-        padding: '0 2rem 3rem',
+        padding: '3rem 2rem',
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))',
-        gap: '2.5rem',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+        gap: '2rem',
       }}>
-        {/* Report Lost Pet */}
-        <Link
-          href="/report/new"
-          style={{
-            background: 'white',
-            borderRadius: '16px',
-            padding: '3rem 2.5rem',
-            textDecoration: 'none',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
-            border: '2px solid transparent',
-            transition: 'all 0.2s ease',
-            display: 'block',
-            position: 'relative',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#dc2626';
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 12px 24px rgba(220, 38, 38, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'transparent';
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07)';
-          }}
-        >
-          {/* FREE Badge */}
-          <div style={{
-            position: 'absolute',
-            top: '1.5rem',
-            right: '1.5rem',
-            padding: '0.5rem 1rem',
-            background: '#10b981',
-            color: 'white',
-            borderRadius: '20px',
-            fontSize: '0.85rem',
-            fontWeight: '800',
-            letterSpacing: '0.5px',
-          }}>
-            FREE
-          </div>
-
-          <div style={{
-            width: '70px',
-            height: '70px',
-            borderRadius: '50%',
-            background: '#fee2e2',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '2.5rem',
-            marginBottom: '1.5rem',
-          }}>
-            🚨
-          </div>
-
-          <h2 style={{
-            fontSize: '2rem',
-            fontWeight: '800',
-            marginBottom: '1rem',
-            color: '#0f172a',
-          }}>
-            Report Lost Pet
-          </h2>
-
-          <p style={{
-            fontSize: '1.1rem',
-            color: '#64748b',
-            lineHeight: '1.6',
-            marginBottom: '1.5rem',
-          }}>
-            Alert every neighbor in your area instantly. Get step-by-step recovery guidance customized for your pet and situation.
-          </p>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
+        {[
+          {
+            icon: '🚨',
+            title: 'Get Instant Alerts',
+            description: 'Be notified immediately when pets go missing in your neighborhood',
+          },
+          {
+            icon: '🗺️',
+            title: 'Search Your Area',
+            description: 'Set your patrol radius and help during your daily walks or commute',
+          },
+          {
+            icon: '📸',
+            title: 'Report Sightings',
+            description: 'Spot a lost pet? Report it instantly and help reunite families',
+          },
+          {
+            icon: '🏆',
+            title: 'Earn Recognition',
+            description: 'Build your reputation as a community hero and earn patrol badges',
+          },
+        ].map((benefit, index) => (
+          <div
+            key={index}
+            style={{
+              background: 'white',
+              padding: '2rem',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>{benefit.icon}</div>
+            <h3 style={{
+              fontSize: '1.3rem',
+              fontWeight: '700',
               marginBottom: '0.75rem',
+              color: '#0f172a',
             }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>Instant alerts to local patrol members</span>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              marginBottom: '0.75rem',
+              {benefit.title}
+            </h3>
+            <p style={{
+              color: '#64748b',
+              lineHeight: '1.6',
+              fontSize: '1rem',
             }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>Proven recovery strategies</span>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-            }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>Track sightings in real-time</span>
-            </div>
+              {benefit.description}
+            </p>
           </div>
-
-          <div style={{
-            padding: '1.25rem',
-            background: '#dc2626',
-            color: 'white',
-            borderRadius: '10px',
-            fontWeight: '700',
-            textAlign: 'center',
-            fontSize: '1.1rem',
-          }}>
-            Start Recovery Now →
-          </div>
-        </Link>
-
-        {/* Report Found Pet */}
-        <Link
-          href="/report/found"
-          style={{
-            background: 'white',
-            borderRadius: '16px',
-            padding: '3rem 2.5rem',
-            textDecoration: 'none',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
-            border: '2px solid transparent',
-            transition: 'all 0.2s ease',
-            display: 'block',
-            position: 'relative',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#10b981';
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 12px 24px rgba(16, 185, 129, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'transparent';
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07)';
-          }}
-        >
-          {/* FREE Badge */}
-          <div style={{
-            position: 'absolute',
-            top: '1.5rem',
-            right: '1.5rem',
-            padding: '0.5rem 1rem',
-            background: '#10b981',
-            color: 'white',
-            borderRadius: '20px',
-            fontSize: '0.85rem',
-            fontWeight: '800',
-            letterSpacing: '0.5px',
-          }}>
-            FREE
-          </div>
-
-          <div style={{
-            width: '70px',
-            height: '70px',
-            borderRadius: '50%',
-            background: '#d1fae5',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '2.5rem',
-            marginBottom: '1.5rem',
-          }}>
-            🎉
-          </div>
-
-          <h2 style={{
-            fontSize: '2rem',
-            fontWeight: '800',
-            marginBottom: '1rem',
-            color: '#0f172a',
-          }}>
-            Report Found Pet
-          </h2>
-
-          <p style={{
-            fontSize: '1.1rem',
-            color: '#64748b',
-            lineHeight: '1.6',
-            marginBottom: '1.5rem',
-          }}>
-            Found a lost pet? Help reunite them with their family. Your kindness could bring a pet home today.
-          </p>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              marginBottom: '0.75rem',
-            }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>Alert nearby owners instantly</span>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              marginBottom: '0.75rem',
-            }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>Match with lost pet reports</span>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-            }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>Safe reunion coordination</span>
-            </div>
-          </div>
-
-          <div style={{
-            padding: '1.25rem',
-            background: '#10b981',
-            color: 'white',
-            borderRadius: '10px',
-            fontWeight: '700',
-            textAlign: 'center',
-            fontSize: '1.1rem',
-          }}>
-            Report Found Pet →
-          </div>
-        </Link>
-
-        {/* Join Pet Patrol */}
-        <Link
-          href="/patrol/join"
-          style={{
-            background: 'white',
-            borderRadius: '16px',
-            padding: '3rem 2.5rem',
-            textDecoration: 'none',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
-            border: '2px solid transparent',
-            transition: 'all 0.2s ease',
-            display: 'block',
-            position: 'relative',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#0ea5e9';
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 12px 24px rgba(14, 165, 233, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'transparent';
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07)';
-          }}
-        >
-          {/* FREE Badge */}
-          <div style={{
-            position: 'absolute',
-            top: '1.5rem',
-            right: '1.5rem',
-            padding: '0.5rem 1rem',
-            background: '#10b981',
-            color: 'white',
-            borderRadius: '20px',
-            fontSize: '0.85rem',
-            fontWeight: '800',
-            letterSpacing: '0.5px',
-          }}>
-            FREE
-          </div>
-
-          <div style={{
-            width: '70px',
-            height: '70px',
-            borderRadius: '50%',
-            background: '#dbeafe',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '2.5rem',
-            marginBottom: '1.5rem',
-          }}>
-            🦸
-          </div>
-
-          <h2 style={{
-            fontSize: '2rem',
-            fontWeight: '800',
-            marginBottom: '1rem',
-            color: '#0f172a',
-          }}>
-            Join your Community Pet Patrol
-          </h2>
-
-          <p style={{
-            fontSize: '1.1rem',
-            color: '#64748b',
-            lineHeight: '1.6',
-            marginBottom: '1.5rem',
-          }}>
-            Be a hero without leaving your routine. Get alerts for lost pets in your neighborhood—just keep an eye out.
-          </p>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              marginBottom: '0.75rem',
-            }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>5 minutes to sign up</span>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              marginBottom: '0.75rem',
-            }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>No active searching required</span>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-            }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>Help reunite families</span>
-            </div>
-          </div>
-
-          <div style={{
-            padding: '1.25rem',
-            background: '#0ea5e9',
-            color: 'white',
-            borderRadius: '10px',
-            fontWeight: '700',
-            textAlign: 'center',
-            fontSize: '1.1rem',
-          }}>
-            Become a Patrol Hero →
-          </div>
-        </Link>
+        ))}
       </div>
 
       {/* Divider */}
       <div style={{
-        maxWidth: '1100px',
-        margin: '2rem auto',
+        maxWidth: '800px',
+        margin: '3rem auto',
         padding: '0 2rem',
       }}>
         <div style={{
           height: '1px',
-          background: '#e2e8f0',
-        }}></div>
+          background: 'linear-gradient(to right, transparent, #e2e8f0, transparent)',
+        }} />
       </div>
 
-      {/* Secondary Option - Advice */}
+      {/* Secondary Actions */}
       <div style={{
-        maxWidth: '700px',
+        maxWidth: '900px',
         margin: '0 auto',
-        padding: '0 2rem 4rem',
+        padding: '2rem 2rem 5rem',
       }}>
-        <Link
-          href="/advice"
-          style={{
-            background: '#f8fafc',
-            borderRadius: '12px',
-            padding: '2rem',
-            textDecoration: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1.5rem',
-            border: '1px solid #e2e8f0',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'white';
-            e.currentTarget.style.borderColor = '#cbd5e1';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#f8fafc';
-            e.currentTarget.style.borderColor = '#e2e8f0';
-          }}
-        >
-          <div style={{
-            width: '60px',
-            height: '60px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.8rem',
-            flexShrink: 0,
-          }}>
-            💡
-          </div>
-          <div style={{ flex: 1 }}>
+        <h2 style={{
+          fontSize: '1.5rem',
+          fontWeight: '700',
+          textAlign: 'center',
+          color: '#475569',
+          marginBottom: '2rem',
+        }}>
+          Need Immediate Help?
+        </h2>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '1.5rem',
+        }}>
+          {/* Lost Pet Quick Action */}
+          <Link
+            href="/report/new"
+            style={{
+              background: '#fef2f2',
+              border: '2px solid #fecaca',
+              borderRadius: '12px',
+              padding: '2rem',
+              textDecoration: 'none',
+              transition: 'all 0.2s ease',
+              display: 'block',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#dc2626';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#fecaca';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            <div style={{
+              fontSize: '2.5rem',
+              marginBottom: '1rem',
+            }}>
+              🚨
+            </div>
             <h3 style={{
               fontSize: '1.4rem',
               fontWeight: '700',
               marginBottom: '0.5rem',
-              color: '#0f172a',
+              color: '#dc2626',
             }}>
-              Not ready to report? Get recovery advice
+              Lost Your Pet?
             </h3>
             <p style={{
+              color: '#991b1b',
               fontSize: '0.95rem',
-              color: '#64748b',
-              margin: 0,
+              lineHeight: '1.5',
             }}>
-              Learn proven strategies for finding your lost pet—no account needed
+              Get immediate help from the community. Alert everyone in your area right now.
             </p>
-          </div>
-          <div style={{
-            color: '#8b5cf6',
-            fontSize: '1.5rem',
-            fontWeight: '700',
-          }}>
-            →
-          </div>
-        </Link>
-      </div>
+          </Link>
 
-      {/* Social Proof */}
-      <div style={{
-        background: 'white',
-        borderTop: '1px solid #f1f5f9',
-        borderBottom: '1px solid #f1f5f9',
-        padding: '3rem 2rem',
-      }}>
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-          gap: '3rem',
-          textAlign: 'center',
-        }}>
-          <div>
+          {/* Found Pet Quick Action */}
+          <Link
+            href="/report/found"
+            style={{
+              background: '#f0fdf4',
+              border: '2px solid #bbf7d0',
+              borderRadius: '12px',
+              padding: '2rem',
+              textDecoration: 'none',
+              transition: 'all 0.2s ease',
+              display: 'block',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#10b981';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#bbf7d0';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
             <div style={{
-              fontSize: '3.5rem',
-              fontWeight: '800',
+              fontSize: '2.5rem',
+              marginBottom: '1rem',
+            }}>
+              🎉
+            </div>
+            <h3 style={{
+              fontSize: '1.4rem',
+              fontWeight: '700',
+              marginBottom: '0.5rem',
               color: '#10b981',
-              marginBottom: '0.5rem',
             }}>
-              847
-            </div>
-            <div style={{ color: '#64748b', fontWeight: '600', fontSize: '1.05rem' }}>
-              Happy Reunions
-            </div>
-          </div>
-          <div>
-            <div style={{
-              fontSize: '3.5rem',
-              fontWeight: '800',
-              color: '#0ea5e9',
-              marginBottom: '0.5rem',
+              Found a Pet?
+            </h3>
+            <p style={{
+              color: '#065f46',
+              fontSize: '0.95rem',
+              lineHeight: '1.5',
             }}>
-              2,345
-            </div>
-            <div style={{ color: '#64748b', fontWeight: '600', fontSize: '1.05rem' }}>
-              Active Patrol Heroes
-            </div>
-          </div>
-          <div>
-            <div style={{
-              fontSize: '3.5rem',
-              fontWeight: '800',
-              color: '#f59e0b',
-              marginBottom: '0.5rem',
-            }}>
-              94%
-            </div>
-            <div style={{ color: '#64748b', fontWeight: '600', fontSize: '1.05rem' }}>
-              Found Within 7 Days
-            </div>
-          </div>
+              Help reunite a lost pet with their family. Report your finding and we'll match them.
+            </p>
+          </Link>
         </div>
       </div>
 
-      {/* Testimonial */}
+      {/* Footer CTA */}
       <div style={{
-        maxWidth: '900px',
-        margin: '0 auto',
+        background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
         padding: '4rem 2rem',
         textAlign: 'center',
+        color: 'white',
       }}>
-        <div style={{
-          background: '#f8fafc',
-          borderRadius: '12px',
-          padding: '2.5rem',
-          border: '1px solid #e2e8f0',
+        <h2 style={{
+          fontSize: '2.5rem',
+          fontWeight: '900',
+          marginBottom: '1rem',
         }}>
-          <p style={{
+          Ready to Make a Difference?
+        </h2>
+        <p style={{
+          fontSize: '1.2rem',
+          marginBottom: '2rem',
+          opacity: 0.95,
+        }}>
+          Join thousands of neighbors helping lost pets find their way home
+        </p>
+        <Link
+          href="/patrol/join"
+          style={{
+            display: 'inline-block',
+            padding: '1.25rem 3rem',
+            background: 'white',
+            color: '#0ea5e9',
+            borderRadius: '12px',
+            textDecoration: 'none',
+            fontWeight: '800',
             fontSize: '1.3rem',
-            fontStyle: 'italic',
-            color: '#475569',
-            lineHeight: '1.6',
-            marginBottom: '1.5rem',
-          }}>
-            "Max was found 2 miles away thanks to a patrol member who saw the alert. We were reunited in less than 6 hours. This service saved our family."
-          </p>
-          <div style={{
-            color: '#0f172a',
-            fontWeight: '600',
-          }}>
-            — Sarah M., Chicago
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div style={{
-        background: '#f8fafc',
-        borderTop: '1px solid #e2e8f0',
-        padding: '2rem',
-        textAlign: 'center',
-        color: '#94a3b8',
-        fontSize: '0.9rem',
-      }}>
-        <p>© 2025 PetRecovery - Every pet deserves to come home</p>
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.05)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          Join the Patrol Today →
+        </Link>
       </div>
     </div>
   );
