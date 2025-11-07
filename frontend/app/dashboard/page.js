@@ -25,39 +25,30 @@ export default function DashboardPage() {
       if (!session?.user) return;
 
       try {
-        // Check if user has patrol profile
-        // TODO: Uncomment when Prisma is connected
-        // const res = await fetch(`/api/patrol/check?userId=${session.user.id}`);
-        // const data = await res.json();
-        // setMode(data.isPatrol ? 'patrol' : 'owner');
+        // Fetch REAL data from database (no more mock data!)
+        const res = await fetch('/api/dashboard');
 
-        // Fetch user's reports or nearby alerts based on mode
-        // TODO: Replace with real API calls
-        setReports([
-          // Mock data structure - replace with real Prisma data
-          {
-            id: '1',
-            petName: 'Max',
-            species: 'dog',
-            lastSeen: '2 hours ago',
-            sightings: 3,
-            status: 'ACTIVE'
-          }
-        ]);
+        if (!res.ok) {
+          throw new Error('Failed to fetch dashboard data');
+        }
 
-        setNearbyAlerts([
-          {
-            id: '1',
-            petName: 'Luna',
-            species: 'cat',
-            lastSeen: '5 hours ago',
-            distance: '0.5 miles',
-          }
-        ]);
+        const data = await res.json();
+
+        // Set mode based on whether user has patrol profile
+        setMode(data.mode);
+
+        // Set reports - will be empty array [] if no reports (NOT fake data)
+        setReports(data.reports || []);
+
+        // Set nearby alerts - will be empty array [] if none (NOT fake data)
+        setNearbyAlerts(data.nearbyAlerts || []);
 
         setLoading(false);
       } catch (error) {
         console.error('Error fetching data:', error);
+        // On error, set empty arrays (show 0, not fake data)
+        setReports([]);
+        setNearbyAlerts([]);
         setLoading(false);
       }
     }

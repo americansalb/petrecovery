@@ -587,14 +587,15 @@ export default function JoinPatrol() {
                 fontSize: '1.1rem',
                 color: theme.colors.gray[900],
               }}>
-                Patrol Radius: <span style={{ color: '#0ea5e9' }}>{radiusMiles} miles</span>
+                Patrol Radius: <span style={{ color: '#0ea5e9' }}>{radiusMiles} {radiusMiles === 1 ? 'mile' : 'miles'}</span>
               </label>
               <input
                 type="range"
-                min="1"
+                min="0.25"
                 max="25"
+                step="0.25"
                 value={radiusMiles}
-                onChange={(e) => setRadiusMiles(parseInt(e.target.value))}
+                onChange={(e) => setRadiusMiles(parseFloat(e.target.value))}
                 style={{
                   width: '100%',
                   height: '8px',
@@ -608,7 +609,7 @@ export default function JoinPatrol() {
                 fontSize: '0.9rem',
                 color: theme.colors.gray[500],
               }}>
-                <span>1 mile</span>
+                <span>0.25 miles</span>
                 <span>25 miles</span>
               </div>
             </div>

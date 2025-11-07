@@ -1,0 +1,206 @@
+import { NextResponse } from 'next/server';
+import prisma from '../../../lib/prisma';
+import bcrypt from 'bcryptjs';
+import { sendEmail } from '../../../lib/email';
+
+// NOTE: Before using this API:
+// 1. Run: npm install bcryptjs nodemailer @prisma/client
+// 2. Run: npx prisma generate
+// 3. Run: npx prisma migrate dev --name init
+// 4. Configure .env.local with DATABASE_URL and SMTP settings
+
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const {
+      email, phone, firstName,
+      petName, breed, color, size, distinctiveMarks,
+      lastSeenAddress, center, radiusMiles, timeElapsed, petType,
+      photos // Array of photo URLs/data
+    } = body;
+
+    // Validate required fields
+    if (!email || !phone || !firstName || !petName || !color || !lastSeenAddress || !center) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // 1. Check if user exists
+    let user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    // Check phone uniqueness
+    if (!user) {
+      const phoneExists = await prisma.user.findFirst({
+        where: { phone }
+      });
+      if (phoneExists) {
+        return NextResponse.json(
+          { error: 'Phone number already registered. Please login or use a different number.' },
+          { status: 400 }
+        );
+      }
+    }
+
+    let accountCreated = false;
+    let tempPassword = null;
+
+    // 2. Create account if doesn't exist
+    if (!user) {
+      tempPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12);
+      const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+      user = await prisma.user.create({
+        data: {
+          email,
+          phone,
+          firstName,
+          passwordHash,
+          role: 'USER',
+        }
+      });
+
+      accountCreated = true;
+    }
+
+    // 3. Create pet record
+    const pet = await prisma.pet.create({
+      data: {
+        ownerId: user.id,
+        name: petName,
+        species: petType.toUpperCase(),
+        breed: breed || '',
+        color,
+        size,
+        distinctiveMarks: distinctiveMarks || '',
+        primaryPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
+        photos: photos || [],
+        personality: [],
+      }
+    });
+
+    // 4. Create lost report
+    const lastSeenAt = calculateLastSeenTime(timeElapsed);
+
+    const report = await prisma.lostReport.create({
+      data: {
+        petId: pet.id,
+        reporterId: user.id,
+        lastSeenAt,
+        lastSeenLatitude: center[0],
+        lastSeenLongitude: center[1],
+        lastSeenAddress,
+        escapeScenario: 'unknown',
+        searchRadius: radiusMiles,
+        status: 'ACTIVE',
+        priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'NORMAL',
+      }
+    });
+
+    // 5. Find nearby patrol members
+    const patrolMembers = await prisma.user.findMany({
+      where: {
+        patrolProfile: {
+          isActive: true,
+          isPaused: false,
+        }
+      },
+      include: {
+        profile: true,
+        patrolProfile: true,
+      }
+    });
+
+    // Filter by distance and create alerts
+    const nearbyPatrol = patrolMembers.filter(member => {
+      if (!member.profile?.latitude || !member.profile?.longitude) return false;
+      const distance = calculateDistance(
+        center[0], center[1],
+        member.profile.latitude, member.profile.longitude
+      );
+      return distance <= member.patrolProfile.radiusMiles;
+    });
+
+    await Promise.all(
+      nearbyPatrol.map(member =>
+        prisma.alert.create({
+          data: {
+            reportId: report.id,
+            userId: member.id,
+            method: member.patrolProfile.alertMethod,
+          }
+        })
+      )
+    );
+
+    // 6. Send email if new account created
+    if (accountCreated && tempPassword) {
+      await sendEmail({
+        to: email,
+        subject: 'Your PetRecovery.org Account - Lost Pet Alert Created',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #dc2626;">🚨 Lost Pet Alert Created</h2>
+            <p>Hi ${firstName},</p>
+            <p>Your lost pet alert for <strong>${petName}</strong> has been created and ${nearbyPatrol.length} patrol member${nearbyPatrol.length !== 1 ? 's' : ''} in your area ${nearbyPatrol.length !== 1 ? 'have' : 'has'} been notified.</p>
+
+            <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">Your Account</h3>
+              <p>We've created an account for you:</p>
+              <p><strong>Email:</strong> ${email}<br/>
+              <strong>Temporary Password:</strong> <code style="background: #fee2e2; padding: 2px 6px; border-radius: 3px;">${tempPassword}</code></p>
+            </div>
+
+            <p><a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/login" style="display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Login to Dashboard</a></p>
+
+            <p><small style="color: #6b7280;">We recommend changing your password after logging in.</small></p>
+          </div>
+        `
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      reportId: report.id,
+      accountCreated,
+      patrolAlerted: nearbyPatrol.length,
+    });
+
+  } catch (error) {
+    console.error('❌ Report creation error:', error);
+    return NextResponse.json(
+      { error: 'Failed to create report', details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+function calculateLastSeenTime(timeElapsed) {
+  const now = new Date();
+  const hours = {
+    'less_than_hour': 0.5,
+    '1_to_6_hours': 3,
+    '6_to_24_hours': 12,
+    '1_to_3_days': 48,
+    '3_to_7_days': 120,
+    '1_to_2_weeks': 240,
+    'more_than_2_weeks': 360,
+  };
+  const hoursAgo = hours[timeElapsed] || 12;
+  return new Date(now.getTime() - hoursAgo * 60 * 60 * 1000);
+}
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 3959; // Earth's radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}

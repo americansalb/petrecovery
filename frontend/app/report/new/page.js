@@ -11,7 +11,7 @@ export default function ReportLostPet() {
   // Location and map data
   const [lastSeenAddress, setLastSeenAddress] = useState('');
   const [center, setCenter] = useState(null);
-  const [radiusMiles, setRadiusMiles] = useState(2); // Smaller default for lost pets
+  const [radiusMiles, setRadiusMiles] = useState(1); // Default 1 mile for lost pets
   const [timeElapsed, setTimeElapsed] = useState('');
 
   const mapRef = useRef(null);
@@ -140,10 +140,38 @@ export default function ReportLostPet() {
     setError(null);
 
     try {
-      // TODO: Submit to API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setReportId('temp-report-id');
-      setStep(6);
+      // Call REAL API (no more fake data!)
+      const response = await fetch('/api/reports/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: reportData.email,
+          phone: reportData.phone,
+          firstName: reportData.firstName,
+          petName: reportData.petName,
+          breed: reportData.breed,
+          color: reportData.color,
+          size: reportData.size,
+          distinctiveMarks: reportData.distinctiveMarks,
+          lastSeenAddress,
+          center,
+          radiusMiles,
+          timeElapsed,
+          petType,
+          photos: [], // TODO: Add photo upload in next update
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create report');
+      }
+
+      setReportId(data.reportId);
+      setStep(6); // Success step
     } catch (err) {
       setError(err.message);
     } finally {
@@ -468,10 +496,11 @@ export default function ReportLostPet() {
               </label>
               <input
                 type="range"
-                min="1"
+                min="0.25"
                 max="10"
+                step="0.25"
                 value={radiusMiles}
-                onChange={(e) => setRadiusMiles(parseInt(e.target.value))}
+                onChange={(e) => setRadiusMiles(parseFloat(e.target.value))}
                 style={{
                   width: '100%',
                   height: '8px',
@@ -485,7 +514,7 @@ export default function ReportLostPet() {
                 fontSize: '0.9rem',
                 color: theme.colors.gray[500],
               }}>
-                <span>1 mile</span>
+                <span>0.25 miles</span>
                 <span>10 miles</span>
               </div>
             </div>
