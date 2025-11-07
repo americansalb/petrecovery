@@ -816,11 +816,29 @@ export default function ReportLostPet() {
                   fontSize: '1rem',
                 }}
               >
-                <option value="TINY">Tiny (&lt; 10 lbs)</option>
-                <option value="SMALL">Small (10-25 lbs)</option>
-                <option value="MEDIUM">Medium (25-60 lbs)</option>
-                <option value="LARGE">Large (60-90 lbs)</option>
-                <option value="GIANT">Giant (&gt; 90 lbs)</option>
+                {petType === 'bird' ? (
+                  <>
+                    <option value="TINY">Small (Parakeet, Finch)</option>
+                    <option value="SMALL">Medium (Cockatiel, Conure)</option>
+                    <option value="MEDIUM">Large (African Grey, Amazon)</option>
+                    <option value="LARGE">Very Large (Macaw, Cockatoo)</option>
+                  </>
+                ) : petType === 'cat' ? (
+                  <>
+                    <option value="TINY">Small (&lt; 8 lbs)</option>
+                    <option value="SMALL">Medium (8-12 lbs)</option>
+                    <option value="MEDIUM">Large (12-18 lbs)</option>
+                    <option value="LARGE">Very Large (&gt; 18 lbs)</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="TINY">Tiny (&lt; 10 lbs)</option>
+                    <option value="SMALL">Small (10-25 lbs)</option>
+                    <option value="MEDIUM">Medium (25-60 lbs)</option>
+                    <option value="LARGE">Large (60-90 lbs)</option>
+                    <option value="GIANT">Giant (&gt; 90 lbs)</option>
+                  </>
+                )}
               </select>
             </div>
 

@@ -152,7 +152,7 @@ export default function Home() {
             fontWeight: '800',
             letterSpacing: '0.5px',
           }}>
-            100% FREE
+            FREE
           </div>
 
           <div style={{
@@ -273,7 +273,7 @@ export default function Home() {
             marginBottom: '1rem',
             color: '#0f172a',
           }}>
-            Join Pet Patrol
+            Join your Community Pet Patrol
           </h2>
 
           <p style={{

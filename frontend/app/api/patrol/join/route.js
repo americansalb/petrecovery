@@ -5,23 +5,16 @@ import { z } from 'zod';
 
 // Validation schema for patrol signup
 const PatrolSignupSchema = z.object({
-  userId: z.string().cuid(),
-  radiusMiles: z.number().min(1).max(50).default(5),
-  availability: z.array(z.enum([
-    'weekday_morning',
-    'weekday_afternoon',
-    'weekday_evening',
-    'weekend_morning',
-    'weekend_afternoon',
-    'weekend_evening'
-  ])).min(1),
-  transportation: z.array(z.enum(['foot', 'bike', 'car'])).min(1),
-  searchesDogs: z.boolean().default(true),
-  searchesCats: z.boolean().default(true),
-  searchesBirds: z.boolean().default(false),
-  searchesOther: z.boolean().default(false),
-  alertMethod: z.enum(['EMAIL', 'SMS', 'PUSH', 'ALL']).default('EMAIL'),
-  instantAlerts: z.boolean().default(true),
+  userId: z.string().min(1),
+  zipCode: z.string().length(5),
+  centerLat: z.number().min(-90).max(90),
+  centerLng: z.number().min(-180).max(180),
+  radiusMiles: z.number().min(1).max(25).default(5),
+  notifications: z.object({
+    text: z.boolean().default(true),
+    email: z.boolean().default(true),
+    push: z.boolean().default(true),
+  }),
 });
 
 export async function POST(request) {
@@ -44,16 +37,13 @@ export async function POST(request) {
       message: 'Patrol signup validated successfully',
       note: 'Database not yet configured - see SETUP.md',
       validatedData: {
-        radiusMiles: validatedData.radiusMiles,
-        petTypes: {
-          dogs: validatedData.searchesDogs,
-          cats: validatedData.searchesCats,
-          birds: validatedData.searchesBirds,
-          other: validatedData.searchesOther,
+        zipCode: validatedData.zipCode,
+        center: {
+          lat: validatedData.centerLat,
+          lng: validatedData.centerLng,
         },
-        availability: validatedData.availability,
-        transportation: validatedData.transportation,
-        alertMethod: validatedData.alertMethod,
+        radiusMiles: validatedData.radiusMiles,
+        notifications: validatedData.notifications,
       },
       nextSteps: [
         'Run: npx prisma generate',

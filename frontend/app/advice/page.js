@@ -478,41 +478,41 @@ export default function AdvicePage() {
               display: 'grid',
               gap: '1rem',
             }}>
-              <button
-                onClick={handleCopyToClipboard}
-                style={{
-                  padding: '1.25rem',
-                  background: copied ? theme.gradients.forest : theme.gradients.ocean,
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  boxShadow: theme.shadows.md,
-                }}
-              >
-                {copied ? '✓ Copied to Clipboard!' : '📋 Copy to Clipboard'}
-              </button>
-
               <Link
                 href="/report/new"
                 style={{
-                  padding: '1.25rem',
-                  background: theme.gradients.sunset,
+                  padding: '1.5rem',
+                  background: '#dc2626',
                   color: 'white',
                   border: 'none',
                   borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
+                  fontSize: '1.2rem',
+                  fontWeight: '800',
                   textDecoration: 'none',
                   display: 'block',
                   textAlign: 'center',
-                  boxShadow: theme.shadows.md,
+                  boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
                 }}
               >
-                🚨 Report & Alert Community
+                🚨 Report Lost Pet & Alert Community
               </Link>
+
+              <button
+                onClick={handleCopyToClipboard}
+                style={{
+                  padding: '1rem',
+                  background: copied ? '#10b981' : '#f1f5f9',
+                  color: copied ? 'white' : '#64748b',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: theme.radius.lg,
+                  fontSize: '0.95rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  boxShadow: 'none',
+                }}
+              >
+                {copied ? '✓ Copied!' : 'Copy Info'}
+              </button>
 
               <button
                 onClick={handleReset}
