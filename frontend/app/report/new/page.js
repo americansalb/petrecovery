@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { theme } from '../../lib/theme';
+import BreedSelector from '../../components/BreedSelector';
 
 export default function ReportLostPet() {
   const { data: session } = useSession();
@@ -820,18 +821,10 @@ export default function ReportLostPet() {
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
                 Breed
               </label>
-              <input
-                type="text"
+              <BreedSelector
+                species={petType}
                 value={reportData.breed}
-                onChange={(e) => setReportData({ ...reportData, breed: e.target.value })}
-                placeholder="Golden Retriever, Tabby Cat, etc."
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1rem',
-                }}
+                onChange={(breed) => setReportData({ ...reportData, breed })}
               />
             </div>
 
