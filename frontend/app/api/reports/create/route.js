@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '../../../lib/prisma';
 import bcrypt from 'bcryptjs';
 import { sendEmail } from '../../../lib/email';
+import { getServerSession } from 'next-auth';
 
 // NOTE: Before using this API:
 // 1. Run: npm install bcryptjs nodemailer @prisma/client
@@ -11,16 +12,24 @@ import { sendEmail } from '../../../lib/email';
 
 export async function POST(request) {
   try {
+    const session = await getServerSession();
     const body = await request.json();
-    const {
+    let {
       email, phone, firstName,
       petName, breed, color, size, distinctiveMarks,
       lastSeenAddress, center, radiusMiles, timeElapsed, petType,
       photos // Array of photo URLs/data
     } = body;
 
-    // Validate required fields
-    if (!email || !phone || !firstName || !petName || !color || !lastSeenAddress || !center) {
+    // If user is logged in, use their session data
+    if (session?.user) {
+      email = session.user.email;
+      firstName = session.user.name || firstName;
+      // Phone will be fetched from their profile if they have one
+    }
+
+    // Validate required fields (phone not required for logged-in users)
+    if (!email || !firstName || !petName || !color || !lastSeenAddress || !center) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -31,6 +40,11 @@ export async function POST(request) {
     let user = await prisma.user.findUnique({
       where: { email }
     });
+
+    // If user exists and phone wasn't provided, try to get it from their record
+    if (user && !phone) {
+      phone = user.phone;
+    }
 
     // Check phone uniqueness only if phone is provided and user doesn't exist yet
     if (!user && phone) {

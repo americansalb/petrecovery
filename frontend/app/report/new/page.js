@@ -614,7 +614,7 @@ export default function ReportLostPet() {
                 ← Back
               </button>
               <button
-                onClick={() => setStep(4)}
+                onClick={() => setStep(session?.user ? 5 : 4)}
                 style={{
                   flex: 2,
                   padding: '1rem',
@@ -634,7 +634,7 @@ export default function ReportLostPet() {
         )}
 
         {/* Step 4: Contact Info */}
-        {step === 4 && (
+        {step === 4 && !session?.user && (
           <div style={{
             backgroundColor: 'white',
             borderRadius: theme.radius.xl,
@@ -983,7 +983,7 @@ export default function ReportLostPet() {
 
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button
-                onClick={() => setStep(4)}
+                onClick={() => setStep(session?.user ? 3 : 4)}
                 style={{
                   flex: 1,
                   padding: '1rem',
