@@ -77,9 +77,9 @@ model PatrolProfile {
   radiusMiles     Int      @default(5)
   maxActiveSearches Int    @default(3)
 
-  // Availability
-  availability    String[] // ["weekday_morning", "weekday_evening", "weekend_morning", "weekend_evening"]
-  transportation  String[] // ["foot", "bike", "car"]
+  // Availability (stored as JSON strings for SQLite compatibility)
+  availability    String   @default("[]") // JSON: ["weekday_morning", "weekday_evening", "weekend_morning", "weekend_evening"]
+  transportation  String   @default("[]") // JSON: ["foot", "bike", "car"]
 
   // Pet preferences
   searchesDogs    Boolean  @default(true)
@@ -145,11 +145,11 @@ model Pet {
   collarInfo      String?
 
   // Behavior
-  personality     String[]
+  personality     String   @default("[]") // JSON: ["friendly", "shy", etc]
   medicalConditions String?
 
   // Media
-  photos          String[]
+  photos          String   @default("[]") // JSON: ["url1", "url2", etc]
   primaryPhotoUrl String
 
   // Metadata
@@ -305,7 +305,7 @@ model Sighting {
   certaintyLevel  Int      // 1-5 scale
 
   // Media
-  photoUrls       String[]
+  photoUrls       String   @default("[]") // JSON: ["url1", "url2", etc]
 
   // Verification
   isVerified      Boolean  @default(false)

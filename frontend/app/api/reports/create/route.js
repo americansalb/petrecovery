@@ -77,8 +77,8 @@ export async function POST(request) {
         size,
         distinctiveMarks: distinctiveMarks || '',
         primaryPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
-        photos: photos || [],
-        personality: [],
+        photos: JSON.stringify(photos || []), // Store as JSON string for SQLite
+        personality: "[]", // Store as JSON string for SQLite
       }
     });
 
