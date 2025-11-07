@@ -1,22 +1,18 @@
 import nodemailer from 'nodemailer';
 
-// NOTE: Install nodemailer first: npm install nodemailer
-// Configure SMTP settings in .env.local
-
+// Uses existing EMAIL_ environment variables from Render
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false,
+  service: process.env.EMAIL_SERVICE || 'gmail',
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD,
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD,
   },
 });
 
 export async function sendEmail({ to, subject, html }) {
   try {
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || 'PetRecovery <noreply@petrecovery.org>',
+      from: process.env.EMAIL_FROM || `PetRecovery <${process.env.EMAIL_USER}>`,
       to,
       subject,
       html,
