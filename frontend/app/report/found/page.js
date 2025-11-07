@@ -13,7 +13,7 @@ export default function ReportFoundPet() {
   // Location and map data
   const [foundAddress, setFoundAddress] = useState('');
   const [center, setCenter] = useState(null);
-  const [radiusMiles, setRadiusMiles] = useState(2); // Default 2 miles to search for matches
+  const [radiusMiles, setRadiusMiles] = useState(10); // Auto-set to 10 miles for matching (not user-configurable)
   const [timeElapsed, setTimeElapsed] = useState('');
 
   const mapRef = useRef(null);
@@ -80,9 +80,10 @@ export default function ReportFoundPet() {
       markerRef.current = marker;
 
       const circle = L.circle(center, {
-        color: '#dc2626',
-        fillColor: '#dc2626',
-        fillOpacity: 0.2,
+        color: '#94a3b8',
+        fillColor: '#94a3b8',
+        fillOpacity: 0.1,
+        weight: 1,
         radius: radiusMiles * 1609.34,
       }).addTo(map);
       circleRef.current = circle;
@@ -500,7 +501,7 @@ export default function ReportFoundPet() {
           </div>
         )}
 
-        {/* Step 3: Map with Search Radius */}
+        {/* Step 3: Pinpoint Exact Location */}
         {step === 3 && center && (
           <div style={{
             background: 'white',
@@ -514,14 +515,14 @@ export default function ReportFoundPet() {
               marginBottom: '1rem',
               color: theme.colors.gray[900],
             }}>
-              Set Match Radius
+              📍 Pinpoint Exact Location
             </h2>
             <p style={{
               fontSize: '1.05rem',
               color: theme.colors.gray[600],
               marginBottom: '2rem',
             }}>
-              We'll search for lost pet reports within this distance from where you found the pet. Most pets are found within 2-3 miles of where they went missing.
+              Drag the marker to show exactly where you found the pet. We'll search for matching lost pet reports within a 10-mile radius automatically.
             </p>
 
             {/* Map */}
@@ -533,47 +534,6 @@ export default function ReportFoundPet() {
               boxShadow: theme.shadows.md,
             }}>
               <div ref={mapRef} style={{ height: '100%', width: '100%' }} />
-            </div>
-
-            {/* Radius Slider */}
-            <div style={{
-              background: '#fef2f2',
-              padding: '1.5rem',
-              borderRadius: theme.radius.lg,
-              marginBottom: '2rem',
-            }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '1rem',
-                fontWeight: '700',
-                fontSize: '1.1rem',
-                color: theme.colors.gray[900],
-              }}>
-                Match Radius: <span style={{ color: '#dc2626' }}>{radiusMiles} {radiusMiles === 1 ? 'mile' : 'miles'}</span>
-              </label>
-              <input
-                type="range"
-                min="0.25"
-                max="10"
-                step="0.25"
-                value={radiusMiles}
-                onChange={(e) => setRadiusMiles(parseFloat(e.target.value))}
-                style={{
-                  width: '100%',
-                  height: '8px',
-                  cursor: 'pointer',
-                }}
-              />
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                marginTop: '0.5rem',
-                fontSize: '0.9rem',
-                color: theme.colors.gray[500],
-              }}>
-                <span>0.25 miles</span>
-                <span>10 miles</span>
-              </div>
             </div>
 
             <div style={{
@@ -589,7 +549,7 @@ export default function ReportFoundPet() {
                 fontSize: '0.95rem',
                 fontWeight: '600',
               }}>
-                💡 Tip: Most pets stay within 1-2 miles of where they went missing. Adjust based on how long they've been gone.
+                💡 Tip: Be as precise as possible with the location. Lost pets are often found within 1-2 miles of where they went missing.
               </p>
             </div>
 
