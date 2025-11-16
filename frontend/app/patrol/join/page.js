@@ -532,22 +532,6 @@ export default function JoinPatrol() {
         {/* Step 1: Hero / Intro */}
         {step === 1 && (
           <div style={{ textAlign: 'center', maxWidth: '700px', margin: '0 auto', position: 'relative' }}>
-            {/* 100% FREE Badge */}
-            <div style={{
-              position: 'absolute',
-              top: '-1rem',
-              right: '0',
-              padding: '0.5rem 1rem',
-              background: '#10b981',
-              color: 'white',
-              borderRadius: '20px',
-              fontSize: '0.85rem',
-              fontWeight: '800',
-              letterSpacing: '0.5px',
-            }}>
-              100% FREE
-            </div>
-
             <div style={{ fontSize: '5rem', marginBottom: '1.5rem' }}>🦸</div>
             <h1 style={{
               fontSize: '3rem',
@@ -645,7 +629,7 @@ export default function JoinPatrol() {
               color: theme.colors.gray[500],
               fontSize: '0.95rem',
             }}>
-              Takes less than 2 minutes • 100% FREE
+              Takes less than 2 minutes
             </p>
           </div>
         )}
