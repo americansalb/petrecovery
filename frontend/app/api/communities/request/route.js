@@ -32,6 +32,13 @@ export async function POST(request) {
       select: { emailVerified: true, phoneVerified: true }
     });
 
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
     if (!user.emailVerified && !user.phoneVerified) {
       return NextResponse.json(
         { error: 'Email or phone verification required to submit community requests' },
