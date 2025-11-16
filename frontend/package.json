@@ -7,7 +7,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start -p ${PORT:-3000}",
-    "postinstall": "prisma generate && prisma db push --accept-data-loss"
+    "postinstall": "prisma generate && prisma db push --accept-data-loss && npm run seed",
+    "seed": "node prisma/seed.js"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

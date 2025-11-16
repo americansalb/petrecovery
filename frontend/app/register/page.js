@@ -235,7 +235,7 @@ export default function RegisterPage() {
               color: '#6b7280',
               marginTop: '0.5rem',
             }}>
-              Demo mode: Use password "demo"
+              Must be at least 8 characters
             </p>
           </div>
 

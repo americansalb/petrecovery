@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth/next';
 import CredentialsProvider from 'next-auth/providers/credentials';
-// import prisma from './prisma';
-// import bcrypt from 'bcryptjs';
+import prisma from './prisma';
+import bcrypt from 'bcryptjs';
 
 export const authOptions = {
   providers: [
@@ -12,35 +12,32 @@ export const authOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        // TODO: Replace with actual database lookup when Prisma is set up
-        // const user = await prisma.user.findUnique({
-        //   where: { email: credentials.email }
-        // });
-        //
-        // if (!user || !user.passwordHash) {
-        //   return null;
-        // }
-        //
-        // const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
-        // if (!isValid) {
-        //   return null;
-        // }
-        //
-        // return {
-        //   id: user.id,
-        //   email: user.email,
-        //   name: user.firstName,
-        // };
-
-        // Temporary mock authentication for development
-        if (credentials.email && credentials.password === 'demo') {
-          return {
-            id: 'demo-user-123',
-            email: credentials.email,
-            name: credentials.email.split('@')[0],
-          };
+        if (!credentials?.email || !credentials?.password) {
+          return null;
         }
-        return null;
+
+        // Look up user in database
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email }
+        });
+
+        if (!user || !user.passwordHash) {
+          return null;
+        }
+
+        // Verify password
+        const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
+        if (!isValid) {
+          return null;
+        }
+
+        // Return user object
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.firstName,
+          role: user.role,
+        };
       }
     })
   ],
@@ -57,12 +54,14 @@ export const authOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.role = user.role;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id;
+        session.user.role = token.role;
       }
       return session;
     }
