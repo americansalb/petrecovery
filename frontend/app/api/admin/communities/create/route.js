@@ -82,9 +82,7 @@ export async function POST(request) {
         centerLongitude: centerLongitude || null,
         isActive: true,
         createdById: session.user.id,
-        approvedById: session.user.id,
-        createdAt: new Date(),
-        approvedAt: new Date()
+        approvedById: session.user.id
       }
     });
 
