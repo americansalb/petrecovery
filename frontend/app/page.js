@@ -142,18 +142,6 @@ export default function Home() {
             flexWrap: 'wrap',
           }}>
             <div style={{ flex: 1, minWidth: '300px' }}>
-              <div style={{
-                display: 'inline-block',
-                padding: '0.5rem 1rem',
-                background: 'rgba(255, 255, 255, 0.25)',
-                borderRadius: '20px',
-                fontSize: '0.85rem',
-                fontWeight: '800',
-                color: 'white',
-                marginBottom: '1rem',
-              }}>
-                🆓 FREE TO BROWSE
-              </div>
               <h2 style={{
                 fontSize: '2.25rem',
                 fontWeight: '900',
@@ -231,22 +219,6 @@ export default function Home() {
             e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07)';
           }}
         >
-          {/* FREE Badge */}
-          <div style={{
-            position: 'absolute',
-            top: '1.5rem',
-            right: '1.5rem',
-            padding: '0.5rem 1rem',
-            background: '#10b981',
-            color: 'white',
-            borderRadius: '20px',
-            fontSize: '0.85rem',
-            fontWeight: '800',
-            letterSpacing: '0.5px',
-          }}>
-            FREE
-          </div>
-
           <div style={{
             width: '70px',
             height: '70px',
@@ -346,22 +318,6 @@ export default function Home() {
             e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07)';
           }}
         >
-          {/* FREE Badge */}
-          <div style={{
-            position: 'absolute',
-            top: '1.5rem',
-            right: '1.5rem',
-            padding: '0.5rem 1rem',
-            background: '#10b981',
-            color: 'white',
-            borderRadius: '20px',
-            fontSize: '0.85rem',
-            fontWeight: '800',
-            letterSpacing: '0.5px',
-          }}>
-            FREE
-          </div>
-
           <div style={{
             width: '70px',
             height: '70px',
@@ -461,22 +417,6 @@ export default function Home() {
             e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07)';
           }}
         >
-          {/* FREE Badge */}
-          <div style={{
-            position: 'absolute',
-            top: '1.5rem',
-            right: '1.5rem',
-            padding: '0.5rem 1rem',
-            background: '#10b981',
-            color: 'white',
-            borderRadius: '20px',
-            fontSize: '0.85rem',
-            fontWeight: '800',
-            letterSpacing: '0.5px',
-          }}>
-            FREE
-          </div>
-
           <div style={{
             width: '70px',
             height: '70px',
@@ -497,7 +437,7 @@ export default function Home() {
             marginBottom: '1rem',
             color: '#0f172a',
           }}>
-            Join Community Patrol
+            Join the Patrol
           </h2>
 
           <p style={{

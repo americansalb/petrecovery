@@ -205,7 +205,7 @@ export default function PublicDatabasePage() {
                 Sign In to View Contact Information
               </h3>
               <p style={{ color: '#92400e', marginBottom: '1rem' }}>
-                Create a free account to see contact details and help reunite pets with their families.
+                Create an account to see contact details and help reunite pets with their families.
               </p>
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <Link
