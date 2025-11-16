@@ -169,6 +169,24 @@ export default function CommunityRequestPage() {
           </p>
         </div>
 
+        {/* Admin Notice */}
+        {session?.user?.role === 'ADMIN' && (
+          <div style={{
+            padding: '1rem',
+            background: '#dbeafe',
+            border: '2px solid #93c5fd',
+            borderRadius: '8px',
+            marginBottom: '1.5rem'
+          }}>
+            <p style={{ color: '#1e40af', fontWeight: '600', marginBottom: '0.5rem' }}>
+              👑 Admin: You can create communities directly
+            </p>
+            <p style={{ color: '#1e40af', margin: 0 }}>
+              No approval needed! <Link href="/admin/communities/create" style={{ color: '#1e40af', textDecoration: 'underline' }}>Create communities directly here</Link>
+            </p>
+          </div>
+        )}
+
         {/* Rate Limit Warning */}
         {!canSubmit && (
           <div style={{

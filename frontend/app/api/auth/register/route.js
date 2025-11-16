@@ -37,6 +37,7 @@ export async function POST(request) {
         firstName,
         phone: phone || null,
         role: 'USER',
+        emailVerified: new Date(), // Auto-verify for testing
       },
     });
 
