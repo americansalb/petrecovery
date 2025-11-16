@@ -26,6 +26,8 @@ export default function Home() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          gap: '1rem',
+          flexWrap: 'wrap',
         }}>
           <h1 style={{
             fontSize: '1.75rem',
@@ -34,9 +36,9 @@ export default function Home() {
           }}>
             🐾 PetRecovery
           </h1>
-          {session ? (
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
             <Link
-              href="/dashboard"
+              href="/patrol/join"
               style={{
                 padding: '0.75rem 1.75rem',
                 background: '#0ea5e9',
@@ -47,25 +49,42 @@ export default function Home() {
                 fontSize: '0.95rem',
               }}
             >
-              My Dashboard
+              Join the Patrol
             </Link>
-          ) : (
-            <Link
-              href="/login"
-              style={{
-                padding: '0.75rem 1.75rem',
-                background: 'transparent',
-                color: '#64748b',
-                border: '2px solid #e2e8f0',
-                borderRadius: '8px',
-                textDecoration: 'none',
-                fontWeight: '600',
-                fontSize: '0.95rem',
-              }}
-            >
-              Sign In
-            </Link>
-          )}
+            {session ? (
+              <Link
+                href="/dashboard"
+                style={{
+                  padding: '0.75rem 1.75rem',
+                  background: 'transparent',
+                  color: '#64748b',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontWeight: '600',
+                  fontSize: '0.95rem',
+                }}
+              >
+                My Dashboard
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                style={{
+                  padding: '0.75rem 1.75rem',
+                  background: 'transparent',
+                  color: '#64748b',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontWeight: '600',
+                  fontSize: '0.95rem',
+                }}
+              >
+                Sign In
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
@@ -389,105 +408,6 @@ export default function Home() {
             fontSize: '1.1rem',
           }}>
             Report Found Pet →
-          </div>
-        </Link>
-
-        {/* Join Pet Patrol */}
-        <Link
-          href="/patrol/join"
-          style={{
-            background: 'white',
-            borderRadius: '16px',
-            padding: '3rem 2.5rem',
-            textDecoration: 'none',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
-            border: '2px solid transparent',
-            transition: 'all 0.2s ease',
-            display: 'block',
-            position: 'relative',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#0ea5e9';
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 12px 24px rgba(14, 165, 233, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'transparent';
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07)';
-          }}
-        >
-          <div style={{
-            width: '70px',
-            height: '70px',
-            borderRadius: '50%',
-            background: '#dbeafe',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '2.5rem',
-            marginBottom: '1.5rem',
-          }}>
-            🦸
-          </div>
-
-          <h2 style={{
-            fontSize: '2rem',
-            fontWeight: '800',
-            marginBottom: '1rem',
-            color: '#0f172a',
-          }}>
-            Join the Patrol
-          </h2>
-
-          <p style={{
-            fontSize: '1.1rem',
-            color: '#64748b',
-            lineHeight: '1.6',
-            marginBottom: '1.5rem',
-          }}>
-            Receive alerts about lost pets in your area. Help your neighbors find their pets during your daily routine.
-          </p>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              marginBottom: '0.75rem',
-            }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>Get alerts in your patrol area</span>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              marginBottom: '0.75rem',
-            }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>Help during walks or commute</span>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-            }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>Earn community recognition</span>
-            </div>
-          </div>
-
-          <div style={{
-            padding: '1.25rem',
-            background: '#0ea5e9',
-            color: 'white',
-            borderRadius: '10px',
-            fontWeight: '700',
-            textAlign: 'center',
-            fontSize: '1.1rem',
-          }}>
-            Join the Patrol →
           </div>
         </Link>
 
