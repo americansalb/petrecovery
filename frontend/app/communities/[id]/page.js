@@ -239,27 +239,69 @@ export default function CommunityPage({ params }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#f8fafc',
-      padding: '3rem 1rem'
+      background: '#f8fafc'
     }}>
+      {/* Header Navigation */}
+      <div style={{
+        background: 'white',
+        padding: '1rem 2rem',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+        marginBottom: '2rem'
+      }}>
+        <div style={{
+          maxWidth: '1200px',
+          margin: '0 auto',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Link
+            href="/"
+            style={{
+              fontSize: '1.5rem',
+              fontWeight: '800',
+              color: '#1e293b',
+              textDecoration: 'none'
+            }}
+          >
+            🐾 PetRecovery
+          </Link>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <Link
+              href="/communities"
+              style={{
+                padding: '0.5rem 1rem',
+                color: '#667eea',
+                textDecoration: 'none',
+                fontWeight: '600'
+              }}
+            >
+              ← Communities
+            </Link>
+            {session && (
+              <Link
+                href="/dashboard"
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#f1f5f9',
+                  color: '#64748b',
+                  borderRadius: '6px',
+                  textDecoration: 'none',
+                  fontWeight: '600'
+                }}
+              >
+                Dashboard
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div style={{
         maxWidth: '1200px',
-        margin: '0 auto'
+        margin: '0 auto',
+        padding: '0 1rem 3rem'
       }}>
-        {/* Back Link */}
-        <Link
-          href="/communities"
-          style={{
-            display: 'inline-block',
-            marginBottom: '1.5rem',
-            color: '#667eea',
-            textDecoration: 'none',
-            fontSize: '0.95rem',
-            fontWeight: '600'
-          }}
-        >
-          ← Back to Communities
-        </Link>
 
         {/* Header */}
         <div style={{
