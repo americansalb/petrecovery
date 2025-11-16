@@ -222,20 +222,35 @@ export default function AdminCommunitiesPage() {
               Review and approve community creation requests
             </p>
           </div>
-          <Link
-            href="/dashboard"
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: 'white',
-              color: '#64748b',
-              border: '2px solid #e2e8f0',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              fontWeight: '700'
-            }}
-          >
-            ← Back to Dashboard
-          </Link>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <Link
+              href="/admin/communities/create"
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: '#667eea',
+                color: 'white',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontWeight: '700'
+              }}
+            >
+              + Create Community
+            </Link>
+            <Link
+              href="/dashboard"
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: 'white',
+                color: '#64748b',
+                border: '2px solid #e2e8f0',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontWeight: '700'
+              }}
+            >
+              ← Back to Dashboard
+            </Link>
+          </div>
         </div>
 
         {/* Filters */}

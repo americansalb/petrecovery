@@ -159,6 +159,22 @@ export default function DashboardPage() {
           </Link>
 
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* Communities Link */}
+            <Link
+              href="/communities"
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: '#f1f5f9',
+                color: theme.colors.gray[700],
+                borderRadius: theme.radius.lg,
+                textDecoration: 'none',
+                fontWeight: '600',
+                fontSize: '0.9rem',
+              }}
+            >
+              🏘️ Communities
+            </Link>
+
             {/* View Switcher */}
             <div style={{
               display: 'flex',
