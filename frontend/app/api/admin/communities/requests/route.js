@@ -63,19 +63,6 @@ export async function GET(request) {
               rescueLevel: true,
               createdAt: true
             }
-          },
-          reviewedBy: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true
-            }
-          },
-          approvedCommunity: {
-            select: {
-              id: true,
-              name: true
-            }
           }
         },
         orderBy: {
@@ -87,23 +74,47 @@ export async function GET(request) {
       prisma.communityRequest.count({ where })
     ]);
 
-    // For each request, check for overlaps and get community membership count
+    // For each request, get additional metadata
     const requestsWithMetadata = await Promise.all(
       requests.map(async (req) => {
         // Get community count for requester
-        const communityCount = await prisma.communityMember.count({
-          where: {
-            userId: req.requesterId,
-            status: 'APPROVED'
-          }
-        });
+        let communityCount = 0;
+        try {
+          communityCount = await prisma.communityMember.count({
+            where: {
+              userId: req.requesterId,
+              status: 'APPROVED'
+            }
+          });
+        } catch (e) {
+          console.error('Error counting communities:', e);
+        }
 
-        // TODO: Implement overlap checking based on zip codes
-        // For now, return basic overlap info
-        const overlapCheck = {
-          hasOverlap: false,
-          overlappingCommunities: []
-        };
+        // Get approved community if exists
+        let approvedCommunity = null;
+        if (req.approvedCommunityId) {
+          try {
+            approvedCommunity = await prisma.community.findUnique({
+              where: { id: req.approvedCommunityId },
+              select: { id: true, name: true }
+            });
+          } catch (e) {
+            console.error('Error fetching approved community:', e);
+          }
+        }
+
+        // Get reviewer if exists
+        let reviewedBy = null;
+        if (req.reviewedById) {
+          try {
+            reviewedBy = await prisma.user.findUnique({
+              where: { id: req.reviewedById },
+              select: { id: true, firstName: true, lastName: true }
+            });
+          } catch (e) {
+            console.error('Error fetching reviewer:', e);
+          }
+        }
 
         return {
           ...req,
@@ -111,7 +122,12 @@ export async function GET(request) {
             ...req.requester,
             communityCount
           },
-          overlapCheck
+          approvedCommunity,
+          reviewedBy,
+          overlapCheck: {
+            hasOverlap: false,
+            overlappingCommunities: []
+          }
         };
       })
     );
