@@ -98,8 +98,13 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Error creating community:', error);
+    console.error('Error details:', error.message);
+    console.error('Error stack:', error.stack);
     return NextResponse.json(
-      { error: 'Failed to create community' },
+      {
+        error: 'Failed to create community',
+        details: error.message
+      },
       { status: 500 }
     );
   }

@@ -121,8 +121,13 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Error creating community request:', error);
+    console.error('Error details:', error.message);
+    console.error('Error stack:', error.stack);
     return NextResponse.json(
-      { error: 'Failed to create community request' },
+      {
+        error: 'Failed to create community request',
+        details: error.message
+      },
       { status: 500 }
     );
   }
