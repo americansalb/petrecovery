@@ -1,0 +1,129 @@
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../auth/[...nextauth]/route';
+import prisma from '../../../lib/prisma';
+
+// POST /api/communities/request - Submit community creation request
+export async function POST(request) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { type, geographicScope, parentCommunityId, notes } = body;
+
+    // Validation
+    if (!type || !geographicScope) {
+      return NextResponse.json(
+        { error: 'Type and geographic scope are required' },
+        { status: 400 }
+      );
+    }
+
+    // Check if user's email or phone is verified
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { emailVerified: true, phoneVerified: true }
+    });
+
+    if (!user.emailVerified && !user.phoneVerified) {
+      return NextResponse.json(
+        { error: 'Email or phone verification required to submit community requests' },
+        { status: 403 }
+      );
+    }
+
+    // Check rate limit: max 10 requests per rolling 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentRequestsCount = await prisma.communityRequest.count({
+      where: {
+        requesterId: session.user.id,
+        createdAt: {
+          gte: thirtyDaysAgo
+        }
+      }
+    });
+
+    if (recentRequestsCount >= 10) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Maximum 10 requests per 30 days.' },
+        { status: 429 }
+      );
+    }
+
+    // For subcommunities, verify parent exists
+    if (type === 'SUBCOMMUNITY') {
+      if (!parentCommunityId) {
+        return NextResponse.json(
+          { error: 'Parent community ID required for subcommunity requests' },
+          { status: 400 }
+        );
+      }
+
+      const parentExists = await prisma.community.findUnique({
+        where: { id: parentCommunityId }
+      });
+
+      if (!parentExists) {
+        return NextResponse.json(
+          { error: 'Parent community not found' },
+          { status: 404 }
+        );
+      }
+    }
+
+    // TODO: Check for overlaps based on zip code (10-mile radius)
+    // This would require geocoding logic
+
+    // Create the request
+    const communityRequest = await prisma.communityRequest.create({
+      data: {
+        requesterId: session.user.id,
+        type,
+        geographicScope,
+        parentCommunityId,
+        notes,
+        status: 'PENDING'
+      },
+      include: {
+        requester: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    // TODO: Send email notification to user confirming submission
+    // TODO: Notify admins of new request
+
+    return NextResponse.json({
+      success: true,
+      request: {
+        id: communityRequest.id,
+        type: communityRequest.type,
+        geographicScope: communityRequest.geographicScope,
+        status: communityRequest.status,
+        createdAt: communityRequest.createdAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Error creating community request:', error);
+    return NextResponse.json(
+      { error: 'Failed to create community request' },
+      { status: 500 }
+    );
+  }
+}

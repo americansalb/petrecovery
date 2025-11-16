@@ -490,6 +490,76 @@ export default function Home() {
             Join the Patrol →
           </div>
         </Link>
+
+        {/* Browse Communities */}
+        <Link
+          href="/communities"
+          style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '3rem 2.5rem',
+            textDecoration: 'none',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
+            border: '2px solid transparent',
+            transition: 'all 0.2s ease',
+            display: 'block',
+            position: 'relative',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#667eea';
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 12px 24px rgba(102, 126, 234, 0.15)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'transparent';
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07)';
+          }}
+        >
+          <div style={{
+            width: '70px',
+            height: '70px',
+            borderRadius: '50%',
+            background: '#ede9fe',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '2.5rem',
+            marginBottom: '1.5rem',
+          }}>
+            🏘️
+          </div>
+
+          <h2 style={{
+            fontSize: '2rem',
+            fontWeight: '800',
+            marginBottom: '1rem',
+            color: '#0f172a',
+          }}>
+            Browse Communities
+          </h2>
+
+          <p style={{
+            fontSize: '1.1rem',
+            color: '#64748b',
+            lineHeight: '1.6',
+            marginBottom: '2rem',
+          }}>
+            Join local communities to organize pet recovery efforts with volunteers in your area.
+          </p>
+
+          <div style={{
+            padding: '1.25rem',
+            background: '#667eea',
+            color: 'white',
+            borderRadius: '10px',
+            fontWeight: '700',
+            textAlign: 'center',
+            fontSize: '1.1rem',
+          }}>
+            Explore Communities →
+          </div>
+        </Link>
       </div>
     </div>
   );
