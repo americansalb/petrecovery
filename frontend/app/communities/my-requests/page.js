@@ -134,19 +134,49 @@ export default function MyRequestsPage() {
               Track the status of your community creation requests
             </p>
           </div>
-          <Link
-            href="/communities/request"
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: '#667eea',
-              color: 'white',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              fontWeight: '700'
-            }}
-          >
-            + Request New Community
-          </Link>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <Link
+              href="/"
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: 'white',
+                color: '#64748b',
+                border: '2px solid #e2e8f0',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontWeight: '700'
+              }}
+            >
+              ← Home
+            </Link>
+            <Link
+              href="/communities"
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: 'white',
+                color: '#64748b',
+                border: '2px solid #e2e8f0',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontWeight: '700'
+              }}
+            >
+              ← Communities
+            </Link>
+            <Link
+              href="/communities/request"
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: '#667eea',
+                color: 'white',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontWeight: '700'
+              }}
+            >
+              + Request New Community
+            </Link>
+          </div>
         </div>
 
         {/* Filters */}
