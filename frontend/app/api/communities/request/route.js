@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]/route';
 import prisma from '../../../lib/prisma';
-import { isValidLocation } from '@/lib/us-locations';
+import { isValidLocation, isValidZipCode } from '@/lib/us-locations';
+import { getZipCodeInfo } from '@/lib/zip-city-mapping';
 
 // POST /api/communities/request - Submit community creation request
 export async function POST(request) {
@@ -127,6 +128,60 @@ export async function POST(request) {
         { error: `A request for ${geographicScope} is already pending approval. Please check back later.` },
         { status: 409 }
       );
+    }
+
+    // ZIP CODE OVERLAP DETECTION
+    // If user entered a ZIP code, check if it falls within an existing metro area
+    // and suggest creating a subcommunity instead
+    if (isValidZipCode(geographicScope)) {
+      const zipInfo = getZipCodeInfo(geographicScope);
+
+      if (zipInfo) {
+        // This ZIP is in a tracked metro area
+        console.log('📍 ZIP code overlap detection:', zipInfo);
+
+        // Find if this metro area exists as a community
+        const parentMetro = await prisma.community.findFirst({
+          where: {
+            geographicScope: zipInfo.metroValue,
+            isActive: true,
+            type: {
+              in: ['METRO_AREA', 'CITY']
+            }
+          }
+        });
+
+        if (parentMetro) {
+          // Metro exists! Now check if this specific city exists as a subcommunity
+          const existingSubcommunity = await prisma.community.findFirst({
+            where: {
+              name: zipInfo.city,
+              parentCommunityId: parentMetro.id,
+              isActive: true
+            }
+          });
+
+          if (!existingSubcommunity) {
+            // Suggest creating this city as a subcommunity instead of a ZIP-based community
+            return NextResponse.json({
+              suggestion: {
+                type: 'subcommunity',
+                zipCode: zipInfo.zipCode,
+                cityName: zipInfo.city,
+                parentMetroName: parentMetro.name,
+                parentMetroId: parentMetro.id,
+                message: `This ZIP code (${zipInfo.zipCode}) is in ${zipInfo.city}, which is part of ${parentMetro.name}. Would you like to create "${zipInfo.city}" as a subcommunity of ${parentMetro.name} instead?`
+              }
+            }, { status: 200 });
+          } else {
+            // City already exists as subcommunity, suggest joining it
+            return NextResponse.json({
+              error: `${zipInfo.city} already exists as a subcommunity of ${parentMetro.name}. Please join "${existingSubcommunity.name}" instead.`,
+              existingCommunityId: existingSubcommunity.id
+            }, { status: 409 });
+          }
+        }
+      }
     }
 
     // Create the request

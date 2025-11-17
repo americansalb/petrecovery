@@ -19,6 +19,10 @@ export default function CommunityRequestPage() {
   const [parentCommunities, setParentCommunities] = useState([]);
   const [rateLimitInfo, setRateLimitInfo] = useState({ count: 0, limit: 10 });
 
+  // Suggestion modal for ZIP code overlap
+  const [suggestion, setSuggestion] = useState(null);
+  const [showSuggestionModal, setShowSuggestionModal] = useState(false);
+
   // Location search
   const [locationSearch, setLocationSearch] = useState('');
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
@@ -120,6 +124,13 @@ export default function CommunityRequestPage() {
         throw new Error(data.error || 'Failed to submit request');
       }
 
+      // Check if API returned a suggestion (ZIP code overlap detection)
+      if (data.suggestion) {
+        setSuggestion(data.suggestion);
+        setShowSuggestionModal(true);
+        return; // Don't redirect yet
+      }
+
       // Redirect to my requests page
       router.push('/communities/my-requests');
 
@@ -128,6 +139,50 @@ export default function CommunityRequestPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle accepting the subcommunity suggestion
+  const handleAcceptSuggestion = async () => {
+    setShowSuggestionModal(false);
+    setLoading(true);
+    setError('');
+
+    try {
+      // Submit as subcommunity with suggested details
+      const res = await fetch('/api/communities/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          type: 'SUBCOMMUNITY',
+          geographicScope: suggestion.cityName,
+          parentCommunityId: suggestion.parentMetroId,
+          notes: notes + `\n\nOriginal request: ZIP ${suggestion.zipCode}`
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to submit request');
+      }
+
+      // Redirect to my requests page
+      router.push('/communities/my-requests');
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle rejecting the suggestion (proceed with original ZIP request)
+  const handleRejectSuggestion = () => {
+    setShowSuggestionModal(false);
+    setSuggestion(null);
+    setError('ZIP-based communities are not currently supported. Please select a city or metro area instead.');
   };
 
   if (status === 'loading') {
@@ -555,6 +610,109 @@ export default function CommunityRequestPage() {
             </button>
           </div>
         </form>
+
+        {/* Suggestion Modal */}
+        {showSuggestionModal && suggestion && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem'
+          }}>
+            <div style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '100%',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+            }}>
+              <div style={{
+                fontSize: '2rem',
+                textAlign: 'center',
+                marginBottom: '1rem'
+              }}>
+                💡
+              </div>
+              <h2 style={{
+                fontSize: '1.5rem',
+                fontWeight: '900',
+                color: '#0f172a',
+                marginBottom: '1rem',
+                textAlign: 'center'
+              }}>
+                Subcommunity Suggestion
+              </h2>
+              <p style={{
+                fontSize: '1rem',
+                color: '#64748b',
+                lineHeight: '1.6',
+                marginBottom: '1.5rem'
+              }}>
+                {suggestion.message}
+              </p>
+              <div style={{
+                background: '#f8f9ff',
+                border: '2px solid #e0e7ff',
+                borderRadius: '8px',
+                padding: '1rem',
+                marginBottom: '1.5rem'
+              }}>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <strong>ZIP Code:</strong> {suggestion.zipCode}
+                </div>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <strong>City:</strong> {suggestion.cityName}
+                </div>
+                <div>
+                  <strong>Parent Metro:</strong> {suggestion.parentMetroName}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button
+                  onClick={handleRejectSuggestion}
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem 1.5rem',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    background: 'white',
+                    color: '#64748b',
+                    cursor: 'pointer'
+                  }}
+                >
+                  No, Cancel
+                </button>
+                <button
+                  onClick={handleAcceptSuggestion}
+                  disabled={loading}
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem 1.5rem',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: loading ? '#cbd5e1' : '#667eea',
+                    color: 'white',
+                    cursor: loading ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {loading ? 'Submitting...' : 'Yes, Create Subcommunity'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
