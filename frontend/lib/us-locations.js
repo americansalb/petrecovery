@@ -416,12 +416,13 @@ export function getLocation(value) {
 
 // Validate location exists
 export function isValidLocation(value) {
-  // Check if it's a valid location
+  // Check if it's a valid location from our database
   if (US_LOCATIONS.some(loc => loc.value === value)) {
     return true;
   }
 
-  // Check if it's a valid ZIP code format
+  // Accept ANY valid ZIP code format (00001-99999)
+  // This covers all ~42,000 US ZIP codes without storing them
   if (isValidZipCode(value)) {
     return true;
   }
