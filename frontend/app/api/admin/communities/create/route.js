@@ -86,6 +86,13 @@ export async function POST(request) {
       }
     });
 
+    console.log('✅ Community created successfully:', {
+      id: community.id,
+      name: community.name,
+      type: community.type,
+      isActive: community.isActive
+    });
+
     return NextResponse.json({
       success: true,
       community: {

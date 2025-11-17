@@ -9,6 +9,8 @@ export async function GET(request, { params }) {
     const session = await getServerSession(authOptions);
     const { id } = params;
 
+    console.log('🔍 Fetching community with ID:', id);
+
     const community = await prisma.community.findUnique({
       where: { id },
       include: {
@@ -76,11 +78,19 @@ export async function GET(request, { params }) {
     });
 
     if (!community) {
+      console.log('❌ Community not found with ID:', id);
       return NextResponse.json(
         { error: 'Community not found' },
         { status: 404 }
       );
     }
+
+    console.log('✅ Community found:', {
+      id: community.id,
+      name: community.name,
+      type: community.type,
+      isActive: community.isActive
+    });
 
     // Get user's membership if logged in
     let userMembership = null;

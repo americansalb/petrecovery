@@ -112,6 +112,14 @@ export async function POST(request) {
       }
     });
 
+    console.log('✅ Community request created:', {
+      id: communityRequest.id,
+      type: communityRequest.type,
+      geographicScope: communityRequest.geographicScope,
+      status: communityRequest.status,
+      requesterId: communityRequest.requesterId
+    });
+
     // TODO: Send email notification to user confirming submission
     // TODO: Notify admins of new request
 

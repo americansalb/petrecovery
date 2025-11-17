@@ -47,6 +47,8 @@ export async function GET(request) {
       where.type = type;
     }
 
+    console.log('🔍 Admin fetching community requests with filter:', where);
+
     // Get requests with requester info
     const [requests, total] = await Promise.all([
       prisma.communityRequest.findMany({
@@ -73,6 +75,16 @@ export async function GET(request) {
       }),
       prisma.communityRequest.count({ where })
     ]);
+
+    console.log(`✅ Found ${requests.length} community requests (total: ${total})`);
+    if (requests.length > 0) {
+      console.log('First request:', {
+        id: requests[0].id,
+        type: requests[0].type,
+        geographicScope: requests[0].geographicScope,
+        status: requests[0].status
+      });
+    }
 
     // For each request, get additional metadata
     const requestsWithMetadata = await Promise.all(
