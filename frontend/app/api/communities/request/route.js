@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]/route';
 import prisma from '../../../lib/prisma';
+import { isValidLocation } from '../../../lib/us-locations';
 
 // POST /api/communities/request - Submit community creation request
 export async function POST(request) {
@@ -22,6 +23,14 @@ export async function POST(request) {
     if (!type || !geographicScope) {
       return NextResponse.json(
         { error: 'Type and geographic scope are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate location for metros and counties (not subcommunities)
+    if (type !== 'SUBCOMMUNITY' && !isValidLocation(geographicScope)) {
+      return NextResponse.json(
+        { error: 'Invalid location. Please select a valid US metro area or county from the dropdown.' },
         { status: 400 }
       );
     }
@@ -87,8 +96,38 @@ export async function POST(request) {
       }
     }
 
-    // TODO: Check for overlaps based on zip code (10-mile radius)
-    // This would require geocoding logic
+    // Check for duplicate communities with same geographic scope
+    const existingCommunity = await prisma.community.findFirst({
+      where: {
+        geographicScope,
+        isActive: true
+      }
+    });
+
+    if (existingCommunity) {
+      return NextResponse.json(
+        {
+          error: `A community already exists for ${geographicScope}. Please join "${existingCommunity.name}" instead of creating a duplicate.`,
+          existingCommunityId: existingCommunity.id
+        },
+        { status: 409 }
+      );
+    }
+
+    // Check for pending requests for the same location
+    const existingRequest = await prisma.communityRequest.findFirst({
+      where: {
+        geographicScope,
+        status: 'PENDING'
+      }
+    });
+
+    if (existingRequest) {
+      return NextResponse.json(
+        { error: `A request for ${geographicScope} is already pending approval. Please check back later.` },
+        { status: 409 }
+      );
+    }
 
     // Create the request
     const communityRequest = await prisma.communityRequest.create({
