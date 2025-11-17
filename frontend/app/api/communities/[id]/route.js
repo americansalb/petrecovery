@@ -106,7 +106,7 @@ export async function GET(request, { params }) {
           status: true,
           role: true,
           isFounder: true,
-          joinedAt: true
+          approvedAt: true
         }
       });
     }

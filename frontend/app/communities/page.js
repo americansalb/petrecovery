@@ -105,35 +105,94 @@ export default function CommunitiesPage() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '1rem' }}>
-            {session && (
-              <Link
-                href="/communities/my-requests"
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: 'white',
-                  color: '#64748b',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontWeight: '700'
-                }}
-              >
-                My Requests
-              </Link>
-            )}
             <Link
-              href="/communities/request"
+              href="/"
               style={{
                 padding: '0.75rem 1.5rem',
-                background: '#667eea',
-                color: 'white',
+                background: 'white',
+                color: '#64748b',
+                border: '2px solid #e2e8f0',
                 borderRadius: '8px',
                 textDecoration: 'none',
                 fontWeight: '700'
               }}
             >
-              + Request Community
+              ← Home
             </Link>
+            {session?.user?.role === 'ADMIN' ? (
+              <>
+                <Link
+                  href="/admin/communities"
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: '#667eea',
+                    color: 'white',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontWeight: '700'
+                  }}
+                >
+                  Manage Communities (Admin)
+                </Link>
+                <Link
+                  href="/admin/communities/create"
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: '#10b981',
+                    color: 'white',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontWeight: '700'
+                  }}
+                >
+                  + Create Community
+                </Link>
+              </>
+            ) : session ? (
+              <>
+                <Link
+                  href="/communities/my-requests"
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: 'white',
+                    color: '#64748b',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontWeight: '700'
+                  }}
+                >
+                  My Requests
+                </Link>
+                <Link
+                  href="/communities/request"
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: '#667eea',
+                    color: 'white',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontWeight: '700'
+                  }}
+                >
+                  + Request Community
+                </Link>
+              </>
+            ) : (
+              <Link
+                href="/login?callbackUrl=/communities"
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#667eea',
+                  color: 'white',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontWeight: '700'
+                }}
+              >
+                Login to Request
+              </Link>
+            )}
           </div>
         </div>
 
