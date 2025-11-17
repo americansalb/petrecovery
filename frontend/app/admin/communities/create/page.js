@@ -13,6 +13,7 @@ export default function AdminCreateCommunityPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [parentCommunities, setParentCommunities] = useState([]);
+  const [existingCommunities, setExistingCommunities] = useState([]);
 
   // Location search state
   const [locationSearch, setLocationSearch] = useState('');
@@ -38,6 +39,7 @@ export default function AdminCreateCommunityPage() {
 
     // Fetch parent communities for subcommunity option
     fetchParentCommunities();
+    fetchExistingCommunities();
   }, [session]);
 
   const fetchParentCommunities = async () => {
@@ -49,6 +51,18 @@ export default function AdminCreateCommunityPage() {
       }
     } catch (err) {
       console.error('Error fetching parent communities:', err);
+    }
+  };
+
+  const fetchExistingCommunities = async () => {
+    try {
+      const res = await fetch('/api/communities');
+      if (res.ok) {
+        const data = await res.json();
+        setExistingCommunities(data.communities || []);
+      }
+    } catch (err) {
+      console.error('Error fetching existing communities:', err);
     }
   };
 
@@ -67,12 +81,29 @@ export default function AdminCreateCommunityPage() {
     const results = searchLocations(query);
     const typeFiltered = formData.type === 'SUBCOMMUNITY'
       ? results
-      : results.filter(loc => loc.type === formData.type || loc.type === 'COUNTY' || (loc.type === 'CITY' && formData.type !== 'COUNTY'));
-    setFilteredLocations(typeFiltered.slice(0, 30));
+      : results.filter(loc => loc.type === formData.type || loc.type === 'COUNTY' || loc.type === 'ZIP' || loc.isZip);
+
+    // Mark already-created communities
+    const withExistingFlag = typeFiltered.map(loc => {
+      const exists = existingCommunities.some(comm =>
+        comm.geographicScope === loc.value ||
+        comm.name === loc.label
+      );
+      return { ...loc, alreadyExists: exists };
+    });
+
+    setFilteredLocations(withExistingFlag.slice(0, 30));
   };
 
   // Select location from dropdown
   const selectLocation = (location) => {
+    // Prevent selecting already-created communities
+    if (location.alreadyExists) {
+      setError(`${location.label} already exists. Please edit the existing community instead.`);
+      setShowLocationDropdown(false);
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       geographicScope: location.value,
@@ -81,6 +112,7 @@ export default function AdminCreateCommunityPage() {
     }));
     setLocationSearch(location.label);
     setShowLocationDropdown(false);
+    setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -417,15 +449,24 @@ export default function AdminCreateCommunityPage() {
                         onClick={() => selectLocation(location)}
                         style={{
                           padding: '0.75rem 1rem',
-                          cursor: 'pointer',
+                          cursor: location.alreadyExists ? 'not-allowed' : 'pointer',
                           borderBottom: '1px solid #f1f5f9',
-                          transition: 'background 0.2s'
+                          transition: 'background 0.2s',
+                          opacity: location.alreadyExists ? 0.5 : 1,
+                          background: location.alreadyExists ? '#f9fafb' : 'white'
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9ff'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                        onMouseEnter={(e) => {
+                          if (!location.alreadyExists) {
+                            e.currentTarget.style.background = '#f8f9ff';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = location.alreadyExists ? '#f9fafb' : 'white';
+                        }}
                       >
-                        <div style={{ fontWeight: '600', color: '#0f172a' }}>
+                        <div style={{ fontWeight: '600', color: location.alreadyExists ? '#94a3b8' : '#0f172a' }}>
                           {location.label}
+                          {location.alreadyExists && ' ✓ Already Created'}
                         </div>
                         <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>
                           {location.isZip ? '📮 ' :

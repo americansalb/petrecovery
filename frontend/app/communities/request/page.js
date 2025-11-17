@@ -27,6 +27,7 @@ export default function CommunityRequestPage() {
   const [locationSearch, setLocationSearch] = useState('');
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [filteredLocations, setFilteredLocations] = useState(US_LOCATIONS);
+  const [existingCommunities, setExistingCommunities] = useState([]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -39,11 +40,24 @@ export default function CommunityRequestPage() {
   useEffect(() => {
     if (session?.user) {
       fetchRateLimitInfo();
+      fetchExistingCommunities();
       if (type === 'SUBCOMMUNITY') {
         fetchParentCommunities();
       }
     }
   }, [session, type]);
+
+  const fetchExistingCommunities = async () => {
+    try {
+      const res = await fetch('/api/communities');
+      if (res.ok) {
+        const data = await res.json();
+        setExistingCommunities(data.communities || []);
+      }
+    } catch (err) {
+      console.error('Error fetching existing communities:', err);
+    }
+  };
 
   // Handle location search
   const handleLocationSearch = (query) => {
@@ -54,14 +68,33 @@ export default function CommunityRequestPage() {
     const typeFiltered = type === 'SUBCOMMUNITY'
       ? results
       : results.filter(loc => loc.type === type || loc.type === 'COUNTY' || loc.type === 'ZIP' || loc.isZip);
-    setFilteredLocations(typeFiltered);
+
+    // Mark already-created communities
+    const withExistingFlag = typeFiltered.map(loc => {
+      const exists = existingCommunities.some(comm =>
+        comm.geographicScope === loc.value ||
+        comm.name === loc.label
+      );
+      return { ...loc, alreadyExists: exists };
+    });
+
+    setFilteredLocations(withExistingFlag);
   };
 
   // Select location from dropdown
   const selectLocation = (location) => {
+    // Prevent selecting already-created communities
+    if (location.alreadyExists) {
+      setError(`${location.label} already exists. Please join the existing community instead.`);
+      setShowLocationDropdown(false);
+      return;
+    }
+
     setGeographicScope(location.value);
     setLocationSearch(location.label);
     setShowLocationDropdown(false);
+    setError('');
+
     // Auto-set type based on selection
     if (type !== 'SUBCOMMUNITY') {
       setType(location.type);
@@ -483,15 +516,24 @@ export default function CommunityRequestPage() {
                         onClick={() => selectLocation(location)}
                         style={{
                           padding: '0.75rem 1rem',
-                          cursor: 'pointer',
+                          cursor: location.alreadyExists ? 'not-allowed' : 'pointer',
                           borderBottom: '1px solid #f1f5f9',
-                          transition: 'background 0.2s'
+                          transition: 'background 0.2s',
+                          opacity: location.alreadyExists ? 0.5 : 1,
+                          background: location.alreadyExists ? '#f9fafb' : 'white'
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9ff'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                        onMouseEnter={(e) => {
+                          if (!location.alreadyExists) {
+                            e.currentTarget.style.background = '#f8f9ff';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = location.alreadyExists ? '#f9fafb' : 'white';
+                        }}
                       >
-                        <div style={{ fontWeight: '600', color: '#0f172a' }}>
+                        <div style={{ fontWeight: '600', color: location.alreadyExists ? '#94a3b8' : '#0f172a' }}>
                           {location.label}
+                          {location.alreadyExists && ' ✓ Already Created'}
                         </div>
                         <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>
                           {location.isZip ? '📮 ' :
