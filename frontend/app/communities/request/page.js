@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { US_LOCATIONS, searchLocations } from '../../lib/us-locations';
+import { US_LOCATIONS, searchLocations } from '@/lib/us-locations';
 
 export default function CommunityRequestPage() {
   const { data: session, status } = useSession();
