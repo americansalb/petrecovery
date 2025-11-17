@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]/route';
 import prisma from '../../../lib/prisma';
-import { isValidLocation } from '../../../lib/us-locations';
+import { isValidLocation } from '@/lib/us-locations';
 
 // POST /api/communities/request - Submit community creation request
 export async function POST(request) {
