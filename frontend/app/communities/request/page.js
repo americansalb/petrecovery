@@ -50,10 +50,10 @@ export default function CommunityRequestPage() {
     setLocationSearch(query);
     setShowLocationDropdown(true);
     const results = searchLocations(query);
-    // Filter by type if metro/county selected
+    // Filter by type if metro/county selected (always allow ZIP codes through)
     const typeFiltered = type === 'SUBCOMMUNITY'
       ? results
-      : results.filter(loc => loc.type === type || loc.type === 'COUNTY');
+      : results.filter(loc => loc.type === type || loc.type === 'COUNTY' || loc.type === 'ZIP' || loc.isZip);
     setFilteredLocations(typeFiltered);
   };
 
