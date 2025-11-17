@@ -380,14 +380,24 @@ export function searchLocations(query) {
 
   const searchTerm = query.toLowerCase().trim();
 
+  // Check if it's a valid ZIP code
+  if (isValidZipCode(searchTerm)) {
+    return [{
+      value: formatZipCode(searchTerm),
+      label: `ZIP Code ${formatZipCode(searchTerm)}`,
+      type: 'ZIP',
+      state: 'US',
+      isZip: true
+    }];
+  }
+
   // Search by name, state, or type
   const results = US_LOCATIONS.filter(location => {
     const nameMatch = location.label.toLowerCase().includes(searchTerm);
     const valueMatch = location.value.toLowerCase().includes(searchTerm);
     const stateMatch = location.state.toLowerCase() === searchTerm;
-    const zipMatch = isValidZipCode(searchTerm) && location.value.includes(searchTerm);
 
-    return nameMatch || valueMatch || stateMatch || zipMatch;
+    return nameMatch || valueMatch || stateMatch;
   });
 
   // Sort by population (descending) for cities, alphabetically for others
@@ -406,12 +416,13 @@ export function getLocation(value) {
 
 // Validate location exists
 export function isValidLocation(value) {
-  // Check if it's a valid location
+  // Check if it's a valid location from our database
   if (US_LOCATIONS.some(loc => loc.value === value)) {
     return true;
   }
 
-  // Check if it's a valid ZIP code format
+  // Accept ANY valid ZIP code format (00001-99999)
+  // This covers all ~42,000 US ZIP codes without storing them
   if (isValidZipCode(value)) {
     return true;
   }
@@ -451,4 +462,16 @@ export function getAllStates() {
 // Filter by type
 export function getLocationsByType(type) {
   return US_LOCATIONS.filter(loc => loc.type === type);
+}
+
+// Get user-friendly type label
+export function getTypeLabel(type) {
+  const labels = {
+    'METRO_AREA': 'City/Metro Area',
+    'CITY': 'City/Metro Area',
+    'COUNTY': 'County',
+    'SUBCOMMUNITY': 'Neighborhood',
+    'ZIP': 'ZIP Code'
+  };
+  return labels[type] || type;
 }
