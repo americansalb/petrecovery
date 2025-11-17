@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { US_LOCATIONS, searchLocations, isValidLocation } from '@/lib/us-locations';
 
 export default function AdminCreateCommunityPage() {
   const { data: session } = useSession();
@@ -12,6 +13,11 @@ export default function AdminCreateCommunityPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [parentCommunities, setParentCommunities] = useState([]);
+
+  // Location search state
+  const [locationSearch, setLocationSearch] = useState('');
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [filteredLocations, setFilteredLocations] = useState(US_LOCATIONS.slice(0, 50));
 
   const [formData, setFormData] = useState({
     name: '',
@@ -52,6 +58,29 @@ export default function AdminCreateCommunityPage() {
       ...prev,
       [name]: value
     }));
+  };
+
+  // Handle location search
+  const handleLocationSearch = (query) => {
+    setLocationSearch(query);
+    setShowLocationDropdown(true);
+    const results = searchLocations(query);
+    const typeFiltered = formData.type === 'SUBCOMMUNITY'
+      ? results
+      : results.filter(loc => loc.type === formData.type || loc.type === 'COUNTY' || (loc.type === 'CITY' && formData.type !== 'COUNTY'));
+    setFilteredLocations(typeFiltered.slice(0, 30));
+  };
+
+  // Select location from dropdown
+  const selectLocation = (location) => {
+    setFormData(prev => ({
+      ...prev,
+      geographicScope: location.value,
+      name: location.label,
+      type: location.type
+    }));
+    setLocationSearch(location.label);
+    setShowLocationDropdown(false);
   };
 
   const handleSubmit = async (e) => {
@@ -323,30 +352,95 @@ export default function AdminCreateCommunityPage() {
           </div>
 
           {/* Geographic Scope */}
-          <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ marginBottom: '1.5rem', position: 'relative' }}>
             <label style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontWeight: '700',
               color: '#0f172a'
             }}>
-              Geographic Scope *
+              {formData.type === 'SUBCOMMUNITY' ? 'Neighborhood/Area Name *' : 'Select Location *'}
             </label>
-            <input
-              type="text"
-              name="geographicScope"
-              value={formData.geographicScope}
-              onChange={handleChange}
-              placeholder="e.g., Cook County, IL or Chicago, IL"
-              required
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #e2e8f0',
-                borderRadius: '8px',
-                fontSize: '1rem'
-              }}
-            />
+            {formData.type === 'SUBCOMMUNITY' ? (
+              // Free text for subcommunities
+              <input
+                type="text"
+                name="geographicScope"
+                value={formData.geographicScope}
+                onChange={handleChange}
+                placeholder="e.g., Lincoln Park, Downtown..."
+                required
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '1rem'
+                }}
+              />
+            ) : (
+              // Searchable dropdown for metros/counties/cities
+              <>
+                <input
+                  type="text"
+                  value={locationSearch}
+                  onChange={(e) => handleLocationSearch(e.target.value)}
+                  onFocus={() => setShowLocationDropdown(true)}
+                  placeholder="Search for city, metro, or county..."
+                  required={!formData.geographicScope}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '1rem'
+                  }}
+                />
+                {showLocationDropdown && filteredLocations.length > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    maxHeight: '300px',
+                    overflowY: 'auto',
+                    background: 'white',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    marginTop: '0.5rem',
+                    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+                    zIndex: 10
+                  }}>
+                    {filteredLocations.map((location) => (
+                      <div
+                        key={location.value}
+                        onClick={() => selectLocation(location)}
+                        style={{
+                          padding: '0.75rem 1rem',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid #f1f5f9',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9ff'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                      >
+                        <div style={{ fontWeight: '600', color: '#0f172a' }}>
+                          {location.label}
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>
+                          {location.type === 'METRO_AREA' ? '🌆 Metro Area' : location.type === 'COUNTY' ? '🏞️ County' : '🏙️ City'} • {location.state}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {formData.geographicScope && (
+                  <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#10b981', fontWeight: '600' }}>
+                    ✓ Selected: {locationSearch || formData.geographicScope}
+                  </p>
+                )}
+              </>
+            )}
           </div>
 
           {/* Zip Codes */}

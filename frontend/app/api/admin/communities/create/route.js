@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../auth/[...nextauth]/route';
 import prisma from '../../../../lib/prisma';
+import { isValidLocation } from '@/lib/us-locations';
 
 // POST /api/admin/communities/create - Admin directly creates a community
 export async function POST(request) {
@@ -44,6 +45,14 @@ export async function POST(request) {
     if (!name || !type || !geographicScope) {
       return NextResponse.json(
         { error: 'Name, type, and geographic scope are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate location for metros, counties, and cities (not subcommunities)
+    if (type !== 'SUBCOMMUNITY' && !isValidLocation(geographicScope)) {
+      return NextResponse.json(
+        { error: 'Invalid location. Please select a valid US city, metro area, or county from the dropdown.' },
         { status: 400 }
       );
     }
