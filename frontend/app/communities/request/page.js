@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { US_LOCATIONS, searchLocations } from '../../lib/us-locations';
 
 export default function CommunityRequestPage() {
   const { data: session, status } = useSession();
@@ -17,6 +18,11 @@ export default function CommunityRequestPage() {
   const [error, setError] = useState('');
   const [parentCommunities, setParentCommunities] = useState([]);
   const [rateLimitInfo, setRateLimitInfo] = useState({ count: 0, limit: 10 });
+
+  // Location search
+  const [locationSearch, setLocationSearch] = useState('');
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [filteredLocations, setFilteredLocations] = useState(US_LOCATIONS);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -34,6 +40,29 @@ export default function CommunityRequestPage() {
       }
     }
   }, [session, type]);
+
+  // Handle location search
+  const handleLocationSearch = (query) => {
+    setLocationSearch(query);
+    setShowLocationDropdown(true);
+    const results = searchLocations(query);
+    // Filter by type if metro/county selected
+    const typeFiltered = type === 'SUBCOMMUNITY'
+      ? results
+      : results.filter(loc => loc.type === type || loc.type === 'COUNTY');
+    setFilteredLocations(typeFiltered);
+  };
+
+  // Select location from dropdown
+  const selectLocation = (location) => {
+    setGeographicScope(location.value);
+    setLocationSearch(location.label);
+    setShowLocationDropdown(false);
+    // Auto-set type based on selection
+    if (type !== 'SUBCOMMUNITY') {
+      setType(location.type);
+    }
+  };
 
   const fetchRateLimitInfo = async () => {
     try {
@@ -323,7 +352,7 @@ export default function CommunityRequestPage() {
           )}
 
           {/* Geographic Scope */}
-          <div style={{ marginBottom: '2rem' }}>
+          <div style={{ marginBottom: '2rem', position: 'relative' }}>
             <label style={{
               display: 'block',
               fontSize: '1rem',
@@ -331,30 +360,101 @@ export default function CommunityRequestPage() {
               color: '#0f172a',
               marginBottom: '0.75rem'
             }}>
-              Geographic Scope *
+              {type === 'SUBCOMMUNITY' ? 'Neighborhood/Area Name *' : 'Select Location *'}
             </label>
-            <input
-              type="text"
-              value={geographicScope}
-              onChange={(e) => setGeographicScope(e.target.value)}
-              placeholder="e.g., Chicago or 60601"
-              required
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                fontSize: '1rem',
-                border: '2px solid #e2e8f0',
-                borderRadius: '8px',
-                outline: 'none'
-              }}
-            />
-            <p style={{
-              marginTop: '0.5rem',
-              fontSize: '0.9rem',
-              color: '#64748b'
-            }}>
-              💡 Enter a city name or zip code. For zip codes, we'll check a 10-mile radius for overlaps.
-            </p>
+            {type === 'SUBCOMMUNITY' ? (
+              // Free text for subcommunities
+              <>
+                <input
+                  type="text"
+                  value={geographicScope}
+                  onChange={(e) => setGeographicScope(e.target.value)}
+                  placeholder="e.g., Lincoln Park, Downtown, etc."
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    fontSize: '1rem',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    outline: 'none'
+                  }}
+                />
+                <p style={{
+                  marginTop: '0.5rem',
+                  fontSize: '0.9rem',
+                  color: '#64748b'
+                }}>
+                  💡 Enter the name of your neighborhood, district, or local area
+                </p>
+              </>
+            ) : (
+              // Searchable dropdown for metros/counties
+              <>
+                <input
+                  type="text"
+                  value={locationSearch}
+                  onChange={(e) => handleLocationSearch(e.target.value)}
+                  onFocus={() => setShowLocationDropdown(true)}
+                  placeholder="Search for your city or county..."
+                  required={!geographicScope}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    fontSize: '1rem',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    outline: 'none'
+                  }}
+                />
+                {showLocationDropdown && filteredLocations.length > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    maxHeight: '300px',
+                    overflowY: 'auto',
+                    background: 'white',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    marginTop: '0.5rem',
+                    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+                    zIndex: 10
+                  }}>
+                    {filteredLocations.slice(0, 20).map((location) => (
+                      <div
+                        key={location.value}
+                        onClick={() => selectLocation(location)}
+                        style={{
+                          padding: '0.75rem 1rem',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid #f1f5f9',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9ff'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                      >
+                        <div style={{ fontWeight: '600', color: '#0f172a' }}>
+                          {location.label}
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>
+                          {location.type === 'METRO_AREA' ? '🌆 Metro Area' : '🏞️ County'} • {location.state}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p style={{
+                  marginTop: '0.5rem',
+                  fontSize: '0.9rem',
+                  color: '#64748b'
+                }}>
+                  💡 Type to search from {US_LOCATIONS.length}+ verified US locations
+                  {geographicScope && ` • Selected: ${locationSearch}`}
+                </p>
+              </>
+            )}
           </div>
 
           {/* Notes */}
