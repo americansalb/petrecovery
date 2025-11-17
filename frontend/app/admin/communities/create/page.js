@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { US_LOCATIONS, searchLocations, isValidLocation } from '@/lib/us-locations';
+import { US_LOCATIONS, searchLocations, isValidLocation, getTypeLabel } from '@/lib/us-locations';
 
 export default function AdminCreateCommunityPage() {
   const { data: session } = useSession();
@@ -428,7 +428,10 @@ export default function AdminCreateCommunityPage() {
                           {location.label}
                         </div>
                         <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>
-                          {location.type === 'METRO_AREA' ? '🌆 Metro Area' : location.type === 'COUNTY' ? '🏞️ County' : '🏙️ City'} • {location.state}
+                          {location.isZip ? '📮 ' :
+                           location.type === 'METRO_AREA' || location.type === 'CITY' ? '🌆 ' :
+                           location.type === 'COUNTY' ? '🏞️ ' : ''}
+                          {getTypeLabel(location.type)} • {location.state}
                         </div>
                       </div>
                     ))}
