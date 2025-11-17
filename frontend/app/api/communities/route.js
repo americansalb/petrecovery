@@ -38,6 +38,8 @@ export async function GET(request) {
       ];
     }
 
+    console.log('🔍 Fetching communities with filter:', where);
+
     // Get communities with counts
     const [communities, total] = await Promise.all([
       prisma.community.findMany({
@@ -69,6 +71,15 @@ export async function GET(request) {
       }),
       prisma.community.count({ where })
     ]);
+
+    console.log(`✅ Found ${communities.length} communities (total: ${total})`);
+    if (communities.length > 0) {
+      console.log('First community:', {
+        id: communities[0].id,
+        name: communities[0].name,
+        type: communities[0].type
+      });
+    }
 
     // If user is logged in, get their membership status for each community
     let communitiesWithMembership = communities;
