@@ -145,9 +145,7 @@ export async function POST(request) {
           where: {
             geographicScope: zipInfo.metroValue,
             isActive: true,
-            type: {
-              in: ['METRO_AREA', 'CITY']
-            }
+            type: 'METRO_AREA'
           }
         });
 

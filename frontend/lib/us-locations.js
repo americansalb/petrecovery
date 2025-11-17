@@ -373,22 +373,69 @@ export const US_LOCATIONS = [
 ];
 
 // Helper function to search locations (with fuzzy matching)
-export function searchLocations(query) {
+export function searchLocations(query, existingCommunities = []) {
+  // Sort by population when no query
   if (!query || query.length < 2) {
-    return US_LOCATIONS.slice(0, 50); // Return first 50 by default
+    const sorted = [...US_LOCATIONS].sort((a, b) => {
+      if (a.population && b.population) {
+        return b.population - a.population;
+      }
+      return a.label.localeCompare(b.label);
+    });
+    return sorted.slice(0, 50); // Return first 50 by population
   }
 
   const searchTerm = query.toLowerCase().trim();
 
   // Check if it's a valid ZIP code
   if (isValidZipCode(searchTerm)) {
-    return [{
-      value: formatZipCode(searchTerm),
-      label: `ZIP Code ${formatZipCode(searchTerm)}`,
-      type: 'ZIP',
-      state: 'US',
-      isZip: true
-    }];
+    // Import dynamically to avoid circular dependency
+    try {
+      const { getZipCodeInfo } = require('./zip-city-mapping');
+      const zipInfo = getZipCodeInfo(searchTerm);
+
+      if (zipInfo) {
+        // Return the city name, not the ZIP code
+        const existingCity = US_LOCATIONS.find(loc =>
+          loc.label === zipInfo.city || loc.value.includes(zipInfo.city.toUpperCase().replace(/\s+/g, '_'))
+        );
+
+        if (existingCity) {
+          return [existingCity];
+        }
+
+        // City not in our database, create a temporary entry
+        return [{
+          value: zipInfo.city.toUpperCase().replace(/\s+/g, '_'),
+          label: `${zipInfo.city}, ${zipInfo.metro.split(',')[1].trim()}`,
+          type: 'SUBCOMMUNITY',
+          state: zipInfo.metro.split(',')[1].trim(),
+          isZip: true,
+          zipCode: formatZipCode(searchTerm),
+          parentMetro: zipInfo.metroValue
+        }];
+      }
+
+      // Valid ZIP but not in our tracked metros
+      return [{
+        value: formatZipCode(searchTerm),
+        label: `ZIP Code ${formatZipCode(searchTerm)}`,
+        type: 'ZIP',
+        state: 'US',
+        isZip: true,
+        disabled: true,
+        disabledReason: 'ZIP code not in tracked metro area'
+      }];
+    } catch (err) {
+      // Fallback if import fails
+      return [{
+        value: formatZipCode(searchTerm),
+        label: `ZIP Code ${formatZipCode(searchTerm)}`,
+        type: 'ZIP',
+        state: 'US',
+        isZip: true
+      }];
+    }
   }
 
   // Search by name, state, or type
