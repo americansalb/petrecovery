@@ -1,4 +1,4 @@
-// PetRecovery.org Database Schema
+// PetRecovery.org Database Schema - Rescue Squad Model
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,7 +8,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================================================
 // CORE USER SYSTEM
+// ============================================================================
+
 model User {
   id              String   @id @default(cuid())
   email           String   @unique
@@ -36,24 +39,27 @@ model User {
   profile         UserProfile?
   patrolProfile   PatrolProfile?
   pets            Pet[]
-  lostReports     LostReport[]
+  cases           Case[]
   alerts          Alert[]
-  sightings       Sighting[]
-  comments        Comment[]
+  caseSightings   CaseSighting[]
+  caseUpdates     CaseUpdate[]
 
-  // Community Relations
+  // Community Relations (keeping these for now)
   communityRequests CommunityRequest[]
   reviewedRequests CommunityRequest[] @relation("ReviewedRequests")
   communityMemberships CommunityMember[]
   createdCommunities Community[] @relation("CommunityCreator")
   approvedCommunities Community[] @relation("CommunityApprover")
   communityPosts  CommunityPost[]
-  squadMemberships SquadMember[]
-  searchAreas     SearchArea[]
-  petSpottings    PetSpotting[]
-  squadMessages   SquadMessage[]
-  receivedHonors  SquadHonor[] @relation("HonoredUser")
-  givenHonors     SquadHonor[] @relation("HonoringUser")
+
+  // Rescue Squad Relations
+  rescueSquadMemberships RescueSquadMember[]
+  caseParticipations     CaseParticipant[]
+  searchAreas            SearchArea[]
+  petSpottings           PetSpotting[]
+  squadMessages          SquadMessage[]
+  receivedHonors         SquadHonor[] @relation("HonoredUser")
+  givenHonors            SquadHonor[] @relation("HonoringUser")
 
   @@index([email])
   @@index([rescueLevel])
@@ -68,8 +74,8 @@ enum UserRole {
 
 enum RescueLevel {
   PET_OWNER    // Level 0: Submitted a lost pet request
-  SCOUT        // Level 1: Joined a community
-  SENTRY       // Level 2: Joined a recovery squad
+  SCOUT        // Level 1: Joined a rescue squad
+  SENTRY       // Level 2: Participated in first case
   SHEPHERD     // Level 3: Marked 5+ areas, 15+ acres total
   PATHFINDER   // Level 4: 1+ successful reunion
   PACK_GUARDIAN // Level 5: 5+ successful reunions
@@ -98,7 +104,7 @@ model UserProfile {
   @@index([latitude, longitude])
 }
 
-// RECOVERY PATROL SYSTEM
+// RECOVERY PATROL SYSTEM (keeping for backwards compatibility)
 model PatrolProfile {
   userId          String   @id
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -154,7 +160,10 @@ enum PatrolLevel {
   LEGEND      // 25+ recoveries
 }
 
+// ============================================================================
 // PET SYSTEM
+// ============================================================================
+
 model Pet {
   id              String   @id @default(cuid())
   ownerId         String
@@ -191,7 +200,7 @@ model Pet {
   updatedAt       DateTime @updatedAt
 
   // Relations
-  lostReports     LostReport[]
+  cases           Case[]
 
   @@index([ownerId])
 }
@@ -218,49 +227,67 @@ enum PetSize {
   GIANT    // > 90 lbs
 }
 
-// LOST REPORT SYSTEM
-model LostReport {
+// ============================================================================
+// CASE SYSTEM (was LostReport)
+// ============================================================================
+
+model Case {
   id              String   @id @default(cuid())
-  petId           String
-  pet             Pet      @relation(fields: [petId], references: [id])
+  caseNumber      String   @unique // "CHI-2024-001847"
+
+  // Pet Information (denormalized for performance)
+  petId           String?  // Optional reference to Pet
+  pet             Pet?     @relation(fields: [petId], references: [id])
+  petName         String
+  petSpecies      PetSpecies
+  petBreed        String?
+  petColor        String
+  petSize         PetSize
+  petPhotoUrl     String
+  petDescription  String   // Full description
+
+  // Reporter/Owner
   reporterId      String
   reporter        User     @relation(fields: [reporterId], references: [id])
+  ownerName       String
+  ownerPhone      String
+  ownerEmail      String
 
-  // Report Type
-  reportType      ReportType @default(LOST) // LOST or FOUND
+  // Case Details
+  reportType      ReportType @default(LOST)
+  status          CaseStatus @default(ACTIVE)
+  priority        CasePriority @default(NORMAL)
 
-  // Status
-  status          ReportStatus @default(ACTIVE)
-  priority        Priority @default(NORMAL)
-
-  // Incident details
+  // Location
   lastSeenAt      DateTime
   lastSeenLatitude Float
   lastSeenLongitude Float
   lastSeenAddress String
-  escapeScenario  String   // "jumped_fence", "door_left_open", etc
+  searchRadius    Float    @default(5) // Miles
+
+  // Incident
+  escapeScenario  String
   escapeDetails   String?
 
-  // Search information
-  searchRadius    Float    @default(5) // Miles
-  aiAdviceGiven   Json?    // Store what advice was shown
+  // Meta Ads Integration
+  metaAdCampaignId String?
+  metaAdBudget    Float?
+  metaAdStatus    String?  // "running", "paused", "completed"
 
   // Reward
   hasReward       Boolean  @default(false)
   rewardAmount    Float?
 
-  // Engagement metrics
+  // Engagement Metrics
   viewCount       Int      @default(0)
   shareCount      Int      @default(0)
-  patrolAlerted   Int      @default(0)
   activeSearchers Int      @default(0)
 
   // Resolution
-  foundAt         DateTime?
-  foundLatitude   Float?
-  foundLongitude  Float?
+  resolvedAt      DateTime?
+  resolution      CaseResolution?
+  resolutionNotes String?
   foundById       String?
-  recoveryStory   String?
 
   // Timestamps
   createdAt       DateTime @default(now())
@@ -268,14 +295,15 @@ model LostReport {
   expiresAt       DateTime?
 
   // Relations
+  assignments     CaseAssignment[]
+  sightings       CaseSighting[]
+  updates         CaseUpdate[]
   alerts          Alert[]
-  sightings       Sighting[]
-  comments        Comment[]
-  recoverySquads  RecoverySquad[]
 
   @@index([status])
-  @@index([createdAt])
+  @@index([caseNumber])
   @@index([lastSeenLatitude, lastSeenLongitude])
+  @@index([createdAt])
 }
 
 enum ReportType {
@@ -283,28 +311,35 @@ enum ReportType {
   FOUND   // Someone reporting they found a pet
 }
 
-enum ReportStatus {
-  DRAFT
-  ACTIVE
-  SIGHTED
-  RECOVERING
-  FOUND
-  CLOSED
-  EXPIRED
+enum CaseStatus {
+  ACTIVE           // Just reported, awaiting rescue squad acceptance
+  IN_PROGRESS      // One or more rescue squads actively searching
+  SIGHTING_REPORTED // Pet has been sighted
+  REUNITED         // Pet found and returned to owner
+  CLOSED_OTHER     // Closed for other reasons
 }
 
-enum Priority {
-  LOW
-  NORMAL
-  HIGH
-  URGENT
+enum CasePriority {
+  LOW              // Adult healthy pet, good weather
+  NORMAL           // Standard case
+  HIGH             // Medical needs, extreme weather, dangerous area
+  URGENT           // Life-threatening situation
+}
+
+enum CaseResolution {
+  REUNITED         // Found by organized search
+  FOUND_BY_OWNER   // Owner found pet themselves
+  FOUND_AT_SHELTER // Brought to shelter
+  CAME_HOME        // Pet returned on its own
+  DECEASED         // Pet found deceased
+  SEARCH_CEASED    // Owner stopped searching
 }
 
 // ALERT SYSTEM
 model Alert {
   id              String   @id @default(cuid())
-  reportId        String
-  report          LostReport @relation(fields: [reportId], references: [id])
+  caseId          String
+  case            Case     @relation(fields: [caseId], references: [id])
   userId          String
   user            User     @relation(fields: [userId], references: [id])
 
@@ -319,7 +354,7 @@ model Alert {
   response        AlertResponse?
   responseNote    String?
 
-  @@index([reportId])
+  @@index([caseId])
   @@index([userId])
   @@index([sentAt])
 }
@@ -331,11 +366,11 @@ enum AlertResponse {
   NOT_INTERESTED
 }
 
-// SIGHTINGS
-model Sighting {
+// CASE SIGHTINGS (was Sighting)
+model CaseSighting {
   id              String   @id @default(cuid())
-  reportId        String
-  report          LostReport @relation(fields: [reportId], references: [id])
+  caseId          String
+  case            Case     @relation(fields: [caseId], references: [id])
   reportedById    String
   reportedBy      User     @relation(fields: [reportedById], references: [id])
 
@@ -357,15 +392,15 @@ model Sighting {
 
   createdAt       DateTime @default(now())
 
-  @@index([reportId])
+  @@index([caseId])
   @@index([latitude, longitude])
 }
 
-// COMMENTS & UPDATES
-model Comment {
+// CASE UPDATES (was Comment)
+model CaseUpdate {
   id              String   @id @default(cuid())
-  reportId        String
-  report          LostReport @relation(fields: [reportId], references: [id])
+  caseId          String
+  case            Case     @relation(fields: [caseId], references: [id])
   authorId        String
   author          User     @relation(fields: [authorId], references: [id])
 
@@ -376,14 +411,291 @@ model Comment {
   createdAt       DateTime @default(now())
   editedAt        DateTime?
 
-  @@index([reportId])
+  @@index([caseId])
 }
 
 // ============================================================================
-// COMMUNITY SYSTEM
+// RESCUE SQUAD SYSTEM
 // ============================================================================
 
-// COMMUNITY REQUEST & MANAGEMENT
+model RescueSquad {
+  id              String   @id @default(cuid())
+
+  // Rescue Squad Identity
+  name            String   @unique // "Lincoln Park Rescue Squad"
+  description     String?
+  logoUrl         String?
+
+  // Coverage & Specialization
+  coverageType    CoverageType @default(RADIUS)
+  centerLatitude  Float?
+  centerLongitude Float?
+  radiusMiles     Int      @default(5)
+  customBoundary  String?  // JSON: GeoJSON polygon for custom coverage
+
+  // Specializations
+  specializesInDogs    Boolean  @default(true)
+  specializesInCats    Boolean  @default(true)
+  specializesInBirds   Boolean  @default(false)
+  specializesInOther   Boolean  @default(false)
+  availableWeekdays    Boolean  @default(true)
+  availableWeekends    Boolean  @default(true)
+  availableDay         Boolean  @default(true)
+  availableNight       Boolean  @default(false)
+  hasTrackingDogs      Boolean  @default(false)
+  hasDrones            Boolean  @default(false)
+
+  // Status
+  isActive        Boolean  @default(true)
+  isAcceptingCases Boolean @default(true)
+
+  // Stats (Lifetime)
+  totalCasesAccepted   Int      @default(0)
+  totalCasesCompleted  Int      @default(0)
+  successfulReunions   Int      @default(0)
+  totalSearchHours     Float    @default(0)
+  totalAcreageSearched Float    @default(0)
+  avgResponseTimeMinutes Int?   // Avg time to accept a case
+
+  // Gamification
+  rescueSquadLevel RescueSquadLevel @default(ROOKIE)
+  squadPoints      Int      @default(0)
+  badges           String   @default("[]") // JSON: ["first_reunion", "speed_demon", etc]
+
+  // Relations
+  members          RescueSquadMember[]
+  caseAssignments  CaseAssignment[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive, isAcceptingCases])
+  @@index([centerLatitude, centerLongitude])
+}
+
+enum CoverageType {
+  RADIUS       // Simple radius from center point
+  NEIGHBORHOOD // Specific neighborhood/zip codes
+  CUSTOM       // Custom polygon boundary
+  CITYWIDE     // Entire city
+}
+
+enum RescueSquadLevel {
+  ROOKIE       // 0-5 cases
+  ACTIVE       // 6-20 cases
+  VETERAN      // 21-50 cases
+  ELITE        // 51-100 cases
+  LEGENDARY    // 100+ cases
+}
+
+model RescueSquadMember {
+  id              String   @id @default(cuid())
+  rescueSquadId   String
+  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Role
+  role            RescueSquadMemberRole @default(MEMBER)
+
+  // Status
+  isActive        Boolean  @default(true)
+
+  // Stats (Within This Rescue Squad)
+  casesParticipated Int    @default(0)
+  successfulReunions Int   @default(0)
+  searchHours     Float    @default(0)
+  areasMarked     Int      @default(0)
+
+  // Availability
+  availabilityStatus AvailabilityStatus @default(AVAILABLE)
+  unavailableUntil DateTime?
+
+  joinedAt        DateTime @default(now())
+  leftAt          DateTime?
+
+  @@unique([rescueSquadId, userId])
+  @@index([userId])
+  @@index([role])
+  @@index([isActive])
+}
+
+enum RescueSquadMemberRole {
+  FOUNDER          // Created the rescue squad
+  LEADER           // Can accept cases, manage members
+  COORDINATOR      // Can coordinate searches, post updates
+  MEMBER           // Regular searcher
+}
+
+enum AvailabilityStatus {
+  AVAILABLE        // Ready to search
+  BUSY             // Temporarily unavailable
+  AWAY             // Extended absence
+}
+
+// CASE ASSIGNMENT (Rescue Squad Accepts Case)
+model CaseAssignment {
+  id              String   @id @default(cuid())
+  caseId          String
+  case            Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  rescueSquadId   String
+  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+
+  // Assignment Status
+  status          AssignmentStatus @default(ACCEPTED)
+  acceptedAt      DateTime @default(now())
+  acceptedById    String   // Rescue Squad leader who accepted
+
+  // Participation
+  activeMembers   Int      @default(0)
+  searchHours     Float    @default(0)
+  areasSearched   Int      @default(0)
+
+  // Completion
+  completedAt     DateTime?
+  contribution    String?  // "Found pet", "Covered north side", etc.
+
+  // Relations
+  participants    CaseParticipant[]
+  searchAreas     SearchArea[]
+  petSpottings    PetSpotting[]
+  messages        SquadMessage[]
+
+  @@unique([caseId, rescueSquadId]) // Rescue Squad can only accept case once
+  @@index([caseId])
+  @@index([rescueSquadId])
+  @@index([status])
+}
+
+enum AssignmentStatus {
+  ACCEPTED         // Rescue Squad accepted, mobilizing
+  ACTIVE           // Members actively searching
+  STANDBY          // Paused, watching for updates
+  COMPLETED        // Rescue Squad finished their involvement
+  WITHDRAWN        // Rescue Squad withdrew from case
+}
+
+// CASE PARTICIPANT (Rescue Squad Member Opts Into Specific Case)
+model CaseParticipant {
+  id              String   @id @default(cuid())
+  assignmentId    String
+  assignment      CaseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+
+  // Participation
+  optedInAt       DateTime @default(now())
+  optedOutAt      DateTime?
+  isActive        Boolean  @default(true)
+
+  // Contribution
+  searchHours     Float    @default(0)
+  areasMarked     Int      @default(0)
+  sightingsReported Int    @default(0)
+
+  @@unique([assignmentId, userId])
+  @@index([userId])
+  @@index([isActive])
+}
+
+// SQUAD MESSAGE (Case-specific chat)
+model SquadMessage {
+  id              String   @id @default(cuid())
+  assignmentId    String
+  assignment      CaseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  authorId        String
+  author          User     @relation(fields: [authorId], references: [id])
+
+  // Message Type
+  type            MessageType @default(CHAT)
+  content         String
+
+  // Attachments
+  photoUrls       String   @default("[]") // JSON array
+  location        String?  // JSON: {lat, lng, address}
+
+  createdAt       DateTime @default(now())
+  editedAt        DateTime?
+
+  @@index([assignmentId])
+  @@index([createdAt])
+}
+
+enum MessageType {
+  CHAT            // Regular chat message
+  ANNOUNCEMENT    // Leader announcement
+  SYSTEM          // System-generated message
+}
+
+model SearchArea {
+  id              String   @id @default(cuid())
+  assignmentId    String
+  assignment      CaseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  markedById      String
+  markedBy        User     @relation(fields: [markedById], references: [id])
+
+  // Area Details
+  geometry        String   // JSON: GeoJSON polygon coordinates
+  acreage         Float
+  notes           String?
+  potentialSpotting Boolean @default(false) // Checkbox: potential pet spotted
+
+  // Metadata
+  startAddress    String?  // Starting point of search
+  markedAt        DateTime @default(now())
+
+  @@index([assignmentId])
+  @@index([markedById])
+  @@index([markedAt])
+}
+
+model PetSpotting {
+  id              String   @id @default(cuid())
+  assignmentId    String
+  assignment      CaseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  reportedById    String
+  reportedBy      User     @relation(fields: [reportedById], references: [id])
+
+  // Sighting Details
+  latitude        Float
+  longitude       Float
+  address         String?
+  spottedAt       DateTime // When they saw the pet
+  confidenceLevel Int      // 1-10 scale
+
+  // Media & Notes
+  photoUrls       String   @default("[]") // JSON array
+  notes           String?
+
+  reportedAt      DateTime @default(now())
+
+  @@index([assignmentId])
+  @@index([reportedById])
+  @@index([reportedAt])
+}
+
+model SquadHonor {
+  id              String   @id @default(cuid())
+  rescueSquadId   String
+
+  // Who gave and received
+  honoredUserId   String
+  honoredUser     User     @relation("HonoredUser", fields: [honoredUserId], references: [id])
+  givenById       String   // Pet owner
+  givenBy         User     @relation("HonoringUser", fields: [givenById], references: [id])
+
+  note            String?  // Optional message from owner
+
+  createdAt       DateTime @default(now())
+
+  @@index([honoredUserId])
+  @@index([rescueSquadId])
+}
+
+// ============================================================================
+// COMMUNITY SYSTEM (Keeping for now - can integrate later)
+// ============================================================================
+
 model CommunityRequest {
   id              String   @id @default(cuid())
   requesterId     String
@@ -446,8 +758,6 @@ model Community {
   // Relations
   members         CommunityMember[]
   posts           CommunityPost[]
-  recoverySquads  RecoverySquad[]
-  subsquads       Subsquad[]
   requests        CommunityRequest[]
 
   createdAt       DateTime @default(now())
@@ -523,192 +833,6 @@ model CommunityPost {
   @@index([isPinned])
 }
 
-// ============================================================================
-// RECOVERY SQUAD SYSTEM
-// ============================================================================
-
-model RecoverySquad {
-  id              String   @id @default(cuid())
-  reportId        String
-  report          LostReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  communityId     String
-  community       Community @relation(fields: [communityId], references: [id])
-
-  // Squad Info
-  name            String   // "{Pet Name} Recovery Squad - {Community Name}"
-
-  // Status
-  status          SquadStatus @default(ACTIVE)
-  closedAt        DateTime?
-  closedReason    SquadClosureReason?
-
-  // Stats
-  memberCount     Int      @default(0)
-  searchAreasMarked Int    @default(0)
-  totalAcreageSearched Float @default(0)
-
-  // Relations
-  members         SquadMember[]
-  subsquads       Subsquad[]
-  messages        SquadMessage[]
-  searchAreas     SearchArea[]
-  petSpottings    PetSpotting[]
-  honors          SquadHonor[]
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([reportId])
-  @@index([communityId])
-  @@index([status])
-  @@unique([reportId, communityId]) // One squad per report per community
-}
-
-model Subsquad {
-  id              String   @id @default(cuid())
-  squadId         String
-  squad           RecoverySquad @relation(fields: [squadId], references: [id], onDelete: Cascade)
-  communityId     String   // Subcommunity
-  community       Community @relation(fields: [communityId], references: [id])
-
-  name            String   // e.g., "Evanston Subsquad"
-
-  // Relations
-  members         SquadMember[]
-  messages        SquadMessage[]
-
-  createdAt       DateTime @default(now())
-
-  @@index([squadId])
-  @@index([communityId])
-  @@unique([squadId, communityId]) // One subsquad per squad per subcommunity
-}
-
-model SquadMember {
-  id              String   @id @default(cuid())
-  squadId         String
-  squad           RecoverySquad @relation(fields: [squadId], references: [id], onDelete: Cascade)
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Subsquad Assignment (null if in main squad)
-  subsquadId      String?
-  subsquad        Subsquad? @relation(fields: [subsquadId], references: [id])
-
-  // Role
-  role            SquadRole @default(MEMBER)
-
-  // Activity Tracking (for Shepherd level)
-  messagesSent    Int      @default(0)
-  areasMarked     Int      @default(0)
-  actionsCount    Int      @default(0) // messages + areas + photos + locations
-
-  joinedAt        DateTime @default(now())
-  leftAt          DateTime?
-
-  @@unique([squadId, userId])
-  @@index([userId])
-  @@index([subsquadId])
-  @@index([role])
-}
-
-model SquadMessage {
-  id              String   @id @default(cuid())
-  squadId         String
-  squad           RecoverySquad @relation(fields: [squadId], references: [id], onDelete: Cascade)
-  authorId        String
-  author          User     @relation(fields: [authorId], references: [id])
-
-  // Subsquad Channel (null = main squad or Central Hub)
-  subsquadId      String?
-  subsquad        Subsquad? @relation(fields: [subsquadId], references: [id])
-
-  // Message Type
-  type            MessageType @default(CHAT)
-  content         String
-
-  // Attachments
-  photoUrls       String   @default("[]") // JSON array
-  location        String?  // JSON: {lat, lng, address}
-
-  createdAt       DateTime @default(now())
-  editedAt        DateTime?
-
-  @@index([squadId])
-  @@index([subsquadId])
-  @@index([createdAt])
-}
-
-model SearchArea {
-  id              String   @id @default(cuid())
-  squadId         String
-  squad           RecoverySquad @relation(fields: [squadId], references: [id], onDelete: Cascade)
-  markedById      String
-  markedBy        User     @relation(fields: [markedById], references: [id])
-
-  // Area Details
-  geometry        String   // JSON: GeoJSON polygon coordinates
-  acreage         Float
-  notes           String?
-  potentialSpotting Boolean @default(false) // Checkbox: potential pet spotted
-
-  // Metadata
-  startAddress    String?  // Starting point of search
-  markedAt        DateTime @default(now())
-
-  @@index([squadId])
-  @@index([markedById])
-  @@index([markedAt])
-}
-
-model PetSpotting {
-  id              String   @id @default(cuid())
-  squadId         String
-  squad           RecoverySquad @relation(fields: [squadId], references: [id], onDelete: Cascade)
-  reportedById    String
-  reportedBy      User     @relation(fields: [reportedById], references: [id])
-
-  // Sighting Details
-  latitude        Float
-  longitude       Float
-  address         String?
-  spottedAt       DateTime // When they saw the pet
-  confidenceLevel Int      // 1-10 scale
-
-  // Media & Notes
-  photoUrls       String   @default("[]") // JSON array
-  notes           String?
-
-  reportedAt      DateTime @default(now())
-
-  @@index([squadId])
-  @@index([reportedById])
-  @@index([reportedAt])
-}
-
-model SquadHonor {
-  id              String   @id @default(cuid())
-  squadId         String
-  squad           RecoverySquad @relation(fields: [squadId], references: [id], onDelete: Cascade)
-
-  // Who gave and received
-  honoredUserId   String
-  honoredUser     User     @relation("HonoredUser", fields: [honoredUserId], references: [id])
-  givenById       String   // Pet owner
-  givenBy         User     @relation("HonoringUser", fields: [givenById], references: [id])
-
-  note            String?  // Optional message from owner
-
-  createdAt       DateTime @default(now())
-
-  @@index([honoredUserId])
-  @@index([squadId])
-}
-
-// ============================================================================
-// ENUMS FOR COMMUNITY SYSTEM
-// ============================================================================
-
 enum CommunityType {
   METRO_AREA    // Metropolitan area
   COUNTY        // County (for rural areas)
@@ -731,26 +855,4 @@ enum MemberStatus {
 enum CommunityRole {
   MEMBER
   MODERATOR
-}
-
-enum SquadStatus {
-  ACTIVE
-  CLOSED
-}
-
-enum SquadClosureReason {
-  FOUND           // Pet reunited with owner
-  CEASED          // Owner ceased search activity
-}
-
-enum SquadRole {
-  OWNER           // Pet owner (auto)
-  LEADER          // Designated by owner
-  MEMBER          // Regular volunteer
-}
-
-enum MessageType {
-  CHAT            // Regular chat message
-  ANNOUNCEMENT    // Central Hub announcement (leaders only)
-  SYSTEM          // System-generated message
 }
