@@ -136,9 +136,9 @@ export default function RescueSquadsPage() {
               ← Home
             </Link>
 
-            {session?.user?.role === 'ADMIN' && (
+            {session && (
               <Link
-                href="/admin/rescue-squads/create"
+                href="/rescue-squads/create"
                 style={{
                   padding: '0.75rem 1.5rem',
                   background: '#10b981',
@@ -152,12 +152,28 @@ export default function RescueSquadsPage() {
               </Link>
             )}
 
+            {session?.user?.role === 'ADMIN' && (
+              <Link
+                href="/admin/rescue-squads/create"
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#667eea',
+                  color: 'white',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontWeight: '700'
+                }}
+              >
+                Admin Create
+              </Link>
+            )}
+
             {session && mySquads.length > 0 && (
               <Link
                 href="/divisions/request"
                 style={{
                   padding: '0.75rem 1.5rem',
-                  background: '#667eea',
+                  background: '#f59e0b',
                   color: 'white',
                   borderRadius: '8px',
                   textDecoration: 'none',
@@ -373,12 +389,12 @@ export default function RescueSquadsPage() {
               {searchMode === 'mine'
                 ? "You haven't joined any rescue squads yet."
                 : searchMode === 'nearby' && zipCode
-                ? `No squads found within ${radiusMiles} miles of ${zipCode}`
+                ? `No squads found within ${radiusMiles} miles of ${zipCode}. Be the first to create one!`
                 : "Try adjusting your search criteria"}
             </p>
-            {session?.user?.role === 'ADMIN' && searchMode !== 'nearby' && (
+            {session && searchMode === 'nearby' && zipCode && (
               <Link
-                href="/admin/rescue-squads/create"
+                href="/rescue-squads/create"
                 style={{
                   display: 'inline-block',
                   padding: '0.75rem 1.5rem',
@@ -389,7 +405,7 @@ export default function RescueSquadsPage() {
                   fontWeight: '700'
                 }}
               >
-                Create First Rescue Squad
+                Create Rescue Squad for Your City
               </Link>
             )}
           </div>
@@ -530,35 +546,13 @@ export default function RescueSquadsPage() {
                     </div>
                   </div>
 
-                  {/* Specializations */}
+                  {/* Capabilities */}
                   <div style={{
                     display: 'flex',
                     gap: '0.5rem',
                     flexWrap: 'wrap',
                     fontSize: '0.85rem'
                   }}>
-                    {squad.specializesInDogs && (
-                      <span style={{
-                        padding: '0.25rem 0.75rem',
-                        background: '#e0e7ff',
-                        color: '#4338ca',
-                        borderRadius: '12px',
-                        fontWeight: '600'
-                      }}>
-                        🐕 Dogs
-                      </span>
-                    )}
-                    {squad.specializesInCats && (
-                      <span style={{
-                        padding: '0.25rem 0.75rem',
-                        background: '#fce7f3',
-                        color: '#9f1239',
-                        borderRadius: '12px',
-                        fontWeight: '600'
-                      }}>
-                        🐈 Cats
-                      </span>
-                    )}
                     {squad.hasTrackingDogs && (
                       <span style={{
                         padding: '0.25rem 0.75rem',
@@ -579,6 +573,17 @@ export default function RescueSquadsPage() {
                         fontWeight: '600'
                       }}>
                         🚁 Drones
+                      </span>
+                    )}
+                    {squad.availability247 && (
+                      <span style={{
+                        padding: '0.25rem 0.75rem',
+                        background: '#e0e7ff',
+                        color: '#4338ca',
+                        borderRadius: '12px',
+                        fontWeight: '600'
+                      }}>
+                        ⏰ 24/7
                       </span>
                     )}
                   </div>

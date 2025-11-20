@@ -15,14 +15,13 @@ export async function GET(request) {
       where: { email: session.user.email },
       include: {
         patrolProfile: true,
-        lostReports: {
+        cases: {
           where: {
             status: 'ACTIVE',
             reportType: 'LOST' // Only fetch LOST reports for Owner View
           },
           include: {
             pet: true,
-            sightings: true,
           }
         },
         profile: true,
@@ -34,13 +33,13 @@ export async function GET(request) {
     }
 
     // Format reports for display - show REAL count (0 if none)
-    const reports = user.lostReports.map(report => ({
-      id: report.id,
-      petName: report.pet.name,
-      species: report.pet.species.toLowerCase(),
-      lastSeen: formatTime(report.lastSeenAt),
-      sightings: report.sightings.length, // REAL count
-      status: report.status,
+    const reports = user.cases.map(caseItem => ({
+      id: caseItem.id,
+      petName: caseItem.petName,
+      species: caseItem.petSpecies.toLowerCase(),
+      lastSeen: formatTime(caseItem.lastSeenAt),
+      sightings: 0, // TODO: Add sightings count from CaseSighting
+      status: caseItem.status,
     }));
 
     // If patrol member, find nearby alerts and user's found pets
@@ -51,53 +50,47 @@ export async function GET(request) {
       const { radiusMiles } = user.patrolProfile;
 
       // Get user's FOUND reports
-      const myFoundReports = await prisma.lostReport.findMany({
+      const myFoundReports = await prisma.case.findMany({
         where: {
           status: 'ACTIVE',
           reporterId: user.id,
           reportType: 'FOUND', // Pets I found
         },
-        include: {
-          pet: true,
-        },
       });
 
-      foundByMe = myFoundReports.map(report => ({
-        id: report.id,
-        petName: report.pet.name,
-        species: report.pet.species.toLowerCase(),
-        foundAt: formatTime(report.lastSeenAt),
+      foundByMe = myFoundReports.map(caseItem => ({
+        id: caseItem.id,
+        petName: caseItem.petName,
+        species: caseItem.petSpecies.toLowerCase(),
+        foundAt: formatTime(caseItem.lastSeenAt),
       }));
 
       // Get all active LOST reports including own (REAL data from database)
-      const allReports = await prisma.lostReport.findMany({
+      const allReports = await prisma.case.findMany({
         where: {
           status: 'ACTIVE',
           reportType: 'LOST', // Only show LOST pets to help find
-        },
-        include: {
-          pet: true,
         },
       });
 
       // Filter by distance - show REAL count (0 if none nearby)
       nearbyAlerts = allReports
-        .map(report => {
+        .map(caseItem => {
           const distance = calculateDistance(
             latitude, longitude,
-            report.lastSeenLatitude, report.lastSeenLongitude
+            caseItem.lastSeenLatitude, caseItem.lastSeenLongitude
           );
-          return { ...report, distance };
+          return { ...caseItem, distance };
         })
-        .filter(report => report.distance <= radiusMiles)
+        .filter(caseItem => caseItem.distance <= radiusMiles)
         .sort((a, b) => a.distance - b.distance)
         .slice(0, 10)
-        .map(report => ({
-          id: report.id,
-          petName: report.pet.name,
-          species: report.pet.species.toLowerCase(),
-          lastSeen: formatTime(report.lastSeenAt),
-          distance: `${report.distance.toFixed(1)} miles`,
+        .map(caseItem => ({
+          id: caseItem.id,
+          petName: caseItem.petName,
+          species: caseItem.petSpecies.toLowerCase(),
+          lastSeen: formatTime(caseItem.lastSeenAt),
+          distance: `${caseItem.distance.toFixed(1)} miles`,
         }));
     }
 

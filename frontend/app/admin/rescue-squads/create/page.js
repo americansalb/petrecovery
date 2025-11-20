@@ -21,8 +21,8 @@ export default function AdminCreateRescueSquadPage() {
     coverageType: 'CITYWIDE',
     specializesInDogs: true,
     specializesInCats: true,
-    specializesInBirds: false,
-    specializesInOther: false,
+    specializesInBirds: true,
+    specializesInOther: true,
     availableWeekdays: true,
     availableWeekends: true,
     availableDay: true,
@@ -56,7 +56,12 @@ export default function AdminCreateRescueSquadPage() {
         ...formData,
         radiusMiles: parseInt(formData.radiusMiles),
         centerLatitude: formData.centerLatitude ? parseFloat(formData.centerLatitude) : null,
-        centerLongitude: formData.centerLongitude ? parseFloat(formData.centerLongitude) : null
+        centerLongitude: formData.centerLongitude ? parseFloat(formData.centerLongitude) : null,
+        // Always enable all pet types - we help ALL pets
+        specializesInDogs: true,
+        specializesInCats: true,
+        specializesInBirds: true,
+        specializesInOther: true
       };
 
       const res = await fetch('/api/rescue-squads', {
@@ -383,90 +388,8 @@ export default function AdminCreateRescueSquadPage() {
             Specializations
           </h2>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '1rem',
-            marginBottom: '2rem'
-          }}>
-            {/* Pet Types */}
-            <div>
-              <h3 style={{
-                fontSize: '1.1rem',
-                fontWeight: '600',
-                color: '#0f172a',
-                marginBottom: '0.75rem'
-              }}>
-                Pet Types
-              </h3>
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                marginBottom: '0.5rem',
-                cursor: 'pointer'
-              }}>
-                <input
-                  type="checkbox"
-                  name="specializesInDogs"
-                  checked={formData.specializesInDogs}
-                  onChange={handleChange}
-                  style={{ width: '1.2rem', height: '1.2rem' }}
-                />
-                <span>🐕 Dogs</span>
-              </label>
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                marginBottom: '0.5rem',
-                cursor: 'pointer'
-              }}>
-                <input
-                  type="checkbox"
-                  name="specializesInCats"
-                  checked={formData.specializesInCats}
-                  onChange={handleChange}
-                  style={{ width: '1.2rem', height: '1.2rem' }}
-                />
-                <span>🐈 Cats</span>
-              </label>
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                marginBottom: '0.5rem',
-                cursor: 'pointer'
-              }}>
-                <input
-                  type="checkbox"
-                  name="specializesInBirds"
-                  checked={formData.specializesInBirds}
-                  onChange={handleChange}
-                  style={{ width: '1.2rem', height: '1.2rem' }}
-                />
-                <span>🦜 Birds</span>
-              </label>
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                marginBottom: '0.5rem',
-                cursor: 'pointer'
-              }}>
-                <input
-                  type="checkbox"
-                  name="specializesInOther"
-                  checked={formData.specializesInOther}
-                  onChange={handleChange}
-                  style={{ width: '1.2rem', height: '1.2rem' }}
-                />
-                <span>🐰 Other Pets</span>
-              </label>
-            </div>
-
-            {/* Equipment & Resources */}
-            <div>
+          {/* Equipment & Resources */}
+          <div style={{ marginBottom: '2rem' }}>
               <h3 style={{
                 fontSize: '1.1rem',
                 fontWeight: '600',
@@ -508,7 +431,6 @@ export default function AdminCreateRescueSquadPage() {
                 <span>🚁 Drones</span>
               </label>
             </div>
-          </div>
 
           {/* Availability */}
           <h2 style={{

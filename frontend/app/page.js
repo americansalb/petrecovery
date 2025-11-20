@@ -456,7 +456,7 @@ export default function Home() {
             marginBottom: '1rem',
             color: '#0f172a',
           }}>
-            Browse Rescue Squads
+            {session ? 'Join or Create a Rescue Squad' : 'Browse Rescue Squads'}
           </h2>
 
           <p style={{
@@ -465,7 +465,9 @@ export default function Home() {
             lineHeight: '1.6',
             marginBottom: '2rem',
           }}>
-            Join volunteer rescue squads in your city to coordinate pet recovery efforts with local teams.
+            {session
+              ? 'Join volunteer rescue squads in your city or create one if it doesn\'t exist yet. Coordinate pet recovery efforts with local teams.'
+              : 'Join volunteer rescue squads in your city to coordinate pet recovery efforts with local teams.'}
           </p>
 
           <div style={{
@@ -477,7 +479,7 @@ export default function Home() {
             textAlign: 'center',
             fontSize: '1.1rem',
           }}>
-            Explore Rescue Squads →
+            {session ? 'Browse or Create Squad →' : 'Explore Rescue Squads →'}
           </div>
         </Link>
       </div>
