@@ -76,20 +76,6 @@ export async function GET(request) {
           }
         },
         include: {
-          community: {
-            select: {
-              id: true,
-              name: true,
-              geographicScope: true,
-              type: true,
-              parentCommunity: {
-                select: {
-                  id: true,
-                  name: true
-                }
-              }
-            },
-          },
           members: {
             where: { isActive: true },
             select: {
@@ -157,14 +143,6 @@ export async function GET(request) {
         centerLongitude: { not: null },
       },
       include: {
-        community: {
-          select: {
-            id: true,
-            name: true,
-            geographicScope: true,
-            type: true,
-          },
-        },
         members: {
           where: { isActive: true },
           select: {
@@ -270,93 +248,6 @@ export async function POST(request) {
 
     console.log('📍 Zip lookup:', zipInfo);
 
-    // Auto-create metro community if it doesn't exist
-    let metroCommunity = await prisma.community.findFirst({
-      where: {
-        geographicScope: zipInfo.metroValue,
-        type: 'METRO_AREA'
-      }
-    });
-
-    if (!metroCommunity) {
-      console.log('🏙️ Creating metro community:', zipInfo.metro);
-      metroCommunity = await prisma.community.create({
-        data: {
-          name: zipInfo.metro,
-          geographicScope: zipInfo.metroValue,
-          type: 'METRO_AREA',
-          isActive: true,
-          createdById: session.user.id,
-          approvedById: session.user.id,
-          approvedAt: new Date()
-        }
-      });
-    }
-
-    // Auto-create city community if it doesn't exist
-    let cityCommunity = await prisma.community.findFirst({
-      where: {
-        name: zipInfo.city,
-        parentCommunityId: metroCommunity.id,
-        type: 'SUBCOMMUNITY'
-      }
-    });
-
-    if (!cityCommunity) {
-      console.log('🏘️ Creating city community:', zipInfo.city);
-      cityCommunity = await prisma.community.create({
-        data: {
-          name: zipInfo.city,
-          geographicScope: zipInfo.city,
-          type: 'SUBCOMMUNITY',
-          parentCommunityId: metroCommunity.id,
-          isActive: true,
-          createdById: session.user.id,
-          approvedById: session.user.id,
-          approvedAt: new Date()
-        }
-      });
-    }
-
-    // Auto-approve user as community member if not already
-    const existingMembership = await prisma.communityMember.findUnique({
-      where: {
-        communityId_userId: {
-          communityId: cityCommunity.id,
-          userId: session.user.id
-        }
-      }
-    });
-
-    if (!existingMembership) {
-      console.log('✅ Auto-approving user as community member');
-      await prisma.communityMember.create({
-        data: {
-          communityId: cityCommunity.id,
-          userId: session.user.id,
-          status: 'APPROVED',
-          requestedAt: new Date(),
-          approvedAt: new Date(),
-          approvedById: session.user.id
-        }
-      });
-    } else if (existingMembership.status === 'PENDING') {
-      // Auto-approve if pending
-      await prisma.communityMember.update({
-        where: {
-          communityId_userId: {
-            communityId: cityCommunity.id,
-            userId: session.user.id
-          }
-        },
-        data: {
-          status: 'APPROVED',
-          approvedAt: new Date(),
-          approvedById: session.user.id
-        }
-      });
-    }
-
     // Check if squad name already exists
     const existingSquad = await prisma.rescueSquad.findUnique({
       where: { name },
@@ -369,16 +260,11 @@ export async function POST(request) {
       );
     }
 
-    // Use community center or default coordinates (TODO: proper geocoding)
-    const finalLat = cityCommunity.centerLatitude || metroCommunity.centerLatitude || 41.8781;
-    const finalLng = cityCommunity.centerLongitude || metroCommunity.centerLongitude || -87.6298;
-
     console.log('🏗️ CREATING SQUAD:', {
       name,
       city: zipInfo.city,
       state: zipInfo.state,
-      zipCode,
-      communityId: cityCommunity.id
+      zipCode
     });
 
     // Create squad and add creator as FOUNDER
@@ -389,9 +275,8 @@ export async function POST(request) {
         city: zipInfo.city,           // ⭐ CRITICAL: Store city for search
         state: zipInfo.state,         // ⭐ CRITICAL: Store state
         zipCodes: JSON.stringify([zipCode]),  // Store as JSON array
-        communityId: cityCommunity.id,
-        centerLatitude: finalLat,
-        centerLongitude: finalLng,
+        centerLatitude: null,         // TODO: geocode later
+        centerLongitude: null,
         radiusMiles,
         specializesInDogs,
         specializesInCats,
@@ -406,19 +291,6 @@ export async function POST(request) {
         },
       },
       include: {
-        community: {
-          select: {
-            id: true,
-            name: true,
-            geographicScope: true,
-            parentCommunity: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
-          },
-        },
         members: {
           include: {
             user: {
