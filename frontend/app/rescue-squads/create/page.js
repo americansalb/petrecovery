@@ -96,8 +96,9 @@ function CreateRescueSquadForm() {
         throw new Error(data.error || 'Failed to join squad');
       }
 
-      // Redirect to dashboard to see the squad
-      router.push('/dashboard');
+      // ⭐ FIX: Redirect to the squad page, not dashboard
+      console.log('✅ Joined/created squad:', data.squad.id);
+      router.push(`/rescue-squads/${data.squad.id}`);
     } catch (err) {
       setError(err.message);
       setLoading(false);
