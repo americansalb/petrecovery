@@ -9,13 +9,50 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const zip = searchParams.get('zip');
+    const state = searchParams.get('state');
+    const sortBy = searchParams.get('sortBy') || 'distance'; // distance, members, success, activity
     const lat = parseFloat(searchParams.get('lat'));
     const lng = parseFloat(searchParams.get('lng'));
     const radius = parseInt(searchParams.get('radius')) || 25; // miles
 
+    // State browsing (no location required)
+    if (state && !zip && !lat) {
+      const squads = await prisma.rescueSquad.findMany({
+        where: {
+          isActive: true,
+          state: state
+        },
+        include: {
+          members: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              role: true,
+              userId: true,
+              user: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
+          },
+          _count: {
+            select: {
+              members: { where: { isActive: true } },
+              caseAssignments: true,
+            },
+          },
+        },
+        orderBy: getSortOrder(sortBy),
+      });
+
+      return NextResponse.json({ squads, state });
+    }
+
     if (!zip && (!lat || !lng)) {
       return NextResponse.json(
-        { error: 'Either zip code or lat/lng required' },
+        { error: 'Either zip code, state, or lat/lng required' },
         { status: 400 }
       );
     }
@@ -140,6 +177,9 @@ export async function POST(request) {
         centerLatitude,
         centerLongitude,
         radiusMiles,
+        city: body.city || null,
+        state: body.state || null,
+        zipCodes: body.zipCodes || '[]',
         specializesInDogs,
         specializesInCats,
         specializesInBirds,
@@ -204,4 +244,18 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 function toRad(degrees) {
   return degrees * (Math.PI / 180);
+}
+
+// Helper to get sort order
+function getSortOrder(sortBy) {
+  switch (sortBy) {
+    case 'members':
+      return { totalMembers: 'desc' };
+    case 'success':
+      return { successfulReunions: 'desc' };
+    case 'activity':
+      return { updatedAt: 'desc' };
+    default:
+      return { createdAt: 'desc' };
+  }
 }

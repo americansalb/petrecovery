@@ -426,9 +426,14 @@ model RescueSquad {
   id              String   @id @default(cuid())
 
   // Rescue Squad Identity
-  name            String   @unique // "Lincoln Park Rescue Squad"
+  name            String   @unique // "Chicago Rescue Squad"
   description     String?
   logoUrl         String?
+
+  // Location (for browsing/filtering nationally)
+  city            String?  // "Chicago", "Los Angeles"
+  state           String?  // "IL", "CA", "TX" (2-letter abbreviation)
+  zipCodes        String   @default("[]") // JSON array of ZIP codes served
 
   // Coverage & Specialization
   coverageType    CoverageType @default(RADIUS)
@@ -476,6 +481,9 @@ model RescueSquad {
 
   @@index([isActive, isAcceptingCases])
   @@index([centerLatitude, centerLongitude])
+  @@index([state])
+  @@index([city])
+  @@index([state, city])
 }
 
 enum CoverageType {
