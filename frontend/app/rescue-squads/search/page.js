@@ -200,38 +200,65 @@ export default function RescueSquadSearchPage() {
 
             {squads.length === 0 ? (
               <div style={{
-                background: 'white',
-                borderRadius: '16px',
-                padding: '4rem 2rem',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                borderRadius: '20px',
+                padding: '5rem 3rem',
                 textAlign: 'center',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
+                boxShadow: '0 20px 40px rgba(102, 126, 234, 0.3)',
+                border: '3px solid rgba(255, 255, 255, 0.3)'
               }}>
-                <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🚑</div>
+                <div style={{ fontSize: '5rem', marginBottom: '1.5rem' }}>🚀</div>
                 <h3 style={{
-                  fontSize: '1.5rem',
-                  fontWeight: '700',
-                  color: '#0f172a',
-                  marginBottom: '0.5rem'
+                  fontSize: '2.5rem',
+                  fontWeight: '900',
+                  color: 'white',
+                  marginBottom: '1rem',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}>
-                  No rescue squads nearby
+                  No Rescue Squad Found!
                 </h3>
-                <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-                  Be the first to create a rescue squad in your area!
+                <p style={{
+                  color: 'rgba(255, 255, 255, 0.95)',
+                  marginBottom: '2.5rem',
+                  fontSize: '1.3rem',
+                  fontWeight: '500'
+                }}>
+                  Be the HERO your community needs!<br />
+                  Create the first rescue squad in your area NOW!
                 </p>
                 <Link
-                  href="/rescue-squads/create"
+                  href={`/rescue-squads/create?zipCode=${zipCode}`}
                   style={{
                     display: 'inline-block',
-                    padding: '1rem 2rem',
+                    padding: '1.5rem 3.5rem',
                     background: '#10b981',
                     color: 'white',
-                    borderRadius: '8px',
+                    borderRadius: '12px',
                     textDecoration: 'none',
-                    fontWeight: '700'
+                    fontWeight: '900',
+                    fontSize: '1.4rem',
+                    boxShadow: '0 10px 30px rgba(16, 185, 129, 0.5)',
+                    transition: 'all 0.3s ease',
+                    border: '3px solid rgba(255, 255, 255, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'scale(1.05)';
+                    e.target.style.boxShadow = '0 15px 40px rgba(16, 185, 129, 0.6)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'scale(1)';
+                    e.target.style.boxShadow = '0 10px 30px rgba(16, 185, 129, 0.5)';
                   }}
                 >
-                  Create First Squad
+                  🚑 CREATE YOUR SQUAD NOW!
                 </Link>
+                <p style={{
+                  marginTop: '2rem',
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  fontSize: '0.95rem'
+                }}>
+                  Takes less than 1 minute • Free forever • Start saving pets today!
+                </p>
               </div>
             ) : (
               <div style={{

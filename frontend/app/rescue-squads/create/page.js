@@ -2,20 +2,31 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getZipCodeInfo } from '@/lib/zip-city-mapping';
 
 export default function CreateRescueSquadPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
+  // Pre-fill zipCode from URL parameter
   const [zipCode, setZipCode] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [zipLookupLoading, setZipLookupLoading] = useState(false);
   const [locationInfo, setLocationInfo] = useState(null);
+
+  // Auto-fill ZIP code from URL on mount
+  useEffect(() => {
+    const urlZipCode = searchParams.get('zipCode');
+    if (urlZipCode && urlZipCode.length === 5) {
+      console.log('🎯 Auto-filling ZIP code from URL:', urlZipCode);
+      setZipCode(urlZipCode);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {

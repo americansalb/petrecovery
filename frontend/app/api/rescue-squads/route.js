@@ -56,14 +56,17 @@ export async function GET(request) {
         }
       }
 
-      // Find squads in this city or metro area
+      console.log('🔍 SEARCH REQUEST:', {
+        zipCode,
+        zipInfo,
+        searchType: 'city-based'
+      });
+
+      // Find squads in this city (using the actual 'city' field from schema)
       const squads = await prisma.rescueSquad.findMany({
         where: {
           isActive: true,
-          OR: [
-            { city: zipInfo.city },
-            { metroArea: { contains: zipInfo.city } }
-          ]
+          city: zipInfo.city  // Direct city match - simple and reliable
         },
         include: {
           community: {
@@ -105,9 +108,13 @@ export async function GET(request) {
         },
       });
 
-      console.log(`🔍 Search for city "${zipInfo.city}" found ${squads.length} squads`);
+      console.log(`✅ SEARCH RESULT: Found ${squads.length} squad(s) in ${zipInfo.city}`);
       if (squads.length > 0) {
-        console.log('Squad names:', squads.map(s => s.name).join(', '));
+        squads.forEach(s => {
+          console.log(`  - ${s.name} (ID: ${s.id}, City: ${s.city}, Members: ${s._count.members})`);
+        });
+      } else {
+        console.log(`  ⚠️ No squads found in ${zipInfo.city} - user should create one!`);
       }
 
       // Add member counts and format response
@@ -345,11 +352,22 @@ export async function POST(request) {
     const finalLat = cityCommunity.centerLatitude || metroCommunity.centerLatitude || 41.8781;
     const finalLng = cityCommunity.centerLongitude || metroCommunity.centerLongitude || -87.6298;
 
+    console.log('🏗️ CREATING SQUAD:', {
+      name,
+      city: zipInfo.city,
+      state: zipInfo.state,
+      zipCode,
+      communityId: cityCommunity.id
+    });
+
     // Create squad and add creator as FOUNDER
     const squad = await prisma.rescueSquad.create({
       data: {
         name,
         description,
+        city: zipInfo.city,           // ⭐ CRITICAL: Store city for search
+        state: zipInfo.state,         // ⭐ CRITICAL: Store state
+        zipCodes: JSON.stringify([zipCode]),  // Store as JSON array
         communityId: cityCommunity.id,
         centerLatitude: finalLat,
         centerLongitude: finalLng,
@@ -393,6 +411,15 @@ export async function POST(request) {
           },
         },
       },
+    });
+
+    console.log('✅ SQUAD CREATED SUCCESSFULLY:', {
+      id: squad.id,
+      name: squad.name,
+      city: squad.city,
+      state: squad.state,
+      zipCodes: squad.zipCodes,
+      memberCount: squad.members.length
     });
 
     // Update user's squad count
