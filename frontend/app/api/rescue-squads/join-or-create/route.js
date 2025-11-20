@@ -61,50 +61,51 @@ export async function POST(request) {
       needsGeocode: zipInfo.needsGeocode
     });
 
-    // If not in our database, use external geocoding API
-    if (zipInfo.needsGeocode) {
-      console.log('🌐 ZIP not in local DB, calling external API...');
-      try {
-        const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
-        if (!geoRes.ok) {
-          console.log(`❌ External API returned ${geoRes.status}`);
-          return NextResponse.json(
-            { error: `Zip code ${zipCode} not found. Please verify it's a valid US zip code.` },
-            { status: 400 }
-          );
-        }
-
-        const geoData = await geoRes.json();
-        const place = geoData.places[0];
-
-        console.log('📥 External API response:', {
-          city: place['place name'],
-          state: place['state abbreviation'],
-          lat: place['latitude'],
-          lng: place['longitude']
-        });
-
-        zipInfo = {
-          zipCode: zipCode,
-          city: place['place name'],
-          state: place['state abbreviation'],
-          metro: `${place['place name']}, ${place['state abbreviation']}`,
-          metroValue: `${place['place name'].toUpperCase().replace(/\s+/g, '_')}_${place['state abbreviation']}`,
-          latitude: parseFloat(place['latitude']),
-          longitude: parseFloat(place['longitude'])
-        };
-
-        console.log('✅ Geocoded ZIP:', zipInfo);
-      } catch (error) {
-        console.error('❌ Geocoding error:', error);
+    // CRITICAL FIX: ALWAYS call external geocoding API to get lat/lng coordinates
+    // Local database only has city names, NOT coordinates!
+    console.log('🌐 Calling external geocoding API for precise coordinates...');
+    try {
+      const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+      if (!geoRes.ok) {
+        console.log(`❌ External API returned ${geoRes.status}`);
         return NextResponse.json(
-          { error: `Unable to validate zip code ${zipCode}. Please try again.` },
+          { error: `Zip code ${zipCode} not found. Please verify it's a valid US zip code.` },
           { status: 400 }
         );
       }
-    } else {
-      console.log('⚠️ WARNING: ZIP in local DB but NO COORDINATES!');
-      console.log('   This squad will NOT appear in radius search!');
+
+      const geoData = await geoRes.json();
+      const place = geoData.places[0];
+
+      console.log('📥 External API response:', {
+        city: place['place name'],
+        state: place['state abbreviation'],
+        lat: place['latitude'],
+        lng: place['longitude']
+      });
+
+      // Override with complete geocoded data including coordinates
+      zipInfo = {
+        zipCode: zipCode,
+        city: place['place name'],
+        state: place['state abbreviation'],
+        metro: `${place['place name']}, ${place['state abbreviation']}`,
+        metroValue: `${place['place name'].toUpperCase().replace(/\s+/g, '_')}_${place['state abbreviation']}`,
+        latitude: parseFloat(place['latitude']),
+        longitude: parseFloat(place['longitude'])
+      };
+
+      console.log('✅ Geocoded ZIP with coordinates:', {
+        city: zipInfo.city,
+        lat: zipInfo.latitude,
+        lng: zipInfo.longitude
+      });
+    } catch (error) {
+      console.error('❌ Geocoding error:', error);
+      return NextResponse.json(
+        { error: `Unable to validate zip code ${zipCode}. Please try again.` },
+        { status: 400 }
+      );
     }
 
     console.log(`\n🔍 Step 3: Looking for existing squad...`);
