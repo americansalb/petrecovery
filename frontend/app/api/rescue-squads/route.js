@@ -6,38 +6,57 @@ import { getZipCodeInfo } from '@/lib/zip-city-mapping';
 
 // GET /api/rescue-squads - Search for rescue squads by location
 export async function GET(request) {
+  const timestamp = new Date().toISOString();
+  console.log(`\n${'='.repeat(80)}`);
+  console.log(`🔍 [${timestamp}] SEARCH SQUADS REQUEST`);
+  console.log(`${'='.repeat(80)}\n`);
+
   try {
     const { searchParams } = new URL(request.url);
     const zipCode = searchParams.get('zipCode') || searchParams.get('zip');
     const lat = parseFloat(searchParams.get('lat'));
     const lng = parseFloat(searchParams.get('lng'));
-    const radius = parseInt(searchParams.get('radius')) || 25; // miles
+    const radius = parseInt(searchParams.get('radius')) || 25;
+
+    console.log('📋 Search parameters:');
+    console.log(`   ZIP: ${zipCode || 'none'}`);
+    console.log(`   Lat: ${lat || 'none'}`);
+    console.log(`   Lng: ${lng || 'none'}`);
+    console.log(`   Radius: ${radius} miles`);
 
     if (!zipCode && (!lat || !lng)) {
+      console.log('❌ Missing required parameters');
       return NextResponse.json(
         { error: 'Either zip code or lat/lng required' },
         { status: 400 }
       );
     }
 
-    // If zip code provided, geocode it to get coordinates
     let searchLat = lat;
     let searchLng = lng;
     let zipInfo = null;
 
     if (zipCode && !lat) {
-      // Look up city from zip code (for city name info)
+      console.log(`\n📍 Step 1: Geocoding search ZIP ${zipCode}...`);
+
       zipInfo = getZipCodeInfo(zipCode);
 
       if (!zipInfo) {
+        console.log('❌ ZIP not found');
         return NextResponse.json({ squads: [], cityInfo: null });
       }
 
-      // ALWAYS use external geocoding API to get precise lat/lng for radius search
-      // (Local database has city names but not coordinates)
+      console.log('📊 Local ZIP result:', {
+        city: zipInfo.city,
+        state: zipInfo.state,
+        needsGeocode: zipInfo.needsGeocode
+      });
+
+      console.log('🌐 Calling external geocoding API...');
       try {
         const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
         if (!geoRes.ok) {
+          console.log(`❌ External API returned ${geoRes.status}`);
           return NextResponse.json({
             squads: [],
             cityInfo: zipInfo.city ? {
@@ -51,23 +70,29 @@ export async function GET(request) {
         const geoData = await geoRes.json();
         const place = geoData.places[0];
 
-        // Update zipInfo with geocoded data including coordinates
+        console.log('📥 External API response:', {
+          city: place['place name'],
+          state: place['state abbreviation'],
+          lat: place['latitude'],
+          lng: place['longitude']
+        });
+
         zipInfo = {
           zipCode: zipCode,
           city: place['place name'],
           state: place['state abbreviation'],
           metro: `${place['place name']}, ${place['state abbreviation']}`,
           metroValue: `${place['place name'].toUpperCase().replace(/\s+/g, '_')}_${place['state abbreviation']}`,
-          // ⭐ CRITICAL: Get lat/lng for radius search
           latitude: parseFloat(place['latitude']),
           longitude: parseFloat(place['longitude'])
         };
 
-        // Set search coordinates
         searchLat = zipInfo.latitude;
         searchLng = zipInfo.longitude;
+
+        console.log(`✅ Search center: (${searchLat}, ${searchLng})`);
       } catch (error) {
-        console.error('Geocoding error during search:', error);
+        console.error('❌ Geocoding error:', error);
         return NextResponse.json({
           squads: [],
           cityInfo: zipInfo.city ? {
@@ -77,19 +102,10 @@ export async function GET(request) {
           } : null
         });
       }
-
-      console.log('🔍 SEARCH REQUEST:', {
-        zipCode,
-        city: zipInfo.city,
-        searchLat,
-        searchLng,
-        radius,
-        searchType: 'radius-based'
-      });
     }
 
-    // If we still don't have coordinates, can't search
     if (!searchLat || !searchLng) {
+      console.log('❌ No search coordinates');
       return NextResponse.json({
         squads: [],
         cityInfo: zipInfo ? {
@@ -100,11 +116,11 @@ export async function GET(request) {
       });
     }
 
-    // Get current user's session to check membership
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
+    console.log(`\n👤 User: ${userId || 'anonymous'}`);
 
-    // Search by radius using Haversine formula
+    console.log(`\n🔍 Step 2: Querying database...`);
     const squads = await prisma.rescueSquad.findMany({
       where: {
         isActive: true,
@@ -135,7 +151,12 @@ export async function GET(request) {
       },
     });
 
-    // Filter by distance and add isMember flag
+    console.log(`📊 Found ${squads.length} squads with coordinates:`);
+    squads.forEach(s => {
+      console.log(`   - ${s.name}: (${s.centerLatitude}, ${s.centerLongitude})`);
+    });
+
+    console.log(`\n📏 Step 3: Calculating distances from (${searchLat}, ${searchLng})...`);
     const squadsWithDistance = squads
       .map((squad) => {
         const distance = calculateDistance(
@@ -144,6 +165,7 @@ export async function GET(request) {
           squad.centerLatitude,
           squad.centerLongitude
         );
+        console.log(`   ${squad.name}: ${distance.toFixed(1)} miles`);
         const isMember = userId ? squad.members.some(m => m.userId === userId) : false;
         return {
           ...squad,
@@ -152,10 +174,21 @@ export async function GET(request) {
           isMember
         };
       })
-      .filter((squad) => squad.distance <= radius)
+      .filter((squad) => {
+        const withinRadius = squad.distance <= radius;
+        if (!withinRadius) {
+          console.log(`   ❌ ${squad.name} EXCLUDED (${squad.distance.toFixed(1)} > ${radius})`);
+        }
+        return withinRadius;
+      })
       .sort((a, b) => a.distance - b.distance);
 
-    // Return squads with cityInfo when zipCode was provided
+    console.log(`\n✅ ${squadsWithDistance.length} squad(s) within ${radius} miles:`);
+    squadsWithDistance.forEach(s => {
+      console.log(`   ✓ ${s.name}: ${s.distance.toFixed(1)} mi, ${s.memberCount} members`);
+    });
+    console.log(`${'='.repeat(80)}\n`);
+
     return NextResponse.json({
       squads: squadsWithDistance,
       ...(zipInfo && {
