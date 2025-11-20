@@ -15,10 +15,20 @@ export default function RescueSquadDetailPage({ params }) {
   const [error, setError] = useState('');
   const [isMember, setIsMember] = useState(false);
   const [userRole, setUserRole] = useState(null);
+  const [availableCases, setAvailableCases] = useState([]);
+  const [casesLoading, setCasesLoading] = useState(false);
+  const [acceptingCase, setAcceptingCase] = useState(null);
 
   useEffect(() => {
     loadSquad();
   }, [params.id, session]);
+
+  useEffect(() => {
+    // Load available cases if user is a leader
+    if (userRole && ['FOUNDER', 'LEADER'].includes(userRole)) {
+      loadAvailableCases();
+    }
+  }, [userRole, params.id]);
 
   const loadSquad = async () => {
     try {
@@ -106,6 +116,52 @@ export default function RescueSquadDetailPage({ params }) {
       setError(err.message);
     } finally {
       setLeaving(false);
+    }
+  };
+
+  const loadAvailableCases = async () => {
+    setCasesLoading(true);
+    try {
+      const res = await fetch(`/api/rescue-squads/${params.id}/available-cases`);
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableCases(data.cases || []);
+      }
+    } catch (err) {
+      console.error('Error loading available cases:', err);
+    } finally {
+      setCasesLoading(false);
+    }
+  };
+
+  const handleAcceptCase = async (caseId) => {
+    if (!confirm('Accept this case for your squad? All members will be notified.')) {
+      return;
+    }
+
+    setAcceptingCase(caseId);
+    setError('');
+
+    try {
+      const res = await fetch(`/api/cases/${caseId}/assignments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rescueSquadId: params.id }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to accept case');
+      }
+
+      // Remove from available cases and reload squad data
+      setAvailableCases(prev => prev.filter(c => c.id !== caseId));
+      loadSquad();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAcceptingCase(null);
     }
   };
 
@@ -381,6 +437,221 @@ export default function RescueSquadDetailPage({ params }) {
             </div>
           </div>
         </div>
+
+        {/* Available Cases (Leaders Only) */}
+        {userRole && ['FOUNDER', 'LEADER'].includes(userRole) && (
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '2.5rem',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+            marginBottom: '2rem'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1.5rem'
+            }}>
+              <h2 style={{
+                fontSize: '1.5rem',
+                fontWeight: '800',
+                color: '#0f172a'
+              }}>
+                🔍 Available Cases in Your Area
+              </h2>
+              <button
+                onClick={loadAvailableCases}
+                disabled={casesLoading}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: '600',
+                  cursor: casesLoading ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {casesLoading ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
+
+            {casesLoading ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                Loading available cases...
+              </div>
+            ) : availableCases.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '3rem',
+                background: '#f8fafc',
+                borderRadius: '12px',
+                color: '#64748b'
+              }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>
+                  No available cases in your area
+                </div>
+                <div style={{ marginTop: '0.5rem' }}>
+                  Check back later for new cases to help with
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gap: '1.5rem'
+              }}>
+                {availableCases.slice(0, 5).map(caseItem => (
+                  <div
+                    key={caseItem.id}
+                    style={{
+                      display: 'flex',
+                      gap: '1.5rem',
+                      padding: '1.5rem',
+                      border: '2px solid #e2e8f0',
+                      borderRadius: '12px',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {/* Pet Photo */}
+                    <img
+                      src={caseItem.petPhotoUrl || '/placeholder-pet.jpg'}
+                      alt={caseItem.petName}
+                      style={{
+                        width: '120px',
+                        height: '120px',
+                        borderRadius: '8px',
+                        objectFit: 'cover'
+                      }}
+                    />
+
+                    {/* Case Details */}
+                    <div style={{ flex: 1 }}>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        marginBottom: '0.75rem'
+                      }}>
+                        <div>
+                          <h3 style={{
+                            fontSize: '1.5rem',
+                            fontWeight: '700',
+                            color: '#0f172a',
+                            marginBottom: '0.25rem'
+                          }}>
+                            {caseItem.petName}
+                          </h3>
+                          <div style={{
+                            fontSize: '0.95rem',
+                            color: '#64748b'
+                          }}>
+                            {caseItem.petSpecies} • {caseItem.petBreed || 'Unknown breed'} • {caseItem.petColor}
+                          </div>
+                        </div>
+                        <div style={{
+                          padding: '0.5rem 1rem',
+                          background: caseItem.priority === 'URGENT' ? '#fee2e2' :
+                                    caseItem.priority === 'HIGH' ? '#fef3c7' : '#f1f5f9',
+                          color: caseItem.priority === 'URGENT' ? '#991b1b' :
+                                caseItem.priority === 'HIGH' ? '#92400e' : '#64748b',
+                          borderRadius: '6px',
+                          fontSize: '0.85rem',
+                          fontWeight: '700'
+                        }}>
+                          {caseItem.priority}
+                        </div>
+                      </div>
+
+                      <div style={{
+                        fontSize: '0.9rem',
+                        color: '#475569',
+                        marginBottom: '0.75rem',
+                        display: 'flex',
+                        gap: '1.5rem',
+                        flexWrap: 'wrap'
+                      }}>
+                        <div>
+                          📍 {caseItem.lastSeenAddress}
+                        </div>
+                        {caseItem.distance !== null && (
+                          <div>
+                            🎯 {caseItem.distance.toFixed(1)} miles away
+                          </div>
+                        )}
+                        <div>
+                          📅 {new Date(caseItem.lastSeenAt).toLocaleDateString()}
+                        </div>
+                        {caseItem._count.assignments > 0 && (
+                          <div>
+                            👥 {caseItem._count.assignments} squad{caseItem._count.assignments === 1 ? '' : 's'} helping
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{
+                        fontSize: '0.95rem',
+                        color: '#64748b',
+                        marginBottom: '1rem',
+                        lineHeight: '1.5'
+                      }}>
+                        {caseItem.petDescription.length > 150
+                          ? caseItem.petDescription.substring(0, 150) + '...'
+                          : caseItem.petDescription}
+                      </div>
+
+                      <div style={{
+                        display: 'flex',
+                        gap: '1rem',
+                        alignItems: 'center'
+                      }}>
+                        <button
+                          onClick={() => handleAcceptCase(caseItem.id)}
+                          disabled={acceptingCase === caseItem.id}
+                          style={{
+                            padding: '0.75rem 1.5rem',
+                            background: acceptingCase === caseItem.id ? '#cbd5e1' : '#10b981',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: '700',
+                            cursor: acceptingCase === caseItem.id ? 'not-allowed' : 'pointer'
+                          }}
+                        >
+                          {acceptingCase === caseItem.id ? 'Accepting...' : 'Accept Case'}
+                        </button>
+                        <Link
+                          href={`/cases/${caseItem.id}`}
+                          style={{
+                            padding: '0.75rem 1.5rem',
+                            background: '#f1f5f9',
+                            color: '#64748b',
+                            borderRadius: '8px',
+                            textDecoration: 'none',
+                            fontWeight: '700'
+                          }}
+                        >
+                          View Details
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {availableCases.length > 5 && (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '1rem',
+                    color: '#64748b'
+                  }}>
+                    Showing 5 of {availableCases.length} available cases
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Main Content */}
         <div style={{
