@@ -159,9 +159,9 @@ export default function DashboardPage() {
           </Link>
 
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            {/* Communities Link */}
+            {/* Rescue Squads Link */}
             <Link
-              href="/communities"
+              href="/rescue-squads"
               style={{
                 padding: '0.75rem 1.5rem',
                 background: '#f1f5f9',
@@ -172,7 +172,7 @@ export default function DashboardPage() {
                 fontSize: '0.9rem',
               }}
             >
-              🏘️ Communities
+              🚁 Rescue Squads
             </Link>
 
             {/* View Switcher */}
