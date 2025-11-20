@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
+import { geocodeZipCode } from '@/app/lib/geocoding';
 
 // GET /api/rescue-squads - Search for rescue squads by location
 export async function GET(request) {
@@ -24,21 +25,15 @@ export async function GET(request) {
     let searchLng = lng;
 
     if (zip && !lat) {
-      // Call geocoding API to convert ZIP to lat/lng
-      try {
-        const geocodeRes = await fetch(`${request.nextUrl.origin}/api/geocode/zip/${zip}`);
-        if (geocodeRes.ok) {
-          const geocodeData = await geocodeRes.json();
-          searchLat = geocodeData.latitude;
-          searchLng = geocodeData.longitude;
-        } else {
-          // If geocoding fails, return empty array
-          return NextResponse.json({ squads: [], zip, error: 'Invalid ZIP code' });
-        }
-      } catch (error) {
-        console.error('Geocoding error:', error);
-        return NextResponse.json({ squads: [], zip, error: 'Failed to geocode ZIP' });
+      // Use direct geocoding utility to avoid SSL issues
+      const geocodeResult = await geocodeZipCode(zip);
+
+      if (geocodeResult.error) {
+        return NextResponse.json({ squads: [], zip, error: geocodeResult.error });
       }
+
+      searchLat = geocodeResult.latitude;
+      searchLng = geocodeResult.longitude;
     }
 
     // Search by radius using Haversine formula
