@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { US_STATES } from '../lib/states';
 
 export default function RescueSquadsPage() {
   const { data: session } = useSession();
@@ -13,8 +14,10 @@ export default function RescueSquadsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [zipCode, setZipCode] = useState('');
+  const [selectedState, setSelectedState] = useState('');
   const [radiusMiles, setRadiusMiles] = useState(25);
-  const [searchMode, setSearchMode] = useState('nearby'); // Default to 'nearby' for new users
+  const [sortBy, setSortBy] = useState('distance');
+  const [searchMode, setSearchMode] = useState('nearby'); // nearby, state, mine
 
   useEffect(() => {
     fetchSquads();
@@ -24,20 +27,29 @@ export default function RescueSquadsPage() {
     try {
       setLoading(true);
 
-      // For nearby mode, require ZIP code
-      if (searchMode === 'nearby' && !zipCode) {
-        setSquads([]);
-        setLoading(false);
-        return;
-      }
-
       let url = '/api/rescue-squads';
 
-      if (searchMode === 'nearby' && zipCode) {
-        url += `?zip=${zipCode}&radius=${radiusMiles}`;
-      } else if (searchMode === 'all') {
-        // Load all squads only if explicitly requested
-        url += '?lat=0&lng=0&radius=999999'; // Hack to get all
+      // ZIP search (PRIMARY METHOD - DON'T BREAK THIS!)
+      if (searchMode === 'nearby') {
+        if (!zipCode) {
+          setSquads([]);
+          setLoading(false);
+          return;
+        }
+        url += `?zip=${zipCode}&radius=${radiusMiles}&sortBy=${sortBy}`;
+      }
+      // State browse (SECONDARY METHOD)
+      else if (searchMode === 'state') {
+        if (!selectedState) {
+          setSquads([]);
+          setLoading(false);
+          return;
+        }
+        url += `?state=${selectedState}&sortBy=${sortBy}`;
+      }
+      // My squads
+      else if (searchMode === 'mine') {
+        url += `?lat=0&lng=0&radius=999999`;
       }
 
       const res = await fetch(url);
@@ -56,6 +68,15 @@ export default function RescueSquadsPage() {
     e.preventDefault();
     if (zipCode.length === 5) {
       setSearchMode('nearby');
+      setSelectedState(''); // Clear state when searching by ZIP
+      fetchSquads();
+    }
+  };
+
+  const handleStateSearch = () => {
+    if (selectedState) {
+      setSearchMode('state');
+      setZipCode(''); // Clear ZIP when browsing by state
       fetchSquads();
     }
   };
@@ -234,6 +255,62 @@ export default function RescueSquadsPage() {
             </button>
           </form>
 
+          {/* State Browse (Alternative to ZIP) */}
+          <div style={{
+            marginTop: '2rem',
+            paddingTop: '2rem',
+            borderTop: '2px solid #e2e8f0'
+          }}>
+            <div style={{
+              fontSize: '0.9rem',
+              color: '#64748b',
+              marginBottom: '1rem',
+              fontWeight: '600'
+            }}>
+              Or browse by state:
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '2fr auto',
+              gap: '1rem',
+              alignItems: 'end'
+            }}>
+              <select
+                value={selectedState}
+                onChange={(e) => setSelectedState(e.target.value)}
+                style={{
+                  padding: '0.75rem',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '1rem'
+                }}
+              >
+                <option value="">Select a state...</option>
+                {US_STATES.map(state => (
+                  <option key={state.code} value={state.code}>
+                    {state.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={handleStateSearch}
+                disabled={!selectedState}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: selectedState ? '#10b981' : '#cbd5e1',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '700',
+                  cursor: selectedState ? 'pointer' : 'not-allowed',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Browse State
+              </button>
+            </div>
+          </div>
+
           {session && mySquads.length > 0 && (
             <div style={{
               marginTop: '1.5rem',
@@ -258,25 +335,56 @@ export default function RescueSquadsPage() {
           )}
         </div>
 
-        {/* Results Count */}
-        {zipCode && searchMode === 'nearby' && (
+        {/* Results Header with Sorting */}
+        {displaySquads.length > 0 && (
           <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
             marginBottom: '1.5rem',
-            fontSize: '0.95rem',
-            color: '#64748b',
-            fontWeight: '600'
+            flexWrap: 'wrap',
+            gap: '1rem'
           }}>
-            Found {displaySquads.length} rescue squad{displaySquads.length !== 1 ? 's' : ''} within {radiusMiles} miles of {zipCode}
-          </div>
-        )}
-        {searchMode === 'mine' && (
-          <div style={{
-            marginBottom: '1.5rem',
-            fontSize: '0.95rem',
-            color: '#64748b',
-            fontWeight: '600'
-          }}>
-            Your Squads ({mySquads.length})
+            <div style={{
+              fontSize: '0.95rem',
+              color: '#64748b',
+              fontWeight: '600'
+            }}>
+              {searchMode === 'nearby' && zipCode && (
+                <span>Found {displaySquads.length} squad{displaySquads.length !== 1 ? 's' : ''} within {radiusMiles} miles of {zipCode}</span>
+              )}
+              {searchMode === 'state' && selectedState && (
+                <span>Showing {displaySquads.length} squad{displaySquads.length !== 1 ? 's' : ''} in {US_STATES.find(s => s.code === selectedState)?.name}</span>
+              )}
+              {searchMode === 'mine' && (
+                <span>Your Squads ({mySquads.length})</span>
+              )}
+            </div>
+
+            {/* Sorting Dropdown */}
+            {(searchMode === 'state' || (searchMode === 'nearby' && displaySquads.length > 1)) && (
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  setTimeout(() => fetchSquads(), 100);
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '6px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  color: '#0f172a',
+                  background: 'white'
+                }}
+              >
+                {searchMode === 'nearby' && <option value="distance">Nearest First</option>}
+                <option value="members">Most Members</option>
+                <option value="success">Most Successful</option>
+                <option value="activity">Recently Active</option>
+              </select>
+            )}
           </div>
         )}
 
@@ -296,18 +404,22 @@ export default function RescueSquadsPage() {
               color: '#0f172a',
               marginBottom: '0.5rem'
             }}>
-              {!zipCode && searchMode === 'nearby' ? 'Enter Your ZIP Code' : 'No Squads Found'}
+              {!zipCode && !selectedState ? 'Search for Squads' : 'No Squads Found'}
             </h2>
             <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-              {!zipCode && searchMode === 'nearby'
+              {searchMode === 'nearby' && !zipCode
                 ? 'Enter your ZIP code above to find rescue squads in your area.'
+                : searchMode === 'state' && !selectedState
+                ? 'Select a state from the dropdown to browse squads.'
                 : searchMode === 'mine'
                 ? "You haven't joined any rescue squads yet. Search by ZIP to find one near you."
-                : zipCode
+                : searchMode === 'nearby' && zipCode
                 ? `No squads within ${radiusMiles} miles of ${zipCode}. Be the first to create one!`
-                : "Enter your ZIP code to find rescue squads"}
+                : searchMode === 'state' && selectedState
+                ? `No active squads in ${US_STATES.find(s => s.code === selectedState)?.name} yet. Create the first one!`
+                : "Use ZIP code or state search above"}
             </p>
-            {session && zipCode && searchMode === 'nearby' && (
+            {session && ((zipCode && searchMode === 'nearby') || (selectedState && searchMode === 'state')) && (
               <Link
                 href="/rescue-squads/create"
                 style={{
