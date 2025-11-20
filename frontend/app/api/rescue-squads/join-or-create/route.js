@@ -176,6 +176,39 @@ export async function POST(request) {
         }
       });
 
+      // ⭐ FIX OLD BROKEN SQUADS: Update NULL city fields
+      if (!squad.city || !squad.state) {
+        console.log(`🔧 FIXING OLD SQUAD: "${squad.name}" has NULL city/state, updating...`);
+        squad = await prisma.rescueSquad.update({
+          where: { id: squad.id },
+          data: {
+            city: zipInfo.city,
+            state: zipInfo.state,
+            zipCodes: JSON.stringify([zipCode])
+          },
+          include: {
+            members: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
+              },
+            },
+            _count: {
+              select: {
+                members: true,
+                caseAssignments: true
+              }
+            }
+          }
+        });
+        console.log(`✅ FIXED: "${squad.name}" now has city="${squad.city}", state="${squad.state}"`);
+      }
+
       if (existingSquadMember) {
         // Already a member - just return the squad
         console.log('✅ User is already a member of', squadName);
