@@ -71,6 +71,8 @@ export async function GET(request) {
 
       searchLat = geocodeResult.latitude;
       searchLng = geocodeResult.longitude;
+
+      console.log(`[GEOCODE] ZIP ${zip} → ${geocodeResult.cityName}, ${geocodeResult.state} at (${searchLat}, ${searchLng})`);
     }
 
     // Search by radius using Haversine formula
@@ -114,6 +116,7 @@ export async function GET(request) {
           squad.centerLatitude,
           squad.centerLongitude
         );
+        console.log(`[DISTANCE] ${squad.name} at (${squad.centerLatitude}, ${squad.centerLongitude}) is ${distance.toFixed(1)} miles from search point (${searchLat}, ${searchLng})`);
         return { ...squad, distance };
       })
       .filter((squad) => squad.distance <= radius)
@@ -183,6 +186,8 @@ export async function POST(request) {
     }
 
     // Create squad and add creator as FOUNDER
+    console.log(`[CREATE SQUAD] Creating "${name}" at (${centerLatitude}, ${centerLongitude}) in ${body.city}, ${body.state}`);
+
     const squad = await prisma.rescueSquad.create({
       data: {
         name,
