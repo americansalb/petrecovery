@@ -18,6 +18,9 @@ export default function RescueSquadDetailPage({ params }) {
   const [availableCases, setAvailableCases] = useState([]);
   const [casesLoading, setCasesLoading] = useState(false);
   const [acceptingCase, setAcceptingCase] = useState(null);
+  const [activeCases, setActiveCases] = useState([]);
+  const [activeCasesLoading, setActiveCasesLoading] = useState(false);
+  const [optingCase, setOptingCase] = useState(null);
 
   useEffect(() => {
     loadSquad();
@@ -28,7 +31,11 @@ export default function RescueSquadDetailPage({ params }) {
     if (userRole && ['FOUNDER', 'LEADER'].includes(userRole)) {
       loadAvailableCases();
     }
-  }, [userRole, params.id]);
+    // Load active cases for all members
+    if (isMember) {
+      loadActiveCases();
+    }
+  }, [userRole, isMember, params.id]);
 
   const loadSquad = async () => {
     try {
@@ -158,10 +165,92 @@ export default function RescueSquadDetailPage({ params }) {
       // Remove from available cases and reload squad data
       setAvailableCases(prev => prev.filter(c => c.id !== caseId));
       loadSquad();
+      loadActiveCases(); // Refresh active cases
     } catch (err) {
       setError(err.message);
     } finally {
       setAcceptingCase(null);
+    }
+  };
+
+  const loadActiveCases = async () => {
+    setActiveCasesLoading(true);
+    try {
+      const res = await fetch(`/api/rescue-squads/${params.id}/active-cases`);
+      if (res.ok) {
+        const data = await res.json();
+        setActiveCases(data.assignments || []);
+      }
+    } catch (err) {
+      console.error('Error loading active cases:', err);
+    } finally {
+      setActiveCasesLoading(false);
+    }
+  };
+
+  const handleOptIn = async (assignmentId) => {
+    setOptingCase(assignmentId);
+    setError('');
+
+    try {
+      const res = await fetch(`/api/assignments/${assignmentId}/participants`, {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to opt into case');
+      }
+
+      // Update the local state
+      setActiveCases(prev =>
+        prev.map(assignment =>
+          assignment.id === assignmentId
+            ? { ...assignment, isUserParticipating: true }
+            : assignment
+        )
+      );
+      loadSquad(); // Refresh squad data
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setOptingCase(null);
+    }
+  };
+
+  const handleOptOut = async (assignmentId) => {
+    if (!confirm('Stop helping with this case? You can opt back in later.')) {
+      return;
+    }
+
+    setOptingCase(assignmentId);
+    setError('');
+
+    try {
+      const res = await fetch(`/api/assignments/${assignmentId}/participants`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to opt out of case');
+      }
+
+      // Update the local state
+      setActiveCases(prev =>
+        prev.map(assignment =>
+          assignment.id === assignmentId
+            ? { ...assignment, isUserParticipating: false }
+            : assignment
+        )
+      );
+      loadSquad(); // Refresh squad data
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setOptingCase(null);
     }
   };
 
@@ -648,6 +737,241 @@ export default function RescueSquadDetailPage({ params }) {
                     Showing 5 of {availableCases.length} available cases
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Active Cases (All Members) */}
+        {isMember && (
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '2.5rem',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+            marginBottom: '2rem'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1.5rem'
+            }}>
+              <h2 style={{
+                fontSize: '1.5rem',
+                fontWeight: '800',
+                color: '#0f172a'
+              }}>
+                🚨 Squad's Active Cases
+              </h2>
+              <button
+                onClick={loadActiveCases}
+                disabled={activeCasesLoading}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: '600',
+                  cursor: activeCasesLoading ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {activeCasesLoading ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
+
+            {activeCasesLoading ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                Loading active cases...
+              </div>
+            ) : activeCases.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '3rem',
+                background: '#f8fafc',
+                borderRadius: '12px',
+                color: '#64748b'
+              }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>
+                  No active cases yet
+                </div>
+                <div style={{ marginTop: '0.5rem' }}>
+                  {userRole && ['FOUNDER', 'LEADER'].includes(userRole)
+                    ? 'Browse available cases above to get started'
+                    : 'Squad leaders will assign cases soon'}
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gap: '1.5rem'
+              }}>
+                {activeCases.map(assignment => (
+                  <div
+                    key={assignment.id}
+                    style={{
+                      display: 'flex',
+                      gap: '1.5rem',
+                      padding: '1.5rem',
+                      border: assignment.isUserParticipating ? '2px solid #10b981' : '2px solid #e2e8f0',
+                      borderRadius: '12px',
+                      background: assignment.isUserParticipating ? '#f0fdf4' : 'white',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {/* Pet Photo */}
+                    <img
+                      src={assignment.case.petPhotoUrl || '/placeholder-pet.jpg'}
+                      alt={assignment.case.petName}
+                      style={{
+                        width: '120px',
+                        height: '120px',
+                        borderRadius: '8px',
+                        objectFit: 'cover'
+                      }}
+                    />
+
+                    {/* Case Details */}
+                    <div style={{ flex: 1 }}>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        marginBottom: '0.75rem'
+                      }}>
+                        <div>
+                          <h3 style={{
+                            fontSize: '1.5rem',
+                            fontWeight: '700',
+                            color: '#0f172a',
+                            marginBottom: '0.25rem'
+                          }}>
+                            {assignment.case.petName}
+                          </h3>
+                          <div style={{
+                            fontSize: '0.95rem',
+                            color: '#64748b'
+                          }}>
+                            {assignment.case.petSpecies} • {assignment.case.petBreed || 'Unknown breed'} • {assignment.case.petColor}
+                          </div>
+                        </div>
+                        <div style={{
+                          padding: '0.5rem 1rem',
+                          background: assignment.status === 'ACTIVE' ? '#dcfce7' :
+                                    assignment.status === 'ACCEPTED' ? '#dbeafe' : '#f1f5f9',
+                          color: assignment.status === 'ACTIVE' ? '#166534' :
+                                assignment.status === 'ACCEPTED' ? '#1e40af' : '#64748b',
+                          borderRadius: '6px',
+                          fontSize: '0.85rem',
+                          fontWeight: '700'
+                        }}>
+                          {assignment.status}
+                        </div>
+                      </div>
+
+                      <div style={{
+                        fontSize: '0.9rem',
+                        color: '#475569',
+                        marginBottom: '0.75rem',
+                        display: 'flex',
+                        gap: '1.5rem',
+                        flexWrap: 'wrap'
+                      }}>
+                        <div>
+                          📍 {assignment.case.lastSeenAddress}
+                        </div>
+                        <div>
+                          📅 {new Date(assignment.case.lastSeenAt).toLocaleDateString()}
+                        </div>
+                        <div>
+                          👥 {assignment._count.participants} member{assignment._count.participants === 1 ? '' : 's'} helping
+                        </div>
+                        {assignment._count.petSpottings > 0 && (
+                          <div>
+                            👀 {assignment._count.petSpottings} sighting{assignment._count.petSpottings === 1 ? '' : 's'}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{
+                        fontSize: '0.95rem',
+                        color: '#64748b',
+                        marginBottom: '1rem',
+                        lineHeight: '1.5'
+                      }}>
+                        {assignment.case.petDescription.length > 150
+                          ? assignment.case.petDescription.substring(0, 150) + '...'
+                          : assignment.case.petDescription}
+                      </div>
+
+                      <div style={{
+                        display: 'flex',
+                        gap: '1rem',
+                        alignItems: 'center'
+                      }}>
+                        {assignment.isUserParticipating ? (
+                          <>
+                            <div style={{
+                              padding: '0.75rem 1.5rem',
+                              background: '#d1fae5',
+                              color: '#065f46',
+                              borderRadius: '8px',
+                              fontWeight: '700'
+                            }}>
+                              ✓ You're Helping
+                            </div>
+                            <button
+                              onClick={() => handleOptOut(assignment.id)}
+                              disabled={optingCase === assignment.id}
+                              style={{
+                                padding: '0.75rem 1.5rem',
+                                background: optingCase === assignment.id ? '#cbd5e1' : '#f1f5f9',
+                                color: optingCase === assignment.id ? '#64748b' : '#ef4444',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontWeight: '700',
+                                cursor: optingCase === assignment.id ? 'not-allowed' : 'pointer'
+                              }}
+                            >
+                              {optingCase === assignment.id ? 'Processing...' : 'Stop Helping'}
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleOptIn(assignment.id)}
+                            disabled={optingCase === assignment.id}
+                            style={{
+                              padding: '0.75rem 1.5rem',
+                              background: optingCase === assignment.id ? '#cbd5e1' : '#10b981',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '8px',
+                              fontWeight: '700',
+                              cursor: optingCase === assignment.id ? 'not-allowed' : 'pointer'
+                            }}
+                          >
+                            {optingCase === assignment.id ? 'Joining...' : 'Help with This Case'}
+                          </button>
+                        )}
+                        <Link
+                          href={`/cases/${assignment.case.id}`}
+                          style={{
+                            padding: '0.75rem 1.5rem',
+                            background: '#f1f5f9',
+                            color: '#64748b',
+                            borderRadius: '8px',
+                            textDecoration: 'none',
+                            fontWeight: '700'
+                          }}
+                        >
+                          View Case Details
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
