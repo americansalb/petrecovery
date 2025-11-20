@@ -11,8 +11,10 @@ export default function RescueSquadDetailPage({ params }) {
   const [squad, setSquad] = useState(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState('');
   const [isMember, setIsMember] = useState(false);
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
     loadSquad();
@@ -29,12 +31,18 @@ export default function RescueSquadDetailPage({ params }) {
 
       setSquad(data.squad);
 
-      // Check if current user is a member
+      // Check if current user is a member and get their role
       if (session?.user?.id && data.squad.members) {
-        const memberExists = data.squad.members.some(
+        const userMembership = data.squad.members.find(
           m => m.userId === session.user.id && m.isActive
         );
-        setIsMember(memberExists);
+        if (userMembership) {
+          setIsMember(true);
+          setUserRole(userMembership.role);
+        } else {
+          setIsMember(false);
+          setUserRole(null);
+        }
       }
     } catch (err) {
       setError(err.message);
@@ -69,6 +77,35 @@ export default function RescueSquadDetailPage({ params }) {
       setError(err.message);
     } finally {
       setJoining(false);
+    }
+  };
+
+  const handleLeave = async () => {
+    if (!confirm('Are you sure you want to leave this squad? You will be removed from all active cases.')) {
+      return;
+    }
+
+    setLeaving(true);
+    setError('');
+
+    try {
+      const res = await fetch(`/api/rescue-squads/${params.id}/leave`, {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to leave squad');
+      }
+
+      setIsMember(false);
+      setUserRole(null);
+      loadSquad(); // Reload to show updated member count
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLeaving(false);
     }
   };
 
@@ -211,15 +248,40 @@ export default function RescueSquadDetailPage({ params }) {
 
           {isMember && (
             <div style={{
-              padding: '1rem 2rem',
-              background: '#d1fae5',
-              border: '2px solid #10b981',
-              borderRadius: '8px',
-              fontWeight: '700',
-              fontSize: '1.1rem',
-              color: '#065f46'
+              display: 'flex',
+              gap: '1rem',
+              alignItems: 'center',
+              flexWrap: 'wrap'
             }}>
-              ✓ You're a Member
+              <div style={{
+                padding: '1rem 2rem',
+                background: '#d1fae5',
+                border: '2px solid #10b981',
+                borderRadius: '8px',
+                fontWeight: '700',
+                fontSize: '1.1rem',
+                color: '#065f46'
+              }}>
+                ✓ You're a Member
+              </div>
+              <button
+                onClick={handleLeave}
+                disabled={leaving}
+                style={{
+                  padding: '1rem 2rem',
+                  background: leaving ? '#cbd5e1' : 'white',
+                  color: leaving ? '#64748b' : '#dc2626',
+                  border: `2px solid ${leaving ? '#cbd5e1' : '#dc2626'}`,
+                  borderRadius: '8px',
+                  fontWeight: '700',
+                  fontSize: '1rem',
+                  cursor: leaving ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {leaving ? 'Leaving...' : 'Leave Squad'}
+              </button>
             </div>
           )}
         </div>
