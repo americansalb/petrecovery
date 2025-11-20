@@ -60,7 +60,10 @@ export async function POST(request) {
           city: place['place name'],
           state: place['state abbreviation'],
           metro: `${place['place name']}, ${place['state abbreviation']}`,
-          metroValue: `${place['place name'].toUpperCase().replace(/\s+/g, '_')}_${place['state abbreviation']}`
+          metroValue: `${place['place name'].toUpperCase().replace(/\s+/g, '_')}_${place['state abbreviation']}`,
+          // ⭐ NEW: Extract latitude and longitude from API
+          latitude: parseFloat(place['latitude']),
+          longitude: parseFloat(place['longitude'])
         };
       } catch (error) {
         console.error('Geocoding error:', error);
@@ -110,10 +113,10 @@ export async function POST(request) {
           name: squadName,
           description: `The official rescue squad for ${zipInfo.city}. Join us to help find lost pets in our community!`,
           city: zipInfo.city,          // ⭐ CRITICAL for search
-          state: zipInfo.state || 'IL', // ⭐ CRITICAL for search
+          state: zipInfo.state,        // ⭐ CRITICAL for search
           zipCodes: JSON.stringify([zipCode]),
-          centerLatitude: null, // TODO: geocode later
-          centerLongitude: null,
+          centerLatitude: zipInfo.latitude || null,  // ⭐ NEW: Store geocoded coordinates
+          centerLongitude: zipInfo.longitude || null, // ⭐ NEW: Store geocoded coordinates
           radiusMiles: 10, // Default city coverage
           coverageType: 'CITYWIDE',
           specializesInDogs: true,
