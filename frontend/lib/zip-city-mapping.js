@@ -27,8 +27,7 @@ export const ZIP_TO_METRO_MAPPING = [
       { start: 60106, end: 60106, city: 'Bensenville' },
       { start: 60110, end: 60110, city: 'Carpentersville' },
       { start: 60118, end: 60119, city: 'East Dundee' },
-      { start: 60120, end: 60121, city: 'Elgin' },
-      { start: 60123, end: 60123, city: 'Elgin' },
+      { start: 60120, end: 60124, city: 'Elgin' },  // ⭐ FIXED: Extended range to include 60122, 60123, 60124
       { start: 60126, end: 60126, city: 'Elmhurst' },
       { start: 60131, end: 60131, city: 'Franklin Park' },
       { start: 60133, end: 60133, city: 'Hanover Park' },

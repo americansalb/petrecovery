@@ -22,7 +22,8 @@ export async function POST(request, { params }) {
       );
     }
 
-    if (!squad.isAcceptingMembers) {
+    // ⭐ FIXED: Schema has 'isAcceptingCases' not 'isAcceptingMembers'
+    if (!squad.isAcceptingCases) {
       return NextResponse.json(
         { error: 'This rescue squad is not currently accepting new members' },
         { status: 400 }

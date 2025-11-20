@@ -275,11 +275,51 @@ export async function POST(request) {
     }
 
     // Look up city and metro from zip code
-    const zipInfo = getZipCodeInfo(zipCode);
+    let zipInfo = getZipCodeInfo(zipCode);
 
     if (!zipInfo) {
       return NextResponse.json(
-        { error: `Zip code ${zipCode} not found in our database. Please contact support to add this location.` },
+        { error: `Invalid zip code format.` },
+        { status: 400 }
+      );
+    }
+
+    // ⭐ CRITICAL FIX: Handle external geocoding like join-or-create does
+    if (zipInfo.needsGeocode) {
+      try {
+        console.log(`🌐 ZIP ${zipCode} not in local DB, calling external geocoding API...`);
+        const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+        if (!geoRes.ok) {
+          return NextResponse.json(
+            { error: `Zip code ${zipCode} not found. Please verify it's a valid US zip code.` },
+            { status: 400 }
+          );
+        }
+
+        const geoData = await geoRes.json();
+        const place = geoData.places[0];
+
+        zipInfo = {
+          zipCode: zipCode,
+          city: place['place name'],
+          state: place['state abbreviation'],
+          metro: `${place['place name']}, ${place['state abbreviation']}`,
+          metroValue: `${place['place name'].toUpperCase().replace(/\s+/g, '_')}_${place['state abbreviation']}`
+        };
+        console.log(`✅ External geocoding success:`, zipInfo);
+      } catch (error) {
+        console.error('❌ Geocoding error:', error);
+        return NextResponse.json(
+          { error: `Unable to validate zip code ${zipCode}. Please try again.` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate we have city and state before proceeding
+    if (!zipInfo.city || !zipInfo.state) {
+      return NextResponse.json(
+        { error: `Unable to determine location for zip code ${zipCode}.` },
         { status: 400 }
       );
     }
