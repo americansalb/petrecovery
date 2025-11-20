@@ -14,7 +14,7 @@ export default function RescueSquadsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [zipCode, setZipCode] = useState('');
   const [radiusMiles, setRadiusMiles] = useState(25);
-  const [searchMode, setSearchMode] = useState('all'); // 'all', 'nearby', 'mine'
+  const [searchMode, setSearchMode] = useState('nearby'); // Default to 'nearby' for new users
 
   useEffect(() => {
     fetchSquads();
@@ -23,10 +23,21 @@ export default function RescueSquadsPage() {
   const fetchSquads = async () => {
     try {
       setLoading(true);
+
+      // For nearby mode, require ZIP code
+      if (searchMode === 'nearby' && !zipCode) {
+        setSquads([]);
+        setLoading(false);
+        return;
+      }
+
       let url = '/api/rescue-squads';
 
       if (searchMode === 'nearby' && zipCode) {
         url += `?zip=${zipCode}&radius=${radiusMiles}`;
+      } else if (searchMode === 'all') {
+        // Load all squads only if explicitly requested
+        url += '?lat=0&lng=0&radius=999999'; // Hack to get all
       }
 
       const res = await fetch(url);
@@ -120,73 +131,23 @@ export default function RescueSquadsPage() {
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <Link
-              href="/"
-              style={{
-                padding: '0.75rem 1.5rem',
-                background: 'white',
-                color: '#64748b',
-                border: '2px solid #e2e8f0',
-                borderRadius: '8px',
-                textDecoration: 'none',
-                fontWeight: '700'
-              }}
-            >
-              ← Home
-            </Link>
-
-            {session && (
-              <Link
-                href="/rescue-squads/create"
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: '#10b981',
-                  color: 'white',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontWeight: '700'
-                }}
-              >
-                + Create Rescue Squad
-              </Link>
-            )}
-
-            {session?.user?.role === 'ADMIN' && (
-              <Link
-                href="/admin/rescue-squads/create"
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: '#667eea',
-                  color: 'white',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontWeight: '700'
-                }}
-              >
-                Admin Create
-              </Link>
-            )}
-
-            {session && mySquads.length > 0 && (
-              <Link
-                href="/divisions/request"
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: '#f59e0b',
-                  color: 'white',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontWeight: '700'
-                }}
-              >
-                Request Division
-              </Link>
-            )}
-          </div>
+          <Link
+            href="/"
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: 'white',
+              color: '#64748b',
+              border: '2px solid #e2e8f0',
+              borderRadius: '8px',
+              textDecoration: 'none',
+              fontWeight: '700'
+            }}
+          >
+            ← Home
+          </Link>
         </div>
 
-        {/* Search & Filters */}
+        {/* Search Box */}
         <div style={{
           background: 'white',
           borderRadius: '16px',
@@ -194,178 +155,130 @@ export default function RescueSquadsPage() {
           marginBottom: '2rem',
           boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
         }}>
-          {/* Search Tabs */}
-          <div style={{
-            display: 'flex',
+          <form onSubmit={handleZipSearch} style={{
+            display: 'grid',
+            gridTemplateColumns: '2fr 1fr auto',
             gap: '1rem',
-            marginBottom: '1.5rem',
-            borderBottom: '2px solid #f1f5f9',
-            paddingBottom: '1rem'
+            alignItems: 'end'
           }}>
-            <button
-              onClick={() => setSearchMode('all')}
-              style={{
-                padding: '0.5rem 1rem',
-                background: searchMode === 'all' ? '#667eea' : 'transparent',
-                color: searchMode === 'all' ? 'white' : '#64748b',
-                border: 'none',
-                borderRadius: '6px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              All Squads ({squads.length})
-            </button>
+            <div>
+              <label style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontWeight: '600',
+                color: '#0f172a',
+                fontSize: '0.9rem'
+              }}>
+                Enter Your ZIP Code
+              </label>
+              <input
+                type="text"
+                value={zipCode}
+                onChange={(e) => setZipCode(e.target.value)}
+                placeholder="e.g. 60110"
+                maxLength={5}
+                required
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '1rem'
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontWeight: '600',
+                color: '#0f172a',
+                fontSize: '0.9rem'
+              }}>
+                Within (miles)
+              </label>
+              <select
+                value={radiusMiles}
+                onChange={(e) => setRadiusMiles(parseInt(e.target.value))}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '1rem'
+                }}
+              >
+                <option value={5}>5 miles</option>
+                <option value={10}>10 miles</option>
+                <option value={25}>25 miles</option>
+                <option value={50}>50 miles</option>
+                <option value={100}>100 miles</option>
+              </select>
+            </div>
 
             <button
-              onClick={() => setSearchMode('nearby')}
+              type="submit"
               style={{
-                padding: '0.5rem 1rem',
-                background: searchMode === 'nearby' ? '#667eea' : 'transparent',
-                color: searchMode === 'nearby' ? 'white' : '#64748b',
+                padding: '0.75rem 1.5rem',
+                background: '#667eea',
+                color: 'white',
                 border: 'none',
-                borderRadius: '6px',
+                borderRadius: '8px',
                 fontWeight: '700',
                 cursor: 'pointer',
-                transition: 'all 0.2s'
+                whiteSpace: 'nowrap'
               }}
             >
-              Nearby
+              Find Squads
             </button>
+          </form>
 
-            {session && (
+          {session && mySquads.length > 0 && (
+            <div style={{
+              marginTop: '1.5rem',
+              paddingTop: '1.5rem',
+              borderTop: '1px solid #f1f5f9'
+            }}>
               <button
                 onClick={() => setSearchMode('mine')}
                 style={{
                   padding: '0.5rem 1rem',
-                  background: searchMode === 'mine' ? '#667eea' : 'transparent',
+                  background: searchMode === 'mine' ? '#667eea' : '#f1f5f9',
                   color: searchMode === 'mine' ? 'white' : '#64748b',
                   border: 'none',
                   borderRadius: '6px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  fontWeight: '600',
+                  cursor: 'pointer'
                 }}
               >
-                My Squads ({mySquads.length})
+                View My Squads ({mySquads.length})
               </button>
-            )}
-          </div>
-
-          {/* Text Search */}
-          <div style={{ marginBottom: '1rem' }}>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by squad name or description..."
-              style={{
-                width: '100%',
-                padding: '1rem',
-                fontSize: '1rem',
-                border: '2px solid #e2e8f0',
-                borderRadius: '8px',
-                outline: 'none'
-              }}
-            />
-          </div>
-
-          {/* ZIP Code Search */}
-          {searchMode === 'nearby' && (
-            <form onSubmit={handleZipSearch} style={{
-              display: 'grid',
-              gridTemplateColumns: '2fr 1fr auto',
-              gap: '1rem',
-              alignItems: 'end'
-            }}>
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontWeight: '600',
-                  color: '#0f172a',
-                  fontSize: '0.9rem'
-                }}>
-                  ZIP Code
-                </label>
-                <input
-                  type="text"
-                  value={zipCode}
-                  onChange={(e) => setZipCode(e.target.value)}
-                  placeholder="60614"
-                  maxLength={5}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '8px',
-                    fontSize: '1rem'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontWeight: '600',
-                  color: '#0f172a',
-                  fontSize: '0.9rem'
-                }}>
-                  Radius (miles)
-                </label>
-                <select
-                  value={radiusMiles}
-                  onChange={(e) => setRadiusMiles(parseInt(e.target.value))}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '8px',
-                    fontSize: '1rem'
-                  }}
-                >
-                  <option value={5}>5 miles</option>
-                  <option value={10}>10 miles</option>
-                  <option value={25}>25 miles</option>
-                  <option value={50}>50 miles</option>
-                  <option value={100}>100 miles</option>
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: '#667eea',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                Search
-              </button>
-            </form>
+            </div>
           )}
         </div>
 
         {/* Results Count */}
-        <div style={{
-          marginBottom: '1.5rem',
-          fontSize: '0.95rem',
-          color: '#64748b',
-          fontWeight: '600'
-        }}>
-          {displaySquads.length === squads.length ? (
-            <span>Showing all {displaySquads.length} rescue squads</span>
-          ) : (
-            <span>Found {displaySquads.length} of {squads.length} rescue squads</span>
-          )}
-        </div>
+        {zipCode && searchMode === 'nearby' && (
+          <div style={{
+            marginBottom: '1.5rem',
+            fontSize: '0.95rem',
+            color: '#64748b',
+            fontWeight: '600'
+          }}>
+            Found {displaySquads.length} rescue squad{displaySquads.length !== 1 ? 's' : ''} within {radiusMiles} miles of {zipCode}
+          </div>
+        )}
+        {searchMode === 'mine' && (
+          <div style={{
+            marginBottom: '1.5rem',
+            fontSize: '0.95rem',
+            color: '#64748b',
+            fontWeight: '600'
+          }}>
+            Your Squads ({mySquads.length})
+          </div>
+        )}
 
         {/* Squads Grid */}
         {displaySquads.length === 0 ? (
@@ -383,16 +296,18 @@ export default function RescueSquadsPage() {
               color: '#0f172a',
               marginBottom: '0.5rem'
             }}>
-              No rescue squads found
+              {!zipCode && searchMode === 'nearby' ? 'Enter Your ZIP Code' : 'No Squads Found'}
             </h2>
             <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-              {searchMode === 'mine'
-                ? "You haven't joined any rescue squads yet."
-                : searchMode === 'nearby' && zipCode
-                ? `No squads found within ${radiusMiles} miles of ${zipCode}. Be the first to create one!`
-                : "Try adjusting your search criteria"}
+              {!zipCode && searchMode === 'nearby'
+                ? 'Enter your ZIP code above to find rescue squads in your area.'
+                : searchMode === 'mine'
+                ? "You haven't joined any rescue squads yet. Search by ZIP to find one near you."
+                : zipCode
+                ? `No squads within ${radiusMiles} miles of ${zipCode}. Be the first to create one!`
+                : "Enter your ZIP code to find rescue squads"}
             </p>
-            {session && searchMode === 'nearby' && zipCode && (
+            {session && zipCode && searchMode === 'nearby' && (
               <Link
                 href="/rescue-squads/create"
                 style={{

@@ -19,45 +19,26 @@ export async function GET(request) {
       );
     }
 
-    // If zip code provided, convert to lat/lng (simplified - in production use geocoding API)
+    // If zip code provided, convert to lat/lng using geocoding API
     let searchLat = lat;
     let searchLng = lng;
 
     if (zip && !lat) {
-      // TODO: Use geocoding API to convert zip to lat/lng
-      // For now, return all active squads if zip is provided
-      const squads = await prisma.rescueSquad.findMany({
-        where: {
-          isActive: true,
-          isAcceptingCases: true,
-        },
-        include: {
-          members: {
-            where: { isActive: true },
-            select: {
-              id: true,
-              role: true,
-              user: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                },
-              },
-            },
-          },
-          _count: {
-            select: {
-              members: true,
-              caseAssignments: true,
-            },
-          },
-        },
-        orderBy: {
-          successfulReunions: 'desc',
-        },
-      });
-
-      return NextResponse.json({ squads, zip });
+      // Call geocoding API to convert ZIP to lat/lng
+      try {
+        const geocodeRes = await fetch(`${request.nextUrl.origin}/api/geocode/zip/${zip}`);
+        if (geocodeRes.ok) {
+          const geocodeData = await geocodeRes.json();
+          searchLat = geocodeData.latitude;
+          searchLng = geocodeData.longitude;
+        } else {
+          // If geocoding fails, return empty array
+          return NextResponse.json({ squads: [], zip, error: 'Invalid ZIP code' });
+        }
+      } catch (error) {
+        console.error('Geocoding error:', error);
+        return NextResponse.json({ squads: [], zip, error: 'Failed to geocode ZIP' });
+      }
     }
 
     // Search by radius using Haversine formula
@@ -74,6 +55,7 @@ export async function GET(request) {
           select: {
             id: true,
             role: true,
+            userId: true,
             user: {
               select: {
                 firstName: true,
@@ -84,7 +66,7 @@ export async function GET(request) {
         },
         _count: {
           select: {
-            members: true,
+            members: { where: { isActive: true } },
             caseAssignments: true,
           },
         },
