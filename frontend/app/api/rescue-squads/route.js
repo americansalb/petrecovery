@@ -62,11 +62,18 @@ export async function GET(request) {
         searchType: 'city-based'
       });
 
-      // Find squads in this city (using the actual 'city' field from schema)
+      // Get current user's session to check membership
+      const session = await getServerSession(authOptions);
+      const userId = session?.user?.id;
+
+      // Find squads in this city (case-insensitive search)
       const squads = await prisma.rescueSquad.findMany({
         where: {
           isActive: true,
-          city: zipInfo.city  // Direct city match - simple and reliable
+          city: {
+            equals: zipInfo.city,
+            mode: 'insensitive'  // Case-insensitive match
+          }
         },
         include: {
           community: {
@@ -88,6 +95,7 @@ export async function GET(request) {
             select: {
               id: true,
               role: true,
+              userId: true,
               user: {
                 select: {
                   firstName: true,
@@ -117,14 +125,27 @@ export async function GET(request) {
         console.log(`  ⚠️ No squads found in ${zipInfo.city} - user should create one!`);
       }
 
-      // Add member counts and format response
-      const squadsWithCounts = squads.map(squad => ({
-        ...squad,
-        memberCount: squad._count.members,
-        distance: 0 // Within same city
-      }));
+      // Add member counts and check if user is a member
+      const squadsWithCounts = squads.map(squad => {
+        const isMember = userId ? squad.members.some(m => m.userId === userId) : false;
+        return {
+          ...squad,
+          memberCount: squad._count.members,
+          distance: 0, // Within same city
+          isMember
+        };
+      });
 
-      return NextResponse.json({ squads: squadsWithCounts, zip: zipCode, searchCity: zipInfo.city });
+      // ALWAYS return city info so frontend can show CREATE option
+      return NextResponse.json({
+        squads: squadsWithCounts,
+        zipCode: zipCode,
+        cityInfo: {
+          city: zipInfo.city,
+          state: zipInfo.state,
+          metro: zipInfo.metro
+        }
+      });
     }
 
     // Search by radius using Haversine formula

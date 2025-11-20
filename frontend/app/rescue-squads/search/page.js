@@ -11,6 +11,7 @@ export default function RescueSquadSearchPage() {
   const [zipCode, setZipCode] = useState('');
   const [radiusMiles, setRadiusMiles] = useState(10);
   const [squads, setSquads] = useState([]);
+  const [cityInfo, setCityInfo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
@@ -22,11 +23,16 @@ export default function RescueSquadSearchPage() {
     try {
       const res = await fetch(`/api/rescue-squads?zipCode=${zipCode}&radiusMiles=${radiusMiles}`);
       const data = await res.json();
+
+      console.log('📥 Search API response:', data);
+
       setSquads(data.squads || []);
+      setCityInfo(data.cityInfo || null);
       setSearched(true);
     } catch (error) {
       console.error('Error searching squads:', error);
       setSquads([]);
+      setCityInfo(null);
     } finally {
       setLoading(false);
     }
@@ -187,6 +193,56 @@ export default function RescueSquadSearchPage() {
         {/* Results */}
         {searched && (
           <div>
+            {/* ALWAYS show CREATE button at top when we have city info */}
+            {cityInfo && (
+              <div style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                borderRadius: '16px',
+                padding: '2rem 3rem',
+                marginBottom: '2rem',
+                boxShadow: '0 10px 30px rgba(16, 185, 129, 0.3)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '1.5rem'
+              }}>
+                <div>
+                  <div style={{
+                    fontSize: '1.5rem',
+                    fontWeight: '900',
+                    color: 'white',
+                    marginBottom: '0.5rem'
+                  }}>
+                    🚑 {cityInfo.city} Rescue Squad
+                  </div>
+                  <div style={{
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    fontSize: '1rem'
+                  }}>
+                    {squads.length > 0 ? 'Or create your own squad in this area' : 'No squad exists yet - be the first!'}
+                  </div>
+                </div>
+                <Link
+                  href={`/rescue-squads/create?zipCode=${zipCode}`}
+                  style={{
+                    display: 'inline-block',
+                    padding: '1.25rem 2.5rem',
+                    background: 'white',
+                    color: '#059669',
+                    borderRadius: '10px',
+                    textDecoration: 'none',
+                    fontWeight: '900',
+                    fontSize: '1.2rem',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  CREATE SQUAD →
+                </Link>
+              </div>
+            )}
+
             <h2 style={{
               fontSize: '1.75rem',
               fontWeight: '800',
@@ -194,8 +250,8 @@ export default function RescueSquadSearchPage() {
               marginBottom: '1.5rem'
             }}>
               {squads.length > 0
-                ? `Found ${squads.length} squad${squads.length === 1 ? '' : 's'}`
-                : 'No squads found in your area'}
+                ? `Found ${squads.length} squad${squads.length === 1 ? '' : 's'} in ${cityInfo?.city || 'your area'}`
+                : `No squads in ${cityInfo?.city || 'your area'} yet`}
             </h2>
 
             {squads.length === 0 ? (
