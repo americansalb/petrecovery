@@ -103,15 +103,14 @@ export async function POST(request) {
 
     // Create squad if doesn't exist
     if (!squad) {
-      console.log(`🚑 Creating ${squadName}`);
+      console.log(`🚑 CREATING NEW SQUAD: ${squadName} in ${zipInfo.city}, ${zipInfo.state}`);
 
       squad = await prisma.rescueSquad.create({
         data: {
           name: squadName,
           description: `The official rescue squad for ${zipInfo.city}. Join us to help find lost pets in our community!`,
-          city: zipInfo.city,
-          state: zipInfo.state || 'IL',
-          metroArea: zipInfo.metro,
+          city: zipInfo.city,          // ⭐ CRITICAL for search
+          state: zipInfo.state || 'IL', // ⭐ CRITICAL for search
           zipCodes: JSON.stringify([zipCode]),
           centerLatitude: null, // TODO: geocode later
           centerLongitude: null,
@@ -148,6 +147,15 @@ export async function POST(request) {
             }
           }
         },
+      });
+
+      console.log(`✅ SQUAD CREATED SUCCESSFULLY:`, {
+        id: squad.id,
+        name: squad.name,
+        city: squad.city,
+        state: squad.state,
+        zipCodes: squad.zipCodes,
+        members: squad.members.length
       });
 
       // Update user's squad count
