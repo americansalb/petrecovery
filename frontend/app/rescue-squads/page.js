@@ -214,60 +214,72 @@ export default function RescueSquadsPage() {
         {searched && (
           <>
             {squads.length === 0 ? (
-              /* No Results - Show Create Option */
+              /* No Results - HUGE CREATE BUTTON */
               <div style={{
-                background: 'white',
-                borderRadius: '16px',
-                padding: '3rem 2rem',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                borderRadius: '20px',
+                padding: '4rem 2rem',
                 textAlign: 'center',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
+                boxShadow: '0 10px 30px rgba(16, 185, 129, 0.3)',
+                border: '4px solid #10b981'
               }}>
-                <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🚁</div>
+                <div style={{ fontSize: '5rem', marginBottom: '1.5rem' }}>🚁</div>
                 <h2 style={{
-                  fontSize: '1.8rem',
-                  fontWeight: '700',
-                  color: '#0f172a',
-                  marginBottom: '0.75rem'
+                  fontSize: '2.5rem',
+                  fontWeight: '900',
+                  color: 'white',
+                  marginBottom: '1rem',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}>
-                  No Rescue Squads Found
+                  No Squad in {cityName}?
+                  <br />
+                  Create One Now!
                 </h2>
                 <p style={{
-                  color: '#64748b',
-                  fontSize: '1.1rem',
-                  marginBottom: '2rem'
+                  color: 'rgba(255,255,255,0.95)',
+                  fontSize: '1.3rem',
+                  marginBottom: '3rem',
+                  fontWeight: '600'
                 }}>
-                  No squads within {radiusMiles} miles of ZIP {zipCode}.
+                  Be the first to start <strong>{cityName} Rescue Squad</strong>
                   <br />
-                  Be the first to create <strong>{cityName} Rescue Squad</strong>!
+                  and help reunite lost pets with their families!
                 </p>
                 {session ? (
                   <Link
                     href={`/rescue-squads/create?zip=${zipCode}`}
                     style={{
                       display: 'inline-block',
-                      padding: '1rem 2.5rem',
-                      background: '#10b981',
-                      color: 'white',
-                      borderRadius: '8px',
+                      padding: '2rem 4rem',
+                      background: 'white',
+                      color: '#10b981',
+                      borderRadius: '16px',
                       textDecoration: 'none',
-                      fontWeight: '700',
-                      fontSize: '1.1rem'
+                      fontWeight: '900',
+                      fontSize: '1.8rem',
+                      boxShadow: '0 8px 20px rgba(0,0,0,0.2)',
+                      border: '4px solid white',
+                      transition: 'transform 0.2s'
                     }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                   >
-                    Create {cityName} Rescue Squad
+                    🚀 Create {cityName} Rescue Squad
                   </Link>
                 ) : (
                   <Link
                     href="/login"
                     style={{
                       display: 'inline-block',
-                      padding: '1rem 2.5rem',
-                      background: '#667eea',
-                      color: 'white',
-                      borderRadius: '8px',
+                      padding: '2rem 4rem',
+                      background: 'white',
+                      color: '#667eea',
+                      borderRadius: '16px',
                       textDecoration: 'none',
-                      fontWeight: '700',
-                      fontSize: '1.1rem'
+                      fontWeight: '900',
+                      fontSize: '1.8rem',
+                      boxShadow: '0 8px 20px rgba(0,0,0,0.2)',
+                      border: '4px solid white'
                     }}
                   >
                     Sign In to Create Squad

@@ -1,18 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 export default function CreateRescueSquadPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
   const [error, setError] = useState('');
   const [zipCode, setZipCode] = useState('');
   const [locationInfo, setLocationInfo] = useState(null);
+
+  // Auto-fill ZIP from URL parameter
+  useEffect(() => {
+    const zipParam = searchParams.get('zip');
+    if (zipParam && zipParam.length === 5) {
+      setZipCode(zipParam);
+      handleZipLookup(zipParam);
+    }
+  }, [searchParams]);
 
   const handleZipLookup = async (zip) => {
     if (zip.length !== 5) return;
@@ -83,6 +93,11 @@ export default function CreateRescueSquadPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        // If squad already exists, redirect to it
+        if (data.existingSquadId) {
+          router.push(`/rescue-squads/${data.existingSquadId}`);
+          return;
+        }
         throw new Error(data.error || 'Failed to create rescue squad');
       }
 

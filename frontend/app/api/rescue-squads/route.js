@@ -158,13 +158,26 @@ export async function POST(request) {
     }
 
     // Check if squad name already exists
-    const existingSquad = await prisma.rescueSquad.findUnique({
-      where: { name },
+    const existingSquad = await prisma.rescueSquad.findFirst({
+      where: {
+        OR: [
+          { name: name },
+          {
+            AND: [
+              { city: body.city },
+              { isActive: true }
+            ]
+          }
+        ]
+      }
     });
 
     if (existingSquad) {
       return NextResponse.json(
-        { error: 'A rescue squad with this name already exists' },
+        {
+          error: `A rescue squad already exists for ${body.city}`,
+          existingSquadId: existingSquad.id
+        },
         { status: 400 }
       );
     }
