@@ -66,7 +66,26 @@ export async function GET(request) {
       const session = await getServerSession(authOptions);
       const userId = session?.user?.id;
 
+      // FIRST: Check ALL squads in database to see what exists
+      const allSquads = await prisma.rescueSquad.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          city: true,
+          state: true,
+          zipCodes: true
+        }
+      });
+
+      console.log(`🗄️ DATABASE: Total ${allSquads.length} active squad(s):`);
+      allSquads.forEach(s => {
+        console.log(`  - ${s.name}: city="${s.city}", state="${s.state}", zips=${s.zipCodes}`);
+      });
+
       // Find squads in this city (case-insensitive search)
+      console.log(`🔎 SEARCHING FOR: city="${zipInfo.city}" (case-insensitive)`);
+
       const squads = await prisma.rescueSquad.findMany({
         where: {
           isActive: true,
@@ -102,13 +121,32 @@ export async function GET(request) {
         },
       });
 
-      console.log(`✅ SEARCH RESULT: Found ${squads.length} squad(s) in ${zipInfo.city}`);
+      console.log(`✅ SEARCH RESULT: Found ${squads.length} squad(s) matching city="${zipInfo.city}"`);
       if (squads.length > 0) {
         squads.forEach(s => {
-          console.log(`  - ${s.name} (ID: ${s.id}, City: ${s.city}, Members: ${s._count.members})`);
+          console.log(`  ✓ MATCH: ${s.name} (ID: ${s.id}, City: ${s.city}, Members: ${s._count.members})`);
         });
       } else {
-        console.log(`  ⚠️ No squads found in ${zipInfo.city} - user should create one!`);
+        console.log(`  ⚠️ NO MATCHES for city="${zipInfo.city}"`);
+
+        // Check if squads exist with NULL city but matching name
+        const squadNameToCheck = `${zipInfo.city} Rescue Squad`;
+        const squadByName = await prisma.rescueSquad.findFirst({
+          where: {
+            name: squadNameToCheck,
+            isActive: true
+          },
+          select: {
+            id: true,
+            name: true,
+            city: true
+          }
+        });
+
+        if (squadByName) {
+          console.log(`  ⚠️ FOUND SQUAD BY NAME but city field is: "${squadByName.city}"`);
+          console.log(`  💡 This squad exists but city field doesn't match search!`);
+        }
       }
 
       // Add member counts and check if user is a member
