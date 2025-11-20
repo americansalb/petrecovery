@@ -773,7 +773,7 @@ model DivisionRequest {
   rejectionReason String?
 
   // Approval creates Division
-  approvedDivisionId String?
+  approvedDivisionId String?  @unique
   approvedDivision Division? @relation(fields: [approvedDivisionId], references: [id])
 
   createdAt       DateTime @default(now())
