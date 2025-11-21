@@ -21,7 +21,7 @@ export default function RescueSquadSearchPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/rescue-squads?zipCode=${zipCode}&radiusMiles=${radiusMiles}`);
+      const res = await fetch(`/api/rescue-squads?zipCode=${zipCode}&radius=${radiusMiles}`);
       const data = await res.json();
 
       console.log('📥 Search API response:', data);
