@@ -100,20 +100,42 @@ export async function POST(request) {
       }
     });
 
-    // 4. Create lost report
+    // 4. Create case (formerly lost report)
     const lastSeenAt = calculateLastSeenTime(timeElapsed);
 
-    const report = await prisma.lostReport.create({
+    // Generate case number (simplified - in production use city code from geocoding)
+    const caseNumber = `CASE-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+
+    const report = await prisma.case.create({
       data: {
+        caseNumber,
         petId: pet.id,
         reporterId: user.id,
         reportType: 'LOST',
+
+        // Denormalized pet info for performance
+        petName,
+        petSpecies: petType.toUpperCase(),
+        petBreed: breed || 'Unknown',
+        petColor: color,
+        petSize: size,
+        petPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
+        petDescription: distinctiveMarks || `${size} ${color} ${petType}${breed ? ` - ${breed}` : ''}`,
+
+        // Owner info
+        ownerName: firstName,
+        ownerPhone: phone || 'Not provided',
+        ownerEmail: email,
+
+        // Location
         lastSeenAt,
         lastSeenLatitude: center[0],
         lastSeenLongitude: center[1],
         lastSeenAddress,
-        escapeScenario: 'unknown',
         searchRadius: radiusMiles,
+        escapeScenario: 'unknown',
+
+        // Status
         status: 'ACTIVE',
         priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'NORMAL',
       }
@@ -147,7 +169,7 @@ export async function POST(request) {
       nearbyPatrol.map(member =>
         prisma.alert.create({
           data: {
-            reportId: report.id,
+            caseId: report.id,
             userId: member.id,
             method: member.patrolProfile.alertMethod,
           }

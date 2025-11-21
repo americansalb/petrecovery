@@ -411,9 +411,9 @@ export default function Home() {
           </div>
         </Link>
 
-        {/* Browse Communities */}
+        {/* Browse Rescue Squads */}
         <Link
-          href="/communities"
+          href="/rescue-squads"
           style={{
             background: 'white',
             borderRadius: '16px',
@@ -447,7 +447,7 @@ export default function Home() {
             fontSize: '2.5rem',
             marginBottom: '1.5rem',
           }}>
-            🏘️
+            🚁
           </div>
 
           <h2 style={{
@@ -456,7 +456,7 @@ export default function Home() {
             marginBottom: '1rem',
             color: '#0f172a',
           }}>
-            Browse Communities
+            {session ? 'Join or Create a Rescue Squad' : 'Browse Rescue Squads'}
           </h2>
 
           <p style={{
@@ -465,7 +465,9 @@ export default function Home() {
             lineHeight: '1.6',
             marginBottom: '2rem',
           }}>
-            Join local communities to organize pet recovery efforts with volunteers in your area.
+            {session
+              ? 'Join volunteer rescue squads in your city or create one if it doesn\'t exist yet. Coordinate pet recovery efforts with local teams.'
+              : 'Join volunteer rescue squads in your city to coordinate pet recovery efforts with local teams.'}
           </p>
 
           <div style={{
@@ -477,7 +479,7 @@ export default function Home() {
             textAlign: 'center',
             fontSize: '1.1rem',
           }}>
-            Explore Communities →
+            {session ? 'Browse or Create Squad →' : 'Explore Rescue Squads →'}
           </div>
         </Link>
       </div>

@@ -2,69 +2,128 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
+import { getZipCodeInfo } from '@/lib/zip-city-mapping';
 
 // GET /api/rescue-squads - Search for rescue squads by location
 export async function GET(request) {
+  const timestamp = new Date().toISOString();
+  console.log(`\n${'='.repeat(80)}`);
+  console.log(`🔍 [${timestamp}] SEARCH SQUADS REQUEST`);
+  console.log(`${'='.repeat(80)}\n`);
+
   try {
     const { searchParams } = new URL(request.url);
-    const zip = searchParams.get('zip');
+    const zipCode = searchParams.get('zipCode') || searchParams.get('zip');
     const lat = parseFloat(searchParams.get('lat'));
     const lng = parseFloat(searchParams.get('lng'));
-    const radius = parseInt(searchParams.get('radius')) || 25; // miles
+    const radius = parseInt(searchParams.get('radius')) || 25;
 
-    if (!zip && (!lat || !lng)) {
+    console.log('📋 Search parameters:');
+    console.log(`   ZIP: ${zipCode || 'none'}`);
+    console.log(`   Lat: ${lat || 'none'}`);
+    console.log(`   Lng: ${lng || 'none'}`);
+    console.log(`   Radius: ${radius} miles`);
+
+    if (!zipCode && (!lat || !lng)) {
+      console.log('❌ Missing required parameters');
       return NextResponse.json(
         { error: 'Either zip code or lat/lng required' },
         { status: 400 }
       );
     }
 
-    // If zip code provided, convert to lat/lng (simplified - in production use geocoding API)
     let searchLat = lat;
     let searchLng = lng;
+    let zipInfo = null;
 
-    if (zip && !lat) {
-      // TODO: Use geocoding API to convert zip to lat/lng
-      // For now, return all active squads if zip is provided
-      const squads = await prisma.rescueSquad.findMany({
-        where: {
-          isActive: true,
-          isAcceptingCases: true,
-        },
-        include: {
-          members: {
-            where: { isActive: true },
-            select: {
-              id: true,
-              role: true,
-              user: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                },
-              },
-            },
-          },
-          _count: {
-            select: {
-              members: true,
-              caseAssignments: true,
-            },
-          },
-        },
-        orderBy: {
-          successfulReunions: 'desc',
-        },
+    if (zipCode && !lat) {
+      console.log(`\n📍 Step 1: Geocoding search ZIP ${zipCode}...`);
+
+      zipInfo = getZipCodeInfo(zipCode);
+
+      if (!zipInfo) {
+        console.log('❌ ZIP not found');
+        return NextResponse.json({ squads: [], cityInfo: null });
+      }
+
+      console.log('📊 Local ZIP result:', {
+        city: zipInfo.city,
+        state: zipInfo.state,
+        needsGeocode: zipInfo.needsGeocode
       });
 
-      return NextResponse.json({ squads, zip });
+      console.log('🌐 Calling external geocoding API...');
+      try {
+        const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+        if (!geoRes.ok) {
+          console.log(`❌ External API returned ${geoRes.status}`);
+          return NextResponse.json({
+            squads: [],
+            cityInfo: zipInfo.city ? {
+              city: zipInfo.city,
+              state: zipInfo.state,
+              metro: zipInfo.metro
+            } : null
+          });
+        }
+
+        const geoData = await geoRes.json();
+        const place = geoData.places[0];
+
+        console.log('📥 External API response:', {
+          city: place['place name'],
+          state: place['state abbreviation'],
+          lat: place['latitude'],
+          lng: place['longitude']
+        });
+
+        zipInfo = {
+          zipCode: zipCode,
+          city: place['place name'],
+          state: place['state abbreviation'],
+          metro: `${place['place name']}, ${place['state abbreviation']}`,
+          metroValue: `${place['place name'].toUpperCase().replace(/\s+/g, '_')}_${place['state abbreviation']}`,
+          latitude: parseFloat(place['latitude']),
+          longitude: parseFloat(place['longitude'])
+        };
+
+        searchLat = zipInfo.latitude;
+        searchLng = zipInfo.longitude;
+
+        console.log(`✅ Search center: (${searchLat}, ${searchLng})`);
+      } catch (error) {
+        console.error('❌ Geocoding error:', error);
+        return NextResponse.json({
+          squads: [],
+          cityInfo: zipInfo.city ? {
+            city: zipInfo.city,
+            state: zipInfo.state,
+            metro: zipInfo.metro
+          } : null
+        });
+      }
     }
 
-    // Search by radius using Haversine formula
+    if (!searchLat || !searchLng) {
+      console.log('❌ No search coordinates');
+      return NextResponse.json({
+        squads: [],
+        cityInfo: zipInfo ? {
+          city: zipInfo.city,
+          state: zipInfo.state,
+          metro: zipInfo.metro
+        } : null
+      });
+    }
+
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+    console.log(`\n👤 User: ${userId || 'anonymous'}`);
+
+    console.log(`\n🔍 Step 2: Querying database...`);
     const squads = await prisma.rescueSquad.findMany({
       where: {
         isActive: true,
-        isAcceptingCases: true,
         centerLatitude: { not: null },
         centerLongitude: { not: null },
       },
@@ -74,6 +133,7 @@ export async function GET(request) {
           select: {
             id: true,
             role: true,
+            userId: true,
             user: {
               select: {
                 firstName: true,
@@ -91,7 +151,12 @@ export async function GET(request) {
       },
     });
 
-    // Filter by distance
+    console.log(`📊 Found ${squads.length} squads with coordinates:`);
+    squads.forEach(s => {
+      console.log(`   - ${s.name}: (${s.centerLatitude}, ${s.centerLongitude})`);
+    });
+
+    console.log(`\n📏 Step 3: Calculating distances from (${searchLat}, ${searchLng})...`);
     const squadsWithDistance = squads
       .map((squad) => {
         const distance = calculateDistance(
@@ -100,12 +165,41 @@ export async function GET(request) {
           squad.centerLatitude,
           squad.centerLongitude
         );
-        return { ...squad, distance };
+        console.log(`   ${squad.name}: ${distance.toFixed(1)} miles`);
+        const isMember = userId ? squad.members.some(m => m.userId === userId) : false;
+        return {
+          ...squad,
+          distance,
+          memberCount: squad._count.members,
+          isMember
+        };
       })
-      .filter((squad) => squad.distance <= radius)
+      .filter((squad) => {
+        const withinRadius = squad.distance <= radius;
+        if (!withinRadius) {
+          console.log(`   ❌ ${squad.name} EXCLUDED (${squad.distance.toFixed(1)} > ${radius})`);
+        }
+        return withinRadius;
+      })
       .sort((a, b) => a.distance - b.distance);
 
-    return NextResponse.json({ squads: squadsWithDistance });
+    console.log(`\n✅ ${squadsWithDistance.length} squad(s) within ${radius} miles:`);
+    squadsWithDistance.forEach(s => {
+      console.log(`   ✓ ${s.name}: ${s.distance.toFixed(1)} mi, ${s.memberCount} members`);
+    });
+    console.log(`${'='.repeat(80)}\n`);
+
+    return NextResponse.json({
+      squads: squadsWithDistance,
+      ...(zipInfo && {
+        zipCode: zipCode,
+        cityInfo: {
+          city: zipInfo.city,
+          state: zipInfo.state,
+          metro: zipInfo.metro
+        }
+      })
+    });
   } catch (error) {
     console.error('Error searching rescue squads:', error);
     return NextResponse.json(
@@ -127,8 +221,7 @@ export async function POST(request) {
     const {
       name,
       description,
-      centerLatitude,
-      centerLongitude,
+      zipCode,
       radiusMiles = 5,
       specializesInDogs = true,
       specializesInCats = true,
@@ -136,12 +229,87 @@ export async function POST(request) {
       specializesInOther = false,
     } = body;
 
-    if (!name || !centerLatitude || !centerLongitude) {
+    if (!name) {
       return NextResponse.json(
-        { error: 'Name and location required' },
+        { error: 'Squad name is required' },
         { status: 400 }
       );
     }
+
+    if (!zipCode) {
+      return NextResponse.json(
+        { error: 'Zip code is required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate user has verified email
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { emailVerified: true }
+    });
+
+    if (!user || !user.emailVerified) {
+      return NextResponse.json(
+        { error: 'Email verification required to create a rescue squad' },
+        { status: 403 }
+      );
+    }
+
+    // Look up city and metro from zip code
+    let zipInfo = getZipCodeInfo(zipCode);
+
+    if (!zipInfo) {
+      return NextResponse.json(
+        { error: `Invalid zip code format.` },
+        { status: 400 }
+      );
+    }
+
+    // ⭐ CRITICAL FIX: Handle external geocoding like join-or-create does
+    if (zipInfo.needsGeocode) {
+      try {
+        console.log(`🌐 ZIP ${zipCode} not in local DB, calling external geocoding API...`);
+        const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+        if (!geoRes.ok) {
+          return NextResponse.json(
+            { error: `Zip code ${zipCode} not found. Please verify it's a valid US zip code.` },
+            { status: 400 }
+          );
+        }
+
+        const geoData = await geoRes.json();
+        const place = geoData.places[0];
+
+        zipInfo = {
+          zipCode: zipCode,
+          city: place['place name'],
+          state: place['state abbreviation'],
+          metro: `${place['place name']}, ${place['state abbreviation']}`,
+          metroValue: `${place['place name'].toUpperCase().replace(/\s+/g, '_')}_${place['state abbreviation']}`,
+          // ⭐ NEW: Extract latitude and longitude from API
+          latitude: parseFloat(place['latitude']),
+          longitude: parseFloat(place['longitude'])
+        };
+        console.log(`✅ External geocoding success:`, zipInfo);
+      } catch (error) {
+        console.error('❌ Geocoding error:', error);
+        return NextResponse.json(
+          { error: `Unable to validate zip code ${zipCode}. Please try again.` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate we have city and state before proceeding
+    if (!zipInfo.city || !zipInfo.state) {
+      return NextResponse.json(
+        { error: `Unable to determine location for zip code ${zipCode}.` },
+        { status: 400 }
+      );
+    }
+
+    console.log('📍 Zip lookup:', zipInfo);
 
     // Check if squad name already exists
     const existingSquad = await prisma.rescueSquad.findUnique({
@@ -155,13 +323,23 @@ export async function POST(request) {
       );
     }
 
+    console.log('🏗️ CREATING SQUAD:', {
+      name,
+      city: zipInfo.city,
+      state: zipInfo.state,
+      zipCode
+    });
+
     // Create squad and add creator as FOUNDER
     const squad = await prisma.rescueSquad.create({
       data: {
         name,
         description,
-        centerLatitude,
-        centerLongitude,
+        city: zipInfo.city,           // ⭐ CRITICAL: Store city for search
+        state: zipInfo.state,         // ⭐ CRITICAL: Store state
+        zipCodes: JSON.stringify([zipCode]),  // Store as JSON array
+        centerLatitude: zipInfo.latitude || null,  // ⭐ NEW: Store geocoded coordinates
+        centerLongitude: zipInfo.longitude || null, // ⭐ NEW: Store geocoded coordinates
         radiusMiles,
         specializesInDogs,
         specializesInCats,
@@ -189,6 +367,15 @@ export async function POST(request) {
           },
         },
       },
+    });
+
+    console.log('✅ SQUAD CREATED SUCCESSFULLY:', {
+      id: squad.id,
+      name: squad.name,
+      city: squad.city,
+      state: squad.state,
+      zipCodes: squad.zipCodes,
+      memberCount: squad.members.length
     });
 
     // Update user's squad count

@@ -3,39 +3,38 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
 
-// POST /api/rescue-squads/[id]/join - Join a rescue squad
+// POST /api/rescue-squads/:id/join - Join a rescue squad
 export async function POST(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = params;
-
-    // Check if squad exists and is active
     const squad = await prisma.rescueSquad.findUnique({
-      where: { id },
+      where: { id: params.id },
     });
 
     if (!squad) {
-      return NextResponse.json({ error: 'Squad not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Rescue squad not found' },
+        { status: 404 }
+      );
     }
 
-    if (!squad.isActive) {
+    // ⭐ FIXED: Schema has 'isAcceptingCases' not 'isAcceptingMembers'
+    if (!squad.isAcceptingCases) {
       return NextResponse.json(
-        { error: 'This squad is not currently active' },
+        { error: 'This rescue squad is not currently accepting new members' },
         { status: 400 }
       );
     }
 
     // Check if already a member
-    const existingMembership = await prisma.rescueSquadMember.findUnique({
+    const existingMembership = await prisma.rescueSquadMember.findFirst({
       where: {
-        rescueSquadId_userId: {
-          rescueSquadId: id,
-          userId: session.user.id,
-        },
+        rescueSquadId: params.id,
+        userId: session.user.id,
       },
     });
 
@@ -45,71 +44,47 @@ export async function POST(request, { params }) {
           { error: 'You are already a member of this squad' },
           { status: 400 }
         );
-      }
-
-      // Reactivate membership
-      const membership = await prisma.rescueSquadMember.update({
-        where: { id: existingMembership.id },
-        data: {
-          isActive: true,
-          leftAt: null,
-        },
-        include: {
-          rescueSquad: true,
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-            },
+      } else {
+        // Re-activate existing membership
+        await prisma.rescueSquadMember.update({
+          where: { id: existingMembership.id },
+          data: {
+            isActive: true,
+            joinedAt: new Date(),
           },
-        },
-      });
+        });
 
-      return NextResponse.json({ membership });
+        return NextResponse.json({
+          message: 'Successfully rejoined the squad',
+        });
+      }
     }
 
     // Create new membership
-    const membership = await prisma.rescueSquadMember.create({
+    await prisma.rescueSquadMember.create({
       data: {
-        rescueSquadId: id,
+        rescueSquadId: params.id,
         userId: session.user.id,
         role: 'MEMBER',
         isActive: true,
       },
-      include: {
-        rescueSquad: true,
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-      },
     });
 
-    // Update user stats
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-    });
-
+    // Update user's squad count
     await prisma.user.update({
       where: { id: session.user.id },
       data: {
         squadsJoinedCount: { increment: 1 },
-        // Level up to SCOUT if this is first squad
-        ...(user.rescueLevel === 'PET_OWNER' && { rescueLevel: 'SCOUT' }),
       },
     });
 
-    return NextResponse.json({ membership }, { status: 201 });
+    return NextResponse.json({
+      message: 'Successfully joined the squad',
+    });
   } catch (error) {
-    console.error('Error joining squad:', error);
+    console.error('Error joining rescue squad:', error);
     return NextResponse.json(
-      { error: 'Failed to join squad' },
+      { error: 'Failed to join rescue squad' },
       { status: 500 }
     );
   }

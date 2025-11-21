@@ -24,32 +24,31 @@ export async function POST(request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get the report and verify ownership
-    const report = await prisma.lostReport.findUnique({
+    // Get the case and verify ownership
+    const caseRecord = await prisma.case.findUnique({
       where: { id: reportId },
-      include: { pet: true }
     });
 
-    if (!report) {
-      return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+    if (!caseRecord) {
+      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
     }
 
-    if (report.reporterId !== user.id) {
-      return NextResponse.json({ error: 'Not authorized to update this report' }, { status: 403 });
+    if (caseRecord.reporterId !== user.id) {
+      return NextResponse.json({ error: 'Not authorized to update this case' }, { status: 403 });
     }
 
-    // Update the report status to FOUND
-    await prisma.lostReport.update({
+    // Update the case status to REUNITED
+    await prisma.case.update({
       where: { id: reportId },
       data: {
-        status: 'FOUND',
-        foundAt: new Date(),
+        status: 'REUNITED',
+        resolvedAt: new Date(),
       }
     });
 
     return NextResponse.json({
       success: true,
-      message: `${report.pet.name} marked as found! 🎉`
+      message: `${caseRecord.petName} marked as found! 🎉`
     });
 
   } catch (error) {
