@@ -23,7 +23,7 @@ export default function AdminRescueSquadsPage() {
 
   const loadSquads = async () => {
     try {
-      const res = await fetch('/api/rescue-squads');
+      const res = await fetch('/api/admin/rescue-squads');
       if (res.ok) {
         const data = await res.json();
         setSquads(data.squads || []);
