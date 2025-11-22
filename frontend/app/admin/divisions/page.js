@@ -309,28 +309,36 @@ export default function AdminDivisionsPage() {
                   </div>
                 </div>
 
-                {/* Justification */}
-                <div style={{
-                  background: '#f8fafc',
-                  borderRadius: '8px',
-                  padding: '1.5rem',
-                  marginBottom: '1.5rem'
-                }}>
-                  <h3 style={{
-                    fontSize: '1.1rem',
-                    fontWeight: '700',
-                    color: '#0f172a',
-                    marginBottom: '0.75rem'
+                {/* Polygon Preview */}
+                {request.proposedBoundary && (
+                  <div style={{
+                    background: '#f8fafc',
+                    borderRadius: '8px',
+                    padding: '1.5rem',
+                    marginBottom: '1.5rem'
                   }}>
-                    Justification
-                  </h3>
-                  <p style={{
-                    color: '#64748b',
-                    lineHeight: '1.6'
-                  }}>
-                    {request.justification}
-                  </p>
-                </div>
+                    <h3 style={{
+                      fontSize: '1.1rem',
+                      fontWeight: '700',
+                      color: '#0f172a',
+                      marginBottom: '0.75rem'
+                    }}>
+                      🗺️ Proposed Boundary
+                    </h3>
+                    <p style={{
+                      color: '#64748b',
+                      fontSize: '0.875rem',
+                      fontFamily: 'monospace',
+                      maxHeight: '100px',
+                      overflow: 'auto',
+                      background: 'white',
+                      padding: '0.75rem',
+                      borderRadius: '4px'
+                    }}>
+                      {JSON.stringify(request.proposedBoundary)}
+                    </p>
+                  </div>
+                )}
 
                 {/* Details Grid */}
                 <div style={{
@@ -363,90 +371,26 @@ export default function AdminDivisionsPage() {
                     </div>
                   </div>
 
-                  {/* ZIP Codes */}
-                  {request.zipCodes && request.zipCodes !== '[]' && (
+                  {/* Center Coordinates */}
+                  {request.centerLatitude && request.centerLongitude && (
                     <div>
                       <div style={{
                         fontSize: '0.85rem',
                         color: '#94a3b8',
                         marginBottom: '0.25rem'
                       }}>
-                        ZIP Codes
+                        Center Location
                       </div>
-                      <div style={{
-                        fontSize: '0.95rem',
-                        color: '#0f172a'
-                      }}>
-                        {JSON.parse(request.zipCodes).join(', ')}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Radius */}
-                  {request.estimatedRadius && (
-                    <div>
                       <div style={{
                         fontSize: '0.85rem',
-                        color: '#94a3b8',
-                        marginBottom: '0.25rem'
+                        color: '#0f172a',
+                        fontFamily: 'monospace'
                       }}>
-                        Radius
-                      </div>
-                      <div style={{
-                        fontSize: '1.1rem',
-                        fontWeight: '700',
-                        color: '#0f172a'
-                      }}>
-                        {request.estimatedRadius} miles
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Population */}
-                  {request.estimatedPopulation && (
-                    <div>
-                      <div style={{
-                        fontSize: '0.85rem',
-                        color: '#94a3b8',
-                        marginBottom: '0.25rem'
-                      }}>
-                        Est. Population
-                      </div>
-                      <div style={{
-                        fontSize: '1.1rem',
-                        fontWeight: '700',
-                        color: '#0f172a'
-                      }}>
-                        {request.estimatedPopulation.toLocaleString()}
+                        {request.centerLatitude.toFixed(4)}, {request.centerLongitude.toFixed(4)}
                       </div>
                     </div>
                   )}
                 </div>
-
-                {/* Notes */}
-                {request.notes && (
-                  <div style={{
-                    background: '#fef3c7',
-                    borderRadius: '8px',
-                    padding: '1rem',
-                    marginBottom: '1.5rem'
-                  }}>
-                    <div style={{
-                      fontSize: '0.85rem',
-                      fontWeight: '700',
-                      color: '#92400e',
-                      marginBottom: '0.5rem'
-                    }}>
-                      Additional Notes
-                    </div>
-                    <div style={{
-                      fontSize: '0.95rem',
-                      color: '#78350f'
-                    }}>
-                      {request.notes}
-                    </div>
-                  </div>
-                )}
 
                 {/* Rejection Reason */}
                 {request.status === 'REJECTED' && request.rejectionReason && (

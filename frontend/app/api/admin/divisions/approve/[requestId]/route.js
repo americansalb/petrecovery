@@ -52,8 +52,7 @@ export async function POST(request, { params }) {
       description,
       centerLatitude,
       centerLongitude,
-      radiusMiles,
-      zipCodes,
+      boundaries,
     } = body;
 
     // Create the Division and update the request in a transaction
@@ -63,13 +62,10 @@ export async function POST(request, { params }) {
         data: {
           rescueSquadId: divisionRequest.rescueSquadId,
           name: name || divisionRequest.proposedName,
-          description: description || divisionRequest.notes,
-          centerLatitude: centerLatitude || divisionRequest.centerLatitude,
-          centerLongitude: centerLongitude || divisionRequest.centerLongitude,
-          radiusMiles: radiusMiles || divisionRequest.estimatedRadius || 3,
-          zipCodes: zipCodes
-            ? JSON.stringify(zipCodes)
-            : divisionRequest.zipCodes,
+          description: description || null,
+          centerLatitude: centerLatitude || divisionRequest.centerLatitude || null,
+          centerLongitude: centerLongitude || divisionRequest.centerLongitude || null,
+          boundaries: boundaries || divisionRequest.proposedBoundary || null,
           isActive: true,
         },
       });
