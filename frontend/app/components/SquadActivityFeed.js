@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-export default function SquadActivityFeed({ squadId, isLeader = false }) {
+export default function SquadActivityFeed({ squadId, caseId = null, isLeader = false }) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, cases, members, tasks
@@ -14,11 +14,15 @@ export default function SquadActivityFeed({ squadId, isLeader = false }) {
     // Refresh every 30 seconds
     const interval = setInterval(loadActivities, 30000);
     return () => clearInterval(interval);
-  }, [squadId, filter]);
+  }, [squadId, caseId, filter]);
 
   const loadActivities = async () => {
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/activities?filter=${filter}`);
+      let url = `/api/rescue-squads/${squadId}/activities?filter=${filter}`;
+      if (caseId) {
+        url += `&caseId=${caseId}`;
+      }
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setActivities(data.activities || []);

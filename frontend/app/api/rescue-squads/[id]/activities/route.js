@@ -12,6 +12,7 @@ export async function GET(request, { params }) {
 
     const { searchParams } = new URL(request.url);
     const filter = searchParams.get('filter') || 'all';
+    const caseId = searchParams.get('caseId');
 
     const squadId = params.id;
 
@@ -30,6 +31,11 @@ export async function GET(request, { params }) {
 
     // Build where clause based on filter
     let whereClause = { rescueSquadId: squadId };
+
+    // Filter by specific case if provided
+    if (caseId) {
+      whereClause.caseId = caseId;
+    }
 
     if (filter === 'cases') {
       whereClause.type = {
