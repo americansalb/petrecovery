@@ -12,12 +12,49 @@ export default function AdminCreateRescueSquadPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [zipCode, setZipCode] = useState('');
+  const [cityName, setCityName] = useState('');
+  const [stateName, setStateName] = useState('');
+  const [suggestedCity, setSuggestedCity] = useState('');
+  const [zipVerified, setZipVerified] = useState(false);
 
   useEffect(() => {
     if (session && session.user.role !== 'ADMIN') {
       router.push('/dashboard');
     }
   }, [session]);
+
+  const handleVerifyZip = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      if (!zipCode.trim() || zipCode.length !== 5) {
+        throw new Error('Valid 5-digit ZIP code is required');
+      }
+
+      // Geocode the ZIP to get suggested city/state
+      const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+      if (!geoRes.ok) {
+        throw new Error('Invalid ZIP code');
+      }
+
+      const geoData = await geoRes.json();
+      const place = geoData.places[0];
+      const suggestedCityName = place['place name'];
+      const state = place['state abbreviation'];
+
+      setSuggestedCity(suggestedCityName);
+      setCityName(suggestedCityName); // Pre-fill with suggestion
+      setStateName(state);
+      setZipVerified(true);
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,25 +63,14 @@ export default function AdminCreateRescueSquadPage() {
     setLoading(true);
 
     try {
-      if (!zipCode.trim()) {
-        throw new Error('ZIP code is required');
+      if (!cityName.trim()) {
+        throw new Error('City name is required');
       }
-
-      // Geocode the ZIP to get city/state
-      const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
-      if (!geoRes.ok) {
-        throw new Error('Invalid ZIP code');
-      }
-
-      const geoData = await geoRes.json();
-      const place = geoData.places[0];
-      const city = place['place name'];
-      const state = place['state abbreviation'];
 
       const res = await fetch('/api/rescue-squads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, state, zipCode }),
+        body: JSON.stringify({ city: cityName.trim(), state: stateName, zipCode }),
       });
 
       const data = await res.json();
@@ -150,82 +176,186 @@ export default function AdminCreateRescueSquadPage() {
           </div>
         )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} style={{
-          background: 'white',
-          borderRadius: '16px',
-          padding: '2rem',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-        }}>
-          <div style={{ marginBottom: '2rem' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '1rem',
-              fontWeight: '700',
-              color: '#0f172a',
-              marginBottom: '0.5rem'
-            }}>
-              ZIP Code <span style={{ color: '#ef4444' }}>*</span>
-            </label>
-            <input
-              type="text"
-              value={zipCode}
-              onChange={(e) => setZipCode(e.target.value)}
-              placeholder="60601"
-              required
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #e2e8f0',
-                borderRadius: '8px',
-                fontSize: '1rem'
-              }}
-            />
-            <p style={{
-              fontSize: '0.875rem',
-              color: '#64748b',
-              marginTop: '0.5rem'
-            }}>
-              We'll automatically create a rescue squad for this city (e.g., "Chicago Rescue Squad")
-            </p>
-          </div>
-
-          <div style={{
-            display: 'flex',
-            gap: '1rem',
-            justifyContent: 'flex-end'
+        {/* Step 1: ZIP Code Entry */}
+        {!zipVerified && (
+          <form onSubmit={handleVerifyZip} style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
           }}>
-            <Link
-              href="/admin/rescue-squads"
-              style={{
-                padding: '0.75rem 1.5rem',
-                background: 'white',
-                color: '#64748b',
-                border: '2px solid #e2e8f0',
-                borderRadius: '8px',
-                textDecoration: 'none',
-                fontWeight: '700'
-              }}
-            >
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                padding: '0.75rem 1.5rem',
-                background: loading ? '#cbd5e1' : '#10b981',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
+            <div style={{ marginBottom: '2rem' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '1rem',
                 fontWeight: '700',
-                cursor: loading ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {loading ? 'Creating...' : 'Create Squad'}
-            </button>
-          </div>
-        </form>
+                color: '#0f172a',
+                marginBottom: '0.5rem'
+              }}>
+                ZIP Code <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input
+                type="text"
+                value={zipCode}
+                onChange={(e) => setZipCode(e.target.value)}
+                placeholder="60601"
+                required
+                maxLength={5}
+                pattern="[0-9]{5}"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '1rem'
+                }}
+              />
+              <p style={{
+                fontSize: '0.875rem',
+                color: '#64748b',
+                marginTop: '0.5rem'
+              }}>
+                Enter the ZIP code for the city where you want to create a rescue squad
+              </p>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              gap: '1rem',
+              justifyContent: 'flex-end'
+            }}>
+              <Link
+                href="/admin/rescue-squads"
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: 'white',
+                  color: '#64748b',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontWeight: '700'
+                }}
+              >
+                Cancel
+              </Link>
+              <button
+                type="submit"
+                disabled={loading || zipCode.length !== 5}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: loading || zipCode.length !== 5 ? '#cbd5e1' : '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '700',
+                  cursor: loading || zipCode.length !== 5 ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {loading ? 'Verifying...' : 'Continue →'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Step 2: City Name Confirmation/Override */}
+        {zipVerified && (
+          <form onSubmit={handleSubmit} style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
+          }}>
+            {/* ZIP Info Banner */}
+            <div style={{
+              background: '#eff6ff',
+              border: '2px solid #3b82f6',
+              borderRadius: '8px',
+              padding: '1rem',
+              marginBottom: '1.5rem'
+            }}>
+              <div style={{ fontSize: '0.875rem', color: '#1e40af', marginBottom: '0.25rem' }}>
+                ZIP Code: <strong>{zipCode}</strong> • Suggested City: <strong>{suggestedCity}, {stateName}</strong>
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#3b82f6', marginTop: '0.5rem' }}>
+                If this ZIP serves multiple cities (e.g., {suggestedCity} and Lynwood), you can override the city name below
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '1rem',
+                fontWeight: '700',
+                color: '#0f172a',
+                marginBottom: '0.5rem'
+              }}>
+                City Name <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input
+                type="text"
+                value={cityName}
+                onChange={(e) => setCityName(e.target.value)}
+                placeholder="e.g., Lynwood, Chicago Heights"
+                required
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '1rem'
+                }}
+              />
+              <p style={{
+                fontSize: '0.875rem',
+                color: '#64748b',
+                marginTop: '0.5rem'
+              }}>
+                Will create: <strong>{cityName ? `${cityName} Rescue Squad` : '[City] Rescue Squad'}</strong>
+              </p>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              gap: '1rem',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setZipVerified(false);
+                  setCityName('');
+                  setSuggestedCity('');
+                }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: 'white',
+                  color: '#64748b',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                ← Change ZIP
+              </button>
+              <button
+                type="submit"
+                disabled={loading || !cityName.trim()}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: loading || !cityName.trim() ? '#cbd5e1' : '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '700',
+                  cursor: loading || !cityName.trim() ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {loading ? 'Creating...' : 'Create Squad'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
