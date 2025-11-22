@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { getCitySuggestions, isValidCity, getCityFromZip } from '../lib/cities';
+import { getCitySuggestions, isValidCity, getCityFromZip } from '../../lib/cities';
 
 export default function RescueSquadSearchPage() {
   const { data: session } = useSession();
