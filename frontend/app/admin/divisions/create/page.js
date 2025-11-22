@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -13,18 +13,25 @@ export default function AdminCreateDivisionPage() {
   const [success, setSuccess] = useState('');
   const [squads, setSquads] = useState([]);
   const [loadingSquads, setLoadingSquads] = useState(true);
+  const [mapLoaded, setMapLoaded] = useState(false);
+
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const drawnItemsRef = useRef(null);
 
   const [formData, setFormData] = useState({
     rescueSquadId: '',
     name: '',
-    polygonJSON: ''
   });
+
+  const [polygon, setPolygon] = useState(null);
 
   useEffect(() => {
     if (session && session.user.role !== 'ADMIN') {
       router.push('/dashboard');
     } else {
       loadSquads();
+      loadMap();
     }
   }, [session]);
 
@@ -40,6 +47,85 @@ export default function AdminCreateDivisionPage() {
     } finally {
       setLoadingSquads(false);
     }
+  };
+
+  const loadMap = async () => {
+    if (typeof window === 'undefined') return;
+
+    // Load Leaflet and Leaflet Draw
+    const L = (await import('leaflet')).default;
+    await import('leaflet-draw');
+    await import('leaflet-draw/dist/leaflet.draw.css');
+
+    // Initialize map
+    const map = L.map(mapRef.current).setView([41.8781, -87.6298], 11); // Chicago center
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Create feature group for drawn items
+    const drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+    drawnItemsRef.current = drawnItems;
+
+    // Add drawing controls
+    const drawControl = new L.Control.Draw({
+      position: 'topright',
+      draw: {
+        polygon: {
+          allowIntersection: false,
+          shapeOptions: {
+            color: '#667eea',
+            fillColor: '#667eea',
+            fillOpacity: 0.3,
+            weight: 3
+          }
+        },
+        polyline: false,
+        circle: false,
+        rectangle: false,
+        marker: false,
+        circlemarker: false
+      },
+      edit: {
+        featureGroup: drawnItems,
+        remove: true
+      }
+    });
+    map.addControl(drawControl);
+
+    // Handle polygon creation
+    map.on(L.Draw.Event.CREATED, function (event) {
+      const layer = event.layer;
+
+      // Clear previous drawings
+      drawnItems.clearLayers();
+
+      // Add new polygon
+      drawnItems.addLayer(layer);
+
+      // Get coordinates
+      const coords = layer.getLatLngs()[0].map(latlng => [latlng.lng, latlng.lat]);
+      setPolygon(coords);
+    });
+
+    // Handle polygon edit
+    map.on(L.Draw.Event.EDITED, function (event) {
+      const layers = event.layers;
+      layers.eachLayer(function (layer) {
+        const coords = layer.getLatLngs()[0].map(latlng => [latlng.lng, latlng.lat]);
+        setPolygon(coords);
+      });
+    });
+
+    // Handle polygon delete
+    map.on(L.Draw.Event.DELETED, function () {
+      setPolygon(null);
+    });
+
+    mapInstanceRef.current = map;
+    setMapLoaded(true);
   };
 
   const handleChange = (e) => {
@@ -59,7 +145,7 @@ export default function AdminCreateDivisionPage() {
     try {
       // Validate required fields
       if (!formData.rescueSquadId || !formData.name) {
-        throw new Error('Rescue Squad and Division Name are required');
+        throw new Error('Rescue Squad and Neighborhood Name are required');
       }
 
       // Auto-append " Division" if not already present
@@ -68,28 +154,20 @@ export default function AdminCreateDivisionPage() {
         divisionName = divisionName + ' Division';
       }
 
-      // Parse polygon if provided
-      let boundaries = null;
+      // Calculate center point from polygon
       let centerLatitude = null;
       let centerLongitude = null;
+      let boundaries = null;
 
-      if (formData.polygonJSON.trim()) {
-        try {
-          boundaries = JSON.parse(formData.polygonJSON);
-
-          // Calculate center point from polygon (average of all coordinates)
-          if (Array.isArray(boundaries) && boundaries.length > 0) {
-            let sumLat = 0, sumLng = 0;
-            boundaries.forEach(coord => {
-              sumLng += coord[0]; // longitude first in GeoJSON
-              sumLat += coord[1]; // latitude second
-            });
-            centerLongitude = sumLng / boundaries.length;
-            centerLatitude = sumLat / boundaries.length;
-          }
-        } catch (e) {
-          throw new Error('Invalid polygon format. Use GeoJSON: [[lng, lat], [lng, lat], ...]');
-        }
+      if (polygon && polygon.length > 0) {
+        let sumLat = 0, sumLng = 0;
+        polygon.forEach(coord => {
+          sumLng += coord[0];
+          sumLat += coord[1];
+        });
+        centerLongitude = sumLng / polygon.length;
+        centerLatitude = sumLat / polygon.length;
+        boundaries = polygon;
       }
 
       const payload = {
@@ -119,12 +197,15 @@ export default function AdminCreateDivisionPage() {
       setFormData({
         rescueSquadId: '',
         name: '',
-        polygonJSON: ''
       });
+      setPolygon(null);
+      if (drawnItemsRef.current) {
+        drawnItemsRef.current.clearLayers();
+      }
 
       // Redirect after 2 seconds
       setTimeout(() => {
-        router.push(`/rescue-squads/${data.division.rescueSquadId}`);
+        router.push(`/admin/divisions`);
       }, 2000);
 
     } catch (err) {
@@ -145,7 +226,7 @@ export default function AdminCreateDivisionPage() {
       padding: '3rem 1rem'
     }}>
       <div style={{
-        maxWidth: '900px',
+        maxWidth: '1400px',
         margin: '0 auto'
       }}>
         {/* Header */}
@@ -170,7 +251,7 @@ export default function AdminCreateDivisionPage() {
               fontSize: '1.1rem',
               color: '#64748b'
             }}>
-              Manually create a neighborhood division within a rescue squad
+              Draw the neighborhood boundary on the map
             </p>
           </div>
           <Link
@@ -220,160 +301,189 @@ export default function AdminCreateDivisionPage() {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} style={{
-          background: 'white',
-          borderRadius: '16px',
-          padding: '2rem',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-        }}>
-          {/* Rescue Squad Selection */}
-          <div style={{ marginBottom: '2rem' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '1rem',
-              fontWeight: '700',
-              color: '#0f172a',
-              marginBottom: '0.5rem'
-            }}>
-              Rescue Squad <span style={{ color: '#ef4444' }}>*</span>
-            </label>
-            <select
-              name="rescueSquadId"
-              value={formData.rescueSquadId}
-              onChange={handleChange}
-              required
-              disabled={loadingSquads}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #e2e8f0',
-                borderRadius: '8px',
-                fontSize: '1rem',
-                fontFamily: 'inherit'
-              }}
-            >
-              <option value="">Select a Rescue Squad...</option>
-              {squads.map(squad => (
-                <option key={squad.id} value={squad.id}>
-                  {squad.name} ({squad.city}, {squad.state})
-                </option>
-              ))}
-            </select>
-            <p style={{
-              fontSize: '0.875rem',
-              color: '#64748b',
-              marginTop: '0.5rem'
-            }}>
-              Choose the parent rescue squad for this division
-            </p>
-          </div>
-
-          {/* Division Name */}
-          <div style={{ marginBottom: '2rem' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '1rem',
-              fontWeight: '700',
-              color: '#0f172a',
-              marginBottom: '0.5rem'
-            }}>
-              Neighborhood Name <span style={{ color: '#ef4444' }}>*</span>
-            </label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="e.g., Lakeview, Lincoln Park, Wicker Park"
-              required
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #e2e8f0',
-                borderRadius: '8px',
-                fontSize: '1rem'
-              }}
-            />
-            <p style={{
-              fontSize: '0.875rem',
-              color: '#64748b',
-              marginTop: '0.5rem'
-            }}>
-              Just the neighborhood name - we'll automatically add "Division"
-            </p>
-          </div>
-
-          {/* Polygon Boundaries */}
-          <div style={{ marginBottom: '2rem' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '1rem',
-              fontWeight: '700',
-              color: '#0f172a',
-              marginBottom: '0.5rem'
-            }}>
-              Polygon Boundaries (Optional)
-            </label>
-            <textarea
-              name="polygonJSON"
-              value={formData.polygonJSON}
-              onChange={handleChange}
-              placeholder='[[-87.6537, 41.9403], [-87.6537, 41.9503], [-87.6437, 41.9503], [-87.6437, 41.9403], [-87.6537, 41.9403]]'
-              rows="6"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #e2e8f0',
-                borderRadius: '8px',
-                fontSize: '0.875rem',
-                fontFamily: 'monospace'
-              }}
-            />
-            <p style={{
-              fontSize: '0.875rem',
-              color: '#64748b',
-              marginTop: '0.5rem'
-            }}>
-              GeoJSON format: [[lng, lat], [lng, lat], ...]. First and last coordinate must match.
-              Center point auto-calculated from polygon.
-            </p>
-          </div>
-
-          {/* Submit Buttons */}
+        <form onSubmit={handleSubmit}>
           <div style={{
-            display: 'flex',
-            gap: '1rem',
-            justifyContent: 'flex-end'
+            display: 'grid',
+            gridTemplateColumns: '1fr 2fr',
+            gap: '2rem',
+            alignItems: 'start'
           }}>
-            <Link
-              href="/admin/divisions"
-              style={{
-                padding: '0.75rem 1.5rem',
-                background: 'white',
-                color: '#64748b',
-                border: '2px solid #e2e8f0',
+            {/* Left Column - Form Fields */}
+            <div style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '2rem',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
+            }}>
+              {/* Rescue Squad Selection */}
+              <div style={{ marginBottom: '2rem' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '1rem',
+                  fontWeight: '700',
+                  color: '#0f172a',
+                  marginBottom: '0.5rem'
+                }}>
+                  Rescue Squad <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <select
+                  name="rescueSquadId"
+                  value={formData.rescueSquadId}
+                  onChange={handleChange}
+                  required
+                  disabled={loadingSquads}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '1rem',
+                    fontFamily: 'inherit'
+                  }}
+                >
+                  <option value="">Select a Rescue Squad...</option>
+                  {squads.map(squad => (
+                    <option key={squad.id} value={squad.id}>
+                      {squad.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Division Name */}
+              <div style={{ marginBottom: '2rem' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '1rem',
+                  fontWeight: '700',
+                  color: '#0f172a',
+                  marginBottom: '0.5rem'
+                }}>
+                  Neighborhood Name <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  placeholder="e.g., Lakeview, Lincoln Park"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '1rem'
+                  }}
+                />
+                <p style={{
+                  fontSize: '0.875rem',
+                  color: '#64748b',
+                  marginTop: '0.5rem'
+                }}>
+                  We'll automatically add "Division"
+                </p>
+              </div>
+
+              {/* Polygon Status */}
+              <div style={{
+                padding: '1rem',
+                background: polygon ? '#d1fae5' : '#fef3c7',
+                border: `2px solid ${polygon ? '#10b981' : '#f59e0b'}`,
                 borderRadius: '8px',
-                textDecoration: 'none',
-                fontWeight: '700'
-              }}
-            >
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                padding: '0.75rem 1.5rem',
-                background: loading ? '#cbd5e1' : '#2563eb',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
+                marginBottom: '2rem'
+              }}>
+                <div style={{
+                  fontWeight: '600',
+                  color: polygon ? '#065f46' : '#92400e',
+                  marginBottom: '0.25rem'
+                }}>
+                  {polygon ? '✓ Polygon Drawn' : '⚠ No Polygon Yet'}
+                </div>
+                <div style={{
+                  fontSize: '0.875rem',
+                  color: polygon ? '#047857' : '#78350f'
+                }}>
+                  {polygon
+                    ? `${polygon.length} points • Center auto-calculated`
+                    : 'Use the drawing tools on the map to draw the neighborhood boundary'
+                  }
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div style={{
+                display: 'flex',
+                gap: '1rem',
+                flexDirection: 'column'
+              }}>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{
+                    padding: '1rem',
+                    background: loading ? '#cbd5e1' : '#10b981',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '700',
+                    fontSize: '1rem',
+                    cursor: loading ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {loading ? 'Creating...' : 'Create Division'}
+                </button>
+                <Link
+                  href="/admin/divisions"
+                  style={{
+                    padding: '1rem',
+                    background: 'white',
+                    color: '#64748b',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontWeight: '700',
+                    textAlign: 'center'
+                  }}
+                >
+                  Cancel
+                </Link>
+              </div>
+            </div>
+
+            {/* Right Column - Map */}
+            <div style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '1.5rem',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
+            }}>
+              <h3 style={{
+                fontSize: '1.25rem',
                 fontWeight: '700',
-                cursor: loading ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {loading ? 'Creating...' : 'Create Division'}
-            </button>
+                color: '#0f172a',
+                marginBottom: '1rem'
+              }}>
+                Draw Neighborhood Boundary
+              </h3>
+              <p style={{
+                fontSize: '0.875rem',
+                color: '#64748b',
+                marginBottom: '1rem'
+              }}>
+                Click the polygon icon (◇) in the top right, then click on the map to draw the boundary.
+                Click the first point again to close the polygon.
+              </p>
+              <div
+                ref={mapRef}
+                style={{
+                  height: '600px',
+                  width: '100%',
+                  borderRadius: '8px',
+                  border: '2px solid #e2e8f0'
+                }}
+              />
+            </div>
           </div>
         </form>
       </div>
