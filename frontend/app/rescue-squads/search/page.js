@@ -199,23 +199,19 @@ export default function RescueSquadSearchPage() {
           borderRadius: '12px',
           padding: '1.5rem',
           boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-          marginBottom: '2rem',
-          display: 'flex',
-          gap: '1rem',
-          alignItems: 'end',
-          flexWrap: 'wrap'
+          marginBottom: '2rem'
         }}>
           <div style={{
-            flex: '1 1 280px',
-            minWidth: '200px',
-            maxWidth: '100%',
-            position: 'relative',
-            marginBottom: validationError ? '1.5rem' : showSuggestions ? '13rem' : '0'
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '1rem',
+            marginBottom: validationError || showSuggestions ? '0.5rem' : '0'
           }}>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
-              City Name or ZIP Code
-            </label>
-            <div style={{ position: 'relative' }}>
+            {/* City/ZIP Input */}
+            <div style={{ position: 'relative', gridColumn: 'span 2' }}>
+              <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
+                City Name or ZIP Code
+              </label>
               <input
                 type="text"
                 value={searchTerm}
@@ -224,7 +220,6 @@ export default function RescueSquadSearchPage() {
                   if (suggestions.length > 0) setShowSuggestions(true);
                 }}
                 onBlur={() => {
-                  // Delay to allow clicking suggestions
                   setTimeout(() => setShowSuggestions(false), 200);
                 }}
                 placeholder="e.g., Lynwood or 60411"
@@ -234,29 +229,18 @@ export default function RescueSquadSearchPage() {
                   paddingRight: '2.5rem',
                   border: `2px solid ${validationError ? '#ef4444' : inputType === 'zip' ? '#3b82f6' : inputType === 'city' ? '#10b981' : '#e2e8f0'}`,
                   borderRadius: '8px',
-                  fontSize: '1rem'
+                  fontSize: '1rem',
+                  boxSizing: 'border-box'
                 }}
                 required
               />
-              {validationError && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: '-1.5rem',
-                  left: 0,
-                  fontSize: '0.85rem',
-                  color: '#ef4444',
-                  fontWeight: '600'
-                }}>
-                  {validationError}
-                </div>
-              )}
+
               {/* Input type indicator */}
               {inputType && searchTerm.trim() && (
                 <div style={{
                   position: 'absolute',
                   right: '0.75rem',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
+                  top: '2.5rem',
                   fontSize: '0.75rem',
                   fontWeight: '600',
                   color: inputType === 'zip' ? '#3b82f6' : '#10b981',
@@ -267,84 +251,105 @@ export default function RescueSquadSearchPage() {
                   {inputType === 'zip' ? 'ZIP' : 'City'}
                 </div>
               )}
+
+              {/* Validation error */}
+              {validationError && (
+                <div style={{
+                  marginTop: '0.5rem',
+                  fontSize: '0.85rem',
+                  color: '#ef4444',
+                  fontWeight: '600'
+                }}>
+                  {validationError}
+                </div>
+              )}
+
+              {/* Suggestions dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  background: 'white',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  marginTop: '0.5rem',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  zIndex: 1000,
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                }}>
+                  {suggestions.map((city, idx) => (
+                    <div
+                      key={`${city.city}-${city.state_id}-${idx}`}
+                      onMouseDown={() => selectSuggestion(city)}
+                      style={{
+                        padding: '0.75rem',
+                        cursor: 'pointer',
+                        borderBottom: idx < suggestions.length - 1 ? '1px solid #f1f5f9' : 'none',
+                        background: 'white'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                    >
+                      <div style={{ fontWeight: '600', color: '#0f172a' }}>
+                        {city.city}, {city.state_id}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                        {city.state_name} • {city.zips.length > 0 ? `ZIP ${city.zips[0]}` : 'No ZIP'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Suggestions dropdown */}
-            {showSuggestions && suggestions.length > 0 && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                background: 'white',
-                border: '2px solid #e2e8f0',
-                borderRadius: '8px',
-                marginTop: '0.25rem',
-                maxHeight: '200px',
-                overflowY: 'auto',
-                zIndex: 1000,
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-              }}>
-                {suggestions.map((city, idx) => (
-                  <div
-                    key={`${city.city}-${city.state_id}-${idx}`}
-                    onMouseDown={() => selectSuggestion(city)}
-                    style={{
-                      padding: '0.75rem',
-                      cursor: 'pointer',
-                      borderBottom: idx < suggestions.length - 1 ? '1px solid #f1f5f9' : 'none',
-                      background: 'white'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                  >
-                    <div style={{ fontWeight: '600', color: '#0f172a' }}>
-                      {city.city}, {city.state_id}
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                      {city.state_name} • {city.zips.length > 0 ? `ZIP ${city.zips[0]}` : 'No ZIP'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* Radius */}
+            <div>
+              <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
+                Radius
+              </label>
+              <select
+                value={radius}
+                onChange={(e) => setRadius(Number(e.target.value))}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <option value={10}>10 miles</option>
+                <option value={25}>25 miles</option>
+                <option value={50}>50 miles</option>
+              </select>
+            </div>
+
+            {/* Search Button */}
+            <div style={{ display: 'flex', alignItems: 'end' }}>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 1.5rem',
+                  background: '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '700',
+                  fontSize: '1rem',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  boxSizing: 'border-box'
+                }}
+              >
+                {loading ? 'Searching...' : 'Search'}
+              </button>
+            </div>
           </div>
-          <div style={{ flex: '0 0 auto', minWidth: '120px', width: '140px' }}>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>Radius</label>
-            <select
-              value={radius}
-              onChange={(e) => setRadius(Number(e.target.value))}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #e2e8f0',
-                borderRadius: '8px',
-                fontSize: '1rem'
-              }}
-            >
-              <option value={10}>10 miles</option>
-              <option value={25}>25 miles</option>
-              <option value={50}>50 miles</option>
-            </select>
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              flex: '0 0 auto',
-              padding: '0.75rem 2rem',
-              background: '#667eea',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontWeight: '700',
-              fontSize: '1rem',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {loading ? 'Searching...' : 'Search'}
-          </button>
         </form>
 
         {/* Results */}
