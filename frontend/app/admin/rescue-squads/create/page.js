@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export default function AdminCreateRescueSquadPage() {
+export default function CreateRescueSquadPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -19,11 +19,8 @@ export default function AdminCreateRescueSquadPage() {
   const [isCustomCity, setIsCustomCity] = useState(false);
   const [customCityInput, setCustomCityInput] = useState('');
 
-  useEffect(() => {
-    if (session && session.user.role !== 'ADMIN') {
-      router.push('/dashboard');
-    }
-  }, [session]);
+  // No role restriction - any authenticated user can create a rescue squad
+  // Only division creation requires admin role
 
   const handleVerifyZip = async (e) => {
     e.preventDefault();
@@ -101,10 +98,6 @@ export default function AdminCreateRescueSquadPage() {
     }
   };
 
-  if (!session || session.user.role !== 'ADMIN') {
-    return null;
-  }
-
   return (
     <div style={{
       minHeight: '100vh',
@@ -139,7 +132,7 @@ export default function AdminCreateRescueSquadPage() {
             </p>
           </div>
           <Link
-            href="/admin/rescue-squads"
+            href="/rescue-squads"
             style={{
               padding: '0.75rem 1.5rem',
               background: 'white',
@@ -233,7 +226,7 @@ export default function AdminCreateRescueSquadPage() {
               justifyContent: 'flex-end'
             }}>
               <Link
-                href="/admin/rescue-squads"
+                href="/rescue-squads"
                 style={{
                   padding: '0.75rem 1.5rem',
                   background: 'white',
