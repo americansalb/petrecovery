@@ -1237,70 +1237,68 @@ export default function RescueSquadDetailPage({ params }) {
           </div>
         )}
 
-        {/* Main Content - Removed useless "About" section */}
-
-          {/* Members Preview */}
-          <div style={{
-            background: 'white',
-            borderRadius: '16px',
-            padding: '2.5rem',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
+        {/* Members Preview */}
+        <div style={{
+          background: 'white',
+          borderRadius: '16px',
+          padding: '2.5rem',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+          marginBottom: '2rem'
+        }}>
+          <h2 style={{
+            fontSize: '1.5rem',
+            fontWeight: '800',
+            color: '#0f172a',
+            marginBottom: '1.5rem'
           }}>
-            <h2 style={{
-              fontSize: '1.5rem',
-              fontWeight: '800',
-              color: '#0f172a',
-              marginBottom: '1.5rem'
-            }}>
-              Squad Leaders
-            </h2>
+            Squad Leaders
+          </h2>
 
-            {squad.members && squad.members.filter(m => ['FOUNDER', 'LEADER'].includes(m.role)).length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {squad.members
-                  .filter(m => ['FOUNDER', 'LEADER'].includes(m.role))
-                  .slice(0, 5)
-                  .map(member => (
-                    <div key={member.id} style={{
+          {squad.members && squad.members.filter(m => ['FOUNDER', 'LEADER'].includes(m.role)).length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {squad.members
+                .filter(m => ['FOUNDER', 'LEADER'].includes(m.role))
+                .slice(0, 5)
+                .map(member => (
+                  <div key={member.id} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem'
+                  }}>
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      background: '#667eea',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.75rem'
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontWeight: '700',
+                      fontSize: '1.1rem'
                     }}>
+                      {member.user.firstName?.[0] || '?'}
+                    </div>
+                    <div>
                       <div style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        background: '#667eea',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
                         fontWeight: '700',
-                        fontSize: '1.1rem'
+                        color: '#0f172a'
                       }}>
-                        {member.user.firstName?.[0] || '?'}
+                        {member.user.firstName} {member.user.lastName}
                       </div>
-                      <div>
-                        <div style={{
-                          fontWeight: '700',
-                          color: '#0f172a'
-                        }}>
-                          {member.user.firstName} {member.user.lastName}
-                        </div>
-                        <div style={{
-                          fontSize: '0.85rem',
-                          color: '#64748b'
-                        }}>
-                          {member.role}
-                        </div>
+                      <div style={{
+                        fontSize: '0.85rem',
+                        color: '#64748b'
+                      }}>
+                        {member.role}
                       </div>
                     </div>
-                  ))}
-              </div>
-            ) : (
-              <p style={{ color: '#64748b' }}>No leaders listed</p>
-            )}
-          </div>
+                  </div>
+                ))}
+            </div>
+          ) : (
+            <p style={{ color: '#64748b' }}>No leaders listed</p>
+          )}
         </div>
 
         {/* Divisions */}
