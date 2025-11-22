@@ -126,6 +126,20 @@ export default function AdminRescueSquadsPage() {
             </Link>
 
             <Link
+              href="/admin/divisions"
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: '#667eea',
+                color: 'white',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontWeight: '700'
+              }}
+            >
+              📍 Manage Divisions
+            </Link>
+
+            <Link
               href="/admin/rescue-squads/create"
               style={{
                 padding: '0.75rem 1.5rem',
