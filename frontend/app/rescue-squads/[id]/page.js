@@ -4,6 +4,13 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+// Dynamically import map to avoid SSR issues
+const SquadCoverageMap = dynamic(() => import('@/app/components/SquadCoverageMap'), {
+  ssr: false,
+  loading: () => <div style={{ height: '400px', background: '#f8fafc', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>Loading map...</div>
+});
 
 export default function RescueSquadDetailPage({ params }) {
   const { data: session } = useSession();
@@ -515,17 +522,30 @@ export default function RescueSquadDetailPage({ params }) {
               color: '#64748b',
               marginBottom: '0.5rem'
             }}>
-              Coverage Area
+              Total Cases Handled
             </div>
             <div style={{
               fontSize: '2rem',
               fontWeight: '900',
-              color: '#0f172a'
+              color: '#667eea'
             }}>
-              {squad.radiusMiles} mi
+              {(squad.activeCases || 0) + (squad.successfulReunions || 0)}
             </div>
           </div>
         </div>
+
+        {/* Coverage Area Map */}
+        {squad.centerLatitude && squad.centerLongitude && (
+          <div style={{ marginBottom: '2rem' }}>
+            <SquadCoverageMap
+              latitude={squad.centerLatitude}
+              longitude={squad.centerLongitude}
+              radiusMiles={squad.radiusMiles}
+              city={squad.city}
+              state={squad.state}
+            />
+          </div>
+        )}
 
         {/* Available Cases (Leaders Only) */}
         {userRole && ['FOUNDER', 'LEADER'].includes(userRole) && (
@@ -977,103 +997,7 @@ export default function RescueSquadDetailPage({ params }) {
           </div>
         )}
 
-        {/* Main Content */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '2fr 1fr',
-          gap: '2rem',
-          marginBottom: '2rem'
-        }}>
-          {/* Squad Info */}
-          <div style={{
-            background: 'white',
-            borderRadius: '16px',
-            padding: '2.5rem',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-          }}>
-            <h2 style={{
-              fontSize: '1.5rem',
-              fontWeight: '800',
-              color: '#0f172a',
-              marginBottom: '1.5rem'
-            }}>
-              About This Squad
-            </h2>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <div style={{
-                fontSize: '0.9rem',
-                color: '#64748b',
-                marginBottom: '0.5rem',
-                fontWeight: '600'
-              }}>
-                Coverage Type
-              </div>
-              <div style={{
-                fontSize: '1.1rem',
-                color: '#0f172a'
-              }}>
-                {squad.coverageType || 'CITYWIDE'}
-              </div>
-            </div>
-
-            {squad.zipCodes && squad.zipCodes.length > 0 && (
-              <div style={{ marginBottom: '1.5rem' }}>
-                <div style={{
-                  fontSize: '0.9rem',
-                  color: '#64748b',
-                  marginBottom: '0.5rem',
-                  fontWeight: '600'
-                }}>
-                  ZIP Codes Served
-                </div>
-                <div style={{
-                  fontSize: '1.1rem',
-                  color: '#0f172a'
-                }}>
-                  {Array.isArray(squad.zipCodes)
-                    ? squad.zipCodes.join(', ')
-                    : JSON.parse(squad.zipCodes).join(', ')}
-                </div>
-              </div>
-            )}
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <div style={{
-                fontSize: '0.9rem',
-                color: '#64748b',
-                marginBottom: '0.5rem',
-                fontWeight: '600'
-              }}>
-                Availability
-              </div>
-              <div style={{
-                fontSize: '1.1rem',
-                color: '#0f172a'
-              }}>
-                {squad.availability247 ? '24/7 Available' : 'Business Hours'}
-              </div>
-            </div>
-
-            {squad.contactEmail && (
-              <div style={{ marginBottom: '1.5rem' }}>
-                <div style={{
-                  fontSize: '0.9rem',
-                  color: '#64748b',
-                  marginBottom: '0.5rem',
-                  fontWeight: '600'
-                }}>
-                  Contact
-                </div>
-                <div style={{
-                  fontSize: '1.1rem',
-                  color: '#667eea'
-                }}>
-                  {squad.contactEmail}
-                </div>
-              </div>
-            )}
-          </div>
+        {/* Main Content - Removed useless "About" section */}
 
           {/* Members Preview */}
           <div style={{
