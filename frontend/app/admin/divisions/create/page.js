@@ -17,7 +17,7 @@ export default function AdminCreateDivisionPage() {
   const [formData, setFormData] = useState({
     rescueSquadId: '',
     name: '',
-    zipCode: ''
+    polygonJSON: ''
   });
 
   useEffect(() => {
@@ -58,26 +58,45 @@ export default function AdminCreateDivisionPage() {
 
     try {
       // Validate required fields
-      if (!formData.rescueSquadId || !formData.name || !formData.zipCode) {
-        throw new Error('All fields are required');
+      if (!formData.rescueSquadId || !formData.name) {
+        throw new Error('Rescue Squad and Division Name are required');
       }
 
-      // Geocode the ZIP to get coordinates
-      const geoRes = await fetch(`https://api.zippopotam.us/us/${formData.zipCode}`);
-      if (!geoRes.ok) {
-        throw new Error('Invalid ZIP code');
+      // Auto-append " Division" if not already present
+      let divisionName = formData.name.trim();
+      if (!divisionName.toLowerCase().includes('division')) {
+        divisionName = divisionName + ' Division';
       }
 
-      const geoData = await geoRes.json();
-      const place = geoData.places[0];
-      const centerLatitude = parseFloat(place['latitude']);
-      const centerLongitude = parseFloat(place['longitude']);
+      // Parse polygon if provided
+      let boundaries = null;
+      let centerLatitude = null;
+      let centerLongitude = null;
+
+      if (formData.polygonJSON.trim()) {
+        try {
+          boundaries = JSON.parse(formData.polygonJSON);
+
+          // Calculate center point from polygon (average of all coordinates)
+          if (Array.isArray(boundaries) && boundaries.length > 0) {
+            let sumLat = 0, sumLng = 0;
+            boundaries.forEach(coord => {
+              sumLng += coord[0]; // longitude first in GeoJSON
+              sumLat += coord[1]; // latitude second
+            });
+            centerLongitude = sumLng / boundaries.length;
+            centerLatitude = sumLat / boundaries.length;
+          }
+        } catch (e) {
+          throw new Error('Invalid polygon format. Use GeoJSON: [[lng, lat], [lng, lat], ...]');
+        }
+      }
 
       const payload = {
         rescueSquadId: formData.rescueSquadId,
-        name: formData.name.trim(),
+        name: divisionName,
         description: null,
-        boundaries: null,
+        boundaries,
         centerLatitude,
         centerLongitude
       };
@@ -100,7 +119,7 @@ export default function AdminCreateDivisionPage() {
       setFormData({
         rescueSquadId: '',
         name: '',
-        zipCode: ''
+        polygonJSON: ''
       });
 
       // Redirect after 2 seconds
@@ -258,14 +277,14 @@ export default function AdminCreateDivisionPage() {
               color: '#0f172a',
               marginBottom: '0.5rem'
             }}>
-              Division Name <span style={{ color: '#ef4444' }}>*</span>
+              Neighborhood Name <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <input
               type="text"
               name="name"
               value={formData.name}
               onChange={handleChange}
-              placeholder="e.g., Lakeview Division, Lincoln Park Division"
+              placeholder="e.g., Lakeview, Lincoln Park, Wicker Park"
               required
               style={{
                 width: '100%',
@@ -280,11 +299,11 @@ export default function AdminCreateDivisionPage() {
               color: '#64748b',
               marginTop: '0.5rem'
             }}>
-              Name should include "Division" suffix for clarity
+              Just the neighborhood name - we'll automatically add "Division"
             </p>
           </div>
 
-          {/* ZIP Code */}
+          {/* Polygon Boundaries */}
           <div style={{ marginBottom: '2rem' }}>
             <label style={{
               display: 'block',
@@ -293,21 +312,21 @@ export default function AdminCreateDivisionPage() {
               color: '#0f172a',
               marginBottom: '0.5rem'
             }}>
-              ZIP Code <span style={{ color: '#ef4444' }}>*</span>
+              Polygon Boundaries (Optional)
             </label>
-            <input
-              type="text"
-              name="zipCode"
-              value={formData.zipCode}
+            <textarea
+              name="polygonJSON"
+              value={formData.polygonJSON}
               onChange={handleChange}
-              placeholder="60613"
-              required
+              placeholder='[[-87.6537, 41.9403], [-87.6537, 41.9503], [-87.6437, 41.9503], [-87.6437, 41.9403], [-87.6537, 41.9403]]'
+              rows="6"
               style={{
                 width: '100%',
                 padding: '0.75rem',
                 border: '2px solid #e2e8f0',
                 borderRadius: '8px',
-                fontSize: '1rem'
+                fontSize: '0.875rem',
+                fontFamily: 'monospace'
               }}
             />
             <p style={{
@@ -315,7 +334,8 @@ export default function AdminCreateDivisionPage() {
               color: '#64748b',
               marginTop: '0.5rem'
             }}>
-              We'll use this to automatically set the division's center coordinates
+              GeoJSON format: [[lng, lat], [lng, lat], ...]. First and last coordinate must match.
+              Center point auto-calculated from polygon.
             </p>
           </div>
 
