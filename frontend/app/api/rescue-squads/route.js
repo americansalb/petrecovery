@@ -40,9 +40,24 @@ export async function GET(request) {
       include: {
         members: {
           where: { isActive: true },
-          select: { userId: true, role: true },
+          select: { userId: true, role: true, divisionId: true },
         },
         _count: { select: { members: true } },
+        divisions: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            name: true,
+            centerLatitude: true,
+            centerLongitude: true,
+            totalMembers: true,
+            _count: { select: { members: true } },
+            members: userId ? {
+              where: { userId, isActive: true },
+              select: { userId: true }
+            } : false
+          }
+        }
       },
     });
 
@@ -54,6 +69,23 @@ export async function GET(request) {
       if (distance <= radius && squad.city && squad.state) {
         const key = `${squad.city}-${squad.state}`;
         if (!nearbyCities.has(key) || nearbyCities.get(key).distance > distance) {
+          // Calculate division distances and membership
+          const divisionsWithDistance = squad.divisions
+            .map(div => {
+              const divDistance = div.centerLatitude && div.centerLongitude
+                ? calculateDistance(searchLat, searchLng, div.centerLatitude, div.centerLongitude)
+                : null;
+              return {
+                id: div.id,
+                name: div.name,
+                distance: divDistance,
+                totalMembers: div.totalMembers || div._count.members,
+                isMember: userId ? div.members.some(m => m.userId === userId) : false
+              };
+            })
+            .filter(div => div.distance !== null) // Only include divisions with coordinates
+            .sort((a, b) => a.distance - b.distance); // Sort by distance
+
           nearbyCities.set(key, {
             city: squad.city,
             state: squad.state,
@@ -66,7 +98,8 @@ export async function GET(request) {
               isMember: userId ? squad.members.some(m => m.userId === userId) : false,
               totalCasesAccepted: squad.totalCasesAccepted,
               successfulReunions: squad.successfulReunions,
-            }
+            },
+            divisions: divisionsWithDistance
           });
         }
       }
@@ -81,6 +114,7 @@ export async function GET(request) {
         distance: 0,
         exists: false,
         squad: null,
+        divisions: []
       });
     }
 
@@ -158,7 +192,7 @@ export async function POST(request) {
         members: {
           create: {
             userId: session.user.id,
-            role: 'FOUNDER',
+            role: 'ADMINISTRATOR',
             isActive: true,
           },
         },
@@ -169,6 +203,7 @@ export async function POST(request) {
       where: { id: session.user.id },
       data: {
         squadsJoinedCount: { increment: 1 },
+        squadsFoundedCount: { increment: 1 },
         rescueLevel: 'SCOUT',
       },
     });

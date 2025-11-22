@@ -13,6 +13,7 @@ export default function RescueSquadSearchPage() {
   const [searchLocation, setSearchLocation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [expandedSquads, setExpandedSquads] = useState(new Set());
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -25,12 +26,30 @@ export default function RescueSquadSearchPage() {
       setCities(data.cities || []);
       setSearchLocation(data.searchLocation || null);
       setSearched(true);
+      // Auto-expand squads with divisions
+      const newExpanded = new Set();
+      (data.cities || []).forEach((city, idx) => {
+        if (city.divisions && city.divisions.length > 0) {
+          newExpanded.add(idx);
+        }
+      });
+      setExpandedSquads(newExpanded);
     } catch (error) {
       console.error('Error:', error);
       setCities([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleExpanded = (idx) => {
+    const newExpanded = new Set(expandedSquads);
+    if (newExpanded.has(idx)) {
+      newExpanded.delete(idx);
+    } else {
+      newExpanded.add(idx);
+    }
+    setExpandedSquads(newExpanded);
   };
 
   const handleJoin = async (squadId) => {
@@ -48,6 +67,31 @@ export default function RescueSquadSearchPage() {
       }
     } catch (error) {
       alert('Error joining squad');
+    }
+  };
+
+  const handleJoinDivision = async (squadId, divisionId) => {
+    if (!session) {
+      router.push('/login?callbackUrl=' + window.location.pathname);
+      return;
+    }
+    try {
+      // First join the squad if not already a member
+      const squadRes = await fetch(`/api/rescue-squads/${squadId}/join`, { method: 'POST' });
+      if (!squadRes.ok && squadRes.status !== 400) { // 400 might mean already a member
+        throw new Error('Failed to join squad');
+      }
+
+      // Then join the division
+      const divRes = await fetch(`/api/rescue-squads/${squadId}/divisions/${divisionId}/join`, { method: 'POST' });
+      if (divRes.ok) {
+        router.push(`/rescue-squads/${squadId}/divisions/${divisionId}`);
+      } else {
+        const data = await divRes.json();
+        alert(data.error || 'Failed to join division');
+      }
+    } catch (error) {
+      alert('Error joining division');
     }
   };
 
@@ -168,75 +212,187 @@ export default function RescueSquadSearchPage() {
                       background: 'white',
                       borderRadius: '12px',
                       padding: '1.5rem',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                    }}
+                  >
+                    {/* Squad Header */}
+                    <div style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       flexWrap: 'wrap',
                       gap: '1rem'
-                    }}
-                  >
-                    <div>
-                      <h3 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.25rem' }}>
-                        {item.city} Rescue Squad
-                      </h3>
-                      <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
-                        {item.city}, {item.state} - {item.distance.toFixed(1)} miles away
-                      </p>
-                      {item.exists && item.squad && (
-                        <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-                          {item.squad.memberCount} member{item.squad.memberCount !== 1 ? 's' : ''} | {item.squad.totalCasesAccepted || 0} cases
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.25rem' }}>
+                          {item.city} Rescue Squad
+                        </h3>
+                        <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
+                          {item.city}, {item.state} - {item.distance.toFixed(1)} miles away
                         </p>
+                        {item.exists && item.squad && (
+                          <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                            {item.squad.memberCount} member{item.squad.memberCount !== 1 ? 's' : ''} | {item.squad.totalCasesAccepted || 0} cases
+                            {item.divisions && item.divisions.length > 0 && ` | ${item.divisions.length} divisions`}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Squad Action Button */}
+                      {item.exists && item.squad ? (
+                        item.squad.isMember ? (
+                          <button
+                            onClick={() => router.push(`/rescue-squads/${item.squad.id}`)}
+                            style={{
+                              padding: '0.75rem 1.5rem',
+                              background: '#667eea',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '8px',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            View Squad
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleJoin(item.squad.id)}
+                            style={{
+                              padding: '0.75rem 1.5rem',
+                              background: '#10b981',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '8px',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Join Squad
+                          </button>
+                        )
+                      ) : (
+                        <button
+                          onClick={() => handleCreate(item.city, item.state)}
+                          style={{
+                            padding: '0.75rem 1.5rem',
+                            background: '#f59e0b',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Create Squad
+                        </button>
                       )}
                     </div>
 
-                    {item.exists && item.squad ? (
-                      item.squad.isMember ? (
-                        <button
-                          onClick={() => router.push(`/rescue-squads/${item.squad.id}`)}
-                          style={{
-                            padding: '0.75rem 1.5rem',
-                            background: '#667eea',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontWeight: '600',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          View Squad
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleJoin(item.squad.id)}
-                          style={{
-                            padding: '0.75rem 1.5rem',
-                            background: '#10b981',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontWeight: '600',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Join
-                        </button>
-                      )
-                    ) : (
-                      <button
-                        onClick={() => handleCreate(item.city, item.state)}
-                        style={{
-                          padding: '0.75rem 1.5rem',
-                          background: '#f59e0b',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '8px',
-                          fontWeight: '600',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Create
-                      </button>
+                    {/* Divisions List */}
+                    {item.exists && item.divisions && item.divisions.length > 0 && (
+                      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+                        <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <button
+                            onClick={() => toggleExpanded(idx)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                              fontSize: '0.875rem',
+                              fontWeight: '600',
+                              color: '#667eea',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem'
+                            }}
+                          >
+                            <span style={{ fontSize: '1rem' }}>{expandedSquads.has(idx) ? '▼' : '▶'}</span>
+                            {item.divisions.length} Neighborhood Division{item.divisions.length !== 1 ? 's' : ''}
+                          </button>
+                        </div>
+
+                        {expandedSquads.has(idx) && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginLeft: '1.5rem' }}>
+                            {item.divisions.map(division => (
+                              <div
+                                key={division.id}
+                                style={{
+                                  background: '#f8fafc',
+                                  borderRadius: '8px',
+                                  padding: '0.75rem 1rem',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  flexWrap: 'wrap',
+                                  gap: '0.5rem'
+                                }}
+                              >
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontWeight: '600', fontSize: '0.95rem', color: '#0f172a' }}>
+                                    {division.name}
+                                  </div>
+                                  <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                                    {division.distance.toFixed(1)} mi • {division.totalMembers} members
+                                  </div>
+                                </div>
+
+                                {/* Division Action Button */}
+                                {division.isMember ? (
+                                  <button
+                                    onClick={() => router.push(`/rescue-squads/${item.squad.id}/divisions/${division.id}`)}
+                                    style={{
+                                      padding: '0.5rem 1rem',
+                                      background: '#667eea',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '6px',
+                                      fontSize: '0.875rem',
+                                      fontWeight: '600',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    View Division
+                                  </button>
+                                ) : item.squad.isMember ? (
+                                  <button
+                                    onClick={() => handleJoinDivision(item.squad.id, division.id)}
+                                    style={{
+                                      padding: '0.5rem 1rem',
+                                      background: '#10b981',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '6px',
+                                      fontSize: '0.875rem',
+                                      fontWeight: '600',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    Join Division
+                                  </button>
+                                ) : (
+                                  <button
+                                    disabled
+                                    title="Join the rescue squad first"
+                                    style={{
+                                      padding: '0.5rem 1rem',
+                                      background: '#e2e8f0',
+                                      color: '#94a3b8',
+                                      border: 'none',
+                                      borderRadius: '6px',
+                                      fontSize: '0.875rem',
+                                      fontWeight: '600',
+                                      cursor: 'not-allowed'
+                                    }}
+                                  >
+                                    Join Division
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 ))}
