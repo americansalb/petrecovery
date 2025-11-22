@@ -550,10 +550,16 @@ model RescueSquadMember {
 }
 
 enum RescueSquadMemberRole {
+  // New roles
   ADMINISTRATOR    // Full control over squad and all divisions
   MODERATOR        // Squad-level: can accept cases, manage members, auto-moderator of all divisions
   DIVISION_LEADER  // Division-level: can manage their specific division only
   MEMBER           // Regular volunteer
+
+  // Legacy roles (deprecated - will be migrated)
+  FOUNDER          // @deprecated Use ADMINISTRATOR
+  LEADER           // @deprecated Use MODERATOR
+  COORDINATOR      // @deprecated Use MEMBER
 }
 
 enum AvailabilityStatus {

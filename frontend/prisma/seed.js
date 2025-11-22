@@ -6,6 +6,40 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting database seed...');
 
+  // MIGRATION: Update legacy roles to new roles
+  try {
+    const membersToUpdate = await prisma.rescueSquadMember.findMany({
+      where: {
+        role: { in: ['FOUNDER', 'LEADER', 'COORDINATOR'] }
+      }
+    });
+
+    if (membersToUpdate.length > 0) {
+      console.log(`🔄 Migrating ${membersToUpdate.length} legacy roles...`);
+
+      for (const member of membersToUpdate) {
+        let newRole;
+        if (member.role === 'FOUNDER') newRole = 'ADMINISTRATOR';
+        else if (member.role === 'LEADER') newRole = 'MODERATOR';
+        else if (member.role === 'COORDINATOR') newRole = 'MEMBER';
+
+        if (newRole) {
+          await prisma.rescueSquadMember.update({
+            where: { id: member.id },
+            data: { role: newRole }
+          });
+        }
+      }
+
+      console.log('✅ Role migration completed:');
+      console.log('   FOUNDER → ADMINISTRATOR');
+      console.log('   LEADER → MODERATOR');
+      console.log('   COORDINATOR → MEMBER');
+    }
+  } catch (error) {
+    console.log('ℹ️  Role migration skipped (may already be completed)');
+  }
+
   // Check if admin user already exists
   const existingAdmin = await prisma.user.findUnique({
     where: { email: 'contact@aalb.org' }
