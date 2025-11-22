@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 
+// Force dynamic rendering for this API route
+export const dynamic = 'force-dynamic';
+
 // GET /api/rescue-squads/cities - Autocomplete city names
 export async function GET(request) {
   try {

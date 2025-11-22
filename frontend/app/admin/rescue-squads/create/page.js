@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-export default function CreateRescueSquadPage() {
+function CreateRescueSquadForm() {
   const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -420,5 +420,20 @@ export default function CreateRescueSquadPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function CreateRescueSquadPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🚁</div>
+          <div style={{ fontSize: '1.2rem', color: '#64748b' }}>Loading...</div>
+        </div>
+      </div>
+    }>
+      <CreateRescueSquadForm />
+    </Suspense>
   );
 }
