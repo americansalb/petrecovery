@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 export default function RescueSquadSearchPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const [zipCode, setZipCode] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); // City name or ZIP code
   const [radius, setRadius] = useState(25);
   const [cities, setCities] = useState([]);
   const [searchLocation, setSearchLocation] = useState(null);
@@ -17,11 +17,11 @@ export default function RescueSquadSearchPage() {
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!zipCode.trim()) return;
+    if (!searchTerm.trim()) return;
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/rescue-squads?zipCode=${zipCode}&radius=${radius}`);
+      const res = await fetch(`/api/rescue-squads?search=${encodeURIComponent(searchTerm)}&radius=${radius}`);
       const data = await res.json();
       setCities(data.cities || []);
       setSearchLocation(data.searchLocation || null);
@@ -95,16 +95,23 @@ export default function RescueSquadSearchPage() {
     }
   };
 
-  const handleCreate = async (city, state) => {
+  const handleCreate = async (city, state, zipCode = null) => {
     if (!session) {
       router.push('/login?callbackUrl=' + window.location.pathname);
       return;
     }
+
+    // If we don't have state (city name search with no existing squad), route to create page
+    if (!state) {
+      router.push(`/admin/rescue-squads/create?city=${encodeURIComponent(city)}`);
+      return;
+    }
+
     try {
       const res = await fetch('/api/rescue-squads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, state, zipCode }),
+        body: JSON.stringify({ city, state, zipCode: zipCode || searchTerm }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -143,7 +150,7 @@ export default function RescueSquadSearchPage() {
           Find Rescue Squads
         </h1>
         <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '2rem' }}>
-          Enter your zip code to find or create a rescue squad in your area
+          Enter a city name or ZIP code to find or create a rescue squad
         </p>
 
         {/* Search Form */}
@@ -159,12 +166,12 @@ export default function RescueSquadSearchPage() {
           flexWrap: 'wrap'
         }}>
           <div style={{ flex: 1, minWidth: '150px' }}>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>Zip Code</label>
+            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>City or ZIP Code</label>
             <input
               type="text"
-              value={zipCode}
-              onChange={(e) => setZipCode(e.target.value)}
-              placeholder="Enter zip code"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="e.g., Lynwood or 60411"
               style={{
                 width: '100%',
                 padding: '0.75rem',

@@ -7,27 +7,60 @@ import prisma from '@/app/lib/prisma';
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const zipCode = searchParams.get('zipCode') || searchParams.get('zip');
+    const searchTerm = searchParams.get('search') || searchParams.get('zipCode') || searchParams.get('zip');
     const radius = parseInt(searchParams.get('radius')) || 25;
 
-    if (!zipCode) {
-      return NextResponse.json({ error: 'Zip code required' }, { status: 400 });
+    if (!searchTerm) {
+      return NextResponse.json({ error: 'City name or ZIP code required' }, { status: 400 });
     }
 
-    // Geocode the ZIP code
-    const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
-    if (!geoRes.ok) {
-      return NextResponse.json({ error: 'Invalid zip code' }, { status: 400 });
+    let searchLat, searchLng, userState, allCitiesInZip, zipCode;
+    const isZipCode = /^\d{5}$/.test(searchTerm.trim());
+
+    if (isZipCode) {
+      // Search by ZIP code - use zippopotam.us API
+      zipCode = searchTerm.trim();
+      const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+      if (!geoRes.ok) {
+        return NextResponse.json({ error: 'Invalid ZIP code' }, { status: 400 });
+      }
+
+      const geoData = await geoRes.json();
+      const place = geoData.places[0];
+      searchLat = parseFloat(place['latitude']);
+      searchLng = parseFloat(place['longitude']);
+      userState = place['state abbreviation'];
+
+      // Get ALL cities served by this ZIP code
+      allCitiesInZip = geoData.places.map(p => p['place name']);
+    } else {
+      // Search by city name - search database first
+      const cityName = searchTerm.trim();
+
+      // Check if a squad exists for this exact city name (case-insensitive)
+      const existingSquad = await prisma.rescueSquad.findFirst({
+        where: {
+          city: { equals: cityName, mode: 'insensitive' },
+          isActive: true
+        }
+      });
+
+      if (existingSquad) {
+        // Use the existing squad's coordinates and state
+        searchLat = existingSquad.centerLatitude;
+        searchLng = existingSquad.centerLongitude;
+        userState = existingSquad.state;
+        allCitiesInZip = [existingSquad.city];
+        zipCode = existingSquad.zipCodes ? JSON.parse(existingSquad.zipCodes)[0] : null;
+      } else {
+        // No existing squad - just set city name, no coordinates yet
+        // User will need to provide state/ZIP when creating
+        allCitiesInZip = [cityName];
+        userState = null;
+        searchLat = null;
+        searchLng = null;
+      }
     }
-
-    const geoData = await geoRes.json();
-    const place = geoData.places[0];
-    const searchLat = parseFloat(place['latitude']);
-    const searchLng = parseFloat(place['longitude']);
-    const userState = place['state abbreviation'];
-
-    // Get ALL cities served by this ZIP code
-    const allCitiesInZip = geoData.places.map(p => p['place name']);
 
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
@@ -67,13 +100,15 @@ export async function GET(request) {
     const nearbyCities = new Map(); // city-state -> squad info
 
     console.log(`[RESCUE SQUAD SEARCH] Found ${squads.length} total squads`);
-    console.log(`[RESCUE SQUAD SEARCH] Searching from ${allCitiesInZip.join(', ')}, ${userState} (${searchLat}, ${searchLng}) within ${radius} miles`);
+    console.log(`[RESCUE SQUAD SEARCH] Searching from ${allCitiesInZip.join(', ')}, ${userState || 'unknown state'} (${searchLat}, ${searchLng}) within ${radius} miles`);
 
-    squads.forEach(squad => {
-      const distance = calculateDistance(searchLat, searchLng, squad.centerLatitude, squad.centerLongitude);
-      console.log(`[RESCUE SQUAD SEARCH] ${squad.city}, ${squad.state}: ${distance.toFixed(1)} miles away`);
+    // If we have coordinates, find nearby squads
+    if (searchLat !== null && searchLng !== null) {
+      squads.forEach(squad => {
+        const distance = calculateDistance(searchLat, searchLng, squad.centerLatitude, squad.centerLongitude);
+        console.log(`[RESCUE SQUAD SEARCH] ${squad.city}, ${squad.state}: ${distance.toFixed(1)} miles away`);
 
-      if (distance <= radius && squad.city && squad.state) {
+        if (distance <= radius && squad.city && squad.state) {
         const key = `${squad.city}-${squad.state}`;
         console.log(`[RESCUE SQUAD SEARCH] ✓ Adding ${squad.city} to results`);
         if (!nearbyCities.has(key) || nearbyCities.get(key).distance > distance) {
@@ -111,11 +146,12 @@ export async function GET(request) {
           });
         }
       }
-    });
+      });
+    }
 
-    // Always include ALL cities from the searched ZIP code
+    // Always include ALL cities from the search
     allCitiesInZip.forEach(cityName => {
-      const cityKey = `${cityName}-${userState}`;
+      const cityKey = userState ? `${cityName}-${userState}` : cityName;
       if (!nearbyCities.has(cityKey)) {
         nearbyCities.set(cityKey, {
           city: cityName,

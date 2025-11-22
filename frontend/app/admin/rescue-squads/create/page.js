@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 export default function CreateRescueSquadPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -21,6 +22,16 @@ export default function CreateRescueSquadPage() {
 
   // No role restriction - any authenticated user can create a rescue squad
   // Only division creation requires admin role
+
+  // Pre-fill city name from URL if provided
+  useEffect(() => {
+    const cityParam = searchParams.get('city');
+    if (cityParam && !cityName) {
+      setCityName(cityParam);
+      setIsCustomCity(true);
+      setCustomCityInput(cityParam);
+    }
+  }, [searchParams]);
 
   const handleVerifyZip = async (e) => {
     e.preventDefault();
