@@ -120,6 +120,25 @@ export default function RescueSquadSearchPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '2rem 1rem' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+        {/* Back Button */}
+        <div style={{ marginBottom: '1.5rem' }}>
+          <button
+            onClick={() => router.push('/dashboard')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: 'white',
+              color: '#64748b',
+              border: '2px solid #e2e8f0',
+              borderRadius: '8px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              fontSize: '1rem'
+            }}
+          >
+            ← Back to Dashboard
+          </button>
+        </div>
+
         <h1 style={{ fontSize: '2.5rem', fontWeight: '800', textAlign: 'center', marginBottom: '0.5rem' }}>
           Find Rescue Squads
         </h1>
