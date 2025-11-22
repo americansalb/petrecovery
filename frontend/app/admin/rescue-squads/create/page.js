@@ -16,6 +16,8 @@ export default function AdminCreateRescueSquadPage() {
   const [stateName, setStateName] = useState('');
   const [availableCities, setAvailableCities] = useState([]);
   const [zipVerified, setZipVerified] = useState(false);
+  const [isCustomCity, setIsCustomCity] = useState(false);
+  const [customCityInput, setCustomCityInput] = useState('');
 
   useEffect(() => {
     if (session && session.user.role !== 'ADMIN') {
@@ -45,9 +47,14 @@ export default function AdminCreateRescueSquadPage() {
       // Extract all cities served by this ZIP code
       const cities = geoData.places.map(place => place['place name']);
 
+      // Debug: log what the API returned
+      console.log(`[ZIP ${zipCode}] API returned ${geoData.places.length} place(s):`, geoData.places.map(p => p['place name']));
+
       setAvailableCities(cities);
       setCityName(cities[0]); // Pre-fill with first city
       setStateName(state);
+      setIsCustomCity(false); // Reset to dropdown mode
+      setCustomCityInput('');
       setZipVerified(true);
 
     } catch (err) {
@@ -292,29 +299,66 @@ export default function AdminCreateRescueSquadPage() {
               }}>
                 City Name <span style={{ color: '#ef4444' }}>*</span>
               </label>
-              <input
-                type="text"
-                value={cityName}
-                onChange={(e) => setCityName(e.target.value)}
-                placeholder="Enter city name"
-                required
+
+              {/* Dropdown with detected cities + "Other" option */}
+              <select
+                value={isCustomCity ? '__custom__' : cityName}
+                onChange={(e) => {
+                  if (e.target.value === '__custom__') {
+                    setIsCustomCity(true);
+                    setCityName('');
+                    setCustomCityInput('');
+                  } else {
+                    setIsCustomCity(false);
+                    setCityName(e.target.value);
+                  }
+                }}
+                required={!isCustomCity}
                 style={{
                   width: '100%',
                   padding: '0.75rem',
                   border: '2px solid #e2e8f0',
                   borderRadius: '8px',
-                  fontSize: '1rem'
+                  fontSize: '1rem',
+                  marginBottom: isCustomCity ? '0.75rem' : '0'
                 }}
-              />
+              >
+                {availableCities.map(city => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+                <option value="__custom__">Other (enter manually)</option>
+              </select>
+
+              {/* Custom city input - only shown when "Other" is selected */}
+              {isCustomCity && (
+                <input
+                  type="text"
+                  value={customCityInput}
+                  onChange={(e) => {
+                    setCustomCityInput(e.target.value);
+                    setCityName(e.target.value);
+                  }}
+                  placeholder="Enter city name"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '1rem'
+                  }}
+                />
+              )}
+
               <p style={{
                 fontSize: '0.875rem',
                 color: '#64748b',
                 marginTop: '0.5rem'
               }}>
                 {availableCities.length > 1 ? (
-                  <>Detected cities: <strong>{availableCities.join(', ')}</strong>. You can edit or enter a different city name if needed.</>
+                  <>API detected {availableCities.length} cities for this ZIP: <strong>{availableCities.join(', ')}</strong></>
                 ) : (
-                  <>Suggested: <strong>{availableCities[0]}</strong>. You can edit this if your city is different (e.g., if this ZIP serves multiple cities).</>
+                  <>API detected: <strong>{availableCities[0]}</strong>. Select "Other" if your city is different (some ZIPs serve multiple cities).</>
                 )}
               </p>
               <p style={{
@@ -337,6 +381,8 @@ export default function AdminCreateRescueSquadPage() {
                   setZipVerified(false);
                   setCityName('');
                   setAvailableCities([]);
+                  setIsCustomCity(false);
+                  setCustomCityInput('');
                 }}
                 style={{
                   padding: '0.75rem 1.5rem',
