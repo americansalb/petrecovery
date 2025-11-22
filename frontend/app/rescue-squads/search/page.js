@@ -14,6 +14,39 @@ export default function RescueSquadSearchPage() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [expandedSquads, setExpandedSquads] = useState(new Set());
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [inputType, setInputType] = useState(null); // 'zip' or 'city'
+
+  const handleInputChange = async (value) => {
+    setSearchTerm(value);
+
+    // Detect input type
+    const isZip = /^\d{0,5}$/.test(value);
+    setInputType(isZip ? 'zip' : 'city');
+
+    // If it's a city name (not numbers) and at least 2 characters, fetch suggestions
+    if (!isZip && value.trim().length >= 2) {
+      try {
+        const res = await fetch(`/api/rescue-squads/cities?q=${encodeURIComponent(value.trim())}`);
+        const data = await res.json();
+        setSuggestions(data.cities || []);
+        setShowSuggestions(true);
+      } catch (error) {
+        console.error('Error fetching suggestions:', error);
+        setSuggestions([]);
+      }
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const selectSuggestion = (cityName) => {
+    setSearchTerm(cityName);
+    setShowSuggestions(false);
+    setSuggestions([]);
+  };
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -165,22 +198,91 @@ export default function RescueSquadSearchPage() {
           alignItems: 'end',
           flexWrap: 'wrap'
         }}>
-          <div style={{ flex: 1, minWidth: '150px' }}>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>City or ZIP Code</label>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="e.g., Lynwood or 60411"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
+          <div style={{ flex: 1, minWidth: '150px', position: 'relative' }}>
+            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
+              City Name or ZIP Code
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => handleInputChange(e.target.value)}
+                onFocus={() => {
+                  if (suggestions.length > 0) setShowSuggestions(true);
+                }}
+                onBlur={() => {
+                  // Delay to allow clicking suggestions
+                  setTimeout(() => setShowSuggestions(false), 200);
+                }}
+                placeholder="e.g., Lynwood or 60411"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  paddingRight: '2.5rem',
+                  border: `2px solid ${inputType === 'zip' ? '#3b82f6' : inputType === 'city' ? '#10b981' : '#e2e8f0'}`,
+                  borderRadius: '8px',
+                  fontSize: '1rem'
+                }}
+                required
+              />
+              {/* Input type indicator */}
+              {inputType && searchTerm.trim() && (
+                <div style={{
+                  position: 'absolute',
+                  right: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
+                  color: inputType === 'zip' ? '#3b82f6' : '#10b981',
+                  background: inputType === 'zip' ? '#dbeafe' : '#d1fae5',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '4px'
+                }}>
+                  {inputType === 'zip' ? 'ZIP' : 'City'}
+                </div>
+              )}
+            </div>
+
+            {/* Suggestions dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                background: 'white',
                 border: '2px solid #e2e8f0',
                 borderRadius: '8px',
-                fontSize: '1rem'
-              }}
-              required
-            />
+                marginTop: '0.25rem',
+                maxHeight: '200px',
+                overflowY: 'auto',
+                zIndex: 10,
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+              }}>
+                {suggestions.map((city, idx) => (
+                  <div
+                    key={idx}
+                    onMouseDown={() => selectSuggestion(city.name)}
+                    style={{
+                      padding: '0.75rem',
+                      cursor: 'pointer',
+                      borderBottom: idx < suggestions.length - 1 ? '1px solid #f1f5f9' : 'none',
+                      background: 'white'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                  >
+                    <div style={{ fontWeight: '600', color: '#0f172a' }}>
+                      {city.name}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                      {city.state} • {city.memberCount} members
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div style={{ minWidth: '120px' }}>
             <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>Radius</label>
