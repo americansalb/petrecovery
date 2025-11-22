@@ -59,6 +59,12 @@ model User {
   divisionRequests       DivisionRequest[]
   reviewedDivisionRequests DivisionRequest[] @relation("ReviewedDivisionRequests")
 
+  // Squad Coordination Relations
+  squadActivities        SquadActivity[]
+  createdTasks           SquadTask[] @relation("CreatedTasks")
+  assignedTasks          SquadTask[] @relation("AssignedTasks")
+  completedTasks         SquadTask[] @relation("CompletedTasks")
+
   // Community Relations (LEGACY - keeping for backwards compatibility)
   communityRequests CommunityRequest[]
   reviewedRequests CommunityRequest[] @relation("ReviewedRequests")
@@ -305,6 +311,8 @@ model Case {
   sightings       CaseSighting[]
   updates         CaseUpdate[]
   alerts          Alert[]
+  squadActivities SquadActivity[]
+  squadTasks      SquadTask[]
 
   @@index([status])
   @@index([caseNumber])
@@ -480,6 +488,8 @@ model RescueSquad {
   members          RescueSquadMember[]
   caseAssignments  CaseAssignment[]
   divisions        Division[]
+  activities       SquadActivity[]
+  tasks            SquadTask[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -966,4 +976,127 @@ enum MemberStatus {
 enum CommunityRole {
   MEMBER
   MODERATOR
+}
+
+// ============================================================================
+// SQUAD COORDINATION SYSTEM (Activities & Tasks)
+// ============================================================================
+
+model SquadActivity {
+  id              String   @id @default(cuid())
+  
+  // Squad Context
+  rescueSquadId   String
+  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  
+  // Case Context (optional)
+  caseId          String?
+  case            Case?    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  
+  // Activity Details
+  type            ActivityType
+  message         String   // "New task: Search Main St to Oak Ave"
+  details         String?  // Additional context/description
+  
+  // Actor (who performed this action)
+  actorId         String
+  actor           User     @relation(fields: [actorId], references: [id])
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([rescueSquadId])
+  @@index([caseId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@index([type])
+}
+
+enum ActivityType {
+  // Case Activities
+  CASE_ACCEPTED
+  CASE_UPDATED
+  CASE_RESOLVED
+  SIGHTING_REPORTED
+  
+  // Member Activities
+  MEMBER_JOINED
+  MEMBER_OPTED_IN
+  MEMBER_OPTED_OUT
+  MEMBER_PROMOTED
+  
+  // Task Activities
+  TASK_CREATED
+  TASK_ASSIGNED
+  TASK_COMPLETED
+  SEARCH_AREA_ASSIGNED
+  
+  // Squad Activities
+  SQUAD_ANNOUNCEMENT
+  TRAINING_COMPLETED
+}
+
+model SquadTask {
+  id              String   @id @default(cuid())
+  
+  // Squad Context
+  rescueSquadId   String
+  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  
+  // Case Context (optional - tasks can be general squad tasks)
+  caseId          String?
+  case            Case?    @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  
+  // Task Details
+  title           String
+  description     String?
+  type            TaskType
+  priority        TaskPriority
+  status          TaskStatus @default(OPEN)
+  
+  // Assignment
+  assignedToId    String?
+  assignedTo      User?    @relation("AssignedTasks", fields: [assignedToId], references: [id], onDelete: SetNull)
+  
+  // Creation
+  createdById     String
+  createdBy       User     @relation("CreatedTasks", fields: [createdById], references: [id])
+  createdAt       DateTime @default(now())
+  
+  // Completion
+  completedById   String?
+  completedBy     User?    @relation("CompletedTasks", fields: [completedById], references: [id], onDelete: SetNull)
+  completedAt     DateTime?
+  
+  updatedAt       DateTime @updatedAt
+  
+  @@index([rescueSquadId])
+  @@index([caseId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+}
+
+enum TaskType {
+  SEARCH           // Search specific area
+  DOOR_TO_DOOR     // Knock on doors, ask neighbors
+  POSTER           // Post flyers/posters
+  SOCIAL_MEDIA     // Post on social media, groups
+  SHELTER_CHECK    // Check local shelters
+  INVESTIGATION    // Follow up on leads
+  OTHER            // Custom task
+}
+
+enum TaskPriority {
+  URGENT           // Do immediately
+  HIGH             // Do today
+  MEDIUM           // Do this week
+  LOW              // When you can
+}
+
+enum TaskStatus {
+  OPEN             // Created, not claimed
+  IN_PROGRESS      // Someone is working on it
+  COMPLETED        // Done
+  CANCELLED        // No longer needed
 }
