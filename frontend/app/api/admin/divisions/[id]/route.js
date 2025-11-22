@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import prisma from '@/app/lib/prisma';
 
 // DELETE /api/admin/divisions/[id] - Delete a division
 export async function DELETE(request, { params }) {
