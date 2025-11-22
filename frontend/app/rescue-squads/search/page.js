@@ -215,9 +215,15 @@ export default function RescueSquadSearchPage() {
         {searched && (
           <div>
             {searchLocation && (
-              <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem', color: '#334155' }}>
-                Rescue Squads near {searchLocation.city}, {searchLocation.state}
-              </h2>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem', color: '#334155' }}>
+                  Rescue Squads near {searchLocation.city}, {searchLocation.state}
+                </h2>
+                <p style={{ fontSize: '0.9rem', color: '#64748b' }}>
+                  Found {cities.filter(c => c.exists).length} rescue squad{cities.filter(c => c.exists).length !== 1 ? 's' : ''} within {radius} miles
+                  {cities.filter(c => c.exists).length === 0 && ' - try increasing the search radius or create one for your area'}
+                </p>
+              </div>
             )}
 
             {cities.length === 0 ? (
