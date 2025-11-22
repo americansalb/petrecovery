@@ -14,7 +14,7 @@ export default function AdminCreateRescueSquadPage() {
   const [zipCode, setZipCode] = useState('');
   const [cityName, setCityName] = useState('');
   const [stateName, setStateName] = useState('');
-  const [suggestedCity, setSuggestedCity] = useState('');
+  const [availableCities, setAvailableCities] = useState([]);
   const [zipVerified, setZipVerified] = useState(false);
 
   useEffect(() => {
@@ -40,12 +40,13 @@ export default function AdminCreateRescueSquadPage() {
       }
 
       const geoData = await geoRes.json();
-      const place = geoData.places[0];
-      const suggestedCityName = place['place name'];
-      const state = place['state abbreviation'];
+      const state = geoData.places[0]['state abbreviation'];
 
-      setSuggestedCity(suggestedCityName);
-      setCityName(suggestedCityName); // Pre-fill with suggestion
+      // Extract all cities served by this ZIP code
+      const cities = geoData.places.map(place => place['place name']);
+
+      setAvailableCities(cities);
+      setCityName(cities[0]); // Pre-fill with first city
       setStateName(state);
       setZipVerified(true);
 
@@ -267,18 +268,24 @@ export default function AdminCreateRescueSquadPage() {
           }}>
             {/* ZIP Info Banner */}
             <div style={{
-              background: '#eff6ff',
-              border: '2px solid #3b82f6',
+              background: availableCities.length > 1 ? '#fef3c7' : '#eff6ff',
+              border: availableCities.length > 1 ? '2px solid #f59e0b' : '2px solid #3b82f6',
               borderRadius: '8px',
               padding: '1rem',
               marginBottom: '1.5rem'
             }}>
-              <div style={{ fontSize: '0.875rem', color: '#1e40af', marginBottom: '0.25rem' }}>
-                ZIP Code: <strong>{zipCode}</strong> • Suggested City: <strong>{suggestedCity}, {stateName}</strong>
+              <div style={{ fontSize: '0.875rem', color: availableCities.length > 1 ? '#92400e' : '#1e40af', marginBottom: '0.25rem' }}>
+                ZIP Code: <strong>{zipCode}</strong> • State: <strong>{stateName}</strong>
               </div>
-              <div style={{ fontSize: '0.8rem', color: '#3b82f6', marginTop: '0.5rem' }}>
-                If this ZIP serves multiple cities (e.g., {suggestedCity} and Lynwood), you can override the city name below
-              </div>
+              {availableCities.length > 1 ? (
+                <div style={{ fontSize: '0.85rem', color: '#92400e', marginTop: '0.5rem', fontWeight: '600' }}>
+                  ⚠️ This ZIP serves {availableCities.length} cities: {availableCities.join(', ')}. Select the correct one below.
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.8rem', color: '#1e40af', marginTop: '0.5rem' }}>
+                  City found: <strong>{availableCities[0]}</strong>
+                </div>
+              )}
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
@@ -291,20 +298,42 @@ export default function AdminCreateRescueSquadPage() {
               }}>
                 City Name <span style={{ color: '#ef4444' }}>*</span>
               </label>
-              <input
-                type="text"
-                value={cityName}
-                onChange={(e) => setCityName(e.target.value)}
-                placeholder="e.g., Lynwood, Chicago Heights"
-                required
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: '1rem'
-                }}
-              />
+              {availableCities.length > 1 ? (
+                // Show dropdown for multiple cities
+                <select
+                  value={cityName}
+                  onChange={(e) => setCityName(e.target.value)}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '1rem',
+                    fontFamily: 'inherit'
+                  }}
+                >
+                  {availableCities.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+              ) : (
+                // Show text input for single city (still editable)
+                <input
+                  type="text"
+                  value={cityName}
+                  onChange={(e) => setCityName(e.target.value)}
+                  placeholder="City name"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '1rem'
+                  }}
+                />
+              )}
               <p style={{
                 fontSize: '0.875rem',
                 color: '#64748b',
@@ -324,7 +353,7 @@ export default function AdminCreateRescueSquadPage() {
                 onClick={() => {
                   setZipVerified(false);
                   setCityName('');
-                  setSuggestedCity('');
+                  setAvailableCities([]);
                 }}
                 style={{
                   padding: '0.75rem 1.5rem',
