@@ -82,10 +82,38 @@ export default function AdminCreateDivisionPage() {
     if (typeof window === 'undefined') return;
     if (mapInstanceRef.current) return; // Already loaded
 
+    // Inject CSS manually for reliable loading
+    if (!document.getElementById('leaflet-css')) {
+      const leafletCSS = document.createElement('link');
+      leafletCSS.id = 'leaflet-css';
+      leafletCSS.rel = 'stylesheet';
+      leafletCSS.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(leafletCSS);
+    }
+
+    if (!document.getElementById('leaflet-draw-css')) {
+      const drawCSS = document.createElement('link');
+      drawCSS.id = 'leaflet-draw-css';
+      drawCSS.rel = 'stylesheet';
+      drawCSS.href = 'https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css';
+      document.head.appendChild(drawCSS);
+    }
+
     // Load Leaflet and Leaflet Draw
     const L = (await import('leaflet')).default;
+
+    // Fix Leaflet icon paths for webpack
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+
     await import('leaflet-draw');
-    await import('leaflet-draw/dist/leaflet.draw.css');
+
+    // Wait a bit for CSS to load
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     // Initialize map centered on the ZIP location
     const map = L.map(mapRef.current).setView([centerLat, centerLng], 13);
