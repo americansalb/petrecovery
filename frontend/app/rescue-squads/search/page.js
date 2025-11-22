@@ -148,10 +148,16 @@ export default function RescueSquadSearchPage() {
     }
 
     try {
+      // Validate we have a valid ZIP code
+      if (!zipCode || !/^\d{5}$/.test(zipCode)) {
+        alert('Unable to create squad: valid ZIP code required. Please search by ZIP code instead.');
+        return;
+      }
+
       const res = await fetch('/api/rescue-squads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, state, zipCode: zipCode || searchTerm }),
+        body: JSON.stringify({ city, state, zipCode }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -442,7 +448,7 @@ export default function RescueSquadSearchPage() {
                         )
                       ) : (
                         <button
-                          onClick={() => handleCreate(item.city, item.state)}
+                          onClick={() => handleCreate(item.city, item.state, searchLocation?.zipCode)}
                           style={{
                             padding: '0.75rem 1.5rem',
                             background: '#f59e0b',
