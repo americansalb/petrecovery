@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { getCitySuggestions, isValidCity, getCityFromZip } from '../lib/cities';
 
 export default function RescueSquadSearchPage() {
   const { data: session } = useSession();
@@ -17,9 +18,11 @@ export default function RescueSquadSearchPage() {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [inputType, setInputType] = useState(null); // 'zip' or 'city'
+  const [validationError, setValidationError] = useState('');
 
-  const handleInputChange = async (value) => {
+  const handleInputChange = (value) => {
     setSearchTerm(value);
+    setValidationError('');
 
     // Detect input type
     const isZip = /^\d{0,5}$/.test(value);
@@ -27,23 +30,17 @@ export default function RescueSquadSearchPage() {
 
     // If it's a city name (not numbers) and at least 2 characters, fetch suggestions
     if (!isZip && value.trim().length >= 2) {
-      try {
-        const res = await fetch(`/api/rescue-squads/cities?q=${encodeURIComponent(value.trim())}`);
-        const data = await res.json();
-        setSuggestions(data.cities || []);
-        setShowSuggestions(true);
-      } catch (error) {
-        console.error('Error fetching suggestions:', error);
-        setSuggestions([]);
-      }
+      const citySuggestions = getCitySuggestions(value.trim(), 10);
+      setSuggestions(citySuggestions);
+      setShowSuggestions(true);
     } else {
       setSuggestions([]);
       setShowSuggestions(false);
     }
   };
 
-  const selectSuggestion = (cityName) => {
-    setSearchTerm(cityName);
+  const selectSuggestion = (city) => {
+    setSearchTerm(city.city);
     setShowSuggestions(false);
     setSuggestions([]);
   };
@@ -51,6 +48,16 @@ export default function RescueSquadSearchPage() {
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchTerm.trim()) return;
+
+    // Validate input
+    const isZip = /^\d{5}$/.test(searchTerm.trim());
+    if (!isZip) {
+      // Must be a valid city name
+      if (!isValidCity(searchTerm.trim())) {
+        setValidationError('Please enter a valid US city name or 5-digit ZIP code');
+        return;
+      }
+    }
 
     setLoading(true);
     try {
@@ -219,12 +226,24 @@ export default function RescueSquadSearchPage() {
                   width: '100%',
                   padding: '0.75rem',
                   paddingRight: '2.5rem',
-                  border: `2px solid ${inputType === 'zip' ? '#3b82f6' : inputType === 'city' ? '#10b981' : '#e2e8f0'}`,
+                  border: `2px solid ${validationError ? '#ef4444' : inputType === 'zip' ? '#3b82f6' : inputType === 'city' ? '#10b981' : '#e2e8f0'}`,
                   borderRadius: '8px',
                   fontSize: '1rem'
                 }}
                 required
               />
+              {validationError && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: '-1.5rem',
+                  left: 0,
+                  fontSize: '0.85rem',
+                  color: '#ef4444',
+                  fontWeight: '600'
+                }}>
+                  {validationError}
+                </div>
+              )}
               {/* Input type indicator */}
               {inputType && searchTerm.trim() && (
                 <div style={{
@@ -262,8 +281,8 @@ export default function RescueSquadSearchPage() {
               }}>
                 {suggestions.map((city, idx) => (
                   <div
-                    key={idx}
-                    onMouseDown={() => selectSuggestion(city.name)}
+                    key={`${city.city}-${city.state}-${idx}`}
+                    onMouseDown={() => selectSuggestion(city)}
                     style={{
                       padding: '0.75rem',
                       cursor: 'pointer',
@@ -274,10 +293,10 @@ export default function RescueSquadSearchPage() {
                     onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
                   >
                     <div style={{ fontWeight: '600', color: '#0f172a' }}>
-                      {city.name}
+                      {city.city}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                      {city.state} • {city.memberCount} members
+                      {city.state} • ZIP {city.zip}
                     </div>
                   </div>
                 ))}

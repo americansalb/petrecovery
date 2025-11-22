@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
+import { getCitiesByZip, getCityByName } from '@/app/lib/cities';
 
 // GET /api/rescue-squads - Search for cities with rescue squads nearby
 export async function GET(request) {
@@ -18,26 +19,39 @@ export async function GET(request) {
     const isZipCode = /^\d{5}$/.test(searchTerm.trim());
 
     if (isZipCode) {
-      // Search by ZIP code - use zippopotam.us API
+      // Search by ZIP code - use cities library
       zipCode = searchTerm.trim();
-      const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
-      if (!geoRes.ok) {
+      const citiesForZip = getCitiesByZip(zipCode);
+
+      if (citiesForZip.length === 0) {
         return NextResponse.json({ error: 'Invalid ZIP code' }, { status: 400 });
       }
 
-      const geoData = await geoRes.json();
-      const place = geoData.places[0];
-      searchLat = parseFloat(place['latitude']);
-      searchLng = parseFloat(place['longitude']);
-      userState = place['state abbreviation'];
+      // Use the first city's data for coordinates (will use zippopotam for coordinates)
+      const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+      if (geoRes.ok) {
+        const geoData = await geoRes.json();
+        const place = geoData.places[0];
+        searchLat = parseFloat(place['latitude']);
+        searchLng = parseFloat(place['longitude']);
+      } else {
+        // Fallback if geo API fails - use approximate coordinates from database search
+        searchLat = null;
+        searchLng = null;
+      }
 
-      // Get ALL cities served by this ZIP code
-      allCitiesInZip = geoData.places.map(p => p['place name']);
+      userState = citiesForZip[0].state;
+      allCitiesInZip = citiesForZip.map(c => c.city);
     } else {
-      // Search by city name - search database first
+      // Search by city name - use cities library
       const cityName = searchTerm.trim();
+      const cityData = getCityByName(cityName);
 
-      // Check if a squad exists for this exact city name (case-insensitive)
+      if (!cityData) {
+        return NextResponse.json({ error: 'Invalid city name' }, { status: 400 });
+      }
+
+      // Check if a squad exists for this city
       const existingSquad = await prisma.rescueSquad.findFirst({
         where: {
           city: { equals: cityName, mode: 'insensitive' },
@@ -46,20 +60,26 @@ export async function GET(request) {
       });
 
       if (existingSquad) {
-        // Use the existing squad's coordinates and state
+        // Use the existing squad's coordinates
         searchLat = existingSquad.centerLatitude;
         searchLng = existingSquad.centerLongitude;
-        userState = existingSquad.state;
-        allCitiesInZip = [existingSquad.city];
-        zipCode = existingSquad.zipCodes ? JSON.parse(existingSquad.zipCodes)[0] : null;
       } else {
-        // No existing squad - just set city name, no coordinates yet
-        // User will need to provide state/ZIP when creating
-        allCitiesInZip = [cityName];
-        userState = null;
-        searchLat = null;
-        searchLng = null;
+        // Try to get coordinates from zippopotam
+        const geoRes = await fetch(`https://api.zippopotam.us/us/${cityData.zip}`);
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          const place = geoData.places[0];
+          searchLat = parseFloat(place['latitude']);
+          searchLng = parseFloat(place['longitude']);
+        } else {
+          searchLat = null;
+          searchLng = null;
+        }
       }
+
+      userState = cityData.state;
+      allCitiesInZip = [cityData.city];
+      zipCode = cityData.zip;
     }
 
     const session = await getServerSession(authOptions);

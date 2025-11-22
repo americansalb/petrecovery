@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { getCitiesByZip, isValidCity } from '../../lib/cities';
 
 function CreateRescueSquadForm() {
   const { data: session } = useSession();
@@ -17,8 +18,6 @@ function CreateRescueSquadForm() {
   const [stateName, setStateName] = useState('');
   const [availableCities, setAvailableCities] = useState([]);
   const [zipVerified, setZipVerified] = useState(false);
-  const [isCustomCity, setIsCustomCity] = useState(false);
-  const [customCityInput, setCustomCityInput] = useState('');
 
   // No role restriction - any authenticated user can create a rescue squad
   // Only division creation requires admin role
@@ -28,8 +27,6 @@ function CreateRescueSquadForm() {
     const cityParam = searchParams.get('city');
     if (cityParam && !cityName) {
       setCityName(cityParam);
-      setIsCustomCity(true);
-      setCustomCityInput(cityParam);
     }
   }, [searchParams]);
 
@@ -43,26 +40,22 @@ function CreateRescueSquadForm() {
         throw new Error('Valid 5-digit ZIP code is required');
       }
 
-      // Geocode the ZIP to get suggested city/state
-      const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
-      if (!geoRes.ok) {
+      // Get cities from our database
+      const citiesForZip = getCitiesByZip(zipCode);
+
+      if (citiesForZip.length === 0) {
         throw new Error('Invalid ZIP code');
       }
 
-      const geoData = await geoRes.json();
-      const state = geoData.places[0]['state abbreviation'];
+      // Extract unique cities and state
+      const cities = citiesForZip.map(c => c.city);
+      const state = citiesForZip[0].state;
 
-      // Extract all cities served by this ZIP code
-      const cities = geoData.places.map(place => place['place name']);
-
-      // Debug: log what the API returned
-      console.log(`[ZIP ${zipCode}] API returned ${geoData.places.length} place(s):`, geoData.places.map(p => p['place name']));
+      console.log(`[ZIP ${zipCode}] Found ${cities.length} city/cities:`, cities);
 
       setAvailableCities(cities);
       setCityName(cities[0]); // Pre-fill with first city
       setStateName(state);
-      setIsCustomCity(false); // Reset to dropdown mode
-      setCustomCityInput('');
       setZipVerified(true);
 
     } catch (err) {
@@ -81,6 +74,11 @@ function CreateRescueSquadForm() {
     try {
       if (!cityName.trim()) {
         throw new Error('City name is required');
+      }
+
+      // Validate city name
+      if (!isValidCity(cityName.trim())) {
+        throw new Error('Please enter a valid US city name');
       }
 
       const res = await fetch('/api/rescue-squads', {
@@ -304,55 +302,23 @@ function CreateRescueSquadForm() {
                 City Name <span style={{ color: '#ef4444' }}>*</span>
               </label>
 
-              {/* Dropdown with detected cities + "Other" option */}
+              {/* Dropdown with all cities for this ZIP */}
               <select
-                value={isCustomCity ? '__custom__' : cityName}
-                onChange={(e) => {
-                  if (e.target.value === '__custom__') {
-                    setIsCustomCity(true);
-                    setCityName('');
-                    setCustomCityInput('');
-                  } else {
-                    setIsCustomCity(false);
-                    setCityName(e.target.value);
-                  }
-                }}
-                required={!isCustomCity}
+                value={cityName}
+                onChange={(e) => setCityName(e.target.value)}
+                required
                 style={{
                   width: '100%',
                   padding: '0.75rem',
                   border: '2px solid #e2e8f0',
                   borderRadius: '8px',
-                  fontSize: '1rem',
-                  marginBottom: isCustomCity ? '0.75rem' : '0'
+                  fontSize: '1rem'
                 }}
               >
                 {availableCities.map(city => (
                   <option key={city} value={city}>{city}</option>
                 ))}
-                <option value="__custom__">Other (enter manually)</option>
               </select>
-
-              {/* Custom city input - only shown when "Other" is selected */}
-              {isCustomCity && (
-                <input
-                  type="text"
-                  value={customCityInput}
-                  onChange={(e) => {
-                    setCustomCityInput(e.target.value);
-                    setCityName(e.target.value);
-                  }}
-                  placeholder="Enter city name"
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '8px',
-                    fontSize: '1rem'
-                  }}
-                />
-              )}
 
               <p style={{
                 fontSize: '0.875rem',
@@ -360,9 +326,9 @@ function CreateRescueSquadForm() {
                 marginTop: '0.5rem'
               }}>
                 {availableCities.length > 1 ? (
-                  <>API detected {availableCities.length} cities for this ZIP: <strong>{availableCities.join(', ')}</strong></>
+                  <>Found {availableCities.length} cities for ZIP {zipCode}: <strong>{availableCities.join(', ')}</strong></>
                 ) : (
-                  <>API detected: <strong>{availableCities[0]}</strong>. Select "Other" if your city is different (some ZIPs serve multiple cities).</>
+                  <>Found: <strong>{availableCities[0]}</strong></>
                 )}
               </p>
               <p style={{
@@ -385,8 +351,6 @@ function CreateRescueSquadForm() {
                   setZipVerified(false);
                   setCityName('');
                   setAvailableCities([]);
-                  setIsCustomCity(false);
-                  setCustomCityInput('');
                 }}
                 style={{
                   padding: '0.75rem 1.5rem',
