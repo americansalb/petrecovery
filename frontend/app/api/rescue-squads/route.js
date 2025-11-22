@@ -40,7 +40,7 @@ export async function GET(request) {
         searchLng = null;
       }
 
-      userState = citiesForZip[0].state;
+      userState = citiesForZip[0].state_id;
       allCitiesInZip = citiesForZip.map(c => c.city);
     } else {
       // Search by city name - use cities library
@@ -64,22 +64,28 @@ export async function GET(request) {
         searchLat = existingSquad.centerLatitude;
         searchLng = existingSquad.centerLongitude;
       } else {
-        // Try to get coordinates from zippopotam
-        const geoRes = await fetch(`https://api.zippopotam.us/us/${cityData.zip}`);
-        if (geoRes.ok) {
-          const geoData = await geoRes.json();
-          const place = geoData.places[0];
-          searchLat = parseFloat(place['latitude']);
-          searchLng = parseFloat(place['longitude']);
+        // Try to get coordinates from zippopotam using first ZIP
+        const firstZip = cityData.zips.length > 0 ? cityData.zips[0] : null;
+        if (firstZip) {
+          const geoRes = await fetch(`https://api.zippopotam.us/us/${firstZip}`);
+          if (geoRes.ok) {
+            const geoData = await geoRes.json();
+            const place = geoData.places[0];
+            searchLat = parseFloat(place['latitude']);
+            searchLng = parseFloat(place['longitude']);
+          } else {
+            searchLat = null;
+            searchLng = null;
+          }
         } else {
           searchLat = null;
           searchLng = null;
         }
       }
 
-      userState = cityData.state;
+      userState = cityData.state_id;
       allCitiesInZip = [cityData.city];
-      zipCode = cityData.zip;
+      zipCode = cityData.zips.length > 0 ? cityData.zips[0] : null;
     }
 
     const session = await getServerSession(authOptions);

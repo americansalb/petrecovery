@@ -281,7 +281,7 @@ export default function RescueSquadSearchPage() {
               }}>
                 {suggestions.map((city, idx) => (
                   <div
-                    key={`${city.city}-${city.state}-${idx}`}
+                    key={`${city.city}-${city.state_id}-${idx}`}
                     onMouseDown={() => selectSuggestion(city)}
                     style={{
                       padding: '0.75rem',
@@ -293,10 +293,10 @@ export default function RescueSquadSearchPage() {
                     onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
                   >
                     <div style={{ fontWeight: '600', color: '#0f172a' }}>
-                      {city.city}
+                      {city.city}, {city.state_id}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                      {city.state} • ZIP {city.zip}
+                      {city.state_name} • {city.zips.length > 0 ? `ZIP ${city.zips[0]}` : 'No ZIP'}
                     </div>
                   </div>
                 ))}

@@ -49,7 +49,7 @@ function CreateRescueSquadForm() {
 
       // Extract unique cities and state
       const cities = citiesForZip.map(c => c.city);
-      const state = citiesForZip[0].state;
+      const state = citiesForZip[0].state_id; // Use state_id for 2-letter code
 
       console.log(`[ZIP ${zipCode}] Found ${cities.length} city/cities:`, cities);
 
