@@ -24,8 +24,10 @@ export async function GET(request) {
     const place = geoData.places[0];
     const searchLat = parseFloat(place['latitude']);
     const searchLng = parseFloat(place['longitude']);
-    const userCity = place['place name'];
     const userState = place['state abbreviation'];
+
+    // Get ALL cities served by this ZIP code
+    const allCitiesInZip = geoData.places.map(p => p['place name']);
 
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
@@ -111,18 +113,20 @@ export async function GET(request) {
       }
     });
 
-    // Always include user's city
-    const userKey = `${userCity}-${userState}`;
-    if (!nearbyCities.has(userKey)) {
-      nearbyCities.set(userKey, {
-        city: userCity,
-        state: userState,
-        distance: 0,
-        exists: false,
-        squad: null,
-        divisions: []
-      });
-    }
+    // Always include ALL cities from the searched ZIP code
+    allCitiesInZip.forEach(cityName => {
+      const cityKey = `${cityName}-${userState}`;
+      if (!nearbyCities.has(cityKey)) {
+        nearbyCities.set(cityKey, {
+          city: cityName,
+          state: userState,
+          distance: 0,
+          exists: false,
+          squad: null,
+          divisions: []
+        });
+      }
+    });
 
     // Convert to array and sort by distance
     const cities = Array.from(nearbyCities.values()).sort((a, b) => a.distance - b.distance);
@@ -131,7 +135,11 @@ export async function GET(request) {
 
     return NextResponse.json({
       cities,
-      searchLocation: { city: userCity, state: userState, zipCode },
+      searchLocation: {
+        cities: allCitiesInZip,
+        state: userState,
+        zipCode
+      },
     });
   } catch (error) {
     console.error('Error searching rescue squads:', error);

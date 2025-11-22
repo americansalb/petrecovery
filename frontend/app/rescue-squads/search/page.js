@@ -217,7 +217,10 @@ export default function RescueSquadSearchPage() {
             {searchLocation && (
               <div style={{ marginBottom: '1.5rem' }}>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem', color: '#334155' }}>
-                  Rescue Squads near {searchLocation.city}, {searchLocation.state}
+                  {searchLocation.cities && searchLocation.cities.length > 1
+                    ? `Rescue Squads for ${searchLocation.cities.join(', ')}, ${searchLocation.state}`
+                    : `Rescue Squads near ${searchLocation.cities?.[0] || searchLocation.city}, ${searchLocation.state}`
+                  }
                 </h2>
                 <p style={{ fontSize: '0.9rem', color: '#64748b' }}>
                   Found {cities.filter(c => c.exists).length} rescue squad{cities.filter(c => c.exists).length !== 1 ? 's' : ''} within {radius} miles

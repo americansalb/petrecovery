@@ -268,24 +268,18 @@ export default function AdminCreateRescueSquadPage() {
           }}>
             {/* ZIP Info Banner */}
             <div style={{
-              background: availableCities.length > 1 ? '#fef3c7' : '#eff6ff',
-              border: availableCities.length > 1 ? '2px solid #f59e0b' : '2px solid #3b82f6',
+              background: '#eff6ff',
+              border: '2px solid #3b82f6',
               borderRadius: '8px',
               padding: '1rem',
               marginBottom: '1.5rem'
             }}>
-              <div style={{ fontSize: '0.875rem', color: availableCities.length > 1 ? '#92400e' : '#1e40af', marginBottom: '0.25rem' }}>
+              <div style={{ fontSize: '0.875rem', color: '#1e40af' }}>
                 ZIP Code: <strong>{zipCode}</strong> • State: <strong>{stateName}</strong>
+                {availableCities.length > 1 && (
+                  <span> • Cities: <strong>{availableCities.join(', ')}</strong></span>
+                )}
               </div>
-              {availableCities.length > 1 ? (
-                <div style={{ fontSize: '0.85rem', color: '#92400e', marginTop: '0.5rem', fontWeight: '600' }}>
-                  ⚠️ This ZIP serves {availableCities.length} cities: {availableCities.join(', ')}. Select the correct one below.
-                </div>
-              ) : (
-                <div style={{ fontSize: '0.8rem', color: '#1e40af', marginTop: '0.5rem' }}>
-                  City found: <strong>{availableCities[0]}</strong>
-                </div>
-              )}
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
@@ -298,42 +292,23 @@ export default function AdminCreateRescueSquadPage() {
               }}>
                 City Name <span style={{ color: '#ef4444' }}>*</span>
               </label>
-              {availableCities.length > 1 ? (
-                // Show dropdown for multiple cities
-                <select
-                  value={cityName}
-                  onChange={(e) => setCityName(e.target.value)}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '8px',
-                    fontSize: '1rem',
-                    fontFamily: 'inherit'
-                  }}
-                >
-                  {availableCities.map(city => (
-                    <option key={city} value={city}>{city}</option>
-                  ))}
-                </select>
-              ) : (
-                // Show text input for single city (still editable)
-                <input
-                  type="text"
-                  value={cityName}
-                  onChange={(e) => setCityName(e.target.value)}
-                  placeholder="City name"
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '8px',
-                    fontSize: '1rem'
-                  }}
-                />
-              )}
+              <select
+                value={cityName}
+                onChange={(e) => setCityName(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  fontFamily: 'inherit'
+                }}
+              >
+                {availableCities.map(city => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+              </select>
               <p style={{
                 fontSize: '0.875rem',
                 color: '#64748b',
