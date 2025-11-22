@@ -29,6 +29,8 @@ model User {
   // Rescue Gamification Stats
   rescueLevel     RescueLevel @default(PET_OWNER)
   squadsJoinedCount Int      @default(0)
+  squadsFoundedCount Int     @default(0)
+  divisionsFoundedCount Int  @default(0)
   areasMarkedCount Int       @default(0)
   totalAcreageSearched Float @default(0)
   successfulReunions Int     @default(0)
@@ -442,6 +444,9 @@ model RescueSquad {
   radiusMiles     Int      @default(5)
   customBoundary  String?  // JSON: GeoJSON polygon for custom coverage
 
+  // Density Classification (for case notification radius)
+  densityClassification DensityClassification @default(SUBURBAN)
+
   // Specializations
   specializesInDogs    Boolean  @default(true)
   specializesInCats    Boolean  @default(true)
@@ -501,6 +506,12 @@ enum RescueSquadLevel {
   LEGENDARY    // 100+ cases
 }
 
+enum DensityClassification {
+  DENSE_URBAN  // Notification radius: 0.5 miles
+  SUBURBAN     // Notification radius: 1.0 miles
+  RURAL        // Notification radius: 1.5 miles
+}
+
 model RescueSquadMember {
   id              String   @id @default(cuid())
   rescueSquadId   String
@@ -539,10 +550,10 @@ model RescueSquadMember {
 }
 
 enum RescueSquadMemberRole {
-  FOUNDER          // Created the rescue squad
-  LEADER           // Can accept cases, manage members
-  COORDINATOR      // Can coordinate searches, post updates
-  MEMBER           // Regular searcher
+  ADMINISTRATOR    // Full control over squad and all divisions
+  MODERATOR        // Squad-level: can accept cases, manage members, auto-moderator of all divisions
+  DIVISION_LEADER  // Division-level: can manage their specific division only
+  MEMBER           // Regular volunteer
 }
 
 enum AvailabilityStatus {
@@ -722,22 +733,21 @@ model Division {
   rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
 
   // Division Identity
-  name            String   // "North Side", "Downtown", "Lincoln Park"
+  name            String   // "Lakeview Division", "Lincoln Park Division"
   description     String?
 
-  // Coverage (neighborhood-level)
-  centerLatitude  Float?
-  centerLongitude Float?
-  radiusMiles     Int      @default(3)  // Smaller than squad-level
-  zipCodes        String   @default("[]") // JSON array of zip codes
-  customBoundary  String?  // JSON: GeoJSON polygon
+  // Coverage (polygon-based for neighborhoods)
+  boundaries      Json?    // GeoJSON polygon coordinates [[lng, lat], [lng, lat], ...]
+  centerLatitude  Float?   // Center of polygon (for distance calculations in search)
+  centerLongitude Float?   // Center of polygon (for distance calculations in search)
 
   // Status
   isActive        Boolean  @default(true)
 
-  // Stats
+  // Stats (rolled up to squad level, but tracked separately)
   totalMembers    Int      @default(0)
   activeCases     Int      @default(0)
+  successfulReunions Int   @default(0)
 
   // Relations
   members         RescueSquadMember[]
@@ -760,18 +770,12 @@ model DivisionRequest {
 
   // Request Details
   rescueSquadId   String   // Which squad to add division to
-  proposedName    String   // "North Side", "West End", etc.
-  justification   String   // Why this division is needed
+  proposedName    String   // "Lakeview Division", "Lincoln Park Division", etc.
 
-  // Geographic Details
-  zipCodes        String   @default("[]") // JSON array
-  centerLatitude  Float?
-  centerLongitude Float?
-  estimatedRadius Int?     // Miles
-
-  // Additional Context
-  estimatedPopulation Int?
-  notes           String?
+  // Geographic Details (user draws polygon)
+  proposedBoundary Json?   // GeoJSON polygon coordinates [[lng, lat], [lng, lat], ...]
+  centerLatitude  Float?   // Calculated center of drawn polygon
+  centerLongitude Float?   // Calculated center of drawn polygon
 
   // Review Status
   status          RequestStatus @default(PENDING)
