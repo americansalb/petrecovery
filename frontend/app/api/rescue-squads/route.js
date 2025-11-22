@@ -67,7 +67,7 @@ export async function GET(request) {
     const nearbyCities = new Map(); // city-state -> squad info
 
     console.log(`[RESCUE SQUAD SEARCH] Found ${squads.length} total squads`);
-    console.log(`[RESCUE SQUAD SEARCH] Searching from ${userCity}, ${userState} (${searchLat}, ${searchLng}) within ${radius} miles`);
+    console.log(`[RESCUE SQUAD SEARCH] Searching from ${allCitiesInZip.join(', ')}, ${userState} (${searchLat}, ${searchLng}) within ${radius} miles`);
 
     squads.forEach(squad => {
       const distance = calculateDistance(searchLat, searchLng, squad.centerLatitude, squad.centerLongitude);
