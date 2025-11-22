@@ -17,10 +17,7 @@ export default function AdminCreateDivisionPage() {
   const [formData, setFormData] = useState({
     rescueSquadId: '',
     name: '',
-    description: '',
-    centerLatitude: '',
-    centerLongitude: '',
-    boundariesJSON: '' // User can paste GeoJSON polygon coordinates
+    zipCode: ''
   });
 
   useEffect(() => {
@@ -61,27 +58,28 @@ export default function AdminCreateDivisionPage() {
 
     try {
       // Validate required fields
-      if (!formData.rescueSquadId || !formData.name) {
-        throw new Error('Rescue Squad and Division Name are required');
+      if (!formData.rescueSquadId || !formData.name || !formData.zipCode) {
+        throw new Error('All fields are required');
       }
 
-      // Parse boundaries if provided
-      let boundaries = null;
-      if (formData.boundariesJSON.trim()) {
-        try {
-          boundaries = JSON.parse(formData.boundariesJSON);
-        } catch (e) {
-          throw new Error('Invalid GeoJSON format for boundaries');
-        }
+      // Geocode the ZIP to get coordinates
+      const geoRes = await fetch(`https://api.zippopotam.us/us/${formData.zipCode}`);
+      if (!geoRes.ok) {
+        throw new Error('Invalid ZIP code');
       }
+
+      const geoData = await geoRes.json();
+      const place = geoData.places[0];
+      const centerLatitude = parseFloat(place['latitude']);
+      const centerLongitude = parseFloat(place['longitude']);
 
       const payload = {
         rescueSquadId: formData.rescueSquadId,
         name: formData.name.trim(),
-        description: formData.description.trim() || null,
-        boundaries,
-        centerLatitude: formData.centerLatitude ? parseFloat(formData.centerLatitude) : null,
-        centerLongitude: formData.centerLongitude ? parseFloat(formData.centerLongitude) : null
+        description: null,
+        boundaries: null,
+        centerLatitude,
+        centerLongitude
       };
 
       const res = await fetch('/api/admin/divisions', {
@@ -102,10 +100,7 @@ export default function AdminCreateDivisionPage() {
       setFormData({
         rescueSquadId: '',
         name: '',
-        description: '',
-        centerLatitude: '',
-        centerLongitude: '',
-        boundariesJSON: ''
+        zipCode: ''
       });
 
       // Redirect after 2 seconds
@@ -289,7 +284,7 @@ export default function AdminCreateDivisionPage() {
             </p>
           </div>
 
-          {/* Description */}
+          {/* ZIP Code */}
           <div style={{ marginBottom: '2rem' }}>
             <label style={{
               display: 'block',
@@ -298,160 +293,29 @@ export default function AdminCreateDivisionPage() {
               color: '#0f172a',
               marginBottom: '0.5rem'
             }}>
-              Description
+              ZIP Code <span style={{ color: '#ef4444' }}>*</span>
             </label>
-            <textarea
-              name="description"
-              value={formData.description}
+            <input
+              type="text"
+              name="zipCode"
+              value={formData.zipCode}
               onChange={handleChange}
-              placeholder="Brief description of this division's coverage area..."
-              rows="3"
+              placeholder="60613"
+              required
               style={{
                 width: '100%',
                 padding: '0.75rem',
                 border: '2px solid #e2e8f0',
                 borderRadius: '8px',
-                fontSize: '1rem',
-                fontFamily: 'inherit'
+                fontSize: '1rem'
               }}
             />
-          </div>
-
-          {/* Geographic Coordinates */}
-          <div style={{
-            background: '#f8fafc',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            marginBottom: '2rem'
-          }}>
-            <h3 style={{
-              fontSize: '1.1rem',
-              fontWeight: '700',
-              color: '#0f172a',
-              marginBottom: '1rem'
-            }}>
-              Geographic Location
-            </h3>
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '1rem',
-              marginBottom: '1.5rem'
-            }}>
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.875rem',
-                  fontWeight: '600',
-                  color: '#64748b',
-                  marginBottom: '0.5rem'
-                }}>
-                  Center Latitude
-                </label>
-                <input
-                  type="number"
-                  name="centerLatitude"
-                  value={formData.centerLatitude}
-                  onChange={handleChange}
-                  step="0.000001"
-                  placeholder="41.9403"
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '8px',
-                    fontSize: '1rem'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.875rem',
-                  fontWeight: '600',
-                  color: '#64748b',
-                  marginBottom: '0.5rem'
-                }}>
-                  Center Longitude
-                </label>
-                <input
-                  type="number"
-                  name="centerLongitude"
-                  value={formData.centerLongitude}
-                  onChange={handleChange}
-                  step="0.000001"
-                  placeholder="-87.6537"
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '8px',
-                    fontSize: '1rem'
-                  }}
-                />
-              </div>
-            </div>
-
             <p style={{
               fontSize: '0.875rem',
               color: '#64748b',
-              marginBottom: '0.5rem'
-            }}>
-              Center point used for distance calculations in search
-            </p>
-          </div>
-
-          {/* Polygon Boundaries (Advanced) */}
-          <div style={{
-            background: '#fffbeb',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            marginBottom: '2rem',
-            border: '2px solid #fbbf24'
-          }}>
-            <h3 style={{
-              fontSize: '1.1rem',
-              fontWeight: '700',
-              color: '#92400e',
-              marginBottom: '1rem'
-            }}>
-              🗺️ Polygon Boundaries (Optional)
-            </h3>
-
-            <label style={{
-              display: 'block',
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              color: '#78350f',
-              marginBottom: '0.5rem'
-            }}>
-              GeoJSON Polygon Coordinates
-            </label>
-            <textarea
-              name="boundariesJSON"
-              value={formData.boundariesJSON}
-              onChange={handleChange}
-              placeholder='[[-87.6, 41.9], [-87.6, 42.0], [-87.5, 42.0], [-87.5, 41.9], [-87.6, 41.9]]'
-              rows="4"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #fbbf24',
-                borderRadius: '8px',
-                fontSize: '0.875rem',
-                fontFamily: 'monospace',
-                background: 'white'
-              }}
-            />
-            <p style={{
-              fontSize: '0.875rem',
-              color: '#78350f',
               marginTop: '0.5rem'
             }}>
-              Paste GeoJSON coordinates as array: [[lng, lat], [lng, lat], ...].
-              In the future, we'll have a map drawing tool.
+              We'll use this to automatically set the division's center coordinates
             </p>
           </div>
 
