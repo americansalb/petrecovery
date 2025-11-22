@@ -292,27 +292,35 @@ export default function AdminCreateRescueSquadPage() {
               }}>
                 City Name <span style={{ color: '#ef4444' }}>*</span>
               </label>
-              <select
+              <input
+                type="text"
                 value={cityName}
                 onChange={(e) => setCityName(e.target.value)}
+                placeholder="Enter city name"
                 required
                 style={{
                   width: '100%',
                   padding: '0.75rem',
                   border: '2px solid #e2e8f0',
                   borderRadius: '8px',
-                  fontSize: '1rem',
-                  fontFamily: 'inherit'
+                  fontSize: '1rem'
                 }}
-              >
-                {availableCities.map(city => (
-                  <option key={city} value={city}>{city}</option>
-                ))}
-              </select>
+              />
               <p style={{
                 fontSize: '0.875rem',
                 color: '#64748b',
                 marginTop: '0.5rem'
+              }}>
+                {availableCities.length > 1 ? (
+                  <>Detected cities: <strong>{availableCities.join(', ')}</strong>. You can edit or enter a different city name if needed.</>
+                ) : (
+                  <>Suggested: <strong>{availableCities[0]}</strong>. You can edit this if your city is different (e.g., if this ZIP serves multiple cities).</>
+                )}
+              </p>
+              <p style={{
+                fontSize: '0.875rem',
+                color: '#64748b',
+                marginTop: '0.25rem'
               }}>
                 Will create: <strong>{cityName ? `${cityName} Rescue Squad` : '[City] Rescue Squad'}</strong>
               </p>
