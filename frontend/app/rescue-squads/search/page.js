@@ -205,7 +205,13 @@ export default function RescueSquadSearchPage() {
           alignItems: 'end',
           flexWrap: 'wrap'
         }}>
-          <div style={{ flex: '1 1 auto', minWidth: '200px', maxWidth: '450px', position: 'relative', marginBottom: validationError ? '1.5rem' : showSuggestions ? '13rem' : '0' }}>
+          <div style={{
+            flex: '1 1 280px',
+            minWidth: '200px',
+            maxWidth: '100%',
+            position: 'relative',
+            marginBottom: validationError ? '1.5rem' : showSuggestions ? '13rem' : '0'
+          }}>
             <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
               City Name or ZIP Code
             </label>
@@ -303,7 +309,7 @@ export default function RescueSquadSearchPage() {
               </div>
             )}
           </div>
-          <div style={{ minWidth: '120px' }}>
+          <div style={{ flex: '0 0 auto', minWidth: '120px', width: '140px' }}>
             <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>Radius</label>
             <select
               value={radius}
@@ -325,6 +331,7 @@ export default function RescueSquadSearchPage() {
             type="submit"
             disabled={loading}
             style={{
+              flex: '0 0 auto',
               padding: '0.75rem 2rem',
               background: '#667eea',
               color: 'white',
@@ -332,7 +339,8 @@ export default function RescueSquadSearchPage() {
               borderRadius: '8px',
               fontWeight: '700',
               fontSize: '1rem',
-              cursor: loading ? 'not-allowed' : 'pointer'
+              cursor: loading ? 'not-allowed' : 'pointer',
+              whiteSpace: 'nowrap'
             }}
           >
             {loading ? 'Searching...' : 'Search'}
