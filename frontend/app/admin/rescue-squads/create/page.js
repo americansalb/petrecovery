@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { getCitiesByZip, isValidCity } from '../../lib/cities';
+import { getCitiesByZip, isValidCity } from '../../../lib/cities';
 
 function CreateRescueSquadForm() {
   const { data: session } = useSession();
