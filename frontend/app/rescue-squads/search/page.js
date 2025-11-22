@@ -205,7 +205,7 @@ export default function RescueSquadSearchPage() {
           alignItems: 'end',
           flexWrap: 'wrap'
         }}>
-          <div style={{ flex: 1, minWidth: '200px', position: 'relative', marginBottom: validationError ? '1.5rem' : showSuggestions ? '13rem' : '0' }}>
+          <div style={{ flex: '1 1 auto', minWidth: '200px', maxWidth: '450px', position: 'relative', marginBottom: validationError ? '1.5rem' : showSuggestions ? '13rem' : '0' }}>
             <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
               City Name or ZIP Code
             </label>
