@@ -64,10 +64,16 @@ export async function GET(request) {
     // Calculate distances and filter by radius
     const nearbyCities = new Map(); // city-state -> squad info
 
+    console.log(`[RESCUE SQUAD SEARCH] Found ${squads.length} total squads`);
+    console.log(`[RESCUE SQUAD SEARCH] Searching from ${userCity}, ${userState} (${searchLat}, ${searchLng}) within ${radius} miles`);
+
     squads.forEach(squad => {
       const distance = calculateDistance(searchLat, searchLng, squad.centerLatitude, squad.centerLongitude);
+      console.log(`[RESCUE SQUAD SEARCH] ${squad.city}, ${squad.state}: ${distance.toFixed(1)} miles away`);
+
       if (distance <= radius && squad.city && squad.state) {
         const key = `${squad.city}-${squad.state}`;
+        console.log(`[RESCUE SQUAD SEARCH] ✓ Adding ${squad.city} to results`);
         if (!nearbyCities.has(key) || nearbyCities.get(key).distance > distance) {
           // Calculate division distances and membership
           const divisionsWithDistance = squad.divisions
@@ -120,6 +126,8 @@ export async function GET(request) {
 
     // Convert to array and sort by distance
     const cities = Array.from(nearbyCities.values()).sort((a, b) => a.distance - b.distance);
+
+    console.log(`[RESCUE SQUAD SEARCH] Returning ${cities.length} cities:`, cities.map(c => `${c.city} (${c.distance.toFixed(1)}mi, exists: ${c.exists})`));
 
     return NextResponse.json({
       cities,
