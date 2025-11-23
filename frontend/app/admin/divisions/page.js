@@ -25,13 +25,25 @@ export default function AdminDivisionsPage() {
       console.log('🔍 [ADMIN] Fetching all divisions from database...');
       setLoading(true);
       const res = await fetch('/api/admin/divisions');
-      const data = await res.json();
 
       if (!res.ok) {
-        console.error('❌ [ADMIN] Failed to fetch divisions:', data.error);
-        throw new Error(data.error || 'Failed to fetch divisions');
+        const text = await res.text();
+        console.error('❌ [ADMIN] Failed to fetch divisions. Status:', res.status, 'Response:', text);
+
+        // If route doesn't exist yet (404), show helpful message
+        if (res.status === 404) {
+          throw new Error('API route not deployed yet. Please wait for deployment to complete.');
+        }
+
+        try {
+          const data = JSON.parse(text);
+          throw new Error(data.error || 'Failed to fetch divisions');
+        } catch {
+          throw new Error(`Failed to fetch divisions (${res.status})`);
+        }
       }
 
+      const data = await res.json();
       console.log('✅ [ADMIN] Loaded divisions:', data.divisions?.length || 0);
       setDivisions(data.divisions || []);
     } catch (err) {
