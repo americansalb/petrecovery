@@ -13,22 +13,9 @@ export default function AdminCreateRescueSquadPage() {
   const [success, setSuccess] = useState('');
 
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    centerLatitude: '',
-    centerLongitude: '',
-    radiusMiles: 5,
-    coverageType: 'CITYWIDE',
-    specializesInDogs: true,
-    specializesInCats: true,
-    specializesInBirds: true,
-    specializesInOther: true,
-    availableWeekdays: true,
-    availableWeekends: true,
-    availableDay: true,
-    availableNight: false,
-    hasTrackingDogs: false,
-    hasDrones: false
+    city: '',
+    state: '',
+    zipCode: ''
   });
 
   useEffect(() => {
@@ -51,39 +38,37 @@ export default function AdminCreateRescueSquadPage() {
     setSuccess('');
     setLoading(true);
 
+    console.log('🚀 [CREATE] Submitting rescue squad creation...', formData);
+
     try {
-      const payload = {
-        ...formData,
-        radiusMiles: parseInt(formData.radiusMiles),
-        centerLatitude: formData.centerLatitude ? parseFloat(formData.centerLatitude) : null,
-        centerLongitude: formData.centerLongitude ? parseFloat(formData.centerLongitude) : null,
-        // Always enable all pet types - we help ALL pets
-        specializesInDogs: true,
-        specializesInCats: true,
-        specializesInBirds: true,
-        specializesInOther: true
-      };
+      if (!formData.city || !formData.state || !formData.zipCode) {
+        throw new Error('Please fill in all required fields');
+      }
 
       const res = await fetch('/api/rescue-squads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(formData)
       });
 
       const data = await res.json();
+      console.log('📥 [CREATE] Response:', data);
 
       if (!res.ok) {
+        console.error('❌ [CREATE] Failed:', data.error);
         throw new Error(data.error || 'Failed to create rescue squad');
       }
 
+      console.log('✅ [CREATE] Rescue squad created successfully!', data.squad);
       setSuccess(`Rescue Squad "${data.squad.name}" created successfully!`);
 
       // Redirect after 2 seconds
       setTimeout(() => {
-        router.push('/rescue-squads');
+        router.push('/admin/rescue-squads');
       }, 2000);
 
     } catch (err) {
+      console.error('❌ [CREATE] Error:', err.message);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -180,7 +165,6 @@ export default function AdminCreateRescueSquadPage() {
           padding: '2.5rem',
           boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
         }}>
-          {/* Basic Information */}
           <h2 style={{
             fontSize: '1.5rem',
             fontWeight: '700',
@@ -189,7 +173,7 @@ export default function AdminCreateRescueSquadPage() {
             paddingBottom: '0.75rem',
             borderBottom: '2px solid #f1f5f9'
           }}>
-            Basic Information
+            Rescue Squad Location
           </h2>
 
           <div style={{ marginBottom: '1.5rem' }}>
@@ -199,14 +183,77 @@ export default function AdminCreateRescueSquadPage() {
               fontWeight: '700',
               color: '#0f172a'
             }}>
-              Squad Name *
+              City *
             </label>
             <input
               type="text"
-              name="name"
-              value={formData.name}
+              name="city"
+              value={formData.city}
               onChange={handleChange}
-              placeholder="e.g., Chicago Rescue Squad"
+              placeholder="e.g., Chicago"
+              required
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '2px solid #e2e8f0',
+                borderRadius: '8px',
+                fontSize: '1rem'
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontWeight: '700',
+              color: '#0f172a'
+            }}>
+              State *
+            </label>
+            <input
+              type="text"
+              name="state"
+              value={formData.state}
+              onChange={handleChange}
+              placeholder="e.g., IL"
+              maxLength="2"
+              required
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '2px solid #e2e8f0',
+                borderRadius: '8px',
+                fontSize: '1rem',
+                textTransform: 'uppercase'
+              }}
+            />
+            <p style={{
+              fontSize: '0.85rem',
+              color: '#64748b',
+              marginTop: '0.5rem'
+            }}>
+              Two-letter state code (e.g., IL, NY, CA)
+            </p>
+          </div>
+
+          <div style={{ marginBottom: '2rem' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontWeight: '700',
+              color: '#0f172a'
+            }}>
+              ZIP Code *
+            </label>
+            <input
+              type="text"
+              name="zipCode"
+              value={formData.zipCode}
+              onChange={handleChange}
+              placeholder="e.g., 60601"
+              pattern="[0-9]{5}"
+              maxLength="5"
               required
               style={{
                 width: '100%',
@@ -221,295 +268,8 @@ export default function AdminCreateRescueSquadPage() {
               color: '#64748b',
               marginTop: '0.5rem'
             }}>
-              Use the city or town name (e.g., "Denver Rescue Squad")
+              5-digit ZIP code for the squad's primary location
             </p>
-          </div>
-
-          <div style={{ marginBottom: '2rem' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontWeight: '700',
-              color: '#0f172a'
-            }}>
-              Description
-            </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              placeholder="Brief description of this rescue squad..."
-              rows="3"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #e2e8f0',
-                borderRadius: '8px',
-                fontSize: '1rem',
-                fontFamily: 'inherit'
-              }}
-            />
-          </div>
-
-          {/* Geographic Coverage */}
-          <h2 style={{
-            fontSize: '1.5rem',
-            fontWeight: '700',
-            color: '#0f172a',
-            marginBottom: '1.5rem',
-            paddingBottom: '0.75rem',
-            borderBottom: '2px solid #f1f5f9'
-          }}>
-            Geographic Coverage
-          </h2>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontWeight: '700',
-              color: '#0f172a'
-            }}>
-              Coverage Type
-            </label>
-            <select
-              name="coverageType"
-              value={formData.coverageType}
-              onChange={handleChange}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #e2e8f0',
-                borderRadius: '8px',
-                fontSize: '1rem'
-              }}
-            >
-              <option value="CITYWIDE">Citywide</option>
-              <option value="RADIUS">Radius (from center point)</option>
-              <option value="NEIGHBORHOOD">Specific Neighborhoods</option>
-              <option value="CUSTOM">Custom Boundary</option>
-            </select>
-          </div>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr',
-            gap: '1rem',
-            marginBottom: '2rem'
-          }}>
-            <div>
-              <label style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '700',
-                color: '#0f172a'
-              }}>
-                Center Latitude *
-              </label>
-              <input
-                type="number"
-                step="any"
-                name="centerLatitude"
-                value={formData.centerLatitude}
-                onChange={handleChange}
-                placeholder="41.8781"
-                required
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: '1rem'
-                }}
-              />
-            </div>
-            <div>
-              <label style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '700',
-                color: '#0f172a'
-              }}>
-                Center Longitude *
-              </label>
-              <input
-                type="number"
-                step="any"
-                name="centerLongitude"
-                value={formData.centerLongitude}
-                onChange={handleChange}
-                placeholder="-87.6298"
-                required
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: '1rem'
-                }}
-              />
-            </div>
-            <div>
-              <label style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '700',
-                color: '#0f172a'
-              }}>
-                Radius (miles)
-              </label>
-              <input
-                type="number"
-                name="radiusMiles"
-                value={formData.radiusMiles}
-                onChange={handleChange}
-                min="1"
-                max="100"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: '1rem'
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Specializations */}
-          <h2 style={{
-            fontSize: '1.5rem',
-            fontWeight: '700',
-            color: '#0f172a',
-            marginBottom: '1.5rem',
-            paddingBottom: '0.75rem',
-            borderBottom: '2px solid #f1f5f9'
-          }}>
-            Specializations
-          </h2>
-
-          {/* Equipment & Resources */}
-          <div style={{ marginBottom: '2rem' }}>
-              <h3 style={{
-                fontSize: '1.1rem',
-                fontWeight: '600',
-                color: '#0f172a',
-                marginBottom: '0.75rem'
-              }}>
-                Equipment & Resources
-              </h3>
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                marginBottom: '0.5rem',
-                cursor: 'pointer'
-              }}>
-                <input
-                  type="checkbox"
-                  name="hasTrackingDogs"
-                  checked={formData.hasTrackingDogs}
-                  onChange={handleChange}
-                  style={{ width: '1.2rem', height: '1.2rem' }}
-                />
-                <span>🦮 Tracking Dogs</span>
-              </label>
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                marginBottom: '0.5rem',
-                cursor: 'pointer'
-              }}>
-                <input
-                  type="checkbox"
-                  name="hasDrones"
-                  checked={formData.hasDrones}
-                  onChange={handleChange}
-                  style={{ width: '1.2rem', height: '1.2rem' }}
-                />
-                <span>🚁 Drones</span>
-              </label>
-            </div>
-
-          {/* Availability */}
-          <h2 style={{
-            fontSize: '1.5rem',
-            fontWeight: '700',
-            color: '#0f172a',
-            marginBottom: '1.5rem',
-            paddingBottom: '0.75rem',
-            borderBottom: '2px solid #f1f5f9'
-          }}>
-            Availability
-          </h2>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '1rem',
-            marginBottom: '2rem'
-          }}>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              cursor: 'pointer'
-            }}>
-              <input
-                type="checkbox"
-                name="availableWeekdays"
-                checked={formData.availableWeekdays}
-                onChange={handleChange}
-                style={{ width: '1.2rem', height: '1.2rem' }}
-              />
-              <span>Available Weekdays</span>
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              cursor: 'pointer'
-            }}>
-              <input
-                type="checkbox"
-                name="availableWeekends"
-                checked={formData.availableWeekends}
-                onChange={handleChange}
-                style={{ width: '1.2rem', height: '1.2rem' }}
-              />
-              <span>Available Weekends</span>
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              cursor: 'pointer'
-            }}>
-              <input
-                type="checkbox"
-                name="availableDay"
-                checked={formData.availableDay}
-                onChange={handleChange}
-                style={{ width: '1.2rem', height: '1.2rem' }}
-              />
-              <span>Available Daytime</span>
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              cursor: 'pointer'
-            }}>
-              <input
-                type="checkbox"
-                name="availableNight"
-                checked={formData.availableNight}
-                onChange={handleChange}
-                style={{ width: '1.2rem', height: '1.2rem' }}
-              />
-              <span>Available Nighttime</span>
-            </label>
           </div>
 
           {/* Submit */}
@@ -519,14 +279,15 @@ export default function AdminCreateRescueSquadPage() {
             style={{
               width: '100%',
               padding: '1rem',
-              background: loading ? '#cbd5e1' : '#10b981',
+              background: loading ? '#cbd5e1' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
               fontWeight: '700',
               fontSize: '1.1rem',
               cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'background 0.2s'
+              boxShadow: loading ? 'none' : '0 4px 12px rgba(102, 126, 234, 0.4)',
+              transition: 'all 0.2s'
             }}
           >
             {loading ? 'Creating Rescue Squad...' : 'Create Rescue Squad'}
