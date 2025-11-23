@@ -23,6 +23,10 @@ export async function GET(request) {
       zipCode = searchTerm.trim();
       const citiesForZip = getCitiesByZip(zipCode);
 
+      console.log(`🔍 [ZIP SEARCH] ZIP: ${zipCode}`);
+      console.log(`📊 [ZIP SEARCH] getCitiesByZip returned ${citiesForZip.length} cities:`);
+      citiesForZip.forEach((c, i) => console.log(`   ${i + 1}. ${c.city}, ${c.state_id}`));
+
       if (citiesForZip.length === 0) {
         return NextResponse.json({ error: 'Invalid ZIP code' }, { status: 400 });
       }
@@ -42,6 +46,8 @@ export async function GET(request) {
 
       userState = citiesForZip[0].state_id;
       allCitiesInZip = citiesForZip.map(c => c.city);
+
+      console.log(`✅ [ZIP SEARCH] allCitiesInZip array has ${allCitiesInZip.length} cities:`, allCitiesInZip);
     } else {
       // Search by city name - use cities library
       const cityName = searchTerm.trim();
@@ -176,8 +182,13 @@ export async function GET(request) {
     }
 
     // Always include ALL cities from the search
-    allCitiesInZip.forEach(cityName => {
+    console.log(`📍 [ZIP SEARCH] Adding ALL ${allCitiesInZip.length} cities to results...`);
+    console.log(`   BEFORE: nearbyCities has ${nearbyCities.size} entries`);
+
+    allCitiesInZip.forEach((cityName, index) => {
       const cityKey = userState ? `${cityName}-${userState}` : cityName;
+      console.log(`   [${index + 1}/${allCitiesInZip.length}] Processing: ${cityName}, ${userState} (key: ${cityKey})`);
+
       if (!nearbyCities.has(cityKey)) {
         nearbyCities.set(cityKey, {
           city: cityName,
@@ -187,13 +198,19 @@ export async function GET(request) {
           squad: null,
           divisions: []
         });
+        console.log(`      ➕ ADDED to nearbyCities`);
+      } else {
+        console.log(`      ✓ Already in nearbyCities (has squad)`);
       }
     });
+
+    console.log(`   AFTER: nearbyCities has ${nearbyCities.size} entries`);
 
     // Convert to array and sort by distance
     const cities = Array.from(nearbyCities.values()).sort((a, b) => a.distance - b.distance);
 
-    console.log(`[RESCUE SQUAD SEARCH] Returning ${cities.length} cities:`, cities.map(c => `${c.city} (${c.distance.toFixed(1)}mi, exists: ${c.exists})`));
+    console.log(`🎯 [ZIP SEARCH] FINAL RESULTS - Returning ${cities.length} cities:`);
+    cities.forEach((c, i) => console.log(`   ${i + 1}. ${c.city}, ${c.state} (${c.distance.toFixed(1)}mi, ${c.exists ? 'HAS SQUAD' : 'NO SQUAD'})`));
 
     return NextResponse.json({
       cities,
