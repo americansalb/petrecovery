@@ -19,66 +19,42 @@ export async function GET(request) {
       return NextResponse.json({ error: 'City name or ZIP code required' }, { status: 400 });
     }
 
-    let searchLat, searchLng, userCity, userState, zipCode;
+    // Use cities.js to search - returns ALL cities for a ZIP code or matching city names
+    console.log('🔍 [API] Searching cities database for:', searchInput);
+    const searchedCities = searchCityOrZip(searchInput.trim());
+    console.log('📊 [API] Found', searchedCities.length, 'matching cities');
 
-    // Check if input is a ZIP code (5 digits) or city name
-    const isZipCode = /^\d{5}$/.test(searchInput.trim());
-
-    if (isZipCode) {
-      console.log('📍 [API] Input detected as ZIP code:', searchInput);
-      zipCode = searchInput.trim();
-
-      // Geocode the ZIP code
-      const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
-      if (!geoRes.ok) {
-        console.error('❌ [API] Invalid ZIP code:', zipCode);
-        return NextResponse.json({ error: 'Invalid ZIP code' }, { status: 400 });
-      }
-
-      const geoData = await geoRes.json();
-      const place = geoData.places[0];
-      searchLat = parseFloat(place['latitude']);
-      searchLng = parseFloat(place['longitude']);
-      userCity = place['place name'];
-      userState = place['state abbreviation'];
-
-      console.log('✅ [API] ZIP geocoded:', { userCity, userState, lat: searchLat, lng: searchLng });
-    } else {
-      console.log('🏙️ [API] Input detected as city name:', searchInput);
-
-      // Search for city in our database
-      const cityResults = searchCityOrZip(searchInput.trim());
-      console.log('📊 [API] City search results:', cityResults.length, 'matches found');
-
-      if (!cityResults || cityResults.length === 0) {
-        console.error('❌ [API] City not found:', searchInput);
-        return NextResponse.json({
-          error: 'City not found. Please enter a valid US city name or ZIP code.'
-        }, { status: 400 });
-      }
-
-      // Use the first match
-      const cityData = cityResults[0];
-      userCity = cityData.city;
-      userState = cityData.state_id;
-      zipCode = cityData.zips[0]; // Get first ZIP for this city
-
-      console.log('🎯 [API] Using city:', { userCity, userState, zipCode });
-
-      // Geocode using the ZIP code from our database
-      const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
-      if (!geoRes.ok) {
-        console.error('❌ [API] Failed to geocode city ZIP:', zipCode);
-        return NextResponse.json({ error: 'Failed to geocode city location' }, { status: 500 });
-      }
-
-      const geoData = await geoRes.json();
-      const place = geoData.places[0];
-      searchLat = parseFloat(place['latitude']);
-      searchLng = parseFloat(place['longitude']);
-
-      console.log('✅ [API] City geocoded:', { lat: searchLat, lng: searchLng });
+    if (!searchedCities || searchedCities.length === 0) {
+      console.error('❌ [API] No cities found for:', searchInput);
+      return NextResponse.json({
+        error: 'City or ZIP code not found. Please enter a valid US city name or 5-digit ZIP code.'
+      }, { status: 400 });
     }
+
+    // Use first city to get center coordinates for distance calculations
+    const firstCity = searchedCities[0];
+    const zipCode = firstCity.zips[0];
+
+    console.log('🎯 [API] Using first result for center point:', {
+      city: firstCity.city,
+      state: firstCity.state_id,
+      zipCode,
+      totalCitiesFound: searchedCities.length
+    });
+
+    // Geocode to get search center coordinates
+    const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+    if (!geoRes.ok) {
+      console.error('❌ [API] Failed to geocode ZIP:', zipCode);
+      return NextResponse.json({ error: 'Failed to geocode location' }, { status: 500 });
+    }
+
+    const geoData = await geoRes.json();
+    const place = geoData.places[0];
+    const searchLat = parseFloat(place['latitude']);
+    const searchLng = parseFloat(place['longitude']);
+
+    console.log('✅ [API] Search center geocoded:', { lat: searchLat, lng: searchLng });
 
     console.log('👤 [API] Getting session...');
     const session = await getServerSession(authOptions);
@@ -177,17 +153,24 @@ export async function GET(request) {
       }
     });
 
-    // Always include user's city
-    const userKey = `${userCity}-${userState}`;
-    if (!nearbyCities.has(userKey)) {
-      nearbyCities.set(userKey, {
-        city: userCity,
-        state: userState,
-        distance: 0,
-        exists: false,
-        squad: null,
-      });
-    }
+    // Add ALL searched cities to results (so if ZIP has 3 cities, all 3 show up)
+    console.log('📍 [API] Adding all searched cities to results...');
+    searchedCities.forEach(cityData => {
+      const key = `${cityData.city}-${cityData.state_id}`;
+      if (!nearbyCities.has(key)) {
+        // City doesn't have a squad yet - add it with exists: false
+        nearbyCities.set(key, {
+          city: cityData.city,
+          state: cityData.state_id,
+          distance: 0, // Distance from search center (which is based on this ZIP)
+          exists: false,
+          squad: null,
+        });
+        console.log('  ➕ Added city without squad:', cityData.city, cityData.state_id);
+      } else {
+        console.log('  ✓ City already has squad:', cityData.city, cityData.state_id);
+      }
+    });
 
     // Convert cities to array and sort by distance
     const cities = Array.from(nearbyCities.values()).sort((a, b) => a.distance - b.distance);
@@ -198,13 +181,22 @@ export async function GET(request) {
     console.log('✅ [API] Search complete:', {
       citiesFound: cities.length,
       divisionsFound: divisions.length,
-      searchLocation: { city: userCity, state: userState, zipCode }
+      searchedCitiesCount: searchedCities.length,
+      searchLocation: {
+        city: firstCity.city,
+        state: firstCity.state_id,
+        zipCode
+      }
     });
 
     return NextResponse.json({
       cities,
       divisions,
-      searchLocation: { city: userCity, state: userState, zipCode },
+      searchLocation: {
+        city: firstCity.city,
+        state: firstCity.state_id,
+        zipCode
+      },
     });
   } catch (error) {
     console.error('❌ [API] Error searching rescue squads:', error);
