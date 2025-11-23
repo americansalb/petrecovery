@@ -43,7 +43,43 @@ export async function POST(request) {
       data: {
         status: 'REUNITED',
         resolvedAt: new Date(),
+        resolution: 'REUNITED',
       }
+    });
+
+    // Update successful reunion stats for squad(s) and division(s) involved
+    const assignments = await prisma.caseAssignment.findMany({
+      where: {
+        caseId: reportId,
+        status: { in: ['ACCEPTED', 'ACTIVE'] },
+      },
+      select: {
+        rescueSquadId: true,
+        divisionId: true,
+      },
+    });
+
+    // Increment stats for each involved squad/division
+    for (const assignment of assignments) {
+      // If this is a division assignment, increment division stats
+      if (assignment.divisionId) {
+        await prisma.division.update({
+          where: { id: assignment.divisionId },
+          data: { successfulReunions: { increment: 1 } },
+        });
+      }
+
+      // Always increment the rescue squad stats (includes both direct and division reunions)
+      await prisma.rescueSquad.update({
+        where: { id: assignment.rescueSquadId },
+        data: { successfulReunions: { increment: 1 } },
+      });
+    }
+
+    // Increment user's successful reunions
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { successfulReunions: { increment: 1 } },
     });
 
     return NextResponse.json({
