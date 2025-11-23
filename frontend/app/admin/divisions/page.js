@@ -130,29 +130,46 @@ export default function AdminDivisionsPage() {
               color: '#0f172a',
               marginBottom: '0.5rem'
             }}>
-              Division Requests
+              Division Management
             </h1>
             <p style={{
               fontSize: '1.1rem',
               color: '#64748b'
             }}>
-              Review and manage division requests {pendingCount > 0 && `(${pendingCount} pending)`}
+              Create divisions and review requests {pendingCount > 0 && `(${pendingCount} pending)`}
             </p>
           </div>
-          <Link
-            href="/rescue-squads"
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: 'white',
-              color: '#64748b',
-              border: '2px solid #e2e8f0',
-              borderRadius: '8px',
-              textDecoration: 'none',
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <Link
+              href="/admin/divisions/create"
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontWeight: '700',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)'
+              }}
+            >
+              ➕ Create Division
+            </Link>
+            <Link
+              href="/rescue-squads"
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: 'white',
+                color: '#64748b',
+                border: '2px solid #e2e8f0',
+                borderRadius: '8px',
+                textDecoration: 'none',
               fontWeight: '700'
             }}
           >
             ← Back to Squads
           </Link>
+          </div>
         </div>
 
         {/* Filter Tabs */}
