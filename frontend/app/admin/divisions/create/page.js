@@ -26,8 +26,7 @@ export default function AdminCreateDivisionPage() {
     description: '',
     boundaries: null,
     centerLatitude: null,
-    centerLongitude: null,
-    zipCodes: ''
+    centerLongitude: null
   });
 
   useEffect(() => {
@@ -62,32 +61,67 @@ export default function AdminCreateDivisionPage() {
     });
   };
 
-  const handlePolygonComplete = (coordinates, center) => {
+  const handlePolygonChange = (polygonData) => {
+    console.log('🗺️ Polygon change detected:', polygonData);
+
+    if (!polygonData) {
+      console.log('❌ Polygon was deleted');
+      setFormData({
+        ...formData,
+        boundaries: null,
+        centerLatitude: null,
+        centerLongitude: null
+      });
+      return;
+    }
+
+    console.log('✅ Setting polygon data:', {
+      boundariesCount: polygonData.boundaries?.length,
+      center: { lat: polygonData.centerLatitude, lng: polygonData.centerLongitude }
+    });
+
     setFormData({
       ...formData,
-      boundaries: coordinates,
-      centerLatitude: center.lat,
-      centerLongitude: center.lng
+      boundaries: polygonData.boundaries,
+      centerLatitude: polygonData.centerLatitude,
+      centerLongitude: polygonData.centerLongitude
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('🚀 Starting division creation...');
+    console.log('📋 Form data:', formData);
+
     setError('');
     setLoading(true);
 
     try {
       // Validation
+      console.log('🔍 Validating form...');
+
       if (!formData.rescueSquadId) {
+        console.error('❌ Validation failed: No rescue squad selected');
         throw new Error('Please select a rescue squad');
       }
+      console.log('✅ Squad selected:', formData.rescueSquadId);
+
       if (!formData.name.trim()) {
+        console.error('❌ Validation failed: No division name');
         throw new Error('Please enter a division name');
       }
-      if (!formData.boundaries || formData.boundaries.length < 3) {
-        throw new Error('Please draw the division boundaries on the map');
-      }
+      console.log('✅ Division name:', formData.name);
 
+      if (!formData.boundaries || formData.boundaries.length < 3) {
+        console.error('❌ Validation failed: Invalid boundaries', {
+          boundaries: formData.boundaries,
+          length: formData.boundaries?.length
+        });
+        throw new Error('Please draw the division boundaries on the map (at least 3 points)');
+      }
+      console.log('✅ Boundaries valid:', formData.boundaries.length, 'points');
+
+      console.log('📡 Sending request to API...');
       const res = await fetch('/api/admin/divisions/create', {
         method: 'POST',
         headers: {
@@ -96,15 +130,22 @@ export default function AdminCreateDivisionPage() {
         body: JSON.stringify(formData)
       });
 
+      console.log('📥 Response status:', res.status);
       const data = await res.json();
+      console.log('📥 Response data:', data);
 
       if (!res.ok) {
+        console.error('❌ API error:', data.error);
         throw new Error(data.error || 'Failed to create division');
       }
+
+      console.log('✅ Division created successfully!', data.division);
+      console.log('🔄 Redirecting to squad page...');
 
       // Success! Redirect to the squad detail page
       router.push(`/rescue-squads/${formData.rescueSquadId}`);
     } catch (err) {
+      console.error('❌ Error creating division:', err);
       setError(err.message);
       setLoading(false);
     }
@@ -308,40 +349,6 @@ export default function AdminCreateDivisionPage() {
                   }}
                 />
               </div>
-
-              {/* ZIP Codes */}
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontWeight: '700',
-                  color: '#0f172a'
-                }}>
-                  ZIP Codes (Optional)
-                </label>
-                <input
-                  type="text"
-                  name="zipCodes"
-                  value={formData.zipCodes}
-                  onChange={handleChange}
-                  placeholder="60601, 60602, 60603"
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    fontSize: '1rem',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '8px',
-                    outline: 'none'
-                  }}
-                />
-                <p style={{
-                  fontSize: '0.85rem',
-                  color: '#64748b',
-                  marginTop: '0.5rem'
-                }}>
-                  Comma-separated list of ZIP codes covered by this division
-                </p>
-              </div>
             </div>
           </div>
 
@@ -371,16 +378,11 @@ export default function AdminCreateDivisionPage() {
             </p>
 
             <PolygonDrawMap
-              initialCenter={
-                selectedSquad
-                  ? {
-                      lat: selectedSquad.centerLatitude || 41.8781,
-                      lng: selectedSquad.centerLongitude || -87.6298
-                    }
-                  : { lat: 41.8781, lng: -87.6298 }
-              }
-              onPolygonComplete={handlePolygonComplete}
-              initialZoom={12}
+              key={formData.rescueSquadId || 'default'} // Re-mount map when squad changes
+              centerLat={selectedSquad?.centerLatitude || 41.8781}
+              centerLng={selectedSquad?.centerLongitude || -87.6298}
+              zoom={12}
+              onPolygonChange={handlePolygonChange}
             />
 
             {formData.boundaries && (
