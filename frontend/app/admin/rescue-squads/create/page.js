@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getCitySuggestions, getCityByName, isValidCity } from '@/app/lib/cities';
 
-export default function AdminCreateRescueSquadPage() {
+function CreateRescueSquadForm() {
   const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -437,5 +437,27 @@ export default function AdminCreateRescueSquadPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function AdminCreateRescueSquadPage() {
+  return (
+    <Suspense fallback={
+      <div style={{
+        minHeight: '100vh',
+        background: '#f8fafc',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: '600', color: '#64748b' }}>
+            Loading...
+          </div>
+        </div>
+      </div>
+    }>
+      <CreateRescueSquadForm />
+    </Suspense>
   );
 }
