@@ -63,6 +63,13 @@ export default function RescueSquadSearchPage() {
     try {
       const res = await fetch(`/api/rescue-squads?search=${encodeURIComponent(searchTerm)}&radius=${radius}`);
       const data = await res.json();
+
+      console.log('🎯 [FRONTEND] Received API response:');
+      console.log('   Search term:', searchTerm);
+      console.log('   Search location:', data.searchLocation);
+      console.log('   Cities array length:', data.cities?.length || 0);
+      console.log('   Cities:', data.cities?.map(c => `${c.city}, ${c.state}`).join('; '));
+
       setCities(data.cities || []);
       setSearchLocation(data.searchLocation || null);
       setSearched(true);
