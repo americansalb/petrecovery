@@ -102,20 +102,6 @@ export default function MyCasesPage() {
             </p>
           </div>
 
-          <Link
-            href="/cases/create"
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-              color: 'white',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              fontWeight: '700',
-              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
-            }}
-          >
-            🐾 Report Lost Pet
-          </Link>
         </div>
 
         {/* Stats */}
