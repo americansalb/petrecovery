@@ -441,6 +441,7 @@ model RescueSquad {
   centerLongitude Float?
   radiusMiles     Int      @default(5)
   customBoundary  String?  // JSON: GeoJSON polygon for custom coverage
+  areaDensity     AreaDensity @default(SUBURBAN) // For notification radius logic
 
   // Specializations
   specializesInDogs    Boolean  @default(true)
@@ -501,6 +502,12 @@ enum RescueSquadLevel {
   LEGENDARY    // 100+ cases
 }
 
+enum AreaDensity {
+  URBAN        // Dense city areas - 0.5 mile notification radius
+  SUBURBAN     // Suburban areas - 1 mile notification radius
+  RURAL        // Rural areas - 1.5 mile notification radius
+}
+
 model RescueSquadMember {
   id              String   @id @default(cuid())
   rescueSquadId   String
@@ -539,9 +546,9 @@ model RescueSquadMember {
 }
 
 enum RescueSquadMemberRole {
-  FOUNDER          // Created the rescue squad
-  LEADER           // Can accept cases, manage members
-  COORDINATOR      // Can coordinate searches, post updates
+  ADMINISTRATOR    // Full squad control, can appoint moderators
+  MODERATOR        // Can accept cases, manage members, auto-moderator of all divisions
+  DIVISION_LEADER  // Division-specific moderator (can manage division only)
   MEMBER           // Regular searcher
 }
 
@@ -559,10 +566,14 @@ model CaseAssignment {
   rescueSquadId   String
   rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
 
+  // Division Assignment (optional - for division-specific cases)
+  divisionId      String?
+  // Note: No FK relation to avoid circular dependency, will validate in application logic
+
   // Assignment Status
   status          AssignmentStatus @default(ACCEPTED)
   acceptedAt      DateTime @default(now())
-  acceptedById    String   // Rescue Squad leader who accepted
+  acceptedById    String   // Rescue Squad/Division leader who accepted
 
   // Participation
   activeMembers   Int      @default(0)
@@ -726,18 +737,18 @@ model Division {
   description     String?
 
   // Coverage (neighborhood-level)
-  centerLatitude  Float?
-  centerLongitude Float?
-  radiusMiles     Int      @default(3)  // Smaller than squad-level
-  zipCodes        String   @default("[]") // JSON array of zip codes
-  customBoundary  String?  // JSON: GeoJSON polygon
+  centerLatitude  Float?   // Center of polygon for distance calculations
+  centerLongitude Float?   // Center of polygon for distance calculations
+  boundaries      Json?    // Polygon coordinates [[lat, lng], [lat, lng], ...]
+  zipCodes        String   @default("[]") // JSON array of zip codes (optional)
 
   // Status
   isActive        Boolean  @default(true)
 
-  // Stats
+  // Stats (roll up to parent squad, don't double count)
   totalMembers    Int      @default(0)
   activeCases     Int      @default(0)
+  successfulReunions Int   @default(0)  // Counts toward squad total, not separate
 
   // Relations
   members         RescueSquadMember[]
@@ -764,10 +775,10 @@ model DivisionRequest {
   justification   String   // Why this division is needed
 
   // Geographic Details
-  zipCodes        String   @default("[]") // JSON array
-  centerLatitude  Float?
-  centerLongitude Float?
-  estimatedRadius Int?     // Miles
+  proposedBoundaries Json?    // User-drawn polygon coordinates
+  centerLatitude  Float?      // Center of proposed polygon
+  centerLongitude Float?      // Center of proposed polygon
+  zipCodes        String   @default("[]") // JSON array (optional)
 
   // Additional Context
   estimatedPopulation Int?
