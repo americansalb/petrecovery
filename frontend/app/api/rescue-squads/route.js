@@ -22,7 +22,13 @@ export async function GET(request) {
     // Use cities.js to search - returns ALL cities for a ZIP code or matching city names
     console.log('🔍 [API] Searching cities database for:', searchInput);
     const searchedCities = searchCityOrZip(searchInput.trim());
-    console.log('📊 [API] Found', searchedCities.length, 'matching cities');
+    console.log('📊 [API] Found', searchedCities.length, 'matching cities in OUR database');
+
+    // Log all cities found
+    if (searchedCities.length > 0) {
+      console.log('📋 [API] Cities from OUR database:');
+      searchedCities.forEach(c => console.log(`   - ${c.city}, ${c.state_id}`));
+    }
 
     if (!searchedCities || searchedCities.length === 0) {
       console.error('❌ [API] No cities found for:', searchInput);
@@ -31,18 +37,18 @@ export async function GET(request) {
       }, { status: 400 });
     }
 
-    // Use first city to get center coordinates for distance calculations
+    // Use first city from OUR database for center coordinates
     const firstCity = searchedCities[0];
     const zipCode = firstCity.zips[0];
 
-    console.log('🎯 [API] Using first result for center point:', {
+    console.log('🎯 [API] Using city from OUR database for center:', {
       city: firstCity.city,
       state: firstCity.state_id,
       zipCode,
       totalCitiesFound: searchedCities.length
     });
 
-    // Geocode to get search center coordinates
+    // Geocode ONLY for coordinates (we ignore the city name from geocoding API)
     const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
     if (!geoRes.ok) {
       console.error('❌ [API] Failed to geocode ZIP:', zipCode);
@@ -54,7 +60,12 @@ export async function GET(request) {
     const searchLat = parseFloat(place['latitude']);
     const searchLng = parseFloat(place['longitude']);
 
-    console.log('✅ [API] Search center geocoded:', { lat: searchLat, lng: searchLng });
+    console.log('✅ [API] Coordinates from geocoding (city name IGNORED):', {
+      lat: searchLat,
+      lng: searchLng,
+      geocodingApiSaid: place['place name'],
+      weAreUsing: firstCity.city
+    });
 
     console.log('👤 [API] Getting session...');
     const session = await getServerSession(authOptions);
