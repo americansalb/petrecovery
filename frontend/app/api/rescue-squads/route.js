@@ -2,78 +2,96 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
-import { searchCityOrZip } from '@/app/lib/cities';
+import { getCitiesByZip, getCityByName } from '@/app/lib/cities';
 
 // GET /api/rescue-squads - Search for cities with rescue squads nearby
 export async function GET(request) {
   try {
-    console.log('🔍 [API] Rescue squad search request received');
     const { searchParams } = new URL(request.url);
-    const searchInput = searchParams.get('search') || searchParams.get('zipCode') || searchParams.get('zip');
+    const searchTerm = searchParams.get('search') || searchParams.get('zipCode') || searchParams.get('zip');
     const radius = parseInt(searchParams.get('radius')) || 25;
 
-    console.log('📥 [API] Search params:', { searchInput, radius });
-
-    if (!searchInput) {
-      console.error('❌ [API] No search input provided');
+    if (!searchTerm) {
       return NextResponse.json({ error: 'City name or ZIP code required' }, { status: 400 });
     }
 
-    // Use cities.js to search - returns ALL cities for a ZIP code or matching city names
-    console.log('🔍 [API] Searching cities database for:', searchInput);
-    const searchedCities = searchCityOrZip(searchInput.trim());
-    console.log('📊 [API] Found', searchedCities.length, 'matching cities in OUR database');
+    let searchLat, searchLng, userState, allCitiesInZip, zipCode;
+    const isZipCode = /^\d{5}$/.test(searchTerm.trim());
 
-    // Log all cities found
-    if (searchedCities.length > 0) {
-      console.log('📋 [API] Cities from OUR database:');
-      searchedCities.forEach(c => console.log(`   - ${c.city}, ${c.state_id}`));
+    if (isZipCode) {
+      // Search by ZIP code - use cities library
+      zipCode = searchTerm.trim();
+      const citiesForZip = getCitiesByZip(zipCode);
+
+      if (citiesForZip.length === 0) {
+        return NextResponse.json({ error: 'Invalid ZIP code' }, { status: 400 });
+      }
+
+      // Use the first city's data for coordinates (will use zippopotam for coordinates)
+      const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+      if (geoRes.ok) {
+        const geoData = await geoRes.json();
+        const place = geoData.places[0];
+        searchLat = parseFloat(place['latitude']);
+        searchLng = parseFloat(place['longitude']);
+      } else {
+        // Fallback if geo API fails - use approximate coordinates from database search
+        searchLat = null;
+        searchLng = null;
+      }
+
+      userState = citiesForZip[0].state_id;
+      allCitiesInZip = citiesForZip.map(c => c.city);
+    } else {
+      // Search by city name - use cities library
+      const cityName = searchTerm.trim();
+      const cityData = getCityByName(cityName);
+
+      if (!cityData) {
+        return NextResponse.json({ error: 'Invalid city name' }, { status: 400 });
+      }
+
+      // Check if a squad exists for this city
+      const existingSquad = await prisma.rescueSquad.findFirst({
+        where: {
+          city: { equals: cityName, mode: 'insensitive' },
+          isActive: true
+        }
+      });
+
+      if (existingSquad) {
+        // Use the existing squad's coordinates
+        searchLat = existingSquad.centerLatitude;
+        searchLng = existingSquad.centerLongitude;
+      } else {
+        // Try to get coordinates from zippopotam using first ZIP
+        const firstZip = cityData.zips.length > 0 ? cityData.zips[0] : null;
+        if (firstZip) {
+          const geoRes = await fetch(`https://api.zippopotam.us/us/${firstZip}`);
+          if (geoRes.ok) {
+            const geoData = await geoRes.json();
+            const place = geoData.places[0];
+            searchLat = parseFloat(place['latitude']);
+            searchLng = parseFloat(place['longitude']);
+          } else {
+            searchLat = null;
+            searchLng = null;
+          }
+        } else {
+          searchLat = null;
+          searchLng = null;
+        }
+      }
+
+      userState = cityData.state_id;
+      allCitiesInZip = [cityData.city];
+      zipCode = cityData.zips.length > 0 ? cityData.zips[0] : null;
     }
 
-    if (!searchedCities || searchedCities.length === 0) {
-      console.error('❌ [API] No cities found for:', searchInput);
-      return NextResponse.json({
-        error: 'City or ZIP code not found. Please enter a valid US city name or 5-digit ZIP code.'
-      }, { status: 400 });
-    }
-
-    // Use first city from OUR database for center coordinates
-    const firstCity = searchedCities[0];
-    const zipCode = firstCity.zips[0];
-
-    console.log('🎯 [API] Using city from OUR database for center:', {
-      city: firstCity.city,
-      state: firstCity.state_id,
-      zipCode,
-      totalCitiesFound: searchedCities.length
-    });
-
-    // Geocode ONLY for coordinates (we ignore the city name from geocoding API)
-    const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
-    if (!geoRes.ok) {
-      console.error('❌ [API] Failed to geocode ZIP:', zipCode);
-      return NextResponse.json({ error: 'Failed to geocode location' }, { status: 500 });
-    }
-
-    const geoData = await geoRes.json();
-    const place = geoData.places[0];
-    const searchLat = parseFloat(place['latitude']);
-    const searchLng = parseFloat(place['longitude']);
-
-    console.log('✅ [API] Coordinates from geocoding (city name IGNORED):', {
-      lat: searchLat,
-      lng: searchLng,
-      geocodingApiSaid: place['place name'],
-      weAreUsing: firstCity.city
-    });
-
-    console.log('👤 [API] Getting session...');
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
-    console.log('👤 [API] User ID:', userId || 'Not logged in');
 
     // Find all active squads with coordinates
-    console.log('🔍 [API] Querying database for active rescue squads...');
     const squads = await prisma.rescueSquad.findMany({
       where: {
         isActive: true,
@@ -85,37 +103,58 @@ export async function GET(request) {
           where: { isActive: true },
           select: { userId: true, role: true, divisionId: true },
         },
+        _count: { select: { members: true } },
         divisions: {
           where: { isActive: true },
           select: {
             id: true,
             name: true,
-            description: true,
             centerLatitude: true,
             centerLongitude: true,
             totalMembers: true,
-            activeCases: true,
-            successfulReunions: true,
-          },
-        },
-        _count: { select: { members: true } },
+            _count: { select: { members: true } },
+            members: userId ? {
+              where: { userId, isActive: true },
+              select: { userId: true }
+            } : false
+          }
+        }
       },
     });
 
-    console.log('📊 [API] Found', squads.length, 'active rescue squads in database');
-
     // Calculate distances and filter by radius
     const nearbyCities = new Map(); // city-state -> squad info
-    const nearbyDivisions = []; // array of divisions with distance
 
-    console.log('📏 [API] Calculating distances from search location...');
-    squads.forEach(squad => {
-      const distance = calculateDistance(searchLat, searchLng, squad.centerLatitude, squad.centerLongitude);
-      if (distance <= radius && squad.city && squad.state) {
+    console.log(`[RESCUE SQUAD SEARCH] Found ${squads.length} total squads`);
+    console.log(`[RESCUE SQUAD SEARCH] Searching from ${allCitiesInZip.join(', ')}, ${userState || 'unknown state'} (${searchLat}, ${searchLng}) within ${radius} miles`);
+
+    // If we have coordinates, find nearby squads
+    if (searchLat !== null && searchLng !== null) {
+      squads.forEach(squad => {
+        const distance = calculateDistance(searchLat, searchLng, squad.centerLatitude, squad.centerLongitude);
+        console.log(`[RESCUE SQUAD SEARCH] ${squad.city}, ${squad.state}: ${distance.toFixed(1)} miles away`);
+
+        if (distance <= radius && squad.city && squad.state) {
         const key = `${squad.city}-${squad.state}`;
-        const isMember = userId ? squad.members.some(m => m.userId === userId) : false;
-
+        console.log(`[RESCUE SQUAD SEARCH] ✓ Adding ${squad.city} to results`);
         if (!nearbyCities.has(key) || nearbyCities.get(key).distance > distance) {
+          // Calculate division distances and membership
+          const divisionsWithDistance = squad.divisions
+            .map(div => {
+              const divDistance = div.centerLatitude && div.centerLongitude
+                ? calculateDistance(searchLat, searchLng, div.centerLatitude, div.centerLongitude)
+                : null;
+              return {
+                id: div.id,
+                name: div.name,
+                distance: divDistance,
+                totalMembers: div.totalMembers || div._count.members,
+                isMember: userId ? div.members.some(m => m.userId === userId) : false
+              };
+            })
+            .filter(div => div.distance !== null) // Only include divisions with coordinates
+            .sort((a, b) => a.distance - b.distance); // Sort by distance
+
           nearbyCities.set(key, {
             city: squad.city,
             state: squad.state,
@@ -125,106 +164,48 @@ export async function GET(request) {
               id: squad.id,
               name: squad.name,
               memberCount: squad._count.members,
-              isMember,
+              isMember: userId ? squad.members.some(m => m.userId === userId) : false,
               totalCasesAccepted: squad.totalCasesAccepted,
               successfulReunions: squad.successfulReunions,
-            }
-          });
-        }
-
-        // Process divisions for this squad
-        if (squad.divisions && squad.divisions.length > 0) {
-          squad.divisions.forEach(division => {
-            if (division.centerLatitude && division.centerLongitude) {
-              const divDistance = calculateDistance(searchLat, searchLng, division.centerLatitude, division.centerLongitude);
-              if (divDistance <= radius) {
-                const isDivisionMember = userId ? squad.members.some(m =>
-                  m.userId === userId && m.divisionId === division.id
-                ) : false;
-
-                nearbyDivisions.push({
-                  id: division.id,
-                  name: division.name,
-                  description: division.description,
-                  distance: divDistance,
-                  squadId: squad.id,
-                  squadName: squad.name,
-                  squadCity: squad.city,
-                  squadState: squad.state,
-                  memberCount: division.totalMembers,
-                  activeCases: division.activeCases,
-                  successfulReunions: division.successfulReunions,
-                  isMember: isDivisionMember,
-                  isSquadMember: isMember,
-                });
-              }
-            }
+            },
+            divisions: divisionsWithDistance
           });
         }
       }
-    });
+      });
+    }
 
-    // Add ALL searched cities to results (so if ZIP has 3 cities, all 3 show up)
-    console.log('📍 [API] Adding ALL', searchedCities.length, 'searched cities to results...');
-    console.log('   BEFORE adding searched cities, nearbyCities has:', nearbyCities.size, 'entries');
-
-    searchedCities.forEach((cityData, index) => {
-      const key = `${cityData.city}-${cityData.state_id}`;
-      console.log(`   [${index + 1}/${searchedCities.length}] Processing:`, cityData.city, cityData.state_id);
-
-      if (!nearbyCities.has(key)) {
-        // City doesn't have a squad yet - add it with exists: false
-        nearbyCities.set(key, {
-          city: cityData.city,
-          state: cityData.state_id,
-          distance: 0, // Distance from search center (which is based on this ZIP)
+    // Always include ALL cities from the search
+    allCitiesInZip.forEach(cityName => {
+      const cityKey = userState ? `${cityName}-${userState}` : cityName;
+      if (!nearbyCities.has(cityKey)) {
+        nearbyCities.set(cityKey, {
+          city: cityName,
+          state: userState,
+          distance: 0,
           exists: false,
           squad: null,
+          divisions: []
         });
-        console.log('      ➕ ADDED to results (no squad exists)');
-      } else {
-        console.log('      ✓ Already in results (squad exists)');
       }
     });
 
-    console.log('   AFTER adding searched cities, nearbyCities has:', nearbyCities.size, 'entries');
-    console.log('   ALL cities that will be returned:');
-    nearbyCities.forEach((value, key) => {
-      console.log('      -', value.city, value.state, '|', value.exists ? 'HAS SQUAD' : 'NO SQUAD');
-    });
-
-    // Convert cities to array and sort by distance
+    // Convert to array and sort by distance
     const cities = Array.from(nearbyCities.values()).sort((a, b) => a.distance - b.distance);
 
-    // Sort divisions by distance
-    const divisions = nearbyDivisions.sort((a, b) => a.distance - b.distance);
-
-    console.log('✅ [API] Search complete:', {
-      citiesFound: cities.length,
-      divisionsFound: divisions.length,
-      searchedCitiesCount: searchedCities.length,
-      searchLocation: {
-        city: firstCity.city,
-        state: firstCity.state_id,
-        zipCode
-      }
-    });
+    console.log(`[RESCUE SQUAD SEARCH] Returning ${cities.length} cities:`, cities.map(c => `${c.city} (${c.distance.toFixed(1)}mi, exists: ${c.exists})`));
 
     return NextResponse.json({
       cities,
-      divisions,
       searchLocation: {
-        city: firstCity.city,
-        state: firstCity.state_id,
+        cities: allCitiesInZip,
+        state: userState,
         zipCode
       },
     });
   } catch (error) {
-    console.error('❌ [API] Error searching rescue squads:', error);
-    console.error('Stack trace:', error.stack);
-    return NextResponse.json({
-      error: 'Failed to search: ' + error.message
-    }, { status: 500 });
+    console.error('Error searching rescue squads:', error);
+    return NextResponse.json({ error: 'Failed to search' }, { status: 500 });
   }
 }
 
@@ -300,6 +281,7 @@ export async function POST(request) {
       where: { id: session.user.id },
       data: {
         squadsJoinedCount: { increment: 1 },
+        squadsFoundedCount: { increment: 1 },
         rescueLevel: 'SCOUT',
       },
     });
