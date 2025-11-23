@@ -13,19 +13,19 @@ export async function GET(request, { params }) {
 
     const { id: squadId } = params;
 
-    // Check if user is a leader of this squad
+    // Check if user is a moderator/administrator of this squad
     const membership = await prisma.rescueSquadMember.findFirst({
       where: {
         rescueSquadId: squadId,
         userId: session.user.id,
-        role: { in: ['FOUNDER', 'LEADER'] },
+        role: { in: ['ADMINISTRATOR', 'MODERATOR'] },
         isActive: true,
       },
     });
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'Only squad leaders can browse available cases' },
+        { error: 'Only squad moderators and administrators can browse available cases' },
         { status: 403 }
       );
     }

@@ -527,8 +527,8 @@ export default function RescueSquadDetailPage({ params }) {
           </div>
         </div>
 
-        {/* Available Cases (Leaders Only) */}
-        {userRole && ['FOUNDER', 'LEADER'].includes(userRole) && (
+        {/* Available Cases (Moderators/Administrators Only) */}
+        {userRole && ['ADMINISTRATOR', 'MODERATOR'].includes(userRole) && (
           <div style={{
             background: 'white',
             borderRadius: '16px',
@@ -798,9 +798,9 @@ export default function RescueSquadDetailPage({ params }) {
                   No active cases yet
                 </div>
                 <div style={{ marginTop: '0.5rem' }}>
-                  {userRole && ['FOUNDER', 'LEADER'].includes(userRole)
+                  {userRole && ['ADMINISTRATOR', 'MODERATOR'].includes(userRole)
                     ? 'Browse available cases above to get started'
-                    : 'Squad leaders will assign cases soon'}
+                    : 'Squad moderators will assign cases soon'}
                 </div>
               </div>
             ) : (
@@ -1088,13 +1088,13 @@ export default function RescueSquadDetailPage({ params }) {
               color: '#0f172a',
               marginBottom: '1.5rem'
             }}>
-              Squad Leaders
+              Squad Leadership
             </h2>
 
-            {squad.members && squad.members.filter(m => ['FOUNDER', 'LEADER'].includes(m.role)).length > 0 ? (
+            {squad.members && squad.members.filter(m => ['ADMINISTRATOR', 'MODERATOR'].includes(m.role)).length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {squad.members
-                  .filter(m => ['FOUNDER', 'LEADER'].includes(m.role))
+                  .filter(m => ['ADMINISTRATOR', 'MODERATOR'].includes(m.role))
                   .slice(0, 5)
                   .map(member => (
                     <div key={member.id} style={{

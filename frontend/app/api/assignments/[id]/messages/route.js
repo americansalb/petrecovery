@@ -74,7 +74,7 @@ export async function POST(request, { params }) {
             members: {
               where: {
                 userId: session.user.id,
-                role: { in: ['FOUNDER', 'LEADER', 'COORDINATOR'] },
+                role: { in: ['ADMINISTRATOR', 'MODERATOR', 'DIVISION_LEADER'] },
                 isActive: true,
               },
             },

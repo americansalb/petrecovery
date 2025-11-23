@@ -20,7 +20,7 @@ export async function GET(request, { params }) {
             },
           },
           orderBy: [
-            { role: 'asc' }, // FOUNDER first, then LEADER, then MEMBER
+            { role: 'asc' }, // ADMINISTRATOR first, then MODERATOR, DIVISION_LEADER, then MEMBER
             { joinedAt: 'asc' },
           ],
         },

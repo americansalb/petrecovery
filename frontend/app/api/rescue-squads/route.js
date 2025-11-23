@@ -158,7 +158,7 @@ export async function POST(request) {
         members: {
           create: {
             userId: session.user.id,
-            role: 'FOUNDER',
+            role: 'ADMINISTRATOR',
             isActive: true,
           },
         },

@@ -30,22 +30,23 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Check if user is the founder
-    if (membership.role === 'FOUNDER') {
-      // Check if there are other leaders
-      const otherLeaders = await prisma.rescueSquadMember.count({
+    // Check if user is an administrator
+    if (membership.role === 'ADMINISTRATOR') {
+      // Check if there are other administrators or moderators
+      const otherAdminsOrModerators = await prisma.rescueSquadMember.count({
         where: {
           rescueSquadId: id,
-          role: 'LEADER',
+          role: { in: ['ADMINISTRATOR', 'MODERATOR'] },
           isActive: true,
+          userId: { not: session.user.id }, // Exclude current user
         },
       });
 
-      if (otherLeaders === 0) {
+      if (otherAdminsOrModerators === 0) {
         return NextResponse.json(
           {
             error:
-              'As the founder, you must promote another member to leader before leaving',
+              'As an administrator, you must promote another member to moderator or administrator before leaving',
           },
           { status: 400 }
         );
