@@ -19,9 +19,9 @@ export async function POST(request) {
       zipCodes = [],
       centerLatitude,
       centerLongitude,
-      estimatedRadius,
       estimatedPopulation,
       notes,
+      proposedBoundaries = null,
     } = body;
 
     // Validate required fields
@@ -84,9 +84,9 @@ export async function POST(request) {
         proposedName,
         justification,
         zipCodes: JSON.stringify(zipCodes),
+        proposedBoundaries: proposedBoundaries ? JSON.stringify(proposedBoundaries) : null,
         centerLatitude,
         centerLongitude,
-        estimatedRadius,
         estimatedPopulation,
         notes,
         status: 'PENDING',

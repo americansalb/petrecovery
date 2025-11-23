@@ -4,6 +4,13 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+// Dynamically import map component (client-side only)
+const PolygonDrawMap = dynamic(
+  () => import('@/app/components/PolygonDrawMap'),
+  { ssr: false, loading: () => <div style={{ height: '500px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading map...</div> }
+);
 
 export default function DivisionRequestPage() {
   const { data: session } = useSession();
@@ -21,9 +28,9 @@ export default function DivisionRequestPage() {
     zipCodes: '',
     centerLatitude: '',
     centerLongitude: '',
-    estimatedRadius: 3,
     estimatedPopulation: '',
-    notes: ''
+    notes: '',
+    proposedBoundaries: null
   });
 
   useEffect(() => {
@@ -71,6 +78,26 @@ export default function DivisionRequestPage() {
     }));
   };
 
+  const handlePolygonChange = (polygonData) => {
+    if (!polygonData) {
+      // Polygon was deleted
+      setFormData(prev => ({
+        ...prev,
+        proposedBoundaries: null,
+        centerLatitude: '',
+        centerLongitude: ''
+      }));
+    } else {
+      // Polygon was created or updated
+      setFormData(prev => ({
+        ...prev,
+        proposedBoundaries: polygonData.boundaries,
+        centerLatitude: polygonData.centerLatitude.toString(),
+        centerLongitude: polygonData.centerLongitude.toString()
+      }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -87,8 +114,8 @@ export default function DivisionRequestPage() {
         zipCodes: zipCodesArray,
         centerLatitude: formData.centerLatitude ? parseFloat(formData.centerLatitude) : null,
         centerLongitude: formData.centerLongitude ? parseFloat(formData.centerLongitude) : null,
-        estimatedRadius: parseInt(formData.estimatedRadius),
-        estimatedPopulation: formData.estimatedPopulation ? parseInt(formData.estimatedPopulation) : null
+        estimatedPopulation: formData.estimatedPopulation ? parseInt(formData.estimatedPopulation) : null,
+        proposedBoundaries: formData.proposedBoundaries
       };
 
       const res = await fetch('/api/divisions/request', {
@@ -113,9 +140,9 @@ export default function DivisionRequestPage() {
         zipCodes: '',
         centerLatitude: '',
         centerLongitude: '',
-        estimatedRadius: 3,
         estimatedPopulation: '',
-        notes: ''
+        notes: '',
+        proposedBoundaries: null
       });
 
       // Refresh requests list
@@ -397,6 +424,41 @@ export default function DivisionRequestPage() {
                   Geographic Details
                 </h3>
 
+                {/* Polygon Drawing Map */}
+                <div style={{ marginBottom: '2rem' }}>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: '0.75rem',
+                    fontWeight: '700',
+                    color: '#0f172a'
+                  }}>
+                    Division Boundaries (Draw on Map)
+                  </label>
+                  <PolygonDrawMap
+                    onPolygonChange={handlePolygonChange}
+                    initialBoundaries={formData.proposedBoundaries}
+                    centerLat={formData.centerLatitude ? parseFloat(formData.centerLatitude) : 41.8781}
+                    centerLng={formData.centerLongitude ? parseFloat(formData.centerLongitude) : -87.6298}
+                    zoom={12}
+                  />
+                  {formData.proposedBoundaries && (
+                    <div style={{
+                      marginTop: '0.5rem',
+                      padding: '0.75rem',
+                      background: '#d1fae5',
+                      border: '2px solid #6ee7b7',
+                      borderRadius: '8px',
+                      color: '#065f46',
+                      fontSize: '0.9rem',
+                      fontWeight: '600'
+                    }}>
+                      ✓ Polygon drawn with {formData.proposedBoundaries.length} points
+                      <br />
+                      Center: {parseFloat(formData.centerLatitude).toFixed(4)}, {parseFloat(formData.centerLongitude).toFixed(4)}
+                    </div>
+                  )}
+                </div>
+
                 <div style={{ marginBottom: '1.5rem' }}>
                   <label style={{
                     display: 'block',
@@ -424,7 +486,7 @@ export default function DivisionRequestPage() {
 
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr',
+                  gridTemplateColumns: '1fr 1fr',
                   gap: '1rem',
                   marginBottom: '1.5rem'
                 }}>
@@ -443,13 +505,16 @@ export default function DivisionRequestPage() {
                       name="centerLatitude"
                       value={formData.centerLatitude}
                       onChange={handleChange}
-                      placeholder="41.9292"
+                      placeholder="Auto-calculated from polygon"
+                      readOnly
                       style={{
                         width: '100%',
                         padding: '0.75rem',
                         border: '2px solid #e2e8f0',
                         borderRadius: '8px',
-                        fontSize: '1rem'
+                        fontSize: '1rem',
+                        background: '#f8fafc',
+                        cursor: 'not-allowed'
                       }}
                     />
                   </div>
@@ -468,38 +533,16 @@ export default function DivisionRequestPage() {
                       name="centerLongitude"
                       value={formData.centerLongitude}
                       onChange={handleChange}
-                      placeholder="-87.6542"
+                      placeholder="Auto-calculated from polygon"
+                      readOnly
                       style={{
                         width: '100%',
                         padding: '0.75rem',
                         border: '2px solid #e2e8f0',
                         borderRadius: '8px',
-                        fontSize: '1rem'
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{
-                      display: 'block',
-                      marginBottom: '0.5rem',
-                      fontWeight: '700',
-                      color: '#0f172a'
-                    }}>
-                      Radius (miles)
-                    </label>
-                    <input
-                      type="number"
-                      name="estimatedRadius"
-                      value={formData.estimatedRadius}
-                      onChange={handleChange}
-                      min="1"
-                      max="20"
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        border: '2px solid #e2e8f0',
-                        borderRadius: '8px',
-                        fontSize: '1rem'
+                        fontSize: '1rem',
+                        background: '#f8fafc',
+                        cursor: 'not-allowed'
                       }}
                     />
                   </div>
