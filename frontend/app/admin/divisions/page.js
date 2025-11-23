@@ -8,101 +8,43 @@ import Link from 'next/link';
 export default function AdminDivisionsPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const [requests, setRequests] = useState([]);
+  const [divisions, setDivisions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('PENDING');
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (session && session.user.role !== 'ADMIN') {
       router.push('/dashboard');
     } else if (session) {
-      fetchRequests();
+      fetchDivisions();
     }
-  }, [session, filter]);
+  }, [session]);
 
-  const fetchRequests = async () => {
+  const fetchDivisions = async () => {
     try {
+      console.log('🔍 [ADMIN] Fetching all divisions from database...');
       setLoading(true);
-      const res = await fetch(`/api/admin/divisions/requests?status=${filter}`);
-      if (res.ok) {
-        const data = await res.json();
-        setRequests(data.requests || []);
+      const res = await fetch('/api/admin/divisions');
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error('❌ [ADMIN] Failed to fetch divisions:', data.error);
+        throw new Error(data.error || 'Failed to fetch divisions');
       }
-    } catch (error) {
-      console.error('Error fetching division requests:', error);
+
+      console.log('✅ [ADMIN] Loaded divisions:', data.divisions?.length || 0);
+      setDivisions(data.divisions || []);
+    } catch (err) {
+      console.error('❌ [ADMIN] Error:', err.message);
+      setError(err.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleApprove = async (requestId) => {
-    if (!confirm('Are you sure you want to approve this division request?')) {
-      return;
-    }
-
-    try {
-      setActionLoading(true);
-      const res = await fetch(`/api/admin/divisions/approve/${requestId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}) // Can include overrides if needed
-      });
-
-      if (res.ok) {
-        alert('Division request approved successfully!');
-        fetchRequests();
-        setSelectedRequest(null);
-      } else {
-        const data = await res.json();
-        alert(`Error: ${data.error}`);
-      }
-    } catch (error) {
-      alert('Failed to approve request');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleReject = async () => {
-    if (!rejectionReason.trim()) {
-      alert('Please provide a rejection reason');
-      return;
-    }
-
-    try {
-      setActionLoading(true);
-      const res = await fetch(`/api/admin/divisions/reject/${selectedRequest.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rejectionReason })
-      });
-
-      if (res.ok) {
-        alert('Division request rejected');
-        setShowRejectModal(false);
-        setRejectionReason('');
-        setSelectedRequest(null);
-        fetchRequests();
-      } else {
-        const data = await res.json();
-        alert(`Error: ${data.error}`);
-      }
-    } catch (error) {
-      alert('Failed to reject request');
-    } finally {
-      setActionLoading(false);
     }
   };
 
   if (!session || session.user.role !== 'ADMIN') {
     return null;
   }
-
-  const pendingCount = requests.filter(r => r.status === 'PENDING').length;
 
   return (
     <div style={{
@@ -130,13 +72,13 @@ export default function AdminDivisionsPage() {
               color: '#0f172a',
               marginBottom: '0.5rem'
             }}>
-              Division Management
+              All Divisions
             </h1>
             <p style={{
               fontSize: '1.1rem',
               color: '#64748b'
             }}>
-              Create divisions and review requests {pendingCount > 0 && `(${pendingCount} pending)`}
+              {loading ? 'Loading...' : `${divisions.length} division${divisions.length === 1 ? '' : 's'} in database`}
             </p>
           </div>
           <div style={{ display: 'flex', gap: '1rem' }}>
@@ -156,7 +98,7 @@ export default function AdminDivisionsPage() {
               ➕ Create Division
             </Link>
             <Link
-              href="/rescue-squads"
+              href="/admin/rescue-squads"
               style={{
                 padding: '0.75rem 1.5rem',
                 background: 'white',
@@ -164,41 +106,28 @@ export default function AdminDivisionsPage() {
                 border: '2px solid #e2e8f0',
                 borderRadius: '8px',
                 textDecoration: 'none',
-              fontWeight: '700'
-            }}
-          >
-            ← Back to Squads
-          </Link>
+                fontWeight: '700'
+              }}
+            >
+              ← Back to Squads
+            </Link>
           </div>
         </div>
 
-        {/* Filter Tabs */}
-        <div style={{
-          display: 'flex',
-          gap: '1rem',
-          marginBottom: '2rem',
-          borderBottom: '2px solid #f1f5f9',
-          paddingBottom: '1rem'
-        }}>
-          {['PENDING', 'APPROVED', 'REJECTED', 'ALL'].map(status => (
-            <button
-              key={status}
-              onClick={() => setFilter(status)}
-              style={{
-                padding: '0.5rem 1rem',
-                background: filter === status ? '#667eea' : 'transparent',
-                color: filter === status ? 'white' : '#64748b',
-                border: 'none',
-                borderRadius: '6px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
+        {/* Error Message */}
+        {error && (
+          <div style={{
+            padding: '1.5rem',
+            background: '#fee2e2',
+            border: '2px solid #fecaca',
+            borderRadius: '12px',
+            color: '#991b1b',
+            marginBottom: '2rem',
+            fontWeight: '600'
+          }}>
+            ❌ {error}
+          </div>
+        )}
 
         {/* Loading State */}
         {loading ? (
@@ -210,9 +139,9 @@ export default function AdminDivisionsPage() {
             boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
           }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⏳</div>
-            <div style={{ fontSize: '1.2rem', color: '#64748b' }}>Loading requests...</div>
+            <div style={{ fontSize: '1.2rem', color: '#64748b' }}>Loading divisions from database...</div>
           </div>
-        ) : requests.length === 0 ? (
+        ) : divisions.length === 0 ? (
           <div style={{
             background: 'white',
             borderRadius: '16px',
@@ -227,33 +156,50 @@ export default function AdminDivisionsPage() {
               color: '#0f172a',
               marginBottom: '0.5rem'
             }}>
-              No {filter !== 'ALL' && filter.toLowerCase()} division requests
+              No divisions created yet
             </h2>
-            <p style={{ color: '#64748b' }}>
-              Check back later for new requests
+            <p style={{ color: '#64748b', marginBottom: '2rem' }}>
+              Create the first division to get started
             </p>
+            <Link
+              href="/admin/divisions/create"
+              style={{
+                display: 'inline-block',
+                padding: '1rem 2rem',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontWeight: '700',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)'
+              }}
+            >
+              ➕ Create First Division
+            </Link>
           </div>
         ) : (
           <div style={{
             display: 'grid',
             gap: '1.5rem'
           }}>
-            {requests.map(request => (
+            {divisions.map(division => (
               <div
-                key={request.id}
+                key={division.id}
                 style={{
                   background: 'white',
                   borderRadius: '16px',
                   padding: '2rem',
                   boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
-                  border: '2px solid #f1f5f9'
+                  border: division.isActive ? '2px solid #f1f5f9' : '2px solid #fecaca'
                 }}
               >
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'flex-start',
-                  marginBottom: '1.5rem'
+                  marginBottom: '1.5rem',
+                  gap: '1rem',
+                  flexWrap: 'wrap'
                 }}>
                   <div style={{ flex: 1 }}>
                     <h2 style={{
@@ -262,44 +208,31 @@ export default function AdminDivisionsPage() {
                       color: '#0f172a',
                       marginBottom: '0.5rem'
                     }}>
-                      {request.proposedName}
+                      {division.name}
                     </h2>
                     <div style={{
                       fontSize: '1rem',
-                      color: '#64748b',
-                      marginBottom: '0.5rem'
+                      color: '#667eea',
+                      marginBottom: '0.5rem',
+                      fontWeight: '600'
                     }}>
-                      For: <strong>{request.rescueSquad?.name}</strong>
+                      Squad: {division.rescueSquad?.name || 'Unknown'}
                     </div>
-                    <div style={{
-                      fontSize: '0.9rem',
-                      color: '#94a3b8'
-                    }}>
-                      Requested by: {request.requester.firstName} {request.requester.lastName} ({request.requester.email})
-                    </div>
-                    <div style={{
-                      fontSize: '0.9rem',
-                      color: '#94a3b8'
-                    }}>
-                      Submitted: {new Date(request.createdAt).toLocaleDateString()}
-                    </div>
+                    {division.description && (
+                      <div style={{
+                        fontSize: '0.95rem',
+                        color: '#64748b',
+                        marginTop: '0.75rem',
+                        lineHeight: '1.5'
+                      }}>
+                        {division.description}
+                      </div>
+                    )}
                   </div>
 
                   {/* Status Badge */}
                   <div>
-                    {request.status === 'PENDING' && (
-                      <span style={{
-                        padding: '0.5rem 1rem',
-                        background: '#fef3c7',
-                        color: '#92400e',
-                        borderRadius: '12px',
-                        fontSize: '0.9rem',
-                        fontWeight: '700'
-                      }}>
-                        ⏳ Pending Review
-                      </span>
-                    )}
-                    {request.status === 'APPROVED' && (
+                    {division.isActive ? (
                       <span style={{
                         padding: '0.5rem 1rem',
                         background: '#d1fae5',
@@ -308,10 +241,9 @@ export default function AdminDivisionsPage() {
                         fontSize: '0.9rem',
                         fontWeight: '700'
                       }}>
-                        ✓ Approved
+                        ✓ Active
                       </span>
-                    )}
-                    {request.status === 'REJECTED' && (
+                    ) : (
                       <span style={{
                         padding: '0.5rem 1rem',
                         background: '#fee2e2',
@@ -320,355 +252,160 @@ export default function AdminDivisionsPage() {
                         fontSize: '0.9rem',
                         fontWeight: '700'
                       }}>
-                        ✗ Rejected
+                        ✗ Inactive
                       </span>
                     )}
                   </div>
                 </div>
 
-                {/* Justification */}
-                <div style={{
-                  background: '#f8fafc',
-                  borderRadius: '8px',
-                  padding: '1.5rem',
-                  marginBottom: '1.5rem'
-                }}>
-                  <h3 style={{
-                    fontSize: '1.1rem',
-                    fontWeight: '700',
-                    color: '#0f172a',
-                    marginBottom: '0.75rem'
-                  }}>
-                    Justification
-                  </h3>
-                  <p style={{
-                    color: '#64748b',
-                    lineHeight: '1.6'
-                  }}>
-                    {request.justification}
-                  </p>
-                </div>
-
-                {/* Details Grid */}
+                {/* Stats Grid */}
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
                   gap: '1.5rem',
-                  marginBottom: '1.5rem'
+                  marginBottom: '1.5rem',
+                  padding: '1.5rem',
+                  background: '#f8fafc',
+                  borderRadius: '12px'
                 }}>
-                  {/* Squad Info */}
                   <div>
                     <div style={{
                       fontSize: '0.85rem',
                       color: '#94a3b8',
-                      marginBottom: '0.25rem'
+                      marginBottom: '0.25rem',
+                      textTransform: 'uppercase',
+                      fontWeight: '700'
                     }}>
-                      Rescue Squad
+                      Members
                     </div>
                     <div style={{
-                      fontSize: '1.1rem',
-                      fontWeight: '700',
+                      fontSize: '1.5rem',
+                      fontWeight: '900',
                       color: '#0f172a'
                     }}>
-                      {request.rescueSquad?.name}
-                    </div>
-                    <div style={{
-                      fontSize: '0.85rem',
-                      color: '#64748b'
-                    }}>
-                      {request.rescueSquad?._count?.members} members • {request.rescueSquad?._count?.divisions || 0} divisions
+                      {division.totalMembers || 0}
                     </div>
                   </div>
 
-                  {/* ZIP Codes */}
-                  {request.zipCodes && request.zipCodes !== '[]' && (
-                    <div>
-                      <div style={{
-                        fontSize: '0.85rem',
-                        color: '#94a3b8',
-                        marginBottom: '0.25rem'
-                      }}>
-                        ZIP Codes
-                      </div>
-                      <div style={{
-                        fontSize: '0.95rem',
-                        color: '#0f172a'
-                      }}>
-                        {JSON.parse(request.zipCodes).join(', ')}
-                      </div>
+                  <div>
+                    <div style={{
+                      fontSize: '0.85rem',
+                      color: '#94a3b8',
+                      marginBottom: '0.25rem',
+                      textTransform: 'uppercase',
+                      fontWeight: '700'
+                    }}>
+                      Active Cases
                     </div>
-                  )}
+                    <div style={{
+                      fontSize: '1.5rem',
+                      fontWeight: '900',
+                      color: '#dc2626'
+                    }}>
+                      {division.activeCases || 0}
+                    </div>
+                  </div>
 
-                  {/* Radius */}
-                  {request.estimatedRadius && (
+                  <div>
+                    <div style={{
+                      fontSize: '0.85rem',
+                      color: '#94a3b8',
+                      marginBottom: '0.25rem',
+                      textTransform: 'uppercase',
+                      fontWeight: '700'
+                    }}>
+                      Reunions
+                    </div>
+                    <div style={{
+                      fontSize: '1.5rem',
+                      fontWeight: '900',
+                      color: '#10b981'
+                    }}>
+                      {division.successfulReunions || 0}
+                    </div>
+                  </div>
+
+                  {division.centerLatitude && division.centerLongitude && (
                     <div>
                       <div style={{
                         fontSize: '0.85rem',
                         color: '#94a3b8',
-                        marginBottom: '0.25rem'
+                        marginBottom: '0.25rem',
+                        textTransform: 'uppercase',
+                        fontWeight: '700'
                       }}>
-                        Radius
+                        Center Point
                       </div>
                       <div style={{
-                        fontSize: '1.1rem',
+                        fontSize: '0.85rem',
                         fontWeight: '700',
                         color: '#0f172a'
                       }}>
-                        {request.estimatedRadius} miles
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Population */}
-                  {request.estimatedPopulation && (
-                    <div>
-                      <div style={{
-                        fontSize: '0.85rem',
-                        color: '#94a3b8',
-                        marginBottom: '0.25rem'
-                      }}>
-                        Est. Population
-                      </div>
-                      <div style={{
-                        fontSize: '1.1rem',
-                        fontWeight: '700',
-                        color: '#0f172a'
-                      }}>
-                        {request.estimatedPopulation.toLocaleString()}
+                        {division.centerLatitude.toFixed(4)}, {division.centerLongitude.toFixed(4)}
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Notes */}
-                {request.notes && (
-                  <div style={{
-                    background: '#fef3c7',
-                    borderRadius: '8px',
-                    padding: '1rem',
-                    marginBottom: '1.5rem'
-                  }}>
-                    <div style={{
-                      fontSize: '0.85rem',
-                      fontWeight: '700',
-                      color: '#92400e',
-                      marginBottom: '0.5rem'
-                    }}>
-                      Additional Notes
-                    </div>
-                    <div style={{
-                      fontSize: '0.95rem',
-                      color: '#78350f'
-                    }}>
-                      {request.notes}
-                    </div>
+                {/* Metadata */}
+                <div style={{
+                  fontSize: '0.85rem',
+                  color: '#94a3b8',
+                  display: 'flex',
+                  gap: '2rem',
+                  flexWrap: 'wrap'
+                }}>
+                  <div>
+                    <strong>Created:</strong> {new Date(division.createdAt).toLocaleDateString()}
                   </div>
-                )}
+                  <div>
+                    <strong>ID:</strong> {division.id}
+                  </div>
+                  {division.boundaries && (
+                    <div>
+                      <strong>Has Polygon:</strong> Yes ({JSON.parse(division.boundaries).length} points)
+                    </div>
+                  )}
+                </div>
 
-                {/* Rejection Reason */}
-                {request.status === 'REJECTED' && request.rejectionReason && (
-                  <div style={{
-                    background: '#fef2f2',
-                    borderRadius: '8px',
-                    padding: '1rem',
-                    marginBottom: '1.5rem',
-                    borderLeft: '4px solid #ef4444'
-                  }}>
-                    <div style={{
-                      fontSize: '0.85rem',
+                {/* Action Button */}
+                <div style={{
+                  marginTop: '1.5rem',
+                  display: 'flex',
+                  gap: '1rem'
+                }}>
+                  <Link
+                    href={`/rescue-squads/${division.rescueSquadId}/divisions/${division.id}`}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      background: '#667eea',
+                      color: 'white',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
                       fontWeight: '700',
-                      color: '#991b1b',
-                      marginBottom: '0.5rem'
-                    }}>
-                      Rejection Reason
-                    </div>
-                    <div style={{
-                      fontSize: '0.95rem',
-                      color: '#991b1b'
-                    }}>
-                      {request.rejectionReason}
-                    </div>
-                    <div style={{
-                      fontSize: '0.85rem',
-                      color: '#94a3b8',
-                      marginTop: '0.5rem'
-                    }}>
-                      Reviewed by: {request.reviewedBy?.firstName} {request.reviewedBy?.lastName} on {new Date(request.reviewedAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                )}
-
-                {/* Approved Division Info */}
-                {request.status === 'APPROVED' && request.approvedDivision && (
-                  <div style={{
-                    background: '#f0fdf4',
-                    borderRadius: '8px',
-                    padding: '1rem',
-                    marginBottom: '1.5rem',
-                    borderLeft: '4px solid #10b981'
-                  }}>
-                    <div style={{
-                      fontSize: '0.85rem',
+                      display: 'inline-block'
+                    }}
+                  >
+                    View Division
+                  </Link>
+                  <Link
+                    href={`/rescue-squads/${division.rescueSquadId}`}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      background: 'white',
+                      color: '#64748b',
+                      border: '2px solid #e2e8f0',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
                       fontWeight: '700',
-                      color: '#065f46',
-                      marginBottom: '0.5rem'
-                    }}>
-                      Division Created
-                    </div>
-                    <div style={{
-                      fontSize: '1rem',
-                      color: '#065f46'
-                    }}>
-                      {request.approvedDivision.name} - {request.approvedDivision.totalMembers} members, {request.approvedDivision.activeCases} active cases
-                    </div>
-                    <div style={{
-                      fontSize: '0.85rem',
-                      color: '#94a3b8',
-                      marginTop: '0.5rem'
-                    }}>
-                      Approved by: {request.reviewedBy?.firstName} {request.reviewedBy?.lastName} on {new Date(request.reviewedAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                {request.status === 'PENDING' && (
-                  <div style={{
-                    display: 'flex',
-                    gap: '1rem',
-                    justifyContent: 'flex-end'
-                  }}>
-                    <button
-                      onClick={() => {
-                        setSelectedRequest(request);
-                        setShowRejectModal(true);
-                      }}
-                      disabled={actionLoading}
-                      style={{
-                        padding: '0.75rem 1.5rem',
-                        background: '#fee2e2',
-                        color: '#991b1b',
-                        border: '2px solid #fecaca',
-                        borderRadius: '8px',
-                        fontWeight: '700',
-                        cursor: actionLoading ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      Reject
-                    </button>
-                    <button
-                      onClick={() => handleApprove(request.id)}
-                      disabled={actionLoading}
-                      style={{
-                        padding: '0.75rem 1.5rem',
-                        background: '#10b981',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontWeight: '700',
-                        cursor: actionLoading ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      Approve & Create Division
-                    </button>
-                  </div>
-                )}
+                      display: 'inline-block'
+                    }}
+                  >
+                    View Squad
+                  </Link>
+                </div>
               </div>
             ))}
-          </div>
-        )}
-
-        {/* Reject Modal */}
-        {showRejectModal && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000
-          }}>
-            <div style={{
-              background: 'white',
-              borderRadius: '16px',
-              padding: '2rem',
-              maxWidth: '500px',
-              width: '90%'
-            }}>
-              <h2 style={{
-                fontSize: '1.5rem',
-                fontWeight: '700',
-                color: '#0f172a',
-                marginBottom: '1rem'
-              }}>
-                Reject Division Request
-              </h2>
-              <p style={{
-                color: '#64748b',
-                marginBottom: '1.5rem'
-              }}>
-                Provide a reason for rejecting "{selectedRequest?.proposedName}"
-              </p>
-              <textarea
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Enter rejection reason..."
-                rows="4"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: '1rem',
-                  fontFamily: 'inherit',
-                  marginBottom: '1.5rem'
-                }}
-              />
-              <div style={{
-                display: 'flex',
-                gap: '1rem',
-                justifyContent: 'flex-end'
-              }}>
-                <button
-                  onClick={() => {
-                    setShowRejectModal(false);
-                    setRejectionReason('');
-                    setSelectedRequest(null);
-                  }}
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    background: 'white',
-                    color: '#64748b',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '8px',
-                    fontWeight: '700',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleReject}
-                  disabled={actionLoading || !rejectionReason.trim()}
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    background: '#ef4444',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontWeight: '700',
-                    cursor: (actionLoading || !rejectionReason.trim()) ? 'not-allowed' : 'pointer',
-                    opacity: (actionLoading || !rejectionReason.trim()) ? 0.5 : 1
-                  }}
-                >
-                  {actionLoading ? 'Rejecting...' : 'Confirm Rejection'}
-                </button>
-              </div>
-            </div>
           </div>
         )}
       </div>
