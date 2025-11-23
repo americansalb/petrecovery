@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
@@ -15,6 +15,7 @@ const PolygonDrawMap = dynamic(
 export default function DivisionRequestPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -22,7 +23,7 @@ export default function DivisionRequestPage() {
   const [myRequests, setMyRequests] = useState([]);
 
   const [formData, setFormData] = useState({
-    rescueSquadId: '',
+    rescueSquadId: searchParams.get('squadId') || '',
     proposedName: '',
     justification: '',
     zipCodes: '',
@@ -41,6 +42,17 @@ export default function DivisionRequestPage() {
       fetchMyRequests();
     }
   }, [session]);
+
+  // Pre-select squad from URL if provided
+  useEffect(() => {
+    const squadId = searchParams.get('squadId');
+    if (squadId && formData.rescueSquadId !== squadId) {
+      setFormData(prev => ({
+        ...prev,
+        rescueSquadId: squadId
+      }));
+    }
+  }, [searchParams]);
 
   const fetchMySquads = async () => {
     try {

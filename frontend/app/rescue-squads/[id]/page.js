@@ -409,6 +409,24 @@ export default function RescueSquadDetailPage({ params }) {
               }}>
                 ✓ You're a Member
               </div>
+              <Link
+                href={`/divisions/request?squadId=${params.id}`}
+                style={{
+                  padding: '1rem 2rem',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '700',
+                  fontSize: '1rem',
+                  textDecoration: 'none',
+                  transition: 'all 0.2s',
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)'
+                }}
+              >
+                📍 Request Division
+              </Link>
               <button
                 onClick={handleLeave}
                 disabled={leaving}
