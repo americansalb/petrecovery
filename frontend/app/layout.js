@@ -1,5 +1,6 @@
 import SessionProvider from './components/SessionProvider';
 import { ModeProvider } from './contexts/ModeContext';
+import Navigation from './components/Navigation';
 
 export const metadata = {
   title: 'PetRecovery.org - Reunite Lost Pets with Their Families',
@@ -18,6 +19,7 @@ export default function RootLayout({ children }) {
       <body style={{ margin: 0, padding: 0 }}>
         <SessionProvider>
           <ModeProvider>
+            <Navigation />
             {children}
           </ModeProvider>
         </SessionProvider>

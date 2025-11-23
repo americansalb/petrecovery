@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { theme } from '../lib/theme';
@@ -99,75 +99,11 @@ export default function DashboardPage() {
       minHeight: '100vh',
       background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)',
       fontFamily: theme.fonts.sans,
+      padding: '3rem 2rem',
     }}>
-      {/* Header */}
-      <div style={{
-        background: 'white',
-        padding: '1.5rem 2rem',
-        boxShadow: theme.shadows.sm,
-        borderBottom: '1px solid #f1f5f9',
-      }}>
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}>
-          <Link
-            href="/"
-            style={{
-              fontSize: '1.75rem',
-              fontWeight: '800',
-              color: '#1e293b',
-              textDecoration: 'none',
-            }}
-          >
-            🐾 PetRecovery
-          </Link>
-
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            {/* Rescue Squads Link */}
-            <Link
-              href="/rescue-squads"
-              style={{
-                padding: '0.75rem 1.5rem',
-                background: '#f1f5f9',
-                color: theme.colors.gray[700],
-                borderRadius: theme.radius.lg,
-                textDecoration: 'none',
-                fontWeight: '600',
-                fontSize: '0.9rem',
-              }}
-            >
-              🚁 Rescue Squads
-            </Link>
-
-            <button
-              onClick={() => signOut({ callbackUrl: '/' })}
-              style={{
-                padding: '0.75rem 1.5rem',
-                background: '#f1f5f9',
-                color: theme.colors.gray[700],
-                border: 'none',
-                borderRadius: theme.radius.lg,
-                fontWeight: '600',
-                cursor: 'pointer',
-                fontSize: '0.9rem',
-              }}
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </div>
-
       <div style={{
         maxWidth: '1200px',
         margin: '0 auto',
-        padding: '3rem 2rem',
       }}>
         {/* Welcome Section */}
         <div style={{ marginBottom: '3rem' }}>
