@@ -84,6 +84,22 @@ export default function Navigation() {
           </Link>
 
           <Link
+            href="/my-cases"
+            style={{
+              padding: '0.75rem 1.25rem',
+              background: pathname?.startsWith('/my-cases') ? '#667eea' : 'transparent',
+              color: pathname?.startsWith('/my-cases') ? 'white' : '#64748b',
+              borderRadius: '8px',
+              textDecoration: 'none',
+              fontWeight: '600',
+              fontSize: '0.95rem',
+              transition: 'all 0.2s',
+            }}
+          >
+            📋 My Cases
+          </Link>
+
+          <Link
             href="/rescue-squads/search"
             style={{
               padding: '0.75rem 1.25rem',
@@ -97,6 +113,25 @@ export default function Navigation() {
             }}
           >
             🚁 Rescue Squads
+          </Link>
+
+          {/* Report Lost Pet Button */}
+          <Link
+            href="/cases/create"
+            style={{
+              padding: '0.75rem 1.25rem',
+              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              color: 'white',
+              borderRadius: '8px',
+              textDecoration: 'none',
+              fontWeight: '700',
+              fontSize: '0.95rem',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)',
+              border: 'none',
+            }}
+          >
+            🐾 Report Lost Pet
           </Link>
 
           {/* Admin Link - only show for admin users */}
