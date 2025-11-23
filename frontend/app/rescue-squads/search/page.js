@@ -148,33 +148,15 @@ export default function RescueSquadSearchPage() {
       return;
     }
 
-    // If we don't have state (city name search with no existing squad), route to create page
-    if (!state) {
-      router.push(`/admin/rescue-squads/create?city=${encodeURIComponent(city)}`);
-      return;
-    }
+    console.log('🏗️ [CREATE SQUAD] Initiating creation:', { city, state, zipCode });
 
-    try {
-      // Validate we have a valid ZIP code
-      if (!zipCode || !/^\d{5}$/.test(zipCode)) {
-        alert('Unable to create squad: valid ZIP code required. Please search by ZIP code instead.');
-        return;
-      }
+    // Route to create page with full city info preserved
+    const params = new URLSearchParams();
+    params.set('city', city);
+    if (state) params.set('state', state);
+    if (zipCode) params.set('zipCode', zipCode);
 
-      const res = await fetch('/api/rescue-squads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, state, zipCode }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        router.push(`/rescue-squads/${data.squad.id}`);
-      } else {
-        alert(data.error || 'Failed to create squad');
-      }
-    } catch (error) {
-      alert('Error creating squad');
-    }
+    router.push(`/admin/rescue-squads/create?${params.toString()}`);
   };
 
   return (
@@ -203,7 +185,7 @@ export default function RescueSquadSearchPage() {
           Find Rescue Squads
         </h1>
         <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '2rem' }}>
-          Enter a city name or ZIP code to find or create a rescue squad
+          Search by city name (recommended) or ZIP code
         </p>
 
         {/* Search Form */}
@@ -223,7 +205,7 @@ export default function RescueSquadSearchPage() {
             {/* City/ZIP Input */}
             <div style={{ position: 'relative', gridColumn: 'span 2' }}>
               <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
-                City Name or ZIP Code
+                City Name <span style={{ color: '#10b981', fontSize: '0.85rem' }}>(Recommended)</span> <span style={{ color: '#94a3b8', fontWeight: '400' }}>or ZIP Code</span>
               </label>
               <input
                 type="text"
@@ -235,7 +217,7 @@ export default function RescueSquadSearchPage() {
                 onBlur={() => {
                   setTimeout(() => setShowSuggestions(false), 200);
                 }}
-                placeholder="e.g., Lynwood or 60411"
+                placeholder="e.g., Springfield, Chicago, New York..."
                 style={{
                   width: '100%',
                   padding: '0.75rem',

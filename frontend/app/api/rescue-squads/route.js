@@ -236,8 +236,29 @@ export async function POST(request) {
 
     const { city, state, zipCode } = await request.json();
 
+    console.log('🏗️ [CREATE SQUAD] Received request:', { city, state, zipCode });
+
     if (!city || !state || !zipCode) {
       return NextResponse.json({ error: 'City, state, and zipCode required' }, { status: 400 });
+    }
+
+    // Validate city exists in our database
+    const cityData = getCityByName(city, state);
+    if (!cityData) {
+      console.error(`❌ [CREATE SQUAD] City not found in database: ${city}, ${state}`);
+      return NextResponse.json({
+        error: `City "${city}, ${state}" not found in our database. Please use the city search to select a valid city.`
+      }, { status: 400 });
+    }
+
+    console.log('✓ [CREATE SQUAD] City validated:', cityData.city, cityData.state_id, cityData.state_name);
+
+    // Verify ZIP code belongs to this city
+    if (!cityData.zips.includes(zipCode)) {
+      console.error(`❌ [CREATE SQUAD] ZIP ${zipCode} doesn't belong to ${city}, ${state}`);
+      return NextResponse.json({
+        error: `ZIP code ${zipCode} doesn't belong to ${city}, ${state}. Valid ZIPs: ${cityData.zips.slice(0, 3).join(', ')}`
+      }, { status: 400 });
     }
 
     // Verify email

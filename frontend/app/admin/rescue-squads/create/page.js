@@ -2,21 +2,52 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { getCitySuggestions, getCityByName, isValidCity } from '@/app/lib/cities';
 
 export default function AdminCreateRescueSquadPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedCity, setSelectedCity] = useState(null);
 
   const [formData, setFormData] = useState({
     city: '',
     state: '',
     zipCode: ''
   });
+
+  // Pre-populate form from URL params
+  useEffect(() => {
+    const cityParam = searchParams.get('city');
+    const stateParam = searchParams.get('state');
+    const zipParam = searchParams.get('zipCode');
+
+    console.log('📝 [CREATE] URL params:', { city: cityParam, state: stateParam, zip: zipParam });
+
+    if (cityParam || stateParam || zipParam) {
+      setFormData({
+        city: cityParam || '',
+        state: stateParam || '',
+        zipCode: zipParam || ''
+      });
+
+      // If we have city and state, try to find the full city data
+      if (cityParam && stateParam) {
+        const cityData = getCityByName(cityParam, stateParam);
+        if (cityData) {
+          setSelectedCity(cityData);
+          console.log('✅ [CREATE] Found city data:', cityData);
+        }
+      }
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (session && session.user.role !== 'ADMIN') {
@@ -26,10 +57,38 @@ export default function AdminCreateRescueSquadPage() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+
+    if (name === 'city') {
+      setFormData(prev => ({ ...prev, city: value }));
+
+      // Show suggestions for city names
+      if (value.trim().length >= 2) {
+        const citySuggestions = getCitySuggestions(value.trim(), 10);
+        setSuggestions(citySuggestions);
+        setShowSuggestions(true);
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+      setSelectedCity(null);
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
+  };
+
+  const selectCity = (cityData) => {
+    console.log('🎯 [CREATE] Selected city:', cityData);
+    setFormData({
+      city: cityData.city,
+      state: cityData.state_id,
+      zipCode: cityData.zips[0] || ''
+    });
+    setSelectedCity(cityData);
+    setShowSuggestions(false);
+    setSuggestions([]);
   };
 
   const handleSubmit = async (e) => {
@@ -158,6 +217,35 @@ export default function AdminCreateRescueSquadPage() {
           </div>
         )}
 
+        {/* Preview Box */}
+        {(formData.city || formData.state) && (
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            marginBottom: '2rem',
+            color: 'white'
+          }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', opacity: 0.9 }}>
+              Creating Rescue Squad For:
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: '900' }}>
+              {formData.city || '(City not selected)'}
+              {formData.state && `, ${formData.state}`}
+            </div>
+            {formData.zipCode && (
+              <div style={{ fontSize: '0.9rem', marginTop: '0.5rem', opacity: 0.9 }}>
+                ZIP Code: {formData.zipCode}
+              </div>
+            )}
+            {selectedCity && (
+              <div style={{ fontSize: '0.85rem', marginTop: '0.75rem', opacity: 0.85 }}>
+                ✓ Verified in database: {selectedCity.state_name}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Form */}
         <form onSubmit={handleSubmit} style={{
           background: 'white',
@@ -169,37 +257,87 @@ export default function AdminCreateRescueSquadPage() {
             fontSize: '1.5rem',
             fontWeight: '700',
             color: '#0f172a',
-            marginBottom: '1.5rem',
+            marginBottom: '0.5rem',
             paddingBottom: '0.75rem',
             borderBottom: '2px solid #f1f5f9'
           }}>
             Rescue Squad Location
           </h2>
+          <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '1.5rem' }}>
+            Start typing a city name to see suggestions from our database of 29,000+ US cities
+          </p>
 
-          <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ marginBottom: '1.5rem', position: 'relative' }}>
             <label style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontWeight: '700',
               color: '#0f172a'
             }}>
-              City *
+              City * <span style={{ color: '#10b981', fontSize: '0.85rem', fontWeight: '600' }}>(Search by name)</span>
             </label>
             <input
               type="text"
               name="city"
               value={formData.city}
               onChange={handleChange}
-              placeholder="e.g., Chicago"
+              onFocus={() => {
+                if (suggestions.length > 0) setShowSuggestions(true);
+              }}
+              onBlur={() => {
+                setTimeout(() => setShowSuggestions(false), 200);
+              }}
+              placeholder="e.g., Springfield, Chicago, Los Angeles..."
               required
               style={{
                 width: '100%',
                 padding: '0.75rem',
-                border: '2px solid #e2e8f0',
+                border: selectedCity ? '2px solid #10b981' : '2px solid #e2e8f0',
                 borderRadius: '8px',
-                fontSize: '1rem'
+                fontSize: '1rem',
+                background: selectedCity ? '#f0fdf4' : 'white'
               }}
             />
+
+            {/* City Suggestions Dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                background: 'white',
+                border: '2px solid #e2e8f0',
+                borderRadius: '8px',
+                marginTop: '0.5rem',
+                maxHeight: '300px',
+                overflowY: 'auto',
+                zIndex: 1000,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+              }}>
+                {suggestions.map((city, idx) => (
+                  <div
+                    key={`${city.city}-${city.state_id}-${idx}`}
+                    onMouseDown={() => selectCity(city)}
+                    style={{
+                      padding: '0.875rem 1rem',
+                      cursor: 'pointer',
+                      borderBottom: idx < suggestions.length - 1 ? '1px solid #f1f5f9' : 'none',
+                      background: 'white'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                  >
+                    <div style={{ fontWeight: '700', color: '#0f172a', marginBottom: '0.25rem' }}>
+                      {city.city}, {city.state_id}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                      {city.state_name} • ZIP: {city.zips[0] || 'N/A'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div style={{ marginBottom: '1.5rem' }}>
@@ -209,7 +347,7 @@ export default function AdminCreateRescueSquadPage() {
               fontWeight: '700',
               color: '#0f172a'
             }}>
-              State *
+              State * <span style={{ fontSize: '0.85rem', fontWeight: '400', color: '#64748b' }}>(Auto-filled when you select a city)</span>
             </label>
             <input
               type="text"
@@ -225,7 +363,8 @@ export default function AdminCreateRescueSquadPage() {
                 border: '2px solid #e2e8f0',
                 borderRadius: '8px',
                 fontSize: '1rem',
-                textTransform: 'uppercase'
+                textTransform: 'uppercase',
+                background: selectedCity ? '#f8fafc' : 'white'
               }}
             />
             <p style={{
@@ -233,7 +372,7 @@ export default function AdminCreateRescueSquadPage() {
               color: '#64748b',
               marginTop: '0.5rem'
             }}>
-              Two-letter state code (e.g., IL, NY, CA)
+              {selectedCity ? `✓ ${selectedCity.state_name}` : 'Two-letter state code (e.g., IL, NY, CA)'}
             </p>
           </div>
 
@@ -244,7 +383,7 @@ export default function AdminCreateRescueSquadPage() {
               fontWeight: '700',
               color: '#0f172a'
             }}>
-              ZIP Code *
+              ZIP Code * <span style={{ fontSize: '0.85rem', fontWeight: '400', color: '#64748b' }}>(Auto-filled when you select a city)</span>
             </label>
             <input
               type="text"
@@ -260,7 +399,8 @@ export default function AdminCreateRescueSquadPage() {
                 padding: '0.75rem',
                 border: '2px solid #e2e8f0',
                 borderRadius: '8px',
-                fontSize: '1rem'
+                fontSize: '1rem',
+                background: selectedCity ? '#f8fafc' : 'white'
               }}
             />
             <p style={{
@@ -268,7 +408,9 @@ export default function AdminCreateRescueSquadPage() {
               color: '#64748b',
               marginTop: '0.5rem'
             }}>
-              5-digit ZIP code for the squad's primary location
+              {selectedCity && selectedCity.zips.length > 1
+                ? `This city has ${selectedCity.zips.length} ZIP codes. First one selected.`
+                : '5-digit ZIP code for the squad\'s primary location'}
             </p>
           </div>
 
