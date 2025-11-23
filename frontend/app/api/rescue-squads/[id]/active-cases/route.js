@@ -67,13 +67,19 @@ export async function GET(request, { params }) {
           },
         },
       },
-      orderBy: {
-        acceptedAt: 'desc',
-      },
+    });
+
+    // Sort with prioritization: non-division cases first (divisionId = null), then by acceptedAt desc
+    const sortedAssignments = assignments.sort((a, b) => {
+      // Prioritize cases without divisionId (squad-wide cases)
+      if (a.divisionId === null && b.divisionId !== null) return -1;
+      if (a.divisionId !== null && b.divisionId === null) return 1;
+      // If both are same type, sort by acceptedAt descending
+      return new Date(b.acceptedAt) - new Date(a.acceptedAt);
     });
 
     // Check which cases the current user is participating in
-    const assignmentsWithUserStatus = assignments.map(assignment => {
+    const assignmentsWithUserStatus = sortedAssignments.map(assignment => {
       const userParticipation = assignment.participants.find(
         p => p.userId === session.user.id
       );
