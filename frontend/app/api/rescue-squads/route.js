@@ -40,7 +40,20 @@ export async function GET(request) {
       include: {
         members: {
           where: { isActive: true },
-          select: { userId: true, role: true },
+          select: { userId: true, role: true, divisionId: true },
+        },
+        divisions: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            centerLatitude: true,
+            centerLongitude: true,
+            totalMembers: true,
+            activeCases: true,
+            successfulReunions: true,
+          },
         },
         _count: { select: { members: true } },
       },
@@ -48,11 +61,14 @@ export async function GET(request) {
 
     // Calculate distances and filter by radius
     const nearbyCities = new Map(); // city-state -> squad info
+    const nearbyDivisions = []; // array of divisions with distance
 
     squads.forEach(squad => {
       const distance = calculateDistance(searchLat, searchLng, squad.centerLatitude, squad.centerLongitude);
       if (distance <= radius && squad.city && squad.state) {
         const key = `${squad.city}-${squad.state}`;
+        const isMember = userId ? squad.members.some(m => m.userId === userId) : false;
+
         if (!nearbyCities.has(key) || nearbyCities.get(key).distance > distance) {
           nearbyCities.set(key, {
             city: squad.city,
@@ -63,9 +79,39 @@ export async function GET(request) {
               id: squad.id,
               name: squad.name,
               memberCount: squad._count.members,
-              isMember: userId ? squad.members.some(m => m.userId === userId) : false,
+              isMember,
               totalCasesAccepted: squad.totalCasesAccepted,
               successfulReunions: squad.successfulReunions,
+            }
+          });
+        }
+
+        // Process divisions for this squad
+        if (squad.divisions && squad.divisions.length > 0) {
+          squad.divisions.forEach(division => {
+            if (division.centerLatitude && division.centerLongitude) {
+              const divDistance = calculateDistance(searchLat, searchLng, division.centerLatitude, division.centerLongitude);
+              if (divDistance <= radius) {
+                const isDivisionMember = userId ? squad.members.some(m =>
+                  m.userId === userId && m.divisionId === division.id
+                ) : false;
+
+                nearbyDivisions.push({
+                  id: division.id,
+                  name: division.name,
+                  description: division.description,
+                  distance: divDistance,
+                  squadId: squad.id,
+                  squadName: squad.name,
+                  squadCity: squad.city,
+                  squadState: squad.state,
+                  memberCount: division.totalMembers,
+                  activeCases: division.activeCases,
+                  successfulReunions: division.successfulReunions,
+                  isMember: isDivisionMember,
+                  isSquadMember: isMember,
+                });
+              }
             }
           });
         }
@@ -84,11 +130,15 @@ export async function GET(request) {
       });
     }
 
-    // Convert to array and sort by distance
+    // Convert cities to array and sort by distance
     const cities = Array.from(nearbyCities.values()).sort((a, b) => a.distance - b.distance);
+
+    // Sort divisions by distance
+    const divisions = nearbyDivisions.sort((a, b) => a.distance - b.distance);
 
     return NextResponse.json({
       cities,
+      divisions,
       searchLocation: { city: userCity, state: userState, zipCode },
     });
   } catch (error) {
