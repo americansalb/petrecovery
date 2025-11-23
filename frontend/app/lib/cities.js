@@ -10,7 +10,7 @@
  * }
  */
 
-import allCitiesData from './uscities.full.json';
+import allCitiesData from './uscities.full.json' with { type: 'json' };
 
 const ZIP_REGEX = /^\d{5}$/;
 
