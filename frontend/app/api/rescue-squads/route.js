@@ -165,9 +165,13 @@ export async function GET(request) {
     });
 
     // Add ALL searched cities to results (so if ZIP has 3 cities, all 3 show up)
-    console.log('📍 [API] Adding all searched cities to results...');
-    searchedCities.forEach(cityData => {
+    console.log('📍 [API] Adding ALL', searchedCities.length, 'searched cities to results...');
+    console.log('   BEFORE adding searched cities, nearbyCities has:', nearbyCities.size, 'entries');
+
+    searchedCities.forEach((cityData, index) => {
       const key = `${cityData.city}-${cityData.state_id}`;
+      console.log(`   [${index + 1}/${searchedCities.length}] Processing:`, cityData.city, cityData.state_id);
+
       if (!nearbyCities.has(key)) {
         // City doesn't have a squad yet - add it with exists: false
         nearbyCities.set(key, {
@@ -177,10 +181,16 @@ export async function GET(request) {
           exists: false,
           squad: null,
         });
-        console.log('  ➕ Added city without squad:', cityData.city, cityData.state_id);
+        console.log('      ➕ ADDED to results (no squad exists)');
       } else {
-        console.log('  ✓ City already has squad:', cityData.city, cityData.state_id);
+        console.log('      ✓ Already in results (squad exists)');
       }
+    });
+
+    console.log('   AFTER adding searched cities, nearbyCities has:', nearbyCities.size, 'entries');
+    console.log('   ALL cities that will be returned:');
+    nearbyCities.forEach((value, key) => {
+      console.log('      -', value.city, value.state, '|', value.exists ? 'HAS SQUAD' : 'NO SQUAD');
     });
 
     // Convert cities to array and sort by distance
