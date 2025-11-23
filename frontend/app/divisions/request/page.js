@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -12,7 +12,7 @@ const PolygonDrawMap = dynamic(
   { ssr: false, loading: () => <div style={{ height: '500px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading map...</div> }
 );
 
-export default function DivisionRequestPage() {
+function DivisionRequestForm() {
   const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -731,5 +731,28 @@ export default function DivisionRequestPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DivisionRequestPage() {
+  return (
+    <Suspense fallback={
+      <div style={{
+        minHeight: '100vh',
+        background: '#f8fafc',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          fontSize: '1.2rem',
+          color: '#64748b'
+        }}>
+          Loading...
+        </div>
+      </div>
+    }>
+      <DivisionRequestForm />
+    </Suspense>
   );
 }
