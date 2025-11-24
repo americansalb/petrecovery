@@ -14,12 +14,6 @@ export default function ProfilePage() {
     email: '',
     phone: '',
   });
-  const [patrolSettings, setPatrolSettings] = useState({
-    isPatrolMember: false,
-    radiusMiles: 5,
-    alertMethod: 'EMAIL',
-    instantAlerts: true,
-  });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -44,22 +38,6 @@ export default function ProfilePage() {
           email: data.user.email || '',
           phone: data.user.phone || '',
         });
-
-        if (data.patrolProfile) {
-          setPatrolSettings({
-            isPatrolMember: true,
-            radiusMiles: data.patrolProfile.radiusMiles || 5,
-            alertMethod: data.patrolProfile.alertMethod || 'EMAIL',
-            instantAlerts: data.patrolProfile.instantAlerts !== undefined ? data.patrolProfile.instantAlerts : true,
-          });
-        } else {
-          setPatrolSettings({
-            isPatrolMember: false,
-            radiusMiles: 5,
-            alertMethod: 'EMAIL',
-            instantAlerts: true,
-          });
-        }
       } catch (error) {
         console.error('Error fetching profile:', error);
       }
@@ -94,36 +72,6 @@ export default function ProfilePage() {
       setMessage('Profile updated successfully!');
     } catch (error) {
       setMessage('Failed to update profile: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePatrolUpdate = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage('');
-
-    try {
-      const res = await fetch('/api/patrol/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          radiusMiles: patrolSettings.radiusMiles,
-          alertMethod: patrolSettings.alertMethod,
-          instantAlerts: patrolSettings.instantAlerts,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to update patrol settings');
-      }
-
-      setMessage('Patrol settings updated successfully!');
-    } catch (error) {
-      setMessage('Failed to update patrol settings: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -316,166 +264,6 @@ export default function ProfilePage() {
               {loading ? 'Saving...' : 'Save Changes'}
             </button>
           </form>
-        </div>
-
-        {/* Patrol Settings */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '0.75rem',
-          padding: '1.5rem',
-          marginBottom: '1rem',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-        }}>
-          <h2 style={{
-            fontSize: '1.25rem',
-            fontWeight: 'bold',
-            color: '#1f2937',
-            marginBottom: '1rem',
-          }}>
-            Neighborhood Watch Settings
-          </h2>
-
-          {patrolSettings.isPatrolMember ? (
-            <form onSubmit={handlePatrolUpdate}>
-              <div style={{
-                backgroundColor: '#d1fae5',
-                border: '2px solid #10b981',
-                borderRadius: '0.5rem',
-                padding: '1rem',
-                marginBottom: '1.5rem',
-              }}>
-                <div style={{ fontWeight: '600', color: '#065f46', marginBottom: '0.25rem' }}>
-                  ✓ Active Member
-                </div>
-                <div style={{ fontSize: '0.875rem', color: '#047857' }}>
-                  You're helping reunite lost pets in your community!
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontWeight: '600',
-                  color: '#1f2937',
-                }}>
-                  Alert Radius: {patrolSettings.radiusMiles} miles
-                </label>
-                <input
-                  type="range"
-                  min="1"
-                  max="50"
-                  value={patrolSettings.radiusMiles}
-                  onChange={(e) => setPatrolSettings({ ...patrolSettings, radiusMiles: parseInt(e.target.value) })}
-                  style={{
-                    width: '100%',
-                  }}
-                />
-                <p style={{
-                  fontSize: '0.875rem',
-                  color: '#6b7280',
-                  marginTop: '0.5rem',
-                }}>
-                  Get alerts for lost pets within this distance
-                </p>
-              </div>
-
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontWeight: '600',
-                  color: '#1f2937',
-                }}>
-                  Alert Method
-                </label>
-                <select
-                  value={patrolSettings.alertMethod}
-                  onChange={(e) => setPatrolSettings({ ...patrolSettings, alertMethod: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '2px solid #e5e7eb',
-                    borderRadius: '0.5rem',
-                    fontSize: '1rem',
-                  }}
-                >
-                  <option value="EMAIL">Email Only</option>
-                  <option value="SMS">SMS Only</option>
-                  <option value="PUSH">Push Notifications Only</option>
-                  <option value="ALL">All Methods</option>
-                </select>
-              </div>
-
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  cursor: 'pointer',
-                }}>
-                  <input
-                    type="checkbox"
-                    checked={patrolSettings.instantAlerts}
-                    onChange={(e) => setPatrolSettings({ ...patrolSettings, instantAlerts: e.target.checked })}
-                    style={{
-                      width: '20px',
-                      height: '20px',
-                      cursor: 'pointer',
-                    }}
-                  />
-                  <span style={{ fontWeight: '600', color: '#1f2937' }}>
-                    Instant Alerts
-                  </span>
-                </label>
-                <p style={{
-                  fontSize: '0.875rem',
-                  color: '#6b7280',
-                  marginLeft: '1.95rem',
-                  marginTop: '0.25rem',
-                }}>
-                  Receive notifications immediately when pets go missing nearby
-                </p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: loading ? '#9ca3af' : '#8b5cf6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  fontWeight: '600',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {loading ? 'Saving...' : 'Update Settings'}
-              </button>
-            </form>
-          ) : (
-            <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>👁️</div>
-              <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
-                You're not part of the neighborhood watch yet
-              </p>
-              <Link
-                href="/patrol/join"
-                style={{
-                  display: 'inline-block',
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#8b5cf6',
-                  color: 'white',
-                  borderRadius: '0.5rem',
-                  fontWeight: '600',
-                  textDecoration: 'none',
-                }}
-              >
-                Join Now
-              </Link>
-            </div>
-          )}
         </div>
 
         {/* Danger Zone */}

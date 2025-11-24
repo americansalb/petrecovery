@@ -2,57 +2,97 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
+import { getCitiesByZip, getCityByName } from '@/app/lib/cities';
 import { logEvent } from '@/lib/logging';
 
 // GET /api/rescue-squads - Search for cities with rescue squads nearby
 export async function GET(request) {
-  const timestamp = new Date().toISOString();
-  console.log(`\n${'='.repeat(80)}`);
-  console.log(`🔍 [${timestamp}] SEARCH SQUADS REQUEST`);
-  console.log(`${'='.repeat(80)}\n`);
-
   try {
     const { searchParams } = new URL(request.url);
-    const zipCode = searchParams.get('zipCode') || searchParams.get('zip');
+    const searchTerm = searchParams.get('search') || searchParams.get('zipCode') || searchParams.get('zip');
     const radius = parseInt(searchParams.get('radius')) || 25;
 
-    console.log('📋 Search parameters:');
-    console.log(`   ZIP: ${zipCode || 'none'}`);
-    console.log(`   Radius: ${radius} miles`);
-
-    if (!zipCode) {
-      console.log('❌ Missing required parameter: zipCode');
-      return NextResponse.json({ error: 'Zip code required' }, { status: 400 });
+    if (!searchTerm) {
+      return NextResponse.json({ error: 'City name or ZIP code required' }, { status: 400 });
     }
 
-    // Geocode the ZIP code
-    console.log(`\n📍 Step 1: Geocoding search ZIP ${zipCode}...`);
-    const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
-    if (!geoRes.ok) {
-      console.log(`❌ External API returned ${geoRes.status}`);
-      return NextResponse.json({ error: 'Invalid zip code' }, { status: 400 });
+    let searchLat, searchLng, userState, allCitiesInZip, zipCode;
+    const isZipCode = /^\d{5}$/.test(searchTerm.trim());
+
+    if (isZipCode) {
+      // Search by ZIP code - use cities library
+      zipCode = searchTerm.trim();
+      const citiesForZip = getCitiesByZip(zipCode);
+
+      if (citiesForZip.length === 0) {
+        return NextResponse.json({ error: 'Invalid ZIP code' }, { status: 400 });
+      }
+
+      // Use the first city's data for coordinates (will use zippopotam for coordinates)
+      const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+      if (geoRes.ok) {
+        const geoData = await geoRes.json();
+        const place = geoData.places[0];
+        searchLat = parseFloat(place['latitude']);
+        searchLng = parseFloat(place['longitude']);
+      } else {
+        // Fallback if geo API fails - use approximate coordinates from database search
+        searchLat = null;
+        searchLng = null;
+      }
+
+      userState = citiesForZip[0].state_id;
+      allCitiesInZip = citiesForZip.map(c => c.city);
+    } else {
+      // Search by city name - use cities library
+      const cityName = searchTerm.trim();
+      const cityData = getCityByName(cityName);
+
+      if (!cityData) {
+        return NextResponse.json({ error: 'Invalid city name' }, { status: 400 });
+      }
+
+      // Check if a squad exists for this city
+      const existingSquad = await prisma.rescueSquad.findFirst({
+        where: {
+          city: { equals: cityName, mode: 'insensitive' },
+          isActive: true
+        }
+      });
+
+      if (existingSquad) {
+        // Use the existing squad's coordinates
+        searchLat = existingSquad.centerLatitude;
+        searchLng = existingSquad.centerLongitude;
+      } else {
+        // Try to get coordinates from zippopotam using first ZIP
+        const firstZip = cityData.zips.length > 0 ? cityData.zips[0] : null;
+        if (firstZip) {
+          const geoRes = await fetch(`https://api.zippopotam.us/us/${firstZip}`);
+          if (geoRes.ok) {
+            const geoData = await geoRes.json();
+            const place = geoData.places[0];
+            searchLat = parseFloat(place['latitude']);
+            searchLng = parseFloat(place['longitude']);
+          } else {
+            searchLat = null;
+            searchLng = null;
+          }
+        } else {
+          searchLat = null;
+          searchLng = null;
+        }
+      }
+
+      userState = cityData.state_id;
+      allCitiesInZip = [cityData.city];
+      zipCode = cityData.zips.length > 0 ? cityData.zips[0] : null;
     }
-
-    const geoData = await geoRes.json();
-    const place = geoData.places[0];
-    const searchLat = parseFloat(place['latitude']);
-    const searchLng = parseFloat(place['longitude']);
-    const userCity = place['place name'];
-    const userState = place['state abbreviation'];
-
-    console.log('📥 Geocoding result:', {
-      city: userCity,
-      state: userState,
-      lat: searchLat,
-      lng: searchLng
-    });
 
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
-    console.log(`👤 User: ${userId || 'anonymous'}`);
 
     // Find all active squads with coordinates
-    console.log(`\n🔍 Step 2: Querying database for active squads...`);
     const squads = await prisma.rescueSquad.findMany({
       where: {
         isActive: true,
@@ -62,31 +102,60 @@ export async function GET(request) {
       include: {
         members: {
           where: { isActive: true },
-          select: { userId: true, role: true },
+          select: { userId: true, role: true, divisionId: true },
         },
         _count: { select: { members: true } },
+        divisions: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            name: true,
+            centerLatitude: true,
+            centerLongitude: true,
+            totalMembers: true,
+            _count: { select: { members: true } },
+            members: userId ? {
+              where: { userId, isActive: true },
+              select: { userId: true }
+            } : false
+          }
+        }
       },
     });
 
-    console.log(`📊 Found ${squads.length} active squads with coordinates`);
-    if (squads.length > 0) {
-      squads.forEach(s => {
-        console.log(`   - ${s.name} (${s.city}, ${s.state}): (${s.centerLatitude}, ${s.centerLongitude})`);
-      });
-    }
-
     // Calculate distances and filter by radius
-    console.log(`\n📏 Step 3: Calculating distances from (${searchLat}, ${searchLng})...`);
     const nearbyCities = new Map(); // city-state -> squad info
 
-    squads.forEach(squad => {
-      const distance = calculateDistance(searchLat, searchLng, squad.centerLatitude, squad.centerLongitude);
-      console.log(`   ${squad.name}: ${distance.toFixed(1)} miles`);
+    console.log(`[RESCUE SQUAD SEARCH] Found ${squads.length} total squads`);
+    console.log(`[RESCUE SQUAD SEARCH] Searching from ${allCitiesInZip.join(', ')}, ${userState || 'unknown state'} (${searchLat}, ${searchLng}) within ${radius} miles`);
 
-      if (distance <= radius && squad.city && squad.state) {
+    // If we have coordinates, find nearby squads
+    if (searchLat !== null && searchLng !== null) {
+      squads.forEach(squad => {
+        const distance = calculateDistance(searchLat, searchLng, squad.centerLatitude, squad.centerLongitude);
+        console.log(`[RESCUE SQUAD SEARCH] ${squad.city}, ${squad.state}: ${distance.toFixed(1)} miles away`);
+
+        if (distance <= radius && squad.city && squad.state) {
         const key = `${squad.city}-${squad.state}`;
+        console.log(`[RESCUE SQUAD SEARCH] ✓ Adding ${squad.city} to results`);
         if (!nearbyCities.has(key) || nearbyCities.get(key).distance > distance) {
-          console.log(`   ✅ ${squad.name} INCLUDED (${distance.toFixed(1)} ≤ ${radius} miles)`);
+          // Calculate division distances and membership
+          const divisionsWithDistance = squad.divisions
+            .map(div => {
+              const divDistance = div.centerLatitude && div.centerLongitude
+                ? calculateDistance(searchLat, searchLng, div.centerLatitude, div.centerLongitude)
+                : null;
+              return {
+                id: div.id,
+                name: div.name,
+                distance: divDistance,
+                totalMembers: div.totalMembers || div._count.members,
+                isMember: userId ? div.members.some(m => m.userId === userId) : false
+              };
+            })
+            .filter(div => div.distance !== null) // Only include divisions with coordinates
+            .sort((a, b) => a.distance - b.distance); // Sort by distance
+
           nearbyCities.set(key, {
             city: squad.city,
             state: squad.state,
@@ -99,47 +168,44 @@ export async function GET(request) {
               isMember: userId ? squad.members.some(m => m.userId === userId) : false,
               totalCasesAccepted: squad.totalCasesAccepted,
               successfulReunions: squad.successfulReunions,
-            }
+            },
+            divisions: divisionsWithDistance
           });
         }
-      } else if (distance > radius) {
-        console.log(`   ❌ ${squad.name} EXCLUDED (${distance.toFixed(1)} > ${radius} miles)`);
       }
-    });
-
-    // Always include user's city
-    const userKey = `${userCity}-${userState}`;
-    if (!nearbyCities.has(userKey)) {
-      console.log(`\n📍 Adding user's city (${userCity}, ${userState}) to results`);
-      nearbyCities.set(userKey, {
-        city: userCity,
-        state: userState,
-        distance: 0,
-        exists: false,
-        squad: null,
       });
     }
+
+    // Always include ALL cities from the search
+    allCitiesInZip.forEach(cityName => {
+      const cityKey = userState ? `${cityName}-${userState}` : cityName;
+      if (!nearbyCities.has(cityKey)) {
+        nearbyCities.set(cityKey, {
+          city: cityName,
+          state: userState,
+          distance: 0,
+          exists: false,
+          squad: null,
+          divisions: []
+        });
+      }
+    });
 
     // Convert to array and sort by distance
     const cities = Array.from(nearbyCities.values()).sort((a, b) => a.distance - b.distance);
 
-    console.log(`\n✅ Returning ${cities.length} cities within ${radius} miles:`);
-    cities.forEach(c => {
-      if (c.exists) {
-        console.log(`   ✓ ${c.city}, ${c.state}: ${c.distance.toFixed(1)} mi (Squad exists, ${c.squad.memberCount} members)`);
-      } else {
-        console.log(`   ○ ${c.city}, ${c.state}: ${c.distance.toFixed(1)} mi (No squad yet)`);
-      }
-    });
-    console.log(`${'='.repeat(80)}\n`);
+    console.log(`[RESCUE SQUAD SEARCH] Returning ${cities.length} cities:`, cities.map(c => `${c.city} (${c.distance.toFixed(1)}mi, exists: ${c.exists})`));
 
     return NextResponse.json({
       cities,
-      searchLocation: { city: userCity, state: userState, zipCode },
+      searchLocation: {
+        cities: allCitiesInZip,
+        state: userState,
+        zipCode
+      },
     });
   } catch (error) {
-    console.error('❌ Error searching rescue squads:', error);
-    console.log(`${'='.repeat(80)}\n`);
+    console.error('Error searching rescue squads:', error);
     return NextResponse.json({ error: 'Failed to search' }, { status: 500 });
   }
 }
@@ -361,25 +427,16 @@ export async function POST(request) {
 
     return NextResponse.json({ squad }, { status: 201 });
   } catch (error) {
-    // Try to log the failure event (best effort - don't re-throw if logging fails)
-    try {
-      await logEvent({
-        event_type: 'squad.create_failed',
-        resource_type: 'rescue_squad',
-        action: 'create',
-        result: 'failure',
-        error_code: 'DB_WRITE_FAILED',
-        error_message: error.message || 'Unknown error during squad creation',
-        metadata: {
-          errorName: error.name,
-          errorStack: error.stack?.split('\n')[0] // First line of stack trace
-        }
-      });
-    } catch (logError) {
-      console.error('Failed to log squad.create_failed event:', logError);
-    }
-
     console.error('Error creating rescue squad:', error);
+    await logEvent({
+      event_type: 'squad.create_failed',
+      resource_type: 'rescue_squad',
+      action: 'create',
+      result: 'failure',
+      error_code: 'DB_WRITE_FAILED',
+      error_message: error.message,
+      metadata: { error_stack: error.stack?.substring(0, 500) }
+    });
     return NextResponse.json({ error: 'Failed to create squad' }, { status: 500 });
   }
 }

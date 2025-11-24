@@ -145,6 +145,24 @@ export default function DashboardPage() {
               🚁 Rescue Squads
             </Link>
 
+            {/* Admin Link - only show for admin users */}
+            {session?.user?.role === 'ADMIN' && (
+              <Link
+                href="/admin/rescue-squads"
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: '#dc2626',
+                  color: 'white',
+                  borderRadius: theme.radius.lg,
+                  textDecoration: 'none',
+                  fontWeight: '600',
+                  fontSize: '0.9rem',
+                }}
+              >
+                ⚙️ Admin Panel
+              </Link>
+            )}
+
             <button
               onClick={() => signOut({ callbackUrl: '/' })}
               style={{

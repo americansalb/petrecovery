@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '../../lib/prisma';
+import prisma from '@/app/lib/prisma';
 import { getServerSession } from 'next-auth';
 
 // NOTE: Requires Prisma to be set up (see SETUP.md)
