@@ -146,34 +146,55 @@ export async function GET(request) {
 
 // POST /api/rescue-squads - Create a new city rescue squad
 export async function POST(request) {
-  const timestamp = new Date().toISOString();
-  console.log(`\n${'='.repeat(80)}`);
-  console.log(`🏗️ [${timestamp}] CREATE SQUAD REQUEST`);
-  console.log(`${'='.repeat(80)}\n`);
-
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      console.log('❌ Unauthorized: No session');
+      await logEvent({
+        event_type: 'squad.create_failed',
+        resource_type: 'rescue_squad',
+        action: 'create',
+        result: 'failure',
+        error_code: 'UNAUTHORIZED',
+        error_message: 'Attempted to create squad without authentication',
+        metadata: {}
+      });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { city, state, zipCode } = await request.json();
 
-    console.log('📋 Create squad parameters:', {
-      city,
-      state,
-      zipCode,
-      userId: session.user.id
-    });
-
     if (!city || !state || !zipCode) {
-      console.log('❌ Missing required parameters');
+      await logEvent({
+        event_type: 'squad.create_failed',
+        resource_type: 'rescue_squad',
+        action: 'create',
+        result: 'failure',
+        error_code: 'VALIDATION_ERROR',
+        error_message: 'Missing required parameters: city, state, or zipCode',
+        actor_user_id: session.user.id,
+        actor_role: session.user.role || 'USER',
+        metadata: { city, state, zipCode }
+      });
       return NextResponse.json({ error: 'City, state, and zipCode required' }, { status: 400 });
     }
 
+    // Emit squad.create_attempted event
+    await logEvent({
+      event_type: 'squad.create_attempted',
+      resource_type: 'rescue_squad',
+      action: 'create',
+      result: 'success',
+      actor_user_id: session.user.id,
+      actor_role: session.user.role || 'USER',
+      metadata: {
+        city,
+        state,
+        zipCode,
+        requestedRadiusMiles: 10
+      }
+    });
+
     // Verify email and legal acceptance
-    console.log('\n🔐 Step 1: Verifying user email and legal acceptance...');
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -186,16 +207,24 @@ export async function POST(request) {
     });
 
     if (!user?.emailVerified) {
-      console.log('❌ Email not verified');
+      await logEvent({
+        event_type: 'squad.create_failed',
+        resource_type: 'rescue_squad',
+        action: 'create',
+        result: 'failure',
+        error_code: 'EMAIL_NOT_VERIFIED',
+        error_message: 'User attempted to create squad without verified email',
+        actor_user_id: session.user.id,
+        actor_role: session.user.role || 'USER',
+        metadata: { city, state, zipCode }
+      });
       return NextResponse.json({ error: 'Email verification required' }, { status: 403 });
     }
-    console.log(`✅ User ${user.firstName} ${user.lastName} is verified`);
 
     // Check waiver acceptance (Phase 0: Legal Baseline)
     if (!user.waiverAcceptedAt) {
-      console.log('⚠️  Waiver not accepted - blocking squad creation');
-
-      logEvent({
+      // Emit both legal.blocked_action AND squad.create_failed for admin visibility
+      await logEvent({
         event_type: 'legal.blocked_action',
         resource_type: 'squad',
         action: 'create',
@@ -203,12 +232,25 @@ export async function POST(request) {
         error_code: 'WAIVER_NOT_ACCEPTED',
         error_message: 'User attempted to create squad without accepting liability waiver',
         actor_user_id: session.user.id,
-        actor_role: session.user.role,
+        actor_role: session.user.role || 'USER',
         metadata: {
           blocked_action: 'squad_create',
-          city: city,
-          state: state
+          city,
+          state,
+          zipCode
         }
+      });
+
+      await logEvent({
+        event_type: 'squad.create_failed',
+        resource_type: 'rescue_squad',
+        action: 'create',
+        result: 'failure',
+        error_code: 'WAIVER_NOT_ACCEPTED',
+        error_message: 'Squad creation blocked - liability waiver not accepted',
+        actor_user_id: session.user.id,
+        actor_role: session.user.role || 'USER',
+        metadata: { city, state, zipCode }
       });
 
       return NextResponse.json({
@@ -218,13 +260,21 @@ export async function POST(request) {
         redirectTo: `/legal/consent?returnUrl=${encodeURIComponent('/rescue-squads/search')}`
       }, { status: 403 });
     }
-    console.log(`✅ Waiver accepted: v${user.waiverVersionAccepted} on ${new Date(user.waiverAcceptedAt).toLocaleDateString()}`);
 
     // Geocode to get coordinates
-    console.log(`\n📍 Step 2: Geocoding ZIP ${zipCode}...`);
     const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
     if (!geoRes.ok) {
-      console.log(`❌ Geocoding failed: ${geoRes.status}`);
+      await logEvent({
+        event_type: 'squad.create_failed',
+        resource_type: 'rescue_squad',
+        action: 'create',
+        result: 'failure',
+        error_code: 'GEOCODING_FAILED',
+        error_message: `Geocoding API returned ${geoRes.status} for ZIP ${zipCode}`,
+        actor_user_id: session.user.id,
+        actor_role: session.user.role || 'USER',
+        metadata: { city, state, zipCode, geoStatus: geoRes.status }
+      });
       return NextResponse.json({ error: 'Invalid zip code' }, { status: 400 });
     }
 
@@ -233,29 +283,29 @@ export async function POST(request) {
     const latitude = parseFloat(place['latitude']);
     const longitude = parseFloat(place['longitude']);
 
-    console.log('📥 Geocoding result:', {
-      lat: latitude,
-      lng: longitude,
-      city: place['place name'],
-      state: place['state abbreviation']
-    });
-
     const squadName = `${city} Rescue Squad`;
 
     // Check if squad already exists
-    console.log(`\n🔍 Step 3: Checking if ${squadName} already exists...`);
     const existing = await prisma.rescueSquad.findFirst({
       where: { city, state }
     });
 
     if (existing) {
-      console.log(`❌ Squad already exists: ${existing.name} (ID: ${existing.id})`);
+      await logEvent({
+        event_type: 'squad.create_failed',
+        resource_type: 'rescue_squad',
+        action: 'create',
+        result: 'failure',
+        error_code: 'DUPLICATE_SQUAD',
+        error_message: `Squad already exists for ${city}, ${state}`,
+        actor_user_id: session.user.id,
+        actor_role: session.user.role || 'USER',
+        metadata: { city, state, zipCode, existingSquadId: existing.id, existingSquadName: existing.name }
+      });
       return NextResponse.json({ error: 'Squad already exists for this city' }, { status: 400 });
     }
-    console.log('✅ No existing squad found');
 
     // Create squad
-    console.log(`\n🏗️ Step 4: Creating ${squadName}...`);
     const squad = await prisma.rescueSquad.create({
       data: {
         name: squadName,
@@ -277,15 +327,7 @@ export async function POST(request) {
       },
     });
 
-    console.log('✅ Squad created successfully:', {
-      id: squad.id,
-      name: squad.name,
-      city: squad.city,
-      state: squad.state,
-      center: `(${squad.centerLatitude}, ${squad.centerLongitude})`
-    });
-
-    console.log('\n👤 Step 5: Updating user stats...');
+    // Update user stats
     await prisma.user.update({
       where: { id: session.user.id },
       data: {
@@ -294,13 +336,50 @@ export async function POST(request) {
       },
     });
 
-    console.log('✅ User updated successfully');
-    console.log(`${'='.repeat(80)}\n`);
+    // Emit squad.created success event
+    await logEvent({
+      event_type: 'squad.created',
+      resource_type: 'rescue_squad',
+      resource_id: squad.id,
+      action: 'create',
+      result: 'success',
+      actor_user_id: session.user.id,
+      actor_role: session.user.role || 'USER',
+      metadata: {
+        squadId: squad.id,
+        squadName: squad.name,
+        city: squad.city,
+        state: squad.state,
+        zipCode,
+        centerLatitude: squad.centerLatitude,
+        centerLongitude: squad.centerLongitude,
+        radiusMiles: squad.radiusMiles,
+        founderRole: 'FOUNDER',
+        isActive: squad.isActive
+      }
+    });
 
     return NextResponse.json({ squad }, { status: 201 });
   } catch (error) {
-    console.error('❌ Error creating rescue squad:', error);
-    console.log(`${'='.repeat(80)}\n`);
+    // Try to log the failure event (best effort - don't re-throw if logging fails)
+    try {
+      await logEvent({
+        event_type: 'squad.create_failed',
+        resource_type: 'rescue_squad',
+        action: 'create',
+        result: 'failure',
+        error_code: 'DB_WRITE_FAILED',
+        error_message: error.message || 'Unknown error during squad creation',
+        metadata: {
+          errorName: error.name,
+          errorStack: error.stack?.split('\n')[0] // First line of stack trace
+        }
+      });
+    } catch (logError) {
+      console.error('Failed to log squad.create_failed event:', logError);
+    }
+
+    console.error('Error creating rescue squad:', error);
     return NextResponse.json({ error: 'Failed to create squad' }, { status: 500 });
   }
 }
