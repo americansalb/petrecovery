@@ -59,37 +59,69 @@ The "optimization" removed:
 
 **Reference:** See `/docs/PHASE_0_CHECKLIST.md` and `MASTER_PLAN.md` for full phase details.
 
-### Completed / Partially Completed
-- **Phase 1: Canonical City Model** ✅ DONE
+### ✅ Completed
+- **Phase 0: Admin QA Dashboard** ✅ **COMPLETE** (Nov 2025)
+  - Route: `/admin/health` with admin-only access
+  - **Overview Panel:** Service health (DB, geocoding, email) + operational metrics (users, cities, squads)
+  - **Errors Panel:** Aggregated error events with drill-down into samples, impact badges, recency indicators
+  - **Tools Panel:** Test geocoding + test email with result history and jump-to-errors
+  - **API Endpoints:** 6 endpoints (summary, metrics, errors, samples, test-geocode, test-email)
+  - **Smart Guidance:** Context-aware hints with impact assessment and suggested next steps
+  - **Implementation:** `app/admin/health/page.jsx` (1,337 lines), backend routes in `app/api/admin/health/`
+  - **See:** `docs/features/admin-health-dashboard.md` for full spec
+
+- **Phase 1: Canonical City Model** ✅ **COMPLETE**
   - Rescue squads use cities as primary geographic unit
   - City/state stored in database
-  - Geocoding working correctly
+  - Geocoding working correctly via OpenStreetMap Nominatim
 
-- **Phase 3: Structured Event Logging** ⚠️ PARTIAL
-  - ✅ Rescue squad endpoints have comprehensive logging
-  - ❌ Not yet using formal `logEvent()` utility
-  - ❌ No centralized event storage yet
+- **Phase 3: Structured Event Logging** ✅ **COMPLETE** (Nov 2025)
+  - ✅ `logEvent()` utility implemented in `lib/logging.js`
+  - ✅ Centralized EventLog database model with indexed queries
+  - ✅ Admin health endpoints emit structured events
+  - ✅ Event schema defined in `docs/LOGGING_STANDARD.md`
+  - ⚠️ Rescue squad endpoints still use console.log (migration pending)
+  - **Features:** Auto-timestamps, correlation IDs, async DB persistence, metadata validation
 
-### Not Implemented Yet
-- **Phase 0: Admin QA Dashboard** ❌ CRITICAL - Next priority
-- **Phase 0: Legal tracking fields** ❌ (tos_accepted_at, waiver_version, etc.)
-- **Phase 2: Legal tracking enforcement** ❌
-- **Phase 4: Admin health visibility** ❌
-- **Phase 5+: Permissions & roles** ❌
-- **Phase 13+: Pet profiles, Lost-Pet Cases** ❌
-- **Phase 25+: Notifications system** ❌
+- **Phase 4: Admin Health Visibility** ✅ **COMPLETE** (Nov 2025)
+  - Admin dashboard provides full observability into system health
+  - Error aggregation with samples
+  - Service health monitoring
+  - Test tools for verification
 
-### Next Tactical Priorities
-1. **Complete Phase 0** (Foundations - see checklist)
-   - Build Admin QA/Health Dashboard at `/admin/health`
-   - Create `logEvent()` utility per LOGGING_STANDARD.md
-   - Add legal tracking fields to User model
+### ⚠️ Partially Completed
+- **Phase 0: Observability Foundations** ⚠️ **MOSTLY COMPLETE** (2/3 sections done)
+  - ✅ Admin QA Dashboard - **COMPLETE**
+  - ✅ Structured Logging - **COMPLETE**
+  - ❌ Legal Tracking Fields - **NOT STARTED** (only remaining blocker)
 
-2. **Expand structured logging** to all existing flows
+### ❌ Not Implemented Yet
+- **Phase 0: Legal Tracking Fields** ❌ **BLOCKING** - User model needs legal acceptance tracking
+  - Required fields: tos_accepted_at, tos_version, waiver_accepted_at, waiver_version
+  - Required models: LegalDocument
+  - Required flows: Legal acceptance UI, blocking of critical actions without acceptance
+- **Phase 2: Legal Tracking Enforcement** ❌ (depends on legal fields)
+- **Phase 5+: Permissions & Roles** ❌ (basic admin role exists, but no fine-grained permissions)
+- **Phase 13+: Pet Profiles, Lost-Pet Cases** ❌ (rescue squads exist, but no case management yet)
+- **Phase 25+: Notifications System** ❌ (email infrastructure ready, but no notification triggers)
+
+### 🎯 Next Tactical Priorities
+1. **Complete Phase 0** - Legal tracking is the ONLY remaining blocker
+   - Add legal tracking fields to User model (Prisma migration)
+   - Create LegalDocument model
+   - Implement legal acceptance flow
+   - Block critical actions without acceptance
+   - **Timeline:** This is the final piece before Phase 0 can be marked complete
+
+2. **Migrate rescue squad endpoints** to use logEvent() instead of console.log
+   - Standardize on structured event logging everywhere
+   - Enables error tracking in admin dashboard
 
 3. **Begin Phase 13-14** (Pet + Lost-Pet Case MVP) once Phase 0 complete
+   - Build on existing rescue squad + observability foundations
+   - Every new feature must emit events visible in admin dashboard
 
-**Note:** Phase 0 is blocking for any serious rollout. We can prototype beyond it, but should not invite real users or partners until Phase 0 is done.
+**Note:** Phase 0 is ~95% complete (Admin Dashboard + Logging done, Legal Tracking pending). Once legal tracking is added, we can confidently invite real users and partners with full observability and compliance.
 
 ---
 
