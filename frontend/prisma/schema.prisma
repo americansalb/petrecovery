@@ -35,6 +35,12 @@ model User {
   honorsReceived  Int         @default(0)
   lastLevelUpAt   DateTime?
 
+  // Legal Tracking (Phase 0)
+  tosAcceptedAt       DateTime?
+  tosVersionAccepted  String?
+  waiverAcceptedAt    DateTime?
+  waiverVersionAccepted String?
+
   // Relations
   profile         UserProfile?
   patrolProfile   PatrolProfile?
@@ -162,6 +168,41 @@ enum PatrolLevel {
   TRACKER     // 5 recoveries
   EXPERT      // 10 recoveries
   LEGEND      // 25+ recoveries
+}
+
+// ============================================================================
+// LEGAL DOCUMENT SYSTEM (Phase 0)
+// ============================================================================
+
+model LegalDocument {
+  id              String   @id @default(cuid())
+
+  // Document Identity
+  slug            String   @unique  // "terms-of-service", "liability-waiver", "privacy-policy"
+  type            LegalDocumentType
+  version         String             // e.g., "1.0.0"
+
+  // Content
+  title           String             // "Terms of Service"
+  content         String             // Full markdown/HTML content
+  summary         String?            // Short summary for UI
+
+  // Status
+  isActive        Boolean  @default(true)
+  publishedAt     DateTime @default(now())
+
+  // Metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([slug])
+  @@index([type, isActive])
+}
+
+enum LegalDocumentType {
+  TERMS_OF_SERVICE
+  LIABILITY_WAIVER
+  PRIVACY_POLICY
 }
 
 // ============================================================================

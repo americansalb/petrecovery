@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
+import { logEvent } from '@/lib/logging';
 
 // GET /api/rescue-squads - Search for cities with rescue squads nearby
 export async function GET(request) {
@@ -171,11 +172,17 @@ export async function POST(request) {
       return NextResponse.json({ error: 'City, state, and zipCode required' }, { status: 400 });
     }
 
-    // Verify email
-    console.log('\n🔐 Step 1: Verifying user email...');
+    // Verify email and legal acceptance
+    console.log('\n🔐 Step 1: Verifying user email and legal acceptance...');
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { emailVerified: true, firstName: true, lastName: true }
+      select: {
+        emailVerified: true,
+        firstName: true,
+        lastName: true,
+        waiverAcceptedAt: true,
+        waiverVersionAccepted: true
+      }
     });
 
     if (!user?.emailVerified) {
@@ -183,6 +190,35 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Email verification required' }, { status: 403 });
     }
     console.log(`✅ User ${user.firstName} ${user.lastName} is verified`);
+
+    // Check waiver acceptance (Phase 0: Legal Baseline)
+    if (!user.waiverAcceptedAt) {
+      console.log('⚠️  Waiver not accepted - blocking squad creation');
+
+      logEvent({
+        event_type: 'legal.blocked_action',
+        resource_type: 'squad',
+        action: 'create',
+        result: 'failure',
+        error_code: 'WAIVER_NOT_ACCEPTED',
+        error_message: 'User attempted to create squad without accepting liability waiver',
+        actor_user_id: session.user.id,
+        actor_role: session.user.role,
+        metadata: {
+          blocked_action: 'squad_create',
+          city: city,
+          state: state
+        }
+      });
+
+      return NextResponse.json({
+        error: 'Liability waiver required',
+        code: 'WAIVER_NOT_ACCEPTED',
+        message: 'You must accept the liability waiver before creating a rescue squad. Rescue squad participation involves physical risks.',
+        redirectTo: `/legal/consent?returnUrl=${encodeURIComponent('/rescue-squads/search')}`
+      }, { status: 403 });
+    }
+    console.log(`✅ Waiver accepted: v${user.waiverVersionAccepted} on ${new Date(user.waiverAcceptedAt).toLocaleDateString()}`);
 
     // Geocode to get coordinates
     console.log(`\n📍 Step 2: Geocoding ZIP ${zipCode}...`);

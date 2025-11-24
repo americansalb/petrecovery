@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
+import { logEvent } from '@/lib/logging';
 
 // POST /api/rescue-squads/:id/join - Join a rescue squad
 export async function POST(request, { params }) {
@@ -9,6 +10,42 @@ export async function POST(request, { params }) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check waiver acceptance (Phase 0: Legal Baseline)
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        waiverAcceptedAt: true,
+        waiverVersionAccepted: true
+      }
+    });
+
+    if (!user?.waiverAcceptedAt) {
+      console.log(`⚠️  [Squad Join] User ${session.user.id} blocked - waiver not accepted`);
+
+      logEvent({
+        event_type: 'legal.blocked_action',
+        resource_type: 'squad',
+        resource_id: params.id,
+        action: 'update',
+        result: 'failure',
+        error_code: 'WAIVER_NOT_ACCEPTED',
+        error_message: 'User attempted to join squad without accepting liability waiver',
+        actor_user_id: session.user.id,
+        actor_role: session.user.role,
+        metadata: {
+          blocked_action: 'squad_join',
+          squad_id: params.id
+        }
+      });
+
+      return NextResponse.json({
+        error: 'Liability waiver required',
+        code: 'WAIVER_NOT_ACCEPTED',
+        message: 'You must accept the liability waiver before joining a rescue squad. Rescue squad participation involves physical risks.',
+        redirectTo: `/legal/consent?returnUrl=${encodeURIComponent(`/rescue-squads/${params.id}`)}`
+      }, { status: 403 });
     }
 
     const squad = await prisma.rescueSquad.findUnique({
