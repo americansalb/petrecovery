@@ -55,6 +55,44 @@ The "optimization" removed:
 
 ---
 
+## 📊 Current Phase Status (vs MASTER_PLAN)
+
+**Reference:** See `/docs/PHASE_0_CHECKLIST.md` and `MASTER_PLAN.md` for full phase details.
+
+### Completed / Partially Completed
+- **Phase 1: Canonical City Model** ✅ DONE
+  - Rescue squads use cities as primary geographic unit
+  - City/state stored in database
+  - Geocoding working correctly
+
+- **Phase 3: Structured Event Logging** ⚠️ PARTIAL
+  - ✅ Rescue squad endpoints have comprehensive logging
+  - ❌ Not yet using formal `logEvent()` utility
+  - ❌ No centralized event storage yet
+
+### Not Implemented Yet
+- **Phase 0: Admin QA Dashboard** ❌ CRITICAL - Next priority
+- **Phase 0: Legal tracking fields** ❌ (tos_accepted_at, waiver_version, etc.)
+- **Phase 2: Legal tracking enforcement** ❌
+- **Phase 4: Admin health visibility** ❌
+- **Phase 5+: Permissions & roles** ❌
+- **Phase 13+: Pet profiles, Lost-Pet Cases** ❌
+- **Phase 25+: Notifications system** ❌
+
+### Next Tactical Priorities
+1. **Complete Phase 0** (Foundations - see checklist)
+   - Build Admin QA/Health Dashboard at `/admin/health`
+   - Create `logEvent()` utility per LOGGING_STANDARD.md
+   - Add legal tracking fields to User model
+
+2. **Expand structured logging** to all existing flows
+
+3. **Begin Phase 13-14** (Pet + Lost-Pet Case MVP) once Phase 0 complete
+
+**Note:** Phase 0 is blocking for any serious rollout. We can prototype beyond it, but should not invite real users or partners until Phase 0 is done.
+
+---
+
 ## 📋 Implementation Path
 
 ### Phase 1: Stabilize Rescue Squad Search ✅ COMPLETED
