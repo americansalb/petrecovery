@@ -165,6 +165,45 @@ enum PatrolLevel {
 }
 
 // ============================================================================
+// EVENT LOGGING SYSTEM (Phase 0)
+// ============================================================================
+
+model EventLog {
+  id              String   @id @default(cuid())
+
+  // Event Identity
+  event_type      String   // e.g., "squad.created", "user.login_failed"
+  timestamp       DateTime @default(now())
+  correlation_id  String   // UUID to trace related events
+
+  // Actor Context
+  actor_user_id   String?
+  actor_role      String?  // "OWNER", "VOLUNTEER", "ADMIN", etc.
+
+  // Resource Context
+  resource_type   String   // "user", "squad", "case", "sighting", etc.
+  resource_id     String?
+
+  // Action & Result
+  action          String   // "create", "update", "delete", "read", "transition"
+  result          String   // "success" or "failure"
+
+  // Error Details (for failures)
+  error_code      String?
+  error_message   String?  // Safe summary, no secrets
+
+  // Additional Context
+  metadata        String   @default("{}") // JSON string
+
+  @@index([event_type])
+  @@index([timestamp])
+  @@index([result])
+  @@index([correlation_id])
+  @@index([event_type, error_code]) // For error aggregation
+  @@index([actor_user_id])
+}
+
+// ============================================================================
 // PET SYSTEM
 // ============================================================================
 

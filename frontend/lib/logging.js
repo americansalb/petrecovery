@@ -113,12 +113,12 @@ export function logEvent(event) {
 
 /**
  * Emit event to configured sinks
- * Currently: console (structured JSON)
- * Future: database, external logging service, etc.
+ * Currently: console (structured JSON) + database
+ * Future: external logging service, etc.
  *
  * @private
  */
-function emitEvent(event) {
+async function emitEvent(event) {
   // Structured console output
   const logLevel = event.result === 'failure' ? 'error' : 'log';
   const prefix = event.result === 'failure' ? '❌' : '✅';
@@ -133,8 +133,34 @@ function emitEvent(event) {
     ...(Object.keys(event.metadata).length > 0 && { metadata: event.metadata }),
   });
 
-  // TODO Phase 0.3: Write to event store/database
-  // await writeToEventStore(event);
+  // Write to database (Phase 0.3)
+  // Only attempt if we're in a server context (Node.js)
+  if (typeof window === 'undefined') {
+    try {
+      // Dynamic import to avoid bundling Prisma in client code
+      const { default: prisma } = await import('@/app/lib/prisma');
+
+      await prisma.eventLog.create({
+        data: {
+          event_type: event.event_type,
+          timestamp: new Date(event.timestamp),
+          correlation_id: event.correlation_id,
+          actor_user_id: event.actor_user_id,
+          actor_role: event.actor_role,
+          resource_type: event.resource_type,
+          resource_id: event.resource_id,
+          action: event.action,
+          result: event.result,
+          error_code: event.error_code,
+          error_message: event.error_message,
+          metadata: JSON.stringify(event.metadata),
+        },
+      });
+    } catch (dbError) {
+      // Don't throw - logging failures shouldn't crash the app
+      console.error('⚠️  [EventLog] Failed to persist event to database:', dbError.message);
+    }
+  }
 }
 
 /**
