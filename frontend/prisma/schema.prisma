@@ -71,6 +71,10 @@ model User {
   approvedCommunities Community[] @relation("CommunityApprover")
   communityPosts  CommunityPost[]
 
+  // Lost Pet Case Relations (Phase 13-14)
+  createdCases    LostPetCase[]
+  caseNotes       LostPetCaseNote[]
+
   @@index([email])
   @@index([rescueLevel])
 }
@@ -203,6 +207,13 @@ enum LegalDocumentType {
   TERMS_OF_SERVICE
   LIABILITY_WAIVER
   PRIVACY_POLICY
+}
+
+enum LostPetCaseStatus {
+  OPEN
+  ACTIVE_SEARCH
+  RESOLVED
+  CLOSED_OTHER
 }
 
 // ============================================================================
@@ -555,6 +566,7 @@ model RescueSquad {
   members          RescueSquadMember[]
   caseAssignments  CaseAssignment[]
   divisions        Division[]
+  cases            LostPetCase[]  // Phase 13-14: Lost Pet Cases MVP
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -1041,4 +1053,70 @@ enum MemberStatus {
 enum CommunityRole {
   MEMBER
   MODERATOR
+}
+
+// ============================================================================
+// LOST PET CASE SYSTEM (Phase 13-14 - MVP)
+// ============================================================================
+
+model LostPetCase {
+  id            String            @id @default(cuid())
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  caseNumber    String            @unique
+
+  // Pet info
+  petName       String?
+  petSpecies    PetSpecies
+  petBreed      String?
+  petColor      String?
+  petDescription String?
+
+  // Location
+  city          String
+  state         String
+  zipCode       String?
+  lastSeenLandmark String?
+  lastSeenAt    DateTime?
+
+  // Status
+  status        LostPetCaseStatus @default(OPEN)
+  statusReason  String?
+  isUrgent      Boolean           @default(false)
+
+  // Contact
+  contactName   String?
+  contactPhone  String?
+  contactEmail  String?
+
+  // Relations
+  createdById   String
+  createdBy     User              @relation(fields: [createdById], references: [id])
+
+  squadId       String?
+  squad         RescueSquad?      @relation(fields: [squadId], references: [id])
+
+  notes         LostPetCaseNote[]
+
+  @@index([city, state])
+  @@index([status])
+  @@index([squadId])
+}
+
+model LostPetCaseNote {
+  id         String      @id @default(cuid())
+  createdAt  DateTime    @default(now())
+
+  caseId     String
+  case       LostPetCase @relation(fields: [caseId], references: [id])
+
+  authorId   String
+  author     User        @relation(fields: [authorId], references: [id])
+
+  type       String      @default("NOTE")
+  content    String
+  metadata   String      @default("{}")
+
+  @@index([caseId])
 }
