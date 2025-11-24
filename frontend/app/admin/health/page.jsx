@@ -848,9 +848,10 @@ function ErrorsTable({ errors, onSelectError, selectedError }) {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                   {new Date(error.last_seen_at).toLocaleString()}
-              </td>
-            </tr>
-          ))}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
