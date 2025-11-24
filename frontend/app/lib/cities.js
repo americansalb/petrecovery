@@ -69,6 +69,28 @@ export function searchCityOrZip(input) {
 }
 
 /**
+ * Parse "City, ST" format into city name and state
+ * @param {string} input - Input string (e.g., "Springfield, IL" or "Springfield")
+ * @returns {Object} - { cityName: string, stateId: string|null }
+ */
+export function parseCityState(input) {
+  if (!input) return { cityName: '', stateId: null };
+
+  const trimmed = input.trim();
+
+  // Check for "City, ST" format
+  if (trimmed.includes(',')) {
+    const parts = trimmed.split(',').map(p => p.trim());
+    if (parts.length === 2 && parts[1].length === 2) {
+      return { cityName: parts[0], stateId: parts[1].toUpperCase() };
+    }
+  }
+
+  // Just city name
+  return { cityName: trimmed, stateId: null };
+}
+
+/**
  * Get autocomplete suggestions for city names
  * @param {string} query - Search query
  * @param {number} limit - Max results (default 10)
@@ -126,11 +148,21 @@ export function getCityByKey(key) {
 
 /**
  * Check if a city name is valid
- * @param {string} cityName - City name to validate
+ * @param {string} cityName - City name to validate (can be "City" or "City, ST")
  * @param {string} stateId - Optional state to validate against
  * @returns {boolean}
  */
 export function isValidCity(cityName, stateId = null) {
+  if (!cityName) return false;
+
+  // Handle "City, ST" format
+  if (cityName.includes(',')) {
+    const parts = cityName.split(',').map(p => p.trim());
+    if (parts.length === 2) {
+      return getCityByName(parts[0], parts[1]) !== null;
+    }
+  }
+
   return getCityByName(cityName, stateId) !== null;
 }
 

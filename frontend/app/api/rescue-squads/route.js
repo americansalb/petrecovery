@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
-import { getCitiesByZip, getCityByName } from '@/app/lib/cities';
+import { getCitiesByZip, getCityByName, parseCityState } from '@/app/lib/cities';
 
 // GET /api/rescue-squads - Search for cities with rescue squads nearby
 export async function GET(request) {
@@ -50,17 +50,23 @@ export async function GET(request) {
       console.log(`✅ [ZIP SEARCH] allCitiesInZip array has ${allCitiesInZip.length} cities:`, allCitiesInZip);
     } else {
       // Search by city name - use cities library
-      const cityName = searchTerm.trim();
-      const cityData = getCityByName(cityName);
+      const { cityName, stateId } = parseCityState(searchTerm);
+
+      console.log(`🔍 [CITY SEARCH] Searching for: ${cityName}${stateId ? ', ' + stateId : ''}`);
+
+      const cityData = getCityByName(cityName, stateId);
 
       if (!cityData) {
         return NextResponse.json({ error: 'Invalid city name' }, { status: 400 });
       }
 
+      console.log(`✅ [CITY SEARCH] Found: ${cityData.city}, ${cityData.state_id} (${cityData.state_name})`);
+
       // Check if a squad exists for this city
       const existingSquad = await prisma.rescueSquad.findFirst({
         where: {
-          city: { equals: cityName, mode: 'insensitive' },
+          city: { equals: cityData.city, mode: 'insensitive' },
+          state: cityData.state_id,
           isActive: true
         }
       });

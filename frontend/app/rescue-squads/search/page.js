@@ -40,9 +40,11 @@ export default function RescueSquadSearchPage() {
   };
 
   const selectSuggestion = (city) => {
-    setSearchTerm(city.city);
+    // Show "City, ST" in search box for clarity
+    setSearchTerm(`${city.city}, ${city.state_id}`);
     setShowSuggestions(false);
     setSuggestions([]);
+    setInputType('city');
   };
 
   const handleSearch = async (e) => {
