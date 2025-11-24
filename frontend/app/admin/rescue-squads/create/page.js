@@ -11,6 +11,7 @@ export default function AdminCreateRescueSquadPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [legalError, setLegalError] = useState(null); // { message, redirectTo }
 
   const [formData, setFormData] = useState({
     name: '',
@@ -49,6 +50,7 @@ export default function AdminCreateRescueSquadPage() {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setLegalError(null);
     setLoading(true);
 
     try {
@@ -73,6 +75,15 @@ export default function AdminCreateRescueSquadPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        // Check for legal consent requirement (Phase 0: Legal Baseline)
+        if (res.status === 403 && data.code === 'WAIVER_NOT_ACCEPTED') {
+          setLegalError({
+            message: data.message,
+            redirectTo: data.redirectTo
+          });
+          return;
+        }
+
         throw new Error(data.error || 'Failed to create rescue squad');
       }
 
@@ -142,6 +153,43 @@ export default function AdminCreateRescueSquadPage() {
             ← Back
           </Link>
         </div>
+
+        {/* Legal Consent Required Banner */}
+        {legalError && (
+          <div style={{
+            padding: '1.5rem',
+            background: '#fef3c7',
+            border: '2px solid #fbbf24',
+            borderRadius: '12px',
+            marginBottom: '2rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+              <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: '700', color: '#92400e', marginBottom: '0.25rem' }}>
+                  Legal Agreement Required
+                </div>
+                <div style={{ color: '#b45309', fontSize: '0.95rem' }}>
+                  {legalError.message}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push(legalError.redirectTo)}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              Review & Accept Now →
+            </button>
+          </div>
+        )}
 
         {/* Success Message */}
         {success && (

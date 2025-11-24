@@ -1,6 +1,6 @@
 # Feature Spec: Legal Baseline (ToS + Waiver + Safety)
 
-**Status:** Implementation Ready
+**Status:** ✅ Fully Implemented
 **Owner:** Product + Engineering
 **Last Updated:** November 24, 2025
 **Phase:** Phase 0 (Blocking Requirement)
@@ -790,9 +790,98 @@ When legal documents are updated:
 
 ---
 
-## 12. Implementation Notes
+## 12. Implementation Status
 
-### 12.1 Migration Strategy
+**Implementation Completed:** November 24, 2025
+
+### 12.1 Backend Implementation ✅ COMPLETE
+
+**Database Schema:**
+- ✅ User model updated with legal tracking fields (tosAcceptedAt, tosVersionAccepted, waiverAcceptedAt, waiverVersionAccepted)
+- ✅ LegalDocument model created with type enum (TERMS_OF_SERVICE, LIABILITY_WAIVER, PRIVACY_POLICY)
+- ✅ Migration applied: `20251124193319_add_legal_tracking_fields`
+- ✅ Seed script creates initial v1.0.0 documents for all three types
+
+**API Endpoints:**
+- ✅ `GET /api/legal/documents` - Returns all active legal documents
+- ✅ `GET /api/legal/documents/[slug]` - Returns full content of specific document
+- ✅ `POST /api/legal/accept` - Accepts legal documents and updates user records
+
+**Action Gating:**
+- ✅ `POST /api/rescue-squads` - Checks waiver acceptance before squad creation
+- ✅ `POST /api/rescue-squads/[id]/join` - Checks waiver acceptance before joining
+- ✅ Both endpoints return 403 with `code: 'WAIVER_NOT_ACCEPTED'` and `redirectTo` URL
+
+**Event Logging:**
+- ✅ `legal.accepted` events emitted for all document acceptances
+- ✅ `legal.blocked_action` events emitted when actions blocked without waiver
+- ✅ All events visible in Admin Health Dashboard
+
+### 12.2 Frontend Implementation ✅ COMPLETE
+
+**Legal Consent Page (`/legal/consent`):**
+- ✅ Fetches and displays all active legal documents
+- ✅ Expandable document cards with summary + full content
+- ✅ Required checkboxes for ToS and Waiver
+- ✅ Privacy Policy shown as info-only (no checkbox required)
+- ✅ Handles `returnUrl` query param for redirect after acceptance
+- ✅ Works standalone (redirects to dashboard if no returnUrl)
+- ✅ Success/error states with friendly messaging
+
+**Front-End Gating:**
+- ✅ `/admin/rescue-squads/create/page.js` - Catches 403 legal errors, shows banner
+- ✅ `/rescue-squads/[id]/page.js` - Catches 403 legal errors on join, shows banner
+- ✅ `/rescue-squads/search/page.js` - Catches 403 legal errors on create/join, shows banner
+- ✅ All banners include clear message and "Review & Accept Now" button
+- ✅ Buttons redirect to `/legal/consent?returnUrl=...`
+
+**User Experience:**
+1. User attempts risky action (create/join squad)
+2. Backend checks waiver acceptance
+3. If not accepted: 403 response with error details
+4. Frontend shows warning banner with legal message
+5. User clicks "Review & Accept Now"
+6. Redirected to `/legal/consent?returnUrl=<original-page>`
+7. User reviews and accepts ToS + Waiver
+8. Redirected back to original page
+9. User can now complete original action
+
+### 12.3 Documentation ✅ COMPLETE
+
+- ✅ `docs/PHASE_0_CHECKLIST.md` - Section 3 updated with UI completion status
+- ✅ `VISION.md` - Phase 0 marked as 100% complete
+- ✅ This feature spec updated with implementation details
+
+### 12.4 Files Modified/Created
+
+**Database:**
+- `frontend/prisma/schema.prisma` - User model + LegalDocument model
+- `frontend/prisma/migrations/20251124193319_add_legal_tracking_fields/migration.sql`
+- `frontend/prisma/seed.js` - Legal documents seed data
+
+**Backend API:**
+- `frontend/app/api/legal/documents/route.js` (new)
+- `frontend/app/api/legal/documents/[slug]/route.js` (new)
+- `frontend/app/api/legal/accept/route.js` (new)
+- `frontend/app/api/rescue-squads/route.js` (modified - waiver gating)
+- `frontend/app/api/rescue-squads/[id]/join/route.js` (modified - waiver gating)
+
+**Frontend UI:**
+- `frontend/app/legal/consent/page.js` (new)
+- `frontend/app/admin/rescue-squads/create/page.js` (modified - legal error banner)
+- `frontend/app/rescue-squads/[id]/page.js` (modified - legal error banner)
+- `frontend/app/rescue-squads/search/page.js` (modified - legal error banner)
+
+**Documentation:**
+- `docs/features/legal-baseline-and-waiver.md` (new)
+- `docs/PHASE_0_CHECKLIST.md` (updated)
+- `VISION.md` (updated)
+
+---
+
+## 13. Implementation Notes
+
+### 13.1 Migration Strategy
 
 **Existing Users:**
 - All existing users grandfathered (legal fields nullable)
@@ -803,7 +892,7 @@ When legal documents are updated:
 - Waiver acceptance required before first squad create/join
 - ToS acceptance optional for v1 (prompt at signup in future)
 
-### 12.2 Version Numbering
+### 13.2 Version Numbering
 
 Use semantic versioning: `MAJOR.MINOR.PATCH`
 
@@ -816,7 +905,7 @@ Use semantic versioning: `MAJOR.MINOR.PATCH`
 - `1.1.0` → Added clarification about medical insurance
 - `2.0.0` → Changed liability terms (requires re-acceptance)
 
-### 12.3 Legal Content Guidelines
+### 13.3 Legal Content Guidelines
 
 **Plain Language:**
 - Avoid legalese where possible

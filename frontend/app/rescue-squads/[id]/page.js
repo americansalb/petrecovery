@@ -13,6 +13,7 @@ export default function RescueSquadDetailPage({ params }) {
   const [joining, setJoining] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState('');
+  const [legalError, setLegalError] = useState(null); // { message, redirectTo }
   const [isMember, setIsMember] = useState(false);
   const [userRole, setUserRole] = useState(null);
   const [availableCases, setAvailableCases] = useState([]);
@@ -76,6 +77,7 @@ export default function RescueSquadDetailPage({ params }) {
 
     setJoining(true);
     setError('');
+    setLegalError(null);
 
     try {
       const res = await fetch(`/api/rescue-squads/${params.id}/join`, {
@@ -85,6 +87,15 @@ export default function RescueSquadDetailPage({ params }) {
       const data = await res.json();
 
       if (!res.ok) {
+        // Check for legal consent requirement (Phase 0: Legal Baseline)
+        if (res.status === 403 && data.code === 'WAIVER_NOT_ACCEPTED') {
+          setLegalError({
+            message: data.message,
+            redirectTo: data.redirectTo
+          });
+          return;
+        }
+
         throw new Error(data.error || 'Failed to join squad');
       }
 
@@ -430,6 +441,43 @@ export default function RescueSquadDetailPage({ params }) {
             </div>
           )}
         </div>
+
+        {/* Legal Consent Required Banner */}
+        {legalError && (
+          <div style={{
+            padding: '1.5rem',
+            background: '#fef3c7',
+            border: '2px solid #fbbf24',
+            borderRadius: '12px',
+            marginBottom: '2rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+              <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: '700', color: '#92400e', marginBottom: '0.25rem' }}>
+                  Legal Agreement Required
+                </div>
+                <div style={{ color: '#b45309', fontSize: '0.95rem' }}>
+                  {legalError.message}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push(legalError.redirectTo)}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              Review & Accept Now →
+            </button>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div style={{

@@ -126,6 +126,8 @@ Before we treat MASTER_PLAN.md (Phases 1–108) as executable, these items MUST 
 - LegalDocument model with ToS, Waiver, Privacy Policy (v1.0.0)
 - 3 API endpoints: GET /documents, GET /documents/[slug], POST /accept
 - Waiver gating on squad create/join with event logging
+- `/legal/consent` UI page for legal document review and acceptance
+- Front-end gating in rescue squad pages with user-friendly error banners
 - **See:** `docs/features/legal-baseline-and-waiver.md` for full spec
 
 ### ✅ Section 4: Code Audit (COMPLETE)
@@ -154,4 +156,3 @@ Before we treat MASTER_PLAN.md (Phases 1–108) as executable, these items MUST 
 **Next Phase:**
 - Phase 13-14: Pet Profiles + Lost-Pet Case MVP
 - Migrate rescue squad endpoints to logEvent()
-- Build /legal/consent UI for legal acceptance flow (API ready, UI pending)

@@ -13,6 +13,7 @@ export default function RescueSquadSearchPage() {
   const [searchLocation, setSearchLocation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [legalError, setLegalError] = useState(null); // { message, redirectTo }
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -38,12 +39,24 @@ export default function RescueSquadSearchPage() {
       router.push('/login?callbackUrl=' + window.location.pathname);
       return;
     }
+    setLegalError(null);
     try {
       const res = await fetch(`/api/rescue-squads/${squadId}/join`, { method: 'POST' });
+      const data = await res.json();
+
       if (res.ok) {
         router.push(`/rescue-squads/${squadId}`);
       } else {
-        const data = await res.json();
+        // Check for legal consent requirement (Phase 0: Legal Baseline)
+        if (res.status === 403 && data.code === 'WAIVER_NOT_ACCEPTED') {
+          setLegalError({
+            message: data.message,
+            redirectTo: data.redirectTo
+          });
+          // Scroll to top to show banner
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
         alert(data.error || 'Failed to join');
       }
     } catch (error) {
@@ -56,6 +69,7 @@ export default function RescueSquadSearchPage() {
       router.push('/login?callbackUrl=' + window.location.pathname);
       return;
     }
+    setLegalError(null);
     try {
       const res = await fetch('/api/rescue-squads', {
         method: 'POST',
@@ -63,9 +77,20 @@ export default function RescueSquadSearchPage() {
         body: JSON.stringify({ city, state, zipCode }),
       });
       const data = await res.json();
+
       if (res.ok) {
         router.push(`/rescue-squads/${data.squad.id}`);
       } else {
+        // Check for legal consent requirement (Phase 0: Legal Baseline)
+        if (res.status === 403 && data.code === 'WAIVER_NOT_ACCEPTED') {
+          setLegalError({
+            message: data.message,
+            redirectTo: data.redirectTo
+          });
+          // Scroll to top to show banner
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
         alert(data.error || 'Failed to create squad');
       }
     } catch (error) {
@@ -82,6 +107,43 @@ export default function RescueSquadSearchPage() {
         <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '2rem' }}>
           Enter your zip code to find or create a rescue squad in your area
         </p>
+
+        {/* Legal Consent Required Banner */}
+        {legalError && (
+          <div style={{
+            padding: '1.5rem',
+            background: '#fef3c7',
+            border: '2px solid #fbbf24',
+            borderRadius: '12px',
+            marginBottom: '2rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+              <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: '700', color: '#92400e', marginBottom: '0.25rem' }}>
+                  Legal Agreement Required
+                </div>
+                <div style={{ color: '#b45309', fontSize: '0.95rem' }}>
+                  {legalError.message}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push(legalError.redirectTo)}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              Review & Accept Now →
+            </button>
+          </div>
+        )}
 
         {/* Search Form */}
         <form onSubmit={handleSearch} style={{
