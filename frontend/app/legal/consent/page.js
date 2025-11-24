@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -12,7 +12,7 @@ import Link from 'next/link';
  * Allows users to review and accept Terms of Service and Liability Waiver
  * before participating in rescue squad activities.
  */
-export default function LegalConsentPage() {
+function LegalConsentContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -363,6 +363,28 @@ export default function LegalConsentPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Wrapper component with Suspense boundary
+export default function LegalConsentPage() {
+  return (
+    <Suspense fallback={
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(to bottom, #f0f9ff, #e0f2fe)'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📄</div>
+          <div style={{ color: '#64748b' }}>Loading legal documents...</div>
+        </div>
+      </div>
+    }>
+      <LegalConsentContent />
+    </Suspense>
   );
 }
 

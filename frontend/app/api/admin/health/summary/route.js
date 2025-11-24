@@ -16,18 +16,22 @@ import prisma from '@/app/lib/prisma';
 import { geocodeZipCode } from '@/app/lib/geocoding';
 import { logEvent } from '@/lib/logging';
 
+// Force dynamic rendering for this API route
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/admin/health/summary
  * Returns health status for all critical services
  */
 export async function GET(request) {
   const startTime = Date.now();
+  let session = null;
 
   try {
     // ============================================================================
     // AUTHENTICATION CHECK
     // ============================================================================
-    const session = await getServerSession(authOptions);
+    session = await getServerSession(authOptions);
 
     if (!session?.user?.id || session.user.role !== 'ADMIN') {
       logEvent({
