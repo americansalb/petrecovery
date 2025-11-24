@@ -623,6 +623,11 @@ enum RescueSquadMemberRole {
   LEADER           // Can accept cases, manage members
   COORDINATOR      // Can coordinate searches, post updates
   MEMBER           // Regular searcher
+
+  // Legacy roles (deprecated, kept for backward compatibility)
+  ADMINISTRATOR    // Legacy: equivalent to LEADER
+  MODERATOR        // Legacy: equivalent to COORDINATOR
+  DIVISION_LEADER  // Legacy: equivalent to LEADER
 }
 
 enum AvailabilityStatus {
