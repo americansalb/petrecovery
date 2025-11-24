@@ -231,6 +231,7 @@ export default function AdminHealthPage() {
         {activeTab === 'tools' && (
           <ToolsPanel
             adminEmail={session.user.email}
+            onSwitchToErrors={() => setActiveTab('errors')}
           />
         )}
       </div>
@@ -368,40 +369,81 @@ function AdminHealthTabs({ activeTab, onTabChange }) {
 // ============================================================================
 
 function OverviewPanel({ healthSummary, metrics, loading, errors, onRefresh }) {
-  // Compute system snapshot message
-  const getSystemMessage = () => {
+  // Derive smart snapshot with impact + next steps (Refinement 2.1)
+  const deriveSnapshotHint = () => {
     if (!healthSummary) return null;
 
     const { overall_status, services = [] } = healthSummary;
-    const unhealthyServices = services.filter(s => s.status !== 'healthy');
+    const db = services.find(s => s.service === 'database');
+    const geocoding = services.find(s => s.service === 'geocoding');
+    const email = services.find(s => s.service === 'email');
 
+    // Critical: Database unhealthy
+    if (db?.status === 'unhealthy') {
+      return {
+        severity: 'critical',
+        headline: 'Database is failing health checks.',
+        impact: 'All users may be affected. No operations will succeed.',
+        suggestedNextStep: 'Check infrastructure status and contact dev on-call immediately.',
+        type: 'error'
+      };
+    }
+
+    // Warning: Geocoding degraded
+    if (geocoding?.status === 'unhealthy' || geocoding?.status === 'degraded') {
+      return {
+        severity: 'warning',
+        headline: 'Geocoding service is degraded.',
+        impact: 'New cases and rescue squad creation may fail for some locations.',
+        suggestedNextStep: 'Try "Test Geocoding" in Tools tab, then review related errors.',
+        type: 'warning'
+      };
+    }
+
+    // Info: Email not configured
+    if (email?.status === 'not_configured') {
+      return {
+        severity: 'info',
+        headline: 'Email service is not configured.',
+        impact: 'Notifications and password resets will not work.',
+        suggestedNextStep: 'Set EMAIL_USER and EMAIL_PASSWORD environment variables in deployment settings.',
+        type: 'warning'
+      };
+    }
+
+    // Warning: Email unhealthy but configured
+    if (email?.status === 'unhealthy') {
+      return {
+        severity: 'warning',
+        headline: 'Email service is failing.',
+        impact: 'User notifications and password resets may not be sent.',
+        suggestedNextStep: 'Try "Test Email" in Tools tab, then check Errors for email failures.',
+        type: 'warning'
+      };
+    }
+
+    // Success: All healthy
     if (overall_status === 'healthy') {
       return {
-        type: 'success',
-        message: 'All core services operational. No major incidents detected.',
-        action: null
+        severity: 'info',
+        headline: 'All core services operational.',
+        impact: 'No major incidents detected in the last 24 hours.',
+        suggestedNextStep: null,
+        type: 'success'
       };
     }
 
-    if (unhealthyServices.length > 0) {
-      const service = unhealthyServices[0];
-      return {
-        type: 'warning',
-        message: `${service.service} is ${service.status}. Some functionality may be affected.`,
-        action: service.status === 'not_configured'
-          ? 'Configure environment variables in deployment settings.'
-          : 'Check Errors tab for details.'
-      };
-    }
-
+    // Fallback
     return {
-      type: 'warning',
-      message: 'System status degraded. Check service details below.',
-      action: 'Review service health cards and error logs.'
+      severity: 'warning',
+      headline: 'System status degraded.',
+      impact: 'Some services may not be functioning correctly.',
+      suggestedNextStep: 'Review service health cards and error logs below.',
+      type: 'warning'
     };
   };
 
-  const systemSnapshot = getSystemMessage();
+  const systemSnapshot = deriveSnapshotHint();
 
   if (loading.summary && !healthSummary) {
     return (
@@ -459,16 +501,30 @@ function SystemSnapshotBar({ snapshot }) {
     error: 'text-red-800'
   }[snapshot.type];
 
+  const severityIcon = {
+    critical: '🔴',
+    warning: '🟠',
+    info: '🟢'
+  }[snapshot.severity] || '⚪';
+
   return (
     <div className={`border rounded-lg p-6 ${bgColor}`}>
-      <p className={`text-lg font-medium ${textColor} mb-2`}>
-        {snapshot.message}
-      </p>
-      {snapshot.action && (
-        <p className={`text-sm ${textColor} opacity-90`}>
-          → {snapshot.action}
-        </p>
-      )}
+      <div className="flex items-start gap-3">
+        <span className="text-2xl">{severityIcon}</span>
+        <div className="flex-1">
+          <p className={`text-lg font-semibold ${textColor} mb-1`}>
+            {snapshot.headline}
+          </p>
+          <p className={`text-sm ${textColor} opacity-90 mb-2`}>
+            <strong>Impact:</strong> {snapshot.impact}
+          </p>
+          {snapshot.suggestedNextStep && (
+            <p className={`text-sm ${textColor} opacity-90`}>
+              <strong>Next step:</strong> {snapshot.suggestedNextStep}
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -567,9 +623,73 @@ function MetricCard({ label, value }) {
 // ERRORS PANEL
 // ============================================================================
 
+// Error impact mapping (Refinement 2.2)
+const ERROR_IMPACT = {
+  // High severity - affects user signups, core flows
+  'squad.create_failed': { label: 'Squad Creation', severity: 'high' },
+  'squad.join_failed': { label: 'Squad Signups', severity: 'high' },
+  'user.signup_failed': { label: 'User Signups', severity: 'high' },
+  'case.create_failed': { label: 'Case Creation', severity: 'high' },
+
+  // Medium severity - affects functionality but not critical paths
+  'geocoding.failed': { label: 'Location Data', severity: 'medium' },
+  'city.resolution_failed': { label: 'City Resolution', severity: 'medium' },
+  'notification.send_failed': { label: 'Notifications', severity: 'medium' },
+  'email.send_failed': { label: 'Email Delivery', severity: 'medium' },
+
+  // Low severity - admin tools, non-critical features
+  'admin.test_geocode_run': { label: 'Admin Tools', severity: 'low' },
+  'admin.test_email_sent': { label: 'Admin Tools', severity: 'low' },
+};
+
+function getErrorImpact(eventType) {
+  // Check exact match first
+  if (ERROR_IMPACT[eventType]) {
+    return ERROR_IMPACT[eventType];
+  }
+
+  // Check by prefix (e.g., "squad.*" → Squad Operations)
+  const prefix = eventType.split('.')[0];
+  const prefixMap = {
+    'squad': { label: 'Squad Operations', severity: 'medium' },
+    'user': { label: 'User Operations', severity: 'medium' },
+    'case': { label: 'Case Operations', severity: 'medium' },
+    'admin': { label: 'Admin Operations', severity: 'low' },
+    'system': { label: 'System Operations', severity: 'medium' }
+  };
+
+  return prefixMap[prefix] || { label: 'Unknown', severity: 'medium' };
+}
+
 function ErrorsPanel({ errors, loading, error, timeRange, onRefresh }) {
   const [selectedError, setSelectedError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Compute recency (Refinement 2.2)
+  const getRecencyInfo = () => {
+    if (!errors?.errors || errors.errors.length === 0) {
+      return null;
+    }
+
+    const mostRecentError = errors.errors.reduce((latest, err) => {
+      const errTime = new Date(err.last_seen_at).getTime();
+      const latestTime = new Date(latest.last_seen_at).getTime();
+      return errTime > latestTime ? err : latest;
+    });
+
+    const minutesAgo = Math.floor((Date.now() - new Date(mostRecentError.last_seen_at).getTime()) / 60000);
+
+    if (minutesAgo < 1) return 'Last failure: just now';
+    if (minutesAgo < 60) return `Last failure: ${minutesAgo} minute${minutesAgo === 1 ? '' : 's'} ago`;
+
+    const hoursAgo = Math.floor(minutesAgo / 60);
+    if (hoursAgo < 24) return `Last failure: ${hoursAgo} hour${hoursAgo === 1 ? '' : 's'} ago`;
+
+    const daysAgo = Math.floor(hoursAgo / 24);
+    return `Last failure: ${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`;
+  };
+
+  const recencyInfo = getRecencyInfo();
 
   if (loading && !errors) {
     return (
@@ -606,9 +726,9 @@ function ErrorsPanel({ errors, loading, error, timeRange, onRefresh }) {
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
+      {/* Filters + Recency */}
       <div className="bg-white border border-gray-200 rounded-lg p-4">
-        <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-4 flex-wrap justify-between">
           <div className="flex-1 min-w-[200px]">
             <input
               type="text"
@@ -618,8 +738,15 @@ function ErrorsPanel({ errors, loading, error, timeRange, onRefresh }) {
               className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <div className="text-sm text-gray-600">
-            Time range: {timeRange === '1h' ? 'Last hour' : timeRange === '24h' ? 'Last 24 hours' : 'Last 7 days'}
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-600">
+              Time range: {timeRange === '1h' ? 'Last hour' : timeRange === '24h' ? 'Last 24 hours' : 'Last 7 days'}
+            </div>
+            {recencyInfo && (
+              <div className="text-sm font-medium text-red-600">
+                {recencyInfo}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -670,6 +797,9 @@ function ErrorsTable({ errors, onSelectError, selectedError }) {
               Error Code
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Impact
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Count
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -678,27 +808,46 @@ function ErrorsTable({ errors, onSelectError, selectedError }) {
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {errors.map((error, idx) => (
-            <tr
-              key={idx}
-              onClick={() => onSelectError(error)}
-              className={`cursor-pointer hover:bg-gray-50 transition-colors ${
-                selectedError === error ? 'bg-blue-50' : ''
-              }`}
-            >
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                {error.event_type}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                <code className="bg-gray-100 px-2 py-1 rounded text-xs">
-                  {error.error_code}
-                </code>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
-                {error.count}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                {new Date(error.last_seen_at).toLocaleString()}
+          {errors.map((error, idx) => {
+            const impact = getErrorImpact(error.event_type);
+            const impactColor = {
+              high: 'bg-red-100 text-red-800',
+              medium: 'bg-amber-100 text-amber-800',
+              low: 'bg-gray-100 text-gray-700'
+            }[impact.severity];
+            const impactIcon = {
+              high: '🔴',
+              medium: '🟠',
+              low: '⚪'
+            }[impact.severity];
+
+            return (
+              <tr
+                key={idx}
+                onClick={() => onSelectError(error)}
+                className={`cursor-pointer hover:bg-gray-50 transition-colors ${
+                  selectedError === error ? 'bg-blue-50' : ''
+                }`}
+              >
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {error.event_type}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <code className="bg-gray-100 px-2 py-1 rounded text-xs">
+                    {error.error_code}
+                  </code>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${impactColor}`}>
+                    <span>{impactIcon}</span>
+                    <span>{impact.label}</span>
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
+                  {error.count}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  {new Date(error.last_seen_at).toLocaleString()}
               </td>
             </tr>
           ))}
@@ -886,19 +1035,20 @@ This appears to be affecting users when they attempt to ${error.event_type.split
 // TOOLS PANEL
 // ============================================================================
 
-function ToolsPanel({ adminEmail }) {
+function ToolsPanel({ adminEmail, onSwitchToErrors }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <TestGeocodeCard />
-      <TestEmailCard adminEmail={adminEmail} />
+      <TestGeocodeCard onSwitchToErrors={onSwitchToErrors} />
+      <TestEmailCard adminEmail={adminEmail} onSwitchToErrors={onSwitchToErrors} />
     </div>
   );
 }
 
-function TestGeocodeCard() {
+function TestGeocodeCard({ onSwitchToErrors }) {
   const [query, setQuery] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [testHistory, setTestHistory] = useState([]); // Refinement 2.3
 
   const runTest = async () => {
     if (!query.trim()) {
@@ -918,11 +1068,31 @@ function TestGeocodeCard() {
 
       const data = await res.json();
       setResult(data);
+
+      // Add to history (Refinement 2.3)
+      const historyEntry = {
+        query: query.trim(),
+        success: data.success,
+        method: data.method,
+        city: data.result?.city,
+        state: data.result?.state,
+        timestamp: new Date()
+      };
+      setTestHistory(prev => [historyEntry, ...prev.slice(0, 4)]); // Keep last 5
     } catch (error) {
-      setResult({
+      const errorResult = {
         success: false,
         error: error.message
-      });
+      };
+      setResult(errorResult);
+
+      // Add error to history too
+      setTestHistory(prev => [{
+        query: query.trim(),
+        success: false,
+        error: error.message,
+        timestamp: new Date()
+      }, ...prev.slice(0, 4)]);
     } finally {
       setLoading(false);
     }
@@ -988,8 +1158,38 @@ function TestGeocodeCard() {
                 <div className="text-xs text-red-600 mt-2">
                   If this fails for valid ZIP codes, case creation or squad operations may be affected.
                 </div>
+                {/* Jump to Errors (Refinement 2.3) */}
+                {!result.success && onSwitchToErrors && (
+                  <button
+                    onClick={onSwitchToErrors}
+                    className="mt-3 text-sm text-red-700 hover:text-red-900 underline"
+                  >
+                    → View geocoding errors
+                  </button>
+                )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Test History (Refinement 2.3) */}
+        {testHistory.length > 0 && (
+          <div className="border-t pt-4">
+            <div className="text-sm font-medium text-gray-700 mb-2">Recent Tests</div>
+            <div className="space-y-1">
+              {testHistory.map((test, idx) => (
+                <div key={idx} className="text-xs text-gray-600 flex items-center gap-2">
+                  <span>{test.success ? '✅' : '❌'}</span>
+                  <span className="font-medium">{test.query}</span>
+                  <span>→</span>
+                  <span>
+                    {test.success
+                      ? `${test.city}, ${test.state} (${test.method})`
+                      : 'failed'}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -997,9 +1197,10 @@ function TestGeocodeCard() {
   );
 }
 
-function TestEmailCard({ adminEmail }) {
+function TestEmailCard({ adminEmail, onSwitchToErrors }) {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [testHistory, setTestHistory] = useState([]); // Refinement 2.3
 
   const sendTest = async () => {
     setLoading(true);
@@ -1013,11 +1214,27 @@ function TestEmailCard({ adminEmail }) {
 
       const data = await res.json();
       setResult(data);
+
+      // Add to history (Refinement 2.3)
+      setTestHistory(prev => [{
+        success: data.success,
+        recipient: data.recipient || adminEmail,
+        error: data.error,
+        timestamp: new Date()
+      }, ...prev.slice(0, 4)]); // Keep last 5
     } catch (error) {
-      setResult({
+      const errorResult = {
         success: false,
         error: error.message
-      });
+      };
+      setResult(errorResult);
+
+      // Add error to history
+      setTestHistory(prev => [{
+        success: false,
+        error: error.message,
+        timestamp: new Date()
+      }, ...prev.slice(0, 4)]);
     } finally {
       setLoading(false);
     }
@@ -1081,8 +1298,38 @@ function TestEmailCard({ adminEmail }) {
                 <div className="text-xs text-amber-600 mt-2">
                   If test email fails, user notifications and password resets may not work.
                 </div>
+                {/* Jump to Errors (Refinement 2.3) */}
+                {!result.success && result.error !== 'Email service not configured' && onSwitchToErrors && (
+                  <button
+                    onClick={onSwitchToErrors}
+                    className="mt-3 text-sm text-amber-700 hover:text-amber-900 underline"
+                  >
+                    → View email errors
+                  </button>
+                )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Test History (Refinement 2.3) */}
+        {testHistory.length > 0 && (
+          <div className="border-t pt-4">
+            <div className="text-sm font-medium text-gray-700 mb-2">Recent Tests</div>
+            <div className="space-y-1">
+              {testHistory.map((test, idx) => (
+                <div key={idx} className="text-xs text-gray-600 flex items-center gap-2">
+                  <span>{test.success ? '✅' : '❌'}</span>
+                  <span>
+                    {test.success
+                      ? `Sent to ${test.recipient}`
+                      : test.error === 'Email service not configured'
+                      ? 'Not configured'
+                      : 'Failed'}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
