@@ -820,6 +820,344 @@ async function testStatusUpdateEmail() {
 }
 
 // ============================================================================
+// PERMISSION & ASSIGNMENT TESTS (Phase 22-24)
+// ============================================================================
+
+async function testPermissionHelper() {
+  // Test that permission helper functions work correctly
+  // This is a client-side test that verifies the module loads
+  const { isAdmin, requireStaffOrAdmin } = await import('@/app/lib/permissions');
+
+  if (typeof isAdmin !== 'function') {
+    throw new Error('isAdmin helper not found');
+  }
+
+  if (typeof requireStaffOrAdmin !== 'function') {
+    throw new Error('requireStaffOrAdmin helper not found');
+  }
+
+  return {
+    note: 'Permission helper module loaded successfully'
+  };
+}
+
+async function testAssignCoordinator() {
+  // Create a test case and assign a coordinator
+  const timestamp = Date.now();
+
+  // 1. Create a test case
+  const createRes = await fetch('/api/cases', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      city: 'Austin',
+      state: 'TX',
+      zipCode: '78701',
+      petSpecies: 'DOG',
+      petName: `[COORDINATOR QA] ${timestamp}`,
+      contactName: 'Coordinator Test'
+    })
+  });
+
+  if (!createRes.ok) {
+    const error = await createRes.json();
+    throw new Error(`Create case failed: ${error.error}`);
+  }
+
+  const { case: testCase } = await createRes.json();
+
+  // 2. Get available users to find an ADMIN/MODERATOR
+  const usersRes = await fetch('/api/users');
+  if (!usersRes.ok) {
+    throw new Error('Failed to fetch users');
+  }
+
+  const { users } = await usersRes.json();
+  const coordinator = users.find(u => u.role === 'ADMIN' || u.role === 'MODERATOR');
+
+  if (!coordinator) {
+    throw new Error('No ADMIN/MODERATOR users available for test');
+  }
+
+  // 3. Assign coordinator
+  const assignRes = await fetch(`/api/cases/${testCase.id}/assign-coordinator`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ coordinatorId: coordinator.id })
+  });
+
+  if (!assignRes.ok) {
+    const error = await assignRes.json();
+    throw new Error(`Assign coordinator failed: ${error.error || error.message}`);
+  }
+
+  const { case: assignedCase } = await assignRes.json();
+
+  return {
+    case_id: testCase.id,
+    coordinator_id: coordinator.id,
+    coordinator_name: `${coordinator.firstName} ${coordinator.lastName || ''}`.trim()
+  };
+}
+
+async function testUnassignCoordinator() {
+  // Create a test case, assign coordinator, then unassign
+  const timestamp = Date.now();
+
+  // 1. Create a test case
+  const createRes = await fetch('/api/cases', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      city: 'Austin',
+      state: 'TX',
+      zipCode: '78701',
+      petSpecies: 'CAT',
+      petName: `[UNASSIGN QA] ${timestamp}`,
+      contactName: 'Unassign Test'
+    })
+  });
+
+  if (!createRes.ok) {
+    const error = await createRes.json();
+    throw new Error(`Create case failed: ${error.error}`);
+  }
+
+  const { case: testCase } = await createRes.json();
+
+  // 2. Unassign coordinator (set to null)
+  const unassignRes = await fetch(`/api/cases/${testCase.id}/assign-coordinator`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ coordinatorId: null })
+  });
+
+  if (!unassignRes.ok) {
+    const error = await unassignRes.json();
+    throw new Error(`Unassign coordinator failed: ${error.error || error.message}`);
+  }
+
+  const { case: unassignedCase } = await unassignRes.json();
+
+  return {
+    case_id: testCase.id,
+    coordinator_id: unassignedCase.coordinatorId,
+    note: 'Coordinator should be null'
+  };
+}
+
+async function testAssignSquad() {
+  // Create a test case and assign a squad
+  const timestamp = Date.now();
+
+  // 1. Create a test case
+  const createRes = await fetch('/api/cases', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      city: 'Austin',
+      state: 'TX',
+      zipCode: '78701',
+      petSpecies: 'DOG',
+      petName: `[SQUAD QA] ${timestamp}`,
+      contactName: 'Squad Test'
+    })
+  });
+
+  if (!createRes.ok) {
+    const error = await createRes.json();
+    throw new Error(`Create case failed: ${error.error}`);
+  }
+
+  const { case: testCase } = await createRes.json();
+
+  // 2. Get available squads
+  const squadsRes = await fetch('/api/squads');
+  if (!squadsRes.ok) {
+    throw new Error('Failed to fetch squads');
+  }
+
+  const { squads } = await squadsRes.json();
+  const activeSquad = squads.find(s => s.isActive);
+
+  if (!activeSquad) {
+    throw new Error('No active squads available for test');
+  }
+
+  // 3. Assign squad
+  const assignRes = await fetch(`/api/cases/${testCase.id}/assign-squad`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ squadId: activeSquad.id })
+  });
+
+  if (!assignRes.ok) {
+    const error = await assignRes.json();
+    throw new Error(`Assign squad failed: ${error.error || error.message}`);
+  }
+
+  const { case: assignedCase } = await assignRes.json();
+
+  return {
+    case_id: testCase.id,
+    squad_id: activeSquad.id,
+    squad_name: activeSquad.name
+  };
+}
+
+async function testInvalidCoordinatorRole() {
+  // Try to assign a USER role as coordinator (should fail)
+  const timestamp = Date.now();
+
+  // 1. Create a test case
+  const createRes = await fetch('/api/cases', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      city: 'Austin',
+      state: 'TX',
+      zipCode: '78701',
+      petSpecies: 'DOG',
+      petName: `[INVALID ROLE QA] ${timestamp}`,
+      contactName: 'Invalid Role Test'
+    })
+  });
+
+  if (!createRes.ok) {
+    const error = await createRes.json();
+    throw new Error(`Create case failed: ${error.error}`);
+  }
+
+  const { case: testCase } = await createRes.json();
+
+  // 2. Get a USER role (non-staff)
+  const usersRes = await fetch('/api/users');
+  if (!usersRes.ok) {
+    throw new Error('Failed to fetch users');
+  }
+
+  const { users } = await usersRes.json();
+  const regularUser = users.find(u => u.role === 'USER');
+
+  if (!regularUser) {
+    // If no USER found, create a fake ID to test validation
+    const assignRes = await fetch(`/api/cases/${testCase.id}/assign-coordinator`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ coordinatorId: 'fake-user-id-12345' })
+    });
+
+    if (assignRes.ok) {
+      throw new Error('Expected assignment to fail with invalid user ID');
+    }
+
+    return {
+      case_id: testCase.id,
+      note: 'Assignment correctly rejected invalid coordinator ID'
+    };
+  }
+
+  // 3. Try to assign USER role as coordinator (should fail)
+  const assignRes = await fetch(`/api/cases/${testCase.id}/assign-coordinator`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ coordinatorId: regularUser.id })
+  });
+
+  if (assignRes.ok) {
+    throw new Error('Expected assignment to fail for USER role, but it succeeded');
+  }
+
+  const error = await assignRes.json();
+
+  if (error.code !== 'INVALID_COORDINATOR_ROLE') {
+    throw new Error(`Expected INVALID_COORDINATOR_ROLE error, got: ${error.code}`);
+  }
+
+  return {
+    case_id: testCase.id,
+    error_code: error.code,
+    note: 'Assignment correctly rejected USER role'
+  };
+}
+
+async function testInactiveSquad() {
+  // Try to assign an inactive squad (should fail)
+  const timestamp = Date.now();
+
+  // 1. Create a test case
+  const createRes = await fetch('/api/cases', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      city: 'Austin',
+      state: 'TX',
+      zipCode: '78701',
+      petSpecies: 'CAT',
+      petName: `[INACTIVE SQUAD QA] ${timestamp}`,
+      contactName: 'Inactive Squad Test'
+    })
+  });
+
+  if (!createRes.ok) {
+    const error = await createRes.json();
+    throw new Error(`Create case failed: ${error.error}`);
+  }
+
+  const { case: testCase } = await createRes.json();
+
+  // 2. Get squads
+  const squadsRes = await fetch('/api/squads');
+  if (!squadsRes.ok) {
+    throw new Error('Failed to fetch squads');
+  }
+
+  const { squads } = await squadsRes.json();
+  const inactiveSquad = squads.find(s => !s.isActive);
+
+  if (!inactiveSquad) {
+    // If no inactive squad exists, test with fake ID instead
+    const assignRes = await fetch(`/api/cases/${testCase.id}/assign-squad`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ squadId: 'fake-squad-id-12345' })
+    });
+
+    if (assignRes.ok) {
+      throw new Error('Expected assignment to fail with invalid squad ID');
+    }
+
+    return {
+      case_id: testCase.id,
+      note: 'Assignment correctly rejected invalid squad ID'
+    };
+  }
+
+  // 3. Try to assign inactive squad (should fail)
+  const assignRes = await fetch(`/api/cases/${testCase.id}/assign-squad`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ squadId: inactiveSquad.id })
+  });
+
+  if (assignRes.ok) {
+    throw new Error('Expected assignment to fail for inactive squad, but it succeeded');
+  }
+
+  const error = await assignRes.json();
+
+  if (error.code !== 'SQUAD_NOT_ACTIVE') {
+    throw new Error(`Expected SQUAD_NOT_ACTIVE error, got: ${error.code}`);
+  }
+
+  return {
+    case_id: testCase.id,
+    error_code: error.code,
+    note: 'Assignment correctly rejected inactive squad'
+  };
+}
+
+// ============================================================================
 // TESTS PANEL
 // ============================================================================
 
@@ -864,6 +1202,17 @@ function TestsPanel({ onTestComplete }) {
     { id: 'status-update', name: 'Status Update Email', status: 'idle', fn: testStatusUpdateEmail },
   ]);
   const [runningNotification, setRunningNotification] = useState(false);
+
+  // Permission & Assignment tests state (Phase 22-24)
+  const [permissionTests, setPermissionTests] = useState([
+    { id: 'permission-helper', name: 'Permission Helper Module', status: 'idle', fn: testPermissionHelper },
+    { id: 'assign-coordinator', name: 'Assign Coordinator', status: 'idle', fn: testAssignCoordinator },
+    { id: 'unassign-coordinator', name: 'Unassign Coordinator', status: 'idle', fn: testUnassignCoordinator },
+    { id: 'assign-squad', name: 'Assign Squad', status: 'idle', fn: testAssignSquad },
+    { id: 'invalid-coordinator-role', name: 'Reject Invalid Coordinator Role', status: 'idle', fn: testInvalidCoordinatorRole },
+    { id: 'inactive-squad', name: 'Reject Inactive Squad', status: 'idle', fn: testInactiveSquad },
+  ]);
+  const [runningPermission, setRunningPermission] = useState(false);
 
   const runLegalTests = async () => {
     setRunningLegal(true);
@@ -995,15 +1344,42 @@ function TestsPanel({ onTestComplete }) {
     setRunningNotification(false);
   };
 
+  const runPermissionTests = async () => {
+    setRunningPermission(true);
+
+    for (let i = 0; i < permissionTests.length; i++) {
+      const test = permissionTests[i];
+
+      // Mark test as running
+      setPermissionTests(prev => prev.map(t =>
+        t.id === test.id ? { ...t, status: 'running' } : t
+      ));
+
+      // Execute test
+      const result = await runTest(test.name, test.fn);
+
+      // Update test with result
+      setPermissionTests(prev => prev.map(t =>
+        t.id === test.id ? { ...t, ...result } : t
+      ));
+
+      // Notify parent
+      onTestComplete(result);
+    }
+
+    setRunningPermission(false);
+  };
+
   const runAllTests = async () => {
     await runLegalTests();
     await runSquadTests();
     await runCaseTests();
     await runPublicCaseTests();
     await runNotificationTests();
+    await runPermissionTests();
   };
 
-  const isAnyRunning = runningLegal || runningSquad || runningCase || runningPublicCase || runningNotification;
+  const isAnyRunning = runningLegal || runningSquad || runningCase || runningPublicCase || runningNotification || runningPermission;
 
   return (
     <div className="space-y-6">
@@ -1077,6 +1453,14 @@ function TestsPanel({ onTestComplete }) {
         tests={notificationTests}
         onRun={runNotificationTests}
         running={runningNotification}
+      />
+
+      {/* Permission & Assignment Test Suite (Phase 22-24) */}
+      <TestSuite
+        title="Permission & Assignment Tests"
+        tests={permissionTests}
+        onRun={runPermissionTests}
+        running={runningPermission}
       />
     </div>
   );

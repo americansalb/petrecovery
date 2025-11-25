@@ -647,6 +647,7 @@ const ERROR_IMPACT = {
   'city.resolution_failed': { label: 'City Resolution', severity: 'medium' },
   'notification.send_failed': { label: 'Notifications', severity: 'medium' },
   'email.send_failed': { label: 'Email Delivery', severity: 'medium' },
+  'auth.permission_denied': { label: 'Permission Check', severity: 'medium' },
 
   // Low severity - admin tools, non-critical features
   'squad.leave_failed': { label: 'Squad Management', severity: 'low' },
@@ -668,6 +669,9 @@ const ERROR_IMPACT = {
   'notification.send_attempted': { label: 'Notifications', severity: 'low' },
   'notification.send_succeeded': { label: 'Notifications', severity: 'low' },
   // Note: notification.send_failed already defined above in medium severity
+
+  // Permissions & Assignments (Phase 22-24)
+  'case.assignment_changed': { label: 'Case Assignment', severity: 'low' },
 };
 
 function getErrorImpact(eventType) {

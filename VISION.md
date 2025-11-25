@@ -166,7 +166,7 @@ The "optimization" removed:
   - **Documentation:** SETUP.md updated with email provider setup (Gmail, SendGrid)
   - **See:** `docs/features/notifications-mvp.md`
 
-- **🎯 Phase 22-24: Roles, Permissions & Case Assignment MVP** ❌ **IN PROGRESS** (Nov 25, 2025)
+- **🎯 Phase 22-24: Roles, Permissions & Case Assignment MVP** ✅ **COMPLETE** (Nov 25, 2025)
   - **Scope:** Explicit global role enforcement and case coordinator tracking
   - **Permission Model:** ADMIN, MODERATOR, PATROL, USER with clear access rules
   - **Admin Gating:** All `/admin/*` surfaces require ADMIN role
