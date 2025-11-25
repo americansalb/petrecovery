@@ -94,12 +94,12 @@ The "optimization" removed:
   - Admin dashboard operational
   - Error tracking, health checks, metrics
 
-### ❌ Not Implemented Yet
+- **Phase 2: Legal Tracking Enforcement** ✅ **COMPLETE**
+  - ✅ Waiver gating on squad create/join with event logging
+  - ✅ /legal/consent UI with full document review and acceptance flow
+  - ❌ ToS acceptance at signup (deferred to future enhancement)
 
-- **Phase 2: Legal Tracking Enforcement** ⚠️ **PARTIAL**
-  - ✅ Waiver gating on squad create/join
-  - ❌ /legal/consent UI (API complete, UI pending)
-  - ❌ ToS acceptance at signup (future enhancement)
+### ❌ Not Implemented Yet
 
 - **Phase 5+: Permissions & Roles** ❌
 
@@ -119,19 +119,15 @@ The "optimization" removed:
 
 ### 🎯 Next Tactical Priorities
 
-1. **Build /legal/consent UI** (API complete, UI pending)
-   - Legal document review and acceptance page
-   - Redirect flow for blocked actions
-   - Markdown rendering for legal content
-
-2. **Migrate rescue squad endpoints to logEvent()**
+1. **Migrate rescue squad endpoints to logEvent()**
    - Replace console.log with structured events
    - Enable error tracking in admin dashboard
+   - Ensure all squad operations visible in /admin/health
 
-3. **Next Phase from MASTER_PLAN.md**
-   - Review MASTER_PLAN.md to select next phase cluster
-   - Continue building on Phase 0 + Phase 13-14 foundations
-   - All features must emit structured events
+2. **Identify and implement next phase cluster**
+   - Build on Phase 0 (observability + legal) + Phase 13-14 (cases) foundations
+   - Continue 108-phase roadmap with same discipline
+   - All features must emit structured events and respect legal gating
 
 **🎉 MAJOR MILESTONE:** Phase 0 now 100% complete!
 

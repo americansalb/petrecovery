@@ -7,14 +7,45 @@ import { logEvent } from '@/lib/logging';
 
 // GET /api/rescue-squads - Search for cities with rescue squads nearby
 export async function GET(request) {
+  const session = await getServerSession(authOptions);
+
   try {
     const { searchParams } = new URL(request.url);
     const searchTerm = searchParams.get('search') || searchParams.get('zipCode') || searchParams.get('zip');
     const radius = parseInt(searchParams.get('radius')) || 25;
 
     if (!searchTerm) {
+      await logEvent({
+        event_type: 'squad.search_failed',
+        resource_type: 'rescue_squad',
+        action: 'search',
+        result: 'failure',
+        error_code: 'VALIDATION_ERROR',
+        error_message: 'Search term is required',
+        actor_user_id: session?.user?.id || null,
+        actor_role: session?.user?.role || 'anonymous',
+        metadata: {
+          search_term: searchTerm,
+          radius
+        }
+      });
       return NextResponse.json({ error: 'City name or ZIP code required' }, { status: 400 });
     }
+
+    // Log search attempt
+    await logEvent({
+      event_type: 'squad.search_attempted',
+      resource_type: 'rescue_squad',
+      action: 'search',
+      result: 'pending',
+      actor_user_id: session?.user?.id || null,
+      actor_role: session?.user?.role || 'anonymous',
+      metadata: {
+        search_term: searchTerm,
+        radius_miles: radius,
+        search_type: /^\d{5}$/.test(searchTerm.trim()) ? 'zip' : 'city'
+      }
+    });
 
     let searchLat, searchLng, userState, allCitiesInZip, zipCode;
     const isZipCode = /^\d{5}$/.test(searchTerm.trim());
@@ -25,6 +56,20 @@ export async function GET(request) {
       const citiesForZip = getCitiesByZip(zipCode);
 
       if (citiesForZip.length === 0) {
+        await logEvent({
+          event_type: 'squad.search_failed',
+          resource_type: 'rescue_squad',
+          action: 'search',
+          result: 'failure',
+          error_code: 'INVALID_ZIP',
+          error_message: `Invalid ZIP code: ${zipCode}`,
+          actor_user_id: session?.user?.id || null,
+          actor_role: session?.user?.role || 'anonymous',
+          metadata: {
+            search_term: searchTerm,
+            zip_code: zipCode
+          }
+        });
         return NextResponse.json({ error: 'Invalid ZIP code' }, { status: 400 });
       }
 
@@ -49,6 +94,20 @@ export async function GET(request) {
       const cityData = getCityByName(cityName);
 
       if (!cityData) {
+        await logEvent({
+          event_type: 'squad.search_failed',
+          resource_type: 'rescue_squad',
+          action: 'search',
+          result: 'failure',
+          error_code: 'INVALID_CITY',
+          error_message: `Invalid city name: ${cityName}`,
+          actor_user_id: session?.user?.id || null,
+          actor_role: session?.user?.role || 'anonymous',
+          metadata: {
+            search_term: searchTerm,
+            city_name: cityName
+          }
+        });
         return NextResponse.json({ error: 'Invalid city name' }, { status: 400 });
       }
 
@@ -89,7 +148,6 @@ export async function GET(request) {
       zipCode = cityData.zips.length > 0 ? cityData.zips[0] : null;
     }
 
-    const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
 
     // Find all active squads with coordinates
@@ -126,18 +184,13 @@ export async function GET(request) {
     // Calculate distances and filter by radius
     const nearbyCities = new Map(); // city-state -> squad info
 
-    console.log(`[RESCUE SQUAD SEARCH] Found ${squads.length} total squads`);
-    console.log(`[RESCUE SQUAD SEARCH] Searching from ${allCitiesInZip.join(', ')}, ${userState || 'unknown state'} (${searchLat}, ${searchLng}) within ${radius} miles`);
-
     // If we have coordinates, find nearby squads
     if (searchLat !== null && searchLng !== null) {
       squads.forEach(squad => {
         const distance = calculateDistance(searchLat, searchLng, squad.centerLatitude, squad.centerLongitude);
-        console.log(`[RESCUE SQUAD SEARCH] ${squad.city}, ${squad.state}: ${distance.toFixed(1)} miles away`);
 
         if (distance <= radius && squad.city && squad.state) {
         const key = `${squad.city}-${squad.state}`;
-        console.log(`[RESCUE SQUAD SEARCH] ✓ Adding ${squad.city} to results`);
         if (!nearbyCities.has(key) || nearbyCities.get(key).distance > distance) {
           // Calculate division distances and membership
           const divisionsWithDistance = squad.divisions
@@ -194,7 +247,25 @@ export async function GET(request) {
     // Convert to array and sort by distance
     const cities = Array.from(nearbyCities.values()).sort((a, b) => a.distance - b.distance);
 
-    console.log(`[RESCUE SQUAD SEARCH] Returning ${cities.length} cities:`, cities.map(c => `${c.city} (${c.distance.toFixed(1)}mi, exists: ${c.exists})`));
+    // Log successful search
+    await logEvent({
+      event_type: 'squad.search_completed',
+      resource_type: 'rescue_squad',
+      action: 'search',
+      result: 'success',
+      actor_user_id: session?.user?.id || null,
+      actor_role: session?.user?.role || 'anonymous',
+      metadata: {
+        search_term: searchTerm,
+        search_type: isZipCode ? 'zip' : 'city',
+        radius_miles: radius,
+        results_count: cities.length,
+        squads_found: cities.filter(c => c.exists).length,
+        cities_searched: allCitiesInZip,
+        search_state: userState,
+        search_coordinates: searchLat !== null ? { lat: searchLat, lng: searchLng } : null
+      }
+    });
 
     return NextResponse.json({
       cities,
@@ -205,7 +276,22 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error('Error searching rescue squads:', error);
+    // Log search failure
+    await logEvent({
+      event_type: 'squad.search_failed',
+      resource_type: 'rescue_squad',
+      action: 'search',
+      result: 'failure',
+      error_code: 'INTERNAL_ERROR',
+      error_message: error.message,
+      actor_user_id: session?.user?.id || null,
+      actor_role: session?.user?.role || 'anonymous',
+      metadata: {
+        search_term: searchTerm,
+        error_name: error.name,
+        error_stack: error.stack?.split('\n').slice(0, 3).join('\n') // First 3 lines of stack
+      }
+    });
     return NextResponse.json({ error: 'Failed to search' }, { status: 500 });
   }
 }
@@ -427,7 +513,6 @@ export async function POST(request) {
 
     return NextResponse.json({ squad }, { status: 201 });
   } catch (error) {
-    console.error('Error creating rescue squad:', error);
     await logEvent({
       event_type: 'squad.create_failed',
       resource_type: 'rescue_squad',
@@ -435,7 +520,10 @@ export async function POST(request) {
       result: 'failure',
       error_code: 'DB_WRITE_FAILED',
       error_message: error.message,
-      metadata: { error_stack: error.stack?.substring(0, 500) }
+      metadata: {
+        error_name: error.name,
+        error_stack: error.stack?.substring(0, 500)
+      }
     });
     return NextResponse.json({ error: 'Failed to create squad' }, { status: 500 });
   }
