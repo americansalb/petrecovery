@@ -818,16 +818,403 @@ function GeneratorsPanel({ onDataGenerated }) {
         </div>
       </div>
 
-      {/* Placeholder for generators */}
-      <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
-        <div className="text-4xl mb-4">🚧</div>
-        <div className="text-lg font-medium text-gray-900 mb-2">
-          Data Generators Coming Soon
+      <SquadGenerator onDataGenerated={onDataGenerated} />
+      <CaseGenerator onDataGenerated={onDataGenerated} />
+      <DataCleanup onDataGenerated={onDataGenerated} />
+    </div>
+  );
+}
+
+// ============================================================================
+// SQUAD GENERATOR
+// ============================================================================
+
+function SquadGenerator({ onDataGenerated }) {
+  const [count, setCount] = useState(5);
+  const [cities, setCities] = useState('Austin,Seattle,Portland,Denver,Phoenix');
+  const [generating, setGenerating] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const generate = async () => {
+    setGenerating(true);
+    setResult(null);
+
+    const cityList = cities.split(',').map(c => c.trim());
+    const created = [];
+
+    for (let i = 0; i < Math.min(count, 20); i++) {
+      const city = cityList[i % cityList.length];
+
+      try {
+        const res = await fetch('/api/rescue-squads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            city: `[TEST] ${city} Squad ${i + 1}`,
+            state: 'TX',
+            zipCode: '78701'
+          })
+        });
+
+        if (res.ok) {
+          const { squad } = await res.json();
+          created.push(squad.id);
+        }
+      } catch (error) {
+        console.error('Failed to create squad:', error);
+      }
+    }
+
+    // Log generation event
+    try {
+      await fetch('/api/admin/qa/log-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type: 'qa.test_data_generated',
+          test_name: 'Generate Demo Squads',
+          result: 'passed',
+          duration_ms: 0
+        })
+      });
+    } catch (logError) {
+      console.error('Failed to log event:', logError);
+    }
+
+    setResult({ created: created.length, ids: created });
+    setGenerating(false);
+
+    onDataGenerated({ name: 'Squad Generator', status: 'passed', details: `Created ${created.length} squads` });
+  };
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-6">
+      <h2 className="text-xl font-bold text-gray-900 mb-4">
+        Generate Demo Squads
+      </h2>
+
+      <div className="space-y-4 mb-6">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Number of squads (max 20):
+          </label>
+          <input
+            type="number"
+            min="1"
+            max="20"
+            value={count}
+            onChange={(e) => setCount(parseInt(e.target.value) || 1)}
+            className="px-3 py-2 border border-gray-300 rounded-lg w-32 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
-        <div className="text-sm text-gray-600">
-          Squad and Case generators will be implemented in TASK-Q05.
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Cities (comma-separated):
+          </label>
+          <input
+            type="text"
+            value={cities}
+            onChange={(e) => setCities(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
       </div>
+
+      <button
+        onClick={generate}
+        disabled={generating}
+        className={`
+          px-6 py-3 rounded-lg font-semibold transition-colors
+          ${generating
+            ? 'bg-gray-400 cursor-not-allowed text-white'
+            : 'bg-blue-600 hover:bg-blue-700 text-white'
+          }
+        `}
+      >
+        {generating ? 'Generating...' : 'Generate Squads'}
+      </button>
+
+      {result && (
+        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="text-green-800 font-semibold">
+            ✅ Created {result.created} demo squads
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// CASE GENERATOR
+// ============================================================================
+
+function CaseGenerator({ onDataGenerated }) {
+  const [count, setCount] = useState(10);
+  const [city, setCity] = useState('Austin');
+  const [state, setState] = useState('TX');
+  const [generating, setGenerating] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const petNames = ['Max', 'Bella', 'Charlie', 'Luna', 'Cooper', 'Daisy', 'Milo', 'Lucy', 'Rocky', 'Sadie'];
+  const breeds = ['Golden Retriever', 'Labrador', 'German Shepherd', 'Tabby Cat', 'Siamese Cat', 'Beagle'];
+  const colors = ['Golden', 'Black', 'Brown', 'White', 'Gray', 'Orange'];
+  const statuses = ['OPEN', 'ACTIVE_SEARCH', 'RESOLVED'];
+  const species = ['DOG', 'CAT', 'BIRD'];
+
+  const generate = async () => {
+    setGenerating(true);
+    setResult(null);
+
+    const created = [];
+
+    for (let i = 0; i < Math.min(count, 50); i++) {
+      const petSpecies = species[Math.floor(Math.random() * species.length)];
+      const petName = `[TEST] ${petNames[Math.floor(Math.random() * petNames.length)]}`;
+      const breed = breeds[Math.floor(Math.random() * breeds.length)];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+
+      try {
+        const res = await fetch('/api/cases', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            city,
+            state,
+            zipCode: '78701',
+            petSpecies,
+            petName,
+            petBreed: breed,
+            petColor: color,
+            petDescription: `QA test case ${i + 1}`,
+            contactName: 'QA Test Contact',
+            contactPhone: '555-0100'
+          })
+        });
+
+        if (res.ok) {
+          const { case: caseData } = await res.json();
+          created.push(caseData.id);
+
+          // Randomly update status (30% chance)
+          if (Math.random() < 0.3) {
+            const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+            if (randomStatus !== 'OPEN') {
+              await fetch(`/api/cases/${caseData.id}/status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  status: randomStatus,
+                  statusReason: 'QA test status update'
+                })
+              });
+            }
+          }
+
+          // Add random notes (0-2)
+          const noteCount = Math.floor(Math.random() * 3);
+          for (let j = 0; j < noteCount; j++) {
+            await fetch(`/api/cases/${caseData.id}/notes`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                content: `[QA] Test note ${j + 1} for case`
+              })
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to create case:', error);
+      }
+    }
+
+    // Log generation event
+    try {
+      await fetch('/api/admin/qa/log-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type: 'qa.test_data_generated',
+          test_name: 'Generate Demo Cases',
+          result: 'passed',
+          duration_ms: 0
+        })
+      });
+    } catch (logError) {
+      console.error('Failed to log event:', logError);
+    }
+
+    setResult({ created: created.length, ids: created });
+    setGenerating(false);
+
+    onDataGenerated({ name: 'Case Generator', status: 'passed', details: `Created ${created.length} cases` });
+  };
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-6">
+      <h2 className="text-xl font-bold text-gray-900 mb-4">
+        Generate Demo Cases
+      </h2>
+
+      <div className="space-y-4 mb-6">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Number of cases (max 50):
+          </label>
+          <input
+            type="number"
+            min="1"
+            max="50"
+            value={count}
+            onChange={(e) => setCount(parseInt(e.target.value) || 1)}
+            className="px-3 py-2 border border-gray-300 rounded-lg w-32 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              City:
+            </label>
+            <input
+              type="text"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              State:
+            </label>
+            <input
+              type="text"
+              value={state}
+              onChange={(e) => setState(e.target.value)}
+              maxLength={2}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={generate}
+        disabled={generating}
+        className={`
+          px-6 py-3 rounded-lg font-semibold transition-colors
+          ${generating
+            ? 'bg-gray-400 cursor-not-allowed text-white'
+            : 'bg-blue-600 hover:bg-blue-700 text-white'
+          }
+        `}
+      >
+        {generating ? 'Generating...' : 'Generate Cases'}
+      </button>
+
+      {result && (
+        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="text-green-800 font-semibold">
+            ✅ Created {result.created} demo cases with random data (species, statuses, notes)
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// DATA CLEANUP
+// ============================================================================
+
+function DataCleanup({ onDataGenerated }) {
+  const [cleaning, setCleaning] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const cleanup = async () => {
+    if (!confirm('Close all test cases with [TEST] prefix?\n\nThis will mark them as CLOSED_OTHER. This action cannot be undone.')) {
+      return;
+    }
+
+    setCleaning(true);
+    setResult(null);
+
+    let caseCount = 0;
+
+    try {
+      // Find and close test cases
+      const caseRes = await fetch('/api/cases');
+      const { cases } = await caseRes.json();
+
+      for (const c of cases) {
+        if (c.petName && c.petName.startsWith('[TEST]')) {
+          try {
+            await fetch(`/api/cases/${c.id}/status`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                status: 'CLOSED_OTHER',
+                statusReason: '[QA] Cleaned up test data'
+              })
+            });
+            caseCount++;
+          } catch (error) {
+            console.error('Failed to close case:', error);
+          }
+        }
+      }
+
+      setResult({ cases: caseCount });
+      onDataGenerated({ name: 'Data Cleanup', status: 'passed', details: `Closed ${caseCount} test cases` });
+    } catch (error) {
+      console.error('Cleanup failed:', error);
+      setResult({ error: error.message });
+      onDataGenerated({ name: 'Data Cleanup', status: 'failed', error: error.message });
+    } finally {
+      setCleaning(false);
+    }
+  };
+
+  return (
+    <div className="bg-white border border-red-200 rounded-lg p-6">
+      <h2 className="text-xl font-bold text-red-600 mb-2">
+        ⚠️ Cleanup Test Data
+      </h2>
+      <p className="text-sm text-gray-600 mb-6">
+        This will close all test cases (mark as CLOSED_OTHER) with [TEST] prefix.
+        This action cannot be undone.
+      </p>
+
+      <button
+        onClick={cleanup}
+        disabled={cleaning}
+        className={`
+          px-6 py-3 rounded-lg font-semibold transition-colors
+          ${cleaning
+            ? 'bg-gray-400 cursor-not-allowed text-white'
+            : 'bg-red-600 hover:bg-red-700 text-white'
+          }
+        `}
+      >
+        {cleaning ? 'Cleaning...' : 'Delete Test Data'}
+      </button>
+
+      {result && !result.error && (
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="text-red-800 font-semibold">
+            Cleaned up: {result.cases} test cases (marked CLOSED_OTHER)
+          </div>
+        </div>
+      )}
+
+      {result && result.error && (
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="text-red-800 font-semibold">
+            Error: {result.error}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
