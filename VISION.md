@@ -166,13 +166,24 @@ The "optimization" removed:
   - **Documentation:** SETUP.md updated with email provider setup (Gmail, SendGrid)
   - **See:** `docs/features/notifications-mvp.md`
 
+- **🎯 Phase 22-24: Roles, Permissions & Case Assignment MVP** ❌ **IN PROGRESS** (Nov 25, 2025)
+  - **Scope:** Explicit global role enforcement and case coordinator tracking
+  - **Permission Model:** ADMIN, MODERATOR, PATROL, USER with clear access rules
+  - **Admin Gating:** All `/admin/*` surfaces require ADMIN role
+  - **Case Assignment:** Optional `coordinatorId` and explicit `squadId` semantics on `LostPetCase`
+  - **Assignment APIs:** Endpoints to assign coordinator and owning squad
+  - **Permission Helper:** Centralized `lib/permissions.js` module with `requireAdmin()`, `requireStaffOrAdmin()`, etc.
+  - **Observability:** All permission failures emit `auth.permission_denied` events
+  - **QA Integration:** 6 new tests for permissions and assignment
+  - **See:** `docs/features/roles-and-assignment-mvp.md`
+
 ### 🎯 Next Tactical Priorities
 
 1. **Identify and implement next phase cluster from roadmap**
-   - Build on Phase 0 (observability), Phase 13-14 (cases), Phase 15-16 (public portal), Phase 20-21 (QA), Phase 25-26 (notifications) foundations
+   - Build on Phase 0 (observability), Phase 13-14 (cases), Phase 15-16 (public portal), Phase 20-21 (QA), Phase 25-26 (notifications), Phase 22-24 (roles & assignment) foundations
    - Continue 108-phase roadmap with same discipline
    - All features must emit structured events and respect legal gating
-   - Candidate phases: role/permission refinement, pet matching algorithm, case assignment workflow, sighting reports
+   - Candidate phases: sighting reports, case matching algorithm, coordinator notifications, workload metrics
 
 **🎉 MAJOR MILESTONE:** Phase 0 now 100% complete!
 
