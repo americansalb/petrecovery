@@ -24,6 +24,9 @@ export async function GET(request) {
             pet: true,
           }
         },
+        createdCases: {
+          orderBy: { createdAt: 'desc' }
+        },
         profile: true,
       }
     });
@@ -33,14 +36,29 @@ export async function GET(request) {
     }
 
     // Format reports for display - show REAL count (0 if none)
-    const reports = user.cases.map(caseItem => ({
+    const legacyReports = user.cases.map(caseItem => ({
       id: caseItem.id,
       petName: caseItem.petName,
       species: caseItem.petSpecies.toLowerCase(),
       lastSeen: formatTime(caseItem.lastSeenAt),
       sightings: 0, // TODO: Add sightings count from CaseSighting
       status: caseItem.status,
+      type: 'legacy'
     }));
+
+    const newReports = user.createdCases.map(caseItem => ({
+      id: caseItem.id,
+      caseNumber: caseItem.caseNumber,
+      petName: caseItem.petName,
+      species: caseItem.petSpecies.toLowerCase(),
+      lastSeen: formatTime(caseItem.lastSeenAt),
+      sightings: 0, // TODO: Add sightings count
+      status: caseItem.status,
+      isPublic: caseItem.isPublic,
+      type: 'new'
+    }));
+
+    const reports = [...newReports, ...legacyReports];
 
     // If patrol member, find nearby alerts and user's found pets
     let nearbyAlerts = [];
@@ -131,9 +149,9 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a =
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }

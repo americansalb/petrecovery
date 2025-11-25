@@ -216,6 +216,20 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    {report.type === 'new' && !report.isPublic && (
+                      <span style={{
+                        padding: '0.25rem 0.75rem',
+                        background: '#fef3c7',
+                        color: '#d97706',
+                        borderRadius: '99px',
+                        fontSize: '0.85rem',
+                        fontWeight: '600',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}>
+                        🕒 Pending Approval
+                      </span>
+                    )}
                     <button
                       onClick={async () => {
                         if (confirm(`Mark ${report.petName} as found?`)) {
@@ -248,7 +262,7 @@ export default function DashboardPage() {
                       ✓ Found!
                     </button>
                     <Link
-                      href={`/reports/${report.id}`}
+                      href={report.type === 'new' ? `/cases/${report.caseNumber}` : `/reports/${report.id}`}
                       style={{
                         padding: '0.75rem 1.5rem',
                         background: '#f1f5f9',
