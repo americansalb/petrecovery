@@ -650,6 +650,15 @@ const ERROR_IMPACT = {
   'admin.test_email_sent': { label: 'Admin Tools', severity: 'low' },
   'qa.test_executed': { label: 'QA Tests', severity: 'low' },
   'qa.test_data_generated': { label: 'QA Data Gen', severity: 'low' },
+
+  // Public Case Portal (Phase 15-16)
+  'public_case.report_failed': { label: 'Public Reports', severity: 'high' },
+  'public_case.list_failed': { label: 'Public Case List', severity: 'medium' },
+  'public_case.detail_failed': { label: 'Public Case Detail', severity: 'medium' },
+  'public_case.report_submitted': { label: 'Public Reports', severity: 'low' },
+  'public_case.list_viewed': { label: 'Public Case List', severity: 'low' },
+  'public_case.detail_viewed': { label: 'Public Case Detail', severity: 'low' },
+  'public_case.report_attempted': { label: 'Public Reports', severity: 'low' },
 };
 
 function getErrorImpact(eventType) {

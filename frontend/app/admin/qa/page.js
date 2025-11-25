@@ -542,6 +542,144 @@ async function testAddCaseNote() {
 }
 
 // ============================================================================
+// PUBLIC CASE TEST CASES (Phase 15-16)
+// ============================================================================
+
+async function testListPublicCases() {
+  // Test GET /api/public/cases - list with filters
+  const res = await fetch('/api/public/cases?limit=10');
+
+  if (!res.ok) {
+    throw new Error(`List public cases failed: ${res.status}`);
+  }
+
+  const data = await res.json();
+
+  if (!data.cases || !Array.isArray(data.cases)) {
+    throw new Error('Expected cases array in response');
+  }
+
+  if (!data.pagination) {
+    throw new Error('Expected pagination object in response');
+  }
+
+  // Verify all returned cases have isPublic=true
+  const nonPublicCases = data.cases.filter(c => !c.isPublic);
+  if (nonPublicCases.length > 0) {
+    throw new Error(`Found ${nonPublicCases.length} non-public cases in public list`);
+  }
+
+  // Verify sensitive fields are NOT exposed
+  const casesWithSensitiveData = data.cases.filter(c =>
+    c.createdById || c.squadId || c.source
+  );
+  if (casesWithSensitiveData.length > 0) {
+    throw new Error('Sensitive fields (createdById, squadId, source) exposed in public list');
+  }
+
+  return {
+    cases_count: data.cases.length,
+    total_count: data.pagination.totalCount,
+    all_public: true,
+    no_sensitive_data: true
+  };
+}
+
+async function testPublicCaseDetail() {
+  // First, find a public case
+  const listRes = await fetch('/api/public/cases?limit=1');
+  if (!listRes.ok) {
+    throw new Error('Failed to find public cases');
+  }
+
+  const { cases } = await listRes.json();
+
+  if (cases.length === 0) {
+    // No public cases available - skip test
+    return { skipped: true, reason: 'No public cases available for testing' };
+  }
+
+  const testCase = cases[0];
+
+  // Test GET /api/public/cases/[caseNumber]
+  const res = await fetch(`/api/public/cases/${testCase.caseNumber}`);
+
+  if (!res.ok) {
+    throw new Error(`Get case detail failed: ${res.status}`);
+  }
+
+  const caseData = await res.json();
+
+  // Verify case data
+  if (caseData.caseNumber !== testCase.caseNumber) {
+    throw new Error('Case number mismatch');
+  }
+
+  // Verify contact privacy controls
+  if (!caseData.contact) {
+    throw new Error('Missing contact field in response');
+  }
+
+  // Verify sensitive fields are NOT exposed
+  if (caseData.createdById || caseData.squadId || caseData.source) {
+    throw new Error('Sensitive fields exposed in public detail');
+  }
+
+  return {
+    case_number: caseData.caseNumber,
+    has_contact_field: true,
+    no_sensitive_data: true
+  };
+}
+
+async function testSubmitPublicReport() {
+  // Test POST /api/public/cases - submit report
+  const timestamp = Date.now();
+  const res = await fetch('/api/public/cases', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      city: 'Austin',
+      state: 'TX',
+      zipCode: '78701',
+      petSpecies: 'DOG',
+      petName: `[PUBLIC QA TEST] ${timestamp}`,
+      petBreed: 'Labrador',
+      petColor: 'Black',
+      petDescription: 'QA test report submission',
+      contactName: 'QA Test Reporter',
+      contactEmail: 'qa-test@example.com',
+      contactPhone: '512-555-0123',
+      agreeToTerms: true
+    })
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(`Submit report failed: ${error.message || error.error}`);
+  }
+
+  const data = await res.json();
+
+  if (!data.caseNumber) {
+    throw new Error('Missing caseNumber in response');
+  }
+
+  if (!data.success) {
+    throw new Error('Expected success=true in response');
+  }
+
+  // Verify the case was created with correct defaults
+  // (isPublic=false, source=PUBLIC_REPORT - these should not be visible via public API)
+
+  return {
+    case_number: data.caseNumber,
+    success: data.success,
+    message: data.message
+  };
+}
+
+// ============================================================================
 // TESTS PANEL
 // ============================================================================
 
@@ -570,6 +708,14 @@ function TestsPanel({ onTestComplete }) {
     { id: 'add-note', name: 'Add Note to Case', status: 'idle', fn: testAddCaseNote },
   ]);
   const [runningCase, setRunningCase] = useState(false);
+
+  // Public Case tests state (Phase 15-16)
+  const [publicCaseTests, setPublicCaseTests] = useState([
+    { id: 'list-public', name: 'List Public Cases', status: 'idle', fn: testListPublicCases },
+    { id: 'detail-public', name: 'View Public Case Detail', status: 'idle', fn: testPublicCaseDetail },
+    { id: 'submit-report', name: 'Submit Public Report', status: 'idle', fn: testSubmitPublicReport },
+  ]);
+  const [runningPublicCase, setRunningPublicCase] = useState(false);
 
   const runLegalTests = async () => {
     setRunningLegal(true);
@@ -649,13 +795,40 @@ function TestsPanel({ onTestComplete }) {
     setRunningCase(false);
   };
 
+  const runPublicCaseTests = async () => {
+    setRunningPublicCase(true);
+
+    for (let i = 0; i < publicCaseTests.length; i++) {
+      const test = publicCaseTests[i];
+
+      // Mark test as running
+      setPublicCaseTests(prev => prev.map(t =>
+        t.id === test.id ? { ...t, status: 'running' } : t
+      ));
+
+      // Execute test
+      const result = await runTest(test.name, test.fn);
+
+      // Update test with result
+      setPublicCaseTests(prev => prev.map(t =>
+        t.id === test.id ? { ...t, ...result } : t
+      ));
+
+      // Notify parent
+      onTestComplete(result);
+    }
+
+    setRunningPublicCase(false);
+  };
+
   const runAllTests = async () => {
     await runLegalTests();
     await runSquadTests();
     await runCaseTests();
+    await runPublicCaseTests();
   };
 
-  const isAnyRunning = runningLegal || runningSquad || runningCase;
+  const isAnyRunning = runningLegal || runningSquad || runningCase || runningPublicCase;
 
   return (
     <div className="space-y-6">
@@ -713,6 +886,14 @@ function TestsPanel({ onTestComplete }) {
         tests={caseTests}
         onRun={runCaseTests}
         running={runningCase}
+      />
+
+      {/* Public Case Test Suite (Phase 15-16) */}
+      <TestSuite
+        title="Public Case Tests"
+        tests={publicCaseTests}
+        onRun={runPublicCaseTests}
+        running={runningPublicCase}
       />
     </div>
   );
