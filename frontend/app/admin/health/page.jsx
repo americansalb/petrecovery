@@ -659,6 +659,11 @@ const ERROR_IMPACT = {
   'public_case.list_viewed': { label: 'Public Case List', severity: 'low' },
   'public_case.detail_viewed': { label: 'Public Case Detail', severity: 'low' },
   'public_case.report_attempted': { label: 'Public Reports', severity: 'low' },
+
+  // Notifications (Phase 25-26)
+  'notification.send_attempted': { label: 'Notifications', severity: 'low' },
+  'notification.send_succeeded': { label: 'Notifications', severity: 'low' },
+  // Note: notification.send_failed already defined above in medium severity
 };
 
 function getErrorImpact(eventType) {

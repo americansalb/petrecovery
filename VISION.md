@@ -147,15 +147,32 @@ The "optimization" removed:
   - **Perfect for Render:** No SSH access required, all browser-based
   - **See:** `docs/features/admin-qa-harness-mvp.md`
 
-- **Phase 25+: Notifications System** ❌
+- **🎉 Phase 25-26: Notifications MVP (Case Alerts & Admin Signals)** ✅ **COMPLETE** (Nov 25, 2025)
+  - **Notification Helper Module:** 3 notification functions in `lib/notifications.js`
+    - `sendCaseReportConfirmation()` - Email to contact when public report submitted
+    - `sendAdminPublicReportAlert()` - Email to admin when public report needs review
+    - `sendCaseStatusUpdate()` - Email to contact when status changes (ACTIVE_SEARCH, RESOLVED, CLOSED_OTHER)
+  - **Email Integration:** 2 API endpoints wired with notifications
+    - POST /api/public/cases - sends confirmation + admin alert
+    - POST /api/cases/[id]/status - sends status update
+  - **Configuration:** Environment variables for email setup
+    - EMAIL_SERVICE, EMAIL_USER, EMAIL_PASSWORD, EMAIL_FROM
+    - ADMIN_NOTIFICATION_EMAIL for admin alerts
+  - **HTML Email Templates:** Responsive, status-specific content with colors
+  - **Observability:** All notifications emit `notification.*` events (attempted, succeeded, failed)
+  - **Non-blocking:** Email failures logged but don't break API responses
+  - **QA Integration:** 3 new tests in QA harness (report confirmation, admin alert, status update)
+  - **ERROR_IMPACT:** Notification events mapped to medium severity
+  - **Documentation:** SETUP.md updated with email provider setup (Gmail, SendGrid)
+  - **See:** `docs/features/notifications-mvp.md`
 
 ### 🎯 Next Tactical Priorities
 
 1. **Identify and implement next phase cluster from roadmap**
-   - Build on Phase 0 (observability), Phase 13-14 (cases), Phase 15-16 (public portal), Phase 20-21 (QA) foundations
+   - Build on Phase 0 (observability), Phase 13-14 (cases), Phase 15-16 (public portal), Phase 20-21 (QA), Phase 25-26 (notifications) foundations
    - Continue 108-phase roadmap with same discipline
    - All features must emit structured events and respect legal gating
-   - Candidate phases: notifications MVP, role/permission refinement, pet matching algorithm
+   - Candidate phases: role/permission refinement, pet matching algorithm, case assignment workflow, sighting reports
 
 **🎉 MAJOR MILESTONE:** Phase 0 now 100% complete!
 
