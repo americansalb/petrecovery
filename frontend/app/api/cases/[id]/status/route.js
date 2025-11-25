@@ -1,0 +1,271 @@
+/**
+ * Lost Pet Case Status Update API
+ * Phase 13-14: Lost Pet Cases MVP (TASK-C02)
+ *
+ * POST /api/cases/[id]/status - Update case status
+ */
+
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import prisma from '@/app/lib/prisma';
+import { logEvent } from '@/lib/logging';
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+/**
+ * POST /api/cases/[id]/status - Update case status
+ * Admin only (MVP)
+ */
+export async function POST(request, { params }) {
+  const startTime = Date.now();
+  let session = null;
+
+  try {
+    // Authentication check
+    session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      await logEvent({
+        event_type: 'case.status_change_failed',
+        resource_type: 'case',
+        resource_id: params.id,
+        action: 'update',
+        result: 'failure',
+        error_code: 'UNAUTHORIZED',
+        error_message: 'Attempted to update case status without authentication',
+        metadata: { caseId: params.id }
+      });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check admin role (MVP: admin-only)
+    if (session.user.role !== 'ADMIN') {
+      await logEvent({
+        event_type: 'case.status_change_failed',
+        resource_type: 'case',
+        resource_id: params.id,
+        action: 'update',
+        result: 'failure',
+        error_code: 'PERMISSION_DENIED',
+        error_message: 'User attempted to update case status without admin role',
+        actor_user_id: session.user.id,
+        actor_role: session.user.role || 'USER',
+        metadata: { caseId: params.id }
+      });
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
+    // Check waiver acceptance
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { waiverAcceptedAt: true }
+    });
+
+    if (!user?.waiverAcceptedAt) {
+      await logEvent({
+        event_type: 'case.status_change_failed',
+        resource_type: 'case',
+        resource_id: params.id,
+        action: 'update',
+        result: 'failure',
+        error_code: 'WAIVER_NOT_ACCEPTED',
+        error_message: 'Admin attempted to update case status without accepting liability waiver',
+        actor_user_id: session.user.id,
+        actor_role: session.user.role || 'USER',
+        metadata: { caseId: params.id }
+      });
+
+      const encodedReturnUrl = encodeURIComponent('/admin/cases/' + params.id);
+      return NextResponse.json({
+        error: 'Liability waiver required',
+        code: 'WAIVER_NOT_ACCEPTED',
+        message: 'You must accept the liability waiver before updating case status.',
+        redirectTo: '/legal/consent?returnUrl=' + encodedReturnUrl
+      }, { status: 403 });
+    }
+
+    // Parse request body
+    const body = await request.json();
+    const { status, statusReason } = body;
+
+    // Validate status
+    const validStatuses = ['OPEN', 'ACTIVE_SEARCH', 'RESOLVED', 'CLOSED_OTHER'];
+    if (!status || !validStatuses.includes(status)) {
+      await logEvent({
+        event_type: 'case.status_change_failed',
+        resource_type: 'case',
+        resource_id: params.id,
+        action: 'update',
+        result: 'failure',
+        error_code: 'VALIDATION_ERROR',
+        error_message: 'Invalid status value: ' + status,
+        actor_user_id: session.user.id,
+        actor_role: session.user.role || 'USER',
+        metadata: { caseId: params.id, status, validStatuses }
+      });
+      return NextResponse.json({
+        error: 'Invalid status. Must be OPEN, ACTIVE_SEARCH, RESOLVED, or CLOSED_OTHER'
+      }, { status: 400 });
+    }
+
+    // Fetch current case
+    const currentCase = await prisma.lostPetCase.findUnique({
+      where: { id: params.id },
+      select: {
+        id: true,
+        caseNumber: true,
+        status: true,
+        city: true,
+        state: true
+      }
+    });
+
+    if (!currentCase) {
+      await logEvent({
+        event_type: 'case.status_change_failed',
+        resource_type: 'case',
+        resource_id: params.id,
+        action: 'update',
+        result: 'failure',
+        error_code: 'NOT_FOUND',
+        error_message: 'Case not found: ' + params.id,
+        actor_user_id: session.user.id,
+        actor_role: session.user.role || 'USER',
+        metadata: { caseId: params.id }
+      });
+      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+    }
+
+    const oldStatus = currentCase.status;
+
+    // Validate status transitions (basic MVP logic)
+    const validTransitions = {
+      'OPEN': ['ACTIVE_SEARCH', 'RESOLVED', 'CLOSED_OTHER'],
+      'ACTIVE_SEARCH': ['RESOLVED', 'CLOSED_OTHER'],
+      'RESOLVED': [],
+      'CLOSED_OTHER': []
+    };
+
+    if (oldStatus === status) {
+      return NextResponse.json({
+        message: 'Status unchanged',
+        case: currentCase
+      });
+    }
+
+    if (!validTransitions[oldStatus].includes(status)) {
+      await logEvent({
+        event_type: 'case.status_change_failed',
+        resource_type: 'case',
+        resource_id: params.id,
+        action: 'update',
+        result: 'failure',
+        error_code: 'INVALID_TRANSITION',
+        error_message: 'Invalid status transition from ' + oldStatus + ' to ' + status,
+        actor_user_id: session.user.id,
+        actor_role: session.user.role || 'USER',
+        metadata: {
+          caseId: params.id,
+          oldStatus,
+          newStatus: status,
+          validTransitions: validTransitions[oldStatus]
+        }
+      });
+      return NextResponse.json({
+        error: 'Invalid status transition from ' + oldStatus + ' to ' + status,
+        validTransitions: validTransitions[oldStatus]
+      }, { status: 400 });
+    }
+
+    // Update case and create status change note in transaction
+    const updatedCase = await prisma.$transaction(async (tx) => {
+      // Update case status
+      const updated = await tx.lostPetCase.update({
+        where: { id: params.id },
+        data: {
+          status,
+          statusReason: statusReason || null
+        },
+        include: {
+          squad: {
+            select: {
+              id: true,
+              name: true,
+              city: true,
+              state: true
+            }
+          }
+        }
+      });
+
+      // Create status change note
+      await tx.lostPetCaseNote.create({
+        data: {
+          caseId: params.id,
+          authorId: session.user.id,
+          type: 'STATUS_CHANGE',
+          content: 'Status changed from ' + oldStatus + ' to ' + status + (statusReason ? '. Reason: ' + statusReason : '.'),
+          metadata: JSON.stringify({
+            oldStatus,
+            newStatus: status,
+            statusReason
+          })
+        }
+      });
+
+      return updated;
+    });
+
+    const responseTime = Date.now() - startTime;
+
+    // Emit success event
+    await logEvent({
+      event_type: 'case.status_changed',
+      resource_type: 'case',
+      resource_id: params.id,
+      action: 'update',
+      result: 'success',
+      actor_user_id: session.user.id,
+      actor_role: session.user.role || 'USER',
+      metadata: {
+        caseId: params.id,
+        caseNumber: currentCase.caseNumber,
+        oldStatus,
+        newStatus: status,
+        statusReason,
+        response_time_ms: responseTime
+      }
+    });
+
+    return NextResponse.json({
+      case: updatedCase,
+      message: 'Status updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Error updating case status:', error);
+
+    await logEvent({
+      event_type: 'case.status_change_failed',
+      resource_type: 'case',
+      resource_id: params.id,
+      action: 'update',
+      result: 'failure',
+      error_code: 'DB_WRITE_FAILED',
+      error_message: error.message,
+      actor_user_id: session?.user?.id || null,
+      actor_role: session?.user?.role || 'USER',
+      metadata: {
+        caseId: params.id,
+        error_stack: error.stack?.substring(0, 500)
+      }
+    });
+
+    return NextResponse.json({
+      error: 'Failed to update case status',
+      message: error.message
+    }, { status: 500 });
+  }
+}
