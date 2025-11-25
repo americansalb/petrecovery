@@ -129,12 +129,12 @@ model RescueSquad {
 - OR manually create migration SQL if Prisma CLI has issues (like Phase 0 legal migration)
 
 **Acceptance Criteria**:
-- [ ] Enums added: `PetSpecies`, `LostPetCaseStatus`
-- [ ] `LostPetCase` model added with all fields and indexes
-- [ ] `LostPetCaseNote` model added with indexes
-- [ ] User and RescueSquad relations updated
-- [ ] Migration applied successfully
-- [ ] No breaking changes to existing models
+- [x] Enums added: `PetSpecies`, `LostPetCaseStatus`
+- [x] `LostPetCase` model added with all fields and indexes
+- [x] `LostPetCaseNote` model added with indexes
+- [x] User and RescueSquad relations updated
+- [x] Migration applied successfully
+- [x] No breaking changes to existing models
 
 ---
 
@@ -226,13 +226,13 @@ model RescueSquad {
 - `case.note_add_failed` (on errors)
 
 **Acceptance Criteria**:
-- [ ] All 5 endpoints implemented
-- [ ] Legal gating works (403 + WAIVER_NOT_ACCEPTED)
-- [ ] All success events emitted
-- [ ] All failure events emitted
-- [ ] Case number generation works
-- [ ] Status transitions validated
-- [ ] Notes appear in case detail response
+- [x] All 5 endpoints implemented
+- [x] Legal gating works (403 + WAIVER_NOT_ACCEPTED)
+- [x] All success events emitted
+- [x] All failure events emitted
+- [x] Case number generation works
+- [x] Status transitions validated
+- [x] Notes appear in case detail response
 
 ---
 
@@ -312,13 +312,13 @@ model RescueSquad {
 - Validation: City, State, Species required
 
 **Acceptance Criteria**:
-- [ ] List page shows cases with filters
-- [ ] Detail page shows all case info + notes
-- [ ] Status can be updated (admins only)
-- [ ] Notes can be added
-- [ ] Create form works with validation
-- [ ] Legal gating shows banner correctly
-- [ ] Success/error states handled gracefully
+- [x] List page shows cases with filters
+- [x] Detail page shows all case info + notes
+- [x] Status can be updated (admins only)
+- [x] Notes can be added
+- [x] Create form works with validation
+- [x] Legal gating shows banner correctly
+- [x] Success/error states handled gracefully
 
 ---
 
@@ -355,11 +355,13 @@ model RescueSquad {
 4. Add note → see `case.note_added`
 
 **Acceptance Criteria**:
-- [ ] Legal banners display correctly on all 3 pages
-- [ ] Banner redirect to /legal/consent works
-- [ ] All case events visible in /admin/health/errors
-- [ ] Event metadata includes useful debugging info
-- [ ] Error codes are distinct and meaningful
+- [x] Legal banners display correctly on all 3 pages
+- [x] Banner redirect to /legal/consent works
+- [x] All case events visible in /admin/health/errors
+- [x] Event metadata includes useful debugging info
+- [x] Error codes are distinct and meaningful
+- [x] Case metrics added to admin health dashboard
+- [x] Cases displayed in overview metrics (cases_total, cases_open, cases_active_search)
 
 ---
 
@@ -407,9 +409,9 @@ model RescueSquad {
   ```
 
 **Acceptance Criteria**:
-- [ ] Feature spec committed: `docs/features/lost-pet-cases-mvp.md`
-- [ ] VISION.md updated with Phase 13-14 status
-- [ ] PHASE_0_CHECKLIST.md updated
+- [x] Feature spec committed: `docs/features/lost-pet-cases-mvp.md`
+- [x] VISION.md updated with Phase 13-14 status
+- [ ] PHASE_0_CHECKLIST.md updated (not needed - using VISION.md)
 - [ ] Optional seed data added for demo cases
 - [ ] Commit message: "[Phase 13-14] TASK-C05: Update documentation for Cases MVP"
 

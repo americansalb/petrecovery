@@ -1,6 +1,6 @@
 # PetRecovery.org - Project Vision & Implementation Path
 
-**Last Updated:** 2025-11-24
+**Last Updated:** 2025-11-25
 **Branch:** `claude/cleanup-navbar-vision-01YCsTCcdvUhKCneDuk5ybgz`
 
 ---
@@ -102,7 +102,19 @@ The "optimization" removed:
   - ❌ ToS acceptance at signup (future enhancement)
 
 - **Phase 5+: Permissions & Roles** ❌
-- **Phase 13+: Pet Profiles, Lost-Pet Cases** ❌
+
+- **🎉 Phase 13-14: Lost Pet Cases MVP** ✅ **COMPLETE** (Nov 25, 2025)
+  - **Database Models:** `LostPetCase`, `LostPetCaseNote`, status/species enums
+  - **API Endpoints:** 5 endpoints with legal gating and structured logging
+    - GET/POST /api/cases (list + create)
+    - GET /api/cases/[id] (detail with notes)
+    - POST /api/cases/[id]/status (status updates)
+    - POST /api/cases/[id]/notes (add notes)
+  - **Admin UI:** List, detail, and create pages at `/admin/cases`
+  - **Observability:** All case events logged, metrics in admin dashboard
+  - **Legal Integration:** Full waiver enforcement for all case actions
+  - **See:** `docs/features/lost-pet-cases-mvp.md`
+
 - **Phase 25+: Notifications System** ❌
 
 ### 🎯 Next Tactical Priorities
@@ -116,8 +128,9 @@ The "optimization" removed:
    - Replace console.log with structured events
    - Enable error tracking in admin dashboard
 
-3. **Begin Phase 13-14: Pet + Case MVP**
-   - Build on Phase 0 foundations
+3. **Next Phase from MASTER_PLAN.md**
+   - Review MASTER_PLAN.md to select next phase cluster
+   - Continue building on Phase 0 + Phase 13-14 foundations
    - All features must emit structured events
 
 **🎉 MAJOR MILESTONE:** Phase 0 now 100% complete!

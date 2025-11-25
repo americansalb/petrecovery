@@ -1,8 +1,8 @@
 # Feature Spec: Lost Pet Cases MVP (Phase 13–14)
 
-**Status:** Implementation Ready
+**Status:** ✅ Fully Implemented
 **Owner:** Product + Engineering
-**Last Updated:** November 24, 2025
+**Last Updated:** November 25, 2025
 **Phase:** 13–14 (Pet Profiles + Lost-Pet Case MVP)
 
 ---
@@ -24,6 +24,49 @@ This MVP is deliberately small but **fully integrated** with:
 - **Existing geography model**: Cities + zip-based squads.
 
 Future phases will add richer features (maps, matching, SMS/email, public search, etc.). This spec focuses on the **smallest coherent slice** that's actually useful and production-worthy.
+
+---
+
+## 0.1 Implementation Status
+
+**Implementation Completed:** November 25, 2025
+
+All components of the Lost Pet Cases MVP have been fully implemented:
+
+### Backend (TASK-C01, C02)
+- ✅ Prisma models: `LostPetCase`, `LostPetCaseNote`, `LostPetCaseStatus` enum
+- ✅ Migration applied with indexes for performance
+- ✅ All 5 API endpoints with full legal gating and structured logging:
+  - `GET /api/cases` - List with filters (status, city, state, squadId)
+  - `POST /api/cases` - Create with waiver check and case number generation
+  - `GET /api/cases/[id]` - Detail with notes timeline
+  - `POST /api/cases/[id]/status` - Status updates with transition validation
+  - `POST /api/cases/[id]/notes` - Add notes
+
+### Frontend (TASK-C03)
+- ✅ `/admin/cases` - List page with filters, status pills, clickable rows
+- ✅ `/admin/cases/[id]` - Detail page with notes timeline and status controls
+- ✅ `/admin/cases/new` - Creation form with all required sections
+- ✅ Legal error banners for WAIVER_NOT_ACCEPTED responses
+- ✅ Visual consistency with admin health dashboard
+
+### Observability (TASK-C04)
+- ✅ All case events logged via `logEvent()`:
+  - `case.create_attempted`, `case.created`, `case.create_failed`
+  - `case.status_changed`, `case.status_change_failed`
+  - `case.note_added`, `case.note_add_failed`
+  - `legal.blocked_action` for waiver-gated actions
+- ✅ Case metrics added to `/api/admin/health/metrics`:
+  - `cases_total`, `cases_open`, `cases_active_search`
+- ✅ Case metrics displayed in Admin Health Dashboard overview
+- ✅ All case events visible in Admin Health Errors tab
+
+### Scope
+- ✅ Admin-only access (MVP permissions model)
+- ✅ Full legal integration (ToS + Waiver required for all actions)
+- ✅ Case number generation: `{CITY}-{YEAR}-{SEQUENCE}` format
+- ✅ Status transition validation (OPEN → ACTIVE_SEARCH → RESOLVED/CLOSED_OTHER)
+- ✅ Automatic note creation for status changes
 
 ---
 
@@ -679,31 +722,31 @@ You can start with **Admin-only** and then relax to B later.
 
 ## 12. Acceptance Criteria (Definition of Done)
 
-- [ ] **Prisma schema updated** with:
-  - [ ] `LostPetCase` model
-  - [ ] `LostPetCaseNote` model
-  - [ ] `PetSpecies`, `LostPetCaseStatus` enums
-- [ ] **Migration** added + applied in deploy environment.
+- [x] **Prisma schema updated** with:
+  - [x] `LostPetCase` model
+  - [x] `LostPetCaseNote` model
+  - [x] `PetSpecies`, `LostPetCaseStatus` enums
+- [x] **Migration** added + applied in deploy environment.
 - [ ] **Seed data**: optional – may seed a few demo cases for staging.
-- [ ] **API**:
-  - [ ] `GET /api/cases` implemented with filters.
-  - [ ] `GET /api/cases/[id]` returns case + notes.
-  - [ ] `POST /api/cases` creates case with validation + legal gating.
-  - [ ] `POST /api/cases/[id]/status` updates status and logs change.
-  - [ ] `POST /api/cases/[id]/notes` adds notes.
-- [ ] **Logging**:
-  - [ ] `case.create_attempted`, `case.created`, `case.create_failed` implemented.
-  - [ ] `case.status_changed` implemented.
-  - [ ] `case.note_added` implemented.
-  - [ ] `legal.blocked_action` used for case flows when waiver not accepted.
-- [ ] **UI**:
-  - [ ] `/admin/cases` list page.
-  - [ ] `/admin/cases/[id]` detail page with notes + status change.
-  - [ ] `/admin/cases/new` case creation form.
-  - [ ] Legal gating UI reuses existing consent banner + `/legal/consent` flow.
-- [ ] **Docs**:
-  - [ ] This spec file (`docs/features/lost-pet-cases-mvp.md`) committed.
-  - [ ] `PHASE_0_CHECKLIST.md` and `VISION.md` updated to show Phase 13–14 "In Progress" or "Partially Implemented".
+- [x] **API**:
+  - [x] `GET /api/cases` implemented with filters.
+  - [x] `GET /api/cases/[id]` returns case + notes.
+  - [x] `POST /api/cases` creates case with validation + legal gating.
+  - [x] `POST /api/cases/[id]/status` updates status and logs change.
+  - [x] `POST /api/cases/[id]/notes` adds notes.
+- [x] **Logging**:
+  - [x] `case.create_attempted`, `case.created`, `case.create_failed` implemented.
+  - [x] `case.status_changed` implemented.
+  - [x] `case.note_added` implemented.
+  - [x] `legal.blocked_action` used for case flows when waiver not accepted.
+- [x] **UI**:
+  - [x] `/admin/cases` list page.
+  - [x] `/admin/cases/[id]` detail page with notes + status change.
+  - [x] `/admin/cases/new` case creation form.
+  - [x] Legal gating UI reuses existing consent banner + `/legal/consent` flow.
+- [x] **Docs**:
+  - [x] This spec file (`docs/features/lost-pet-cases-mvp.md`) committed.
+  - [x] `VISION.md` updated to show Phase 13–14 complete.
 
 ---
 
