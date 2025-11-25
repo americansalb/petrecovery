@@ -356,6 +356,7 @@ export default function AdminCasesPage() {
                   <th style={headerStyle}>Pet</th>
                   <th style={headerStyle}>Location</th>
                   <th style={headerStyle}>Status</th>
+                  <th style={headerStyle}>Coordinator</th>
                   <th style={headerStyle}>Squad</th>
                   <th style={headerStyle}>Created</th>
                   <th style={headerStyle}>Notes</th>
@@ -411,6 +412,11 @@ export default function AdminCasesPage() {
                         }}>
                           {caseItem.status.replace('_', ' ')}
                         </span>
+                      </td>
+                      <td style={cellStyle}>
+                        {caseItem.coordinator
+                          ? `${caseItem.coordinator.firstName} ${caseItem.coordinator.lastName || ''}`.trim()
+                          : '—'}
                       </td>
                       <td style={cellStyle}>
                         {caseItem.squad ? caseItem.squad.name : '—'}

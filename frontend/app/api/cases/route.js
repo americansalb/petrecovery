@@ -95,6 +95,14 @@ export async function GET(request) {
             state: true
           }
         },
+        coordinator: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            role: true
+          }
+        },
         createdBy: {
           select: {
             id: true,

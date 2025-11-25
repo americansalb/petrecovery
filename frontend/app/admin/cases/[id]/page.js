@@ -31,6 +31,13 @@ export default function CaseDetailPage({ params }) {
   const [noteContent, setNoteContent] = useState('');
   const [addingNote, setAddingNote] = useState(false);
 
+  // Assignment state (Phase 22-24: TASK-R05)
+  const [availableCoordinators, setAvailableCoordinators] = useState([]);
+  const [availableSquads, setAvailableSquads] = useState([]);
+  const [assigningCoordinator, setAssigningCoordinator] = useState(false);
+  const [assigningSquad, setAssigningSquad] = useState(false);
+  const [assignmentMessage, setAssignmentMessage] = useState(null); // { type: 'success' | 'error', text: '...' }
+
   // Auth check and redirect
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -46,6 +53,37 @@ export default function CaseDetailPage({ params }) {
       fetchCase();
     }
   }, [status, session, params.id]);
+
+  // Fetch assignment options (Phase 22-24: TASK-R05)
+  useEffect(() => {
+    if (status === 'authenticated' && isAdmin(session)) {
+      fetchAssignmentOptions();
+    }
+  }, [status, session]);
+
+  const fetchAssignmentOptions = async () => {
+    try {
+      // Fetch available coordinators (ADMIN/MODERATOR users)
+      const usersResponse = await fetch('/api/users');
+      if (usersResponse.ok) {
+        const usersData = await usersResponse.json();
+        const staffUsers = usersData.users.filter(u =>
+          u.role === 'ADMIN' || u.role === 'MODERATOR'
+        );
+        setAvailableCoordinators(staffUsers);
+      }
+
+      // Fetch active squads
+      const squadsResponse = await fetch('/api/squads');
+      if (squadsResponse.ok) {
+        const squadsData = await squadsResponse.json();
+        const activeSquads = squadsData.squads.filter(s => s.isActive);
+        setAvailableSquads(activeSquads);
+      }
+    } catch (err) {
+      console.error('Failed to fetch assignment options:', err);
+    }
+  };
 
   const fetchCase = async () => {
     setLoading(true);
@@ -147,6 +185,63 @@ export default function CaseDetailPage({ params }) {
       alert('Error adding note: ' + err.message);
     } finally {
       setAddingNote(false);
+    }
+  };
+
+  // Phase 22-24: TASK-R05 - Assignment handlers
+  const handleCoordinatorAssignment = async (coordinatorId) => {
+    setAssigningCoordinator(true);
+    setAssignmentMessage(null);
+
+    try {
+      const response = await fetch('/api/cases/' + params.id + '/assign-coordinator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coordinatorId })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || 'Failed to assign coordinator');
+      }
+
+      setAssignmentMessage({ type: 'success', text: data.message });
+      await fetchCase();
+      setTimeout(() => setAssignmentMessage(null), 3000);
+    } catch (err) {
+      setAssignmentMessage({ type: 'error', text: err.message });
+      setTimeout(() => setAssignmentMessage(null), 5000);
+    } finally {
+      setAssigningCoordinator(false);
+    }
+  };
+
+  const handleSquadAssignment = async (squadId) => {
+    setAssigningSquad(true);
+    setAssignmentMessage(null);
+
+    try {
+      const response = await fetch('/api/cases/' + params.id + '/assign-squad', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ squadId })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || 'Failed to assign squad');
+      }
+
+      setAssignmentMessage({ type: 'success', text: data.message });
+      await fetchCase();
+      setTimeout(() => setAssignmentMessage(null), 3000);
+    } catch (err) {
+      setAssignmentMessage({ type: 'error', text: err.message });
+      setTimeout(() => setAssignmentMessage(null), 5000);
+    } finally {
+      setAssigningSquad(false);
     }
   };
 
@@ -523,13 +618,98 @@ export default function CaseDetailPage({ params }) {
               </button>
             </Section>
 
-            {/* Squad Information */}
-            {caseData.squad && (
-              <Section title="Assigned Squad">
-                <Field label="Squad Name" value={caseData.squad.name} />
-                <Field label="Location" value={caseData.squad.city + ', ' + caseData.squad.state} />
-              </Section>
-            )}
+            {/* Phase 22-24: TASK-R05 - Assignment Controls */}
+            <Section title="Case Assignment">
+              {/* Success/Error Messages */}
+              {assignmentMessage && (
+                <div style={{
+                  padding: '0.75rem',
+                  borderRadius: '6px',
+                  marginBottom: '1rem',
+                  background: assignmentMessage.type === 'success' ? '#d1fae5' : '#fee2e2',
+                  color: assignmentMessage.type === 'success' ? '#065f46' : '#991b1b',
+                  fontSize: '0.875rem'
+                }}>
+                  {assignmentMessage.text}
+                </div>
+              )}
+
+              {/* Coordinator Assignment */}
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '0.5rem'
+                }}>
+                  Coordinator
+                </label>
+                <select
+                  value={caseData.coordinatorId || ''}
+                  onChange={(e) => handleCoordinatorAssignment(e.target.value || null)}
+                  disabled={assigningCoordinator}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem',
+                    opacity: assigningCoordinator ? 0.5 : 1
+                  }}
+                >
+                  <option value="">Unassigned</option>
+                  {availableCoordinators.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.firstName} {user.lastName || ''} ({user.role})
+                    </option>
+                  ))}
+                </select>
+                {assigningCoordinator && (
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                    Updating...
+                  </div>
+                )}
+              </div>
+
+              {/* Squad Assignment */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '0.5rem'
+                }}>
+                  Owning Squad
+                </label>
+                <select
+                  value={caseData.squadId || ''}
+                  onChange={(e) => handleSquadAssignment(e.target.value || null)}
+                  disabled={assigningSquad}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem',
+                    opacity: assigningSquad ? 0.5 : 1
+                  }}
+                >
+                  <option value="">No squad</option>
+                  {availableSquads.map(squad => (
+                    <option key={squad.id} value={squad.id}>
+                      {squad.name} ({squad.city}, {squad.state})
+                    </option>
+                  ))}
+                </select>
+                {assigningSquad && (
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                    Updating...
+                  </div>
+                )}
+              </div>
+            </Section>
 
             {/* Case Metadata */}
             <Section title="Case Details">
