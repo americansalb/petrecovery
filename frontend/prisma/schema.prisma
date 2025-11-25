@@ -1090,6 +1090,11 @@ model LostPetCase {
   contactPhone  String?
   contactEmail  String?
 
+  // Public Visibility (Phase 15-16)
+  isPublic      Boolean           @default(false)
+  publicContactOk Boolean         @default(false)
+  source        String            @default("ADMIN")  // "ADMIN" or "PUBLIC_REPORT"
+
   // Relations
   createdById   String
   createdBy     User              @relation(fields: [createdById], references: [id])
@@ -1102,6 +1107,7 @@ model LostPetCase {
   @@index([city, state])
   @@index([status])
   @@index([squadId])
+  @@index([isPublic, status])
 }
 
 model LostPetCaseNote {
