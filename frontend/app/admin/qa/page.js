@@ -13,6 +13,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { isAdmin } from '@/app/lib/permissions';
 
 export default function AdminQAPage() {
   const { data: session } = useSession();
@@ -34,7 +35,7 @@ export default function AdminQAPage() {
   // ============================================================================
 
   useEffect(() => {
-    if (session && session.user.role !== 'ADMIN') {
+    if (session && !isAdmin(session)) {
       router.push('/dashboard');
     }
   }, [session, router]);
@@ -51,7 +52,7 @@ export default function AdminQAPage() {
     );
   }
 
-  if (session.user.role !== 'ADMIN') {
+  if (!isAdmin(session)) {
     return null; // Will redirect via useEffect
   }
 
@@ -117,8 +118,11 @@ function AdminQAHeader({ lastTestRun, totalResults, envName }) {
           {/* Left: Title + Env */}
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 Admin QA Harness
+                <span className="text-xs px-2 py-0.5 bg-red-100 text-red-800 rounded font-semibold">
+                  🔒 ADMIN ONLY
+                </span>
               </h1>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
