@@ -10,6 +10,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
+import { sendCaseStatusUpdate } from '@/app/lib/notifications';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -188,7 +189,33 @@ export async function POST(request, { params }) {
           status,
           statusReason: statusReason || null
         },
-        include: {
+        // Need these fields for notifications
+        select: {
+          id: true,
+          caseNumber: true,
+          petName: true,
+          contactName: true,
+          contactEmail: true,
+          city: true,
+          state: true,
+          zipCode: true,
+          statusReason: true,
+          isPublic: true,
+          createdAt: true,
+          updatedAt: true,
+          petSpecies: true,
+          petBreed: true,
+          petColor: true,
+          petDescription: true,
+          lastSeenLandmark: true,
+          lastSeenAt: true,
+          status: true,
+          isUrgent: true,
+          contactPhone: true,
+          publicContactOk: true,
+          source: true,
+          createdById: true,
+          squadId: true,
           squad: {
             select: {
               id: true,
@@ -238,6 +265,45 @@ export async function POST(request, { params }) {
         response_time_ms: responseTime
       }
     });
+
+    // NEW (Phase 25-26): Send status update notification (non-blocking)
+    const notifiableStatuses = ['ACTIVE_SEARCH', 'RESOLVED', 'CLOSED_OTHER'];
+    const shouldNotify = notifiableStatuses.includes(status)
+                         && updatedCase.contactEmail
+                         && oldStatus !== status;
+
+    if (shouldNotify) {
+      try {
+        await sendCaseStatusUpdate({
+          caseNumber: updatedCase.caseNumber,
+          petName: updatedCase.petName,
+          contactName: updatedCase.contactName,
+          contactEmail: updatedCase.contactEmail,
+          city: updatedCase.city,
+          state: updatedCase.state,
+          statusReason: updatedCase.statusReason,
+          isPublic: updatedCase.isPublic
+        }, oldStatus, status);
+      } catch (notificationError) {
+        // Log error but don't break the API response
+        console.error('❌ Status notification error:', notificationError);
+        await logEvent({
+          event_type: 'notification.send_failed',
+          resource_type: 'notification',
+          resource_id: updatedCase.caseNumber,
+          action: 'create',
+          result: 'failure',
+          error_code: 'NOTIFICATION_EXCEPTION',
+          error_message: notificationError.message,
+          metadata: {
+            case_number: updatedCase.caseNumber,
+            old_status: oldStatus,
+            new_status: status,
+            error_stack: notificationError.stack?.substring(0, 500)
+          }
+        });
+      }
+    }
 
     return NextResponse.json({
       case: updatedCase,
