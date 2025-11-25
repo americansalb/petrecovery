@@ -46,6 +46,11 @@ export default function Navigation() {
     { label: '🚁 Find Squads', href: '/rescue-squads/search', active: pathname === '/rescue-squads/search' },
   ];
 
+  // Add admin link for admin users
+  if (session?.user?.role === 'ADMIN') {
+    navItems.push({ label: '⚙️ Admin', href: '/admin/health', active: pathname.startsWith('/admin') });
+  }
+
   return (
     <nav style={{
       position: 'sticky',
