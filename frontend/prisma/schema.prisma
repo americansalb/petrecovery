@@ -75,6 +75,9 @@ model User {
   createdCases    LostPetCase[]
   caseNotes       LostPetCaseNote[]
 
+  // Cases where this user is the primary coordinator (Phase 22-24)
+  coordinatedCases LostPetCase[]  @relation("CaseCoordinator")
+
   @@index([email])
   @@index([rescueLevel])
 }
@@ -1102,12 +1105,17 @@ model LostPetCase {
   squadId       String?
   squad         RescueSquad?      @relation(fields: [squadId], references: [id])
 
+  // NEW: Optional primary coordinator for this case (Phase 22-24)
+  coordinatorId String?
+  coordinator   User?             @relation("CaseCoordinator", fields: [coordinatorId], references: [id])
+
   notes         LostPetCaseNote[]
 
   @@index([city, state])
   @@index([status])
   @@index([squadId])
   @@index([isPublic, status])
+  @@index([coordinatorId])
 }
 
 model LostPetCaseNote {
