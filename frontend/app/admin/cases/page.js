@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { isAdmin } from '@/app/lib/permissions';
 
 export default function AdminCasesPage() {
   const { data: session, status } = useSession();
@@ -31,14 +32,14 @@ export default function AdminCasesPage() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login?callbackUrl=/admin/cases');
-    } else if (status === 'authenticated' && session?.user?.role !== 'ADMIN') {
+    } else if (status === 'authenticated' && !isAdmin(session)) {
       router.push('/dashboard');
     }
   }, [status, session, router]);
 
   // Fetch cases
   useEffect(() => {
-    if (status === 'authenticated' && session?.user?.role === 'ADMIN') {
+    if (status === 'authenticated' && isAdmin(session)) {
       fetchCases();
     }
   }, [status, session, statusFilter, cityFilter, stateFilter]);
@@ -121,6 +122,17 @@ export default function AdminCasesPage() {
               marginBottom: '0.5rem'
             }}>
               Lost Pet Cases
+              <span style={{
+                fontSize: '0.75rem',
+                padding: '0.125rem 0.5rem',
+                backgroundColor: '#fee2e2',
+                color: '#991b1b',
+                borderRadius: '0.25rem',
+                fontWeight: '600',
+                marginLeft: '0.5rem'
+              }}>
+                🔒 ADMIN ONLY
+              </span>
             </h1>
             <p style={{ color: '#64748b' }}>
               Manage and track all lost pet cases

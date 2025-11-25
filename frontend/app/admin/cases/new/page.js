@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { isAdmin } from '@/app/lib/permissions';
 
 export default function NewCasePage() {
   const { data: session, status } = useSession();
@@ -42,14 +43,14 @@ export default function NewCasePage() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login?callbackUrl=' + encodeURIComponent('/admin/cases/new'));
-    } else if (status === 'authenticated' && session?.user?.role !== 'ADMIN') {
+    } else if (status === 'authenticated' && !isAdmin(session)) {
       router.push('/dashboard');
     }
   }, [status, session, router]);
 
   // Fetch squads for dropdown
   useEffect(() => {
-    if (status === 'authenticated' && session?.user?.role === 'ADMIN') {
+    if (status === 'authenticated' && isAdmin(session)) {
       fetchSquads();
     }
   }, [status, session]);
@@ -214,6 +215,17 @@ export default function NewCasePage() {
             marginBottom: '0.5rem'
           }}>
             Create Lost Pet Case
+            <span style={{
+              fontSize: '0.75rem',
+              padding: '0.125rem 0.5rem',
+              backgroundColor: '#fee2e2',
+              color: '#991b1b',
+              borderRadius: '0.25rem',
+              fontWeight: '600',
+              marginLeft: '0.5rem'
+            }}>
+              🔒 ADMIN ONLY
+            </span>
           </h1>
           <p style={{ color: '#6b7280', fontSize: '0.95rem' }}>
             Record a new lost pet case for tracking and coordination.

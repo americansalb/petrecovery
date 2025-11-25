@@ -11,6 +11,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
+import { requireStaffOrAdmin, PermissionError } from '@/app/lib/permissions';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -179,6 +180,28 @@ export async function POST(request) {
         metadata: {}
       });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Permission check (Phase 22-24: ADMIN/MODERATOR only)
+    try {
+      await requireStaffOrAdmin(session, {
+        resource_type: 'case',
+        resource_id: null,
+        action: 'create',
+        metadata: {
+          api_route: '/api/cases',
+          method: 'POST'
+        }
+      });
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        return NextResponse.json({
+          error: 'Permission denied',
+          code: 'PERMISSION_DENIED',
+          message: error.message
+        }, { status: 403 });
+      }
+      throw error;
     }
 
     // Parse request body

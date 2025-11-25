@@ -11,6 +11,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { sendCaseStatusUpdate } from '@/app/lib/notifications';
+import { requireStaffOrAdmin, PermissionError } from '@/app/lib/permissions';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -41,21 +42,26 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check admin role (MVP: admin-only)
-    if (session.user.role !== 'ADMIN') {
-      await logEvent({
-        event_type: 'case.status_change_failed',
+    // Permission check (Phase 22-24: ADMIN/MODERATOR only)
+    try {
+      await requireStaffOrAdmin(session, {
         resource_type: 'case',
         resource_id: params.id,
-        action: 'update',
-        result: 'failure',
-        error_code: 'PERMISSION_DENIED',
-        error_message: 'User attempted to update case status without admin role',
-        actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
-        metadata: { caseId: params.id }
+        action: 'update_status',
+        metadata: {
+          api_route: `/api/cases/${params.id}/status`,
+          method: 'POST'
+        }
       });
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    } catch (error) {
+      if (error instanceof PermissionError) {
+        return NextResponse.json({
+          error: 'Permission denied',
+          code: 'PERMISSION_DENIED',
+          message: error.message
+        }, { status: 403 });
+      }
+      throw error;
     }
 
     // Check waiver acceptance

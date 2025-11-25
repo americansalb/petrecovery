@@ -10,6 +10,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { isAdmin } from '@/app/lib/permissions';
 
 export default function CaseDetailPage({ params }) {
   const { data: session, status } = useSession();
@@ -34,14 +35,14 @@ export default function CaseDetailPage({ params }) {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login?callbackUrl=' + encodeURIComponent('/admin/cases/' + params.id));
-    } else if (status === 'authenticated' && session?.user?.role !== 'ADMIN') {
+    } else if (status === 'authenticated' && !isAdmin(session)) {
       router.push('/dashboard');
     }
   }, [status, session, router, params.id]);
 
   // Fetch case data
   useEffect(() => {
-    if (status === 'authenticated' && session?.user?.role === 'ADMIN') {
+    if (status === 'authenticated' && isAdmin(session)) {
       fetchCase();
     }
   }, [status, session, params.id]);
@@ -232,6 +233,17 @@ export default function CaseDetailPage({ params }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
             <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#111827', margin: 0 }}>
               {caseData.caseNumber}
+              <span style={{
+                fontSize: '0.75rem',
+                padding: '0.125rem 0.5rem',
+                backgroundColor: '#fee2e2',
+                color: '#991b1b',
+                borderRadius: '0.25rem',
+                fontWeight: '600',
+                marginLeft: '0.5rem'
+              }}>
+                🔒 ADMIN ONLY
+              </span>
             </h1>
             <span style={{
               padding: '0.5rem 1rem',
