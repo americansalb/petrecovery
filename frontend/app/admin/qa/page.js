@@ -334,16 +334,111 @@ async function testBlockedCaseCreate() {
 }
 
 // ============================================================================
+// SQUAD TEST CASES
+// ============================================================================
+
+async function testCreateSquad() {
+  const res = await fetch('/api/rescue-squads', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      city: `[TEST] QA Squad ${Date.now()}`,
+      state: 'TX',
+      zipCode: '78701'
+    })
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(`Create failed: ${error.error}`);
+  }
+
+  const { squad } = await res.json();
+  return { squad_id: squad.id, squad_name: squad.name };
+}
+
+async function testSearchSquads() {
+  const res = await fetch('/api/rescue-squads?search=78701&radius=25');
+
+  if (!res.ok) {
+    throw new Error(`Search failed: ${res.status}`);
+  }
+
+  const { cities } = await res.json();
+  return { results_count: cities.length, cities: cities.slice(0, 3).map(c => c.city) };
+}
+
+async function testJoinSquad() {
+  // First, find or create a test squad
+  const searchRes = await fetch('/api/rescue-squads?search=78701');
+  const { cities } = await searchRes.json();
+
+  const testCity = cities.find(c => c.exists && c.squad);
+  if (!testCity) {
+    throw new Error('No test squad found - run Create Squad test first');
+  }
+
+  const res = await fetch(`/api/rescue-squads/${testCity.squad.id}/join`, {
+    method: 'POST'
+  });
+
+  if (res.status === 200) {
+    return { joined: true, squad_id: testCity.squad.id };
+  } else if (res.status === 400) {
+    const error = await res.json();
+    if (error.error && error.error.includes('already a member')) {
+      return { already_member: true, squad_id: testCity.squad.id };
+    }
+    throw new Error(error.error);
+  } else {
+    const error = await res.json();
+    throw new Error(`Join failed: ${error.error || res.status}`);
+  }
+}
+
+async function testLeaveSquad() {
+  // Find a squad the user is a member of
+  const searchRes = await fetch('/api/rescue-squads?search=78701');
+  const { cities } = await searchRes.json();
+
+  const memberSquad = cities.find(c => c.exists && c.squad && c.squad.isMember);
+  if (!memberSquad) {
+    throw new Error('Not a member of any test squad - run Join Squad test first');
+  }
+
+  const res = await fetch(`/api/rescue-squads/${memberSquad.squad.id}/leave`, {
+    method: 'POST'
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(`Leave failed: ${error.error}`);
+  }
+
+  return { left: true, squad_id: memberSquad.squad.id };
+}
+
+// ============================================================================
 // TESTS PANEL
 // ============================================================================
 
 function TestsPanel({ onTestComplete }) {
+  // Legal tests state
   const [legalTests, setLegalTests] = useState([
     { id: 'accept-waiver', name: 'Accept Waiver Flow', status: 'idle', fn: testAcceptWaiver },
     { id: 'blocked-squad', name: 'Blocked Action - Squad Create', status: 'idle', fn: testBlockedSquadCreate },
     { id: 'blocked-case', name: 'Blocked Action - Case Create', status: 'idle', fn: testBlockedCaseCreate },
   ]);
   const [runningLegal, setRunningLegal] = useState(false);
+
+  // Squad tests state
+  const [squadTests, setSquadTests] = useState([
+    { id: 'create-squad', name: 'Create Squad - Happy Path', status: 'idle', fn: testCreateSquad },
+    { id: 'search-squads', name: 'Search Squads by ZIP', status: 'idle', fn: testSearchSquads },
+    { id: 'join-squad', name: 'Join Squad', status: 'idle', fn: testJoinSquad },
+    { id: 'leave-squad', name: 'Leave Squad', status: 'idle', fn: testLeaveSquad },
+  ]);
+  const [runningSquad, setRunningSquad] = useState(false);
 
   const runLegalTests = async () => {
     setRunningLegal(true);
@@ -369,6 +464,32 @@ function TestsPanel({ onTestComplete }) {
     }
 
     setRunningLegal(false);
+  };
+
+  const runSquadTests = async () => {
+    setRunningSquad(true);
+
+    for (let i = 0; i < squadTests.length; i++) {
+      const test = squadTests[i];
+
+      // Mark test as running
+      setSquadTests(prev => prev.map(t =>
+        t.id === test.id ? { ...t, status: 'running' } : t
+      ));
+
+      // Execute test
+      const result = await runTest(test.name, test.fn);
+
+      // Update test with result
+      setSquadTests(prev => prev.map(t =>
+        t.id === test.id ? { ...t, ...result } : t
+      ));
+
+      // Notify parent
+      onTestComplete(result);
+    }
+
+    setRunningSquad(false);
   };
 
   return (
@@ -398,10 +519,18 @@ function TestsPanel({ onTestComplete }) {
         running={runningLegal}
       />
 
-      {/* Placeholder for future test suites */}
+      {/* Squad Test Suite */}
+      <TestSuite
+        title="Squad Tests"
+        tests={squadTests}
+        onRun={runSquadTests}
+        running={runningSquad}
+      />
+
+      {/* Placeholder for Case test suite */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
         <p className="text-sm text-gray-600">
-          Squad and Case test suites coming in TASK-Q03 and TASK-Q04
+          Case test suite coming in TASK-Q04
         </p>
       </div>
     </div>
