@@ -419,6 +419,129 @@ async function testLeaveSquad() {
 }
 
 // ============================================================================
+// CASE TEST CASES
+// ============================================================================
+
+async function testCreateCase() {
+  const res = await fetch('/api/cases', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      city: 'Austin',
+      state: 'TX',
+      zipCode: '78701',
+      petSpecies: 'DOG',
+      petName: `[TEST QA] Test Dog ${Date.now()}`,
+      petBreed: 'Golden Retriever',
+      petColor: 'Golden',
+      contactName: 'QA Test Contact',
+      contactPhone: '512-555-0100'
+    })
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(`Create case failed: ${error.error}`);
+  }
+
+  const { case: caseData } = await res.json();
+  return { case_id: caseData.id, case_number: caseData.caseNumber };
+}
+
+async function testUpdateCaseStatus() {
+  // First, create a test case
+  const createRes = await fetch('/api/cases', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      city: 'Austin',
+      state: 'TX',
+      zipCode: '78701',
+      petSpecies: 'CAT',
+      petName: '[TEST QA] Status Test Cat'
+    })
+  });
+
+  if (!createRes.ok) {
+    const error = await createRes.json();
+    throw new Error(`Create case failed: ${error.error}`);
+  }
+
+  const { case: testCase } = await createRes.json();
+
+  // Update status
+  const res = await fetch(`/api/cases/${testCase.id}/status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      status: 'ACTIVE_SEARCH',
+      statusReason: '[QA TEST] Testing status update'
+    })
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(`Status update failed: ${error.error}`);
+  }
+
+  const { case: updatedCase } = await res.json();
+  return { case_id: updatedCase.id, new_status: updatedCase.status };
+}
+
+async function testAddCaseNote() {
+  // Find or create a test case
+  const listRes = await fetch('/api/cases?limit=1');
+  if (!listRes.ok) {
+    throw new Error(`Failed to list cases: ${listRes.status}`);
+  }
+
+  const { cases } = await listRes.json();
+
+  let testCaseId;
+  if (cases.length > 0) {
+    testCaseId = cases[0].id;
+  } else {
+    // Create one
+    const createRes = await fetch('/api/cases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        city: 'Austin',
+        state: 'TX',
+        zipCode: '78701',
+        petSpecies: 'BIRD',
+        petName: '[TEST QA] Note Test Bird'
+      })
+    });
+
+    if (!createRes.ok) {
+      const error = await createRes.json();
+      throw new Error(`Create case failed: ${error.error}`);
+    }
+
+    const { case: newCase } = await createRes.json();
+    testCaseId = newCase.id;
+  }
+
+  // Add note
+  const res = await fetch(`/api/cases/${testCaseId}/notes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      content: `[QA TEST] Test note added at ${new Date().toISOString()}`
+    })
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(`Add note failed: ${error.error}`);
+  }
+
+  const { note } = await res.json();
+  return { case_id: testCaseId, note_id: note.id };
+}
+
+// ============================================================================
 // TESTS PANEL
 // ============================================================================
 
@@ -439,6 +562,14 @@ function TestsPanel({ onTestComplete }) {
     { id: 'leave-squad', name: 'Leave Squad', status: 'idle', fn: testLeaveSquad },
   ]);
   const [runningSquad, setRunningSquad] = useState(false);
+
+  // Case tests state
+  const [caseTests, setCaseTests] = useState([
+    { id: 'create-case', name: 'Create Case', status: 'idle', fn: testCreateCase },
+    { id: 'update-status', name: 'Update Case Status', status: 'idle', fn: testUpdateCaseStatus },
+    { id: 'add-note', name: 'Add Note to Case', status: 'idle', fn: testAddCaseNote },
+  ]);
+  const [runningCase, setRunningCase] = useState(false);
 
   const runLegalTests = async () => {
     setRunningLegal(true);
@@ -492,6 +623,40 @@ function TestsPanel({ onTestComplete }) {
     setRunningSquad(false);
   };
 
+  const runCaseTests = async () => {
+    setRunningCase(true);
+
+    for (let i = 0; i < caseTests.length; i++) {
+      const test = caseTests[i];
+
+      // Mark test as running
+      setCaseTests(prev => prev.map(t =>
+        t.id === test.id ? { ...t, status: 'running' } : t
+      ));
+
+      // Execute test
+      const result = await runTest(test.name, test.fn);
+
+      // Update test with result
+      setCaseTests(prev => prev.map(t =>
+        t.id === test.id ? { ...t, ...result } : t
+      ));
+
+      // Notify parent
+      onTestComplete(result);
+    }
+
+    setRunningCase(false);
+  };
+
+  const runAllTests = async () => {
+    await runLegalTests();
+    await runSquadTests();
+    await runCaseTests();
+  };
+
+  const isAnyRunning = runningLegal || runningSquad || runningCase;
+
   return (
     <div className="space-y-6">
       {/* Info Banner */}
@@ -511,6 +676,21 @@ function TestsPanel({ onTestComplete }) {
         </div>
       </div>
 
+      {/* Run All Tests Button */}
+      <button
+        onClick={runAllTests}
+        disabled={isAnyRunning}
+        className={`
+          w-full px-8 py-4 rounded-lg font-bold text-lg transition-colors
+          ${isAnyRunning
+            ? 'bg-gray-400 cursor-not-allowed text-white'
+            : 'bg-green-600 hover:bg-green-700 text-white shadow-lg'
+          }
+        `}
+      >
+        {isAnyRunning ? 'Running Tests...' : '▶️ Run All Tests'}
+      </button>
+
       {/* Legal Test Suite */}
       <TestSuite
         title="Legal Tests"
@@ -527,12 +707,13 @@ function TestsPanel({ onTestComplete }) {
         running={runningSquad}
       />
 
-      {/* Placeholder for Case test suite */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-        <p className="text-sm text-gray-600">
-          Case test suite coming in TASK-Q04
-        </p>
-      </div>
+      {/* Case Test Suite */}
+      <TestSuite
+        title="Case Tests"
+        tests={caseTests}
+        onRun={runCaseTests}
+        running={runningCase}
+      />
     </div>
   );
 }
