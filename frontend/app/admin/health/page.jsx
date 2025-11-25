@@ -648,6 +648,8 @@ const ERROR_IMPACT = {
   'squad.leave_failed': { label: 'Squad Management', severity: 'low' },
   'admin.test_geocode_run': { label: 'Admin Tools', severity: 'low' },
   'admin.test_email_sent': { label: 'Admin Tools', severity: 'low' },
+  'qa.test_executed': { label: 'QA Tests', severity: 'low' },
+  'qa.test_data_generated': { label: 'QA Data Gen', severity: 'low' },
 };
 
 function getErrorImpact(eventType) {

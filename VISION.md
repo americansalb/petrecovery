@@ -116,12 +116,27 @@ The "optimization" removed:
   - **Legal Integration:** Full waiver enforcement for all case actions
   - **See:** `docs/features/lost-pet-cases-mvp.md`
 
+- **🎉 Phase 20-21: Admin QA Harness MVP** ✅ **COMPLETE** (Nov 25, 2025)
+  - **QA Page:** Browser-based testing and data generation at `/admin/qa`
+  - **Test Suites:** 10 smoke tests (3 Legal + 4 Squad + 3 Case)
+    - Legal: Waiver acceptance, blocked actions
+    - Squad: Create, search, join, leave
+    - Case: Create, update status, add notes
+  - **Data Generators:** Create demo squads and cases without shell scripts
+    - Squad generator with customizable cities
+    - Case generator with random species, breeds, colors
+    - Test data cleanup (mark [TEST] cases as CLOSED_OTHER)
+  - **Test Execution Engine:** Real-time status, duration tracking, error display
+  - **Observability:** All QA actions emit `qa.*` events visible in admin health
+  - **Perfect for Render:** No SSH access required, all browser-based
+  - **See:** `docs/features/admin-qa-harness-mvp.md`
+
 - **Phase 25+: Notifications System** ❌
 
 ### 🎯 Next Tactical Priorities
 
 1. **Identify and implement next phase cluster from roadmap**
-   - Build on Phase 0 (observability + legal) + Phase 13-14 (cases) foundations
+   - Build on Phase 0 (observability), Phase 13-14 (cases), Phase 20-21 (QA) foundations
    - Continue 108-phase roadmap with same discipline
    - All features must emit structured events and respect legal gating
    - Candidate phases: public case portal, notifications MVP, role/permission refinement
