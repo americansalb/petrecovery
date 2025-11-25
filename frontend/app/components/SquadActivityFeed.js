@@ -210,7 +210,7 @@ export default function SquadActivityFeed({ squadId, caseId = null, isLeader = f
                 }}
                 onClick={() => {
                   if (activity.caseId) {
-                    window.location.href = `/cases/${activity.caseId}`;
+                    window.location.href = `/cases/internal/${activity.caseId}`;
                   }
                 }}
               >

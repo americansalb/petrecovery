@@ -779,7 +779,7 @@ export default function RescueSquadDetailPage({ params }) {
                           {acceptingCase === caseItem.id ? 'Accepting...' : 'Accept Case'}
                         </button>
                         <Link
-                          href={`/cases/${caseItem.id}`}
+                          href={`/cases/internal/${caseItem.id}`}
                           style={{
                             padding: '0.75rem 1.5rem',
                             background: '#f1f5f9',
@@ -1251,7 +1251,7 @@ export default function RescueSquadDetailPage({ params }) {
                             </button>
                           )}
                           <Link
-                            href={`/cases/${assignment.case.id}`}
+                            href={`/cases/internal/${assignment.case.id}`}
                             style={{
                               padding: '1rem 1.75rem',
                               background: 'white',
