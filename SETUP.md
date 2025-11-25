@@ -66,6 +66,125 @@ SMTP_FROM="PetRecovery <noreply@petrecovery.org>"
 
 ---
 
+## Step 2b: Notification System Configuration (Phase 25-26)
+
+**⚠️ Updated Email Configuration (Current Implementation)**
+
+The application now uses a simplified email configuration. Update your `/frontend/.env.local`:
+
+```env
+# Email Configuration (Phase 25-26)
+EMAIL_SERVICE="gmail"                    # or "sendgrid", "mailgun", etc.
+EMAIL_USER="your-email@gmail.com"
+EMAIL_PASSWORD="your-gmail-app-password"
+EMAIL_FROM="PetRecovery <noreply@petrecovery.org>"
+
+# Admin Notifications
+ADMIN_NOTIFICATION_EMAIL="admin@petrecovery.org"  # Receives alerts for new public reports
+```
+
+### Email Service Setup
+
+**Option 1: Gmail (Recommended for Development)**
+
+1. Go to [Google Account Security](https://myaccount.google.com/security)
+2. Enable 2-Factor Authentication (required)
+3. Navigate to "App passwords" under Security settings
+4. Select "Mail" and generate an app password
+5. Use generated password in `EMAIL_PASSWORD`
+
+Example configuration:
+```env
+EMAIL_SERVICE="gmail"
+EMAIL_USER="youremail@gmail.com"
+EMAIL_PASSWORD="abcd efgh ijkl mnop"  # 16-character app password
+EMAIL_FROM="PetRecovery <noreply@petrecovery.org>"
+ADMIN_NOTIFICATION_EMAIL="youremail@gmail.com"
+```
+
+**Option 2: SendGrid (Recommended for Production)**
+
+1. Sign up at [SendGrid](https://sendgrid.com)
+2. Create an API key with "Mail Send" permissions
+3. Verify your sender email domain
+4. Use API key as password
+
+Example configuration:
+```env
+EMAIL_SERVICE="sendgrid"
+EMAIL_USER="apikey"                    # Literally the word "apikey"
+EMAIL_PASSWORD="SG.xxxxxxxxxxxxxxxx"   # Your SendGrid API key
+EMAIL_FROM="PetRecovery <noreply@petrecovery.org>"
+ADMIN_NOTIFICATION_EMAIL="admin@petrecovery.org"
+```
+
+**Option 3: Other Providers**
+
+Nodemailer supports [many email services](https://nodemailer.com/smtp/well-known/):
+- `EMAIL_SERVICE="mailgun"` - Mailgun
+- `EMAIL_SERVICE="outlook"` - Outlook/Hotmail
+- `EMAIL_SERVICE="yahoo"` - Yahoo Mail
+- Custom SMTP (see Advanced Configuration below)
+
+### Admin Notification Email
+
+The `ADMIN_NOTIFICATION_EMAIL` receives urgent alerts when:
+- Public lost pet reports are submitted
+- Cases require review or approval
+
+**Best practices:**
+- Use a monitored email address (checked frequently)
+- Consider using a distribution list for teams
+- Set up email filters to prioritize PetRecovery alerts
+
+### Testing Email Configuration
+
+Test your email setup from the Admin Health Dashboard:
+
+1. Start the dev server: `npm run dev`
+2. Login as admin
+3. Navigate to `/admin/health`
+4. Scroll to "Service Health Checks" section
+5. Click "Test Email" button
+6. Check your inbox for test email
+
+### Advanced Configuration (Custom SMTP)
+
+If your provider isn't supported, use custom SMTP settings:
+
+```env
+# Custom SMTP (instead of EMAIL_SERVICE)
+EMAIL_HOST="smtp.example.com"
+EMAIL_PORT="587"
+EMAIL_SECURE="false"                   # true for port 465, false for other ports
+EMAIL_USER="your-username"
+EMAIL_PASSWORD="your-password"
+EMAIL_FROM="PetRecovery <noreply@petrecovery.org>"
+ADMIN_NOTIFICATION_EMAIL="admin@example.com"
+```
+
+Update `/frontend/app/lib/email.js` to use these variables if needed.
+
+### Notification Types
+
+The system sends three types of emails:
+
+1. **Case Report Confirmation** - Sent to contact when public report submitted
+2. **Admin Alert** - Sent to `ADMIN_NOTIFICATION_EMAIL` when public report needs review
+3. **Status Update** - Sent to contact when case status changes (ACTIVE_SEARCH, RESOLVED, CLOSED_OTHER)
+
+All notification attempts are logged to the EventLog database and visible in `/admin/health`.
+
+### Future Enhancement
+
+Currently, admin notifications use an environment variable. A future phase will add:
+- Admin settings UI at `/admin/settings`
+- Configure notification preferences without server restart
+- Multiple admin recipients with roles
+- Email templates customization
+
+---
+
 ## Step 3: Generate Prisma Client & Migrate
 
 ```bash
