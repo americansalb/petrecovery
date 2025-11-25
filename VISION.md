@@ -116,6 +116,22 @@ The "optimization" removed:
   - **Legal Integration:** Full waiver enforcement for all case actions
   - **See:** `docs/features/lost-pet-cases-mvp.md`
 
+- **🎉 Phase 15-16: Public Lost Pet Case Portal MVP** ✅ **COMPLETE** (Nov 25, 2025)
+  - **Database Changes:** Added `isPublic`, `publicContactOk`, `source` fields to `LostPetCase`
+  - **Public API Endpoints:** 3 public endpoints (NO authentication required)
+    - GET /api/public/cases (list with city/state/species/status filters)
+    - GET /api/public/cases/[caseNumber] (detail with privacy controls)
+    - POST /api/public/cases (submit report, creates isPublic=false case)
+  - **Public Pages:** 3 public-facing pages at `/cases`
+    - List page with filters and pagination
+    - Detail page with conditional contact info display
+    - Report form for public lost pet submissions
+  - **Privacy Controls:** Contact info only shown if `publicContactOk=true`
+  - **Safe Defaults:** All cases default to `isPublic=false` (admin approval required)
+  - **Observability:** All public actions emit `public_case.*` events
+  - **QA Integration:** 3 new tests in QA harness (list, detail, submit)
+  - **See:** `docs/features/public-lost-pet-portal-mvp.md`
+
 - **🎉 Phase 20-21: Admin QA Harness MVP** ✅ **COMPLETE** (Nov 25, 2025)
   - **QA Page:** Browser-based testing and data generation at `/admin/qa`
   - **Test Suites:** 10 smoke tests (3 Legal + 4 Squad + 3 Case)
@@ -136,10 +152,10 @@ The "optimization" removed:
 ### 🎯 Next Tactical Priorities
 
 1. **Identify and implement next phase cluster from roadmap**
-   - Build on Phase 0 (observability), Phase 13-14 (cases), Phase 20-21 (QA) foundations
+   - Build on Phase 0 (observability), Phase 13-14 (cases), Phase 15-16 (public portal), Phase 20-21 (QA) foundations
    - Continue 108-phase roadmap with same discipline
    - All features must emit structured events and respect legal gating
-   - Candidate phases: public case portal, notifications MVP, role/permission refinement
+   - Candidate phases: notifications MVP, role/permission refinement, pet matching algorithm
 
 **🎉 MAJOR MILESTONE:** Phase 0 now 100% complete!
 
