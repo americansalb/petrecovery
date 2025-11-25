@@ -1,0 +1,361 @@
+/**
+ * Public Cases API - List & Report
+ * Phase 15-16: Public Lost Pet Case Portal MVP (TASK-P02)
+ *
+ * GET /api/public/cases - List public cases with filters
+ * POST /api/public/cases - Submit public lost pet report
+ *
+ * NO AUTHENTICATION REQUIRED (public endpoints)
+ */
+
+import { NextResponse } from 'next/server';
+import prisma from '@/app/lib/prisma';
+import { logEvent } from '@/lib/logging';
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+/**
+ * GET /api/public/cases - List public lost pet cases
+ * Query params: city, state, species, status, page (default 1), limit (default 20, max 100)
+ * Only returns cases where isPublic=true
+ */
+export async function GET(request) {
+  const startTime = Date.now();
+
+  try {
+    // Parse query params
+    const { searchParams } = new URL(request.url);
+    const city = searchParams.get('city');
+    const state = searchParams.get('state');
+    const species = searchParams.get('species');
+    const status = searchParams.get('status');
+    const page = Math.max(parseInt(searchParams.get('page') || '1'), 1);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
+    const offset = (page - 1) * limit;
+
+    // Build where clause - CRITICAL: Only show public cases
+    const where = {
+      isPublic: true
+    };
+
+    if (city) where.city = { contains: city, mode: 'insensitive' };
+    if (state) where.state = { contains: state, mode: 'insensitive' };
+    if (status) where.status = status;
+    if (species) where.petSpecies = species;
+
+    // Fetch public cases (NO sensitive fields exposed)
+    const [cases, totalCount] = await Promise.all([
+      prisma.lostPetCase.findMany({
+        where,
+        select: {
+          id: true,
+          caseNumber: true,
+          createdAt: true,
+          updatedAt: true,
+          // Pet info
+          petName: true,
+          petSpecies: true,
+          petBreed: true,
+          petColor: true,
+          petDescription: true,
+          // Location
+          city: true,
+          state: true,
+          zipCode: true,
+          lastSeenLandmark: true,
+          lastSeenAt: true,
+          // Status
+          status: true,
+          statusReason: true,
+          isUrgent: true,
+          // Public visibility flags
+          isPublic: true,
+          publicContactOk: true,
+          // IMPORTANT: Do NOT expose:
+          // - contactName, contactPhone, contactEmail (only on detail page if publicContactOk=true)
+          // - createdById (internal only)
+          // - squadId (internal only)
+          // - source (internal only)
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: offset,
+        take: limit
+      }),
+      prisma.lostPetCase.count({ where })
+    ]);
+
+    const responseTime = Date.now() - startTime;
+
+    await logEvent({
+      event_type: 'public_case.list_viewed',
+      resource_type: 'public_case',
+      action: 'read',
+      result: 'success',
+      actor_role: 'public',
+      metadata: {
+        filters: { city, state, species, status },
+        results_count: cases.length,
+        total_count: totalCount,
+        page,
+        limit,
+        response_time_ms: responseTime
+      }
+    });
+
+    return NextResponse.json({
+      cases,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasMore: (page * limit) < totalCount
+      },
+      filters: { city, state, species, status }
+    });
+
+  } catch (error) {
+    console.error('Error listing public cases:', error);
+
+    await logEvent({
+      event_type: 'public_case.list_failed',
+      resource_type: 'public_case',
+      action: 'read',
+      result: 'failure',
+      error_code: 'INTERNAL_ERROR',
+      error_message: error.message,
+      actor_role: 'public',
+      metadata: {
+        error_stack: error.stack?.substring(0, 500)
+      }
+    });
+
+    return NextResponse.json({
+      error: 'Failed to list public cases',
+      code: 'INTERNAL_ERROR',
+      message: error.message
+    }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/public/cases - Submit public lost pet report
+ * NO AUTHENTICATION REQUIRED
+ * Creates case with isPublic=false (requires admin approval)
+ */
+export async function POST(request) {
+  const startTime = Date.now();
+
+  try {
+    // Parse request body
+    const body = await request.json();
+    const {
+      city,
+      state,
+      zipCode,
+      petName,
+      petSpecies,
+      petBreed,
+      petColor,
+      petDescription,
+      lastSeenLandmark,
+      lastSeenAt,
+      contactName,
+      contactPhone,
+      contactEmail,
+      agreeToTerms
+    } = body;
+
+    // Validate required fields
+    const missingFields = [];
+    if (!city) missingFields.push('city');
+    if (!state) missingFields.push('state');
+    if (!petSpecies) missingFields.push('petSpecies');
+    if (!contactName) missingFields.push('contactName');
+    if (!contactEmail && !contactPhone) missingFields.push('contactEmail or contactPhone');
+
+    if (missingFields.length > 0) {
+      await logEvent({
+        event_type: 'public_case.report_failed',
+        resource_type: 'public_case',
+        action: 'create',
+        result: 'failure',
+        error_code: 'VALIDATION_ERROR',
+        error_message: `Missing required fields: ${missingFields.join(', ')}`,
+        actor_role: 'public',
+        metadata: { missingFields }
+      });
+
+      return NextResponse.json({
+        error: 'Validation error',
+        code: 'VALIDATION_ERROR',
+        message: `Missing required fields: ${missingFields.join(', ')}`,
+        fields: missingFields
+      }, { status: 400 });
+    }
+
+    // Validate petSpecies enum
+    const validSpecies = ['DOG', 'CAT', 'BIRD', 'OTHER'];
+    if (!validSpecies.includes(petSpecies)) {
+      await logEvent({
+        event_type: 'public_case.report_failed',
+        resource_type: 'public_case',
+        action: 'create',
+        result: 'failure',
+        error_code: 'VALIDATION_ERROR',
+        error_message: `Invalid pet species: ${petSpecies}`,
+        actor_role: 'public',
+        metadata: { petSpecies, validSpecies }
+      });
+
+      return NextResponse.json({
+        error: 'Invalid pet species',
+        code: 'VALIDATION_ERROR',
+        message: 'Pet species must be DOG, CAT, BIRD, or OTHER'
+      }, { status: 400 });
+    }
+
+    // Validate terms acceptance
+    if (!agreeToTerms) {
+      await logEvent({
+        event_type: 'public_case.report_failed',
+        resource_type: 'public_case',
+        action: 'create',
+        result: 'failure',
+        error_code: 'TERMS_NOT_ACCEPTED',
+        error_message: 'Public report submitted without agreeing to terms',
+        actor_role: 'public',
+        metadata: {}
+      });
+
+      return NextResponse.json({
+        error: 'Terms not accepted',
+        code: 'TERMS_NOT_ACCEPTED',
+        message: 'You must agree to the terms and conditions'
+      }, { status: 400 });
+    }
+
+    // Emit report_attempted event
+    await logEvent({
+      event_type: 'public_case.report_attempted',
+      resource_type: 'public_case',
+      action: 'create',
+      result: 'success',
+      actor_role: 'public',
+      metadata: {
+        city,
+        state,
+        petSpecies
+      }
+    });
+
+    // Generate case number: CITY-YEAR-SEQUENCE
+    const currentYear = new Date().getFullYear();
+    const cityPrefix = city.substring(0, 3).toUpperCase();
+
+    const caseCount = await prisma.lostPetCase.count({
+      where: {
+        caseNumber: {
+          startsWith: `${cityPrefix}-${currentYear}-`
+        }
+      }
+    });
+
+    const sequence = String(caseCount + 1).padStart(4, '0');
+    const caseNumber = `${cityPrefix}-${currentYear}-${sequence}`;
+
+    // Create case - IMPORTANT: isPublic=false by default (requires admin approval)
+    const newCase = await prisma.lostPetCase.create({
+      data: {
+        caseNumber,
+        city,
+        state,
+        zipCode,
+        petName,
+        petSpecies,
+        petBreed,
+        petColor,
+        petDescription,
+        lastSeenLandmark,
+        lastSeenAt: lastSeenAt ? new Date(lastSeenAt) : null,
+        contactName,
+        contactPhone,
+        contactEmail,
+        status: 'OPEN',
+        isUrgent: false,
+        // Public visibility - SAFE DEFAULTS
+        isPublic: false,        // Requires admin approval
+        publicContactOk: false, // Contact info protected by default
+        source: 'PUBLIC_REPORT' // Track that this came from public form
+        // NOTE: createdById is NULL for public reports (no user account)
+      },
+      select: {
+        id: true,
+        caseNumber: true,
+        createdAt: true,
+        city: true,
+        state: true,
+        petName: true,
+        petSpecies: true
+      }
+    });
+
+    const responseTime = Date.now() - startTime;
+
+    // Emit success event
+    await logEvent({
+      event_type: 'public_case.report_submitted',
+      resource_type: 'public_case',
+      resource_id: newCase.id,
+      action: 'create',
+      result: 'success',
+      actor_role: 'public',
+      metadata: {
+        caseId: newCase.id,
+        caseNumber: newCase.caseNumber,
+        city: newCase.city,
+        state: newCase.state,
+        petSpecies: newCase.petSpecies,
+        source: 'PUBLIC_REPORT',
+        response_time_ms: responseTime
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      caseNumber: newCase.caseNumber,
+      message: 'Your lost pet report has been submitted and is pending admin approval.',
+      case: {
+        caseNumber: newCase.caseNumber,
+        city: newCase.city,
+        state: newCase.state,
+        petName: newCase.petName,
+        petSpecies: newCase.petSpecies,
+        createdAt: newCase.createdAt
+      }
+    }, { status: 201 });
+
+  } catch (error) {
+    console.error('Error creating public case report:', error);
+
+    await logEvent({
+      event_type: 'public_case.report_failed',
+      resource_type: 'public_case',
+      action: 'create',
+      result: 'failure',
+      error_code: 'DB_WRITE_FAILED',
+      error_message: error.message,
+      actor_role: 'public',
+      metadata: {
+        error_stack: error.stack?.substring(0, 500)
+      }
+    });
+
+    return NextResponse.json({
+      error: 'Failed to submit report',
+      code: 'INTERNAL_ERROR',
+      message: error.message
+    }, { status: 500 });
+  }
+}
