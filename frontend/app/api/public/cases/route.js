@@ -11,6 +11,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
+import { sendCaseReportConfirmation, sendAdminPublicReportAlert } from '@/app/lib/notifications';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -296,8 +297,15 @@ export async function POST(request) {
         createdAt: true,
         city: true,
         state: true,
+        zipCode: true,
         petName: true,
-        petSpecies: true
+        petSpecies: true,
+        petBreed: true,
+        petColor: true,
+        lastSeenLandmark: true,
+        contactName: true,
+        contactEmail: true,
+        contactPhone: true
       }
     });
 
@@ -321,6 +329,61 @@ export async function POST(request) {
         response_time_ms: responseTime
       }
     });
+
+    // NEW (Phase 25-26): Send notifications (non-blocking - errors don't break API response)
+    try {
+      // 1. Send confirmation to contact (if email provided)
+      if (newCase.contactEmail) {
+        await sendCaseReportConfirmation({
+          caseNumber: newCase.caseNumber,
+          petName: newCase.petName,
+          petSpecies: newCase.petSpecies,
+          city: newCase.city,
+          state: newCase.state,
+          contactName: newCase.contactName,
+          contactEmail: newCase.contactEmail,
+          createdAt: newCase.createdAt
+        }, { isPublicReport: true });
+      }
+
+      // 2. Send alert to admin (if configured)
+      const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+      if (adminEmail) {
+        await sendAdminPublicReportAlert({
+          id: newCase.id,
+          caseNumber: newCase.caseNumber,
+          petName: newCase.petName,
+          petSpecies: newCase.petSpecies,
+          petBreed: newCase.petBreed,
+          city: newCase.city,
+          state: newCase.state,
+          zipCode: newCase.zipCode,
+          lastSeenLandmark: newCase.lastSeenLandmark,
+          contactName: newCase.contactName,
+          contactEmail: newCase.contactEmail,
+          contactPhone: newCase.contactPhone,
+          createdAt: newCase.createdAt
+        });
+      }
+    } catch (notificationError) {
+      // Log error but don't break the API response
+      console.error('❌ Notification error:', notificationError);
+
+      // Individual notification functions already log their own failures,
+      // but log this top-level exception as well
+      await logEvent({
+        event_type: 'notification.send_failed',
+        resource_type: 'notification',
+        action: 'create',
+        result: 'failure',
+        error_code: 'NOTIFICATION_EXCEPTION',
+        error_message: notificationError.message,
+        metadata: {
+          case_number: newCase.caseNumber,
+          error_stack: notificationError.stack?.substring(0, 500)
+        }
+      });
+    }
 
     return NextResponse.json({
       success: true,
