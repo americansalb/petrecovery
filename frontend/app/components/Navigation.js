@@ -13,6 +13,9 @@ export default function Navigation() {
   const [showSquadsDropdown, setShowSquadsDropdown] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
+  const isLandingOrAuthPage =
+    pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/register');
+
   useEffect(() => {
     if (session?.user?.id) {
       loadUserSquads();
@@ -32,12 +35,120 @@ export default function Navigation() {
   };
 
   // Don't show nav on landing page or auth pages
-  if (pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/register')) {
+  if (isLandingOrAuthPage) {
     return null;
   }
 
   if (!session) {
-    return null;
+    return (
+      <nav style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 1000,
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderBottom: '3px solid rgba(255, 255, 255, 0.2)',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+      }}>
+        <div style={{
+          maxWidth: '1400px',
+          margin: '0 auto',
+          padding: '0 1rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          height: '64px',
+          gap: '1rem'
+        }}>
+          <Link href="/cases" style={{
+            fontSize: '1.5rem',
+            fontWeight: '900',
+            color: 'white',
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            whiteSpace: 'nowrap'
+          }}>
+            🐾 PetRecovery
+          </Link>
+
+          <div style={{
+            display: 'flex',
+            gap: '0.5rem',
+            flex: 1,
+            justifyContent: 'center',
+            flexWrap: 'wrap'
+          }}>
+            <Link
+              href="/cases"
+              style={{
+                padding: '0.5rem 1rem',
+                color: 'white',
+                textDecoration: 'none',
+                fontWeight: '700',
+                fontSize: '0.95rem',
+                borderRadius: '8px',
+                background: pathname.startsWith('/cases') && !pathname.startsWith('/cases/report')
+                  ? 'rgba(255, 255, 255, 0.25)'
+                  : 'transparent',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              🔍 Browse Cases
+            </Link>
+            <Link
+              href="/cases/report"
+              style={{
+                padding: '0.5rem 1rem',
+                color: 'white',
+                textDecoration: 'none',
+                fontWeight: '700',
+                fontSize: '0.95rem',
+                borderRadius: '8px',
+                background: pathname.startsWith('/cases/report') ? 'rgba(255, 255, 255, 0.25)' : 'transparent',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              📢 Report Missing Pet
+            </Link>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', whiteSpace: 'nowrap' }}>
+            <Link
+              href="/login"
+              style={{
+                padding: '0.5rem 1rem',
+                color: 'white',
+                textDecoration: 'none',
+                fontWeight: '700',
+                fontSize: '0.95rem',
+                borderRadius: '8px',
+                background: 'rgba(255, 255, 255, 0.15)'
+              }}
+            >
+              🔑 Login
+            </Link>
+            <button
+              onClick={() => router.push('/register')}
+              style={{
+                padding: '0.5rem 1rem',
+                color: '#4f46e5',
+                background: 'white',
+                border: 'none',
+                fontWeight: '800',
+                fontSize: '0.95rem',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+            >
+              ✨ Get Started
+            </button>
+          </div>
+        </div>
+      </nav>
+    );
   }
 
   const navItems = [
