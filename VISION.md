@@ -85,10 +85,11 @@ The "optimization" removed:
   - City/state stored in database
   - Geocoding via OpenStreetMap Nominatim
 
-- **Phase 3: Structured Event Logging** ✅ **COMPLETE**
+- **Phase 3: Structured Event Logging** ✅ **COMPLETE** (Nov 25, 2025)
   - logEvent() utility in `lib/logging.js`
   - EventLog model with indexed queries
-  - ⚠️ Note: Rescue squad endpoints still use console.log (migration pending)
+  - All core endpoints migrated: squads, cases, legal, admin
+  - **See:** `docs/SQUAD_LOGGING_MIGRATION.md`
 
 - **Phase 4: Admin Health Visibility** ✅ **COMPLETE**
   - Admin dashboard operational
@@ -119,15 +120,11 @@ The "optimization" removed:
 
 ### 🎯 Next Tactical Priorities
 
-1. **Migrate rescue squad endpoints to logEvent()**
-   - Replace console.log with structured events
-   - Enable error tracking in admin dashboard
-   - Ensure all squad operations visible in /admin/health
-
-2. **Identify and implement next phase cluster**
+1. **Identify and implement next phase cluster from roadmap**
    - Build on Phase 0 (observability + legal) + Phase 13-14 (cases) foundations
    - Continue 108-phase roadmap with same discipline
    - All features must emit structured events and respect legal gating
+   - Candidate phases: public case portal, notifications MVP, role/permission refinement
 
 **🎉 MAJOR MILESTONE:** Phase 0 now 100% complete!
 

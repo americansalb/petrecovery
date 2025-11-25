@@ -635,12 +635,17 @@ const ERROR_IMPACT = {
   'case.create_failed': { label: 'Case Creation', severity: 'high' },
 
   // Medium severity - affects functionality but not critical paths
+  'squad.search_failed': { label: 'Squad Search', severity: 'medium' },
+  'squad.detail_failed': { label: 'Squad Details', severity: 'medium' },
+  'case.status_change_failed': { label: 'Case Updates', severity: 'medium' },
+  'case.note_add_failed': { label: 'Case Notes', severity: 'medium' },
   'geocoding.failed': { label: 'Location Data', severity: 'medium' },
   'city.resolution_failed': { label: 'City Resolution', severity: 'medium' },
   'notification.send_failed': { label: 'Notifications', severity: 'medium' },
   'email.send_failed': { label: 'Email Delivery', severity: 'medium' },
 
   // Low severity - admin tools, non-critical features
+  'squad.leave_failed': { label: 'Squad Management', severity: 'low' },
   'admin.test_geocode_run': { label: 'Admin Tools', severity: 'low' },
   'admin.test_email_sent': { label: 'Admin Tools', severity: 'low' },
 };

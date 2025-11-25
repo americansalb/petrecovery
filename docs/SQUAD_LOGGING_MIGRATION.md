@@ -146,7 +146,7 @@ await logEvent({
 
 ## Implementation Tasks
 
-### TASK-SL01: Migrate GET /api/rescue-squads (Search)
+### TASK-SL01: Migrate GET /api/rescue-squads (Search) ✅ COMPLETE
 
 **File:** `frontend/app/api/rescue-squads/route.js` (GET handler)
 
@@ -162,15 +162,15 @@ await logEvent({
 3. Remove console.log statements (except critical errors)
 
 **Acceptance Criteria:**
-- [ ] Search attempts logged with search parameters
-- [ ] Successful searches log result count and cities
-- [ ] Failed searches log error details
-- [ ] Events visible in /admin/health Errors tab
-- [ ] Search still functions identically
+- [x] Search attempts logged with search parameters
+- [x] Successful searches log result count and cities
+- [x] Failed searches log error details
+- [x] Events visible in /admin/health Errors tab
+- [x] Search still functions identically
 
 ---
 
-### TASK-SL02: Migrate POST /api/rescue-squads (Create)
+### TASK-SL02: Migrate POST /api/rescue-squads (Create) ✅ COMPLETE
 
 **File:** `frontend/app/api/rescue-squads/route.js` (POST handler)
 
@@ -186,20 +186,19 @@ await logEvent({
 3. Remove console.log, keep logEvent only
 
 **Acceptance Criteria:**
-- [ ] Creation attempts logged
-- [ ] Successful creations log squad ID and details
-- [ ] Failures log error_code and context
-- [ ] Legal gating failures emit both `legal.blocked_action` AND `squad.create_failed`
-- [ ] Events appear in admin health
+- [x] Creation attempts logged
+- [x] Successful creations log squad ID and details
+- [x] Failures log error_code and context
+- [x] Legal gating failures emit both `legal.blocked_action` AND `squad.create_failed`
+- [x] Events appear in admin health
 
 ---
 
-### TASK-SL03: Review and migrate remaining squad endpoints
+### TASK-SL03: Migrate remaining squad endpoints ✅ COMPLETE
 
 **Files:**
 - `frontend/app/api/rescue-squads/[id]/route.js` (GET detail)
 - `frontend/app/api/rescue-squads/[id]/leave/route.js` (POST leave)
-- Others as identified
 
 **Process:**
 1. Read each endpoint
@@ -209,14 +208,14 @@ await logEvent({
 5. Commit individually
 
 **Acceptance Criteria:**
-- [ ] All squad endpoints emit structured events
-- [ ] All failures have error_code + error_message
-- [ ] All successes have useful metadata
-- [ ] No console.log remains (except unavoidable errors)
+- [x] All squad endpoints emit structured events
+- [x] All failures have error_code + error_message
+- [x] All successes have useful metadata
+- [x] No console.log remains (except unavoidable errors)
 
 ---
 
-### TASK-SL04: Update Admin Health Dashboard
+### TASK-SL04: Update Admin Health Dashboard ✅ COMPLETE
 
 **Files:**
 - `frontend/app/admin/health/page.jsx` (ERROR_IMPACT mapping)
@@ -227,20 +226,21 @@ await logEvent({
 'squad.create_failed': { label: 'Squad Creation', severity: 'high' },
 'squad.join_failed': { label: 'Squad Joining', severity: 'high' },
 'squad.search_failed': { label: 'Squad Search', severity: 'medium' },
+'squad.detail_failed': { label: 'Squad Details', severity: 'medium' },
 'squad.leave_failed': { label: 'Squad Management', severity: 'low' },
 ```
 
 2. Verify events appear in Errors tab with correct impact badges
 
 **Acceptance Criteria:**
-- [ ] Squad errors show up in Errors tab
-- [ ] Impact labels are meaningful
-- [ ] Severity ratings make sense
-- [ ] Metadata is useful for debugging
+- [x] Squad errors show up in Errors tab
+- [x] Impact labels are meaningful
+- [x] Severity ratings make sense
+- [x] Metadata is useful for debugging
 
 ---
 
-### TASK-SL05: Update Documentation
+### TASK-SL05: Update Documentation ✅ COMPLETE
 
 **Files:**
 - `VISION.md`
@@ -253,9 +253,9 @@ await logEvent({
 2. Mark all tasks in this file as [x] complete
 
 **Acceptance Criteria:**
-- [ ] VISION.md reflects completed migration
-- [ ] Task file shows all tasks complete
-- [ ] Commit message: "[Tactical] Complete rescue squad logging migration"
+- [x] VISION.md reflects completed migration
+- [x] Task file shows all tasks complete
+- [x] Commit message: "[Tactical] Complete rescue squad logging migration"
 
 ---
 
