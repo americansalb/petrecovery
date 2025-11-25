@@ -58,7 +58,10 @@ export async function GET(request) {
       usersTotal,
       rescueSquadsTotal,
       rescueSquadsActive,
-      uniqueCities
+      uniqueCities,
+      casesTotal,
+      casesOpen,
+      casesActiveSearch
     ] = await Promise.all([
       // Total users
       prisma.user.count(),
@@ -82,6 +85,19 @@ export async function GET(request) {
           state: true
         },
         distinct: ['city', 'state']
+      }),
+
+      // Phase 13-14: Lost Pet Cases
+      prisma.lostPetCase.count(),
+
+      // Cases with OPEN status
+      prisma.lostPetCase.count({
+        where: { status: 'OPEN' }
+      }),
+
+      // Cases with ACTIVE_SEARCH status
+      prisma.lostPetCase.count({
+        where: { status: 'ACTIVE_SEARCH' }
       })
     ]);
 
@@ -100,6 +116,7 @@ export async function GET(request) {
     console.log(`   - Cities: ${citiesTotal}`);
     console.log(`   - Rescue Squads: ${rescueSquadsTotal} (${rescueSquadsActive} active)`);
     console.log(`   - Squad Members: ${squadMembersTotal} (${activeSquadMembers} active)`);
+    console.log(`   - Cases: ${casesTotal} (${casesOpen} open, ${casesActiveSearch} active search)`);
 
     // ============================================================================
     // EVENT LOGGING
@@ -115,6 +132,9 @@ export async function GET(request) {
         users_total: usersTotal,
         cities_total: citiesTotal,
         rescue_squads_total: rescueSquadsTotal,
+        cases_total: casesTotal,
+        cases_open: casesOpen,
+        cases_active_search: casesActiveSearch,
         response_time_ms: responseTime
       }
     });
@@ -136,8 +156,12 @@ export async function GET(request) {
         squad_members_total: squadMembersTotal,
         squad_members_active: activeSquadMembers,
 
+        // Phase 13-14: Lost Pet Cases
+        cases_total: casesTotal,
+        cases_open: casesOpen,
+        cases_active_search: casesActiveSearch,
+
         // Future expansion placeholders
-        // cases_total: 0,           // Phase 13+
         // sightings_total: 0,       // Phase 15+
         // notifications_total: 0,   // Phase 25+
       }

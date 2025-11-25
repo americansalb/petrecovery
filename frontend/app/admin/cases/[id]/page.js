@@ -1,0 +1,583 @@
+'use client';
+
+/**
+ * Admin Case Detail Page
+ * Phase 13-14: Lost Pet Cases MVP (TASK-C03-A)
+ *
+ * Shows complete case details with notes timeline and status update controls
+ */
+
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+
+export default function CaseDetailPage({ params }) {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // Case data
+  const [caseData, setCaseData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [legalError, setLegalError] = useState(null);
+
+  // Status update state
+  const [newStatus, setNewStatus] = useState('');
+  const [statusReason, setStatusReason] = useState('');
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  // Note state
+  const [noteContent, setNoteContent] = useState('');
+  const [addingNote, setAddingNote] = useState(false);
+
+  // Auth check and redirect
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login?callbackUrl=' + encodeURIComponent('/admin/cases/' + params.id));
+    } else if (status === 'authenticated' && session?.user?.role !== 'ADMIN') {
+      router.push('/dashboard');
+    }
+  }, [status, session, router, params.id]);
+
+  // Fetch case data
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.role === 'ADMIN') {
+      fetchCase();
+    }
+  }, [status, session, params.id]);
+
+  const fetchCase = async () => {
+    setLoading(true);
+    setError(null);
+    setLegalError(null);
+
+    try {
+      const response = await fetch('/api/cases/' + params.id);
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 403 && data.code === 'WAIVER_NOT_ACCEPTED') {
+          setLegalError({
+            message: data.message,
+            redirectTo: data.redirectTo
+          });
+          return;
+        }
+        if (response.status === 404) {
+          setError('Case not found');
+          return;
+        }
+        throw new Error(data.error || 'Failed to fetch case');
+      }
+
+      setCaseData(data.case);
+      setNewStatus(data.case.status);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusUpdate = async () => {
+    if (!newStatus || newStatus === caseData.status) return;
+
+    setUpdatingStatus(true);
+    try {
+      const response = await fetch('/api/cases/' + params.id + '/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: newStatus,
+          statusReason: statusReason.trim() || null
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 403 && data.code === 'WAIVER_NOT_ACCEPTED') {
+          setLegalError({
+            message: data.message,
+            redirectTo: data.redirectTo
+          });
+          return;
+        }
+        throw new Error(data.error || 'Failed to update status');
+      }
+
+      setStatusReason('');
+      await fetchCase();
+    } catch (err) {
+      alert('Error updating status: ' + err.message);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const handleAddNote = async (e) => {
+    e.preventDefault();
+    if (!noteContent.trim()) return;
+
+    setAddingNote(true);
+    try {
+      const response = await fetch('/api/cases/' + params.id + '/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: noteContent.trim() })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 403 && data.code === 'WAIVER_NOT_ACCEPTED') {
+          setLegalError({
+            message: data.message,
+            redirectTo: data.redirectTo
+          });
+          return;
+        }
+        throw new Error(data.error || 'Failed to add note');
+      }
+
+      setNoteContent('');
+      await fetchCase();
+    } catch (err) {
+      alert('Error adding note: ' + err.message);
+    } finally {
+      setAddingNote(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f9fafb'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📋</div>
+          <div style={{ color: '#64748b' }}>Loading case...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f9fafb', padding: '2rem' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <button
+            onClick={() => router.push('/admin/cases')}
+            style={{
+              padding: '0.5rem 1rem',
+              background: 'white',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              marginBottom: '1rem'
+            }}
+          >
+            ← Back to Cases
+          </button>
+          <div style={{
+            padding: '2rem',
+            background: '#fee2e2',
+            border: '1px solid #ef4444',
+            borderRadius: '12px',
+            color: '#991b1b'
+          }}>
+            Error: {error}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!caseData) {
+    return null;
+  }
+
+  const statusColors = {
+    'OPEN': { bg: '#dbeafe', color: '#1e40af' },
+    'ACTIVE_SEARCH': { bg: '#fef3c7', color: '#92400e' },
+    'RESOLVED': { bg: '#d1fae5', color: '#065f46' },
+    'CLOSED_OTHER': { bg: '#e5e7eb', color: '#374151' }
+  };
+  const statusColor = statusColors[caseData.status] || statusColors['OPEN'];
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#f9fafb', padding: '2rem' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        {/* Back Button */}
+        <button
+          onClick={() => router.push('/admin/cases')}
+          style={{
+            padding: '0.5rem 1rem',
+            background: 'white',
+            border: '1px solid #d1d5db',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            marginBottom: '1rem'
+          }}
+        >
+          ← Back to Cases
+        </button>
+
+        {/* Header */}
+        <div style={{ marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+            <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#111827', margin: 0 }}>
+              {caseData.caseNumber}
+            </h1>
+            <span style={{
+              padding: '0.5rem 1rem',
+              background: statusColor.bg,
+              color: statusColor.color,
+              borderRadius: '12px',
+              fontSize: '0.875rem',
+              fontWeight: '600'
+            }}>
+              {caseData.status.replace('_', ' ')}
+            </span>
+            {caseData.isUrgent && (
+              <span style={{
+                padding: '0.5rem 1rem',
+                background: '#fee2e2',
+                color: '#991b1b',
+                borderRadius: '12px',
+                fontSize: '0.875rem',
+                fontWeight: '600'
+              }}>
+                ⚠️ URGENT
+              </span>
+            )}
+          </div>
+          <p style={{ color: '#6b7280', margin: 0 }}>
+            {caseData.city}, {caseData.state}
+          </p>
+        </div>
+
+        {/* Legal Error Banner */}
+        {legalError && (
+          <div style={{
+            padding: '1.5rem',
+            background: '#fef3c7',
+            border: '2px solid #fbbf24',
+            borderRadius: '12px',
+            marginBottom: '2rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+              <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: '700', color: '#92400e', marginBottom: '0.25rem' }}>
+                  Legal Agreement Required
+                </div>
+                <div style={{ color: '#b45309', fontSize: '0.95rem' }}>
+                  {legalError.message}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push(legalError.redirectTo)}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              Review & Accept Now →
+            </button>
+          </div>
+        )}
+
+        {/* Main Content Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
+          {/* Left Column */}
+          <div>
+            {/* Pet Information */}
+            <Section title="Pet Information">
+              <Field label="Name" value={caseData.petName || '—'} />
+              <Field label="Species" value={caseData.petSpecies} />
+              <Field label="Breed" value={caseData.petBreed || '—'} />
+              <Field label="Color" value={caseData.petColor || '—'} />
+              <Field label="Description" value={caseData.petDescription || '—'} />
+            </Section>
+
+            {/* Last Seen Location */}
+            <Section title="Last Seen Location">
+              <Field label="City" value={caseData.city} />
+              <Field label="State" value={caseData.state} />
+              <Field label="ZIP Code" value={caseData.zipCode || '—'} />
+              <Field label="Landmark" value={caseData.lastSeenLandmark || '—'} />
+              <Field
+                label="Last Seen At"
+                value={caseData.lastSeenAt ? new Date(caseData.lastSeenAt).toLocaleString() : '—'}
+              />
+            </Section>
+
+            {/* Contact Information */}
+            <Section title="Contact Information">
+              <Field label="Name" value={caseData.contactName || '—'} />
+              <Field label="Phone" value={caseData.contactPhone || '—'} />
+              <Field label="Email" value={caseData.contactEmail || '—'} />
+            </Section>
+
+            {/* Case Notes */}
+            <Section title="Case Notes">
+              {/* Add Note Form */}
+              <form onSubmit={handleAddNote} style={{ marginBottom: '1.5rem' }}>
+                <textarea
+                  value={noteContent}
+                  onChange={(e) => setNoteContent(e.target.value)}
+                  placeholder="Add a note to this case..."
+                  rows={3}
+                  disabled={addingNote}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem',
+                    marginBottom: '0.5rem',
+                    resize: 'vertical'
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={addingNote || !noteContent.trim()}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: '#10b981',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    opacity: (addingNote || !noteContent.trim()) ? 0.5 : 1
+                  }}
+                >
+                  {addingNote ? 'Adding...' : 'Add Note'}
+                </button>
+              </form>
+
+              {/* Notes List */}
+              <div>
+                {caseData.notes && caseData.notes.length > 0 ? (
+                  caseData.notes.map((note) => {
+                    const typeColors = {
+                      'STATUS_CHANGE': { bg: '#fef3c7', color: '#92400e', label: 'Status Change' },
+                      'NOTE': { bg: '#e0e7ff', color: '#3730a3', label: 'Note' }
+                    };
+                    const typeColor = typeColors[note.type] || typeColors['NOTE'];
+
+                    return (
+                      <div key={note.id} style={{
+                        padding: '1rem',
+                        background: '#f9fafb',
+                        borderRadius: '8px',
+                        borderLeft: '3px solid ' + typeColor.color,
+                        marginBottom: '0.75rem'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          marginBottom: '0.5rem',
+                          flexWrap: 'wrap'
+                        }}>
+                          <span style={{
+                            padding: '0.25rem 0.5rem',
+                            background: typeColor.bg,
+                            color: typeColor.color,
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: '600'
+                          }}>
+                            {typeColor.label}
+                          </span>
+                          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                            {note.author.firstName} {note.author.lastName || ''}
+                          </span>
+                          <span style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
+                            • {new Date(note.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.875rem', color: '#374151' }}>
+                          {note.content}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div style={{
+                    color: '#9ca3af',
+                    textAlign: 'center',
+                    padding: '2rem 1rem',
+                    background: '#f9fafb',
+                    borderRadius: '8px'
+                  }}>
+                    No notes yet. Add the first note above.
+                  </div>
+                )}
+              </div>
+            </Section>
+          </div>
+
+          {/* Right Column */}
+          <div>
+            {/* Status Update Controls */}
+            <Section title="Update Status">
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '0.5rem'
+                }}>
+                  New Status
+                </label>
+                <select
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value)}
+                  disabled={updatingStatus}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  <option value="OPEN">Open</option>
+                  <option value="ACTIVE_SEARCH">Active Search</option>
+                  <option value="RESOLVED">Resolved</option>
+                  <option value="CLOSED_OTHER">Closed (Other)</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '0.5rem'
+                }}>
+                  Reason (optional)
+                </label>
+                <textarea
+                  value={statusReason}
+                  onChange={(e) => setStatusReason(e.target.value)}
+                  placeholder="Reason for status change..."
+                  rows={3}
+                  disabled={updatingStatus}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              <button
+                onClick={handleStatusUpdate}
+                disabled={updatingStatus || newStatus === caseData.status}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  opacity: (updatingStatus || newStatus === caseData.status) ? 0.5 : 1
+                }}
+              >
+                {updatingStatus ? 'Updating...' : 'Update Status'}
+              </button>
+            </Section>
+
+            {/* Squad Information */}
+            {caseData.squad && (
+              <Section title="Assigned Squad">
+                <Field label="Squad Name" value={caseData.squad.name} />
+                <Field label="Location" value={caseData.squad.city + ', ' + caseData.squad.state} />
+              </Section>
+            )}
+
+            {/* Case Metadata */}
+            <Section title="Case Details">
+              <Field label="Created" value={new Date(caseData.createdAt).toLocaleString()} />
+              <Field label="Updated" value={new Date(caseData.updatedAt).toLocaleString()} />
+              <Field
+                label="Created By"
+                value={(caseData.createdBy.firstName || '') + ' ' + (caseData.createdBy.lastName || '')}
+              />
+              {caseData.createdBy.email && (
+                <Field label="Email" value={caseData.createdBy.email} />
+              )}
+            </Section>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Helper Components
+function Section({ title, children }) {
+  return (
+    <div style={{
+      background: 'white',
+      padding: '1.5rem',
+      borderRadius: '12px',
+      border: '1px solid #e5e7eb',
+      marginBottom: '1.5rem'
+    }}>
+      <h2 style={{
+        fontSize: '1.125rem',
+        fontWeight: '700',
+        color: '#111827',
+        marginBottom: '1rem',
+        marginTop: 0
+      }}>
+        {title}
+      </h2>
+      {children}
+    </div>
+  );
+}
+
+function Field({ label, value }) {
+  return (
+    <div style={{ marginBottom: '0.75rem' }}>
+      <div style={{
+        fontSize: '0.75rem',
+        fontWeight: '600',
+        color: '#6b7280',
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
+        marginBottom: '0.25rem'
+      }}>
+        {label}
+      </div>
+      <div style={{ fontSize: '0.875rem', color: '#111827' }}>
+        {value}
+      </div>
+    </div>
+  );
+}

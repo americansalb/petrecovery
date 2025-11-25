@@ -592,7 +592,10 @@ function MetricsGrid({ metrics }) {
     { label: 'Total Rescue Squads', value: metrics.rescue_squads_total, key: 'squads' },
     { label: 'Active Squads', value: metrics.rescue_squads_active, key: 'active_squads' },
     { label: 'Squad Members', value: metrics.squad_members_total, key: 'members' },
-    { label: 'Active Members', value: metrics.squad_members_active, key: 'active_members' }
+    { label: 'Active Members', value: metrics.squad_members_active, key: 'active_members' },
+    { label: 'Total Cases', value: metrics.cases_total, key: 'cases', highlight: true },
+    { label: 'Open Cases', value: metrics.cases_open, key: 'cases_open', highlight: true },
+    { label: 'Active Search', value: metrics.cases_active_search, key: 'cases_active', highlight: true }
   ];
 
   return (
