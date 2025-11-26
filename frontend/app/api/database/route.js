@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { getServerSession } from 'next-auth';
 
+// Force dynamic rendering since we use session/headers
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   try {
     // Get session (but don't require it)

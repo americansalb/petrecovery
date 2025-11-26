@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
 
+// Force dynamic rendering since we use session/headers
+export const dynamic = 'force-dynamic';
+
 // GET /api/admin/rescue-squads - List all squads (admin only)
 export async function GET(request) {
   try {
