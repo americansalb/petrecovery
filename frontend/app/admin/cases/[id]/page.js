@@ -10,6 +10,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { isAdmin } from '@/app/lib/permissions';
 
 export default function CaseDetailPage({ params }) {
@@ -36,7 +37,7 @@ export default function CaseDetailPage({ params }) {
   const [availableSquads, setAvailableSquads] = useState([]);
   const [assigningCoordinator, setAssigningCoordinator] = useState(false);
   const [assigningSquad, setAssigningSquad] = useState(false);
-  const [assignmentMessage, setAssignmentMessage] = useState(null); // { type: 'success' | 'error', text: '...' }
+  const [assignmentMessage, setAssignmentMessage] = useState(null);
 
   // Auth check and redirect
   useEffect(() => {
@@ -51,15 +52,9 @@ export default function CaseDetailPage({ params }) {
   useEffect(() => {
     if (status === 'authenticated' && isAdmin(session)) {
       fetchCase();
-    }
-  }, [status, session, params.id]);
-
-  // Fetch assignment options (Phase 22-24: TASK-R05)
-  useEffect(() => {
-    if (status === 'authenticated' && isAdmin(session)) {
       fetchAssignmentOptions();
     }
-  }, [status, session]);
+  }, [status, session, params.id]);
 
   const fetchAssignmentOptions = async () => {
     try {
@@ -188,7 +183,6 @@ export default function CaseDetailPage({ params }) {
     }
   };
 
-  // Phase 22-24: TASK-R05 - Assignment handlers
   const handleCoordinatorAssignment = async (coordinatorId) => {
     setAssigningCoordinator(true);
     setAssignmentMessage(null);
@@ -247,16 +241,10 @@ export default function CaseDetailPage({ params }) {
 
   if (loading) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#f9fafb'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📋</div>
-          <div style={{ color: '#64748b' }}>Loading case...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="text-4xl mb-4">📋</div>
+          <div className="text-gray-500">Loading case...</div>
         </div>
       </div>
     );
@@ -264,28 +252,15 @@ export default function CaseDetailPage({ params }) {
 
   if (error) {
     return (
-      <div style={{ minHeight: '100vh', background: '#f9fafb', padding: '2rem' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <button
-            onClick={() => router.push('/admin/cases')}
-            style={{
-              padding: '0.5rem 1rem',
-              background: 'white',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              marginBottom: '1rem'
-            }}
+      <div className="min-h-screen bg-gray-50 p-8">
+        <div className="max-w-4xl mx-auto">
+          <Link
+            href="/admin/cases"
+            className="inline-block px-4 py-2 bg-white border border-gray-300 rounded-lg mb-4 hover:bg-gray-50"
           >
             ← Back to Cases
-          </button>
-          <div style={{
-            padding: '2rem',
-            background: '#fee2e2',
-            border: '1px solid #ef4444',
-            borderRadius: '12px',
-            color: '#991b1b'
-          }}>
+          </Link>
+          <div className="p-8 bg-red-50 border border-red-200 rounded-xl text-red-800">
             Error: {error}
           </div>
         </div>
@@ -293,112 +268,64 @@ export default function CaseDetailPage({ params }) {
     );
   }
 
-  if (!caseData) {
-    return null;
-  }
-
   const statusColors = {
-    'OPEN': { bg: '#dbeafe', color: '#1e40af' },
-    'ACTIVE_SEARCH': { bg: '#fef3c7', color: '#92400e' },
-    'RESOLVED': { bg: '#d1fae5', color: '#065f46' },
-    'CLOSED_OTHER': { bg: '#e5e7eb', color: '#374151' }
+    'OPEN': 'bg-blue-100 text-blue-800',
+    'ACTIVE_SEARCH': 'bg-yellow-100 text-yellow-800',
+    'RESOLVED': 'bg-green-100 text-green-800',
+    'CLOSED_OTHER': 'bg-gray-100 text-gray-800'
   };
-  const statusColor = statusColors[caseData.status] || statusColors['OPEN'];
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f9fafb', padding: '2rem' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-6xl mx-auto">
         {/* Back Button */}
-        <button
-          onClick={() => router.push('/admin/cases')}
-          style={{
-            padding: '0.5rem 1rem',
-            background: 'white',
-            border: '1px solid #d1d5db',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            marginBottom: '1rem'
-          }}
+        <Link
+          href="/admin/cases"
+          className="inline-block px-4 py-2 bg-white border border-gray-300 rounded-lg mb-4 hover:bg-gray-50"
         >
           ← Back to Cases
-        </button>
+        </Link>
 
         {/* Header */}
-        <div style={{ marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#111827', margin: 0 }}>
+        <div className="mb-8">
+          <div className="flex items-center gap-4 mb-2 flex-wrap">
+            <h1 className="text-3xl font-bold text-gray-900">
               {caseData.caseNumber}
-              <span style={{
-                fontSize: '0.75rem',
-                padding: '0.125rem 0.5rem',
-                backgroundColor: '#fee2e2',
-                color: '#991b1b',
-                borderRadius: '0.25rem',
-                fontWeight: '600',
-                marginLeft: '0.5rem'
-              }}>
+              <span className="ml-2 text-xs px-2 py-1 bg-red-100 text-red-800 rounded font-semibold">
                 🔒 ADMIN ONLY
               </span>
             </h1>
-            <span style={{
-              padding: '0.5rem 1rem',
-              background: statusColor.bg,
-              color: statusColor.color,
-              borderRadius: '12px',
-              fontSize: '0.875rem',
-              fontWeight: '600'
-            }}>
-              {caseData.status.replace('_', ' ')}
+            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusColors[caseData.status] || 'bg-gray-100 text-gray-800'}`}>
+              {caseData.status.replace(/_/g, ' ')}
             </span>
             {caseData.isUrgent && (
-              <span style={{
-                padding: '0.5rem 1rem',
-                background: '#fee2e2',
-                color: '#991b1b',
-                borderRadius: '12px',
-                fontSize: '0.875rem',
-                fontWeight: '600'
-              }}>
+              <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-semibold">
                 ⚠️ URGENT
               </span>
             )}
           </div>
-          <p style={{ color: '#6b7280', margin: 0 }}>
+          <p className="text-gray-500">
             {caseData.city}, {caseData.state}
           </p>
         </div>
 
         {/* Legal Error Banner */}
         {legalError && (
-          <div style={{
-            padding: '1.5rem',
-            background: '#fef3c7',
-            border: '2px solid #fbbf24',
-            borderRadius: '12px',
-            marginBottom: '2rem'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-              <span style={{ fontSize: '1.5rem' }}>⚠️</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: '700', color: '#92400e', marginBottom: '0.25rem' }}>
+          <div className="p-6 bg-yellow-50 border-2 border-yellow-400 rounded-xl mb-8">
+            <div className="flex items-center gap-4 mb-4">
+              <span className="text-2xl">⚠️</span>
+              <div className="flex-1">
+                <div className="font-bold text-yellow-900 mb-1">
                   Legal Agreement Required
                 </div>
-                <div style={{ color: '#b45309', fontSize: '0.95rem' }}>
+                <div className="text-yellow-800 text-sm">
                   {legalError.message}
                 </div>
               </div>
             </div>
             <button
               onClick={() => router.push(legalError.redirectTo)}
-              style={{
-                padding: '0.75rem 1.5rem',
-                background: '#10b981',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: '700',
-                cursor: 'pointer'
-              }}
+              className="px-6 py-3 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700"
             >
               Review & Accept Now →
             </button>
@@ -406,164 +333,127 @@ export default function CaseDetailPage({ params }) {
         )}
 
         {/* Main Content Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
-          {/* Left Column */}
-          <div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column (2/3) */}
+          <div className="lg:col-span-2 space-y-8">
             {/* Pet Information */}
-            <Section title="Pet Information">
-              <Field label="Name" value={caseData.petName || '—'} />
-              <Field label="Species" value={caseData.petSpecies} />
-              <Field label="Breed" value={caseData.petBreed || '—'} />
-              <Field label="Color" value={caseData.petColor || '—'} />
-              <Field label="Description" value={caseData.petDescription || '—'} />
-            </Section>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Pet Information</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Name" value={caseData.petName || '—'} />
+                <Field label="Species" value={caseData.petSpecies} />
+                <Field label="Breed" value={caseData.petBreed || '—'} />
+                <Field label="Color" value={caseData.petColor || '—'} />
+                <div className="md:col-span-2">
+                  <Field label="Description" value={caseData.petDescription || '—'} />
+                </div>
+              </div>
+            </div>
 
             {/* Last Seen Location */}
-            <Section title="Last Seen Location">
-              <Field label="City" value={caseData.city} />
-              <Field label="State" value={caseData.state} />
-              <Field label="ZIP Code" value={caseData.zipCode || '—'} />
-              <Field label="Landmark" value={caseData.lastSeenLandmark || '—'} />
-              <Field
-                label="Last Seen At"
-                value={caseData.lastSeenAt ? new Date(caseData.lastSeenAt).toLocaleString() : '—'}
-              />
-            </Section>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Last Seen Location</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="City" value={caseData.city} />
+                <Field label="State" value={caseData.state} />
+                <Field label="ZIP Code" value={caseData.zipCode || '—'} />
+                <Field label="Landmark" value={caseData.lastSeenLandmark || '—'} />
+                <div className="md:col-span-2">
+                  <Field
+                    label="Last Seen At"
+                    value={caseData.lastSeenAt ? new Date(caseData.lastSeenAt).toLocaleString() : '—'}
+                  />
+                </div>
+              </div>
+            </div>
 
             {/* Contact Information */}
-            <Section title="Contact Information">
-              <Field label="Name" value={caseData.contactName || '—'} />
-              <Field label="Phone" value={caseData.contactPhone || '—'} />
-              <Field label="Email" value={caseData.contactEmail || '—'} />
-            </Section>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Field label="Name" value={caseData.contactName || '—'} />
+                <Field label="Phone" value={caseData.contactPhone || '—'} />
+                <Field label="Email" value={caseData.contactEmail || '—'} />
+              </div>
+            </div>
 
             {/* Case Notes */}
-            <Section title="Case Notes">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Case Notes</h2>
+
               {/* Add Note Form */}
-              <form onSubmit={handleAddNote} style={{ marginBottom: '1.5rem' }}>
+              <form onSubmit={handleAddNote} className="mb-6">
                 <textarea
                   value={noteContent}
                   onChange={(e) => setNoteContent(e.target.value)}
                   placeholder="Add a note to this case..."
                   rows={3}
                   disabled={addingNote}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '0.875rem',
-                    marginBottom: '0.5rem',
-                    resize: 'vertical'
-                  }}
+                  className="w-full p-3 border border-gray-300 rounded-lg mb-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 <button
                   type="submit"
                   disabled={addingNote || !noteContent.trim()}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: '#10b981',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '0.875rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    opacity: (addingNote || !noteContent.trim()) ? 0.5 : 1
-                  }}
+                  className={`px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 ${(addingNote || !noteContent.trim()) ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                 >
                   {addingNote ? 'Adding...' : 'Add Note'}
                 </button>
               </form>
 
               {/* Notes List */}
-              <div>
+              <div className="space-y-4">
                 {caseData.notes && caseData.notes.length > 0 ? (
                   caseData.notes.map((note) => {
                     const typeColors = {
-                      'STATUS_CHANGE': { bg: '#fef3c7', color: '#92400e', label: 'Status Change' },
-                      'NOTE': { bg: '#e0e7ff', color: '#3730a3', label: 'Note' }
+                      'STATUS_CHANGE': 'bg-yellow-50 border-yellow-200 text-yellow-800',
+                      'NOTE': 'bg-gray-50 border-gray-200 text-gray-800'
                     };
                     const typeColor = typeColors[note.type] || typeColors['NOTE'];
 
                     return (
-                      <div key={note.id} style={{
-                        padding: '1rem',
-                        background: '#f9fafb',
-                        borderRadius: '8px',
-                        borderLeft: '3px solid ' + typeColor.color,
-                        marginBottom: '0.75rem'
-                      }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          marginBottom: '0.5rem',
-                          flexWrap: 'wrap'
-                        }}>
-                          <span style={{
-                            padding: '0.25rem 0.5rem',
-                            background: typeColor.bg,
-                            color: typeColor.color,
-                            borderRadius: '4px',
-                            fontSize: '0.75rem',
-                            fontWeight: '600'
-                          }}>
-                            {typeColor.label}
+                      <div key={note.id} className={`p-4 rounded-lg border ${typeColor}`}>
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className="text-xs font-bold uppercase px-2 py-0.5 bg-white bg-opacity-50 rounded">
+                            {note.type.replace('_', ' ')}
                           </span>
-                          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                          <span className="text-sm font-medium">
                             {note.author.firstName} {note.author.lastName || ''}
                           </span>
-                          <span style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
+                          <span className="text-sm opacity-75">
                             • {new Date(note.createdAt).toLocaleString()}
                           </span>
                         </div>
-                        <div style={{ fontSize: '0.875rem', color: '#374151' }}>
+                        <div className="text-sm whitespace-pre-wrap">
                           {note.content}
                         </div>
                       </div>
                     );
                   })
                 ) : (
-                  <div style={{
-                    color: '#9ca3af',
-                    textAlign: 'center',
-                    padding: '2rem 1rem',
-                    background: '#f9fafb',
-                    borderRadius: '8px'
-                  }}>
+                  <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
                     No notes yet. Add the first note above.
                   </div>
                 )}
               </div>
-            </Section>
+            </div>
           </div>
 
-          {/* Right Column */}
-          <div>
+          {/* Right Column (1/3) */}
+          <div className="space-y-8">
             {/* Status Update Controls */}
-            <Section title="Update Status">
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.875rem',
-                  fontWeight: '600',
-                  color: '#374151',
-                  marginBottom: '0.5rem'
-                }}>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Update Status</h2>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   New Status
                 </label>
                 <select
                   value={newStatus}
                   onChange={(e) => setNewStatus(e.target.value)}
                   disabled={updatingStatus}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '0.875rem'
-                  }}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="OPEN">Open</option>
                   <option value="ACTIVE_SEARCH">Active Search</option>
@@ -572,14 +462,8 @@ export default function CaseDetailPage({ params }) {
                 </select>
               </div>
 
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.875rem',
-                  fontWeight: '600',
-                  color: '#374151',
-                  marginBottom: '0.5rem'
-                }}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Reason (optional)
                 </label>
                 <textarea
@@ -588,75 +472,42 @@ export default function CaseDetailPage({ params }) {
                   placeholder="Reason for status change..."
                   rows={3}
                   disabled={updatingStatus}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '0.875rem',
-                    resize: 'vertical'
-                  }}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
               <button
                 onClick={handleStatusUpdate}
                 disabled={updatingStatus || newStatus === caseData.status}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  background: '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  opacity: (updatingStatus || newStatus === caseData.status) ? 0.5 : 1
-                }}
+                className={`w-full py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 ${(updatingStatus || newStatus === caseData.status) ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
               >
                 {updatingStatus ? 'Updating...' : 'Update Status'}
               </button>
-            </Section>
+            </div>
 
-            {/* Phase 22-24: TASK-R05 - Assignment Controls */}
-            <Section title="Case Assignment">
+            {/* Case Assignment */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Case Assignment</h2>
+
               {/* Success/Error Messages */}
               {assignmentMessage && (
-                <div style={{
-                  padding: '0.75rem',
-                  borderRadius: '6px',
-                  marginBottom: '1rem',
-                  background: assignmentMessage.type === 'success' ? '#d1fae5' : '#fee2e2',
-                  color: assignmentMessage.type === 'success' ? '#065f46' : '#991b1b',
-                  fontSize: '0.875rem'
-                }}>
+                <div className={`p-3 rounded-lg mb-4 text-sm ${assignmentMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+                  }`}>
                   {assignmentMessage.text}
                 </div>
               )}
 
               {/* Coordinator Assignment */}
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.875rem',
-                  fontWeight: '600',
-                  color: '#374151',
-                  marginBottom: '0.5rem'
-                }}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Coordinator
                 </label>
                 <select
                   value={caseData.coordinatorId || ''}
                   onChange={(e) => handleCoordinatorAssignment(e.target.value || null)}
                   disabled={assigningCoordinator}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '0.875rem',
-                    opacity: assigningCoordinator ? 0.5 : 1
-                  }}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Unassigned</option>
                   {availableCoordinators.map(user => (
@@ -665,64 +516,28 @@ export default function CaseDetailPage({ params }) {
                     </option>
                   ))}
                 </select>
-                {assigningCoordinator && (
-                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
-                    Updating...
-                  </div>
-                )}
               </div>
 
               {/* Squad Assignment */}
               <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.875rem',
-                  fontWeight: '600',
-                  color: '#374151',
-                  marginBottom: '0.5rem'
-                }}>
-                  Owning Squad
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Rescue Squad
                 </label>
                 <select
                   value={caseData.squadId || ''}
                   onChange={(e) => handleSquadAssignment(e.target.value || null)}
                   disabled={assigningSquad}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '0.875rem',
-                    opacity: assigningSquad ? 0.5 : 1
-                  }}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="">No squad</option>
+                  <option value="">Unassigned</option>
                   {availableSquads.map(squad => (
                     <option key={squad.id} value={squad.id}>
                       {squad.name} ({squad.city}, {squad.state})
                     </option>
                   ))}
                 </select>
-                {assigningSquad && (
-                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
-                    Updating...
-                  </div>
-                )}
               </div>
-            </Section>
-
-            {/* Case Metadata */}
-            <Section title="Case Details">
-              <Field label="Created" value={new Date(caseData.createdAt).toLocaleString()} />
-              <Field label="Updated" value={new Date(caseData.updatedAt).toLocaleString()} />
-              <Field
-                label="Created By"
-                value={(caseData.createdBy.firstName || '') + ' ' + (caseData.createdBy.lastName || '')}
-              />
-              {caseData.createdBy.email && (
-                <Field label="Email" value={caseData.createdBy.email} />
-              )}
-            </Section>
+            </div>
           </div>
         </div>
       </div>
@@ -730,46 +545,15 @@ export default function CaseDetailPage({ params }) {
   );
 }
 
-// Helper Components
-function Section({ title, children }) {
-  return (
-    <div style={{
-      background: 'white',
-      padding: '1.5rem',
-      borderRadius: '12px',
-      border: '1px solid #e5e7eb',
-      marginBottom: '1.5rem'
-    }}>
-      <h2 style={{
-        fontSize: '1.125rem',
-        fontWeight: '700',
-        color: '#111827',
-        marginBottom: '1rem',
-        marginTop: 0
-      }}>
-        {title}
-      </h2>
-      {children}
-    </div>
-  );
-}
-
 function Field({ label, value }) {
   return (
-    <div style={{ marginBottom: '0.75rem' }}>
-      <div style={{
-        fontSize: '0.75rem',
-        fontWeight: '600',
-        color: '#6b7280',
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-        marginBottom: '0.25rem'
-      }}>
+    <div>
+      <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">
         {label}
-      </div>
-      <div style={{ fontSize: '0.875rem', color: '#111827' }}>
+      </dt>
+      <dd className="mt-1 text-sm text-gray-900 font-medium">
         {value}
-      </div>
+      </dd>
     </div>
   );
 }

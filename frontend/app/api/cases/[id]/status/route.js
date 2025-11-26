@@ -275,8 +275,8 @@ export async function POST(request, { params }) {
     // NEW (Phase 25-26): Send status update notification (non-blocking)
     const notifiableStatuses = ['ACTIVE_SEARCH', 'RESOLVED', 'CLOSED_OTHER'];
     const shouldNotify = notifiableStatuses.includes(status)
-                         && updatedCase.contactEmail
-                         && oldStatus !== status;
+      && updatedCase.contactEmail
+      && oldStatus !== status;
 
     if (shouldNotify) {
       try {

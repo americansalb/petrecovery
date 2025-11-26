@@ -63,6 +63,9 @@ model User {
   divisionRequests       DivisionRequest[]
   reviewedDivisionRequests DivisionRequest[] @relation("ReviewedDivisionRequests")
 
+  // Case Coordinator Relation (Phase 22-24)
+  coordinatedCases       Case[] @relation("CaseCoordinator")
+
   // Community Relations (LEGACY - keeping for backwards compatibility)
   communityRequests CommunityRequest[]
   reviewedRequests CommunityRequest[] @relation("ReviewedRequests")
@@ -392,6 +395,18 @@ model Case {
   updatedAt       DateTime @updatedAt
   expiresAt       DateTime?
 
+  // Public Visibility (Phase 15-16)
+  isPublic          Boolean  @default(true)
+  publicContactOk   Boolean  @default(true)
+  publicPhoneVisible Boolean @default(false)
+  publicEmailVisible Boolean @default(false)
+
+  // Case Assignment (Phase 22-24)
+  coordinatorId    String?
+  coordinator      User?        @relation("CaseCoordinator", fields: [coordinatorId], references: [id])
+  primarySquadId   String?
+  primarySquad     RescueSquad? @relation("PrimarySquadCases", fields: [primarySquadId], references: [id])
+
   // Relations
   assignments     CaseAssignment[]
   sightings       CaseSighting[]
@@ -402,6 +417,9 @@ model Case {
   @@index([caseNumber])
   @@index([lastSeenLatitude, lastSeenLongitude])
   @@index([createdAt])
+  @@index([isPublic])
+  @@index([coordinatorId])
+  @@index([primarySquadId])
 }
 
 enum ReportType {
@@ -570,6 +588,9 @@ model RescueSquad {
   caseAssignments  CaseAssignment[]
   divisions        Division[]
   cases            LostPetCase[]  // Phase 13-14: Lost Pet Cases MVP
+
+  // Primary Squad Relation (Phase 22-24)
+  primaryCases     Case[] @relation("PrimarySquadCases")
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

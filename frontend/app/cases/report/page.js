@@ -10,150 +10,201 @@
  */
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function PublicReportPage() {
   const router = useRouter();
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const [caseNumber, setCaseNumber] = useState('');
 
-  // Form state
   const [formData, setFormData] = useState({
-    // Pet Info
+    // Reporter
+    email: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    // Pet
     petName: '',
-    petSpecies: 'DOG',
-    petBreed: '',
-    petColor: '',
-    petDescription: '',
-    // Location
-    city: '',
-    state: '',
-    zipCode: '',
-    lastSeenLandmark: '',
-    lastSeenAt: '',
-    // Contact
-    contactName: '',
-    contactPhone: '',
-    contactEmail: '',
-    agreeToTerms: false
+    species: 'DOG',
+    breed: '',
+    color: '',
+    size: 'MEDIUM',
+    photoUrl: '',
+    description: '',
+    // Incident
+    lastSeenDate: '',
+    lastSeenTime: '',
+    lastSeenAddress: '',
+    lastSeenLatitude: null,
+    lastSeenLongitude: null,
+    escapeScenario: '',
+    escapeDetails: '',
+    // Privacy
+    isPublic: true,
+    publicContactOk: true,
+    publicPhoneVisible: false,
+    publicEmailVisible: false,
+    // Reward
+    hasReward: false,
+    rewardAmount: '',
   });
 
-  const [errors, setErrors] = useState({});
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [caseNumber, setCaseNumber] = useState(null);
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-    // Clear error for this field
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: null }));
+  function updateForm(field, value) {
+    setFormData({ ...formData, [field]: value });
+    // Clear error when field is updated
+    if (errors[field]) {
+      setErrors({ ...errors, [field]: null });
     }
-  };
+  }
 
-  const validate = () => {
+  function validateStep(stepNum) {
     const newErrors = {};
 
-    // Pet Info
-    if (!formData.petSpecies) newErrors.petSpecies = 'Pet type is required';
-
-    // Location
-    if (!formData.city.trim()) newErrors.city = 'City is required';
-    if (!formData.state.trim()) newErrors.state = 'State is required';
-
-    // Contact
-    if (!formData.contactName.trim()) newErrors.contactName = 'Your name is required';
-    if (!formData.contactEmail.trim() && !formData.contactPhone.trim()) {
-      newErrors.contactEmail = 'Either email or phone is required';
-      newErrors.contactPhone = 'Either email or phone is required';
-    }
-    if (formData.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)) {
-      newErrors.contactEmail = 'Invalid email format';
+    if (stepNum === 1) {
+      if (!formData.email) newErrors.email = 'Email is required';
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        newErrors.email = 'Please enter a valid email';
+      }
+      if (!formData.firstName) newErrors.firstName = 'First name is required';
     }
 
-    // Terms
-    if (!formData.agreeToTerms) newErrors.agreeToTerms = 'You must agree to the terms';
+    if (stepNum === 2) {
+      if (!formData.petName) newErrors.petName = 'Pet name is required';
+      if (!formData.color) newErrors.color = 'Color is required';
+      if (!formData.photoUrl) newErrors.photoUrl = 'Photo URL is required';
+    }
+
+    if (stepNum === 3) {
+      if (!formData.lastSeenDate) newErrors.lastSeenDate = 'Date is required';
+      if (!formData.lastSeenTime) newErrors.lastSeenTime = 'Time is required';
+      if (!formData.lastSeenAddress) newErrors.lastSeenAddress = 'Address is required';
+      if (!formData.escapeScenario) newErrors.escapeScenario = 'Please describe how they got out';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitError(null);
-
-    if (!validate()) {
-      return;
+  function nextStep() {
+    if (validateStep(step)) {
+      setStep(step + 1);
     }
+  }
 
-    setSubmitting(true);
+  function prevStep() {
+    setStep(step - 1);
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+
+    if (!validateStep(3)) return;
+
+    setLoading(true);
 
     try {
+      // Combine date and time
+      const lastSeenAt = new Date(`${formData.lastSeenDate}T${formData.lastSeenTime}`);
+
+      const payload = {
+        reporter: {
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone,
+        },
+        pet: {
+          name: formData.petName,
+          species: formData.species,
+          breed: formData.breed,
+          color: formData.color,
+          size: formData.size,
+          photoUrl: formData.photoUrl,
+          description: formData.description,
+        },
+        incident: {
+          lastSeenAt: lastSeenAt.toISOString(),
+          lastSeenAddress: formData.lastSeenAddress,
+          lastSeenLatitude: formData.lastSeenLatitude || 41.8781, // Default to Chicago
+          lastSeenLongitude: formData.lastSeenLongitude || -87.6298,
+          escapeScenario: formData.escapeScenario,
+          escapeDetails: formData.escapeDetails,
+        },
+        visibility: {
+          isPublic: formData.isPublic,
+          publicContactOk: formData.publicContactOk,
+          publicPhoneVisible: formData.publicPhoneVisible,
+          publicEmailVisible: formData.publicEmailVisible,
+        },
+        reward: {
+          hasReward: formData.hasReward,
+          rewardAmount: formData.hasReward ? parseFloat(formData.rewardAmount) || 0 : null,
+        },
+      };
+
       const res = await fetch('/api/public/cases', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'Failed to submit report');
+        if (data.details) {
+          setErrors(data.details);
+        } else {
+          setErrors({ submit: data.error || 'Failed to submit report' });
+        }
+        setLoading(false);
+        return;
       }
 
+      // Success!
       setCaseNumber(data.caseNumber);
       setSubmitted(true);
-    } catch (err) {
-      console.error('Error submitting report:', err);
-      setSubmitError(err.message);
-    } finally {
-      setSubmitting(false);
+    } catch (error) {
+      console.error('Submit error:', error);
+      setErrors({ submit: 'Failed to submit report. Please try again.' });
     }
-  };
 
-  // Success state
+    setLoading(false);
+  }
+
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12">
-        <div className="container mx-auto px-4 max-w-2xl">
-          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Report Submitted!</h1>
-            <p className="text-lg text-gray-600 mb-6">
-              Your lost pet report has been received and is pending admin approval.
-            </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-              <p className="text-sm text-gray-600 mb-2">Your Case Number:</p>
-              <p className="text-2xl font-bold text-blue-600">{caseNumber}</p>
-              <p className="text-sm text-gray-500 mt-2">Please save this number for your records.</p>
-            </div>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-              <p className="text-sm text-yellow-800">
-                <strong>Next Steps:</strong> Your case will be reviewed by our administrators. Once approved,
-                it will be visible on the public cases page. This typically takes 24-48 hours.
-              </p>
-            </div>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => router.push('/cases')}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
-              >
-                View All Cases
-              </button>
-              <button
-                onClick={() => window.location.reload()}
-                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-semibold"
-              >
-                Report Another Pet
-              </button>
-            </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Report Submitted!</h1>
+          <p className="text-gray-600 mb-4">
+            Your lost pet report has been submitted. Check your email for confirmation.
+          </p>
+          <div className="bg-gray-50 rounded-lg p-4 mb-6">
+            <p className="text-sm text-gray-500">Case Number</p>
+            <p className="text-xl font-bold text-gray-900 font-mono">{caseNumber}</p>
+          </div>
+          <div className="space-y-3">
+            <Link
+              href={`/cases/${caseNumber}`}
+              className="block w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700"
+            >
+              View Your Case
+            </Link>
+            <Link
+              href="/cases"
+              className="block w-full bg-gray-100 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-200"
+            >
+              Browse All Cases
+            </Link>
           </div>
         </div>
       </div>
@@ -161,310 +212,404 @@ export default function PublicReportPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="container mx-auto px-4 max-w-3xl">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => router.push('/cases')}
-            className="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center"
-          >
-            ← Back to Cases
-          </button>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Report a Lost Pet</h1>
-          <p className="text-lg text-gray-600">
-            Fill out this form to report a lost pet. Your report will be reviewed by our team before being published.
-          </p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm">
+        <div className="max-w-2xl mx-auto px-4 py-4">
+          <Link href="/cases" className="text-blue-600 hover:underline">
+            &larr; Back to Lost Pets
+          </Link>
         </div>
+      </header>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Pet Information Section */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-2xl font-bold mb-6">Pet Information</h2>
+      <main className="max-w-2xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Report a Lost Pet</h1>
+          <p className="text-gray-600 mb-6">
+            We'll help spread the word to our community of volunteers.
+          </p>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Pet Name <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  name="petName"
-                  value={formData.petName}
-                  onChange={handleChange}
-                  placeholder="e.g., Max"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+          {/* Progress Steps */}
+          <div className="flex mb-8">
+            {[1, 2, 3, 4].map((s) => (
+              <div key={s} className="flex-1 flex items-center">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${s <= step ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
+                  }`}>
+                  {s}
+                </div>
+                {s < 4 && (
+                  <div className={`flex-1 h-1 mx-2 ${s < step ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                )}
               </div>
+            ))}
+          </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Pet Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  name="petSpecies"
-                  value={formData.petSpecies}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    errors.petSpecies ? 'border-red-500' : 'border-gray-300'
-                  }`}
+          <form onSubmit={handleSubmit}>
+            {/* Step 1: Your Info */}
+            {step === 1 && (
+              <div className="space-y-4">
+                <h2 className="text-lg font-bold text-gray-900">Your Information</h2>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => updateForm('email', e.target.value)}
+                    className={`w-full border rounded-lg px-3 py-2 ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
+                    placeholder="your@email.com"
+                  />
+                  {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      First Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.firstName}
+                      onChange={(e) => updateForm('firstName', e.target.value)}
+                      className={`w-full border rounded-lg px-3 py-2 ${errors.firstName ? 'border-red-500' : 'border-gray-300'}`}
+                    />
+                    {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.lastName}
+                      onChange={(e) => updateForm('lastName', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => updateForm('phone', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Pet Info */}
+            {step === 2 && (
+              <div className="space-y-4">
+                <h2 className="text-lg font-bold text-gray-900">Pet Information</h2>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Pet Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.petName}
+                    onChange={(e) => updateForm('petName', e.target.value)}
+                    className={`w-full border rounded-lg px-3 py-2 ${errors.petName ? 'border-red-500' : 'border-gray-300'}`}
+                  />
+                  {errors.petName && <p className="text-red-500 text-sm mt-1">{errors.petName}</p>}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Species *
+                    </label>
+                    <select
+                      value={formData.species}
+                      onChange={(e) => updateForm('species', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    >
+                      <option value="DOG">Dog</option>
+                      <option value="CAT">Cat</option>
+                      <option value="BIRD">Bird</option>
+                      <option value="RABBIT">Rabbit</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Breed
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.breed}
+                      onChange={(e) => updateForm('breed', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                      placeholder="e.g., Golden Retriever"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Color *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.color}
+                      onChange={(e) => updateForm('color', e.target.value)}
+                      className={`w-full border rounded-lg px-3 py-2 ${errors.color ? 'border-red-500' : 'border-gray-300'}`}
+                      placeholder="e.g., Golden, Black & White"
+                    />
+                    {errors.color && <p className="text-red-500 text-sm mt-1">{errors.color}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Size *
+                    </label>
+                    <select
+                      value={formData.size}
+                      onChange={(e) => updateForm('size', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    >
+                      <option value="TINY">Tiny (&lt;10 lbs)</option>
+                      <option value="SMALL">Small (10-25 lbs)</option>
+                      <option value="MEDIUM">Medium (25-60 lbs)</option>
+                      <option value="LARGE">Large (60-90 lbs)</option>
+                      <option value="GIANT">Giant (&gt;90 lbs)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Photo URL *
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.photoUrl}
+                    onChange={(e) => updateForm('photoUrl', e.target.value)}
+                    className={`w-full border rounded-lg px-3 py-2 ${errors.photoUrl ? 'border-red-500' : 'border-gray-300'}`}
+                    placeholder="https://..."
+                  />
+                  {errors.photoUrl && <p className="text-red-500 text-sm mt-1">{errors.photoUrl}</p>}
+                  <p className="text-gray-500 text-xs mt-1">
+                    Tip: Upload to Imgur or Google Photos and paste the link here
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => updateForm('description', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    rows={3}
+                    placeholder="Any distinguishing features, collar, tags, behavior..."
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Incident */}
+            {step === 3 && (
+              <div className="space-y-4">
+                <h2 className="text-lg font-bold text-gray-900">When & Where</h2>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Date Last Seen *
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.lastSeenDate}
+                      onChange={(e) => updateForm('lastSeenDate', e.target.value)}
+                      className={`w-full border rounded-lg px-3 py-2 ${errors.lastSeenDate ? 'border-red-500' : 'border-gray-300'}`}
+                    />
+                    {errors.lastSeenDate && <p className="text-red-500 text-sm mt-1">{errors.lastSeenDate}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Time Last Seen *
+                    </label>
+                    <input
+                      type="time"
+                      value={formData.lastSeenTime}
+                      onChange={(e) => updateForm('lastSeenTime', e.target.value)}
+                      className={`w-full border rounded-lg px-3 py-2 ${errors.lastSeenTime ? 'border-red-500' : 'border-gray-300'}`}
+                    />
+                    {errors.lastSeenTime && <p className="text-red-500 text-sm mt-1">{errors.lastSeenTime}</p>}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Address Where Last Seen *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.lastSeenAddress}
+                    onChange={(e) => updateForm('lastSeenAddress', e.target.value)}
+                    className={`w-full border rounded-lg px-3 py-2 ${errors.lastSeenAddress ? 'border-red-500' : 'border-gray-300'}`}
+                    placeholder="123 Main St, Chicago, IL 60601"
+                  />
+                  {errors.lastSeenAddress && <p className="text-red-500 text-sm mt-1">{errors.lastSeenAddress}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    How did they get out? *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.escapeScenario}
+                    onChange={(e) => updateForm('escapeScenario', e.target.value)}
+                    className={`w-full border rounded-lg px-3 py-2 ${errors.escapeScenario ? 'border-red-500' : 'border-gray-300'}`}
+                    placeholder="e.g., Slipped out of backyard gate"
+                  />
+                  {errors.escapeScenario && <p className="text-red-500 text-sm mt-1">{errors.escapeScenario}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Additional Details
+                  </label>
+                  <textarea
+                    value={formData.escapeDetails}
+                    onChange={(e) => updateForm('escapeDetails', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    rows={2}
+                    placeholder="Any additional context..."
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Privacy & Submit */}
+            {step === 4 && (
+              <div className="space-y-4">
+                <h2 className="text-lg font-bold text-gray-900">Privacy & Reward</h2>
+
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={formData.isPublic}
+                      onChange={(e) => updateForm('isPublic', e.target.checked)}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-gray-700">Make this case publicly visible</span>
+                  </label>
+
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={formData.publicContactOk}
+                      onChange={(e) => updateForm('publicContactOk', e.target.checked)}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-gray-700">Allow people to contact me about this case</span>
+                  </label>
+
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={formData.publicPhoneVisible}
+                      onChange={(e) => updateForm('publicPhoneVisible', e.target.checked)}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-gray-700">Show my phone number publicly</span>
+                  </label>
+
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={formData.publicEmailVisible}
+                      onChange={(e) => updateForm('publicEmailVisible', e.target.checked)}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-gray-700">Show my email publicly</span>
+                  </label>
+                </div>
+
+                <div className="border-t pt-4 mt-4">
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={formData.hasReward}
+                      onChange={(e) => updateForm('hasReward', e.target.checked)}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-gray-700">Offering a reward</span>
+                  </label>
+
+                  {formData.hasReward && (
+                    <div className="mt-3 ml-7">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Reward Amount ($)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.rewardAmount}
+                        onChange={(e) => updateForm('rewardAmount', e.target.value)}
+                        className="w-32 border border-gray-300 rounded-lg px-3 py-2"
+                        placeholder="500"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {errors.submit && (
+                  <div className="bg-red-50 text-red-700 p-3 rounded-lg">
+                    {errors.submit}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Navigation Buttons */}
+            <div className="flex justify-between mt-8">
+              {step > 1 ? (
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg font-medium hover:bg-gray-200"
                 >
-                  <option value="DOG">Dog</option>
-                  <option value="CAT">Cat</option>
-                  <option value="BIRD">Bird</option>
-                  <option value="OTHER">Other</option>
-                </select>
-                {errors.petSpecies && <p className="mt-1 text-sm text-red-600">{errors.petSpecies}</p>}
-              </div>
+                  Back
+                </button>
+              ) : (
+                <div />
+              )}
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Breed <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  name="petBreed"
-                  value={formData.petBreed}
-                  onChange={handleChange}
-                  placeholder="e.g., Golden Retriever"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Color <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  name="petColor"
-                  value={formData.petColor}
-                  onChange={handleChange}
-                  placeholder="e.g., Brown and white"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Description <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <textarea
-                  name="petDescription"
-                  value={formData.petDescription}
-                  onChange={handleChange}
-                  placeholder="Any distinguishing marks, behaviors, or other details..."
-                  rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+              {step < 4 ? (
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700"
+                >
+                  Next
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading ? 'Submitting...' : 'Submit Report'}
+                </button>
+              )}
             </div>
-          </div>
-
-          {/* Last Seen Section */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-2xl font-bold mb-6">Last Seen Location</h2>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    City <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleChange}
-                    placeholder="e.g., Chicago"
-                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.city ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.city && <p className="mt-1 text-sm text-red-600">{errors.city}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    State <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="state"
-                    value={formData.state}
-                    onChange={handleChange}
-                    placeholder="e.g., IL"
-                    maxLength={2}
-                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.state ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.state && <p className="mt-1 text-sm text-red-600">{errors.state}</p>}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  ZIP Code <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  name="zipCode"
-                  value={formData.zipCode}
-                  onChange={handleChange}
-                  placeholder="e.g., 60601"
-                  maxLength={10}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Landmark or Specific Location <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  name="lastSeenLandmark"
-                  value={formData.lastSeenLandmark}
-                  onChange={handleChange}
-                  placeholder="e.g., Near Lincoln Park"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  When Was Pet Last Seen? <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="datetime-local"
-                  name="lastSeenAt"
-                  value={formData.lastSeenAt}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Contact Information Section */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-2xl font-bold mb-6">Your Contact Information</h2>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="text-sm text-blue-800">
-                <strong>Privacy:</strong> Your contact information will NOT be publicly visible by default.
-                An administrator will review your case before making it public.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Your Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="contactName"
-                  value={formData.contactName}
-                  onChange={handleChange}
-                  placeholder="Your full name"
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    errors.contactName ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.contactName && <p className="mt-1 text-sm text-red-600">{errors.contactName}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Phone Number <span className="text-gray-400 font-normal">(optional, but recommended)</span>
-                </label>
-                <input
-                  type="tel"
-                  name="contactPhone"
-                  value={formData.contactPhone}
-                  onChange={handleChange}
-                  placeholder="(555) 123-4567"
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    errors.contactPhone ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.contactPhone && <p className="mt-1 text-sm text-red-600">{errors.contactPhone}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email Address <span className="text-gray-400 font-normal">(optional, but recommended)</span>
-                </label>
-                <input
-                  type="email"
-                  name="contactEmail"
-                  value={formData.contactEmail}
-                  onChange={handleChange}
-                  placeholder="your.email@example.com"
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    errors.contactEmail ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.contactEmail && <p className="mt-1 text-sm text-red-600">{errors.contactEmail}</p>}
-              </div>
-            </div>
-          </div>
-
-          {/* Terms Section */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-start">
-              <input
-                type="checkbox"
-                name="agreeToTerms"
-                checked={formData.agreeToTerms}
-                onChange={handleChange}
-                className={`mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
-                  errors.agreeToTerms ? 'border-red-500' : ''
-                }`}
-              />
-              <label className="ml-3 text-sm text-gray-700">
-                <span className="font-semibold">I agree to the terms and conditions <span className="text-red-500">*</span></span>
-                <p className="mt-1 text-gray-600">
-                  By submitting this report, I confirm that the information provided is accurate to the best of my knowledge.
-                  I understand that my case will be reviewed by administrators before being made public, and that
-                  PetRecovery.org is not responsible for the accuracy of user-submitted information or any interactions
-                  that result from this posting.
-                </p>
-              </label>
-            </div>
-            {errors.agreeToTerms && <p className="mt-2 text-sm text-red-600 ml-8">{errors.agreeToTerms}</p>}
-          </div>
-
-          {/* Submit Error */}
-          {submitError && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-red-800 font-semibold">Error submitting report</p>
-              <p className="text-red-600 mt-1">{submitError}</p>
-            </div>
-          )}
-
-          {/* Submit Button */}
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex-1 px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition font-semibold text-lg"
-            >
-              {submitting ? 'Submitting...' : 'Submit Lost Pet Report'}
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push('/cases')}
-              className="px-8 py-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-semibold text-lg"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
+          </form>
+        </div>
+      </main>
     </div>
   );
 }

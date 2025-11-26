@@ -11,6 +11,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function PublicCaseDetailPage() {
   const params = useParams();
@@ -72,6 +73,22 @@ export default function PublicCaseDetailPage() {
       case 'CLOSED_OTHER': return 'Closed';
       default: return status;
     }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const formatTime = (dateString) => {
+    return new Date(dateString).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
   };
 
   const handleShare = async () => {
@@ -156,6 +173,26 @@ export default function PublicCaseDetailPage() {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 max-w-4xl py-8">
+        {/* Image Section (Merged from Origin) */}
+        {caseData.petPhotoUrl && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-6">
+            <div className="aspect-video relative bg-gray-100">
+              <img
+                src={caseData.petPhotoUrl}
+                alt={caseData.petName}
+                className="w-full h-full object-cover"
+              />
+              {caseData.hasReward && (
+                <div className="absolute top-4 right-4">
+                  <span className="bg-green-500 text-white px-3 py-1.5 rounded-full text-sm font-bold">
+                    ${caseData.rewardAmount?.toLocaleString()} REWARD
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Urgent Banner */}
         {caseData.isUrgent && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
@@ -183,6 +220,12 @@ export default function PublicCaseDetailPage() {
                 <p className="font-semibold">{caseData.petColor}</p>
               </div>
             )}
+            {caseData.petSize && (
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Size</p>
+                <p className="font-semibold">{caseData.petSize}</p>
+              </div>
+            )}
           </div>
           {caseData.petDescription && (
             <div className="mt-4">
@@ -200,6 +243,12 @@ export default function PublicCaseDetailPage() {
               <p className="text-sm text-gray-500 mb-1">City/State</p>
               <p className="font-semibold">{caseData.city}, {caseData.state} {caseData.zipCode && `(${caseData.zipCode})`}</p>
             </div>
+            {caseData.lastSeenAddress && (
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Address/Area</p>
+                <p className="font-semibold">{caseData.lastSeenAddress}</p>
+              </div>
+            )}
             {caseData.lastSeenLandmark && (
               <div>
                 <p className="text-sm text-gray-500 mb-1">Landmark</p>
@@ -209,14 +258,7 @@ export default function PublicCaseDetailPage() {
             {caseData.lastSeenAt && (
               <div>
                 <p className="text-sm text-gray-500 mb-1">Last Seen Date</p>
-                <p className="text-gray-700">{new Date(caseData.lastSeenAt).toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}</p>
+                <p className="text-gray-700">{formatDate(caseData.lastSeenAt)} at {formatTime(caseData.lastSeenAt)}</p>
               </div>
             )}
           </div>
@@ -274,6 +316,36 @@ export default function PublicCaseDetailPage() {
           )}
         </div>
 
+        {/* Sightings (Merged from Origin) */}
+        {caseData.sightings && caseData.sightings.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-xl font-bold mb-4">Recent Sightings ({caseData.sightings.length})</h2>
+            <div className="space-y-3">
+              {caseData.sightings.map((sighting) => (
+                <div key={sighting.id} className="bg-blue-50 rounded-lg p-4">
+                  <p className="text-blue-900 font-medium">{sighting.address}</p>
+                  <p className="text-blue-700 text-sm">
+                    {formatDate(sighting.sightedAt)} at {formatTime(sighting.sightedAt)}
+                  </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className={`text-xs px-2 py-0.5 rounded ${sighting.certaintyLevel >= 4 ? 'bg-green-100 text-green-800' :
+                        sighting.certaintyLevel >= 2 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                      }`}>
+                      Certainty: {sighting.certaintyLevel}/5
+                    </span>
+                    {sighting.isVerified && (
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                        Verified
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Case Status */}
         {caseData.statusReason && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -302,6 +374,12 @@ export default function PublicCaseDetailPage() {
               Back to All Cases
             </button>
           </div>
+          {/* View Count (Merged from Origin) */}
+          {caseData.viewCount > 0 && (
+            <p className="text-gray-400 text-sm text-center mt-6">
+              {caseData.viewCount.toLocaleString()} views &bull; Posted {formatDate(caseData.createdAt)}
+            </p>
+          )}
         </div>
 
         {/* Legal Disclaimer */}

@@ -11,6 +11,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { requireStaffOrAdmin, PermissionError } from '@/app/lib/permissions';
+import { sendCoordinatorAssignmentNotification } from '@/app/lib/notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,9 +27,10 @@ export const dynamic = 'force-dynamic';
 export async function POST(request, { params }) {
   const caseId = params.id;
   const startTime = Date.now();
+  let session = null;
 
   try {
-    const session = await getServerSession(authOptions);
+    session = await getServerSession(authOptions);
 
     if (!session) {
       return NextResponse.json(
@@ -72,6 +74,10 @@ export async function POST(request, { params }) {
         caseNumber: true,
         coordinatorId: true,
         squadId: true,
+        petName: true,
+        petSpecies: true,
+        city: true,
+        state: true
       },
     });
 
@@ -194,6 +200,10 @@ export async function POST(request, { params }) {
         caseNumber: true,
         coordinatorId: true,
         squadId: true,
+        petName: true,
+        petSpecies: true,
+        city: true,
+        state: true,
         coordinator: {
           select: {
             id: true,
@@ -226,6 +236,21 @@ export async function POST(request, { params }) {
         response_time_ms: responseTime,
       },
     });
+
+    // Send notification to new coordinator (non-blocking)
+    if (newCoordinator && newCoordinatorId !== oldCoordinatorId) {
+      sendCoordinatorAssignmentNotification(
+        {
+          id: updated.id,
+          caseNumber: updated.caseNumber,
+          petName: updated.petName,
+          petSpecies: updated.petSpecies,
+          city: updated.city,
+          state: updated.state
+        },
+        newCoordinator
+      ).catch(console.error);
+    }
 
     return NextResponse.json({
       success: true,

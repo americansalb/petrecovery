@@ -266,9 +266,29 @@ function CasesContent() {
                 <a
                   key={caseItem.id}
                   href={`/cases/${caseItem.caseNumber}`}
-                  className="bg-white rounded-lg shadow hover:shadow-lg transition border border-gray-200 overflow-hidden"
+                  className="bg-white rounded-lg shadow hover:shadow-lg transition border border-gray-200 overflow-hidden flex flex-col"
                 >
-                  <div className="p-6">
+                  {/* Image Section (Merged from Origin) */}
+                  <div className="aspect-square relative overflow-hidden bg-gray-100">
+                    <img
+                      src={caseItem.petPhotoUrl || '/placeholder-pet.jpg'}
+                      alt={caseItem.petName}
+                      className="w-full h-full object-cover hover:scale-105 transition duration-300"
+                    />
+                    {caseItem.isUrgent && (
+                      <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                        URGENT
+                      </span>
+                    )}
+                    <span className={`absolute top-2 left-2 text-white text-xs font-bold px-2 py-1 rounded ${caseItem.status === 'ACTIVE_SEARCH' ? 'bg-yellow-500' :
+                        caseItem.status === 'RESOLVED' ? 'bg-green-500' :
+                          'bg-blue-500'
+                      }`}>
+                      {getStatusLabel(caseItem.status)}
+                    </span>
+                  </div>
+
+                  <div className="p-6 flex-1 flex flex-col">
                     <div className="flex justify-between items-start mb-3">
                       <div>
                         <h3 className="font-bold text-lg text-gray-900">
@@ -276,12 +296,9 @@ function CasesContent() {
                         </h3>
                         <p className="text-sm text-gray-500">{caseItem.caseNumber}</p>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(caseItem.status)}`}>
-                        {getStatusLabel(caseItem.status)}
-                      </span>
                     </div>
 
-                    <div className="space-y-2 text-sm text-gray-600">
+                    <div className="space-y-2 text-sm text-gray-600 flex-1">
                       <div className="flex items-center">
                         <span className="font-semibold mr-2">Type:</span>
                         <span>{caseItem.petSpecies}</span>
@@ -309,12 +326,6 @@ function CasesContent() {
                         </div>
                       )}
                     </div>
-
-                    {caseItem.isUrgent && (
-                      <div className="mt-4 bg-red-50 border border-red-200 rounded px-3 py-2">
-                        <p className="text-xs text-red-800 font-semibold">⚠️ URGENT CASE</p>
-                      </div>
-                    )}
 
                     <div className="mt-4 text-blue-600 text-sm font-semibold">
                       View Details →
@@ -351,8 +362,8 @@ function CasesContent() {
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
                         className={`px-4 py-2 rounded-lg transition ${page === pageNum
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white border border-gray-300 hover:bg-gray-50'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white border border-gray-300 hover:bg-gray-50'
                           }`}
                       >
                         {pageNum}
