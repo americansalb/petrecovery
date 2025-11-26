@@ -9,10 +9,10 @@
  * NO AUTHENTICATION REQUIRED
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-export default function PublicCasesPage() {
+function CasesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -350,11 +350,10 @@ export default function PublicCasesPage() {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`px-4 py-2 rounded-lg transition ${
-                          page === pageNum
+                        className={`px-4 py-2 rounded-lg transition ${page === pageNum
                             ? 'bg-blue-600 text-white'
                             : 'bg-white border border-gray-300 hover:bg-gray-50'
-                        }`}
+                          }`}
                       >
                         {pageNum}
                       </button>
@@ -374,5 +373,13 @@ export default function PublicCasesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PublicCasesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>}>
+      <CasesContent />
+    </Suspense>
   );
 }

@@ -1,3 +1,4 @@
+import './globals.css';
 import SessionProvider from './components/SessionProvider';
 import { ModeProvider } from './contexts/ModeContext';
 import Navigation from './components/Navigation';
