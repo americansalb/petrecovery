@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
-import prisma from '../../lib/prisma';
+import prisma from '@/app/lib/prisma';
 import { getServerSession } from 'next-auth';
+
+// Force dynamic rendering since this route uses headers (via getServerSession)
+export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
   try {
