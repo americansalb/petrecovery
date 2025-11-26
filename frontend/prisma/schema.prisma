@@ -64,7 +64,7 @@ model User {
   reviewedDivisionRequests DivisionRequest[] @relation("ReviewedDivisionRequests")
 
   // Case Coordinator Relation (Phase 22-24)
-  coordinatedCases       Case[] @relation("CaseCoordinator")
+  coordinatedLegacyCases       Case[] @relation("LegacyCaseCoordinator")
 
   // Community Relations (LEGACY - keeping for backwards compatibility)
   communityRequests CommunityRequest[]
@@ -403,7 +403,7 @@ model Case {
 
   // Case Assignment (Phase 22-24)
   coordinatorId    String?
-  coordinator      User?        @relation("CaseCoordinator", fields: [coordinatorId], references: [id])
+  coordinator      User?        @relation("LegacyCaseCoordinator", fields: [coordinatorId], references: [id])
   primarySquadId   String?
   primarySquad     RescueSquad? @relation("PrimarySquadCases", fields: [primarySquadId], references: [id])
 
