@@ -9,10 +9,33 @@
  * NO AUTHENTICATION REQUIRED
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-export default function PublicCasesPage() {
+// Loading fallback for Suspense boundary
+function CasesLoading() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-blue-600 text-white py-12">
+        <div className="container mx-auto px-4 max-w-6xl">
+          <h1 className="text-4xl font-bold mb-4">Lost Pet Cases</h1>
+          <p className="text-xl text-blue-100 mb-4">
+            Browse reported lost pet cases in your area and help reunite pets with their families.
+          </p>
+        </div>
+      </div>
+      <div className="container mx-auto px-4 max-w-6xl py-8">
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-600">Loading cases...</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Inner component that uses useSearchParams
+function CasesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -374,5 +397,14 @@ export default function PublicCasesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Default export wraps content in Suspense for useSearchParams
+export default function PublicCasesPage() {
+  return (
+    <Suspense fallback={<CasesLoading />}>
+      <CasesContent />
+    </Suspense>
   );
 }
