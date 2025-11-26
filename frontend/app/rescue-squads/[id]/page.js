@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
@@ -12,14 +12,17 @@ const SquadCoverageMap = dynamic(() => import('@/app/components/SquadCoverageMap
   loading: () => <div style={{ height: '400px', background: '#f8fafc', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>Loading map...</div>
 });
 
-export default function RescueSquadDetailPage({ params }) {
+export default function SquadDetailsPage() {
+  const { id } = useParams();
   const { data: session } = useSession();
   const router = useRouter();
+
   const [squad, setSquad] = useState(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
-  const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Premium Features State
   const [legalError, setLegalError] = useState(null); // { message, redirectTo }
   const [isMember, setIsMember] = useState(false);
   const [userRole, setUserRole] = useState(null);
@@ -30,45 +33,17 @@ export default function RescueSquadDetailPage({ params }) {
   const [activeCasesLoading, setActiveCasesLoading] = useState(false);
   const [optingCase, setOptingCase] = useState(null);
 
-  useEffect(() => {
-    loadSquad();
-  }, [params.id, session]);
-
-  useEffect(() => {
-    // Load available cases if user is a leader
-    if (userRole && ['FOUNDER', 'LEADER'].includes(userRole)) {
-      loadAvailableCases();
-    }
-    // Load active cases for all members
-    if (isMember) {
-      loadActiveCases();
-    }
-  }, [userRole, isMember, params.id]);
-
-  const loadSquad = async () => {
+  const fetchSquad = async () => {
     try {
-      const res = await fetch(`/api/rescue-squads/${params.id}`);
+      const res = await fetch(`/api/rescue-squads/${id}`);
+      if (!res.ok) throw new Error('Squad not found');
       const data = await res.json();
+      setSquad(data);
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to load squad');
-      }
-
-      setSquad(data.squad);
-
-      // Check if current user is a member and get their role
-      if (session?.user?.id && data.squad.members) {
-        const userMembership = data.squad.members.find(
-          m => m.userId === session.user.id && m.isActive
-        );
-        if (userMembership) {
-          setIsMember(true);
-          setUserRole(userMembership.role);
-        } else {
-          setIsMember(false);
-          setUserRole(null);
-        }
-      }
+      // Update derived state
+      const member = data.members?.find(m => m.userId === session?.user?.id);
+      setIsMember(!!member);
+      setUserRole(member?.role || null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -76,9 +51,94 @@ export default function RescueSquadDetailPage({ params }) {
     }
   };
 
+  useEffect(() => {
+    fetchSquad();
+  }, [id, session]);
+
+  // --- Missing Functions Implementation ---
+  const loadAvailableCases = async () => {
+    setCasesLoading(true);
+    try {
+      const res = await fetch(`/api/rescue-squads/${id}/cases/available`);
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableCases(data);
+      }
+    } catch (e) {
+      console.error("Failed to load available cases", e);
+    } finally {
+      setCasesLoading(false);
+    }
+  };
+
+  const loadActiveCases = async () => {
+    setActiveCasesLoading(true);
+    try {
+      const res = await fetch(`/api/rescue-squads/${id}/cases/active`);
+      if (res.ok) {
+        const data = await res.json();
+        setActiveCases(data);
+      }
+    } catch (e) {
+      console.error("Failed to load active cases", e);
+    } finally {
+      setActiveCasesLoading(false);
+    }
+  };
+
+  const handleAcceptCase = async (caseId) => {
+    setAcceptingCase(caseId);
+    try {
+      const res = await fetch(`/api/rescue-squads/${id}/cases/${caseId}/accept`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to accept case');
+      await loadAvailableCases();
+      await loadActiveCases();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setAcceptingCase(null);
+    }
+  };
+
+  const handleOptIn = async (assignmentId) => {
+    setOptingCase(assignmentId);
+    try {
+      const res = await fetch(`/api/rescue-squads/${id}/assignments/${assignmentId}/join`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to join case');
+      await loadActiveCases();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setOptingCase(null);
+    }
+  };
+
+  const handleOptOut = async (assignmentId) => {
+    setOptingCase(assignmentId);
+    try {
+      const res = await fetch(`/api/rescue-squads/${id}/assignments/${assignmentId}/leave`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to leave case');
+      await loadActiveCases();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setOptingCase(null);
+    }
+  };
+
+  // Load cases when role is known
+  useEffect(() => {
+    if (userRole) {
+      loadActiveCases();
+      if (['FOUNDER', 'LEADER'].includes(userRole)) {
+        loadAvailableCases();
+      }
+    }
+  }, [userRole]);
+
   const handleJoin = async () => {
     if (!session) {
-      router.push(`/login?callbackUrl=/rescue-squads/${params.id}`);
+      router.push('/login');
       return;
     }
 
@@ -87,7 +147,7 @@ export default function RescueSquadDetailPage({ params }) {
     setLegalError(null);
 
     try {
-      const res = await fetch(`/api/rescue-squads/${params.id}/join`, {
+      const res = await fetch(`/api/rescue-squads/${id}/join`, {
         method: 'POST',
       });
 
@@ -107,483 +167,105 @@ export default function RescueSquadDetailPage({ params }) {
       }
 
       setIsMember(true);
-      loadSquad(); // Reload to show updated member count
+      fetchSquad(); // Reload to show updated member count
     } catch (err) {
-      setError(err.message);
+      alert(err.message);
     } finally {
       setJoining(false);
     }
   };
 
   const handleLeave = async () => {
-    if (!confirm('Are you sure you want to leave this squad? You will be removed from all active cases.')) {
-      return;
-    }
+    if (!confirm('Are you sure you want to leave this squad?')) return;
 
-    setLeaving(true);
-    setError('');
-
+    setJoining(true);
     try {
-      const res = await fetch(`/api/rescue-squads/${params.id}/leave`, {
-        method: 'POST',
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to leave squad');
-      }
-
-      setIsMember(false);
-      setUserRole(null);
-      loadSquad(); // Reload to show updated member count
+      const res = await fetch(`/api/rescue-squads/${id}/leave`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to leave squad');
+      await fetchSquad();
     } catch (err) {
-      setError(err.message);
+      alert(err.message);
     } finally {
-      setLeaving(false);
+      setJoining(false);
     }
   };
 
-  const loadAvailableCases = async () => {
-    setCasesLoading(true);
+  if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading squad details...</div>;
+  if (error) return <div style={{ padding: '2rem', textAlign: 'center', color: 'red' }}>{error}</div>;
+  if (!squad) return null;
+
+
+
+  // Helper to format ZIPs
+  const formatZips = (zips) => {
+    if (!zips) return 'None';
+    if (Array.isArray(zips)) return zips.join(', ');
     try {
-      const res = await fetch(`/api/rescue-squads/${params.id}/available-cases`);
-      if (res.ok) {
-        const data = await res.json();
-        setAvailableCases(data.cases || []);
-      }
-    } catch (err) {
-      console.error('Error loading available cases:', err);
-    } finally {
-      setCasesLoading(false);
+      return JSON.parse(zips).join(', ');
+    } catch (e) {
+      return zips;
     }
   };
-
-  const handleAcceptCase = async (caseId) => {
-    if (!confirm('Accept this case for your squad? All members will be notified.')) {
-      return;
-    }
-
-    setAcceptingCase(caseId);
-    setError('');
-
-    try {
-      const res = await fetch(`/api/cases/${caseId}/assignments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rescueSquadId: params.id }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to accept case');
-      }
-
-      // Remove from available cases and reload squad data
-      setAvailableCases(prev => prev.filter(c => c.id !== caseId));
-      loadSquad();
-      loadActiveCases(); // Refresh active cases
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setAcceptingCase(null);
-    }
-  };
-
-  const loadActiveCases = async () => {
-    setActiveCasesLoading(true);
-    try {
-      const res = await fetch(`/api/rescue-squads/${params.id}/active-cases`);
-      if (res.ok) {
-        const data = await res.json();
-        setActiveCases(data.assignments || []);
-      }
-    } catch (err) {
-      console.error('Error loading active cases:', err);
-    } finally {
-      setActiveCasesLoading(false);
-    }
-  };
-
-  const handleOptIn = async (assignmentId) => {
-    setOptingCase(assignmentId);
-    setError('');
-
-    try {
-      const res = await fetch(`/api/assignments/${assignmentId}/participants`, {
-        method: 'POST',
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to opt into case');
-      }
-
-      // Update the local state
-      setActiveCases(prev =>
-        prev.map(assignment =>
-          assignment.id === assignmentId
-            ? { ...assignment, isUserParticipating: true }
-            : assignment
-        )
-      );
-      loadSquad(); // Refresh squad data
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setOptingCase(null);
-    }
-  };
-
-  const handleOptOut = async (assignmentId) => {
-    if (!confirm('Stop helping with this case? You can opt back in later.')) {
-      return;
-    }
-
-    setOptingCase(assignmentId);
-    setError('');
-
-    try {
-      const res = await fetch(`/api/assignments/${assignmentId}/participants`, {
-        method: 'DELETE',
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to opt out of case');
-      }
-
-      // Update the local state
-      setActiveCases(prev =>
-        prev.map(assignment =>
-          assignment.id === assignmentId
-            ? { ...assignment, isUserParticipating: false }
-            : assignment
-        )
-      );
-      loadSquad(); // Refresh squad data
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setOptingCase(null);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#f8fafc'
-      }}>
-        <div style={{
-          fontSize: '1.2rem',
-          color: '#64748b'
-        }}>
-          Loading squad details...
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !squad) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#f8fafc',
-        padding: '2rem'
-      }}>
-        <div style={{
-          background: 'white',
-          borderRadius: '16px',
-          padding: '3rem',
-          textAlign: 'center',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
-          maxWidth: '500px'
-        }}>
-          <h2 style={{
-            fontSize: '1.5rem',
-            fontWeight: '700',
-            color: '#dc2626',
-            marginBottom: '1rem'
-          }}>
-            Squad Not Found
-          </h2>
-          <p style={{ color: '#64748b', marginBottom: '2rem' }}>
-            {error || 'The rescue squad you\'re looking for doesn\'t exist.'}
-          </p>
-          <Link
-            href="/rescue-squads"
-            style={{
-              display: 'inline-block',
-              padding: '0.75rem 1.5rem',
-              background: '#667eea',
-              color: 'white',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              fontWeight: '700'
-            }}
-          >
-            ← Browse Rescue Squads
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#f8fafc',
-      padding: '3rem 1rem'
-    }}>
-      <div style={{
-        maxWidth: '1000px',
-        margin: '0 auto'
-      }}>
-        {/* Header */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: '2rem',
-          gap: '1rem',
-          flexWrap: 'wrap'
-        }}>
-          <div style={{ flex: 1 }}>
-            <Link
-              href="/rescue-squads"
-              style={{
-                color: '#667eea',
-                textDecoration: 'none',
-                fontWeight: '600',
-                marginBottom: '1rem',
-                display: 'inline-block'
-              }}
-            >
-              ← Back to Rescue Squads
-            </Link>
-            <h1 style={{
-              fontSize: '2.5rem',
-              fontWeight: '900',
-              color: '#0f172a',
-              marginBottom: '0.5rem'
-            }}>
-              {squad.name}
-            </h1>
-            <p style={{
-              fontSize: '1.1rem',
-              color: '#64748b'
-            }}>
-              {squad.description || 'Volunteer rescue squad'}
-            </p>
-          </div>
+    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+      {/* Hero Header */}
+      <div style={{ background: 'white', borderBottom: '1px solid #e2e8f0', padding: '3rem 2rem' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <Link href="/rescue-squads" style={{ textDecoration: 'none', color: '#64748b', display: 'inline-block', marginBottom: '1rem' }}>
+            ← Back to Search
+          </Link>
 
-          {/* Join Button */}
-          {!isMember && (
-            <button
-              onClick={handleJoin}
-              disabled={joining}
-              style={{
-                padding: '1rem 2rem',
-                background: joining ? '#cbd5e1' : '#10b981',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: '700',
-                fontSize: '1.1rem',
-                cursor: joining ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              {joining ? 'Joining...' : 'Join Squad'}
-            </button>
-          )}
-
-          {isMember && (
-            <div style={{
-              display: 'flex',
-              gap: '1rem',
-              alignItems: 'center',
-              flexWrap: 'wrap'
-            }}>
-              <div style={{
-                padding: '1rem 2rem',
-                background: '#d1fae5',
-                border: '2px solid #10b981',
-                borderRadius: '8px',
-                fontWeight: '700',
-                fontSize: '1.1rem',
-                color: '#065f46'
-              }}>
-                ✓ You're a Member
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '2rem' }}>
+            <div>
+              <h1 style={{ fontSize: '2.5rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.5rem' }}>
+                {squad.name}
+              </h1>
+              <div style={{ display: 'flex', gap: '1.5rem', color: '#64748b', fontSize: '1.1rem' }}>
+                <span>📍 {squad.city}, {squad.state}</span>
               </div>
-              <button
-                onClick={handleLeave}
-                disabled={leaving}
-                style={{
-                  padding: '1rem 2rem',
-                  background: leaving ? '#cbd5e1' : 'white',
-                  color: leaving ? '#64748b' : '#dc2626',
-                  border: `2px solid ${leaving ? '#cbd5e1' : '#dc2626'}`,
-                  borderRadius: '8px',
-                  fontWeight: '700',
-                  fontSize: '1rem',
-                  cursor: leaving ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {leaving ? 'Leaving...' : 'Leave Squad'}
-              </button>
-            </div>
-          )}
-        </div>
 
-        {/* Legal Consent Required Banner */}
-        {legalError && (
-          <div style={{
-            padding: '1.5rem',
-            background: '#fef3c7',
-            border: '2px solid #fbbf24',
-            borderRadius: '12px',
-            marginBottom: '2rem'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-              <span style={{ fontSize: '1.5rem' }}>⚠️</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: '700', color: '#92400e', marginBottom: '0.25rem' }}>
-                  Legal Agreement Required
+              {/* Stats Row */}
+              <div style={{ display: 'flex', gap: '3rem', marginTop: '2rem', borderTop: '1px solid #f1f5f9', paddingTop: '2rem' }}>
+                <div>
+                  <div style={{ fontSize: '2rem', fontWeight: '800', color: '#0f172a' }}>{squad.members?.length || 0}</div>
+                  <div style={{ color: '#64748b', fontSize: '0.9rem', fontWeight: '600', textTransform: 'uppercase' }}>Members</div>
                 </div>
-                <div style={{ color: '#b45309', fontSize: '0.95rem' }}>
-                  {legalError.message}
+                <div>
+                  <div style={{ fontSize: '2rem', fontWeight: '800', color: '#0f172a' }}>{squad.successfulReunions || 0}</div>
+                  <div style={{ color: '#64748b', fontSize: '0.9rem', fontWeight: '600', textTransform: 'uppercase' }}>Reunions</div>
+                </div>
+                <div style={{
+                  background: 'white',
+                  borderRadius: '12px',
+                  padding: '1.5rem',
+                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
+                }}>
+                  <div style={{
+                    fontSize: '0.9rem',
+                    color: '#64748b',
+                    marginBottom: '0.5rem'
+                  }}>
+                    Total Cases Handled
+                  </div>
+                  <div style={{
+                    fontSize: '2rem',
+                    fontWeight: '900',
+                    color: '#667eea'
+                  }}>
+                    {(squad.activeCases || 0) + (squad.successfulReunions || 0)}
+                  </div>
                 </div>
               </div>
             </div>
-            <button
-              onClick={() => router.push(legalError.redirectTo)}
-              style={{
-                padding: '0.75rem 1.5rem',
-                background: '#10b981',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: '700',
-                cursor: 'pointer'
-              }}
-            >
-              Review & Accept Now →
-            </button>
           </div>
-        )}
+        </div >
+      </div>
 
-        {/* Stats Cards */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1.5rem',
-          marginBottom: '2rem'
-        }}>
-          <div style={{
-            background: 'white',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-          }}>
-            <div style={{
-              fontSize: '0.9rem',
-              color: '#64748b',
-              marginBottom: '0.5rem'
-            }}>
-              Active Members
-            </div>
-            <div style={{
-              fontSize: '2rem',
-              fontWeight: '900',
-              color: '#0f172a'
-            }}>
-              {squad._count?.members || 0}
-            </div>
-          </div>
 
-          <div style={{
-            background: 'white',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-          }}>
-            <div style={{
-              fontSize: '0.9rem',
-              color: '#64748b',
-              marginBottom: '0.5rem'
-            }}>
-              Active Cases
-            </div>
-            <div style={{
-              fontSize: '2rem',
-              fontWeight: '900',
-              color: '#dc2626'
-            }}>
-              {squad.activeCases || 0}
-            </div>
-          </div>
-
-          <div style={{
-            background: 'white',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-          }}>
-            <div style={{
-              fontSize: '0.9rem',
-              color: '#64748b',
-              marginBottom: '0.5rem'
-            }}>
-              Successful Reunions
-            </div>
-            <div style={{
-              fontSize: '2rem',
-              fontWeight: '900',
-              color: '#10b981'
-            }}>
-              {squad.successfulReunions || 0}
-            </div>
-          </div>
-
-          <div style={{
-            background: 'white',
-            borderRadius: '12px',
-            padding: '1.5rem',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-          }}>
-            <div style={{
-              fontSize: '0.9rem',
-              color: '#64748b',
-              marginBottom: '0.5rem'
-            }}>
-              Total Cases Handled
-            </div>
-            <div style={{
-              fontSize: '2rem',
-              fontWeight: '900',
-              color: '#667eea'
-            }}>
-              {(squad.activeCases || 0) + (squad.successfulReunions || 0)}
-            </div>
-          </div>
-        </div>
-
-        {/* Coverage Area Map */}
-        {squad.centerLatitude && squad.centerLongitude && (
+      {/* Coverage Area Map */}
+      {
+        squad.centerLatitude && squad.centerLongitude && (
           <div style={{ marginBottom: '2rem' }}>
             <SquadCoverageMap
               latitude={squad.centerLatitude}
@@ -593,10 +275,12 @@ export default function RescueSquadDetailPage({ params }) {
               state={squad.state}
             />
           </div>
-        )}
+        )
+      }
 
-        {/* Available Cases (Leaders Only) */}
-        {userRole && ['FOUNDER', 'LEADER'].includes(userRole) && (
+      {/* Available Cases (Leaders Only) */}
+      {
+        userRole && ['FOUNDER', 'LEADER'].includes(userRole) && (
           <div style={{
             background: 'white',
             borderRadius: '16px',
@@ -710,9 +394,9 @@ export default function RescueSquadDetailPage({ params }) {
                         <div style={{
                           padding: '0.5rem 1rem',
                           background: caseItem.priority === 'URGENT' ? '#fee2e2' :
-                                    caseItem.priority === 'HIGH' ? '#fef3c7' : '#f1f5f9',
+                            caseItem.priority === 'HIGH' ? '#fef3c7' : '#f1f5f9',
                           color: caseItem.priority === 'URGENT' ? '#991b1b' :
-                                caseItem.priority === 'HIGH' ? '#92400e' : '#64748b',
+                            caseItem.priority === 'HIGH' ? '#92400e' : '#64748b',
                           borderRadius: '6px',
                           fontSize: '0.85rem',
                           fontWeight: '700'
@@ -808,10 +492,12 @@ export default function RescueSquadDetailPage({ params }) {
               </div>
             )}
           </div>
-        )}
+        )
+      }
 
-        {/* Active Cases (All Members) */}
-        {isMember && (
+      {/* Active Cases (All Members) */}
+      {
+        isMember && (
           <div style={{
             background: 'white',
             borderRadius: '16px',
@@ -943,8 +629,8 @@ export default function RescueSquadDetailPage({ params }) {
                         border: assignment.isUserParticipating
                           ? '3px solid #10b981'
                           : isUrgent
-                          ? '3px solid #dc2626'
-                          : '2px solid #e2e8f0',
+                            ? '3px solid #dc2626'
+                            : '2px solid #e2e8f0',
                         borderRadius: '16px',
                         background: assignment.isUserParticipating
                           ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)'
@@ -1045,8 +731,8 @@ export default function RescueSquadDetailPage({ params }) {
                             background: assignment.status === 'ACTIVE'
                               ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
                               : assignment.status === 'ACCEPTED'
-                              ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'
-                              : '#f1f5f9',
+                                ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'
+                                : '#f1f5f9',
                             color: 'white',
                             borderRadius: '8px',
                             fontSize: '0.85rem',
@@ -1283,74 +969,76 @@ export default function RescueSquadDetailPage({ params }) {
               </div>
             )}
           </div>
-        )}
+        )
+      }
 
-        {/* Members Preview */}
-        <div style={{
-          background: 'white',
-          borderRadius: '16px',
-          padding: '2.5rem',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
-          marginBottom: '2rem'
+      {/* Members Preview */}
+      <div style={{
+        background: 'white',
+        borderRadius: '16px',
+        padding: '2.5rem',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+        marginBottom: '2rem'
+      }}>
+        <h2 style={{
+          fontSize: '1.5rem',
+          fontWeight: '800',
+          color: '#0f172a',
+          marginBottom: '1.5rem'
         }}>
-          <h2 style={{
-            fontSize: '1.5rem',
-            fontWeight: '800',
-            color: '#0f172a',
-            marginBottom: '1.5rem'
-          }}>
-            Squad Leaders
-          </h2>
+          Squad Leaders
+        </h2>
 
-          {squad.members && squad.members.filter(m => ['FOUNDER', 'LEADER'].includes(m.role)).length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {squad.members
-                .filter(m => ['FOUNDER', 'LEADER'].includes(m.role))
-                .slice(0, 5)
-                .map(member => (
-                  <div key={member.id} style={{
+        {squad.members && squad.members.filter(m => ['FOUNDER', 'LEADER'].includes(m.role)).length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {squad.members
+              .filter(m => ['FOUNDER', 'LEADER'].includes(m.role))
+              .slice(0, 5)
+              .map(member => (
+                <div key={member.id} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem'
+                }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    background: '#667eea',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.75rem'
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontWeight: '700',
+                    fontSize: '1.1rem'
                   }}>
+                    {member.user.firstName?.[0] || '?'}
+                  </div>
+                  <div>
                     <div style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      background: '#667eea',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'white',
                       fontWeight: '700',
-                      fontSize: '1.1rem'
+                      color: '#0f172a'
                     }}>
-                      {member.user.firstName?.[0] || '?'}
+                      {member.user.firstName} {member.user.lastName}
                     </div>
-                    <div>
-                      <div style={{
-                        fontWeight: '700',
-                        color: '#0f172a'
-                      }}>
-                        {member.user.firstName} {member.user.lastName}
-                      </div>
-                      <div style={{
-                        fontSize: '0.85rem',
-                        color: '#64748b'
-                      }}>
-                        {member.role}
-                      </div>
+                    <div style={{
+                      fontSize: '0.85rem',
+                      color: '#64748b'
+                    }}>
+                      {member.role}
                     </div>
                   </div>
-                ))}
-            </div>
-          ) : (
-            <p style={{ color: '#64748b' }}>No leaders listed</p>
-          )}
-        </div>
+                </div>
+              ))}
+          </div>
+        ) : (
+          <p style={{ color: '#64748b' }}>No leaders listed</p>
+        )}
+      </div>
 
-        {/* Divisions */}
-        {squad.divisions && squad.divisions.length > 0 && (
+      {/* Divisions */}
+      {
+        squad.divisions && squad.divisions.length > 0 && (
           <div style={{
             background: 'white',
             borderRadius: '16px',
@@ -1455,11 +1143,11 @@ export default function RescueSquadDetailPage({ params }) {
                       boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
                     }}>
                       {division.name.toLowerCase().includes('search') ? '🔍' :
-                       division.name.toLowerCase().includes('transport') ? '🚗' :
-                       division.name.toLowerCase().includes('medical') ? '⚕️' :
-                       division.name.toLowerCase().includes('comm') ? '📡' :
-                       division.name.toLowerCase().includes('train') ? '📚' :
-                       '⭐'}
+                        division.name.toLowerCase().includes('transport') ? '🚗' :
+                          division.name.toLowerCase().includes('medical') ? '⚕️' :
+                            division.name.toLowerCase().includes('comm') ? '📡' :
+                              division.name.toLowerCase().includes('train') ? '📚' :
+                                '⭐'}
                     </div>
 
                     {/* Division name */}
@@ -1549,23 +1237,9 @@ export default function RescueSquadDetailPage({ params }) {
               })}
             </div>
           </div>
-        )}
+        )
+      }
 
-        {/* Error Message */}
-        {error && (
-          <div style={{
-            padding: '1rem',
-            background: '#fee2e2',
-            border: '2px solid #fecaca',
-            borderRadius: '8px',
-            color: '#991b1b',
-            marginTop: '1rem',
-            fontWeight: '600'
-          }}>
-            {error}
-          </div>
-        )}
-      </div>
-    </div>
+    </div >
   );
 }
