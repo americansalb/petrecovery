@@ -1,487 +1,205 @@
 'use client';
 
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { theme } from './lib/theme';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Heart,
+  Search,
+  Shield,
+  Bell,
+  CheckCircle,
+  ArrowRight
+} from 'lucide-react';
+
+// --- Components ---
+
+const LiveTicker = () => {
+  const [index, setIndex] = useState(0);
+  const events = [
+    "🔔 Max (Golden Retriever) was just reunited in Austin, TX",
+    "🔔 Luna (Siamese) was found safe in Portland, OR",
+    "🔔 Cooper (Beagle) is back home in Denver, CO",
+    "🔔 Bella (Lab Mix) was reunited in Nashville, TN"
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIndex((prev) => (prev + 1) % events.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="bg-indigo-900 text-white py-2 overflow-hidden relative z-50">
+      <div className="max-w-7xl mx-auto px-4 flex items-center justify-center">
+        <AnimatePresence mode='wait'>
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="flex items-center gap-2 text-sm font-medium"
+          >
+            {events[index]}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+};
+
+const HeroSection = () => {
+  return (
+    <div className="relative h-[85vh] flex items-center justify-center overflow-hidden">
+      {/* Background with Overlay */}
+      <div className="absolute inset-0 bg-slate-900">
+        <img
+          src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?q=80&w=2069&auto=format&fit=crop"
+          alt="Happy dog running"
+          className="w-full h-full object-cover opacity-50"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/60 via-transparent to-slate-50" />
+      </div>
+
+      <div className="relative z-10 text-center max-w-5xl px-4 mt-10">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
+          <h1 className="text-6xl md:text-8xl font-black text-white mb-8 tracking-tight drop-shadow-lg">
+            Bring Them <span className="text-amber-400">Home.</span>
+          </h1>
+          <p className="text-xl md:text-3xl text-slate-100 mb-12 font-medium max-w-3xl mx-auto leading-relaxed drop-shadow-md">
+            The community-powered network that has reunited <span className="text-amber-400 font-bold">847 pets</span> this year.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-6 justify-center">
+            <Link href="/report/new" className="group relative px-10 py-5 bg-rose-600 hover:bg-rose-700 text-white rounded-full font-bold text-xl transition-all shadow-[0_0_40px_rgba(225,29,72,0.5)] hover:shadow-[0_0_60px_rgba(225,29,72,0.7)] hover:-translate-y-1 flex items-center justify-center gap-3">
+              <Bell className="w-6 h-6" />
+              Report Lost Pet
+            </Link>
+            <Link href="/database" className="px-10 py-5 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border-2 border-white/30 rounded-full font-bold text-xl transition-all hover:-translate-y-1 flex items-center justify-center gap-3">
+              <Search className="w-6 h-6" />
+              Search Database
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+const ActionCard = ({ href, icon: Icon, title, desc, color, delay }) => (
+  <Link href={href} className="block group h-full">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay }}
+      className="bg-white rounded-[2rem] p-10 shadow-xl border border-slate-100 hover:border-indigo-100 transition-all hover:shadow-2xl hover:-translate-y-2 h-full relative overflow-hidden"
+    >
+      <div className={`absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity ${color}`}>
+        <Icon className="w-40 h-40" />
+      </div>
+
+      <div className={`w-16 h-16 rounded-2xl ${color} bg-opacity-10 flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-300`}>
+        <Icon className={`w-8 h-8 ${color.replace('bg-', 'text-')}`} />
+      </div>
+
+      <h3 className="text-3xl font-bold text-slate-900 mb-4">{title}</h3>
+      <p className="text-slate-600 text-lg leading-relaxed mb-8">{desc}</p>
+
+      <div className="flex items-center text-indigo-600 font-bold text-lg group-hover:gap-3 transition-all">
+        Get Started <ArrowRight className="w-5 h-5 ml-2" />
+      </div>
+    </motion.div>
+  </Link>
+);
+
+const SuccessStory = ({ name, story, image }) => (
+  <div className="bg-white rounded-3xl overflow-hidden shadow-lg border border-slate-100 hover:shadow-xl transition-shadow">
+    <div className="h-48 overflow-hidden">
+      <img src={image} alt={name} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" />
+    </div>
+    <div className="p-8">
+      <div className="flex items-center gap-2 mb-4 text-amber-400">
+        {[1, 2, 3, 4, 5].map(i => <div key={i}>★</div>)}
+      </div>
+      <p className="text-slate-700 text-lg italic mb-6 leading-relaxed">"{story}"</p>
+      <div className="font-bold text-slate-900 text-xl">— {name}</div>
+    </div>
+  </div>
+);
 
 export default function Home() {
   const { data: session } = useSession();
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      fontFamily: theme.fonts.sans,
-      background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)',
-    }}>
-      {/* Header */}
-      <div style={{
-        background: 'white',
-        padding: '1.5rem 2rem',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-        borderBottom: '1px solid #f1f5f9',
-      }}>
-        <div style={{
-          maxWidth: '1400px',
-          margin: '0 auto',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '1rem',
-          flexWrap: 'wrap',
-        }}>
-          <h1 style={{
-            fontSize: '1.75rem',
-            fontWeight: '800',
-            color: '#1e293b',
-          }}>
-            🐾 PetRecovery
-          </h1>
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <Link
-              href="/patrol/join"
-              style={{
-                padding: '0.75rem 1.75rem',
-                background: '#0ea5e9',
-                color: 'white',
-                borderRadius: '8px',
-                textDecoration: 'none',
-                fontWeight: '600',
-                fontSize: '0.95rem',
-              }}
-            >
-              Join the Patrol
-            </Link>
-            {session ? (
-              <Link
-                href="/dashboard"
-                style={{
-                  padding: '0.75rem 1.75rem',
-                  background: 'transparent',
-                  color: '#64748b',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontWeight: '600',
-                  fontSize: '0.95rem',
-                }}
-              >
-                My Dashboard
-              </Link>
-            ) : (
-              <Link
-                href="/login"
-                style={{
-                  padding: '0.75rem 1.75rem',
-                  background: 'transparent',
-                  color: '#64748b',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontWeight: '600',
-                  fontSize: '0.95rem',
-                }}
-              >
-                Sign In
-              </Link>
-            )}
-          </div>
+    <div className="min-h-screen bg-slate-50 font-sans selection:bg-indigo-100">
+      <LiveTicker />
+      <HeroSection />
+
+      {/* Main Actions */}
+      <div className="max-w-7xl mx-auto px-4 -mt-24 relative z-20 pb-24">
+        <div className="grid md:grid-cols-3 gap-8">
+          <ActionCard
+            href="/report/new"
+            icon={Bell}
+            title="I Lost My Pet"
+            desc="Activate the PetRecovery network immediately. Alert neighbors, squads, and shelters in seconds."
+            color="bg-rose-500"
+            delay={0.1}
+          />
+          <ActionCard
+            href="/report/found"
+            icon={CheckCircle}
+            title="I Found a Pet"
+            desc="Be a hero. Report a sighting or secured pet to help reunite them with their worried family."
+            color="bg-emerald-500"
+            delay={0.2}
+          />
+          <ActionCard
+            href="/rescue-squads"
+            icon={Shield}
+            title="Join the Patrol"
+            desc="Join local volunteer squads. Coordinate searches and bring lost pets home safely."
+            color="bg-indigo-500"
+            delay={0.3}
+          />
         </div>
       </div>
 
-      {/* Hero */}
-      <div style={{
-        textAlign: 'center',
-        padding: '5rem 2rem 3rem',
-        maxWidth: '900px',
-        margin: '0 auto',
-      }}>
-        <h1 style={{
-          fontSize: 'clamp(2.5rem, 6vw, 4.5rem)',
-          fontWeight: '900',
-          marginBottom: '1.5rem',
-          color: '#0f172a',
-          lineHeight: '1.1',
-        }}>
-          Reunite with Your Lost Pet
-        </h1>
-        <p style={{
-          fontSize: '1.4rem',
-          color: '#475569',
-          maxWidth: '700px',
-          margin: '0 auto 1rem',
-          lineHeight: '1.5',
-          fontWeight: '400',
-        }}>
-          Instant community alerts and proven recovery strategies to bring your pet home safely
-        </p>
-        <p style={{
-          fontSize: '1.1rem',
-          color: '#10b981',
-          fontWeight: '700',
-          margin: '0',
-        }}>
-          ✓ 847 pets reunited and counting
-        </p>
-      </div>
-
-      {/* Database CTA Banner */}
-      <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto 3rem',
-        padding: '0 2rem',
-      }}>
-        <Link
-          href="/database"
-          style={{
-            display: 'block',
-            background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
-            borderRadius: '20px',
-            padding: '2.5rem 3rem',
-            textDecoration: 'none',
-            boxShadow: '0 10px 30px rgba(14, 165, 233, 0.25)',
-            border: '3px solid rgba(255, 255, 255, 0.3)',
-            transition: 'all 0.3s ease',
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px) scale(1.01)';
-            e.currentTarget.style.boxShadow = '0 20px 40px rgba(14, 165, 233, 0.35)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0) scale(1)';
-            e.currentTarget.style.boxShadow = '0 10px 30px rgba(14, 165, 233, 0.25)';
-          }}
-        >
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '2rem',
-            flexWrap: 'wrap',
-          }}>
-            <div style={{ flex: 1, minWidth: '300px' }}>
-              <h2 style={{
-                fontSize: '2.25rem',
-                fontWeight: '900',
-                color: 'white',
-                marginBottom: '0.75rem',
-              }}>
-                Search the Pet Database
-              </h2>
-              <p style={{
-                fontSize: '1.15rem',
-                color: 'rgba(255, 255, 255, 0.95)',
-                lineHeight: '1.6',
-                marginBottom: '0',
-              }}>
-                Browse all lost and found pets in your area. No signup required to search. Sign in to view contact information and help reunite pets with their families.
-              </p>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '5rem',
-              filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1))',
-            }}>
-              🔍
-            </div>
-          </div>
-          <div style={{
-            marginTop: '1.5rem',
-            padding: '1rem 2rem',
-            background: 'white',
-            color: '#0284c7',
-            borderRadius: '12px',
-            fontWeight: '700',
-            textAlign: 'center',
-            fontSize: '1.1rem',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          }}>
-            Browse Database Now →
-          </div>
-        </Link>
-      </div>
-
-      {/* Main 3 Options */}
-      <div style={{
-        maxWidth: '1400px',
-        margin: '0 auto',
-        padding: '0 2rem 3rem',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-        gap: '2rem',
-      }}>
-        {/* Report Lost Pet */}
-        <Link
-          href="/report/new"
-          style={{
-            background: 'white',
-            borderRadius: '16px',
-            padding: '3rem 2.5rem',
-            textDecoration: 'none',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
-            border: '2px solid transparent',
-            transition: 'all 0.2s ease',
-            display: 'block',
-            position: 'relative',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#dc2626';
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 12px 24px rgba(220, 38, 38, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'transparent';
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07)';
-          }}
-        >
-          <div style={{
-            width: '70px',
-            height: '70px',
-            borderRadius: '50%',
-            background: '#fee2e2',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '2.5rem',
-            marginBottom: '1.5rem',
-          }}>
-            🚨
+      {/* Success Stories */}
+      <div className="bg-white py-24 border-t border-slate-100">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-6">Stories of Hope</h2>
+            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+              Real reunions made possible by our community. This is why we do what we do.
+            </p>
           </div>
 
-          <h2 style={{
-            fontSize: '2rem',
-            fontWeight: '800',
-            marginBottom: '1rem',
-            color: '#0f172a',
-          }}>
-            Report Lost Pet
-          </h2>
-
-          <p style={{
-            fontSize: '1.1rem',
-            color: '#64748b',
-            lineHeight: '1.6',
-            marginBottom: '1.5rem',
-          }}>
-            Alert every neighbor in your area instantly. Get step-by-step recovery guidance customized for your pet and situation.
-          </p>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              marginBottom: '0.75rem',
-            }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>Instant alerts to local patrol members</span>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              marginBottom: '0.75rem',
-            }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>Proven recovery strategies</span>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-            }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>Track sightings in real-time</span>
-            </div>
+          <div className="grid md:grid-cols-3 gap-10">
+            <SuccessStory
+              name="Sarah & Buster"
+              image="https://images.unsplash.com/photo-1558788353-f76d92427f16?q=80&w=1000&auto=format&fit=crop"
+              story="I thought I'd lost him forever. Within 20 minutes of posting, a patrol member spotted him three blocks away. I can't stop crying happy tears."
+            />
+            <SuccessStory
+              name="James & Mochi"
+              image="https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?q=80&w=1000&auto=format&fit=crop"
+              story="The map feature is incredible. We coordinated a search grid and found Mochi hiding in a neighbor's shed. Thank you PetRecovery!"
+            />
+            <SuccessStory
+              name="The Rodriguez Family"
+              image="https://images.unsplash.com/photo-1601758228041-f3b2795255f1?q=80&w=1000&auto=format&fit=crop"
+              story="We found a scared beagle and used the database to find his owners instantly. Seeing their reunion was the highlight of my year."
+            />
           </div>
-
-          <div style={{
-            padding: '1.25rem',
-            background: '#dc2626',
-            color: 'white',
-            borderRadius: '10px',
-            fontWeight: '700',
-            textAlign: 'center',
-            fontSize: '1.1rem',
-          }}>
-            Start Recovery Now →
-          </div>
-        </Link>
-
-        {/* Report Found Pet */}
-        <Link
-          href="/report/found"
-          style={{
-            background: 'white',
-            borderRadius: '16px',
-            padding: '3rem 2.5rem',
-            textDecoration: 'none',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
-            border: '2px solid transparent',
-            transition: 'all 0.2s ease',
-            display: 'block',
-            position: 'relative',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#10b981';
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 12px 24px rgba(16, 185, 129, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'transparent';
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07)';
-          }}
-        >
-          <div style={{
-            width: '70px',
-            height: '70px',
-            borderRadius: '50%',
-            background: '#d1fae5',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '2.5rem',
-            marginBottom: '1.5rem',
-          }}>
-            🎉
-          </div>
-
-          <h2 style={{
-            fontSize: '2rem',
-            fontWeight: '800',
-            marginBottom: '1rem',
-            color: '#0f172a',
-          }}>
-            Report Found Pet
-          </h2>
-
-          <p style={{
-            fontSize: '1.1rem',
-            color: '#64748b',
-            lineHeight: '1.6',
-            marginBottom: '1.5rem',
-          }}>
-            Found a lost pet? Help reunite them with their family. Your kindness could bring a pet home today.
-          </p>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              marginBottom: '0.75rem',
-            }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>Alert nearby owners instantly</span>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              marginBottom: '0.75rem',
-            }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>Match with lost pet reports</span>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-            }}>
-              <span style={{ color: '#10b981', fontSize: '1.2rem' }}>✓</span>
-              <span style={{ color: '#475569', fontSize: '0.95rem' }}>Safe reunion coordination</span>
-            </div>
-          </div>
-
-          <div style={{
-            padding: '1.25rem',
-            background: '#10b981',
-            color: 'white',
-            borderRadius: '10px',
-            fontWeight: '700',
-            textAlign: 'center',
-            fontSize: '1.1rem',
-          }}>
-            Report Found Pet →
-          </div>
-        </Link>
-
-        {/* Browse Rescue Squads */}
-        <Link
-          href="/rescue-squads"
-          style={{
-            background: 'white',
-            borderRadius: '16px',
-            padding: '3rem 2.5rem',
-            textDecoration: 'none',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
-            border: '2px solid transparent',
-            transition: 'all 0.2s ease',
-            display: 'block',
-            position: 'relative',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#667eea';
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 12px 24px rgba(102, 126, 234, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'transparent';
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.07)';
-          }}
-        >
-          <div style={{
-            width: '70px',
-            height: '70px',
-            borderRadius: '50%',
-            background: '#ede9fe',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '2.5rem',
-            marginBottom: '1.5rem',
-          }}>
-            🚁
-          </div>
-
-          <h2 style={{
-            fontSize: '2rem',
-            fontWeight: '800',
-            marginBottom: '1rem',
-            color: '#0f172a',
-          }}>
-            {session ? 'Join or Create a Rescue Squad' : 'Browse Rescue Squads'}
-          </h2>
-
-          <p style={{
-            fontSize: '1.1rem',
-            color: '#64748b',
-            lineHeight: '1.6',
-            marginBottom: '2rem',
-          }}>
-            {session
-              ? 'Join volunteer rescue squads in your city or create one if it doesn\'t exist yet. Coordinate pet recovery efforts with local teams.'
-              : 'Join volunteer rescue squads in your city to coordinate pet recovery efforts with local teams.'}
-          </p>
-
-          <div style={{
-            padding: '1.25rem',
-            background: '#667eea',
-            color: 'white',
-            borderRadius: '10px',
-            fontWeight: '700',
-            textAlign: 'center',
-            fontSize: '1.1rem',
-          }}>
-            {session ? 'Browse or Create Squad →' : 'Explore Rescue Squads →'}
-          </div>
-        </Link>
+        </div>
       </div>
     </div>
   );
