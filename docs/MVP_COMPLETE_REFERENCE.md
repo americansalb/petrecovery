@@ -1,8 +1,11 @@
-# PetRecovery MVP Complete Reference
+# PetRecovery Technical Reference
 
-> **Last Updated**: November 2025
-> **Status**: MVP Ready for Launch
-> **Next Steps**: See [Launch Checklist](#launch-checklist) section
+> **Last Updated**: November 27, 2025
+> **Status**: Pre-MVP Development Phase (~45% complete)
+> **Honest Assessment**: See [ROADMAP.md](/ROADMAP.md) for accurate project status
+> **Next Steps**: Password reset, image upload, case coordination UI
+
+**IMPORTANT**: This document was previously titled "MVP Complete Reference" which was inaccurate. The project is NOT at MVP status. Critical features like password reset, image upload, and case coordination UI are not implemented. See ROADMAP.md for the comprehensive assessment.
 
 ---
 
@@ -605,31 +608,38 @@ npm start
 
 ---
 
-## Known Issues & Future Work
+## Known Issues & Critical Gaps
+
+### CRITICAL - Must Fix Before Launch
+
+1. **Password Reset Flow** - Users cannot recover accounts. This is a blocker.
+2. **Image Upload** - No actual upload mechanism exists. Pet photos are URL fields only.
+3. **Case Coordination UI** - APIs exist but there is NO frontend UI for squad chat, search areas, or sightings.
+4. **Fake Statistics** - Home page displays "847 pets reunited" which is hardcoded, not real data.
 
 ### Not Yet Implemented
 
-1. **Password Reset Flow** - Currently no password reset endpoint
-2. **Image Uploads** - Cases don't support pet photos yet
-3. **Push Notifications** - Only email currently
-4. **Mobile App** - Web-only for MVP
-5. **Social Login** - Only email/password
-
-### Future Phases (Post-MVP)
-
-| Phase | Feature |
-|-------|---------|
-| Phase 27+ | Image upload for pet photos |
-| Phase 28+ | SMS notifications |
-| Phase 29+ | Mobile-responsive improvements |
-| Phase 30+ | Volunteer gamification enhancements |
-| Phase 31+ | Integration with local shelters |
+1. **SMS Notifications** - Schema exists, no Twilio integration
+2. **Push Notifications** - Schema exists, no implementation
+3. **Social Login** - Only email/password
+4. **Pet Profile Management** - Pet model exists, no user-facing UI
+5. **Lost/Found Matching Algorithm** - No automatic matching
+6. **Sighting Verification Workflow** - Fields exist, no UI
+7. **Meta Ads Integration** - Schema fields only, no API integration
 
 ### Technical Debt
 
-1. Some pages use inline styles instead of Tailwind
-2. Cities database is large (~29k entries) - consider pagination
-3. Event logging is console + DB - consider external service later
+1. **Inline CSS throughout** - No consistent design system
+2. **No TypeScript** - JavaScript throughout, error-prone
+3. **Large cities database** - 29k entries, no pagination
+4. **No automated tests** - Only manual QA harness
+5. **No error boundaries** - Crashes show white screen
+6. **No loading states** - Many pages lack spinners
+7. **No mobile testing** - Basic responsive only
+
+### See ROADMAP.md for Complete Assessment
+
+The full project roadmap with accurate status, priority phases, and timeline estimates is in [ROADMAP.md](/ROADMAP.md).
 
 ---
 
