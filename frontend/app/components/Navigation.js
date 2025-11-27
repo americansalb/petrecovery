@@ -65,17 +65,17 @@ export default function Navigation() {
   }
 
   const navItems = [
-    { label: 'Dashboard', icon: '🏠', href: '/dashboard', active: pathname === '/dashboard' },
-    { label: 'Browse Cases', icon: '🔍', href: '/cases', active: pathname.startsWith('/cases') && !pathname.includes('/report') },
-    { label: 'My Pets', icon: '🐾', href: '/pets', active: pathname.startsWith('/pets') },
-    { label: 'Report Lost', icon: '📢', href: '/cases/report', active: pathname === '/cases/report' },
-    { label: 'Found Pet', icon: '🐕', href: '/found', active: pathname === '/found' },
-    { label: 'Find Squads', icon: '🚁', href: '/rescue-squads/search', active: pathname === '/rescue-squads/search' },
+    { label: 'Dashboard', href: '/dashboard', active: pathname === '/dashboard' },
+    { label: 'Cases', href: '/cases', active: pathname.startsWith('/cases') && !pathname.includes('/report') },
+    { label: 'My Pets', href: '/pets', active: pathname.startsWith('/pets') },
+    { label: 'Report Lost', href: '/cases/report', active: pathname === '/cases/report' },
+    { label: 'Found Pet', href: '/found', active: pathname === '/found' },
+    { label: 'Squads', href: '/rescue-squads/search', active: pathname === '/rescue-squads/search' },
   ];
 
   // Add admin link for admin users
   if (session?.user?.role === 'ADMIN') {
-    navItems.push({ label: 'Admin', icon: '⚙️', href: '/admin/health', active: pathname.startsWith('/admin') });
+    navItems.push({ label: 'Admin', href: '/admin/health', active: pathname.startsWith('/admin') });
   }
 
   return (
@@ -109,7 +109,7 @@ export default function Navigation() {
             gap: '0.5rem',
             whiteSpace: 'nowrap'
           }}>
-            🐾 <span className="brand-text">PetRecovery</span>
+            <span className="brand-text">PetRecovery</span>
           </Link>
 
           {/* Desktop Nav Items */}
@@ -136,7 +136,7 @@ export default function Navigation() {
                   whiteSpace: 'nowrap'
                 }}
               >
-                {item.icon} {item.label}
+                {item.label}
               </Link>
             ))}
 
@@ -163,7 +163,7 @@ export default function Navigation() {
                   gap: '0.25rem'
                 }}
               >
-                🚁 Squads ({userSquads.length}) {showSquadsDropdown ? '▲' : '▼'}
+                Squads ({userSquads.length}) {showSquadsDropdown ? '▲' : '▼'}
               </button>
 
               {showSquadsDropdown && (
@@ -187,7 +187,6 @@ export default function Navigation() {
                       textAlign: 'center',
                       color: '#64748b'
                     }}>
-                      <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🚁</div>
                       <div style={{ fontSize: '0.9rem', fontWeight: '600' }}>
                         No squads yet
                       </div>
@@ -324,7 +323,7 @@ export default function Navigation() {
                     borderBottom: '1px solid #f1f5f9'
                   }}
                 >
-                  👤 My Profile
+                  My Profile
                 </Link>
                 <button
                   onClick={() => signOut({ callbackUrl: '/' })}
@@ -341,7 +340,7 @@ export default function Navigation() {
                     borderRadius: '0 0 10px 10px'
                   }}
                 >
-                  🚪 Sign Out
+                  Sign Out
                 </button>
               </div>
             )}
@@ -454,7 +453,6 @@ export default function Navigation() {
                 borderLeft: item.active ? '4px solid #667eea' : '4px solid transparent',
               }}
             >
-              <span style={{ fontSize: '1.25rem' }}>{item.icon}</span>
               {item.label}
             </Link>
           ))}
@@ -522,7 +520,7 @@ export default function Navigation() {
               borderBottom: '1px solid #e2e8f0',
             }}
           >
-            <span>👤</span> My Profile
+            My Profile
           </Link>
           <button
             onClick={() => {
@@ -544,7 +542,7 @@ export default function Navigation() {
               textAlign: 'left',
             }}
           >
-            <span>🚪</span> Sign Out
+            Sign Out
           </button>
         </div>
       </div>
