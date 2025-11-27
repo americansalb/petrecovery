@@ -8,6 +8,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
+import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
@@ -17,6 +18,21 @@ export const dynamic = 'force-dynamic';
 export async function POST(request) {
   const startTime = Date.now();
   const correlationId = crypto.randomUUID();
+
+  // Apply strict rate limiting
+  const rateLimitResult = withRateLimit(request, RateLimitPresets.AUTH, 'auth:reset-password');
+  if (!rateLimitResult.success) {
+    await logEvent({
+      event_type: 'auth.reset_password_rate_limited',
+      correlation_id: correlationId,
+      resource_type: 'user',
+      action: 'update',
+      result: 'failure',
+      error_code: 'RATE_LIMITED',
+      metadata: { blocked: rateLimitResult.blocked }
+    });
+    return rateLimitResponse(rateLimitResult);
+  }
 
   console.log('========================================');
   console.log('[RESET-PASSWORD] Request received');

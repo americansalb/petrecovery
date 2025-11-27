@@ -10,9 +10,25 @@ import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { findMatches, calculateMatchScore } from '@/app/lib/matching';
 import { sendFoundPetNotification } from '@/app/lib/notifications';
+import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
+
+// Email validation regex
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Phone validation regex
+const PHONE_REGEX = /^[\d\s\-\(\)\+\.]{7,20}$/;
+// Max description length
+const MAX_DESCRIPTION_LENGTH = 2000;
+// Max photo URLs
+const MAX_PHOTO_URLS = 10;
 
 // GET /api/public/found - List found pet reports
 export async function GET(request) {
+  // Apply rate limiting for public reads
+  const rateLimitResult = withRateLimit(request, RateLimitPresets.PUBLIC_READ, 'public:found:list');
+  if (!rateLimitResult.success) {
+    return rateLimitResponse(rateLimitResult);
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const city = searchParams.get('city');
@@ -78,6 +94,20 @@ export async function GET(request) {
 
 // POST /api/public/found - Submit found pet report
 export async function POST(request) {
+  // Apply stricter rate limiting for writes
+  const rateLimitResult = withRateLimit(request, RateLimitPresets.PUBLIC_WRITE, 'public:found:create');
+  if (!rateLimitResult.success) {
+    await logEvent({
+      event_type: 'found_pet.report_rate_limited',
+      resource_type: 'found_case',
+      action: 'create',
+      result: 'failure',
+      error_code: 'RATE_LIMITED',
+      actor_role: 'public'
+    });
+    return rateLimitResponse(rateLimitResult);
+  }
+
   try {
     const body = await request.json();
     const {
@@ -112,6 +142,26 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Contact email or phone is required' }, { status: 400 });
     }
 
+    // Email format validation
+    if (contactEmail && !EMAIL_REGEX.test(contactEmail.trim())) {
+      return NextResponse.json({ error: 'Please enter a valid email address' }, { status: 400 });
+    }
+
+    // Phone format validation
+    if (contactPhone && !PHONE_REGEX.test(contactPhone.trim())) {
+      return NextResponse.json({ error: 'Please enter a valid phone number' }, { status: 400 });
+    }
+
+    // Description length validation
+    if (petDescription && petDescription.length > MAX_DESCRIPTION_LENGTH) {
+      return NextResponse.json({ error: `Description must be under ${MAX_DESCRIPTION_LENGTH} characters` }, { status: 400 });
+    }
+
+    // Photo URLs validation
+    if (photoUrls && (!Array.isArray(photoUrls) || photoUrls.length > MAX_PHOTO_URLS)) {
+      return NextResponse.json({ error: `Maximum ${MAX_PHOTO_URLS} photos allowed` }, { status: 400 });
+    }
+
     // Generate case number
     const cityCode = city.substring(0, 3).toUpperCase();
     const year = new Date().getFullYear();
@@ -142,9 +192,11 @@ export async function POST(request) {
         contactName: contactName.trim(),
         contactPhone: contactPhone?.trim() || null,
         contactEmail: contactEmail?.trim() || null,
-        photoUrls: JSON.stringify(photoUrls || []),
-        isPublic: true,
-        publicContactOk: true,
+        photoUrls: JSON.stringify((photoUrls || []).slice(0, MAX_PHOTO_URLS)),
+        // SECURITY: Found reports require admin approval too
+        isPublic: false,
+        publicContactOk: false,
+        source: 'PUBLIC_FOUND_REPORT',
       }
     });
 
@@ -158,7 +210,7 @@ export async function POST(request) {
       }
     });
 
-    // Find potential matches
+    // Find potential matches (limit to prevent memory issues)
     const lostCases = await prisma.lostPetCase.findMany({
       where: {
         reportType: { in: ['LOST', null] }, // null = legacy lost cases
@@ -179,7 +231,9 @@ export async function POST(request) {
         longitude: true,
         contactEmail: true,
         createdAt: true,
-      }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 500, // Limit to recent cases for performance
     });
 
     const matches = findMatches(

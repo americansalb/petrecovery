@@ -10,6 +10,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { sendEmail } from '@/app/lib/email';
 import { logEvent } from '@/lib/logging';
+import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import crypto from 'crypto';
 
 // Force dynamic rendering
@@ -17,9 +18,30 @@ export const dynamic = 'force-dynamic';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
+// Email validation regex
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Minimum response time to prevent timing attacks (ms)
+const MIN_RESPONSE_TIME = 500;
+
 export async function POST(request) {
   const startTime = Date.now();
   const correlationId = crypto.randomUUID();
+
+  // Apply strict rate limiting (prevents email enumeration via timing)
+  const rateLimitResult = withRateLimit(request, RateLimitPresets.AUTH, 'auth:forgot-password');
+  if (!rateLimitResult.success) {
+    await logEvent({
+      event_type: 'auth.forgot_password_rate_limited',
+      correlation_id: correlationId,
+      resource_type: 'user',
+      action: 'create',
+      result: 'failure',
+      error_code: 'RATE_LIMITED',
+      metadata: { blocked: rateLimitResult.blocked }
+    });
+    return rateLimitResponse(rateLimitResult);
+  }
 
   console.log('========================================');
   console.log('[FORGOT-PASSWORD] Request received');
@@ -55,6 +77,14 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
+    // Validate email format
+    if (!EMAIL_REGEX.test(email.toLowerCase().trim())) {
+      return NextResponse.json({
+        error: 'Please enter a valid email address',
+        code: 'VALIDATION_ERROR'
+      }, { status: 400 });
+    }
+
     // Normalize email
     const normalizedEmail = email.toLowerCase().trim();
     console.log(`[FORGOT-PASSWORD] Normalized email: ${normalizedEmail.substring(0, 3)}***`);
@@ -86,6 +116,12 @@ export async function POST(request) {
           response_time_ms: Date.now() - startTime
         }
       });
+
+      // Add minimum response time to prevent timing attacks
+      const elapsed = Date.now() - startTime;
+      if (elapsed < MIN_RESPONSE_TIME) {
+        await new Promise(resolve => setTimeout(resolve, MIN_RESPONSE_TIME - elapsed));
+      }
 
       // Return success to prevent email enumeration attacks
       return NextResponse.json({
@@ -221,6 +257,12 @@ export async function POST(request) {
     console.log('========================================');
     console.log('[FORGOT-PASSWORD] Request completed successfully');
     console.log('========================================');
+
+    // Add minimum response time to prevent timing attacks
+    const elapsed = Date.now() - startTime;
+    if (elapsed < MIN_RESPONSE_TIME) {
+      await new Promise(resolve => setTimeout(resolve, MIN_RESPONSE_TIME - elapsed));
+    }
 
     return NextResponse.json({
       success: true,

@@ -2,23 +2,82 @@
  * Case Matches API - Phase 1.4
  *
  * GET /api/cases/[id]/matches - Find potential matches for a case
+ * REQUIRES AUTHENTICATION - Only case owner or assigned squad members can view matches
  */
 
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
 import { findMatches, getMatchQuality } from '@/app/lib/matching';
+import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
+import { logEvent } from '@/lib/logging';
 
 export async function GET(request, { params }) {
+  // Apply rate limiting
+  const rateLimitResult = withRateLimit(request, RateLimitPresets.API, 'cases:matches');
+  if (!rateLimitResult.success) {
+    return rateLimitResponse(rateLimitResult);
+  }
+
   try {
+    // SECURITY: Require authentication
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const { id: caseNumber } = await params;
 
     // Find the target case
     const targetCase = await prisma.lostPetCase.findUnique({
       where: { caseNumber },
+      include: {
+        createdBy: { select: { id: true } },
+      }
     });
 
     if (!targetCase) {
       return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+    }
+
+    // SECURITY: Check authorization - user must be case owner, admin, or squad member
+    const userId = session.user.id;
+    const isOwner = targetCase.createdById === userId;
+    const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
+
+    // Check if user is a member of an assigned squad
+    let isSquadMember = false;
+    if (targetCase.squadId) {
+      const membership = await prisma.rescueSquadMember.findFirst({
+        where: {
+          squadId: targetCase.squadId,
+          userId: userId,
+          isActive: true
+        }
+      });
+      isSquadMember = !!membership;
+    }
+
+    if (!isOwner && !isAdmin && !isSquadMember) {
+      await logEvent({
+        event_type: 'case.matches_unauthorized',
+        resource_type: 'case',
+        resource_id: targetCase.id,
+        action: 'read',
+        result: 'failure',
+        error_code: 'UNAUTHORIZED',
+        actor_id: userId,
+        metadata: { case_number: caseNumber }
+      });
+
+      return NextResponse.json(
+        { error: 'Not authorized to view matches for this case' },
+        { status: 403 }
+      );
     }
 
     // Determine if this is a lost or found case
