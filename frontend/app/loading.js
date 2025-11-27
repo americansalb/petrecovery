@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Global Loading Component - Phase 0.3
  *

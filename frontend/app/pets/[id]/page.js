@@ -236,7 +236,7 @@ export default function PetDetailPage() {
 
   if (error) {
     return (
-      <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '2rem' }}>
+      <div style={{ minHeight: '100vh', background: '#f8fafc', padding: 'clamp(1rem, 3vw, 2rem)' }}>
         <div style={{ maxWidth: '600px', margin: '4rem auto', textAlign: 'center' }}>
           <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🐾</div>
           <h1 style={{ fontSize: '1.5rem', color: '#0f172a', marginBottom: '0.5rem' }}>Pet Not Found</h1>
@@ -286,7 +286,7 @@ export default function PetDetailPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '2rem' }}>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: 'clamp(1rem, 3vw, 2rem)' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         {/* Header */}
         <div style={{ marginBottom: '2rem' }}>
@@ -296,7 +296,7 @@ export default function PetDetailPage() {
           >
             ← Back to My Pets
           </Link>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
               <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#0f172a', margin: 0 }}>
                 Edit {pet?.name || 'Pet'}
