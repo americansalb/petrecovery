@@ -11,6 +11,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import ImageUpload from '@/app/components/ImageUpload';
 
 export default function PublicReportPage() {
   const router = useRouter();
@@ -35,6 +36,9 @@ export default function PublicReportPage() {
     contactEmail: '',
     agreeToTerms: false
   });
+
+  // Image state
+  const [images, setImages] = useState([]);
 
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -92,10 +96,16 @@ export default function PublicReportPage() {
     setSubmitting(true);
 
     try {
+      // Include image URLs in submission
+      const submitData = {
+        ...formData,
+        photoUrls: images.map(img => img.url),
+      };
+
       const res = await fetch('/api/public/cases', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(submitData)
       });
 
       const data = await res.json();
@@ -258,6 +268,22 @@ export default function PublicReportPage() {
                   rows={4}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
+              </div>
+
+              {/* Photo Upload */}
+              <div>
+                <ImageUpload
+                  images={images}
+                  onUpload={(newImages) => setImages(prev => [...prev, ...newImages])}
+                  onRemove={(index) => setImages(prev => prev.filter((_, i) => i !== index))}
+                  maxImages={5}
+                  context="pet"
+                  label="Pet Photos"
+                  helpText="Upload photos of your pet to help with identification"
+                />
+                <p className="mt-2 text-sm text-gray-500">
+                  Clear, recent photos greatly increase the chances of finding your pet.
+                </p>
               </div>
             </div>
           </div>

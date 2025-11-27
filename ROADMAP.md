@@ -2,7 +2,7 @@
 
 **Last Updated:** November 27, 2025
 **Status:** Pre-MVP (Development Phase)
-**Honest Assessment:** ~60% complete for a true MVP (Phase 0 + Phase 1.2 completed)
+**Honest Assessment:** ~70% complete for a true MVP (Phase 0, 1.1, 1.2 completed)
 
 ---
 
@@ -37,7 +37,7 @@ PetRecovery.org is a community-powered platform to help reunite lost pets with t
 
 | Feature | Actual Status | Documentation Claims |
 |---------|---------------|---------------------|
-| Image Upload | **NOT IMPLEMENTED** | Schema has URL fields, no upload functionality |
+| Image Upload | **NEW - WORKING** | Bunny.net CDN with drag-drop component |
 | Case Coordination UI | **NEW - WORKING** | Full coordination page with tabs |
 | Squad Chat Interface | **NEW - WORKING** | Real-time polling chat with announcements |
 | Search Area Mapping | **NEW - WORKING** | Interactive Leaflet map with polygon drawing |
@@ -94,16 +94,19 @@ PetRecovery.org is a community-powered platform to help reunite lost pets with t
 
 ## Phase 1: True MVP Features
 
-### 1.1 Image Upload (CRITICAL)
-Pet recovery requires photos. Currently, the system only stores URLs but provides no upload mechanism.
+### 1.1 Image Upload ✅ COMPLETED (2025-11-27)
+Pet recovery requires photos. Implemented with Bunny.net CDN storage.
 
-- [ ] Set up cloud storage (AWS S3 or Cloudinary)
-- [ ] Create image upload API endpoint
-- [ ] Add image upload component
-- [ ] Update case creation forms to support photo upload
-- [ ] Update report forms (lost/found) to support photo upload
-- [ ] Add image optimization/compression
-- [ ] Add image size limits and validation
+- [x] Set up cloud storage (Bunny.net Storage + CDN)
+- [x] Create image upload API endpoint (`/api/upload`)
+- [x] Add reusable ImageUpload component with drag-and-drop
+- [x] Update case report form (`/cases/report`) with photo upload
+- [x] Add photo upload to sighting submission form
+- [x] Add image size limits (10MB) and type validation (JPEG, PNG, WebP, GIF)
+- [x] CDN delivery via Bunny.net for fast global access
+
+**Configuration required:**
+- Set `BUNNY_STORAGE_ZONE`, `BUNNY_API_KEY`, `BUNNY_CDN_URL` in `.env.local`
 
 ### 1.2 Case Coordination UI ✅ COMPLETED (2025-11-27)
 Full coordination UI for case management with real-time features.
@@ -133,7 +136,7 @@ Full coordination UI for case management with real-time features.
 - [x] Add confidence level selector (1-10) with visual slider
 - [x] Display sightings on case map with confidence color coding
 - [x] Add sighting timeline/history with notes
-- [ ] Add photo upload for sighting (deferred to Phase 2)
+- [x] Add photo upload for sighting (completed in Phase 1.1)
 
 **Participant Management:** ✅
 - [x] Show list of opted-in volunteers with rescue level badges
@@ -336,9 +339,9 @@ When someone reports a found pet, it should match against lost pets.
 - Real statistics on home page (**NEW**)
 - Error handling (**NEW**)
 
-### Milestone 2: Alpha (Target: +4 weeks) - IN PROGRESS
+### Milestone 2: Alpha ✅ COMPLETE
 - ~~Password reset~~ ✅
-- Image upload
+- ~~Image upload~~ ✅ COMPLETE (Bunny.net)
 - ~~Case coordination UI (basic)~~ ✅ COMPLETE
 - ~~Real statistics on home page~~ ✅
 - ~~Error handling~~ ✅
@@ -375,7 +378,7 @@ When someone reports a found pet, it should match against lost pets.
 - QA engineer (part-time)
 
 ### Infrastructure
-- Cloud storage for images (AWS S3 or Cloudinary)
+- ~~Cloud storage for images~~ ✅ Bunny.net implemented
 - SMS provider (Twilio)
 - Email provider upgrade (SendGrid recommended)
 - Monitoring/APM tool
@@ -390,9 +393,11 @@ When someone reports a found pet, it should match against lost pets.
 ## Risk Assessment
 
 ### High Risk
-1. **No image upload** - Pet recovery without photos is nearly useless
+1. ~~**No image upload**~~ - ✅ RESOLVED: Bunny.net CDN with drag-drop upload
 2. ~~**No password reset**~~ - ✅ RESOLVED: Users can now reset passwords
 3. ~~**No coordination UI**~~ - ✅ RESOLVED: Full coordination page with chat, maps, sightings
+
+**All high-risk items resolved!**
 
 ### Medium Risk
 1. **No automated tests** - Regressions likely as development continues
@@ -408,19 +413,21 @@ When someone reports a found pet, it should match against lost pets.
 
 ## Conclusion
 
-This project has a solid database schema, good API structure, and working admin tools. Phase 0 critical fixes and Phase 1.2 Case Coordination UI are now complete. The core value proposition (coordinated pet searches) is now functional.
+This project has a solid database schema, good API structure, and working admin tools. **All high-risk items are now resolved.** Phase 0 critical fixes, Phase 1.1 Image Upload, and Phase 1.2 Case Coordination UI are complete. The core value proposition (coordinated pet searches with photos) is fully functional.
 
 **Current Priority:**
 1. ~~Fix critical authentication gaps (password reset)~~ ✅
-2. Build image upload capability (Phase 1.1 - remaining critical feature)
+2. ~~Build image upload capability~~ ✅
 3. ~~Build case coordination UI~~ ✅
 4. Test thoroughly on mobile (Phase 2.1)
-5. Only then consider launch
+5. Pet profile management (Phase 1.3)
+6. Lost/found matching algorithm (Phase 1.4)
 
-Estimated time to true MVP: **4-6 weeks of focused development** (reduced from 6-10 due to Phase 1.2 completion)
+Estimated time to true MVP: **2-4 weeks of focused development** (reduced from 4-6 due to Phase 1.1 completion)
 
 ---
 
 *This roadmap was created after a thorough code review on November 27, 2025.*
 *Phase 0 completed on November 27, 2025.*
+*Phase 1.1 (Image Upload) completed on November 27, 2025.*
 *Phase 1.2 (Case Coordination UI) completed on November 27, 2025.*

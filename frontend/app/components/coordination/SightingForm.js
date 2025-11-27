@@ -15,6 +15,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
+import ImageUpload from '@/app/components/ImageUpload';
 
 export default function SightingForm({
   assignmentId,
@@ -30,6 +31,7 @@ export default function SightingForm({
   const [confidenceLevel, setConfidenceLevel] = useState(5);
   const [spottedAt, setSpottedAt] = useState('');
   const [notes, setNotes] = useState('');
+  const [images, setImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
   const mapRef = useRef(null);
@@ -229,6 +231,7 @@ export default function SightingForm({
     setSelectedLocation(null);
     setConfidenceLevel(5);
     setNotes('');
+    setImages([]);
 
     // Set default time to now
     const now = new Date();
@@ -278,6 +281,7 @@ export default function SightingForm({
           spottedAt: new Date(spottedAt).toISOString(),
           confidenceLevel,
           notes: notes.trim() || null,
+          photoUrls: images.map(img => img.url),
         }),
       });
 
@@ -533,6 +537,19 @@ export default function SightingForm({
                 minHeight: '80px',
                 resize: 'vertical',
               }}
+            />
+          </div>
+
+          {/* Photo Upload */}
+          <div style={{ marginBottom: '1rem' }}>
+            <ImageUpload
+              images={images}
+              onUpload={(newImages) => setImages(prev => [...prev, ...newImages])}
+              onRemove={(index) => setImages(prev => prev.filter((_, i) => i !== index))}
+              maxImages={3}
+              context="sighting"
+              label="Photos (optional but helpful)"
+              helpText="Add photos of the pet you spotted"
             />
           </div>
 
