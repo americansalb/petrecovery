@@ -41,6 +41,10 @@ model User {
   waiverAcceptedAt    DateTime?
   waiverVersionAccepted String?
 
+  // Password Reset (Phase 0.1)
+  resetToken          String?   @unique
+  resetTokenExpiry    DateTime?
+
   // Relations
   profile         UserProfile?
   patrolProfile   PatrolProfile?

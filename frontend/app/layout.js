@@ -1,6 +1,7 @@
 import SessionProvider from './components/SessionProvider';
 import { ModeProvider } from './contexts/ModeContext';
 import Navigation from './components/Navigation';
+import ErrorBoundary from './components/ErrorBoundary';
 
 export const metadata = {
   title: 'PetRecovery.org - Reunite Lost Pets with Their Families',
@@ -8,6 +9,10 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  // Log app initialization
+  console.log('[LAYOUT] Root layout rendering');
+  console.log(`[LAYOUT] Timestamp: ${new Date().toISOString()}`);
+
   return (
     <html lang="en">
       <head>
@@ -19,8 +24,10 @@ export default function RootLayout({ children }) {
       <body style={{ margin: 0, padding: 0 }}>
         <SessionProvider>
           <ModeProvider>
-            <Navigation />
-            {children}
+            <ErrorBoundary>
+              <Navigation />
+              {children}
+            </ErrorBoundary>
           </ModeProvider>
         </SessionProvider>
       </body>

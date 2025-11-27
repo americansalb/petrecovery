@@ -2,7 +2,7 @@
 
 **Last Updated:** November 27, 2025
 **Status:** Pre-MVP (Development Phase)
-**Honest Assessment:** ~45% complete for a true MVP
+**Honest Assessment:** ~50% complete for a true MVP (Phase 0 completed)
 
 ---
 
@@ -18,23 +18,25 @@ PetRecovery.org is a community-powered platform to help reunite lost pets with t
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| User Authentication | **Working** | Email/password only, no password reset |
+| User Authentication | **Working** | Email/password with password reset |
+| Password Reset | **NEW** | Forgot password flow with email tokens |
 | User Registration | **Working** | Basic registration with email verification |
 | Rescue Squad CRUD | **Working** | Create, search, join, leave squads |
 | Squad Search by ZIP | **Working** | Haversine distance calculation |
 | Lost Pet Case Admin | **Working** | Admin can create/manage cases |
 | Public Case Portal | **Working** | List, view, submit public reports |
+| Public Metrics API | **NEW** | Real platform metrics with caching |
 | Legal Consent Flow | **Working** | ToS and waiver acceptance |
 | Admin Health Dashboard | **Working** | Comprehensive monitoring |
 | Event Logging | **Working** | Structured logging throughout |
 | Email Notifications | **Partial** | Basic templates, Gmail/SMTP only |
 | Admin QA Harness | **Working** | Browser-based smoke tests |
+| Error Handling | **NEW** | Error boundary, 404 page, loading states |
 
 ### What's NOT Built (Despite Documentation Claims)
 
 | Feature | Actual Status | Documentation Claims |
 |---------|---------------|---------------------|
-| Password Reset | **NOT IMPLEMENTED** | Listed as "not yet implemented" |
 | Image Upload | **NOT IMPLEMENTED** | Schema has URL fields, no upload functionality |
 | Case Coordination UI | **NOT IMPLEMENTED** | APIs exist, zero frontend UI |
 | Squad Chat Interface | **NOT IMPLEMENTED** | API exists, no React component |
@@ -52,35 +54,41 @@ PetRecovery.org is a community-powered platform to help reunite lost pets with t
 
 ### Known Bugs and Issues
 
-1. **Home page displays fake statistic**: "847 pets reunited and counting" is hardcoded
-2. **No error boundary components**: App crashes propagate to white screen
-3. **No loading states on many pages**: Poor UX during data fetches
+1. ~~**Home page displays fake statistic**~~ - **FIXED**: Now shows real metrics from database
+2. ~~**No error boundary components**~~ - **FIXED**: ErrorBoundary added to root layout
+3. ~~**No loading states on many pages**~~ - **FIXED**: Global loading.js and LoadingSpinner added
 4. **Cities database is 29k entries**: Performance concern, no pagination
 5. **Inline CSS throughout**: Inconsistent styling, no design system
 
 ---
 
-## Phase 0: Pre-MVP Critical Fixes (CURRENT PRIORITY)
+## Phase 0: Pre-MVP Critical Fixes ✅ COMPLETED (2025-11-27)
 
-### 0.1 Authentication Essentials
-- [ ] **Password reset flow** - Users cannot recover accounts
-  - Add `/forgot-password` page
-  - Add `/reset-password/[token]` page
-  - Add `POST /api/auth/forgot-password` endpoint
-  - Add `POST /api/auth/reset-password` endpoint
-  - Email template for password reset link
-  - Token expiration (1 hour)
+### 0.1 Authentication Essentials ✅
+- [x] **Password reset flow** - Users can now recover accounts
+  - Added `/forgot-password` page with email input
+  - Added `/reset-password?token=` page with password form
+  - Added `POST /api/auth/forgot-password` endpoint (generates token, sends email)
+  - Added `POST /api/auth/reset-password` endpoint (validates token, updates password)
+  - Professional email template for password reset link
+  - Token expiration (1 hour) with secure random generation
+  - Added "Forgot Password?" link to login page
+  - Added `resetToken` and `resetTokenExpiry` fields to User model
+  - Extensive logging throughout for debugging
 
-### 0.2 Remove Fake Data
-- [ ] Remove hardcoded "847 pets reunited" from home page
-- [ ] Add real metrics fetched from database
-- [ ] Or display "Join us to help reunite pets"
+### 0.2 Remove Fake Data ✅
+- [x] Removed hardcoded "847 pets reunited" from home page
+- [x] Added `GET /api/public/metrics` endpoint with 5-minute caching
+- [x] Home page now fetches and displays real metrics from database
+- [x] Graceful fallbacks for loading/empty states
 
-### 0.3 Basic Error Handling
-- [ ] Add error boundary component
-- [ ] Add 404 page
-- [ ] Add generic error page
-- [ ] Add loading spinners to all data-fetching pages
+### 0.3 Basic Error Handling ✅
+- [x] Added ErrorBoundary component (`/components/ErrorBoundary.js`)
+- [x] Added 404 page (`/not-found.js`) with helpful navigation
+- [x] Added generic error page (`/error.js`) with retry functionality
+- [x] Added global loading component (`/loading.js`)
+- [x] Added reusable LoadingSpinner component with Skeleton loaders
+- [x] Wrapped entire app in ErrorBoundary in root layout
 
 ---
 
@@ -314,18 +322,21 @@ When someone reports a found pet, it should match against lost pets.
 
 ## Milestones
 
-### Milestone 1: Pre-Alpha (Current)
+### Milestone 1: Pre-Alpha ✅ COMPLETE
 - Basic authentication
 - Rescue squad creation/joining
 - Admin case management
 - Public case listing
+- Password reset (**NEW**)
+- Real statistics on home page (**NEW**)
+- Error handling (**NEW**)
 
-### Milestone 2: Alpha (Target: +4 weeks)
-- Password reset
+### Milestone 2: Alpha (Target: +4 weeks) - IN PROGRESS
+- ~~Password reset~~ ✅
 - Image upload
 - Case coordination UI (basic)
-- Real statistics on home page
-- Error handling
+- ~~Real statistics on home page~~ ✅
+- ~~Error handling~~ ✅
 
 ### Milestone 3: Beta (Target: +8 weeks)
 - Full case coordination features
@@ -375,7 +386,7 @@ When someone reports a found pet, it should match against lost pets.
 
 ### High Risk
 1. **No image upload** - Pet recovery without photos is nearly useless
-2. **No password reset** - Users will abandon if locked out
+2. ~~**No password reset**~~ - ✅ RESOLVED: Users can now reset passwords
 3. **No coordination UI** - Core value prop is unavailable
 
 ### Medium Risk
@@ -392,17 +403,18 @@ When someone reports a found pet, it should match against lost pets.
 
 ## Conclusion
 
-This project has a solid database schema, good API structure, and working admin tools. However, the user-facing features that make it a useful pet recovery platform are largely unbuilt. **Claiming MVP status is premature.**
+This project has a solid database schema, good API structure, and working admin tools. Phase 0 critical fixes are now complete, including password reset, real metrics, and error handling. However, critical user-facing features remain unbuilt.
 
-Priority should be:
-1. Fix critical authentication gaps (password reset)
+**Current Priority (Phase 1):**
+1. ~~Fix critical authentication gaps (password reset)~~ ✅
 2. Build image upload capability
 3. Build case coordination UI
 4. Test thoroughly on mobile
 5. Only then consider launch
 
-Estimated time to true MVP: **8-12 weeks of focused development**
+Estimated time to true MVP: **6-10 weeks of focused development** (reduced from 8-12 due to Phase 0 completion)
 
 ---
 
-*This roadmap was created after a thorough code review on November 27, 2025. It replaces previous documentation that overstated project readiness.*
+*This roadmap was created after a thorough code review on November 27, 2025.*
+*Phase 0 completed on November 27, 2025.*
