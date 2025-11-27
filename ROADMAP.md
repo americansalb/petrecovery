@@ -2,7 +2,7 @@
 
 **Last Updated:** November 27, 2025
 **Status:** Pre-MVP (Development Phase)
-**Honest Assessment:** ~50% complete for a true MVP (Phase 0 completed)
+**Honest Assessment:** ~60% complete for a true MVP (Phase 0 + Phase 1.2 completed)
 
 ---
 
@@ -38,10 +38,10 @@ PetRecovery.org is a community-powered platform to help reunite lost pets with t
 | Feature | Actual Status | Documentation Claims |
 |---------|---------------|---------------------|
 | Image Upload | **NOT IMPLEMENTED** | Schema has URL fields, no upload functionality |
-| Case Coordination UI | **NOT IMPLEMENTED** | APIs exist, zero frontend UI |
-| Squad Chat Interface | **NOT IMPLEMENTED** | API exists, no React component |
-| Search Area Mapping | **NOT IMPLEMENTED** | API exists, no interactive map UI |
-| Sighting Submission UI | **NOT IMPLEMENTED** | API exists, no user-facing form |
+| Case Coordination UI | **NEW - WORKING** | Full coordination page with tabs |
+| Squad Chat Interface | **NEW - WORKING** | Real-time polling chat with announcements |
+| Search Area Mapping | **NEW - WORKING** | Interactive Leaflet map with polygon drawing |
+| Sighting Submission UI | **NEW - WORKING** | Full form with confidence levels and map |
 | SMS Notifications | **NOT IMPLEMENTED** | Schema field only |
 | Push Notifications | **NOT IMPLEMENTED** | Schema field only |
 | Social Login | **NOT IMPLEMENTED** | Credentials only |
@@ -105,37 +105,42 @@ Pet recovery requires photos. Currently, the system only stores URLs but provide
 - [ ] Add image optimization/compression
 - [ ] Add image size limits and validation
 
-### 1.2 Case Coordination UI (CRITICAL)
-APIs exist but users have no way to use them. This is the core value proposition.
+### 1.2 Case Coordination UI ✅ COMPLETED (2025-11-27)
+Full coordination UI for case management with real-time features.
 
-**Squad Chat Interface:**
-- [ ] Create `/cases/[id]/coordinate` page
-- [ ] Build real-time chat component
-- [ ] Add message list with author info
-- [ ] Add message input with send button
-- [ ] Support photo attachments in messages
-- [ ] Support location sharing in messages
-- [ ] Add announcement highlighting for leaders
+**Squad Chat Interface:** ✅
+- [x] Create `/cases/[caseNumber]/coordinate` page with tabbed interface
+- [x] Build real-time chat component with polling (5s interval)
+- [x] Add message list with author info and rescue level badges
+- [x] Add message input with send button
+- [x] Add announcement highlighting for leaders (📢 announcements)
+- [x] System messages for automated updates
+- [ ] Support photo attachments in messages (deferred to Phase 2)
+- [ ] Support location sharing in messages (deferred to Phase 2)
 
-**Search Area Mapping:**
-- [ ] Build interactive map component using Leaflet
-- [ ] Add polygon drawing for search areas
-- [ ] Display existing search areas with colors
-- [ ] Show who searched which area and when
-- [ ] Calculate and display total acreage searched
+**Search Area Mapping:** ✅
+- [x] Build interactive map component using Leaflet
+- [x] Add polygon drawing for search areas (click-to-draw)
+- [x] Display existing search areas with colors (per-user colors)
+- [x] Show who searched which area and when
+- [x] Calculate and display total acreage searched
+- [x] Last-seen location marker on map
+- [x] Potential sighting flag for areas
 
-**Sighting Reports:**
-- [ ] Create sighting submission form
-- [ ] Add map pin placement for sighting location
-- [ ] Add confidence level selector (1-10)
-- [ ] Add photo upload for sighting
-- [ ] Display sightings on case map
-- [ ] Add sighting timeline/history
+**Sighting Reports:** ✅
+- [x] Create sighting submission form
+- [x] Add map pin placement for sighting location
+- [x] Add confidence level selector (1-10) with visual slider
+- [x] Display sightings on case map with confidence color coding
+- [x] Add sighting timeline/history with notes
+- [ ] Add photo upload for sighting (deferred to Phase 2)
 
-**Participant Management:**
-- [ ] Show list of opted-in volunteers
-- [ ] Add opt-in/opt-out buttons
-- [ ] Display participant stats
+**Participant Management:** ✅
+- [x] Show list of opted-in volunteers with rescue level badges
+- [x] Add opt-in/opt-out buttons in header
+- [x] Display participant stats (areas, sightings, hours)
+- [x] Team statistics overview (total active, areas, sightings, hours)
+- [x] Rescue level legend with progression info
 
 ### 1.3 Pet Profile Management
 Users should be able to pre-register pets before losing them.
@@ -334,7 +339,7 @@ When someone reports a found pet, it should match against lost pets.
 ### Milestone 2: Alpha (Target: +4 weeks) - IN PROGRESS
 - ~~Password reset~~ ✅
 - Image upload
-- Case coordination UI (basic)
+- ~~Case coordination UI (basic)~~ ✅ COMPLETE
 - ~~Real statistics on home page~~ ✅
 - ~~Error handling~~ ✅
 
@@ -387,7 +392,7 @@ When someone reports a found pet, it should match against lost pets.
 ### High Risk
 1. **No image upload** - Pet recovery without photos is nearly useless
 2. ~~**No password reset**~~ - ✅ RESOLVED: Users can now reset passwords
-3. **No coordination UI** - Core value prop is unavailable
+3. ~~**No coordination UI**~~ - ✅ RESOLVED: Full coordination page with chat, maps, sightings
 
 ### Medium Risk
 1. **No automated tests** - Regressions likely as development continues
@@ -403,18 +408,19 @@ When someone reports a found pet, it should match against lost pets.
 
 ## Conclusion
 
-This project has a solid database schema, good API structure, and working admin tools. Phase 0 critical fixes are now complete, including password reset, real metrics, and error handling. However, critical user-facing features remain unbuilt.
+This project has a solid database schema, good API structure, and working admin tools. Phase 0 critical fixes and Phase 1.2 Case Coordination UI are now complete. The core value proposition (coordinated pet searches) is now functional.
 
-**Current Priority (Phase 1):**
+**Current Priority:**
 1. ~~Fix critical authentication gaps (password reset)~~ ✅
-2. Build image upload capability
-3. Build case coordination UI
-4. Test thoroughly on mobile
+2. Build image upload capability (Phase 1.1 - remaining critical feature)
+3. ~~Build case coordination UI~~ ✅
+4. Test thoroughly on mobile (Phase 2.1)
 5. Only then consider launch
 
-Estimated time to true MVP: **6-10 weeks of focused development** (reduced from 8-12 due to Phase 0 completion)
+Estimated time to true MVP: **4-6 weeks of focused development** (reduced from 6-10 due to Phase 1.2 completion)
 
 ---
 
 *This roadmap was created after a thorough code review on November 27, 2025.*
 *Phase 0 completed on November 27, 2025.*
+*Phase 1.2 (Case Coordination UI) completed on November 27, 2025.*
