@@ -181,16 +181,16 @@ export default function Home() {
       {/* Database CTA Banner */}
       <div style={{
         maxWidth: '1200px',
-        margin: '0 auto 3rem',
-        padding: '0 2rem',
+        margin: '0 auto 2rem',
+        padding: '0 1rem',
       }}>
         <Link
           href="/database"
           style={{
             display: 'block',
             background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
-            borderRadius: '20px',
-            padding: '2.5rem 3rem',
+            borderRadius: '16px',
+            padding: 'clamp(1.5rem, 4vw, 2.5rem) clamp(1.25rem, 3vw, 3rem)',
             textDecoration: 'none',
             boxShadow: '0 10px 30px rgba(14, 165, 233, 0.25)',
             border: '3px solid rgba(255, 255, 255, 0.3)',
@@ -262,10 +262,10 @@ export default function Home() {
       <div style={{
         maxWidth: '1400px',
         margin: '0 auto',
-        padding: '0 2rem 3rem',
+        padding: '0 1rem 3rem',
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-        gap: '2rem',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
+        gap: '1.5rem',
       }}>
         {/* Report Lost Pet */}
         <Link
@@ -273,7 +273,7 @@ export default function Home() {
           style={{
             background: 'white',
             borderRadius: '16px',
-            padding: '3rem 2.5rem',
+            padding: 'clamp(1.5rem, 4vw, 3rem) clamp(1.25rem, 3vw, 2.5rem)',
             textDecoration: 'none',
             boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
             border: '2px solid transparent',
@@ -372,7 +372,7 @@ export default function Home() {
           style={{
             background: 'white',
             borderRadius: '16px',
-            padding: '3rem 2.5rem',
+            padding: 'clamp(1.5rem, 4vw, 3rem) clamp(1.25rem, 3vw, 2.5rem)',
             textDecoration: 'none',
             boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
             border: '2px solid transparent',
@@ -471,7 +471,7 @@ export default function Home() {
           style={{
             background: 'white',
             borderRadius: '16px',
-            padding: '3rem 2.5rem',
+            padding: 'clamp(1.5rem, 4vw, 3rem) clamp(1.25rem, 3vw, 2.5rem)',
             textDecoration: 'none',
             boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
             border: '2px solid transparent',

@@ -3,6 +3,7 @@ import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { sendEmail } from '../../../lib/email';
 import { getServerSession } from 'next-auth';
+import { findMatches, getMatchQuality } from '@/app/lib/matching';
 
 export async function POST(request) {
   try {
@@ -162,11 +163,14 @@ export async function POST(request) {
       }
     });
 
-    // 5. Find nearby users who reported LOST pets of the same species
+    // 5. Find potential matches using the matching algorithm
     const lostPetReports = await prisma.lostReport.findMany({
       where: {
         reportType: 'LOST',
         status: 'ACTIVE',
+        pet: {
+          species: petType.toUpperCase(), // Pre-filter by species
+        }
       },
       include: {
         pet: true,
@@ -174,26 +178,75 @@ export async function POST(request) {
       }
     });
 
-    // Filter by species and distance
-    const nearbyMatches = lostPetReports.filter(lostReport => {
-      // Check species match
-      if (lostReport.pet.species !== petType.toUpperCase()) return false;
+    // Use the matching algorithm to find and score potential matches
+    const foundData = {
+      petSpecies: petType.toUpperCase(),
+      petBreed: breed || '',
+      petColor: color,
+      latitude: center[0],
+      longitude: center[1],
+      city: foundAddress.split(',')[0]?.trim() || '',
+      state: foundAddress.split(',')[1]?.trim()?.substring(0, 2) || '',
+      lastSeenAt: foundAt,
+      createdAt: new Date(),
+    };
 
-      // Check distance
-      const distance = calculateDistance(
-        center[0], center[1],
-        lostReport.lastSeenLatitude, lostReport.lastSeenLongitude
-      );
-      return distance <= (radiusMiles + lostReport.searchRadius);
+    // Transform lost reports into format expected by matching algorithm
+    const candidates = lostPetReports.map(lr => ({
+      id: lr.id,
+      caseNumber: `LR-${lr.id}`,
+      petSpecies: lr.pet.species,
+      petBreed: lr.pet.breed || '',
+      petColor: lr.pet.color,
+      city: lr.lastSeenAddress?.split(',')[0]?.trim() || '',
+      state: lr.lastSeenAddress?.split(',')[1]?.trim()?.substring(0, 2) || '',
+      latitude: lr.lastSeenLatitude,
+      longitude: lr.lastSeenLongitude,
+      lastSeenAt: lr.lastSeenAt,
+      createdAt: lr.createdAt,
+      // Include extra data for notification
+      pet: lr.pet,
+      reporter: lr.reporter,
+      reporterId: lr.reporterId,
+    }));
+
+    // Run matching algorithm
+    const matches = findMatches(foundData, candidates, {
+      minScore: 30, // Show all reasonable matches
+      maxResults: 20,
     });
+
+    // Format matches for response
+    const formattedMatches = matches.map(match => {
+      const quality = getMatchQuality(match.score);
+      const c = match.case;
+
+      return {
+        reportId: c.id,
+        petName: c.pet.name,
+        petSpecies: c.pet.species,
+        petBreed: c.pet.breed,
+        petColor: c.pet.color,
+        petPhoto: c.pet.primaryPhotoUrl,
+        ownerName: c.reporter.firstName,
+        lastSeenAddress: c.lastSeenAddress,
+        lastSeenAt: c.lastSeenAt,
+        matchScore: match.score,
+        matchQuality: quality,
+        distance: match.details.distance,
+      };
+    });
+
+    // Filter to high-quality matches for notifications
+    const nearbyMatches = matches.filter(m => m.score >= 50).map(m => m.case);
 
     // Create alerts for potential matches
     await Promise.all(
-      nearbyMatches.map(lostReport =>
+      nearbyMatches.map(match =>
         prisma.alert.create({
           data: {
-            reportId: lostReport.id,
-            userId: lostReport.reporterId,
+            reportId: match.id,
+            userId: match.reporterId,
             method: 'EMAIL',
           }
         })
@@ -246,6 +299,7 @@ export async function POST(request) {
       reportId: report.id,
       accountCreated,
       matchesNotified: nearbyMatches.length,
+      potentialMatches: formattedMatches, // Include detailed matches for display
     });
 
   } catch (error) {

@@ -6,8 +6,8 @@
  */
 
 import { NextResponse } from 'next/server';
-import prisma from '@/app/lib/db';
-import { logEvent } from '@/app/lib/logging';
+import prisma from '@/app/lib/prisma';
+import { logEvent } from '@/lib/logging';
 import { findMatches, calculateMatchScore } from '@/app/lib/matching';
 import { sendFoundPetNotification } from '@/app/lib/notifications';
 

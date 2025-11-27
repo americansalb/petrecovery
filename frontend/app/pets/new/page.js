@@ -186,7 +186,7 @@ export default function NewPetPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '2rem' }}>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: 'clamp(1rem, 3vw, 2rem)' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         {/* Header */}
         <div style={{ marginBottom: '2rem' }}>

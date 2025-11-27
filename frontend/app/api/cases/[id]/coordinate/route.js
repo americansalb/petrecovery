@@ -4,7 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
 
 /**
- * GET /api/cases/[caseNumber]/coordinate
+ * GET /api/cases/[id]/coordinate
  *
  * Fetches case data along with assignment info for coordination.
  * Requires user to be a member of a squad assigned to this case.
@@ -12,7 +12,7 @@ import prisma from '@/app/lib/prisma';
  * Phase 1.2: Case Coordination UI
  */
 export async function GET(request, { params }) {
-  const { caseNumber } = params;
+  const { id: caseNumber } = params;
   const startTime = Date.now();
 
   console.log('========================================');

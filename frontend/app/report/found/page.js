@@ -43,6 +43,7 @@ export default function ReportFoundPet() {
   const [error, setError] = useState(null);
   const [reportId, setReportId] = useState(null);
   const [photos, setPhotos] = useState([]);
+  const [potentialMatches, setPotentialMatches] = useState([]);
 
   // Auto-fill user data from session
   useEffect(() => {
@@ -218,6 +219,7 @@ export default function ReportFoundPet() {
       }
 
       setReportId(data.reportId);
+      setPotentialMatches(data.potentialMatches || []);
       setStep(6); // Success step
     } catch (err) {
       setError(err.message);
@@ -1056,6 +1058,107 @@ export default function ReportFoundPet() {
                 <li>If no owner is found, contact local animal shelters about next steps</li>
               </ul>
             </div>
+
+            {/* Potential Matches Section */}
+            {potentialMatches.length > 0 && (
+              <div style={{
+                marginBottom: '2rem',
+                textAlign: 'left',
+              }}>
+                <h3 style={{
+                  fontSize: '1.3rem',
+                  fontWeight: '700',
+                  marginBottom: '1rem',
+                  color: theme.colors.gray[900],
+                }}>
+                  Potential Matches ({potentialMatches.length})
+                </h3>
+                <p style={{
+                  color: theme.colors.gray[600],
+                  marginBottom: '1rem',
+                  fontSize: '0.95rem',
+                }}>
+                  The owners of these pets have been notified about your found pet report:
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {potentialMatches.slice(0, 5).map((match, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '1rem',
+                        padding: '1rem',
+                        background: match.matchQuality === 'high' ? '#fef3c7' :
+                                   match.matchQuality === 'medium' ? '#f3f4f6' : '#f9fafb',
+                        border: `2px solid ${match.matchQuality === 'high' ? '#f59e0b' :
+                                             match.matchQuality === 'medium' ? '#9ca3af' : '#e5e7eb'}`,
+                        borderRadius: theme.radius.lg,
+                      }}
+                    >
+                      {match.petPhoto ? (
+                        <img
+                          src={match.petPhoto}
+                          alt={match.petName}
+                          style={{
+                            width: '60px',
+                            height: '60px',
+                            borderRadius: theme.radius.md,
+                            objectFit: 'cover',
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '60px',
+                          height: '60px',
+                          borderRadius: theme.radius.md,
+                          background: '#e5e7eb',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1.5rem',
+                        }}>
+                          {match.petSpecies === 'DOG' ? '🐕' : match.petSpecies === 'CAT' ? '🐈' : '🐾'}
+                        </div>
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '700', color: theme.colors.gray[900] }}>
+                          {match.petName}
+                        </div>
+                        <div style={{ fontSize: '0.9rem', color: theme.colors.gray[600] }}>
+                          {match.petBreed} • {match.petColor}
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: theme.colors.gray[500] }}>
+                          {match.distance ? `${match.distance.toFixed(1)} miles away` : 'Nearby'}
+                        </div>
+                      </div>
+                      <div style={{
+                        padding: '0.5rem 1rem',
+                        borderRadius: theme.radius.md,
+                        background: match.matchQuality === 'high' ? '#fef3c7' :
+                                   match.matchQuality === 'medium' ? '#e5e7eb' : '#f3f4f6',
+                        color: match.matchQuality === 'high' ? '#92400e' :
+                               match.matchQuality === 'medium' ? '#374151' : '#6b7280',
+                        fontWeight: '600',
+                        fontSize: '0.85rem',
+                      }}>
+                        {match.matchScore}% match
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {potentialMatches.length > 5 && (
+                  <p style={{
+                    textAlign: 'center',
+                    color: theme.colors.gray[500],
+                    marginTop: '1rem',
+                    fontSize: '0.9rem',
+                  }}>
+                    +{potentialMatches.length - 5} more potential matches notified
+                  </p>
+                )}
+              </div>
+            )}
 
             <Link
               href="/dashboard"

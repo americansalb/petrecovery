@@ -1,16 +1,16 @@
 /**
  * Case Matches API - Phase 1.4
  *
- * GET /api/cases/[caseNumber]/matches - Find potential matches for a case
+ * GET /api/cases/[id]/matches - Find potential matches for a case
  */
 
 import { NextResponse } from 'next/server';
-import prisma from '@/app/lib/db';
+import prisma from '@/app/lib/prisma';
 import { findMatches, getMatchQuality } from '@/app/lib/matching';
 
 export async function GET(request, { params }) {
   try {
-    const { caseNumber } = await params;
+    const { id: caseNumber } = await params;
 
     // Find the target case
     const targetCase = await prisma.lostPetCase.findUnique({

@@ -8,8 +8,8 @@
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import prisma from '@/app/lib/db';
-import { logEvent } from '@/app/lib/logging';
+import prisma from '@/app/lib/prisma';
+import { logEvent } from '@/lib/logging';
 
 // GET /api/pets/[id] - Get pet details
 export async function GET(request, { params }) {
