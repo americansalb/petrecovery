@@ -79,6 +79,16 @@ model User {
   createdCases    LostPetCase[]
   caseNotes       LostPetCaseNote[]
 
+  // OAuth Accounts (Phase 7)
+  accounts        Account[]
+  emailPreferences EmailPreference?
+  smsPreferences   SmsPreference?
+  pushSubscriptions PushSubscription[]
+  notifications    Notification[]
+  phoneVerifications PhoneVerification[]
+  lastLoginAt     DateTime?
+  profileImage    String?
+
   // Cases where this user is the primary coordinator (Phase 22-24)
   coordinatedCases LostPetCase[]  @relation("CaseCoordinator")
 
@@ -1143,4 +1153,413 @@ model LostPetCaseNote {
   metadata   String      @default("{}")
 
   @@index([caseId])
+}
+
+// ============================================================================
+// PHASE 1: SOCIAL SHARING
+// ============================================================================
+
+model ShareEvent {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  caseId      String
+  platform    String   // facebook, twitter, nextdoor, whatsapp, email, copy, native
+  userId      String?  // Null for anonymous shares
+  ipAddress   String?  // For anonymous share tracking
+  userAgent   String?
+
+  @@index([caseId])
+  @@index([platform])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// PHASE 3: EMAIL PREFERENCES
+// ============================================================================
+
+model EmailPreference {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Notification types
+  caseUpdates         Boolean @default(true)
+  sightingAlerts      Boolean @default(true)
+  squadMessages       Boolean @default(true)
+  weeklyDigest        Boolean @default(false)
+  marketingEmails     Boolean @default(false)
+  systemAnnouncements Boolean @default(true)
+
+  // Delivery preferences
+  digestFrequency     String  @default("IMMEDIATE") // IMMEDIATE, DAILY, WEEKLY
+  quietHoursStart     Int?    // Hour (0-23)
+  quietHoursEnd       Int?    // Hour (0-23)
+  timezone            String  @default("America/Chicago")
+
+  // Unsubscribe
+  unsubscribeToken    String  @unique @default(cuid())
+  unsubscribedAt      DateTime?
+  unsubscribeReason   String?
+
+  @@index([userId])
+}
+
+model EmailLog {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  userId      String
+  emailType   String   // CASE_UPDATE, SIGHTING_ALERT, DIGEST, etc.
+  subject     String
+  sentTo      String
+  status      String   @default("SENT") // SENT, DELIVERED, BOUNCED, FAILED
+  messageId   String?  // From email provider
+  openedAt    DateTime?
+  clickedAt   DateTime?
+
+  @@index([userId])
+  @@index([emailType])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// PHASE 6: SMS NOTIFICATIONS
+// ============================================================================
+
+model SmsPreference {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  phoneNumber String
+  verified    Boolean  @default(false)
+  verifyCode  String?
+  verifyExpiry DateTime?
+
+  // Notification types
+  urgentAlerts    Boolean @default(true)
+  sightingAlerts  Boolean @default(false)
+  caseUpdates     Boolean @default(false)
+
+  // Limits
+  dailyLimit      Int     @default(10)
+  sentToday       Int     @default(0)
+  lastResetDate   DateTime @default(now())
+
+  @@index([userId])
+  @@index([phoneNumber])
+}
+
+model SmsLog {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  userId      String
+  phoneNumber String
+  messageType String   // URGENT_ALERT, SIGHTING, VERIFICATION
+  message     String
+  status      String   @default("SENT") // SENT, DELIVERED, FAILED
+  twilioSid   String?
+  errorCode   String?
+  cost        Float?
+
+  @@index([userId])
+  @@index([phoneNumber])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// PHASE 8: PUSH NOTIFICATIONS
+// ============================================================================
+
+model PushSubscription {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  endpoint    String   @unique
+  subscription String  // Full JSON subscription object
+
+  // Device info
+  deviceType  String?  // web, ios, android
+  deviceName  String?
+  browserInfo String?
+  userAgent   String?
+
+  // Status
+  isActive    Boolean  @default(true)
+  lastUsedAt  DateTime @default(now())
+  failedCount Int      @default(0)
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+model PushNotificationLog {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  userId      String
+  title       String
+  body        String
+  data        String?  // JSON payload
+  status      String   @default("SENT") // SENT, DELIVERED, CLICKED, FAILED
+  endpoint    String?
+  errorMessage String?
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// PHASE 9: SHELTER INTEGRATION
+// ============================================================================
+
+model Shelter {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Basic info
+  name        String
+  type        String   @default("SHELTER") // SHELTER, RESCUE, VET, ANIMAL_CONTROL
+  apiType     String?  // PETFINDER, RESCUEGROUPS, CUSTOM
+
+  // Location
+  address     String
+  city        String
+  state       String
+  zipCode     String
+  latitude    Float?
+  longitude   Float?
+  phone       String?
+  email       String?
+  website     String?
+
+  // API Integration
+  apiEndpoint String?
+  apiKey      String?  // Encrypted
+  lastSyncAt  DateTime?
+  syncEnabled Boolean  @default(true)
+
+  // Status
+  isActive    Boolean  @default(true)
+  isVerified  Boolean  @default(false)
+
+  // Relations
+  intakes     ShelterIntake[]
+
+  @@index([city, state])
+  @@index([isActive])
+  @@index([type])
+}
+
+model ShelterIntake {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shelterId   String
+  shelter     Shelter  @relation(fields: [shelterId], references: [id])
+
+  // Animal info
+  externalId  String?  // ID from shelter system
+  species     String
+  breed       String?
+  color       String?
+  size        String?
+  name        String?
+  description String?
+  photoUrls   String   @default("[]") // JSON array
+
+  // Intake details
+  intakeDate  DateTime
+  intakeType  String?  // STRAY, SURRENDER, TRANSFER
+  location    String?  // Where found
+
+  // Status
+  status      String   @default("AVAILABLE") // AVAILABLE, ADOPTED, TRANSFERRED, EUTHANIZED, RECLAIMED
+  statusDate  DateTime @default(now())
+
+  // Matching
+  matchedCaseId String?
+  matchScore    Float?
+  matchedAt     DateTime?
+  matchStatus   String?  // PENDING, CONFIRMED, REJECTED
+
+  @@unique([shelterId, externalId])
+  @@index([shelterId])
+  @@index([species])
+  @@index([status])
+  @@index([intakeDate])
+}
+
+// ============================================================================
+// PHASE 10: ANALYTICS
+// ============================================================================
+
+model AnalyticsEvent {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  eventType   String   // PAGE_VIEW, CASE_VIEW, SEARCH, SIGNUP, etc.
+  userId      String?
+  sessionId   String?
+  ipAddress   String?
+
+  // Event data
+  page        String?
+  referrer    String?
+  userAgent   String?
+  metadata    String   @default("{}") // JSON
+
+  // Location (from IP)
+  country     String?
+  region      String?
+  city        String?
+
+  @@index([eventType])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([sessionId])
+}
+
+model DailyStats {
+  id          String   @id @default(cuid())
+  date        DateTime @unique
+
+  // User metrics
+  newUsers        Int @default(0)
+  activeUsers     Int @default(0)
+  totalUsers      Int @default(0)
+
+  // Case metrics
+  newCases        Int @default(0)
+  activeCases     Int @default(0)
+  resolvedCases   Int @default(0)
+  reunions        Int @default(0)
+
+  // Engagement
+  pageViews       Int @default(0)
+  searches        Int @default(0)
+  shares          Int @default(0)
+  sightings       Int @default(0)
+
+  // Squad metrics
+  newSquadMembers Int @default(0)
+  activeSquads    Int @default(0)
+
+  @@index([date])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // CASE_UPDATE, SIGHTING, SQUAD_MESSAGE, SYSTEM
+  title       String
+  message     String
+  data        String?  // JSON payload
+  read        Boolean  @default(false)
+  readAt      DateTime?
+  actionUrl   String?
+  expiresAt   DateTime?
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// PHASE 7: OAUTH ACCOUNTS
+// ============================================================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// ============================================================================
+// PHONE VERIFICATION (Phase 6)
+// ============================================================================
+
+model PhoneVerification {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phoneNumber String
+  code        String
+  expiresAt   DateTime
+  verified    Boolean  @default(false)
+  verifiedAt  DateTime?
+  attempts    Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, phoneNumber])
+  @@index([phoneNumber])
+}
+
+// ============================================================================
+// SHELTER MATCHING (Phase 9)
+// ============================================================================
+
+model ShelterMatch {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  caseId      String
+  externalId  String   // ID from external shelter API
+  source      String   // petfinder, rescuegroups, etc.
+  status      String   @default("PENDING") // PENDING, POSSIBLE, LIKELY, NOT_MATCH, CONFIRMED
+  notes       String?
+  matchData   String?  // JSON with full match data
+  matchScore  Float?
+
+  @@unique([caseId, externalId])
+  @@index([caseId])
+  @@index([status])
+}
+
+// ============================================================================
+// SIGHTING MODEL (Used by analytics)
+// ============================================================================
+
+model Sighting {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  caseId      String
+  userId      String?
+  latitude    Float
+  longitude   Float
+  description String?
+  photoUrls   String   @default("[]")
+  verified    Boolean  @default(false)
+
+  @@index([caseId])
+  @@index([createdAt])
 }
