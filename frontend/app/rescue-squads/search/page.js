@@ -19,13 +19,10 @@ export default function RescueSquadSearchPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [inputType, setInputType] = useState(null); // 'zip' or 'city'
   const [validationError, setValidationError] = useState('');
-  const [actionError, setActionError] = useState(''); // For join/create errors
-  const [highlightedIndex, setHighlightedIndex] = useState(-1); // For keyboard navigation
 
   const handleInputChange = (value) => {
     setSearchTerm(value);
     setValidationError('');
-    setHighlightedIndex(-1);
 
     // Detect input type
     const isZip = /^\d{0,5}$/.test(value);
@@ -46,29 +43,6 @@ export default function RescueSquadSearchPage() {
     setSearchTerm(city.city);
     setShowSuggestions(false);
     setSuggestions([]);
-    setHighlightedIndex(-1);
-  };
-
-  const handleKeyDown = (e) => {
-    if (!showSuggestions || suggestions.length === 0) return;
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setHighlightedIndex(prev =>
-        prev < suggestions.length - 1 ? prev + 1 : 0
-      );
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setHighlightedIndex(prev =>
-        prev > 0 ? prev - 1 : suggestions.length - 1
-      );
-    } else if (e.key === 'Enter' && highlightedIndex >= 0) {
-      e.preventDefault();
-      selectSuggestion(suggestions[highlightedIndex]);
-    } else if (e.key === 'Escape') {
-      setShowSuggestions(false);
-      setHighlightedIndex(-1);
-    }
   };
 
   const handleSearch = async (e) => {
@@ -123,17 +97,16 @@ export default function RescueSquadSearchPage() {
       router.push('/login?callbackUrl=' + window.location.pathname);
       return;
     }
-    setActionError('');
     try {
       const res = await fetch(`/api/rescue-squads/${squadId}/join`, { method: 'POST' });
       if (res.ok) {
         router.push(`/rescue-squads/${squadId}`);
       } else {
         const data = await res.json();
-        setActionError(data.error || 'Failed to join squad');
+        alert(data.error || 'Failed to join');
       }
     } catch (error) {
-      setActionError('Error joining squad. Please try again.');
+      alert('Error joining squad');
     }
   };
 
@@ -142,7 +115,6 @@ export default function RescueSquadSearchPage() {
       router.push('/login?callbackUrl=' + window.location.pathname);
       return;
     }
-    setActionError('');
     try {
       // First join the squad if not already a member
       const squadRes = await fetch(`/api/rescue-squads/${squadId}/join`, { method: 'POST' });
@@ -156,10 +128,10 @@ export default function RescueSquadSearchPage() {
         router.push(`/rescue-squads/${squadId}/divisions/${divisionId}`);
       } else {
         const data = await divRes.json();
-        setActionError(data.error || 'Failed to join division');
+        alert(data.error || 'Failed to join division');
       }
     } catch (error) {
-      setActionError('Error joining division. Please try again.');
+      alert('Error joining division');
     }
   };
 
@@ -168,7 +140,6 @@ export default function RescueSquadSearchPage() {
       router.push('/login?callbackUrl=' + window.location.pathname);
       return;
     }
-    setActionError('');
 
     // If we don't have state (city name search with no existing squad), route to create page
     if (!state) {
@@ -179,7 +150,7 @@ export default function RescueSquadSearchPage() {
     try {
       // Validate we have a valid ZIP code
       if (!zipCode || !/^\d{5}$/.test(zipCode)) {
-        setActionError('Unable to create squad: valid ZIP code required. Please search by ZIP code instead.');
+        alert('Unable to create squad: valid ZIP code required. Please search by ZIP code instead.');
         return;
       }
 
@@ -192,10 +163,10 @@ export default function RescueSquadSearchPage() {
       if (res.ok) {
         router.push(`/rescue-squads/${data.squad.id}`);
       } else {
-        setActionError(data.error || 'Failed to create squad');
+        alert(data.error || 'Failed to create squad');
       }
     } catch (error) {
-      setActionError('Error creating squad. Please try again.');
+      alert('Error creating squad');
     }
   };
 
@@ -251,23 +222,13 @@ export default function RescueSquadSearchPage() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => handleInputChange(e.target.value)}
-                onKeyDown={handleKeyDown}
                 onFocus={() => {
                   if (suggestions.length > 0) setShowSuggestions(true);
                 }}
                 onBlur={() => {
-                  // Longer timeout to allow click on suggestion
-                  setTimeout(() => {
-                    setShowSuggestions(false);
-                    setHighlightedIndex(-1);
-                  }, 300);
+                  setTimeout(() => setShowSuggestions(false), 200);
                 }}
                 placeholder="e.g., Lynwood or 60411"
-                autoComplete="off"
-                role="combobox"
-                aria-expanded={showSuggestions}
-                aria-haspopup="listbox"
-                aria-autocomplete="list"
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -311,39 +272,34 @@ export default function RescueSquadSearchPage() {
 
               {/* Suggestions dropdown */}
               {showSuggestions && suggestions.length > 0 && (
-                <div
-                  role="listbox"
-                  aria-label="City suggestions"
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    background: 'white',
-                    border: '2px solid #667eea',
-                    borderRadius: '8px',
-                    marginTop: '0.5rem',
-                    maxHeight: '250px',
-                    overflowY: 'auto',
-                    zIndex: 1000,
-                    boxShadow: '0 8px 16px rgba(102, 126, 234, 0.15)'
-                  }}>
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  background: 'white',
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '8px',
+                  marginTop: '0.5rem',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  zIndex: 1000,
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                }}>
                   {suggestions.map((city, idx) => (
                     <div
                       key={`${city.city}-${city.state_id}-${idx}`}
                       onMouseDown={() => selectSuggestion(city)}
-                      onMouseEnter={() => setHighlightedIndex(idx)}
-                      role="option"
-                      aria-selected={idx === highlightedIndex}
                       style={{
                         padding: '0.75rem',
                         cursor: 'pointer',
                         borderBottom: idx < suggestions.length - 1 ? '1px solid #f1f5f9' : 'none',
-                        background: idx === highlightedIndex ? '#e0e7ff' : 'white',
-                        transition: 'background 0.1s ease'
+                        background: 'white'
                       }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
                     >
-                      <div style={{ fontWeight: '600', color: idx === highlightedIndex ? '#4338ca' : '#0f172a' }}>
+                      <div style={{ fontWeight: '600', color: '#0f172a' }}>
                         {city.city}, {city.state_id}
                       </div>
                       <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
@@ -401,38 +357,6 @@ export default function RescueSquadSearchPage() {
             </div>
           </div>
         </form>
-
-        {/* Error Banner */}
-        {actionError && (
-          <div style={{
-            padding: '1rem 1.5rem',
-            background: '#fee2e2',
-            border: '2px solid #fecaca',
-            borderRadius: '8px',
-            marginBottom: '1.5rem',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <div style={{ color: '#991b1b', fontWeight: '600' }}>
-              {actionError}
-            </div>
-            <button
-              onClick={() => setActionError('')}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#991b1b',
-                cursor: 'pointer',
-                fontSize: '1.25rem',
-                fontWeight: '700',
-                padding: '0.25rem'
-              }}
-            >
-              ×
-            </button>
-          </div>
-        )}
 
         {/* Results */}
         {searched && (
