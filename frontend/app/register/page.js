@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 export default function RegisterPage() {
@@ -15,7 +15,16 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [callbackUrl, setCallbackUrl] = useState('/dashboard');
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const callback = searchParams.get('callbackUrl');
+    if (callback) {
+      setCallbackUrl(callback);
+    }
+  }, [searchParams]);
 
   const handleChange = (e) => {
     setFormData({
@@ -72,7 +81,7 @@ export default function RegisterPage() {
       if (result.error) {
         setError('Account created but failed to sign in. Please try logging in.');
       } else {
-        router.push('/dashboard');
+        router.push(callbackUrl);
         router.refresh();
       }
     } catch (error) {

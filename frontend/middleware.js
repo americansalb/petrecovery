@@ -125,20 +125,21 @@ function cleanupRateLimitMap() {
  * Add security headers to response
  */
 function addSecurityHeaders(response) {
-  // Content Security Policy
+  // Content Security Policy - relaxed for development
   response.headers.set(
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com https://www.googletagmanager.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com https://www.googletagmanager.com https://unpkg.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com",
+      "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https: http:",
-      "connect-src 'self' https://www.google.com https://api.mapbox.com wss:",
+      "connect-src 'self' https: wss: http://localhost:* http://127.0.0.1:*",
       "frame-src 'self' https://www.google.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
+      "worker-src 'self' blob:",
     ].join('; ')
   );
 
@@ -159,11 +160,12 @@ export async function middleware(request) {
   const { pathname } = request.nextUrl;
   const clientIp = getClientIp(request);
 
-  // Skip middleware for static assets
+  // Skip middleware for static assets and files with common extensions
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/static') ||
-    pathname.includes('.') // Files with extensions
+    pathname.startsWith('/api/auth') || // Let NextAuth handle its own routes
+    /\.(ico|png|jpg|jpeg|gif|svg|webp|css|js|woff|woff2|ttf|eot|map|json)$/i.test(pathname)
   ) {
     return NextResponse.next();
   }
