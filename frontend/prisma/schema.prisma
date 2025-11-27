@@ -1102,6 +1102,12 @@ model LostPetCase {
   publicContactOk Boolean         @default(false)
   source        String            @default("ADMIN")  // "ADMIN" or "PUBLIC_REPORT"
 
+  // Phase 1.4: Matching fields
+  reportType    String            @default("LOST")   // "LOST" or "FOUND"
+  latitude      Float?
+  longitude     Float?
+  photoUrls     String            @default("[]")     // JSON array of photo URLs
+
   // Relations
   createdById   String
   createdBy     User              @relation(fields: [createdById], references: [id])

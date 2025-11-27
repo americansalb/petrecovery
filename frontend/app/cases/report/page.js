@@ -3,18 +3,25 @@
 /**
  * Public Lost Pet Report Form
  * Phase 15-16: Public Lost Pet Case Portal MVP (TASK-P05)
+ * Phase 1.3: Updated to support pre-filling from existing pet profile
  *
  * Route: /cases/report
+ * Route: /cases/report?petId=xxx (pre-fill from pet profile)
  * Public-facing form for reporting lost pets
- * NO AUTHENTICATION REQUIRED
+ * NO AUTHENTICATION REQUIRED (but can be used by logged-in users)
  */
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import ImageUpload from '@/app/components/ImageUpload';
+import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 export default function PublicReportPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: session } = useSession();
+  const petId = searchParams.get('petId');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -45,6 +52,75 @@ export default function PublicReportPage() {
   const [submitError, setSubmitError] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [caseNumber, setCaseNumber] = useState(null);
+  const [loadingPet, setLoadingPet] = useState(!!petId);
+  const [linkedPet, setLinkedPet] = useState(null);
+
+  // Load pet data if petId is provided
+  useEffect(() => {
+    if (petId && session) {
+      fetchPetData();
+    } else if (petId && !session) {
+      // No session but petId provided - just clear loading
+      setLoadingPet(false);
+    }
+  }, [petId, session]);
+
+  // Pre-fill contact info from session
+  useEffect(() => {
+    if (session?.user && !petId) {
+      setFormData(prev => ({
+        ...prev,
+        contactName: prev.contactName || session.user.name || '',
+        contactEmail: prev.contactEmail || session.user.email || '',
+      }));
+    }
+  }, [session, petId]);
+
+  const fetchPetData = async () => {
+    try {
+      const res = await fetch(`/api/pets/${petId}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          console.error('Pet not found');
+        }
+        setLoadingPet(false);
+        return;
+      }
+
+      const data = await res.json();
+      const pet = data.pet;
+      setLinkedPet(pet);
+
+      // Build description from pet data
+      const descriptionParts = [];
+      if (pet.distinctiveMarks) descriptionParts.push(`Distinctive marks: ${pet.distinctiveMarks}`);
+      if (pet.personality?.length > 0) descriptionParts.push(`Personality: ${pet.personality.join(', ')}`);
+      if (pet.medicalConditions) descriptionParts.push(`Medical: ${pet.medicalConditions}`);
+      if (pet.collarInfo) descriptionParts.push(`Collar: ${pet.collarInfo}`);
+      if (pet.microchipId) descriptionParts.push(`Microchip: ${pet.microchipId}`);
+
+      // Pre-fill form with pet data
+      setFormData(prev => ({
+        ...prev,
+        petName: pet.name || '',
+        petSpecies: pet.species || 'DOG',
+        petBreed: pet.breed || '',
+        petColor: pet.color || '',
+        petDescription: descriptionParts.join('. ') || '',
+        contactName: session?.user?.name || '',
+        contactEmail: session?.user?.email || '',
+      }));
+
+      // Pre-fill images
+      if (pet.photos?.length > 0) {
+        setImages(pet.photos.map(url => ({ url, uploaded: true })));
+      }
+    } catch (err) {
+      console.error('Error fetching pet data:', err);
+    } finally {
+      setLoadingPet(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -96,10 +172,11 @@ export default function PublicReportPage() {
     setSubmitting(true);
 
     try {
-      // Include image URLs in submission
+      // Include image URLs and linked pet in submission
       const submitData = {
         ...formData,
         photoUrls: images.map(img => img.url),
+        petId: linkedPet?.id || null,
       };
 
       const res = await fetch('/api/public/cases', {
@@ -170,22 +247,58 @@ export default function PublicReportPage() {
     );
   }
 
+  // Show loading while fetching pet data
+  if (loadingPet) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <LoadingSpinner text="Loading pet information..." />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="container mx-auto px-4 max-w-3xl">
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => router.push('/cases')}
+            onClick={() => linkedPet ? router.push('/pets') : router.push('/cases')}
             className="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center"
           >
-            ← Back to Cases
+            ← {linkedPet ? 'Back to My Pets' : 'Back to Cases'}
           </button>
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Report a Lost Pet</h1>
           <p className="text-lg text-gray-600">
             Fill out this form to report a lost pet. Your report will be reviewed by our team before being published.
           </p>
         </div>
+
+        {/* Pre-filled from pet banner */}
+        {linkedPet && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-3">
+              {linkedPet.primaryPhotoUrl ? (
+                <img
+                  src={linkedPet.primaryPhotoUrl}
+                  alt={linkedPet.name}
+                  className="w-12 h-12 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-xl">
+                  {linkedPet.species === 'DOG' ? '🐕' : linkedPet.species === 'CAT' ? '🐈' : '🐾'}
+                </div>
+              )}
+              <div>
+                <p className="font-semibold text-blue-800">
+                  Reporting {linkedPet.name} as lost
+                </p>
+                <p className="text-sm text-blue-600">
+                  Pet information has been pre-filled from their profile. Just add the last seen location.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-8">
