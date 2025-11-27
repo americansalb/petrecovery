@@ -1,11 +1,34 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { theme } from './lib/theme';
 
 export default function Home() {
   const { data: session } = useSession();
+  const [metrics, setMetrics] = useState(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+
+  // Fetch real metrics on mount
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      console.log('[HOME] Fetching platform metrics...');
+      try {
+        const response = await fetch('/api/public/metrics');
+        const data = await response.json();
+        console.log('[HOME] Metrics received:', data);
+        setMetrics(data);
+      } catch (error) {
+        console.error('[HOME] Failed to fetch metrics:', error);
+        setMetrics(null);
+      } finally {
+        setMetricsLoading(false);
+      }
+    };
+
+    fetchMetrics();
+  }, []);
 
   return (
     <div style={{
@@ -114,14 +137,45 @@ export default function Home() {
         }}>
           Instant community alerts and proven recovery strategies to bring your pet home safely
         </p>
-        <p style={{
-          fontSize: '1.1rem',
-          color: '#10b981',
-          fontWeight: '700',
-          margin: '0',
-        }}>
-          ✓ 847 pets reunited and counting
-        </p>
+
+        {/* Real metrics from database */}
+        {metricsLoading ? (
+          <p style={{
+            fontSize: '1.1rem',
+            color: '#6b7280',
+            fontWeight: '500',
+            margin: '0',
+          }}>
+            Loading community stats...
+          </p>
+        ) : metrics && metrics.pets_reunited > 0 ? (
+          <p style={{
+            fontSize: '1.1rem',
+            color: '#10b981',
+            fontWeight: '700',
+            margin: '0',
+          }}>
+            &#10003; {metrics.pets_reunited.toLocaleString()} pets reunited and counting
+          </p>
+        ) : metrics && metrics.active_squads > 0 ? (
+          <p style={{
+            fontSize: '1.1rem',
+            color: '#10b981',
+            fontWeight: '700',
+            margin: '0',
+          }}>
+            &#10003; {metrics.active_squads} rescue squads ready to help
+          </p>
+        ) : (
+          <p style={{
+            fontSize: '1.1rem',
+            color: '#2563eb',
+            fontWeight: '700',
+            margin: '0',
+          }}>
+            Join our community to help reunite lost pets!
+          </p>
+        )}
       </div>
 
       {/* Database CTA Banner */}

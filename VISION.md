@@ -1,7 +1,9 @@
 # PetRecovery.org - Project Vision & Implementation Path
 
-**Last Updated:** 2025-11-25
-**Branch:** `claude/cleanup-navbar-vision-01YCsTCcdvUhKCneDuk5ybgz`
+**Last Updated:** 2025-11-27
+**Status:** Pre-MVP Development (~45% complete)
+
+> **IMPORTANT**: See [ROADMAP.md](/ROADMAP.md) for the comprehensive and accurate project status. Previous documentation overstated project readiness. Critical features like password reset, image upload, and case coordination UI are NOT implemented.
 
 ---
 
@@ -185,14 +187,23 @@ The "optimization" removed:
    - All features must emit structured events and respect legal gating
    - Candidate phases: sighting reports, case matching algorithm, coordinator notifications, workload metrics
 
-**🎉 MAJOR MILESTONE:** Phase 0 now 100% complete!
+**⚠️ IMPORTANT CLARIFICATION:**
 
-Platform readiness:
+While the items marked as "complete" above have their *backend APIs* implemented, the project is NOT at MVP status. See [ROADMAP.md](/ROADMAP.md) for critical missing features:
+
+- ❌ **No password reset** - Users cannot recover accounts
+- ❌ **No image upload** - Only URL fields exist, no actual upload
+- ❌ **No case coordination UI** - APIs exist but zero frontend
+- ❌ **No squad chat interface** - API exists, no React component
+- ❌ **No search area mapping** - API exists, no interactive map
+- ❌ **No sighting submission UI** - API exists, no form
+
+Platform IS ready for:
 - ✅ Legal compliance with enforced liability waiver
-- ✅ Full observability via admin dashboard
-- ✅ Structured event logging for debugging
-- ✅ Health monitoring of critical services
-- ✅ Safe volunteer participation with tracked consent
+- ✅ Observability via admin dashboard
+- ✅ Structured event logging
+- ✅ Health monitoring
+- ✅ Basic admin case management
 
 ---
 

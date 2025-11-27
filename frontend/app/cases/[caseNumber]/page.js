@@ -11,6 +11,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import MatchesPanel from '@/app/components/MatchesPanel';
 
 export default function PublicCaseDetailPage() {
   const params = useParams();
@@ -279,6 +280,13 @@ export default function PublicCaseDetailPage() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-xl font-bold mb-4">Status Update</h2>
             <p className="text-gray-700">{caseData.statusReason}</p>
+          </div>
+        )}
+
+        {/* Potential Matches - Phase 1.4 */}
+        {caseData.status !== 'RESOLVED' && caseData.status !== 'CLOSED_OTHER' && (
+          <div className="mb-6">
+            <MatchesPanel caseNumber={caseNumber} />
           </div>
         )}
 

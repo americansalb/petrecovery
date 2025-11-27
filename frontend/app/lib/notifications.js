@@ -481,3 +481,169 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Send notification to lost pet owner when a potential match is found
+ * Phase 1.4: Lost/Found Matching
+ *
+ * @param {Object} data - Notification data
+ * @param {string} data.to - Owner's email
+ * @param {string} data.lostPetName - Name of the lost pet
+ * @param {string} data.lostCaseNumber - Lost pet case number
+ * @param {string} data.foundCaseNumber - Found pet case number
+ * @param {number} data.matchScore - Match score (0-100)
+ * @param {string} data.foundLocation - Where found pet was seen
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function sendFoundPetNotification(data) {
+  const startTime = Date.now();
+  const notificationType = 'potential_match';
+
+  const {
+    to,
+    lostPetName,
+    lostCaseNumber,
+    foundCaseNumber,
+    matchScore,
+    foundLocation,
+  } = data;
+
+  if (!to) {
+    return { success: false, error: 'No email provided' };
+  }
+
+  try {
+    await logEvent({
+      event_type: 'notification.send_attempted',
+      resource_type: 'notification',
+      resource_id: lostCaseNumber,
+      action: 'create',
+      result: 'success',
+      metadata: {
+        notification_type: notificationType,
+        recipient: to,
+        lost_case: lostCaseNumber,
+        found_case: foundCaseNumber,
+        match_score: matchScore,
+      }
+    });
+
+    const matchQuality = matchScore >= 60 ? 'Good' : 'Possible';
+    const urgencyColor = matchScore >= 60 ? '#10b981' : '#f59e0b';
+
+    const html = `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+          <div style="background: ${urgencyColor}; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; font-size: 24px;">Potential Match Found!</h1>
+          </div>
+
+          <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+            <p style="font-size: 18px; margin-top: 0;">
+              Great news! A pet matching <strong>${lostPetName}</strong> was found!
+            </p>
+
+            <div style="background: ${urgencyColor}22; border: 2px solid ${urgencyColor}; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+              <p style="margin: 0; font-size: 14px; color: #666;">Match Confidence</p>
+              <p style="margin: 10px 0 0 0; font-size: 36px; font-weight: bold; color: ${urgencyColor};">
+                ${matchScore}%
+              </p>
+              <p style="margin: 5px 0 0 0; color: ${urgencyColor}; font-weight: 600;">
+                ${matchQuality} Match
+              </p>
+            </div>
+
+            <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #1f2937;">Details:</h3>
+              <ul style="margin: 0; padding-left: 20px;">
+                <li><strong>Your Case:</strong> ${lostCaseNumber}</li>
+                <li><strong>Found Pet Report:</strong> ${foundCaseNumber}</li>
+                <li><strong>Found Location:</strong> ${foundLocation}</li>
+              </ul>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${BASE_URL}/cases/${lostCaseNumber}"
+                 style="display: inline-block; background: #2563eb; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+                View Match Details
+              </a>
+            </div>
+
+            <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px;">
+              <p style="margin: 0;"><strong>Act quickly!</strong> If this looks like your pet, contact the finder as soon as possible. The case detail page will show you how to reach them.</p>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+
+            <p style="color: #6b7280; font-size: 14px; margin: 0;">
+              <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+            </p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const result = await sendEmail({
+      to,
+      subject: `${matchQuality} Match Found for ${lostPetName}! (${matchScore}% confidence)`,
+      html
+    });
+
+    const responseTime = Date.now() - startTime;
+
+    if (result.success) {
+      await logEvent({
+        event_type: 'notification.send_succeeded',
+        resource_type: 'notification',
+        resource_id: lostCaseNumber,
+        action: 'create',
+        result: 'success',
+        metadata: {
+          notification_type: notificationType,
+          recipient: to,
+          lost_case: lostCaseNumber,
+          found_case: foundCaseNumber,
+          match_score: matchScore,
+          response_time_ms: responseTime,
+        }
+      });
+    } else {
+      await logEvent({
+        event_type: 'notification.send_failed',
+        resource_type: 'notification',
+        resource_id: lostCaseNumber,
+        action: 'create',
+        result: 'failure',
+        error_code: 'EMAIL_SEND_FAILED',
+        error_message: result.error,
+        metadata: {
+          notification_type: notificationType,
+          recipient: to,
+          lost_case: lostCaseNumber,
+          found_case: foundCaseNumber,
+        }
+      });
+    }
+
+    return result;
+
+  } catch (error) {
+    await logEvent({
+      event_type: 'notification.send_failed',
+      resource_type: 'notification',
+      resource_id: lostCaseNumber,
+      action: 'create',
+      result: 'failure',
+      error_code: 'NOTIFICATION_ERROR',
+      error_message: error.message,
+      metadata: {
+        notification_type: notificationType,
+        recipient: to,
+        lost_case: lostCaseNumber,
+        found_case: foundCaseNumber,
+      }
+    });
+
+    return { success: false, error: error.message };
+  }
+}
