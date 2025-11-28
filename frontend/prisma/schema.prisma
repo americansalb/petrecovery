@@ -1700,3 +1700,498 @@ model Integration {
   @@index([rescueSquadId])
   @@index([isActive])
 }
+
+// ============================================================================
+// PHASE 11: MACHINE LEARNING - Image Analysis
+// ============================================================================
+
+model PetImageAnalysis {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  // Source
+  caseId      String?
+  petId       String?
+  imageUrl    String
+
+  // Analysis results
+  species     String?
+  breedPredictions String @default("[]") // JSON: [{breed, confidence}]
+  colorPalette String @default("[]")     // JSON: [{hex, percentage}]
+  embedding   String?                     // Base64 encoded embedding vector
+
+  // Status
+  status      String   @default("PENDING") // PENDING, PROCESSING, COMPLETE, FAILED
+  errorMessage String?
+
+  @@index([caseId])
+  @@index([petId])
+  @@index([status])
+}
+
+// ============================================================================
+// PHASE 12: SOCIAL FEATURES
+// ============================================================================
+
+model CaseFollow {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  userId      String
+  caseId      String
+
+  // Notification preferences
+  notifyOnSightings Boolean @default(true)
+  notifyOnUpdates   Boolean @default(true)
+  notifyOnResolution Boolean @default(true)
+
+  @@unique([userId, caseId])
+  @@index([userId])
+  @@index([caseId])
+}
+
+model SuccessStory {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  caseId      String   @unique
+  authorId    String
+
+  // Story content
+  title       String
+  story       String
+  photoUrls   String   @default("[]") // JSON array
+  videoUrl    String?
+
+  // Metrics
+  daysLost    Int?
+  searcherCount Int?
+  sightingCount Int?
+
+  // Display
+  isPublic    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  viewCount   Int      @default(0)
+  likeCount   Int      @default(0)
+
+  @@index([authorId])
+  @@index([isPublic, isFeatured])
+  @@index([createdAt])
+}
+
+model ActivityFeedItem {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  // Activity type
+  type        String   // CASE_CREATED, SIGHTING_REPORTED, CASE_RESOLVED, JOINED_SQUAD, etc.
+  message     String
+
+  // Actor
+  actorId     String?
+  actorName   String?
+
+  // Related entities
+  caseId      String?
+  squadId     String?
+  sightingId  String?
+
+  // Visibility
+  isPublic    Boolean  @default(true)
+
+  // Metadata
+  metadata    String   @default("{}") // JSON
+
+  @@index([type])
+  @@index([actorId])
+  @@index([caseId])
+  @@index([createdAt])
+  @@index([isPublic])
+}
+
+// ============================================================================
+// PHASE 13: ADVANCED MAPPING
+// ============================================================================
+
+model GPSBreadcrumb {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  // User tracking
+  userId      String
+  caseId      String?
+  sessionId   String   // Group breadcrumbs by search session
+
+  // Location
+  latitude    Float
+  longitude   Float
+  accuracy    Float?   // GPS accuracy in meters
+  altitude    Float?
+  speed       Float?   // meters per second
+
+  @@index([userId])
+  @@index([caseId])
+  @@index([sessionId])
+  @@index([createdAt])
+}
+
+model SearchGrid {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  caseId      String
+
+  // Grid definition
+  gridId      String   // e.g., "A1", "B3"
+  bounds      String   // JSON: {north, south, east, west}
+  centerLat   Float
+  centerLng   Float
+
+  // Status
+  status      String   @default("PENDING") // PENDING, ASSIGNED, IN_PROGRESS, COMPLETED, SKIPPED
+  priority    String   @default("MEDIUM")  // LOW, MEDIUM, HIGH
+
+  // Assignment
+  assignedToId String?
+  assignedAt   DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  // Results
+  searchNotes  String?
+  sightingFound Boolean @default(false)
+
+  @@unique([caseId, gridId])
+  @@index([caseId])
+  @@index([status])
+  @@index([assignedToId])
+}
+
+// ============================================================================
+// PHASE 14: VOLUNTEER MANAGEMENT
+// ============================================================================
+
+model VolunteerShift {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Context
+  caseId      String?
+  squadId     String?
+  eventName   String?
+
+  // Timing
+  startTime   DateTime
+  endTime     DateTime
+  timezone    String   @default("America/Chicago")
+
+  // Capacity
+  maxVolunteers Int     @default(10)
+  currentCount  Int     @default(0)
+
+  // Location
+  meetingPoint  String?
+  latitude      Float?
+  longitude     Float?
+  instructions  String?
+
+  // Status
+  status      String   @default("OPEN") // OPEN, FULL, IN_PROGRESS, COMPLETED, CANCELLED
+
+  // Relations
+  signups     VolunteerSignup[]
+
+  @@index([caseId])
+  @@index([squadId])
+  @@index([startTime])
+  @@index([status])
+}
+
+model VolunteerSignup {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  shiftId     String
+  shift       VolunteerShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  userId      String
+
+  // Status
+  status      String   @default("CONFIRMED") // CONFIRMED, CANCELLED, NO_SHOW, COMPLETED
+  checkedInAt DateTime?
+  checkedOutAt DateTime?
+
+  // Feedback
+  hoursWorked Float?
+  notes       String?
+
+  @@unique([shiftId, userId])
+  @@index([userId])
+  @@index([status])
+}
+
+model VolunteerCertification {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+
+  // Certification details
+  type        String   // BASIC_SEARCH, ADVANCED_TRACKING, DRONE_OPERATOR, FIRST_AID, etc.
+  name        String
+  issuedBy    String?
+  issuedAt    DateTime @default(now())
+  expiresAt   DateTime?
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, EXPIRED, REVOKED
+  verifiedAt  DateTime?
+  verifiedById String?
+
+  // Documents
+  documentUrl String?
+  metadata    String   @default("{}")
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+}
+
+model TrainingModule {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Module info
+  title       String
+  description String?
+  category    String   // BASICS, SEARCH_TECHNIQUES, SAFETY, ANIMAL_BEHAVIOR, etc.
+  difficulty  String   @default("BEGINNER") // BEGINNER, INTERMEDIATE, ADVANCED
+
+  // Content
+  contentType String   @default("VIDEO") // VIDEO, ARTICLE, QUIZ, INTERACTIVE
+  contentUrl  String?
+  duration    Int?     // Minutes
+  order       Int      @default(0)
+
+  // Requirements
+  prerequisiteIds String @default("[]") // JSON array of module IDs
+  certificationGranted String? // Certification type granted upon completion
+
+  // Status
+  isActive    Boolean  @default(true)
+
+  // Relations
+  progress    TrainingProgress[]
+
+  @@index([category])
+  @@index([isActive])
+}
+
+model TrainingProgress {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  moduleId    String
+  module      TrainingModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  // Progress
+  status      String   @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, COMPLETED
+  progress    Int      @default(0)  // Percentage 0-100
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  // Quiz results
+  quizScore   Int?
+  attempts    Int      @default(0)
+
+  @@unique([userId, moduleId])
+  @@index([userId])
+  @@index([status])
+}
+
+// ============================================================================
+// PHASE 15: PAYMENTS & DONATIONS
+// ============================================================================
+
+model Donation {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  // Donor
+  donorId     String?  // Null for anonymous
+  donorEmail  String
+  donorName   String?
+  isAnonymous Boolean  @default(false)
+
+  // Amount
+  amount      Int      // In cents
+  currency    String   @default("usd")
+  fee         Int?     // Processing fee in cents
+  netAmount   Int?     // Amount after fees
+
+  // Designation
+  type        String   @default("GENERAL") // GENERAL, CASE_SPECIFIC, SQUAD, REWARD_FUND
+  caseId      String?
+  squadId     String?
+
+  // Payment
+  stripePaymentId String?  @unique
+  stripeCustomerId String?
+  paymentMethod   String?  // card, bank_transfer, etc.
+  status      String   @default("PENDING") // PENDING, COMPLETED, FAILED, REFUNDED
+
+  // Metadata
+  message     String?
+  isRecurring Boolean  @default(false)
+  receiptUrl  String?
+
+  @@index([donorId])
+  @@index([caseId])
+  @@index([squadId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model RewardEscrow {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  caseId      String
+  ownerId     String   // Pet owner who funded
+
+  // Amount
+  amount      Int      // In cents
+  currency    String   @default("usd")
+
+  // Payment
+  stripePaymentIntentId String? @unique
+  stripeChargeId        String?
+
+  // Status
+  status      String   @default("AUTHORIZED") // AUTHORIZED, CAPTURED, RELEASED, REFUNDED, EXPIRED
+
+  // Payout
+  recipientId String?  // User who found the pet
+  payoutId    String?  // Stripe payout ID
+  paidOutAt   DateTime?
+
+  // Expiry
+  expiresAt   DateTime?
+  expiredAt   DateTime?
+  refundedAt  DateTime?
+
+  @@index([caseId])
+  @@index([ownerId])
+  @@index([status])
+}
+
+model Subscription {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+
+  // Stripe
+  stripeCustomerId     String?
+  stripeSubscriptionId String? @unique
+  stripePriceId        String?
+
+  // Plan
+  planType    String   // FREE, BASIC, PREMIUM, ORGANIZATION
+  interval    String?  // month, year
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, PAST_DUE, CANCELLED, PAUSED
+
+  // Billing
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+  cancelledAt        DateTime?
+
+  // Features
+  features    String   @default("{}") // JSON: enabled features
+
+  @@index([userId])
+  @@index([status])
+  @@index([stripeCustomerId])
+}
+
+// ============================================================================
+// PHASE 20: EMERGENCY RESPONSE
+// ============================================================================
+
+model EmergencyEvent {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Event details
+  type        String   // WILDFIRE, HURRICANE, FLOOD, TORNADO, EARTHQUAKE, EVACUATION, OTHER
+  level       String   // NORMAL, WATCH, WARNING, ACTIVE, RECOVERY
+  name        String
+  description String?
+
+  // Affected area
+  affectedArea String? // JSON: GeoJSON polygon or center+radius
+
+  // Timing
+  startTime   DateTime @default(now())
+  estimatedEndTime DateTime?
+  endTime     DateTime?
+
+  // Resources
+  evacuationRoutes String? // JSON array
+  shelterLocations String? // JSON array
+
+  // Status
+  isActive    Boolean  @default(true)
+  closureNotes String?
+
+  // Creator
+  activatedById String
+
+  // Relations
+  evacuations PetEvacuation[]
+
+  @@index([type])
+  @@index([isActive])
+  @@index([startTime])
+}
+
+model PetEvacuation {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  emergencyEventId String
+  emergencyEvent   EmergencyEvent @relation(fields: [emergencyEventId], references: [id], onDelete: Cascade)
+
+  petId       String
+  ownerId     String
+
+  // Location tracking
+  evacuationLocation String? // JSON: destination location
+  currentLocation    String? // JSON: current location
+
+  // Status
+  status      String   @default("WITH_OWNER") // WITH_OWNER, AT_SHELTER, SEPARATED, MISSING, REUNITED
+
+  // Details
+  transportMethod String?
+  contactInfo     String?
+  notes           String?
+
+  @@index([emergencyEventId])
+  @@index([petId])
+  @@index([ownerId])
+  @@index([status])
+}
