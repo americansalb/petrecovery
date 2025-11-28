@@ -2195,3 +2195,467 @@ model PetEvacuation {
   @@index([ownerId])
   @@index([status])
 }
+
+// ============================================================================
+// PHASE 21: ADVANCED AI - Pet Recognition
+// ============================================================================
+
+model PetFacialFeatures {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  petId       String?
+  caseId      String?
+  imageUrl    String
+
+  // Facial data
+  faceRegion  String?  // JSON: bounding box
+  landmarks   String?  // JSON: facial landmarks
+  embedding   String?  // Base64 encoded 128-dim vector
+  distinctiveFeatures String? // JSON array
+
+  species     String?
+  confidence  Float?
+
+  @@index([petId])
+  @@index([caseId])
+}
+
+// ============================================================================
+// PHASE 22: GAMIFICATION 2.0
+// ============================================================================
+
+model UserAchievement {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  userId      String
+  achievementId String
+
+  earnedAt    DateTime @default(now())
+  notified    Boolean  @default(false)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+}
+
+model PointsLog {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  userId      String
+  points      Int
+  reason      String
+  awardedAt   DateTime @default(now())
+
+  // Context
+  caseId      String?
+  squadId     String?
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model SquadCompetition {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+
+  // Scoring
+  scoreType   String   @default("REUNIONS") // REUNIONS, SIGHTINGS, SEARCH_HOURS
+  prizes      String?  // JSON array
+
+  status      String   @default("UPCOMING") // UPCOMING, ACTIVE, COMPLETED
+
+  // Relations
+  entries     SquadCompetitionEntry[]
+
+  @@index([status])
+  @@index([startDate])
+}
+
+model SquadCompetitionEntry {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  competitionId String
+  competition   SquadCompetition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  squadId     String
+
+  score       Int      @default(0)
+  rank        Int?
+  metrics     String?  // JSON: detailed metrics
+
+  @@unique([competitionId, squadId])
+  @@index([squadId])
+}
+
+// ============================================================================
+// PHASE 24: BLOCKCHAIN - Pet Identity
+// ============================================================================
+
+model BlockchainIdentity {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  petId       String   @unique
+  tokenId     String   @unique
+  ownerAddress String
+
+  // Blockchain data
+  transactionHash String?
+  imageHash   String?  // IPFS hash
+  metadata    String?  // JSON
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, TRANSFERRED, LOST, FOUND
+
+  @@index([ownerAddress])
+  @@index([status])
+}
+
+model OwnershipHistory {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  tokenId     String
+  fromAddress String
+  toAddress   String
+  transactionHash String?
+  reason      String?
+
+  @@index([tokenId])
+}
+
+// ============================================================================
+// PHASE 25: IOT - Device Management
+// ============================================================================
+
+model DeviceConnection {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  provider    String   // fi, whistle, tractive, etc.
+  deviceId    String
+
+  // Auth
+  accessToken String?
+  refreshToken String?
+  expiresAt   DateTime?
+
+  // Status
+  status      String   @default("CONNECTED") // CONNECTED, DISCONNECTED, ERROR
+  lastSyncAt  DateTime?
+
+  // Settings
+  petId       String?
+  autoCreateCase Boolean @default(false)
+
+  @@unique([userId, provider, deviceId])
+  @@index([userId])
+  @@index([provider])
+}
+
+model Geofence {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  deviceConnectionId String
+  name        String
+  centerLat   Float
+  centerLng   Float
+  radiusMeters Int
+
+  // Alerts
+  notifyOnExit Boolean @default(true)
+  notifyOnEnter Boolean @default(false)
+
+  status      String   @default("ACTIVE") // ACTIVE, PAUSED, DELETED
+
+  @@index([deviceConnectionId])
+}
+
+model TrapSensor {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  sensorId    String   @unique
+  name        String
+
+  // Location
+  latitude    Float?
+  longitude   Float?
+  address     String?
+
+  // Status
+  status      String   @default("ARMED") // ARMED, TRIGGERED, DISABLED
+  lastTriggeredAt DateTime?
+  triggerCount Int     @default(0)
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ============================================================================
+// PHASE 26: GOVERNMENT - Agency Integration
+// ============================================================================
+
+model AgencyIntegration {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  name        String
+  type        String   // animal_control, shelter, police, licensing
+  jurisdiction String? // JSON: state, county, city
+
+  // API
+  apiEndpoint String?
+  apiKeyHash  String?
+  lastSyncAt  DateTime?
+
+  // Status
+  status      String   @default("PENDING") // PENDING, ACTIVE, TESTING, INACTIVE
+
+  // Contact
+  contactEmail String?
+  contactVerified Boolean @default(false)
+
+  @@index([type])
+  @@index([status])
+}
+
+model AgencyIntake {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agencyId    String
+  externalId  String
+
+  // Animal info
+  species     String
+  breed       String?
+  color       String?
+  description String?
+
+  // Intake details
+  intakeDate  DateTime
+  intakeType  String?  // STRAY, SURRENDER, CONFISCATION
+  foundLocation String?
+
+  // Status
+  status      String   @default("AVAILABLE")
+  holdUntil   DateTime?
+
+  // Matching
+  matchedCaseId String?
+  matchScore  Float?
+
+  @@unique([agencyId, externalId])
+  @@index([agencyId])
+  @@index([status])
+}
+
+// ============================================================================
+// PHASE 27: INSURANCE - Claims
+// ============================================================================
+
+model InsurancePolicy {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  petId       String?
+  provider    String
+  policyNumber String
+
+  // Coverage
+  coverageTypes String? // JSON array
+  limits      String?  // JSON: coverage limits
+  deductible  Int?
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, EXPIRED, CANCELLED
+  expiresAt   DateTime?
+
+  // Verification
+  verified    Boolean  @default(false)
+  verifiedAt  DateTime?
+
+  // Relations
+  claims      InsuranceClaim[]
+
+  @@unique([provider, policyNumber])
+  @@index([userId])
+  @@index([petId])
+}
+
+model InsuranceClaim {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  policyId    String
+  policy      InsurancePolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  caseId      String?
+
+  // Claim details
+  claimType   String   // LOST_PET_ADVERTISING, REWARD, SEARCH_EXPENSES
+  claimedAmount Int    // cents
+  description String?
+  documents   String?  // JSON array of document URLs
+
+  // Provider
+  providerClaimId String?
+
+  // Status
+  status      String   @default("PENDING") // PENDING, REVIEWING, APPROVED, DENIED, PAID
+  approvedAmount Int?
+  paidAmount  Int?
+  denialReason String?
+
+  // Timeline
+  submittedAt DateTime @default(now())
+  reviewedAt  DateTime?
+  resolvedAt  DateTime?
+
+  @@index([policyId])
+  @@index([caseId])
+  @@index([status])
+}
+
+// ============================================================================
+// PHASE 29: REPORTING - Scheduled Reports
+// ============================================================================
+
+model ReportSchedule {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  type        String   // EXECUTIVE_SUMMARY, CASE_ANALYTICS, etc.
+  frequency   String   // daily, weekly, monthly
+  recipients  String   // JSON array of emails
+  format      String   @default("pdf")
+  config      String?  // JSON: custom config
+
+  // Schedule
+  nextRunAt   DateTime
+  lastRunAt   DateTime?
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, PAUSED, DELETED
+
+  // Creator
+  createdById String
+
+  @@index([type])
+  @@index([status])
+  @@index([nextRunAt])
+}
+
+// ============================================================================
+// PHASE 30: ENTERPRISE - Multi-tenant
+// ============================================================================
+
+model Tenant {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  name        String
+  type        String   // shelter, rescue_org, municipality, enterprise
+  domain      String   @unique
+
+  // Branding
+  branding    String?  // JSON: colors, logo, etc.
+  features    String?  // JSON: enabled features
+  limits      String?  // JSON: usage limits
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, SUSPENDED, CANCELLED
+
+  // Relations
+  users       TenantUser[]
+  apiKeys     APIKey[]
+  integrations TenantIntegration[]
+
+  @@index([type])
+  @@index([status])
+}
+
+model TenantUser {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      String
+
+  role        String   @default("MEMBER") // ADMIN, MANAGER, MEMBER
+  invitedAt   DateTime @default(now())
+  joinedAt    DateTime?
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+}
+
+model APIKey {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String
+  keyHash     String   @unique
+  keyPrefix   String
+
+  // Permissions
+  permissions String   // JSON array
+  rateLimit   String?  // JSON: requests per window
+  ipWhitelist String?  // JSON array
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, REVOKED
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+
+  @@index([tenantId])
+  @@index([keyPrefix])
+}
+
+model TenantIntegration {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  integrationId String
+
+  config      String?  // JSON: integration config
+  webhookUrl  String?
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, PAUSED, ERROR
+  lastSyncAt  DateTime?
+  errorMessage String?
+
+  @@unique([tenantId, integrationId])
+  @@index([status])
+}
