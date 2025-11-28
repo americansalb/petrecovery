@@ -99,15 +99,19 @@ export default function RegisterPage() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(to bottom, #dbeafe, #bfdbfe)',
-      padding: '1rem',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}>
+    <main
+      role="main"
+      aria-labelledby="register-heading"
+      style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(to bottom, #dbeafe, #bfdbfe)',
+        padding: '1rem',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
       <div style={{
         maxWidth: '450px',
         width: '100%',
@@ -117,12 +121,15 @@ export default function RegisterPage() {
         boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
       }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h1 style={{
-            fontSize: '2rem',
-            fontWeight: 'bold',
-            color: '#1e40af',
-            marginBottom: '0.5rem',
-          }}>
+          <h1
+            id="register-heading"
+            style={{
+              fontSize: '2rem',
+              fontWeight: 'bold',
+              color: '#1e40af',
+              marginBottom: '0.5rem',
+            }}
+          >
             Create Account
           </h1>
           <p style={{ color: '#6b7280' }}>
@@ -131,36 +138,47 @@ export default function RegisterPage() {
         </div>
 
         {error && (
-          <div style={{
-            backgroundColor: '#fee2e2',
-            border: '1px solid #fecaca',
-            color: '#991b1b',
-            padding: '0.75rem',
-            borderRadius: '0.5rem',
-            marginBottom: '1.5rem',
-            fontSize: '0.875rem',
-          }}>
+          <div
+            role="alert"
+            aria-live="polite"
+            id="register-error"
+            style={{
+              backgroundColor: '#fee2e2',
+              border: '1px solid #fecaca',
+              color: '#991b1b',
+              padding: '0.75rem',
+              borderRadius: '0.5rem',
+              marginBottom: '1.5rem',
+              fontSize: '0.875rem',
+            }}
+          >
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} aria-describedby={error ? 'register-error' : undefined}>
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontWeight: '600',
-              color: '#1f2937',
-            }}>
+            <label
+              htmlFor="firstName"
+              style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontWeight: '600',
+                color: '#1f2937',
+              }}
+            >
               First Name *
             </label>
             <input
+              id="firstName"
               type="text"
               name="firstName"
               value={formData.firstName}
               onChange={handleChange}
               placeholder="Jane"
               required
+              autoComplete="given-name"
+              aria-required="true"
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -172,21 +190,27 @@ export default function RegisterPage() {
           </div>
 
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontWeight: '600',
-              color: '#1f2937',
-            }}>
+            <label
+              htmlFor="email"
+              style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontWeight: '600',
+                color: '#1f2937',
+              }}
+            >
               Email Address *
             </label>
             <input
+              id="email"
               type="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
               placeholder="you@example.com"
               required
+              autoComplete="email"
+              aria-required="true"
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -198,20 +222,25 @@ export default function RegisterPage() {
           </div>
 
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontWeight: '600',
-              color: '#1f2937',
-            }}>
+            <label
+              htmlFor="phone"
+              style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontWeight: '600',
+                color: '#1f2937',
+              }}
+            >
               Phone Number
             </label>
             <input
+              id="phone"
               type="tel"
               name="phone"
               value={formData.phone}
               onChange={handleChange}
               placeholder="555-0100"
+              autoComplete="tel"
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -223,21 +252,28 @@ export default function RegisterPage() {
           </div>
 
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontWeight: '600',
-              color: '#1f2937',
-            }}>
+            <label
+              htmlFor="password"
+              style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontWeight: '600',
+                color: '#1f2937',
+              }}
+            >
               Password *
             </label>
             <input
+              id="password"
               type="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
               placeholder="••••••••"
               required
+              autoComplete="new-password"
+              aria-required="true"
+              aria-describedby="password-hint"
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -246,31 +282,40 @@ export default function RegisterPage() {
                 fontSize: '1rem',
               }}
             />
-            <p style={{
-              fontSize: '0.875rem',
-              color: '#6b7280',
-              marginTop: '0.5rem',
-            }}>
+            <p
+              id="password-hint"
+              style={{
+                fontSize: '0.875rem',
+                color: '#6b7280',
+                marginTop: '0.5rem',
+              }}
+            >
               Must be at least 8 characters
             </p>
           </div>
 
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontWeight: '600',
-              color: '#1f2937',
-            }}>
+            <label
+              htmlFor="confirmPassword"
+              style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontWeight: '600',
+                color: '#1f2937',
+              }}
+            >
               Confirm Password *
             </label>
             <input
+              id="confirmPassword"
               type="password"
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
               placeholder="••••••••"
               required
+              autoComplete="new-password"
+              aria-required="true"
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -282,16 +327,21 @@ export default function RegisterPage() {
           </div>
 
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '0.75rem',
-              cursor: 'pointer',
-            }}>
+            <label
+              htmlFor="acceptTerms"
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.75rem',
+                cursor: 'pointer',
+              }}
+            >
               <input
+                id="acceptTerms"
                 type="checkbox"
                 checked={acceptedTerms}
                 onChange={(e) => setAcceptedTerms(e.target.checked)}
+                aria-required="true"
                 style={{
                   width: '1.25rem',
                   height: '1.25rem',
@@ -316,6 +366,8 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading || !acceptedTerms}
+            aria-busy={loading}
+            aria-disabled={loading || !acceptedTerms}
             style={{
               width: '100%',
               padding: '1rem',
@@ -353,7 +405,7 @@ export default function RegisterPage() {
           </Link>
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+        <nav aria-label="Back navigation" style={{ textAlign: 'center', marginTop: '1rem' }}>
           <Link
             href="/"
             style={{
@@ -364,8 +416,8 @@ export default function RegisterPage() {
           >
             ← Back to Home
           </Link>
-        </div>
+        </nav>
       </div>
-    </div>
+    </main>
   );
 }

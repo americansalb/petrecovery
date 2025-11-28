@@ -32,7 +32,7 @@ export async function GET(request, { params }) {
     const { id } = await params;
 
     const pet = await prisma.pet.findUnique({
-      where: { id },
+      where: { id, isDeleted: false },
       include: {
         cases: {
           select: {
@@ -93,7 +93,7 @@ export async function PATCH(request, { params }) {
     const { id } = await params;
 
     const existingPet = await prisma.pet.findUnique({
-      where: { id }
+      where: { id, isDeleted: false }
     });
 
     if (!existingPet) {
@@ -230,7 +230,7 @@ export async function DELETE(request, { params }) {
     const { id } = await params;
 
     const existingPet = await prisma.pet.findUnique({
-      where: { id },
+      where: { id, isDeleted: false },
       include: {
         cases: {
           where: {
@@ -255,8 +255,13 @@ export async function DELETE(request, { params }) {
       }, { status: 400 });
     }
 
-    await prisma.pet.delete({
-      where: { id }
+    // Soft delete - set isDeleted flag instead of hard delete
+    await prisma.pet.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      }
     });
 
     await logEvent({
@@ -265,6 +270,7 @@ export async function DELETE(request, { params }) {
       metadata: {
         petId: id,
         petName: existingPet.name,
+        softDelete: true,
       }
     });
 

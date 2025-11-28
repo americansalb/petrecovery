@@ -1,29 +1,74 @@
 /**
- * In-memory rate limiting utility for API endpoints
+ * Rate limiting utility for API endpoints
  *
- * For MVP/single-instance deployments. For production scale,
- * consider Redis-based rate limiting (e.g., @upstash/ratelimit)
+ * Supports two modes:
+ * 1. In-memory: For development and single-instance deployments
+ * 2. Redis: For production multi-instance deployments
+ *
+ * Set REDIS_URL environment variable to enable Redis mode.
  */
 
-// Store request counts per IP/key
+// Redis client (lazy initialized)
+let redisClient = null;
+let redisAvailable = false;
+
+// In-memory fallback stores
 const requestCounts = new Map();
 const blockList = new Map();
 
-// Clean up old entries every 5 minutes
+// Initialize Redis connection if REDIS_URL is set
+async function getRedisClient() {
+  if (redisClient !== null) {
+    return redisAvailable ? redisClient : null;
+  }
+
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    redisClient = false; // Mark as checked but unavailable
+    return null;
+  }
+
+  try {
+    // Dynamic import to avoid requiring redis in non-Redis environments
+    const { createClient } = await import('redis');
+    redisClient = createClient({ url: redisUrl });
+
+    redisClient.on('error', (err) => {
+      console.error('Redis rate limit error:', err.message);
+      redisAvailable = false;
+    });
+
+    redisClient.on('connect', () => {
+      redisAvailable = true;
+    });
+
+    await redisClient.connect();
+    redisAvailable = true;
+    return redisClient;
+  } catch (err) {
+    console.warn('Redis not available for rate limiting, using in-memory fallback');
+    redisClient = false;
+    return null;
+  }
+}
+
+// Clean up old in-memory entries every 5 minutes
 const CLEANUP_INTERVAL = 5 * 60 * 1000;
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, data] of requestCounts.entries()) {
-    if (now - data.windowStart > data.windowMs * 2) {
-      requestCounts.delete(key);
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, data] of requestCounts.entries()) {
+      if (now - data.windowStart > data.windowMs * 2) {
+        requestCounts.delete(key);
+      }
     }
-  }
-  for (const [key, blockedUntil] of blockList.entries()) {
-    if (now > blockedUntil) {
-      blockList.delete(key);
+    for (const [key, blockedUntil] of blockList.entries()) {
+      if (now > blockedUntil) {
+        blockList.delete(key);
+      }
     }
-  }
-}, CLEANUP_INTERVAL);
+  }, CLEANUP_INTERVAL);
+}
 
 /**
  * Rate limiter configuration presets
@@ -49,7 +94,6 @@ export const RateLimitPresets = {
  * Get client IP from request headers
  */
 function getClientIP(request) {
-  // Check various headers in order of preference
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) {
     return forwarded.split(',')[0].trim();
@@ -60,31 +104,78 @@ function getClientIP(request) {
     return realIP;
   }
 
-  // Fallback - in production this should always come from headers
   return 'unknown';
 }
 
 /**
- * Check if request should be rate limited
- *
- * @param {Request} request - The incoming request
- * @param {Object} options - Rate limit options
- * @param {number} options.windowMs - Time window in milliseconds
- * @param {number} options.maxRequests - Max requests per window
- * @param {number} options.blockDurationMs - How long to block after exceeding
- * @param {string} [options.keyPrefix] - Optional prefix for the rate limit key
- * @returns {{ success: boolean, remaining: number, resetAt: number, blocked: boolean }}
+ * Check rate limit using Redis
  */
-export function checkRateLimit(request, options) {
-  const {
-    windowMs = 60000,
-    maxRequests = 30,
-    blockDurationMs = 60000,
-    keyPrefix = 'default'
-  } = options;
+async function checkRateLimitRedis(redis, key, options) {
+  const { windowMs, maxRequests, blockDurationMs } = options;
+  const now = Date.now();
+  const windowKey = `ratelimit:${key}`;
+  const blockKey = `ratelimit:block:${key}`;
 
-  const ip = getClientIP(request);
-  const key = `${keyPrefix}:${ip}`;
+  try {
+    // Check if blocked
+    const blockedUntil = await redis.get(blockKey);
+    if (blockedUntil && now < parseInt(blockedUntil)) {
+      const ttl = parseInt(blockedUntil) - now;
+      return {
+        success: false,
+        remaining: 0,
+        resetAt: parseInt(blockedUntil),
+        blocked: true,
+        retryAfter: Math.ceil(ttl / 1000)
+      };
+    }
+
+    // Use Redis MULTI for atomic operations
+    const windowSeconds = Math.ceil(windowMs / 1000);
+
+    // Increment counter
+    const count = await redis.incr(windowKey);
+
+    // Set expiry on first request
+    if (count === 1) {
+      await redis.expire(windowKey, windowSeconds);
+    }
+
+    // Check if over limit
+    if (count > maxRequests) {
+      const blockedUntilTime = now + blockDurationMs;
+      await redis.set(blockKey, blockedUntilTime.toString(), {
+        EX: Math.ceil(blockDurationMs / 1000)
+      });
+
+      return {
+        success: false,
+        remaining: 0,
+        resetAt: blockedUntilTime,
+        blocked: true,
+        retryAfter: Math.ceil(blockDurationMs / 1000)
+      };
+    }
+
+    const ttl = await redis.ttl(windowKey);
+    return {
+      success: true,
+      remaining: maxRequests - count,
+      resetAt: now + (ttl * 1000),
+      blocked: false
+    };
+  } catch (err) {
+    // Fallback to allowing request on Redis error
+    console.error('Redis rate limit error:', err.message);
+    return { success: true, remaining: maxRequests, resetAt: now + windowMs, blocked: false };
+  }
+}
+
+/**
+ * Check rate limit using in-memory store
+ */
+function checkRateLimitMemory(key, options) {
+  const { windowMs, maxRequests, blockDurationMs } = options;
   const now = Date.now();
 
   // Check if IP is blocked
@@ -99,16 +190,11 @@ export function checkRateLimit(request, options) {
     };
   }
 
-  // Get or create request count for this key
+  // Get or create request count
   let data = requestCounts.get(key);
 
   if (!data || now - data.windowStart > windowMs) {
-    // New window
-    data = {
-      count: 1,
-      windowStart: now,
-      windowMs
-    };
+    data = { count: 1, windowStart: now, windowMs };
     requestCounts.set(key, data);
 
     return {
@@ -119,18 +205,16 @@ export function checkRateLimit(request, options) {
     };
   }
 
-  // Increment count
   data.count++;
 
   if (data.count > maxRequests) {
-    // Block this IP
-    const blockedUntil = now + blockDurationMs;
-    blockList.set(key, blockedUntil);
+    const blockedUntilTime = now + blockDurationMs;
+    blockList.set(key, blockedUntilTime);
 
     return {
       success: false,
       remaining: 0,
-      resetAt: blockedUntil,
+      resetAt: blockedUntilTime,
       blocked: true,
       retryAfter: Math.ceil(blockDurationMs / 1000)
     };
@@ -142,6 +226,49 @@ export function checkRateLimit(request, options) {
     resetAt: data.windowStart + windowMs,
     blocked: false
   };
+}
+
+/**
+ * Check if request should be rate limited
+ * Automatically uses Redis if available, falls back to in-memory
+ */
+export async function checkRateLimitAsync(request, options) {
+  const {
+    windowMs = 60000,
+    maxRequests = 30,
+    blockDurationMs = 60000,
+    keyPrefix = 'default'
+  } = options;
+
+  const ip = getClientIP(request);
+  const key = `${keyPrefix}:${ip}`;
+
+  // Try Redis first
+  const redis = await getRedisClient();
+  if (redis) {
+    return checkRateLimitRedis(redis, key, { windowMs, maxRequests, blockDurationMs });
+  }
+
+  // Fallback to in-memory
+  return checkRateLimitMemory(key, { windowMs, maxRequests, blockDurationMs });
+}
+
+/**
+ * Synchronous rate limit check (in-memory only)
+ * Use this for backwards compatibility with existing code
+ */
+export function checkRateLimit(request, options) {
+  const {
+    windowMs = 60000,
+    maxRequests = 30,
+    blockDurationMs = 60000,
+    keyPrefix = 'default'
+  } = options;
+
+  const ip = getClientIP(request);
+  const key = `${keyPrefix}:${ip}`;
+
+  return checkRateLimitMemory(key, { windowMs, maxRequests, blockDurationMs });
 }
 
 /**
@@ -182,14 +309,22 @@ export function addRateLimitHeaders(response, result) {
 }
 
 /**
- * Convenience wrapper for rate limiting in API routes
+ * Convenience wrapper for rate limiting in API routes (synchronous)
+ * Uses in-memory rate limiting for backwards compatibility
+ */
+export function withRateLimit(request, preset, keyPrefix) {
+  return checkRateLimit(request, { ...preset, keyPrefix });
+}
+
+/**
+ * Async convenience wrapper for rate limiting (uses Redis when available)
  *
  * Usage:
  * ```
- * import { withRateLimit, RateLimitPresets } from '@/app/lib/rateLimit';
+ * import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
  *
  * export async function POST(request) {
- *   const rateLimitResult = withRateLimit(request, RateLimitPresets.AUTH, 'auth');
+ *   const rateLimitResult = await withRateLimitAsync(request, RateLimitPresets.AUTH, 'auth');
  *   if (!rateLimitResult.success) {
  *     return rateLimitResponse(rateLimitResult);
  *   }
@@ -197,6 +332,13 @@ export function addRateLimitHeaders(response, result) {
  * }
  * ```
  */
-export function withRateLimit(request, preset, keyPrefix) {
-  return checkRateLimit(request, { ...preset, keyPrefix });
+export async function withRateLimitAsync(request, preset, keyPrefix) {
+  return checkRateLimitAsync(request, { ...preset, keyPrefix });
+}
+
+/**
+ * Check if Redis is being used for rate limiting
+ */
+export function isUsingRedis() {
+  return redisAvailable;
 }
