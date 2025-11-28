@@ -3,7 +3,10 @@ import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import { logEvent } from '@/lib/logging';
+import { sendVerificationEmail } from '@/app/api/auth/verify-email/route';
 import crypto from 'crypto';
+
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
 // Email validation regex (RFC 5322 simplified)
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -114,6 +117,10 @@ export async function POST(request) {
     // Hash password with strong salt rounds
     const passwordHash = await bcrypt.hash(password, 12);
 
+    // Generate email verification token
+    const emailVerifyToken = crypto.randomBytes(32).toString('hex');
+    const emailVerifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
     // Create user with waiver acceptance if provided
     const user = await prisma.user.create({
       data: {
@@ -122,13 +129,21 @@ export async function POST(request) {
         firstName: sanitizedFirstName,
         phone: sanitizedPhone,
         role: 'USER',
-        emailVerified: new Date(), // TODO: Implement email verification flow
+        emailVerified: null, // Requires email verification
+        emailVerifyToken,
+        emailVerifyExpiry,
         // Set waiver acceptance if user accepted during registration
         ...(acceptedTerms && {
           waiverAcceptedAt: new Date(),
           waiverVersionAccepted: '1.0',
         }),
       },
+    });
+
+    // Send verification email (non-blocking)
+    const verifyUrl = `${BASE_URL}/verify-email?token=${emailVerifyToken}`;
+    sendVerificationEmail(normalizedEmail, sanitizedFirstName, verifyUrl).catch((err) => {
+      console.error('Failed to send verification email:', err);
     });
 
     // Log success without blocking response
@@ -144,6 +159,7 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
+      message: 'Account created! Please check your email to verify your account.',
       user: {
         id: user.id,
         email: user.email,

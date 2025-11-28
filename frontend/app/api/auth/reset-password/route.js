@@ -1,8 +1,9 @@
 /**
- * Reset Password API - Phase 0.1
+ * Reset Password API
  * POST /api/auth/reset-password
  *
  * Validates the reset token and updates the user's password.
+ * Security: Tokens are hashed before comparison.
  */
 
 import { NextResponse } from 'next/server';
@@ -12,7 +13,6 @@ import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/ra
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
@@ -34,24 +34,12 @@ export async function POST(request) {
     return rateLimitResponse(rateLimitResult);
   }
 
-  console.log('========================================');
-  console.log('[RESET-PASSWORD] Request received');
-  console.log(`[RESET-PASSWORD] Correlation ID: ${correlationId}`);
-  console.log(`[RESET-PASSWORD] Timestamp: ${new Date().toISOString()}`);
-  console.log('========================================');
-
   try {
-    // Parse request body
     const body = await request.json();
     const { token, password } = body;
 
-    console.log(`[RESET-PASSWORD] Token provided: ${token ? token.substring(0, 8) + '...' : 'NONE'}`);
-    console.log(`[RESET-PASSWORD] Password provided: ${password ? 'YES' : 'NO'}`);
-
     // Validate required fields
     if (!token || typeof token !== 'string') {
-      console.log('[RESET-PASSWORD] ERROR: No token provided');
-
       await logEvent({
         event_type: 'auth.reset_password_failed',
         correlation_id: correlationId,
@@ -70,8 +58,6 @@ export async function POST(request) {
     }
 
     if (!password || typeof password !== 'string') {
-      console.log('[RESET-PASSWORD] ERROR: No password provided');
-
       await logEvent({
         event_type: 'auth.reset_password_failed',
         correlation_id: correlationId,
@@ -90,10 +76,7 @@ export async function POST(request) {
     }
 
     // Validate password strength
-    console.log('[RESET-PASSWORD] Validating password strength...');
     if (password.length < 8) {
-      console.log('[RESET-PASSWORD] ERROR: Password too short');
-
       await logEvent({
         event_type: 'auth.reset_password_failed',
         correlation_id: correlationId,
@@ -111,12 +94,12 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    console.log('[RESET-PASSWORD] Password strength OK');
+    // Hash the incoming token to compare with stored hash
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
-    // Look up user by reset token
-    console.log('[RESET-PASSWORD] Looking up user by reset token...');
+    // Look up user by hashed reset token
     const user = await prisma.user.findUnique({
-      where: { resetToken: token },
+      where: { resetToken: hashedToken },
       select: {
         id: true,
         email: true,
@@ -127,8 +110,6 @@ export async function POST(request) {
     });
 
     if (!user) {
-      console.log('[RESET-PASSWORD] ERROR: Invalid token - no user found');
-
       await logEvent({
         event_type: 'auth.reset_password_failed',
         correlation_id: correlationId,
@@ -146,16 +127,9 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    console.log(`[RESET-PASSWORD] User found: ${user.id}`);
-    console.log(`[RESET-PASSWORD] Token expiry: ${user.resetTokenExpiry?.toISOString()}`);
-
     // Check if token has expired
     const now = new Date();
     if (!user.resetTokenExpiry || user.resetTokenExpiry < now) {
-      console.log('[RESET-PASSWORD] ERROR: Token has expired');
-      console.log(`[RESET-PASSWORD] Now: ${now.toISOString()}`);
-      console.log(`[RESET-PASSWORD] Expiry: ${user.resetTokenExpiry?.toISOString()}`);
-
       // Clear the expired token
       await prisma.user.update({
         where: { id: user.id },
@@ -187,16 +161,11 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    console.log('[RESET-PASSWORD] Token is valid and not expired');
-
     // Hash the new password
-    console.log('[RESET-PASSWORD] Hashing new password...');
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
-    console.log('[RESET-PASSWORD] Password hashed successfully');
 
     // Update user's password and clear reset token
-    console.log('[RESET-PASSWORD] Updating user password in database...');
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -206,10 +175,8 @@ export async function POST(request) {
         updatedAt: new Date(),
       }
     });
-    console.log('[RESET-PASSWORD] Password updated successfully');
 
     const responseTime = Date.now() - startTime;
-    console.log(`[RESET-PASSWORD] Response time: ${responseTime}ms`);
 
     // Log success event
     await logEvent({
@@ -225,11 +192,6 @@ export async function POST(request) {
       }
     });
 
-    console.log('========================================');
-    console.log('[RESET-PASSWORD] Request completed successfully');
-    console.log(`[RESET-PASSWORD] User ${user.email.substring(0, 3)}*** password has been reset`);
-    console.log('========================================');
-
     return NextResponse.json({
       success: true,
       message: 'Your password has been reset successfully. You can now log in with your new password.'
@@ -237,11 +199,6 @@ export async function POST(request) {
 
   } catch (error) {
     const responseTime = Date.now() - startTime;
-    console.error('========================================');
-    console.error('[RESET-PASSWORD] FATAL ERROR');
-    console.error(`[RESET-PASSWORD] Error: ${error.message}`);
-    console.error(`[RESET-PASSWORD] Stack: ${error.stack}`);
-    console.error('========================================');
 
     await logEvent({
       event_type: 'auth.reset_password_failed',

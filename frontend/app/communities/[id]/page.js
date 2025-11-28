@@ -462,33 +462,72 @@ export default function CommunityPage({ params }) {
           </div>
         )}
 
-        {/* Coming Soon */}
-        <div style={{
-          background: 'white',
-          borderRadius: '16px',
-          padding: '3rem',
-          textAlign: 'center',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
-        }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🚧</div>
-          <h2 style={{
-            fontSize: '1.75rem',
-            fontWeight: '700',
-            color: '#0f172a',
-            marginBottom: '1rem'
+        {/* Community Actions */}
+        {community.userMembership?.status === 'APPROVED' && (
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
           }}>
-            Community Features Coming Soon
-          </h2>
-          <p style={{
-            fontSize: '1.1rem',
-            color: '#64748b',
-            maxWidth: '600px',
-            margin: '0 auto'
-          }}>
-            We're building out community feeds, recovery squads, and member management.
-            Join now to be ready when these features launch!
-          </p>
-        </div>
+            <h2 style={{
+              fontSize: '1.75rem',
+              fontWeight: '700',
+              color: '#0f172a',
+              marginBottom: '1.5rem'
+            }}>
+              Quick Actions
+            </h2>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gap: '1rem'
+            }}>
+              <Link
+                href="/report-lost"
+                style={{
+                  padding: '1.5rem',
+                  background: '#fee2e2',
+                  borderRadius: '12px',
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                  border: '2px solid #fecaca',
+                }}
+              >
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔴</div>
+                <div style={{ fontWeight: '700', color: '#991b1b' }}>Report Lost Pet</div>
+              </Link>
+              <Link
+                href="/report-found"
+                style={{
+                  padding: '1.5rem',
+                  background: '#d1fae5',
+                  borderRadius: '12px',
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                  border: '2px solid #a7f3d0',
+                }}
+              >
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🟢</div>
+                <div style={{ fontWeight: '700', color: '#065f46' }}>Report Found Pet</div>
+              </Link>
+              <Link
+                href="/dashboard"
+                style={{
+                  padding: '1.5rem',
+                  background: '#dbeafe',
+                  borderRadius: '12px',
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                  border: '2px solid #bfdbfe',
+                }}
+              >
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📋</div>
+                <div style={{ fontWeight: '700', color: '#1e40af' }}>My Dashboard</div>
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

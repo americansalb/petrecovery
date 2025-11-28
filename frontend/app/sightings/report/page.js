@@ -44,19 +44,18 @@ function ReportSightingForm() {
     setLoading(true);
 
     try {
-      // TODO: Replace with actual API call
-      // const res = await fetch('/api/sightings', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData),
-      // });
-      //
-      // if (!res.ok) {
-      //   throw new Error('Failed to submit sighting');
-      // }
+      const res = await fetch('/api/sightings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to submit sighting');
+      }
+
       setSuccess(true);
 
       // Redirect after 2 seconds

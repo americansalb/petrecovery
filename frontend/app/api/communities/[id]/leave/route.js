@@ -2,9 +2,13 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
+import { logEvent } from '@/lib/logging';
+import crypto from 'crypto';
 
 // POST /api/communities/:id/leave - Leave community
 export async function POST(request, { params }) {
+  const correlationId = crypto.randomUUID();
+
   try {
     const session = await getServerSession(authOptions);
 
@@ -57,15 +61,39 @@ export async function POST(request, { params }) {
       }
     });
 
-    // TODO: Remove from active recovery squads in this community
+    // Note: Rescue squads are independent of communities (geographically-based).
+    // Squad memberships are not affected by community membership changes.
+
+    await logEvent({
+      event_type: 'community.member_left',
+      correlation_id: correlationId,
+      resource_type: 'community',
+      resource_id: id,
+      actor_user_id: session.user.id,
+      action: 'delete',
+      result: 'success',
+      metadata: {
+        communityName: community?.name,
+        membershipId: membership.id
+      }
+    });
 
     return NextResponse.json({
       success: true,
-      message: `Left ${community.name}`
+      message: `Left ${community?.name || 'community'}`
     });
 
   } catch (error) {
-    console.error('Error leaving community:', error);
+    await logEvent({
+      event_type: 'community.leave_failed',
+      correlation_id: correlationId,
+      resource_type: 'community',
+      action: 'delete',
+      result: 'failure',
+      error_code: 'INTERNAL_ERROR',
+      error_message: error.message
+    });
+
     return NextResponse.json(
       { error: 'Failed to leave community' },
       { status: 500 }

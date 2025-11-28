@@ -647,3 +647,349 @@ export async function sendFoundPetNotification(data) {
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Send urgent notification to pet owner when a sighting is reported
+ *
+ * @param {Object} data - Notification data
+ * @param {string} data.ownerEmail - Pet owner's email
+ * @param {string} data.ownerName - Pet owner's name
+ * @param {string} data.petName - Name of the pet
+ * @param {string} data.caseNumber - Case number
+ * @param {string} data.sightingLocation - Where the pet was sighted
+ * @param {string} data.sightingTime - When the pet was sighted
+ * @param {string} data.sightingDescription - Description of the sighting
+ * @param {number} data.confidenceLevel - Confidence level (1-5 or 1-10)
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function sendSightingNotification(data) {
+  const startTime = Date.now();
+  const notificationType = 'sighting_alert';
+
+  const {
+    ownerEmail,
+    ownerName,
+    petName,
+    caseNumber,
+    sightingLocation,
+    sightingTime,
+    sightingDescription,
+    confidenceLevel = 3
+  } = data;
+
+  if (!ownerEmail) {
+    return { success: false, error: 'No owner email provided' };
+  }
+
+  try {
+    await logEvent({
+      event_type: 'notification.send_attempted',
+      resource_type: 'notification',
+      resource_id: caseNumber,
+      action: 'create',
+      result: 'success',
+      metadata: {
+        notification_type: notificationType,
+        recipient: ownerEmail,
+        case_number: caseNumber
+      }
+    });
+
+    const urgencyColor = confidenceLevel >= 4 ? '#dc2626' : '#f59e0b';
+    const urgencyText = confidenceLevel >= 4 ? 'HIGH CONFIDENCE' : 'POTENTIAL';
+
+    const html = `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+          <div style="background: ${urgencyColor}; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; font-size: 24px;">New Sighting Reported!</h1>
+          </div>
+
+          <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+            <p>Hi ${ownerName || 'there'},</p>
+
+            <div style="background: ${urgencyColor}22; border: 2px solid ${urgencyColor}; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+              <p style="margin: 0; font-weight: bold; color: ${urgencyColor}; font-size: 18px;">
+                ${urgencyText} SIGHTING
+              </p>
+              <p style="margin: 10px 0 0 0; font-size: 16px;">
+                Someone may have spotted <strong>${petName || 'your pet'}</strong>!
+              </p>
+            </div>
+
+            <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #1f2937;">Sighting Details:</h3>
+              <ul style="margin: 0; padding-left: 20px;">
+                <li><strong>Location:</strong> ${sightingLocation}</li>
+                <li><strong>Time:</strong> ${sightingTime}</li>
+                ${sightingDescription ? `<li><strong>Description:</strong> ${sightingDescription}</li>` : ''}
+                <li><strong>Confidence:</strong> ${confidenceLevel}/10</li>
+              </ul>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${BASE_URL}/cases/${caseNumber}"
+                 style="display: inline-block; background: #2563eb; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+                View Sighting on Map
+              </a>
+            </div>
+
+            <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px;">
+              <p style="margin: 0;"><strong>Act quickly!</strong> If you're able to, head to this location immediately. Time is critical when a pet has been spotted.</p>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+
+            <p style="color: #6b7280; font-size: 14px; margin: 0;">
+              <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+            </p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const result = await sendEmail({
+      to: ownerEmail,
+      subject: `New Sighting of ${petName || 'your pet'}! Check immediately`,
+      html
+    });
+
+    const responseTime = Date.now() - startTime;
+
+    if (result.success) {
+      await logEvent({
+        event_type: 'notification.send_succeeded',
+        resource_type: 'notification',
+        resource_id: caseNumber,
+        action: 'create',
+        result: 'success',
+        metadata: {
+          notification_type: notificationType,
+          recipient: ownerEmail,
+          case_number: caseNumber,
+          response_time_ms: responseTime
+        }
+      });
+    }
+
+    return result;
+
+  } catch (error) {
+    await logEvent({
+      event_type: 'notification.send_failed',
+      resource_type: 'notification',
+      resource_id: caseNumber,
+      action: 'create',
+      result: 'failure',
+      error_code: 'NOTIFICATION_ERROR',
+      error_message: error.message,
+      metadata: {
+        notification_type: notificationType,
+        recipient: ownerEmail,
+        case_number: caseNumber
+      }
+    });
+
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Send notification to squad members when a case is assigned
+ *
+ * @param {Object} data - Notification data
+ * @param {Array} data.memberEmails - Array of member emails
+ * @param {string} data.squadName - Name of the rescue squad
+ * @param {string} data.petName - Name of the pet
+ * @param {string} data.petSpecies - Species of the pet
+ * @param {string} data.caseNumber - Case number
+ * @param {string} data.location - Location of the lost pet
+ * @returns {Promise<{success: boolean, sent: number, failed: number}>}
+ */
+export async function sendCaseAssignmentNotification(data) {
+  const {
+    memberEmails,
+    squadName,
+    petName,
+    petSpecies,
+    caseNumber,
+    location
+  } = data;
+
+  if (!memberEmails || memberEmails.length === 0) {
+    return { success: false, sent: 0, failed: 0, error: 'No member emails provided' };
+  }
+
+  let sent = 0;
+  let failed = 0;
+
+  const html = `
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+        <div style="background: #2563eb; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">New Case Assigned!</h1>
+        </div>
+
+        <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+          <p style="font-size: 16px; margin-top: 0;">
+            <strong>${squadName}</strong> has accepted a new case!
+          </p>
+
+          <div style="background: #dbeafe; border: 2px solid #2563eb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="margin: 0 0 15px 0; color: #1e40af;">Case Details:</h3>
+            <ul style="margin: 0; padding-left: 20px;">
+              <li><strong>Pet:</strong> ${petName || 'Unknown'} (${petSpecies})</li>
+              <li><strong>Case Number:</strong> ${caseNumber}</li>
+              <li><strong>Location:</strong> ${location}</li>
+            </ul>
+          </div>
+
+          <p>As a member of ${squadName}, you can join this search effort!</p>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${BASE_URL}/cases/${caseNumber}/coordinate"
+               style="display: inline-block; background: #10b981; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+              Join the Search
+            </a>
+          </div>
+
+          <p style="color: #6b7280; font-size: 14px;">
+            You're receiving this because you're a member of ${squadName}.
+          </p>
+
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">
+            <strong>PetRecovery.org</strong> - Organized Rescue Squads
+          </p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  // Send to all members (non-blocking)
+  const sendPromises = memberEmails.map(async (email) => {
+    try {
+      const result = await sendEmail({
+        to: email,
+        subject: `${squadName}: New case assigned - ${petName || petSpecies} in ${location}`,
+        html
+      });
+      if (result.success) {
+        sent++;
+      } else {
+        failed++;
+      }
+    } catch (err) {
+      failed++;
+    }
+  });
+
+  await Promise.all(sendPromises);
+
+  await logEvent({
+    event_type: 'notification.batch_sent',
+    resource_type: 'notification',
+    resource_id: caseNumber,
+    action: 'create',
+    result: sent > 0 ? 'success' : 'failure',
+    metadata: {
+      notification_type: 'case_assignment',
+      squad_name: squadName,
+      total_recipients: memberEmails.length,
+      sent,
+      failed
+    }
+  });
+
+  return { success: sent > 0, sent, failed };
+}
+
+/**
+ * Send notification when community request status changes
+ *
+ * @param {Object} data - Notification data
+ * @param {string} data.email - Requester's email
+ * @param {string} data.name - Requester's name
+ * @param {string} data.communityName - Community name
+ * @param {string} data.status - New status (APPROVED or REJECTED)
+ * @param {string} data.reason - Reason for rejection (optional)
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function sendCommunityRequestNotification(data) {
+  const { email, name, communityName, status, reason } = data;
+
+  if (!email) {
+    return { success: false, error: 'No email provided' };
+  }
+
+  const isApproved = status === 'APPROVED';
+  const statusColor = isApproved ? '#10b981' : '#dc2626';
+  const statusIcon = isApproved ? '' : '';
+  const statusText = isApproved ? 'Approved' : 'Rejected';
+
+  const html = `
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+        <div style="background: ${statusColor}; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">Community Request ${statusText}</h1>
+        </div>
+
+        <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+          <p>Hi ${name || 'there'},</p>
+
+          ${isApproved ? `
+            <p>Great news! Your request for the <strong>${communityName}</strong> community has been approved.</p>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${BASE_URL}/communities"
+                 style="display: inline-block; background: #10b981; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                Visit Your Community
+              </a>
+            </div>
+          ` : `
+            <p>Unfortunately, your request for the <strong>${communityName}</strong> community was not approved.</p>
+
+            ${reason ? `
+            <div style="background: #fee2e2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
+              <p style="margin: 0;"><strong>Reason:</strong> ${reason}</p>
+            </div>
+            ` : ''}
+
+            <p>If you have questions, please contact our support team.</p>
+          `}
+
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+
+          <p style="color: #6b7280; font-size: 14px; margin: 0;">
+            <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+          </p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  try {
+    const result = await sendEmail({
+      to: email,
+      subject: `Community Request ${statusText}: ${communityName}`,
+      html
+    });
+
+    await logEvent({
+      event_type: `notification.community_request_${status.toLowerCase()}`,
+      resource_type: 'notification',
+      action: 'create',
+      result: result.success ? 'success' : 'failure',
+      metadata: {
+        recipient: email,
+        community_name: communityName,
+        status
+      }
+    });
+
+    return result;
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
