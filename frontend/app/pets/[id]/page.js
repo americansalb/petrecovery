@@ -74,6 +74,7 @@ export default function PetDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -205,12 +206,15 @@ export default function PetDetailPage() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm(`Are you sure you want to delete ${formData.name}'s profile? This cannot be undone.`)) {
-      return;
-    }
+  const handleDelete = () => {
+    setDeleteConfirmOpen(true);
+  };
 
+  const confirmDelete = async () => {
+    setDeleteConfirmOpen(false);
     setDeleting(true);
+    setSubmitError(null);
+
     try {
       const res = await fetch(`/api/pets/${petId}`, { method: 'DELETE' });
       const data = await res.json();
@@ -221,7 +225,7 @@ export default function PetDetailPage() {
 
       router.push('/pets');
     } catch (err) {
-      alert(err.message);
+      setSubmitError(err.message);
       setDeleting(false);
     }
   };
@@ -287,6 +291,71 @@ export default function PetDetailPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', padding: 'clamp(1rem, 3vw, 2rem)' }}>
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirmOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '1rem',
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '0.75rem',
+            padding: '1.5rem',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+          }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#0f172a' }}>
+              Delete Pet Profile?
+            </h3>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+              Are you sure you want to delete <strong>{formData.name}</strong>&apos;s profile? This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setDeleteConfirmOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         {/* Header */}
         <div style={{ marginBottom: '2rem' }}>
