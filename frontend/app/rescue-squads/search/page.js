@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { getCitySuggestions, isValidCity, getCityFromZip } from '../../lib/cities';
 
 export default function RescueSquadSearchPage() {
   const { data: session } = useSession();
@@ -19,6 +18,27 @@ export default function RescueSquadSearchPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [inputType, setInputType] = useState(null); // 'zip' or 'city'
   const [validationError, setValidationError] = useState('');
+  const [isValidInput, setIsValidInput] = useState(false);
+
+  // Debounced city suggestions via API
+  const fetchSuggestions = useCallback(async (value) => {
+    if (!value || value.trim().length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/cities/suggest?q=${encodeURIComponent(value.trim())}&limit=10`);
+      const data = await res.json();
+      setSuggestions(data.suggestions || []);
+      setIsValidInput(data.isValid);
+      setShowSuggestions(data.suggestions && data.suggestions.length > 0);
+    } catch (error) {
+      console.error('Failed to fetch suggestions:', error);
+      setSuggestions([]);
+    }
+  }, []);
 
   const handleInputChange = (value) => {
     setSearchTerm(value);
@@ -30,9 +50,7 @@ export default function RescueSquadSearchPage() {
 
     // If it's a city name (not numbers) and at least 2 characters, fetch suggestions
     if (!isZip && value.trim().length >= 2) {
-      const citySuggestions = getCitySuggestions(value.trim(), 10);
-      setSuggestions(citySuggestions);
-      setShowSuggestions(true);
+      fetchSuggestions(value);
     } else {
       setSuggestions([]);
       setShowSuggestions(false);
@@ -40,9 +58,10 @@ export default function RescueSquadSearchPage() {
   };
 
   const selectSuggestion = (city) => {
-    setSearchTerm(city.city);
+    setSearchTerm(`${city.city}, ${city.state_id}`);
     setShowSuggestions(false);
     setSuggestions([]);
+    setIsValidInput(true);
   };
 
   const handleSearch = async (e) => {
@@ -52,10 +71,17 @@ export default function RescueSquadSearchPage() {
     // Validate input
     const isZip = /^\d{5}$/.test(searchTerm.trim());
     if (!isZip) {
-      // Must be a valid city name
-      if (!isValidCity(searchTerm.trim())) {
-        setValidationError('Please enter a valid US city name or 5-digit ZIP code');
-        return;
+      // Validate city name via API
+      try {
+        const validateRes = await fetch(`/api/cities/suggest?q=${encodeURIComponent(searchTerm.trim())}`);
+        const validateData = await validateRes.json();
+        if (!validateData.isValid && (!validateData.suggestions || validateData.suggestions.length === 0)) {
+          setValidationError('Please enter a valid US city name or 5-digit ZIP code');
+          return;
+        }
+      } catch (error) {
+        // If validation fails, try searching anyway
+        console.error('Validation error:', error);
       }
     }
 
@@ -63,6 +89,14 @@ export default function RescueSquadSearchPage() {
     try {
       const res = await fetch(`/api/rescue-squads?search=${encodeURIComponent(searchTerm)}&radius=${radius}`);
       const data = await res.json();
+
+      if (!res.ok) {
+        setValidationError(data.error || 'Search failed');
+        setCities([]);
+        setSearched(true);
+        return;
+      }
+
       setCities(data.cities || []);
       setSearchLocation(data.searchLocation || null);
       setSearched(true);
@@ -77,6 +111,7 @@ export default function RescueSquadSearchPage() {
     } catch (error) {
       console.error('Error:', error);
       setCities([]);
+      setValidationError('Search failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -99,14 +134,19 @@ export default function RescueSquadSearchPage() {
     }
     try {
       const res = await fetch(`/api/rescue-squads/${squadId}/join`, { method: 'POST' });
+      const data = await res.json();
       if (res.ok) {
         router.push(`/rescue-squads/${squadId}`);
       } else {
-        const data = await res.json();
-        alert(data.error || 'Failed to join');
+        // Handle waiver redirect
+        if (data.code === 'WAIVER_NOT_ACCEPTED' && data.redirectTo) {
+          router.push(data.redirectTo);
+          return;
+        }
+        setValidationError(data.error || 'Failed to join squad');
       }
     } catch (error) {
-      alert('Error joining squad');
+      setValidationError('Error joining squad. Please try again.');
     }
   };
 
@@ -118,20 +158,29 @@ export default function RescueSquadSearchPage() {
     try {
       // First join the squad if not already a member
       const squadRes = await fetch(`/api/rescue-squads/${squadId}/join`, { method: 'POST' });
+      const squadData = await squadRes.json();
+
+      // Check for waiver requirement
+      if (squadData.code === 'WAIVER_NOT_ACCEPTED' && squadData.redirectTo) {
+        router.push(squadData.redirectTo);
+        return;
+      }
+
       if (!squadRes.ok && squadRes.status !== 400) { // 400 might mean already a member
-        throw new Error('Failed to join squad');
+        setValidationError(squadData.error || 'Failed to join squad');
+        return;
       }
 
       // Then join the division
       const divRes = await fetch(`/api/rescue-squads/${squadId}/divisions/${divisionId}/join`, { method: 'POST' });
+      const divData = await divRes.json();
       if (divRes.ok) {
         router.push(`/rescue-squads/${squadId}/divisions/${divisionId}`);
       } else {
-        const data = await divRes.json();
-        alert(data.error || 'Failed to join division');
+        setValidationError(divData.error || 'Failed to join division');
       }
     } catch (error) {
-      alert('Error joining division');
+      setValidationError('Error joining division. Please try again.');
     }
   };
 
@@ -150,7 +199,7 @@ export default function RescueSquadSearchPage() {
     try {
       // Validate we have a valid ZIP code
       if (!zipCode || !/^\d{5}$/.test(zipCode)) {
-        alert('Unable to create squad: valid ZIP code required. Please search by ZIP code instead.');
+        setValidationError('Unable to create squad: valid ZIP code required. Please search by ZIP code instead.');
         return;
       }
 
@@ -163,10 +212,20 @@ export default function RescueSquadSearchPage() {
       if (res.ok) {
         router.push(`/rescue-squads/${data.squad.id}`);
       } else {
-        alert(data.error || 'Failed to create squad');
+        // Handle waiver redirect
+        if (data.code === 'WAIVER_NOT_ACCEPTED' && data.redirectTo) {
+          router.push(data.redirectTo);
+          return;
+        }
+        // Handle email verification
+        if (data.error === 'Email verification required') {
+          router.push('/settings?tab=account');
+          return;
+        }
+        setValidationError(data.error || 'Failed to create squad');
       }
     } catch (error) {
-      alert('Error creating squad');
+      setValidationError('Error creating squad. Please try again.');
     }
   };
 

@@ -50,9 +50,51 @@ const LiveTicker = () => {
   );
 };
 
-const HeroSection = () => {
+const HomeHeader = ({ session }) => {
+  return (
+    <div className="absolute top-0 left-0 right-0 z-50 bg-transparent">
+      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <Link href="/" className="text-2xl font-black text-white drop-shadow-lg flex items-center gap-2">
+          <span>🐾</span> PetRecovery
+        </Link>
+        <div className="flex items-center gap-3">
+          {session ? (
+            <>
+              <Link
+                href="/dashboard"
+                className="px-5 py-2.5 bg-white text-indigo-600 rounded-full font-bold text-sm hover:bg-indigo-50 transition-all shadow-lg"
+              >
+                Dashboard
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="px-5 py-2.5 text-white font-semibold text-sm hover:bg-white/10 rounded-full transition-all"
+              >
+                Login
+              </Link>
+              <Link
+                href="/register"
+                className="px-5 py-2.5 bg-white text-indigo-600 rounded-full font-bold text-sm hover:bg-indigo-50 transition-all shadow-lg"
+              >
+                Sign Up Free
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const HeroSection = ({ session }) => {
   return (
     <div className="relative h-[85vh] flex items-center justify-center overflow-hidden">
+      {/* Header */}
+      <HomeHeader session={session} />
+
       {/* Background with Overlay */}
       <div className="absolute inset-0 bg-slate-900">
         <img
@@ -140,7 +182,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-indigo-100">
       <LiveTicker />
-      <HeroSection />
+      <HeroSection session={session} />
 
       {/* Main Actions */}
       <div className="max-w-7xl mx-auto px-4 -mt-24 relative z-20 pb-24">

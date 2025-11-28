@@ -33,6 +33,7 @@ export default function SightingForm({
   const [notes, setNotes] = useState('');
   const [images, setImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [validationError, setValidationError] = useState(null);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -255,14 +256,15 @@ export default function SightingForm({
   // Submit sighting
   const submitSighting = async () => {
     if (!selectedLocation) {
-      alert('Please click on the map to mark the sighting location');
+      setValidationError('Please click on the map to mark the sighting location');
       return;
     }
 
     if (!spottedAt) {
-      alert('Please enter when you spotted the pet');
+      setValidationError('Please enter when you spotted the pet');
       return;
     }
+    setValidationError(null);
 
     console.log('[SIGHTING] Submitting sighting...');
     console.log(`[SIGHTING] Location: ${selectedLocation}`);
@@ -552,6 +554,20 @@ export default function SightingForm({
               helpText="Add photos of the pet you spotted"
             />
           </div>
+
+          {validationError && (
+            <div style={{
+              padding: '0.75rem',
+              background: '#fef3c7',
+              border: '1px solid #fbbf24',
+              borderRadius: '0.5rem',
+              color: '#92400e',
+              marginBottom: '1rem',
+              fontSize: '0.875rem',
+            }}>
+              ⚠️ {validationError}
+            </div>
+          )}
 
           {error && (
             <div style={{

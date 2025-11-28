@@ -12,9 +12,17 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { sendCaseReportConfirmation, sendAdminPublicReportAlert } from '@/app/lib/notifications';
+import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
+
+// Email validation regex
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Phone validation regex
+const PHONE_REGEX = /^[\d\s\-\(\)\+\.]{7,20}$/;
+// Valid US state codes
+const VALID_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC'];
 
 /**
  * GET /api/public/cases - List public lost pet cases
@@ -23,6 +31,12 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request) {
   const startTime = Date.now();
+
+  // Apply rate limiting for public reads (lenient)
+  const rateLimitResult = withRateLimit(request, RateLimitPresets.PUBLIC_READ, 'public:cases:list');
+  if (!rateLimitResult.success) {
+    return rateLimitResponse(rateLimitResult);
+  }
 
   try {
     // Parse query params
@@ -134,8 +148,7 @@ export async function GET(request) {
 
     return NextResponse.json({
       error: 'Failed to list public cases',
-      code: 'INTERNAL_ERROR',
-      message: error.message
+      code: 'INTERNAL_ERROR'
     }, { status: 500 });
   }
 }
@@ -147,6 +160,20 @@ export async function GET(request) {
  */
 export async function POST(request) {
   const startTime = Date.now();
+
+  // Apply rate limiting for public writes (stricter)
+  const rateLimitResult = withRateLimit(request, RateLimitPresets.PUBLIC_WRITE, 'public:cases:create');
+  if (!rateLimitResult.success) {
+    await logEvent({
+      event_type: 'public_case.report_rate_limited',
+      resource_type: 'public_case',
+      action: 'create',
+      result: 'failure',
+      error_code: 'RATE_LIMITED',
+      actor_role: 'public'
+    });
+    return rateLimitResponse(rateLimitResult);
+  }
 
   try {
     // Parse request body
@@ -417,8 +444,7 @@ export async function POST(request) {
 
     return NextResponse.json({
       error: 'Failed to submit report',
-      code: 'INTERNAL_ERROR',
-      message: error.message
+      code: 'INTERNAL_ERROR'
     }, { status: 500 });
   }
 }

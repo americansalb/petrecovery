@@ -12,17 +12,17 @@ import { v4 as uuidv4 } from 'uuid';
 /**
  * Valid event result types
  */
-const EVENT_RESULTS = ['success', 'failure'];
+const EVENT_RESULTS = ['success', 'failure', 'pending'];
 
 /**
  * Valid action types
  */
-const EVENT_ACTIONS = ['create', 'update', 'delete', 'read', 'transition'];
+const EVENT_ACTIONS = ['create', 'update', 'delete', 'read', 'transition', 'search'];
 
 /**
- * Valid actor roles
+ * Valid actor roles (null is also valid for anonymous users)
  */
-const ACTOR_ROLES = ['OWNER', 'VOLUNTEER', 'SHELTER_ADMIN', 'ADMIN', 'SYSTEM'];
+const ACTOR_ROLES = ['OWNER', 'VOLUNTEER', 'SHELTER_ADMIN', 'ADMIN', 'SYSTEM', 'USER'];
 
 /**
  * Emit a structured event
@@ -43,7 +43,7 @@ const ACTOR_ROLES = ['OWNER', 'VOLUNTEER', 'SHELTER_ADMIN', 'ADMIN', 'SYSTEM'];
  *
  * @throws {Error} If required fields are missing or invalid
  */
-export function logEvent(event) {
+export async function logEvent(event) {
   // Validate required fields
   if (!event.event_type || typeof event.event_type !== 'string') {
     throw new Error('logEvent: event_type is required and must be a string');
@@ -106,7 +106,7 @@ export function logEvent(event) {
   // Emit the event
   // For now: structured console output
   // Later: also write to DB/event store
-  emitEvent(completeEvent);
+  await emitEvent(completeEvent);
 
   return completeEvent;
 }

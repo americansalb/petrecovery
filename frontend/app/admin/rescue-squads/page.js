@@ -12,6 +12,8 @@ export default function AdminRescueSquadsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleting, setDeleting] = useState(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(null);
+  const [deleteError, setDeleteError] = useState(null);
 
   useEffect(() => {
     if (session && session.user.role !== 'ADMIN') {
@@ -35,12 +37,17 @@ export default function AdminRescueSquadsPage() {
     }
   };
 
-  const handleDelete = async (squadId, squadName) => {
-    if (!confirm(`Are you sure you want to delete "${squadName}"? This action cannot be undone.`)) {
-      return;
-    }
+  const handleDelete = (squadId, squadName) => {
+    setDeleteConfirmOpen({ squadId, squadName });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmOpen) return;
+    const { squadId } = deleteConfirmOpen;
+    setDeleteConfirmOpen(null);
 
     setDeleting(squadId);
+    setDeleteError(null);
 
     try {
       const res = await fetch(`/api/admin/rescue-squads/${squadId}`, {
@@ -54,7 +61,7 @@ export default function AdminRescueSquadsPage() {
       // Remove from list
       setSquads(squads.filter(s => s.id !== squadId));
     } catch (error) {
-      alert('Failed to delete squad: ' + error.message);
+      setDeleteError('Failed to delete squad: ' + error.message);
     } finally {
       setDeleting(null);
     }
@@ -79,10 +86,104 @@ export default function AdminRescueSquadsPage() {
       background: '#f8fafc',
       padding: '3rem 1rem'
     }}>
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirmOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '1rem',
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+          }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#0f172a' }}>
+              Delete Squad?
+            </h3>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+              Are you sure you want to delete &quot;{deleteConfirmOpen.squadName}&quot;? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setDeleteConfirmOpen(null)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{
         maxWidth: '1400px',
         margin: '0 auto'
       }}>
+        {/* Error Banner */}
+        {deleteError && (
+          <div style={{
+            padding: '1rem',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '8px',
+            color: '#dc2626',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <span>{deleteError}</span>
+            <button
+              onClick={() => setDeleteError(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#dc2626',
+                cursor: 'pointer',
+                fontSize: '1.25rem',
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <div style={{
           marginBottom: '2rem',

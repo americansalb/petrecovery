@@ -55,13 +55,118 @@ export default function Navigation() {
     }
   };
 
-  // Don't show nav on landing page or auth pages
-  if (pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/register')) {
+  // Don't show nav on landing page (it has its own header)
+  if (pathname === '/') {
     return null;
   }
 
+  // Show simplified nav for guests on non-auth pages
+  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register') || pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password');
+
   if (!session) {
-    return null;
+    // Show minimal guest nav on non-auth pages
+    if (isAuthPage) {
+      return null;
+    }
+
+    return (
+      <>
+        <nav style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 1000,
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderBottom: '3px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+        }}>
+          <div style={{
+            maxWidth: '1400px',
+            margin: '0 auto',
+            padding: '0 1rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            height: '64px',
+            gap: '1rem'
+          }}>
+            {/* Logo / Brand */}
+            <Link href="/" style={{
+              fontSize: '1.25rem',
+              fontWeight: '900',
+              color: 'white',
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              whiteSpace: 'nowrap'
+            }}>
+              <span>🐾 PetRecovery</span>
+            </Link>
+
+            {/* Guest Nav Items */}
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <Link
+                href="/database"
+                style={{
+                  padding: '0.5rem 1rem',
+                  color: 'white',
+                  textDecoration: 'none',
+                  fontWeight: '600',
+                  fontSize: '0.9rem',
+                  borderRadius: '8px',
+                  background: pathname === '/database' ? 'rgba(255, 255, 255, 0.25)' : 'transparent',
+                }}
+              >
+                Search
+              </Link>
+              <Link
+                href="/rescue-squads/search"
+                style={{
+                  padding: '0.5rem 1rem',
+                  color: 'white',
+                  textDecoration: 'none',
+                  fontWeight: '600',
+                  fontSize: '0.9rem',
+                  borderRadius: '8px',
+                  background: pathname.includes('/rescue-squads') ? 'rgba(255, 255, 255, 0.25)' : 'transparent',
+                }}
+              >
+                Squads
+              </Link>
+              <Link
+                href="/login"
+                style={{
+                  padding: '0.5rem 1rem',
+                  color: 'white',
+                  textDecoration: 'none',
+                  fontWeight: '700',
+                  fontSize: '0.9rem',
+                  borderRadius: '8px',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '2px solid rgba(255, 255, 255, 0.3)',
+                }}
+              >
+                Login
+              </Link>
+              <Link
+                href="/register"
+                style={{
+                  padding: '0.5rem 1rem',
+                  color: '#667eea',
+                  textDecoration: 'none',
+                  fontWeight: '700',
+                  fontSize: '0.9rem',
+                  borderRadius: '8px',
+                  background: 'white',
+                }}
+              >
+                Sign Up
+              </Link>
+            </div>
+          </div>
+        </nav>
+      </>
+    );
   }
 
   const navItems = [

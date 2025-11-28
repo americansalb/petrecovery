@@ -80,7 +80,7 @@ export async function POST(request, { params }) {
         error_code: 'WAIVER_NOT_ACCEPTED',
         error_message: 'Admin attempted to update case status without accepting liability waiver',
         actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
+        actor_role: null,
         metadata: { caseId: params.id }
       });
 
@@ -109,7 +109,7 @@ export async function POST(request, { params }) {
         error_code: 'VALIDATION_ERROR',
         error_message: 'Invalid status value: ' + status,
         actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
+        actor_role: null,
         metadata: { caseId: params.id, status, validStatuses }
       });
       return NextResponse.json({
@@ -139,7 +139,7 @@ export async function POST(request, { params }) {
         error_code: 'NOT_FOUND',
         error_message: 'Case not found: ' + params.id,
         actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
+        actor_role: null,
         metadata: { caseId: params.id }
       });
       return NextResponse.json({ error: 'Case not found' }, { status: 404 });
@@ -172,7 +172,7 @@ export async function POST(request, { params }) {
         error_code: 'INVALID_TRANSITION',
         error_message: 'Invalid status transition from ' + oldStatus + ' to ' + status,
         actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
+        actor_role: null,
         metadata: {
           caseId: params.id,
           oldStatus,
@@ -261,7 +261,7 @@ export async function POST(request, { params }) {
       action: 'update',
       result: 'success',
       actor_user_id: session.user.id,
-      actor_role: session.user.role || 'USER',
+      actor_role: null,
       metadata: {
         caseId: params.id,
         caseNumber: currentCase.caseNumber,

@@ -12,6 +12,7 @@ export default function CommunityPage({ params }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [joining, setJoining] = useState(false);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
 
   useEffect(() => {
     fetchCommunity();
@@ -62,10 +63,12 @@ export default function CommunityPage({ params }) {
     }
   };
 
-  const handleLeave = async () => {
-    if (!confirm('Are you sure you want to leave this community?')) {
-      return;
-    }
+  const handleLeave = () => {
+    setLeaveConfirmOpen(true);
+  };
+
+  const confirmLeave = async () => {
+    setLeaveConfirmOpen(false);
 
     try {
       setJoining(true);
@@ -241,6 +244,71 @@ export default function CommunityPage({ params }) {
       minHeight: '100vh',
       background: '#f8fafc'
     }}>
+      {/* Leave Confirmation Dialog */}
+      {leaveConfirmOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '1rem',
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+          }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#0f172a' }}>
+              Leave Community?
+            </h3>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+              Are you sure you want to leave <strong>{community?.name}</strong>?
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setLeaveConfirmOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmLeave}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Yes, Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{
         maxWidth: '1200px',
         margin: '0 auto',

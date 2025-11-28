@@ -21,6 +21,8 @@ export default function MyPetsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -47,12 +49,18 @@ export default function MyPetsPage() {
     }
   };
 
-  const handleDelete = async (petId, petName) => {
-    if (!confirm(`Are you sure you want to delete ${petName}'s profile? This cannot be undone.`)) {
-      return;
-    }
+  const handleDelete = (petId, petName) => {
+    setConfirmDialog({ petId, petName });
+  };
 
+  const confirmDelete = async () => {
+    if (!confirmDialog) return;
+
+    const { petId, petName } = confirmDialog;
+    setConfirmDialog(null);
     setDeletingId(petId);
+    setError(null);
+
     try {
       const res = await fetch(`/api/pets/${petId}`, { method: 'DELETE' });
       const data = await res.json();
@@ -62,8 +70,9 @@ export default function MyPetsPage() {
       }
 
       setPets(pets.filter(p => p.id !== petId));
+      setSuccessMessage(`${petName}'s profile has been deleted.`);
     } catch (err) {
-      alert(err.message);
+      setError(err.message);
     } finally {
       setDeletingId(null);
     }
@@ -121,7 +130,101 @@ export default function MyPetsPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', padding: 'clamp(1rem, 3vw, 2rem)' }}>
+      {/* Confirmation Dialog */}
+      {confirmDialog && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '1rem',
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '0.75rem',
+            padding: '1.5rem',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+          }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#0f172a' }}>
+              Delete Pet Profile?
+            </h3>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+              Are you sure you want to delete <strong>{confirmDialog.petName}</strong>&apos;s profile? This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setConfirmDialog(null)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        {/* Success Message */}
+        {successMessage && (
+          <div style={{
+            padding: '1rem',
+            background: '#d1fae5',
+            border: '1px solid #a7f3d0',
+            borderRadius: '0.5rem',
+            color: '#065f46',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <span>{successMessage}</span>
+            <button
+              onClick={() => setSuccessMessage('')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#065f46',
+                cursor: 'pointer',
+                fontSize: '1.25rem',
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <div style={{
           display: 'flex',

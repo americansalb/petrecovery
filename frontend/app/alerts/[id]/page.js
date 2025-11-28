@@ -22,60 +22,63 @@ export default function AlertDetailPage() {
   }, [status, router]);
 
   useEffect(() => {
-    // TODO: Fetch from API
-    // Mock data
-    setAlert({
-      id: alertId,
-      petName: 'Max',
-      species: 'DOG',
-      breed: 'Golden Retriever',
-      color: 'Golden with white chest',
-      size: 'LARGE',
-      age: 3,
-      sex: 'MALE',
-      lastSeenAddress: '123 Main St, Chicago, IL',
-      lastSeenDetails: 'Jumped fence in backyard around 3pm. Was wearing red collar. Heading toward Lincoln Park.',
-      timeAgo: '2 hours ago',
-      distance: '0.3 mi',
-      status: 'ACTIVE',
-      reporterName: 'Sarah M.',
-      reporterPhone: '(555) 123-4567',
-      reporterEmail: 'sarah@example.com',
-      distinctiveMarks: 'White patch on chest, slightly limps on left front leg, very friendly',
-      microchipId: '123456789012345',
-      hasReward: true,
-      rewardAmount: 500,
-      createdAt: '2025-01-15T14:30:00Z',
-      userId: 'user-123',
-    });
+    const fetchAlert = async () => {
+      try {
+        const res = await fetch(`/api/public/cases/${alertId}`);
+        if (!res.ok) {
+          throw new Error('Failed to fetch alert');
+        }
+        const data = await res.json();
+        const caseData = data.case;
 
-    setSightings([
-      {
-        id: 1,
-        reporterName: 'John D.',
-        location: 'Lincoln Park entrance',
-        details: 'Saw a golden retriever matching description running near the pond',
-        timeAgo: '1 hour ago',
-        verified: true,
-      },
-      {
-        id: 2,
-        reporterName: 'Emily R.',
-        location: 'Oak St & Clark St',
-        details: 'Dog matching description was sniffing around trash cans, seemed friendly',
-        timeAgo: '45 mins ago',
-        verified: true,
-      },
-      {
-        id: 3,
-        reporterName: 'Mike T.',
-        location: 'Near Starbucks on Main',
-        details: 'Spotted a golden retriever with white chest, heading north',
-        timeAgo: '20 mins ago',
-        verified: false,
-      },
-    ]);
-  }, [alertId]);
+        // Calculate time ago
+        const createdDate = new Date(caseData.lastSeenAt || caseData.createdAt);
+        const now = new Date();
+        const diffMs = now - createdDate;
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffHours / 24);
+        let timeAgo = diffHours < 1 ? 'Less than an hour ago' :
+                      diffHours < 24 ? `${diffHours} hour${diffHours > 1 ? 's' : ''} ago` :
+                      `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+
+        setAlert({
+          id: caseData.id,
+          caseNumber: caseData.caseNumber,
+          petName: caseData.petName || 'Unknown',
+          species: caseData.petSpecies || 'UNKNOWN',
+          breed: caseData.petBreed || 'Unknown breed',
+          color: caseData.petColor || 'Unknown color',
+          size: caseData.petSize || 'MEDIUM',
+          age: caseData.petAge || null,
+          sex: caseData.petSex || 'UNKNOWN',
+          lastSeenAddress: `${caseData.city}, ${caseData.state}${caseData.zipCode ? ' ' + caseData.zipCode : ''}`,
+          lastSeenDetails: caseData.petDescription || caseData.lastSeenLandmark || '',
+          timeAgo,
+          status: caseData.status === 'RESOLVED' || caseData.status === 'CLOSED_OTHER' ? 'FOUND' : 'ACTIVE',
+          reporterName: caseData.contactName || 'Unknown',
+          reporterPhone: caseData.contactPhone || '',
+          reporterEmail: caseData.contactEmail || '',
+          distinctiveMarks: caseData.petDistinctiveMarks || '',
+          microchipId: caseData.petMicrochipId || '',
+          hasReward: caseData.rewardAmount > 0,
+          rewardAmount: caseData.rewardAmount || 0,
+          createdAt: caseData.createdAt,
+          userId: caseData.createdById,
+        });
+
+        // Set sightings if available (would need to be added to API)
+        setSightings([]);
+      } catch (err) {
+        console.error('Error fetching alert:', err);
+        // Fallback to redirect if not found
+        router.push('/alerts');
+      }
+    };
+
+    if (alertId) {
+      fetchAlert();
+    }
+  }, [alertId, router]);
 
   if (status === 'loading' || !alert) {
     return (

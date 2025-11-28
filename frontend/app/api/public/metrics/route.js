@@ -9,6 +9,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
+import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import crypto from 'crypto';
 
 // Force dynamic rendering
@@ -23,11 +24,13 @@ export async function GET(request) {
   const startTime = Date.now();
   const correlationId = crypto.randomUUID();
 
-  console.log('========================================');
+  // Apply rate limiting for public reads
+  const rateLimitResult = withRateLimit(request, RateLimitPresets.PUBLIC_READ, 'public:metrics');
+  if (!rateLimitResult.success) {
+    return rateLimitResponse(rateLimitResult);
+  }
+
   console.log('[PUBLIC-METRICS] Request received');
-  console.log(`[PUBLIC-METRICS] Correlation ID: ${correlationId}`);
-  console.log(`[PUBLIC-METRICS] Timestamp: ${new Date().toISOString()}`);
-  console.log('========================================');
 
   try {
     // Check cache

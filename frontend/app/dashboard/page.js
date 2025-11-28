@@ -12,6 +12,10 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
+  const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -44,6 +48,44 @@ export default function DashboardPage() {
       fetchData();
     }
   }, [session, status]);
+
+  const handleMarkAsFound = (reportId, petName) => {
+    setConfirmDialog({ reportId, petName });
+  };
+
+  const confirmMarkAsFound = async () => {
+    if (!confirmDialog) return;
+
+    const { reportId, petName } = confirmDialog;
+    setConfirmDialog(null);
+    setActionLoading(reportId);
+    setError('');
+
+    try {
+      const res = await fetch('/api/reports/found', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportId }),
+      });
+
+      if (res.ok) {
+        setSuccessMessage(`${petName} has been marked as found! We're so happy you're reunited.`);
+        // Refresh data
+        const dataRes = await fetch('/api/dashboard');
+        if (dataRes.ok) {
+          const data = await dataRes.json();
+          setUserData(data);
+        }
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to mark as found. Please try again.');
+      }
+    } catch (err) {
+      setError('Error: ' + err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
 
   if (status === 'loading' || loading) {
@@ -100,6 +142,71 @@ export default function DashboardPage() {
       background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)',
       fontFamily: theme.fonts.sans,
     }}>
+      {/* Confirmation Dialog */}
+      {confirmDialog && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '1rem',
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: theme.radius.xl,
+            padding: '2rem',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: theme.shadows.xl,
+          }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.75rem', color: theme.colors.gray[900] }}>
+              Mark as Found?
+            </h3>
+            <p style={{ color: theme.colors.gray[600], marginBottom: '1.5rem' }}>
+              Are you sure you want to mark <strong>{confirmDialog.petName}</strong> as found? This will close the alert and notify the community.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setConfirmDialog(null)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: theme.radius.lg,
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmMarkAsFound}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: theme.radius.lg,
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Yes, Mark as Found
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{
         maxWidth: '1200px',
         margin: '0 auto',
@@ -122,6 +229,64 @@ export default function DashboardPage() {
             Your pet recovery dashboard
           </p>
         </div>
+
+        {/* Success Message */}
+        {successMessage && (
+          <div style={{
+            backgroundColor: '#d1fae5',
+            border: '1px solid #a7f3d0',
+            color: '#065f46',
+            padding: '1rem 1.5rem',
+            borderRadius: theme.radius.lg,
+            marginBottom: '1.5rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <span>{successMessage}</span>
+            <button
+              onClick={() => setSuccessMessage('')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#065f46',
+                cursor: 'pointer',
+                fontSize: '1.25rem',
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && (
+          <div style={{
+            backgroundColor: '#fee2e2',
+            border: '1px solid #fecaca',
+            color: '#991b1b',
+            padding: '1rem 1.5rem',
+            borderRadius: theme.radius.lg,
+            marginBottom: '1.5rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <span>{error}</span>
+            <button
+              onClick={() => setError('')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#991b1b',
+                cursor: 'pointer',
+                fontSize: '1.25rem',
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         {/* Your Lost Pet Reports */}
         <div style={{
@@ -179,90 +344,78 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div style={{ display: 'grid', gap: '1rem' }}>
-              {reports.map((report) => (
-                <div
-                  key={report.id}
-                  style={{
-                    padding: '1.5rem',
-                    border: '2px solid #e5e7eb',
-                    borderRadius: theme.radius.lg,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '1rem',
-                  }}
-                >
-                  <div>
-                    <h3 style={{
-                      fontSize: '1.25rem',
-                      fontWeight: '700',
-                      marginBottom: '0.5rem',
-                      color: theme.colors.gray[900],
-                    }}>
-                      {report.petName}
-                    </h3>
-                    <p style={{
-                      color: theme.colors.gray[600],
-                      marginBottom: '0.5rem',
-                    }}>
-                      Last seen: {report.lastSeen}
-                    </p>
-                    <p style={{
-                      color: '#0ea5e9',
-                      fontWeight: '600',
-                    }}>
-                      {report.sightings} sightings reported
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    <button
-                      onClick={async () => {
-                        if (confirm(`Mark ${report.petName} as found?`)) {
-                          try {
-                            const res = await fetch('/api/reports/found', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ reportId: report.id }),
-                            });
-                            if (res.ok) {
-                              window.location.reload();
-                            } else {
-                              alert('Failed to mark as found. Please try again.');
-                            }
-                          } catch (err) {
-                            alert('Error: ' + err.message);
-                          }
-                        }
-                      }}
-                      style={{
-                        padding: '0.75rem 1.5rem',
-                        background: '#10b981',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: theme.radius.lg,
+              {reports.map((report) => {
+                const isLoading = actionLoading === report.id;
+                return (
+                  <div
+                    key={report.id}
+                    style={{
+                      padding: '1.5rem',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: theme.radius.lg,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '1rem',
+                      opacity: isLoading ? 0.7 : 1,
+                    }}
+                  >
+                    <div>
+                      <h3 style={{
+                        fontSize: '1.25rem',
+                        fontWeight: '700',
+                        marginBottom: '0.5rem',
+                        color: theme.colors.gray[900],
+                      }}>
+                        {report.petName}
+                      </h3>
+                      <p style={{
+                        color: theme.colors.gray[600],
+                        marginBottom: '0.5rem',
+                      }}>
+                        Last seen: {report.lastSeen}
+                      </p>
+                      <p style={{
+                        color: '#0ea5e9',
                         fontWeight: '600',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      ✓ Found!
-                    </button>
-                    <Link
-                      href={`/reports/${report.id}`}
-                      style={{
-                        padding: '0.75rem 1.5rem',
-                        background: '#f1f5f9',
-                        color: theme.colors.gray[700],
-                        borderRadius: theme.radius.lg,
-                        textDecoration: 'none',
-                        fontWeight: '600',
-                      }}
-                    >
-                      View Details →
-                    </Link>
+                      }}>
+                        {report.sightings} sightings reported
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => handleMarkAsFound(report.id, report.petName)}
+                        disabled={isLoading}
+                        style={{
+                          padding: '0.75rem 1.5rem',
+                          background: isLoading ? '#9ca3af' : '#10b981',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: theme.radius.lg,
+                          fontWeight: '600',
+                          cursor: isLoading ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        {isLoading ? 'Updating...' : '✓ Found!'}
+                      </button>
+                      <Link
+                        href={`/reports/${report.id}`}
+                        style={{
+                          padding: '0.75rem 1.5rem',
+                          background: '#f1f5f9',
+                          color: theme.colors.gray[700],
+                          borderRadius: theme.radius.lg,
+                          textDecoration: 'none',
+                          fontWeight: '600',
+                        }}
+                      >
+                        View Details →
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

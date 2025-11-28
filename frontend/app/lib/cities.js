@@ -10,7 +10,17 @@
  * }
  */
 
-import allCitiesData from './uscities.full.json';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+// Load JSON using require() - works reliably in all Node.js environments
+let allCitiesData = [];
+try {
+  allCitiesData = require('./uscities.full.json');
+  console.log(`[Cities] Loaded ${allCitiesData.length} cities`);
+} catch (e) {
+  console.error('[Cities] Failed to load cities database:', e.message);
+}
 
 const ZIP_REGEX = /^\d{5}$/;
 
@@ -93,19 +103,31 @@ export function getCitiesByZip(zipCode) {
 
 /**
  * Find a city by exact name and state
- * @param {string} cityName - City name
+ * @param {string} cityName - City name (can be "City" or "City, ST" format)
  * @param {string} stateId - Optional 2-letter state code
  * @returns {Object|null} - City record or null
  */
 export function getCityByName(cityName, stateId = null) {
   if (!cityName) return null;
 
-  const normalized = cityName.trim().toLowerCase();
+  let normalized = cityName.trim();
+  let state = stateId;
 
-  if (stateId) {
+  // Handle "City, ST" format
+  if (!state && normalized.includes(',')) {
+    const parts = normalized.split(',').map(p => p.trim());
+    if (parts.length === 2 && parts[1].length === 2) {
+      normalized = parts[0];
+      state = parts[1];
+    }
+  }
+
+  normalized = normalized.toLowerCase();
+
+  if (state) {
     return allCitiesData.find(
       c => c.city.toLowerCase() === normalized &&
-           c.state_id.toUpperCase() === stateId.toUpperCase()
+           c.state_id.toUpperCase() === state.toUpperCase()
     );
   }
 

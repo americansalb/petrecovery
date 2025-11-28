@@ -1879,12 +1879,14 @@ function CaseGenerator({ onDataGenerated }) {
 function DataCleanup({ onDataGenerated }) {
   const [cleaning, setCleaning] = useState(false);
   const [result, setResult] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const handleCleanupClick = () => {
+    setConfirmOpen(true);
+  };
 
   const cleanup = async () => {
-    if (!confirm('Close all test cases with [TEST] prefix?\n\nThis will mark them as CLOSED_OTHER. This action cannot be undone.')) {
-      return;
-    }
-
+    setConfirmOpen(false);
     setCleaning(true);
     setResult(null);
 
@@ -1926,6 +1928,72 @@ function DataCleanup({ onDataGenerated }) {
 
   return (
     <div className="bg-white border border-red-200 rounded-lg p-6">
+      {/* Confirmation Dialog */}
+      {confirmOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '1rem',
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            maxWidth: '450px',
+            width: '100%',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+          }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#0f172a' }}>
+              Close All Test Cases?
+            </h3>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+              Close all test cases with [TEST] prefix?<br /><br />
+              This will mark them as CLOSED_OTHER. This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setConfirmOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={cleanup}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Yes, Close All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <h2 className="text-xl font-bold text-red-600 mb-2">
         ⚠️ Cleanup Test Data
       </h2>
@@ -1935,7 +2003,7 @@ function DataCleanup({ onDataGenerated }) {
       </p>
 
       <button
-        onClick={cleanup}
+        onClick={handleCleanupClick}
         disabled={cleaning}
         className={`
           px-6 py-3 rounded-lg font-semibold transition-colors

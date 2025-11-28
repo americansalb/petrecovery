@@ -259,6 +259,36 @@ BUNNY_CDN_URL=https://your-zone.b-cdn.net
 
 ---
 
+---
+
+## Security Hardening (Nov 27, 2025) ✅
+
+### Rate Limiting ✅
+- All auth endpoints rate limited (5 attempts per 15 min)
+- Public endpoints rate limited (60 reads/min, 10 writes/min)
+- Upload endpoints rate limited (20/min authenticated, 5/min anonymous)
+- Automatic IP blocking after exceeding limits
+
+### Input Validation ✅
+- Email format validation on all auth endpoints
+- Password strength requirements (8+ characters)
+- Phone number format validation
+- File type validation with magic byte verification
+- Path traversal prevention in file operations
+
+### Authorization Fixes ✅
+- Case matches endpoint now requires authentication
+- Added authorization checks (owner, admin, or squad member)
+- Upload delete validates filename format (prevents path traversal)
+
+### Security Event Logging ✅
+- All security events logged with correlation IDs
+- Rate limit violations logged
+- Authorization failures logged
+- File type mismatches logged
+
+---
+
 ## Remaining for Post-MVP
 
 ### Quick Wins
