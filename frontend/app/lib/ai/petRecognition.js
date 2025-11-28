@@ -3,7 +3,20 @@
  * Pet facial recognition, video analysis, and duplicate detection
  */
 
-import * as tf from '@tensorflow/tfjs';
+// TensorFlow is optional - will use fallback methods if not available
+let tf = null;
+
+async function getTensorFlow() {
+  if (tf === null) {
+    try {
+      tf = await import('@tensorflow/tfjs');
+    } catch (e) {
+      console.warn('TensorFlow not available, using fallback methods');
+      tf = false;
+    }
+  }
+  return tf || null;
+}
 
 // Pet facial landmark detection points
 const FACIAL_LANDMARKS = {

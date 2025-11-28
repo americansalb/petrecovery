@@ -8,12 +8,28 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 
 let stripe = null;
+let stripeLoadAttempted = false;
 
 async function getStripe() {
-  if (!stripe && STRIPE_SECRET_KEY) {
-    const Stripe = (await import('stripe')).default;
-    stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' });
+  if (stripe) return stripe;
+  if (stripeLoadAttempted) return null;
+
+  if (!STRIPE_SECRET_KEY) {
+    stripeLoadAttempted = true;
+    return null;
   }
+
+  try {
+    const stripeModule = await import('stripe').catch(() => null);
+    if (stripeModule) {
+      const Stripe = stripeModule.default;
+      stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' });
+    }
+  } catch (e) {
+    console.warn('Stripe module not available:', e.message);
+  }
+
+  stripeLoadAttempted = true;
   return stripe;
 }
 
