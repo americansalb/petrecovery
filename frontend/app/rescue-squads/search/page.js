@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { getCitySuggestions, isValidCity, getCityFromZip } from '../../lib/cities';
 
 export default function RescueSquadSearchPage() {
   const { data: session } = useSession();
@@ -19,6 +18,27 @@ export default function RescueSquadSearchPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [inputType, setInputType] = useState(null); // 'zip' or 'city'
   const [validationError, setValidationError] = useState('');
+  const [isValidInput, setIsValidInput] = useState(false);
+
+  // Debounced city suggestions via API
+  const fetchSuggestions = useCallback(async (value) => {
+    if (!value || value.trim().length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/cities/suggest?q=${encodeURIComponent(value.trim())}&limit=10`);
+      const data = await res.json();
+      setSuggestions(data.suggestions || []);
+      setIsValidInput(data.isValid);
+      setShowSuggestions(data.suggestions && data.suggestions.length > 0);
+    } catch (error) {
+      console.error('Failed to fetch suggestions:', error);
+      setSuggestions([]);
+    }
+  }, []);
 
   const handleInputChange = (value) => {
     setSearchTerm(value);
@@ -30,9 +50,7 @@ export default function RescueSquadSearchPage() {
 
     // If it's a city name (not numbers) and at least 2 characters, fetch suggestions
     if (!isZip && value.trim().length >= 2) {
-      const citySuggestions = getCitySuggestions(value.trim(), 10);
-      setSuggestions(citySuggestions);
-      setShowSuggestions(true);
+      fetchSuggestions(value);
     } else {
       setSuggestions([]);
       setShowSuggestions(false);
@@ -52,10 +70,17 @@ export default function RescueSquadSearchPage() {
     // Validate input
     const isZip = /^\d{5}$/.test(searchTerm.trim());
     if (!isZip) {
-      // Must be a valid city name
-      if (!isValidCity(searchTerm.trim())) {
-        setValidationError('Please enter a valid US city name or 5-digit ZIP code');
-        return;
+      // Validate city name via API
+      try {
+        const validateRes = await fetch(`/api/cities/suggest?q=${encodeURIComponent(searchTerm.trim())}`);
+        const validateData = await validateRes.json();
+        if (!validateData.isValid && (!validateData.suggestions || validateData.suggestions.length === 0)) {
+          setValidationError('Please enter a valid US city name or 5-digit ZIP code');
+          return;
+        }
+      } catch (error) {
+        // If validation fails, try searching anyway
+        console.error('Validation error:', error);
       }
     }
 
@@ -63,6 +88,14 @@ export default function RescueSquadSearchPage() {
     try {
       const res = await fetch(`/api/rescue-squads?search=${encodeURIComponent(searchTerm)}&radius=${radius}`);
       const data = await res.json();
+
+      if (!res.ok) {
+        setValidationError(data.error || 'Search failed');
+        setCities([]);
+        setSearched(true);
+        return;
+      }
+
       setCities(data.cities || []);
       setSearchLocation(data.searchLocation || null);
       setSearched(true);
@@ -77,6 +110,7 @@ export default function RescueSquadSearchPage() {
     } catch (error) {
       console.error('Error:', error);
       setCities([]);
+      setValidationError('Search failed. Please try again.');
     } finally {
       setLoading(false);
     }
