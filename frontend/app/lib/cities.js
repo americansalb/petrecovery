@@ -10,56 +10,17 @@
  * }
  */
 
-import { readFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
-// Load JSON file - works in both dev and standalone production builds
+// Load JSON using require() - works reliably in all Node.js environments
 let allCitiesData = [];
-
-function loadCitiesData() {
-  const possiblePaths = [];
-
-  // Path 1: ES module path resolution (development)
-  try {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    possiblePaths.push(join(__dirname, 'uscities.full.json'));
-  } catch (e) {
-    // import.meta.url not available
-  }
-
-  // Path 2: Relative to process.cwd() (development)
-  possiblePaths.push(join(process.cwd(), 'app/lib/uscities.full.json'));
-
-  // Path 3: Standalone build paths
-  possiblePaths.push(join(process.cwd(), '.next/standalone/app/lib/uscities.full.json'));
-  possiblePaths.push(join(process.cwd(), '.next/server/app/lib/uscities.full.json'));
-
-  // Path 4: Relative to __dirname in standalone (server chunks location)
-  if (typeof __dirname !== 'undefined') {
-    possiblePaths.push(join(__dirname, 'uscities.full.json'));
-    possiblePaths.push(join(__dirname, '../lib/uscities.full.json'));
-    possiblePaths.push(join(__dirname, '../../app/lib/uscities.full.json'));
-  }
-
-  for (const jsonPath of possiblePaths) {
-    try {
-      if (existsSync(jsonPath)) {
-        const data = JSON.parse(readFileSync(jsonPath, 'utf-8'));
-        console.log(`[Cities] Loaded ${data.length} cities from ${jsonPath}`);
-        return data;
-      }
-    } catch (e) {
-      // Try next path
-    }
-  }
-
-  console.error('[Cities] Failed to load cities database. Tried paths:', possiblePaths);
-  return [];
+try {
+  allCitiesData = require('./uscities.full.json');
+  console.log(`[Cities] Loaded ${allCitiesData.length} cities`);
+} catch (e) {
+  console.error('[Cities] Failed to load cities database:', e.message);
 }
-
-allCitiesData = loadCitiesData();
 
 const ZIP_REGEX = /^\d{5}$/;
 
