@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
 
-// DELETE /api/admin/rescue-squads/:id - Delete a rescue squad (admin only)
+// DELETE /api/admin/rescue-squads/:id - Soft delete a rescue squad (admin only)
 export async function DELETE(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
@@ -12,7 +12,7 @@ export async function DELETE(request, { params }) {
     }
 
     const squad = await prisma.rescueSquad.findUnique({
-      where: { id: params.id },
+      where: { id: params.id, isDeleted: false },
       include: {
         _count: {
           select: {
@@ -31,18 +31,34 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // Warning if squad has active members or cases
-    if (squad._count.members > 0 || squad._count.caseAssignments > 0) {
-      console.warn(`Deleting squad ${squad.name} with ${squad._count.members} members and ${squad._count.caseAssignments} cases`);
-    }
-
-    // Delete squad (cascading will handle related records)
-    await prisma.rescueSquad.delete({
+    // Soft delete - set isDeleted flag instead of hard delete
+    await prisma.rescueSquad.update({
       where: { id: params.id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        isActive: false,
+        isAcceptingCases: false,
+      },
+    });
+
+    // Also soft delete associated divisions
+    await prisma.division.updateMany({
+      where: { rescueSquadId: params.id, isDeleted: false },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        isActive: false,
+      },
     });
 
     return NextResponse.json({
       message: 'Rescue squad deleted successfully',
+      metadata: {
+        membersAffected: squad._count.members,
+        divisionsAffected: squad._count.divisions,
+        softDelete: true,
+      },
     });
   } catch (error) {
     console.error('Error deleting rescue squad:', error);

@@ -56,21 +56,28 @@ export default function LoginPage() {
       alignItems: 'center',
       justifyContent: 'center',
     }}>
-      <div style={{
-        maxWidth: '450px',
-        width: '100%',
-        backgroundColor: 'white',
-        borderRadius: '1rem',
-        padding: '2rem',
-        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-      }}>
+      <main
+        role="main"
+        aria-labelledby="login-heading"
+        style={{
+          maxWidth: '450px',
+          width: '100%',
+          backgroundColor: 'white',
+          borderRadius: '1rem',
+          padding: '2rem',
+          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+        }}
+      >
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h1 style={{
-            fontSize: '2rem',
-            fontWeight: 'bold',
-            color: '#1e40af',
-            marginBottom: '0.5rem',
-          }}>
+          <h1
+            id="login-heading"
+            style={{
+              fontSize: '2rem',
+              fontWeight: 'bold',
+              color: '#1e40af',
+              marginBottom: '0.5rem',
+            }}
+          >
             Welcome Back
           </h1>
           <p style={{ color: '#6b7280' }}>
@@ -79,35 +86,47 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div style={{
-            backgroundColor: '#fee2e2',
-            border: '1px solid #fecaca',
-            color: '#991b1b',
-            padding: '0.75rem',
-            borderRadius: '0.5rem',
-            marginBottom: '1.5rem',
-            fontSize: '0.875rem',
-          }}>
+          <div
+            role="alert"
+            aria-live="polite"
+            id="login-error"
+            style={{
+              backgroundColor: '#fee2e2',
+              border: '1px solid #fecaca',
+              color: '#991b1b',
+              padding: '0.75rem',
+              borderRadius: '0.5rem',
+              marginBottom: '1.5rem',
+              fontSize: '0.875rem',
+            }}
+          >
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} aria-describedby={error ? 'login-error' : undefined}>
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontWeight: '600',
-              color: '#1f2937',
-            }}>
+            <label
+              htmlFor="email"
+              style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontWeight: '600',
+                color: '#1f2937',
+              }}
+            >
               Email Address
             </label>
             <input
+              id="email"
+              name="email"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
+              aria-required="true"
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -125,10 +144,13 @@ export default function LoginPage() {
               alignItems: 'center',
               marginBottom: '0.5rem',
             }}>
-              <label style={{
-                fontWeight: '600',
-                color: '#1f2937',
-              }}>
+              <label
+                htmlFor="password"
+                style={{
+                  fontWeight: '600',
+                  color: '#1f2937',
+                }}
+              >
                 Password
               </label>
               <Link
@@ -143,11 +165,15 @@ export default function LoginPage() {
               </Link>
             </div>
             <input
+              id="password"
+              name="password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder="Enter your password"
               required
+              aria-required="true"
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -161,6 +187,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
+            aria-busy={loading}
             style={{
               width: '100%',
               padding: '1rem',
@@ -198,7 +225,7 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+        <nav aria-label="Back navigation" style={{ textAlign: 'center', marginTop: '1rem' }}>
           <Link
             href="/"
             style={{
@@ -209,8 +236,8 @@ export default function LoginPage() {
           >
             ← Back to Home
           </Link>
-        </div>
-      </div>
+        </nav>
+      </main>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
 
-// DELETE /api/admin/divisions/[id] - Delete a division
+// DELETE /api/admin/divisions/[id] - Soft delete a division
 export async function DELETE(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
@@ -16,7 +16,7 @@ export async function DELETE(request, { params }) {
 
     // Check if division exists
     const division = await prisma.division.findUnique({
-      where: { id },
+      where: { id, isDeleted: false },
       include: {
         _count: {
           select: {
@@ -30,14 +30,29 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Division not found' }, { status: 404 });
     }
 
-    // Delete the division (cascading will handle members)
-    await prisma.division.delete({
-      where: { id }
+    // Soft delete - set isDeleted flag instead of hard delete
+    await prisma.division.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        isActive: false,
+      }
+    });
+
+    // Remove division assignment from members (move to squad-level)
+    await prisma.rescueSquadMember.updateMany({
+      where: { divisionId: id },
+      data: { divisionId: null }
     });
 
     return NextResponse.json({
       success: true,
-      message: `Division deleted successfully (${division._count.members} members will be moved to squad-level)`
+      message: `Division deleted successfully (${division._count.members} members moved to squad-level)`,
+      metadata: {
+        membersAffected: division._count.members,
+        softDelete: true,
+      }
     });
   } catch (error) {
     console.error('Error deleting division:', error);

@@ -316,10 +316,15 @@ model Pet {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // Soft Delete
+  isDeleted       Boolean  @default(false)
+  deletedAt       DateTime?
+
   // Relations
   cases           Case[]
 
   @@index([ownerId])
+  @@index([isDeleted])
 }
 
 enum PetSpecies {
@@ -595,11 +600,16 @@ model RescueSquad {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // Soft Delete
+  isDeleted       Boolean  @default(false)
+  deletedAt       DateTime?
+
   @@index([isActive, isAcceptingCases])
   @@index([centerLatitude, centerLongitude])
   @@index([state])
   @@index([city])
   @@index([state, city])
+  @@index([isDeleted])
 }
 
 enum CoverageType {
@@ -856,6 +866,10 @@ model Division {
   // Status
   isActive        Boolean  @default(true)
 
+  // Soft Delete
+  isDeleted       Boolean  @default(false)
+  deletedAt       DateTime?
+
   // Stats
   totalMembers    Int      @default(0)
   activeCases     Int      @default(0)
@@ -870,6 +884,7 @@ model Division {
   @@unique([rescueSquadId, name]) // Division names unique within squad
   @@index([rescueSquadId])
   @@index([isActive])
+  @@index([isDeleted])
 }
 
 model DivisionRequest {
