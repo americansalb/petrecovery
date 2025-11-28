@@ -9,7 +9,7 @@ let tf = null;
 async function getTensorFlow() {
   if (tf === null) {
     try {
-      tf = await import('@tensorflow/tfjs');
+      tf = await import(/* webpackIgnore: true */ '@tensorflow/tfjs');
     } catch (e) {
       console.warn('TensorFlow not available, using fallback methods');
       tf = false;

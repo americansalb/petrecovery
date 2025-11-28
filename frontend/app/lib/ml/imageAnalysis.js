@@ -19,7 +19,7 @@ export async function extractColors(imageUrl, numColors = 5) {
     // Try to use canvas for server-side color extraction
     let canvasModule;
     try {
-      canvasModule = await import('canvas').catch(() => null);
+      canvasModule = await import(/* webpackIgnore: true */ 'canvas').catch(() => null);
     } catch (e) {
       canvasModule = null;
     }
@@ -226,7 +226,7 @@ async function runTensorFlowModel(imageUrl, modelConfig) {
     // TensorFlow is optional - try to import, fallback to heuristic if not available
     let tf;
     try {
-      tf = await import('@tensorflow/tfjs-node').catch(() => null);
+      tf = await import(/* webpackIgnore: true */ '@tensorflow/tfjs-node').catch(() => null);
     } catch (e) {
       tf = null;
     }
@@ -352,7 +352,7 @@ async function generateTensorFlowEmbedding(imageUrl) {
   // TensorFlow is optional
   let tf;
   try {
-    tf = await import('@tensorflow/tfjs-node').catch(() => null);
+    tf = await import(/* webpackIgnore: true */ '@tensorflow/tfjs-node').catch(() => null);
   } catch (e) {
     tf = null;
   }
@@ -391,7 +391,7 @@ async function generateSimpleEmbedding(imageUrl) {
   // Canvas is optional for server-side image processing
   let canvasModule;
   try {
-    canvasModule = await import('canvas').catch(() => null);
+    canvasModule = await import(/* webpackIgnore: true */ 'canvas').catch(() => null);
   } catch (e) {
     canvasModule = null;
   }

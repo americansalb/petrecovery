@@ -210,11 +210,79 @@ export function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
+/**
+ * Send push notification to a specific user by their ID
+ *
+ * @param {Object} prisma - Prisma client instance
+ * @param {string} userId - The user ID to send the notification to
+ * @param {Object} payload - The notification payload
+ * @returns {Promise<{success: boolean, sent: number, failed: number}>}
+ */
+export async function sendPushToUser(prisma, userId, payload) {
+  if (!isPushConfigured()) {
+    console.warn('Push notifications not configured');
+    return { success: false, sent: 0, failed: 0, error: 'Push notifications not configured' };
+  }
+
+  try {
+    // Get all push subscriptions for this user
+    const subscriptions = await prisma.pushSubscription.findMany({
+      where: { userId },
+    });
+
+    if (subscriptions.length === 0) {
+      return { success: true, sent: 0, failed: 0, message: 'No subscriptions found' };
+    }
+
+    const result = await sendPushToMany(subscriptions, payload);
+
+    // Clean up expired subscriptions
+    if (result.expired && result.expired.length > 0) {
+      await prisma.pushSubscription.deleteMany({
+        where: { id: { in: result.expired } },
+      });
+    }
+
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error sending push to user:', error);
+    return { success: false, sent: 0, failed: 0, error: error.message };
+  }
+}
+
+/**
+ * Unsubscribe a push subscription
+ *
+ * @param {Object} prisma - Prisma client instance
+ * @param {string} endpoint - The subscription endpoint to remove
+ * @param {string} userId - Optional user ID for verification
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function unsubscribePush(prisma, endpoint, userId = null) {
+  try {
+    const whereClause = { endpoint };
+    if (userId) {
+      whereClause.userId = userId;
+    }
+
+    const result = await prisma.pushSubscription.deleteMany({
+      where: whereClause,
+    });
+
+    return { success: true, deleted: result.count };
+  } catch (error) {
+    console.error('Error unsubscribing push:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 export default {
   isPushConfigured,
   getVapidPublicKey,
   sendPushNotification,
   sendPushToMany,
+  sendPushToUser,
+  unsubscribePush,
   PUSH_TEMPLATES,
   urlBase64ToUint8Array,
 };

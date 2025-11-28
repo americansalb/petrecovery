@@ -20,7 +20,7 @@ async function getStripe() {
   }
 
   try {
-    const stripeModule = await import('stripe').catch(() => null);
+    const stripeModule = await import(/* webpackIgnore: true */ 'stripe').catch(() => null);
     if (stripeModule) {
       const Stripe = stripeModule.default;
       stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' });
