@@ -95,6 +95,7 @@ export async function POST(request) {
  * PUT /api/sms/verify
  *
  * Verify the code sent to a phone number.
+ * Uses transaction with row locking to prevent race conditions.
  */
 export async function PUT(request) {
   try {
@@ -119,92 +120,96 @@ export async function PUT(request) {
 
     const formattedPhone = formatPhoneNumber(phoneNumber);
 
-    // Find verification record
-    const verification = await prisma.phoneVerification.findUnique({
-      where: {
-        userId_phoneNumber: {
+    // Use transaction with atomic check-and-update to prevent race conditions
+    const result = await prisma.$transaction(async (tx) => {
+      // Find and lock the verification record
+      const verification = await tx.phoneVerification.findUnique({
+        where: {
+          userId_phoneNumber: {
+            userId: session.user.id,
+            phoneNumber: formattedPhone,
+          },
+        },
+      });
+
+      if (!verification) {
+        return { error: 'No verification pending for this number', status: 400 };
+      }
+
+      // Check if expired
+      if (new Date() > verification.expiresAt) {
+        return { error: 'Verification code expired', status: 400 };
+      }
+
+      // Check attempts BEFORE incrementing (atomic within transaction)
+      if (verification.attempts >= 5) {
+        return { error: 'Too many attempts. Please request a new code.', status: 400 };
+      }
+
+      // Increment attempts atomically
+      const updated = await tx.phoneVerification.update({
+        where: {
+          userId_phoneNumber: {
+            userId: session.user.id,
+            phoneNumber: formattedPhone,
+          },
+        },
+        data: {
+          attempts: { increment: 1 },
+        },
+      });
+
+      // Double-check attempts after increment (belt and suspenders)
+      if (updated.attempts > 5) {
+        return { error: 'Too many attempts. Please request a new code.', status: 400 };
+      }
+
+      // Verify code
+      if (verification.code !== code) {
+        return { error: 'Invalid verification code', status: 400 };
+      }
+
+      // Mark as verified
+      await tx.phoneVerification.update({
+        where: {
+          userId_phoneNumber: {
+            userId: session.user.id,
+            phoneNumber: formattedPhone,
+          },
+        },
+        data: {
+          verified: true,
+          verifiedAt: new Date(),
+        },
+      });
+
+      // Update user's SMS preferences
+      await tx.smsPreference.upsert({
+        where: { userId: session.user.id },
+        create: {
           userId: session.user.id,
           phoneNumber: formattedPhone,
+          verified: true,
+          urgentAlerts: true,
+          sightingAlerts: true,
+          caseUpdates: true,
         },
-      },
-    });
-
-    if (!verification) {
-      return NextResponse.json(
-        { error: 'No verification pending for this number' },
-        { status: 400 }
-      );
-    }
-
-    // Check if expired
-    if (new Date() > verification.expiresAt) {
-      return NextResponse.json(
-        { error: 'Verification code expired' },
-        { status: 400 }
-      );
-    }
-
-    // Check attempts
-    if (verification.attempts >= 5) {
-      return NextResponse.json(
-        { error: 'Too many attempts. Please request a new code.' },
-        { status: 400 }
-      );
-    }
-
-    // Increment attempts
-    await prisma.phoneVerification.update({
-      where: {
-        userId_phoneNumber: {
-          userId: session.user.id,
+        update: {
           phoneNumber: formattedPhone,
+          verified: true,
         },
-      },
-      data: {
-        attempts: { increment: 1 },
-      },
+      });
+
+      return { success: true };
     });
 
-    // Verify code
-    if (verification.code !== code) {
+    // Handle transaction result
+    if (result.error) {
       return NextResponse.json(
-        { error: 'Invalid verification code' },
-        { status: 400 }
+        { error: result.error },
+        { status: result.status }
       );
     }
-
-    // Mark as verified
-    await prisma.phoneVerification.update({
-      where: {
-        userId_phoneNumber: {
-          userId: session.user.id,
-          phoneNumber: formattedPhone,
-        },
-      },
-      data: {
-        verified: true,
-        verifiedAt: new Date(),
-      },
-    });
-
-    // Update user's SMS preferences
-    await prisma.smsPreference.upsert({
-      where: { userId: session.user.id },
-      create: {
-        userId: session.user.id,
-        phoneNumber: formattedPhone,
-        verified: true,
-        enabled: true,
-        sightingAlerts: true,
-        caseUpdates: true,
-        emergencyAlerts: true,
-      },
-      update: {
-        phoneNumber: formattedPhone,
-        verified: true,
-        enabled: true,
-      },
-    });
 
     return NextResponse.json({
       success: true,

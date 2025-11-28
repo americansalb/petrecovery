@@ -32,13 +32,24 @@ export async function GET(request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Get sighting counts for each case
+    const caseIds = user.cases.map(c => c.id);
+    const sightingCounts = await prisma.caseSighting.groupBy({
+      by: ['caseId'],
+      where: { caseId: { in: caseIds } },
+      _count: { id: true }
+    });
+    const sightingMap = Object.fromEntries(
+      sightingCounts.map(s => [s.caseId, s._count.id])
+    );
+
     // Format reports for display - show REAL count (0 if none)
     const reports = user.cases.map(caseItem => ({
       id: caseItem.id,
       petName: caseItem.petName,
       species: caseItem.petSpecies.toLowerCase(),
       lastSeen: formatTime(caseItem.lastSeenAt),
-      sightings: 0, // TODO: Add sightings count from CaseSighting
+      sightings: sightingMap[caseItem.id] || 0,
       status: caseItem.status,
     }));
 

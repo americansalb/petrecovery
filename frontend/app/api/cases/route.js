@@ -253,7 +253,7 @@ export async function POST(request) {
     }
 
     // Validate petSpecies enum
-    const validSpecies = ['DOG', 'CAT', 'BIRD', 'OTHER'];
+    const validSpecies = ['DOG', 'CAT', 'BIRD', 'RABBIT', 'OTHER'];
     if (!validSpecies.includes(petSpecies)) {
       await logEvent({
         event_type: 'case.create_failed',

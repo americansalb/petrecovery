@@ -42,14 +42,19 @@ model User {
   waiverVersionAccepted String?
 
   // Password Reset (Phase 0.1)
-  resetToken          String?   @unique
+  resetToken          String?   @unique  // Stored as bcrypt hash
   resetTokenExpiry    DateTime?
+
+  // Email Verification
+  emailVerifyToken    String?   @unique
+  emailVerifyExpiry   DateTime?
 
   // Relations
   profile         UserProfile?
   patrolProfile   PatrolProfile?
   pets            Pet[]
-  cases           Case[]
+  cases           Case[]        @relation("CaseReporter")
+  foundCases      Case[]        @relation("CaseFoundBy")
   alerts          Alert[]
   caseSightings   CaseSighting[]
   caseUpdates     CaseUpdate[]
@@ -360,7 +365,7 @@ model Case {
 
   // Reporter/Owner
   reporterId      String
-  reporter        User     @relation(fields: [reporterId], references: [id])
+  reporter        User     @relation("CaseReporter", fields: [reporterId], references: [id], onDelete: Cascade)
   ownerName       String
   ownerPhone      String
   ownerEmail      String
@@ -400,6 +405,7 @@ model Case {
   resolution      CaseResolution?
   resolutionNotes String?
   foundById       String?
+  foundBy         User?    @relation("CaseFoundBy", fields: [foundById], references: [id], onDelete: SetNull)
 
   // Timestamps
   createdAt       DateTime @default(now())
@@ -451,9 +457,9 @@ enum CaseResolution {
 model Alert {
   id              String   @id @default(cuid())
   caseId          String
-  case            Case     @relation(fields: [caseId], references: [id])
+  case            Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
   userId          String
-  user            User     @relation(fields: [userId], references: [id])
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Delivery
   method          AlertMethod
@@ -482,9 +488,9 @@ enum AlertResponse {
 model CaseSighting {
   id              String   @id @default(cuid())
   caseId          String
-  case            Case     @relation(fields: [caseId], references: [id])
+  case            Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
   reportedById    String
-  reportedBy      User     @relation(fields: [reportedById], references: [id])
+  reportedBy      User     @relation(fields: [reportedById], references: [id], onDelete: Cascade)
 
   // Sighting details
   sightedAt       DateTime
@@ -512,9 +518,9 @@ model CaseSighting {
 model CaseUpdate {
   id              String   @id @default(cuid())
   caseId          String
-  case            Case     @relation(fields: [caseId], references: [id])
+  case            Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
   authorId        String
-  author          User     @relation(fields: [authorId], references: [id])
+  author          User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   content         String
   isUpdate        Boolean  @default(false)
@@ -583,6 +589,7 @@ model RescueSquad {
   members          RescueSquadMember[]
   caseAssignments  CaseAssignment[]
   divisions        Division[]
+  divisionRequests DivisionRequest[]
   cases            LostPetCase[]  // Phase 13-14: Lost Pet Cases MVP
 
   createdAt       DateTime @default(now())
@@ -713,7 +720,7 @@ model CaseParticipant {
   assignmentId    String
   assignment      CaseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   userId          String
-  user            User     @relation(fields: [userId], references: [id])
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Participation
   optedInAt       DateTime @default(now())
@@ -736,7 +743,7 @@ model SquadMessage {
   assignmentId    String
   assignment      CaseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   authorId        String
-  author          User     @relation(fields: [authorId], references: [id])
+  author          User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   // Message Type
   type            MessageType @default(CHAT)
@@ -764,7 +771,7 @@ model SearchArea {
   assignmentId    String
   assignment      CaseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   markedById      String
-  markedBy        User     @relation(fields: [markedById], references: [id])
+  markedBy        User     @relation(fields: [markedById], references: [id], onDelete: Cascade)
 
   // Area Details
   geometry        String   // JSON: GeoJSON polygon coordinates
@@ -786,7 +793,7 @@ model PetSpotting {
   assignmentId    String
   assignment      CaseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   reportedById    String
-  reportedBy      User     @relation(fields: [reportedById], references: [id])
+  reportedBy      User     @relation(fields: [reportedById], references: [id], onDelete: Cascade)
 
   // Sighting Details
   latitude        Float
@@ -812,9 +819,9 @@ model SquadHonor {
 
   // Who gave and received
   honoredUserId   String
-  honoredUser     User     @relation("HonoredUser", fields: [honoredUserId], references: [id])
+  honoredUser     User     @relation("HonoredUser", fields: [honoredUserId], references: [id], onDelete: Cascade)
   givenById       String   // Pet owner
-  givenBy         User     @relation("HonoringUser", fields: [givenById], references: [id])
+  givenBy         User     @relation("HonoringUser", fields: [givenById], references: [id], onDelete: Cascade)
 
   note            String?  // Optional message from owner
 
@@ -874,6 +881,7 @@ model DivisionRequest {
 
   // Request Details
   rescueSquadId   String   // Which squad to add division to
+  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
   proposedName    String   // "North Side", "West End", etc.
   justification   String   // Why this division is needed
 
@@ -1030,7 +1038,7 @@ model CommunityPost {
   communityId     String
   community       Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
   authorId        String
-  author          User     @relation(fields: [authorId], references: [id])
+  author          User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   content         String
   isPinned        Boolean  @default(false)
@@ -1120,16 +1128,17 @@ model LostPetCase {
 
   // Relations
   createdById   String
-  createdBy     User              @relation(fields: [createdById], references: [id])
+  createdBy     User              @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
   squadId       String?
-  squad         RescueSquad?      @relation(fields: [squadId], references: [id])
+  squad         RescueSquad?      @relation(fields: [squadId], references: [id], onDelete: SetNull)
 
   // NEW: Optional primary coordinator for this case (Phase 22-24)
   coordinatorId String?
-  coordinator   User?             @relation("CaseCoordinator", fields: [coordinatorId], references: [id])
+  coordinator   User?             @relation("CaseCoordinator", fields: [coordinatorId], references: [id], onDelete: SetNull)
 
   notes         LostPetCaseNote[]
+  shelterIntakes ShelterIntake[]
 
   @@index([city, state])
   @@index([status])
@@ -1143,10 +1152,10 @@ model LostPetCaseNote {
   createdAt  DateTime    @default(now())
 
   caseId     String
-  case       LostPetCase @relation(fields: [caseId], references: [id])
+  case       LostPetCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   authorId   String
-  author     User        @relation(fields: [authorId], references: [id])
+  author     User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   type       String      @default("NOTE")
   content    String
@@ -1391,6 +1400,7 @@ model ShelterIntake {
 
   // Matching
   matchedCaseId String?
+  matchedCase   LostPetCase? @relation(fields: [matchedCaseId], references: [id], onDelete: SetNull)
   matchScore    Float?
   matchedAt     DateTime?
   matchStatus   String?  // PENDING, CONFIRMED, REJECTED
