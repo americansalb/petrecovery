@@ -12,17 +12,17 @@ import { v4 as uuidv4 } from 'uuid';
 /**
  * Valid event result types
  */
-const EVENT_RESULTS = ['success', 'failure'];
+const EVENT_RESULTS = ['success', 'failure', 'pending'];
 
 /**
  * Valid action types
  */
-const EVENT_ACTIONS = ['create', 'update', 'delete', 'read', 'transition'];
+const EVENT_ACTIONS = ['create', 'update', 'delete', 'read', 'transition', 'search'];
 
 /**
- * Valid actor roles
+ * Valid actor roles (null is also valid for anonymous users)
  */
-const ACTOR_ROLES = ['OWNER', 'VOLUNTEER', 'SHELTER_ADMIN', 'ADMIN', 'SYSTEM'];
+const ACTOR_ROLES = ['OWNER', 'VOLUNTEER', 'SHELTER_ADMIN', 'ADMIN', 'SYSTEM', 'USER'];
 
 /**
  * Emit a structured event

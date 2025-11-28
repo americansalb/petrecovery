@@ -18,12 +18,12 @@ export async function GET(request) {
       await logEvent({
         event_type: 'squad.search_failed',
         resource_type: 'rescue_squad',
-        action: 'search',
+        action: 'read',
         result: 'failure',
         error_code: 'VALIDATION_ERROR',
         error_message: 'Search term is required',
         actor_user_id: session?.user?.id || null,
-        actor_role: session?.user?.role || 'anonymous',
+        actor_role: null,
         metadata: {
           search_term: searchTerm,
           radius
@@ -31,21 +31,6 @@ export async function GET(request) {
       });
       return NextResponse.json({ error: 'City name or ZIP code required' }, { status: 400 });
     }
-
-    // Log search attempt
-    await logEvent({
-      event_type: 'squad.search_attempted',
-      resource_type: 'rescue_squad',
-      action: 'search',
-      result: 'pending',
-      actor_user_id: session?.user?.id || null,
-      actor_role: session?.user?.role || 'anonymous',
-      metadata: {
-        search_term: searchTerm,
-        radius_miles: radius,
-        search_type: /^\d{5}$/.test(searchTerm.trim()) ? 'zip' : 'city'
-      }
-    });
 
     let searchLat, searchLng, userState, allCitiesInZip, zipCode;
     const isZipCode = /^\d{5}$/.test(searchTerm.trim());
@@ -59,12 +44,12 @@ export async function GET(request) {
         await logEvent({
           event_type: 'squad.search_failed',
           resource_type: 'rescue_squad',
-          action: 'search',
+          action: 'read',
           result: 'failure',
           error_code: 'INVALID_ZIP',
           error_message: `Invalid ZIP code: ${zipCode}`,
           actor_user_id: session?.user?.id || null,
-          actor_role: session?.user?.role || 'anonymous',
+          actor_role: null,
           metadata: {
             search_term: searchTerm,
             zip_code: zipCode
@@ -97,12 +82,12 @@ export async function GET(request) {
         await logEvent({
           event_type: 'squad.search_failed',
           resource_type: 'rescue_squad',
-          action: 'search',
+          action: 'read',
           result: 'failure',
           error_code: 'INVALID_CITY',
           error_message: `Invalid city name: ${cityName}`,
           actor_user_id: session?.user?.id || null,
-          actor_role: session?.user?.role || 'anonymous',
+          actor_role: null,
           metadata: {
             search_term: searchTerm,
             city_name: cityName
@@ -251,10 +236,10 @@ export async function GET(request) {
     await logEvent({
       event_type: 'squad.search_completed',
       resource_type: 'rescue_squad',
-      action: 'search',
+      action: 'read',
       result: 'success',
       actor_user_id: session?.user?.id || null,
-      actor_role: session?.user?.role || 'anonymous',
+      actor_role: null,
       metadata: {
         search_term: searchTerm,
         search_type: isZipCode ? 'zip' : 'city',
@@ -276,22 +261,8 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    // Log search failure
-    await logEvent({
-      event_type: 'squad.search_failed',
-      resource_type: 'rescue_squad',
-      action: 'search',
-      result: 'failure',
-      error_code: 'INTERNAL_ERROR',
-      error_message: error.message,
-      actor_user_id: session?.user?.id || null,
-      actor_role: session?.user?.role || 'anonymous',
-      metadata: {
-        search_term: searchTerm,
-        error_name: error.name,
-        error_stack: error.stack?.split('\n').slice(0, 3).join('\n') // First 3 lines of stack
-      }
-    });
+    // Log search failure - use console.error to avoid recursive failures
+    console.error('Squad search failed:', error.message);
     return NextResponse.json({ error: 'Failed to search' }, { status: 500 });
   }
 }
@@ -324,7 +295,7 @@ export async function POST(request) {
         error_code: 'VALIDATION_ERROR',
         error_message: 'Missing required parameters: city, state, or zipCode',
         actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
+        actor_role: null,
         metadata: { city, state, zipCode }
       });
       return NextResponse.json({ error: 'City, state, and zipCode required' }, { status: 400 });
@@ -337,7 +308,7 @@ export async function POST(request) {
       action: 'create',
       result: 'success',
       actor_user_id: session.user.id,
-      actor_role: session.user.role || 'USER',
+      actor_role: null,
       metadata: {
         city,
         state,
@@ -367,7 +338,7 @@ export async function POST(request) {
         error_code: 'EMAIL_NOT_VERIFIED',
         error_message: 'User attempted to create squad without verified email',
         actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
+        actor_role: null,
         metadata: { city, state, zipCode }
       });
       return NextResponse.json({ error: 'Email verification required' }, { status: 403 });
@@ -384,7 +355,7 @@ export async function POST(request) {
         error_code: 'WAIVER_NOT_ACCEPTED',
         error_message: 'User attempted to create squad without accepting liability waiver',
         actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
+        actor_role: null,
         metadata: {
           blocked_action: 'squad_create',
           city,
@@ -401,7 +372,7 @@ export async function POST(request) {
         error_code: 'WAIVER_NOT_ACCEPTED',
         error_message: 'Squad creation blocked - liability waiver not accepted',
         actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
+        actor_role: null,
         metadata: { city, state, zipCode }
       });
 
@@ -424,7 +395,7 @@ export async function POST(request) {
         error_code: 'GEOCODING_FAILED',
         error_message: `Geocoding API returned ${geoRes.status} for ZIP ${zipCode}`,
         actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
+        actor_role: null,
         metadata: { city, state, zipCode, geoStatus: geoRes.status }
       });
       return NextResponse.json({ error: 'Invalid zip code' }, { status: 400 });
@@ -451,7 +422,7 @@ export async function POST(request) {
         error_code: 'DUPLICATE_SQUAD',
         error_message: `Squad already exists for ${city}, ${state}`,
         actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
+        actor_role: null,
         metadata: { city, state, zipCode, existingSquadId: existing.id, existingSquadName: existing.name }
       });
       return NextResponse.json({ error: 'Squad already exists for this city' }, { status: 400 });
@@ -496,7 +467,7 @@ export async function POST(request) {
       action: 'create',
       result: 'success',
       actor_user_id: session.user.id,
-      actor_role: session.user.role || 'USER',
+      actor_role: null,
       metadata: {
         squadId: squad.id,
         squadName: squad.name,

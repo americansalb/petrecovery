@@ -56,7 +56,7 @@ export async function GET(request) {
         error_code: 'WAIVER_NOT_ACCEPTED',
         error_message: 'User attempted to list cases without accepting liability waiver',
         actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
+        actor_role: null,
         metadata: {}
       });
 
@@ -126,7 +126,7 @@ export async function GET(request) {
       action: 'read',
       result: 'success',
       actor_user_id: session.user.id,
-      actor_role: session.user.role || 'USER',
+      actor_role: null,
       metadata: {
         filters: { status, city, state, squadId },
         results_count: cases.length,
@@ -152,7 +152,7 @@ export async function GET(request) {
       error_code: 'INTERNAL_ERROR',
       error_message: error.message,
       actor_user_id: session?.user?.id || null,
-      actor_role: session?.user?.role || 'USER',
+      actor_role: null,
       metadata: {
         error_stack: error.stack?.substring(0, 500)
       }
@@ -242,7 +242,7 @@ export async function POST(request) {
         error_code: 'VALIDATION_ERROR',
         error_message: 'Missing required fields: city, state, or petSpecies',
         actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
+        actor_role: null,
         metadata: { city, state, petSpecies }
       });
       return NextResponse.json({
@@ -261,7 +261,7 @@ export async function POST(request) {
         error_code: 'VALIDATION_ERROR',
         error_message: `Invalid pet species: ${petSpecies}`,
         actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
+        actor_role: null,
         metadata: { petSpecies, validSpecies }
       });
       return NextResponse.json({
@@ -276,7 +276,7 @@ export async function POST(request) {
       action: 'create',
       result: 'success',
       actor_user_id: session.user.id,
-      actor_role: session.user.role || 'USER',
+      actor_role: null,
       metadata: {
         city,
         state,
@@ -307,7 +307,7 @@ export async function POST(request) {
         error_code: 'WAIVER_NOT_ACCEPTED',
         error_message: 'User attempted to create case without accepting liability waiver',
         actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
+        actor_role: null,
         metadata: {
           blocked_action: 'case_create',
           city,
@@ -324,7 +324,7 @@ export async function POST(request) {
         error_code: 'WAIVER_NOT_ACCEPTED',
         error_message: 'Case creation blocked - liability waiver not accepted',
         actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
+        actor_role: null,
         metadata: { city, state, petSpecies }
       });
 
@@ -410,7 +410,7 @@ export async function POST(request) {
       action: 'create',
       result: 'success',
       actor_user_id: session.user.id,
-      actor_role: session.user.role || 'USER',
+      actor_role: null,
       metadata: {
         caseId: newCase.id,
         caseNumber: newCase.caseNumber,
@@ -438,7 +438,7 @@ export async function POST(request) {
       error_code: 'DB_WRITE_FAILED',
       error_message: error.message,
       actor_user_id: session?.user?.id || null,
-      actor_role: session?.user?.role || 'USER',
+      actor_role: null,
       metadata: {
         error_stack: error.stack?.substring(0, 500)
       }
