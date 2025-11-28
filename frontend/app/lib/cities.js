@@ -10,7 +10,28 @@
  * }
  */
 
-import allCitiesData from './uscities.full.json';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+// Load JSON file - works in both dev and standalone production builds
+let allCitiesData;
+try {
+  // Try ES module path resolution first (for standalone builds)
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const jsonPath = join(__dirname, 'uscities.full.json');
+  allCitiesData = JSON.parse(readFileSync(jsonPath, 'utf-8'));
+} catch (e) {
+  // Fallback: try relative path from process.cwd()
+  try {
+    const jsonPath = join(process.cwd(), 'app/lib/uscities.full.json');
+    allCitiesData = JSON.parse(readFileSync(jsonPath, 'utf-8'));
+  } catch (e2) {
+    console.error('Failed to load US cities database:', e2.message);
+    allCitiesData = [];
+  }
+}
 
 const ZIP_REGEX = /^\d{5}$/;
 
