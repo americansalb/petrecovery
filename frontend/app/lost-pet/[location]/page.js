@@ -109,7 +109,7 @@ export default function LocationLandingPage() {
             flexWrap: 'wrap',
           }}>
             <Link
-              href="/cases/report"
+              href="/report/new"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',

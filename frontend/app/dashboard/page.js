@@ -715,7 +715,7 @@ export default function DashboardPage() {
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <Link
-                  href="/cases/report"
+                  href="/report/new"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
