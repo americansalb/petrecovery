@@ -894,6 +894,7 @@ function ErrorDetailsDrawer({ error, onClose }) {
   const [samples, setSamples] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expandedSamples, setExpandedSamples] = useState(new Set());
+  const [copiedMessage, setCopiedMessage] = useState(false);
 
   useEffect(() => {
     const fetchSamples = async () => {
@@ -939,7 +940,8 @@ This appears to be affecting users when they attempt to ${error.event_type.split
     `.trim();
 
     navigator.clipboard.writeText(summary);
-    alert('Incident summary copied to clipboard!');
+    setCopiedMessage(true);
+    setTimeout(() => setCopiedMessage(false), 2000);
   };
 
   return (
@@ -982,9 +984,11 @@ This appears to be affecting users when they attempt to ${error.event_type.split
                 </p>
                 <button
                   onClick={copyIncidentSummary}
-                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                  className={`px-4 py-2 text-white text-sm rounded transition-colors ${
+                    copiedMessage ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
                 >
-                  Copy Incident Summary
+                  {copiedMessage ? '✓ Copied!' : 'Copy Incident Summary'}
                 </button>
               </div>
 
@@ -1082,12 +1086,14 @@ function TestGeocodeCard({ onSwitchToErrors }) {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [testHistory, setTestHistory] = useState([]); // Refinement 2.3
+  const [validationError, setValidationError] = useState(null);
 
   const runTest = async () => {
     if (!query.trim()) {
-      alert('Please enter a ZIP code or city name');
+      setValidationError('Please enter a ZIP code or city name');
       return;
     }
+    setValidationError(null);
 
     setLoading(true);
     setResult(null);
@@ -1154,6 +1160,9 @@ function TestGeocodeCard({ onSwitchToErrors }) {
           <p className="text-xs text-gray-500 mt-1">
             Note: City queries not yet supported — use 5-digit ZIP code.
           </p>
+          {validationError && (
+            <p className="text-sm text-red-600 mt-1">{validationError}</p>
+          )}
         </div>
 
         <button
