@@ -10,28 +10,56 @@
  * }
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 // Load JSON file - works in both dev and standalone production builds
-let allCitiesData;
-try {
-  // Try ES module path resolution first (for standalone builds)
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  const jsonPath = join(__dirname, 'uscities.full.json');
-  allCitiesData = JSON.parse(readFileSync(jsonPath, 'utf-8'));
-} catch (e) {
-  // Fallback: try relative path from process.cwd()
+let allCitiesData = [];
+
+function loadCitiesData() {
+  const possiblePaths = [];
+
+  // Path 1: ES module path resolution (development)
   try {
-    const jsonPath = join(process.cwd(), 'app/lib/uscities.full.json');
-    allCitiesData = JSON.parse(readFileSync(jsonPath, 'utf-8'));
-  } catch (e2) {
-    console.error('Failed to load US cities database:', e2.message);
-    allCitiesData = [];
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    possiblePaths.push(join(__dirname, 'uscities.full.json'));
+  } catch (e) {
+    // import.meta.url not available
   }
+
+  // Path 2: Relative to process.cwd() (development)
+  possiblePaths.push(join(process.cwd(), 'app/lib/uscities.full.json'));
+
+  // Path 3: Standalone build paths
+  possiblePaths.push(join(process.cwd(), '.next/standalone/app/lib/uscities.full.json'));
+  possiblePaths.push(join(process.cwd(), '.next/server/app/lib/uscities.full.json'));
+
+  // Path 4: Relative to __dirname in standalone (server chunks location)
+  if (typeof __dirname !== 'undefined') {
+    possiblePaths.push(join(__dirname, 'uscities.full.json'));
+    possiblePaths.push(join(__dirname, '../lib/uscities.full.json'));
+    possiblePaths.push(join(__dirname, '../../app/lib/uscities.full.json'));
+  }
+
+  for (const jsonPath of possiblePaths) {
+    try {
+      if (existsSync(jsonPath)) {
+        const data = JSON.parse(readFileSync(jsonPath, 'utf-8'));
+        console.log(`[Cities] Loaded ${data.length} cities from ${jsonPath}`);
+        return data;
+      }
+    } catch (e) {
+      // Try next path
+    }
+  }
+
+  console.error('[Cities] Failed to load cities database. Tried paths:', possiblePaths);
+  return [];
 }
+
+allCitiesData = loadCitiesData();
 
 const ZIP_REGEX = /^\d{5}$/;
 
