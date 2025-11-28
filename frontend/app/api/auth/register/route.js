@@ -20,15 +20,17 @@ export async function POST(request) {
   // Apply rate limiting (strict for auth endpoints)
   const rateLimitResult = withRateLimit(request, RateLimitPresets.AUTH, 'auth:register');
   if (!rateLimitResult.success) {
-    await logEvent({
+    // Log without blocking response
+    logEvent({
       event_type: 'auth.register_rate_limited',
       correlation_id: correlationId,
       resource_type: 'user',
       action: 'create',
       result: 'failure',
       error_code: 'RATE_LIMITED',
+      error_message: 'Rate limit exceeded',
       metadata: { blocked: rateLimitResult.blocked }
-    });
+    }).catch(() => {});
     return rateLimitResponse(rateLimitResult);
   }
 
@@ -91,16 +93,17 @@ export async function POST(request) {
 
     if (existingUser) {
       // SECURITY: Return generic message to prevent email enumeration
-      // Log the actual reason for debugging
-      await logEvent({
+      // Log without blocking response
+      logEvent({
         event_type: 'auth.register_failed',
         correlation_id: correlationId,
         resource_type: 'user',
         action: 'create',
         result: 'failure',
         error_code: 'EMAIL_EXISTS',
+        error_message: 'Email already registered',
         metadata: { email_prefix: normalizedEmail.substring(0, 3) }
-      });
+      }).catch(() => {});
 
       return NextResponse.json(
         { error: 'Unable to create account. Please try again or use a different email.' },
@@ -123,7 +126,8 @@ export async function POST(request) {
       },
     });
 
-    await logEvent({
+    // Log success without blocking response
+    logEvent({
       event_type: 'auth.register_succeeded',
       correlation_id: correlationId,
       resource_type: 'user',
@@ -131,7 +135,7 @@ export async function POST(request) {
       action: 'create',
       result: 'success',
       metadata: { email_prefix: normalizedEmail.substring(0, 3) }
-    });
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,
@@ -145,15 +149,16 @@ export async function POST(request) {
   } catch (error) {
     console.error('Registration error:', error);
 
-    await logEvent({
+    // Log error without blocking response
+    logEvent({
       event_type: 'auth.register_failed',
       correlation_id: correlationId,
       resource_type: 'user',
       action: 'create',
       result: 'failure',
       error_code: 'INTERNAL_ERROR',
-      error_message: error.message
-    });
+      error_message: error.message || 'Unknown error'
+    }).catch(() => {});
 
     return NextResponse.json(
       { error: 'Unable to create account. Please try again.' },
