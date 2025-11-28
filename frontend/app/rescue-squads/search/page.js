@@ -58,9 +58,10 @@ export default function RescueSquadSearchPage() {
   };
 
   const selectSuggestion = (city) => {
-    setSearchTerm(city.city);
+    setSearchTerm(`${city.city}, ${city.state_id}`);
     setShowSuggestions(false);
     setSuggestions([]);
+    setIsValidInput(true);
   };
 
   const handleSearch = async (e) => {
@@ -133,14 +134,19 @@ export default function RescueSquadSearchPage() {
     }
     try {
       const res = await fetch(`/api/rescue-squads/${squadId}/join`, { method: 'POST' });
+      const data = await res.json();
       if (res.ok) {
         router.push(`/rescue-squads/${squadId}`);
       } else {
-        const data = await res.json();
-        alert(data.error || 'Failed to join');
+        // Handle waiver redirect
+        if (data.code === 'WAIVER_NOT_ACCEPTED' && data.redirectTo) {
+          router.push(data.redirectTo);
+          return;
+        }
+        setValidationError(data.error || 'Failed to join squad');
       }
     } catch (error) {
-      alert('Error joining squad');
+      setValidationError('Error joining squad. Please try again.');
     }
   };
 
@@ -152,20 +158,29 @@ export default function RescueSquadSearchPage() {
     try {
       // First join the squad if not already a member
       const squadRes = await fetch(`/api/rescue-squads/${squadId}/join`, { method: 'POST' });
+      const squadData = await squadRes.json();
+
+      // Check for waiver requirement
+      if (squadData.code === 'WAIVER_NOT_ACCEPTED' && squadData.redirectTo) {
+        router.push(squadData.redirectTo);
+        return;
+      }
+
       if (!squadRes.ok && squadRes.status !== 400) { // 400 might mean already a member
-        throw new Error('Failed to join squad');
+        setValidationError(squadData.error || 'Failed to join squad');
+        return;
       }
 
       // Then join the division
       const divRes = await fetch(`/api/rescue-squads/${squadId}/divisions/${divisionId}/join`, { method: 'POST' });
+      const divData = await divRes.json();
       if (divRes.ok) {
         router.push(`/rescue-squads/${squadId}/divisions/${divisionId}`);
       } else {
-        const data = await divRes.json();
-        alert(data.error || 'Failed to join division');
+        setValidationError(divData.error || 'Failed to join division');
       }
     } catch (error) {
-      alert('Error joining division');
+      setValidationError('Error joining division. Please try again.');
     }
   };
 
@@ -197,10 +212,20 @@ export default function RescueSquadSearchPage() {
       if (res.ok) {
         router.push(`/rescue-squads/${data.squad.id}`);
       } else {
-        alert(data.error || 'Failed to create squad');
+        // Handle waiver redirect
+        if (data.code === 'WAIVER_NOT_ACCEPTED' && data.redirectTo) {
+          router.push(data.redirectTo);
+          return;
+        }
+        // Handle email verification
+        if (data.error === 'Email verification required') {
+          router.push('/settings?tab=account');
+          return;
+        }
+        setValidationError(data.error || 'Failed to create squad');
       }
     } catch (error) {
-      alert('Error creating squad');
+      setValidationError('Error creating squad. Please try again.');
     }
   };
 
