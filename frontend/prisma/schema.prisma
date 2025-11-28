@@ -1182,6 +1182,7 @@ model ShareEvent {
 model EmailPreference {
   id          String   @id @default(cuid())
   userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1232,6 +1233,7 @@ model EmailLog {
 model SmsPreference {
   id          String   @id @default(cuid())
   userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
