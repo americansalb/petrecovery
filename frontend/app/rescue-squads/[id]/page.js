@@ -29,6 +29,10 @@ export default function RescueSquadDetailPage({ params }) {
   const [activeCases, setActiveCases] = useState([]);
   const [activeCasesLoading, setActiveCasesLoading] = useState(false);
   const [optingCase, setOptingCase] = useState(null);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [acceptCaseConfirm, setAcceptCaseConfirm] = useState(null);
+  const [optOutConfirm, setOptOutConfirm] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     loadSquad();
@@ -115,11 +119,12 @@ export default function RescueSquadDetailPage({ params }) {
     }
   };
 
-  const handleLeave = async () => {
-    if (!confirm('Are you sure you want to leave this squad? You will be removed from all active cases.')) {
-      return;
-    }
+  const handleLeave = () => {
+    setLeaveConfirmOpen(true);
+  };
 
+  const confirmLeave = async () => {
+    setLeaveConfirmOpen(false);
     setLeaving(true);
     setError('');
 
@@ -136,6 +141,7 @@ export default function RescueSquadDetailPage({ params }) {
 
       setIsMember(false);
       setUserRole(null);
+      setSuccessMessage('You have left the squad.');
       loadSquad(); // Reload to show updated member count
     } catch (err) {
       setError(err.message);
@@ -159,11 +165,15 @@ export default function RescueSquadDetailPage({ params }) {
     }
   };
 
-  const handleAcceptCase = async (caseId) => {
-    if (!confirm('Accept this case for your squad? All members will be notified.')) {
-      return;
-    }
+  const handleAcceptCase = (caseId, petName) => {
+    setAcceptCaseConfirm({ caseId, petName });
+  };
 
+  const confirmAcceptCase = async () => {
+    if (!acceptCaseConfirm) return;
+
+    const { caseId, petName } = acceptCaseConfirm;
+    setAcceptCaseConfirm(null);
     setAcceptingCase(caseId);
     setError('');
 
@@ -182,6 +192,7 @@ export default function RescueSquadDetailPage({ params }) {
 
       // Remove from available cases and reload squad data
       setAvailableCases(prev => prev.filter(c => c.id !== caseId));
+      setSuccessMessage(`Case for ${petName} accepted! All members will be notified.`);
       loadSquad();
       loadActiveCases(); // Refresh active cases
     } catch (err) {
@@ -237,11 +248,15 @@ export default function RescueSquadDetailPage({ params }) {
     }
   };
 
-  const handleOptOut = async (assignmentId) => {
-    if (!confirm('Stop helping with this case? You can opt back in later.')) {
-      return;
-    }
+  const handleOptOut = (assignmentId) => {
+    setOptOutConfirm(assignmentId);
+  };
 
+  const confirmOptOut = async () => {
+    if (!optOutConfirm) return;
+
+    const assignmentId = optOutConfirm;
+    setOptOutConfirm(null);
     setOptingCase(assignmentId);
     setError('');
 
@@ -264,6 +279,7 @@ export default function RescueSquadDetailPage({ params }) {
             : assignment
         )
       );
+      setSuccessMessage('You have left the case. You can rejoin anytime.');
       loadSquad(); // Refresh squad data
     } catch (err) {
       setError(err.message);
@@ -345,6 +361,235 @@ export default function RescueSquadDetailPage({ params }) {
       background: '#f8fafc',
       padding: '3rem 1rem'
     }}>
+      {/* Leave Squad Confirmation */}
+      {leaveConfirmOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '1rem',
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+          }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#0f172a' }}>
+              Leave Squad?
+            </h3>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+              Are you sure you want to leave <strong>{squad?.name}</strong>? You will be removed from all active cases.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setLeaveConfirmOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmLeave}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Yes, Leave Squad
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Accept Case Confirmation */}
+      {acceptCaseConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '1rem',
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+          }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#0f172a' }}>
+              Accept Case?
+            </h3>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+              Accept the case for <strong>{acceptCaseConfirm.petName}</strong>? All squad members will be notified.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setAcceptCaseConfirm(null)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmAcceptCase}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Yes, Accept Case
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Opt Out Confirmation */}
+      {optOutConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '1rem',
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+          }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#0f172a' }}>
+              Leave Case?
+            </h3>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+              Stop helping with this case? You can opt back in at any time.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setOptOutConfirm(null)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmOptOut}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Yes, Leave Case
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message */}
+      {successMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '1rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#d1fae5',
+          border: '1px solid #a7f3d0',
+          color: '#065f46',
+          padding: '1rem 2rem',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          zIndex: 100,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+        }}>
+          <span>{successMessage}</span>
+          <button
+            onClick={() => setSuccessMessage('')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#065f46',
+              cursor: 'pointer',
+              fontSize: '1.25rem',
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <div style={{
         maxWidth: '1000px',
         margin: '0 auto'
@@ -764,7 +1009,7 @@ export default function RescueSquadDetailPage({ params }) {
                         alignItems: 'center'
                       }}>
                         <button
-                          onClick={() => handleAcceptCase(caseItem.id)}
+                          onClick={() => handleAcceptCase(caseItem.id, caseItem.petName)}
                           disabled={acceptingCase === caseItem.id}
                           style={{
                             padding: '0.75rem 1.5rem',

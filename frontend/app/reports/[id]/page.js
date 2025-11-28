@@ -11,6 +11,10 @@ export default function ReportDetailPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [actionError, setActionError] = useState('');
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
 
@@ -74,8 +78,14 @@ export default function ReportDetailPage() {
     };
   }, [data]);
 
-  const handleMarkAsFound = async () => {
-    if (!confirm('Mark this pet as found?')) return;
+  const handleMarkAsFound = () => {
+    setConfirmDialog(true);
+  };
+
+  const confirmMarkAsFound = async () => {
+    setConfirmDialog(false);
+    setActionLoading(true);
+    setActionError('');
 
     try {
       const res = await fetch('/api/reports/found', {
@@ -85,13 +95,16 @@ export default function ReportDetailPage() {
       });
 
       if (res.ok) {
-        alert('Pet marked as found! 🎉');
-        router.push('/dashboard');
+        setSuccessMessage(`${data?.pet?.name || 'Pet'} has been marked as found! We're so happy you're reunited.`);
+        setTimeout(() => router.push('/dashboard'), 2000);
       } else {
-        alert('Failed to mark as found. Please try again.');
+        const errData = await res.json();
+        setActionError(errData.error || 'Failed to mark as found. Please try again.');
       }
     } catch (err) {
-      alert('Error: ' + err.message);
+      setActionError('Error: ' + err.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -187,6 +200,125 @@ export default function ReportDetailPage() {
       background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)',
       fontFamily: theme.fonts.sans,
     }}>
+      {/* Confirmation Dialog */}
+      {confirmDialog && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '1rem',
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: theme.radius.xl,
+            padding: '2rem',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: theme.shadows.xl,
+          }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.75rem', color: theme.colors.gray[900] }}>
+              Mark as Found?
+            </h3>
+            <p style={{ color: theme.colors.gray[600], marginBottom: '1.5rem' }}>
+              Are you sure you want to mark <strong>{pet?.name || 'this pet'}</strong> as found? This will close the alert and notify the community.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setConfirmDialog(false)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: theme.radius.lg,
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmMarkAsFound}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: theme.radius.lg,
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Yes, Mark as Found
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message */}
+      {successMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '1rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#d1fae5',
+          border: '1px solid #a7f3d0',
+          color: '#065f46',
+          padding: '1rem 2rem',
+          borderRadius: theme.radius.lg,
+          boxShadow: theme.shadows.lg,
+          zIndex: 100,
+          textAlign: 'center',
+        }}>
+          🎉 {successMessage}
+        </div>
+      )}
+
+      {/* Action Error */}
+      {actionError && (
+        <div style={{
+          position: 'fixed',
+          top: '1rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#fee2e2',
+          border: '1px solid #fecaca',
+          color: '#991b1b',
+          padding: '1rem 2rem',
+          borderRadius: theme.radius.lg,
+          boxShadow: theme.shadows.lg,
+          zIndex: 100,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+        }}>
+          <span>{actionError}</span>
+          <button
+            onClick={() => setActionError('')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#991b1b',
+              cursor: 'pointer',
+              fontSize: '1.25rem',
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{
         background: 'white',
@@ -542,19 +674,20 @@ export default function ReportDetailPage() {
 
                 <button
                   onClick={handleMarkAsFound}
+                  disabled={actionLoading}
                   style={{
                     width: '100%',
                     padding: '1rem',
-                    background: '#10b981',
+                    background: actionLoading ? '#9ca3af' : '#10b981',
                     color: 'white',
                     border: 'none',
                     borderRadius: theme.radius.lg,
                     fontWeight: '700',
                     fontSize: '1.1rem',
-                    cursor: 'pointer',
+                    cursor: actionLoading ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  ✓ Mark as Found
+                  {actionLoading ? 'Updating...' : '✓ Mark as Found'}
                 </button>
               </div>
             )}

@@ -74,6 +74,7 @@ export async function GET(request) {
     const city = searchParams.get('city');
     const state = searchParams.get('state');
     const squadId = searchParams.get('squadId');
+    const myOnly = searchParams.get('myOnly') === 'true';
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
 
     // Build where clause
@@ -82,6 +83,7 @@ export async function GET(request) {
     if (city) where.city = { contains: city, mode: 'insensitive' };
     if (state) where.state = { contains: state, mode: 'insensitive' };
     if (squadId) where.squadId = squadId;
+    if (myOnly) where.createdById = session.user.id;
 
     // Fetch cases
     const cases = await prisma.lostPetCase.findMany({
@@ -138,7 +140,7 @@ export async function GET(request) {
     return NextResponse.json({
       cases,
       count: cases.length,
-      filters: { status, city, state, squadId, limit }
+      filters: { status, city, state, squadId, myOnly, limit }
     });
 
   } catch (error) {
