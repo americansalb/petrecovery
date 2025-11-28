@@ -26,10 +26,12 @@ export default function CaseDetailPage({ params }) {
   const [newStatus, setNewStatus] = useState('');
   const [statusReason, setStatusReason] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [statusUpdateError, setStatusUpdateError] = useState(null);
 
   // Note state
   const [noteContent, setNoteContent] = useState('');
   const [addingNote, setAddingNote] = useState(false);
+  const [noteError, setNoteError] = useState(null);
 
   // Assignment state (Phase 22-24: TASK-R05)
   const [availableCoordinators, setAvailableCoordinators] = useState([]);
@@ -122,6 +124,7 @@ export default function CaseDetailPage({ params }) {
     if (!newStatus || newStatus === caseData.status) return;
 
     setUpdatingStatus(true);
+    setStatusUpdateError(null);
     try {
       const response = await fetch('/api/cases/' + params.id + '/status', {
         method: 'POST',
@@ -148,7 +151,7 @@ export default function CaseDetailPage({ params }) {
       setStatusReason('');
       await fetchCase();
     } catch (err) {
-      alert('Error updating status: ' + err.message);
+      setStatusUpdateError(err.message);
     } finally {
       setUpdatingStatus(false);
     }
@@ -159,6 +162,7 @@ export default function CaseDetailPage({ params }) {
     if (!noteContent.trim()) return;
 
     setAddingNote(true);
+    setNoteError(null);
     try {
       const response = await fetch('/api/cases/' + params.id + '/notes', {
         method: 'POST',
@@ -182,7 +186,7 @@ export default function CaseDetailPage({ params }) {
       setNoteContent('');
       await fetchCase();
     } catch (err) {
-      alert('Error adding note: ' + err.message);
+      setNoteError(err.message);
     } finally {
       setAddingNote(false);
     }
@@ -457,6 +461,19 @@ export default function CaseDetailPage({ params }) {
                     resize: 'vertical'
                   }}
                 />
+                {noteError && (
+                  <div style={{
+                    padding: '0.75rem',
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    borderRadius: '6px',
+                    color: '#dc2626',
+                    fontSize: '0.875rem',
+                    marginBottom: '0.5rem'
+                  }}>
+                    Error: {noteError}
+                  </div>
+                )}
                 <button
                   type="submit"
                   disabled={addingNote || !noteContent.trim()}
@@ -598,6 +615,20 @@ export default function CaseDetailPage({ params }) {
                   }}
                 />
               </div>
+
+              {statusUpdateError && (
+                <div style={{
+                  padding: '0.75rem',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '6px',
+                  color: '#dc2626',
+                  fontSize: '0.875rem',
+                  marginBottom: '1rem'
+                }}>
+                  Error: {statusUpdateError}
+                </div>
+              )}
 
               <button
                 onClick={handleStatusUpdate}

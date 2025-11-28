@@ -30,6 +30,7 @@ export default function SearchAreaMap({
   const [notes, setNotes] = useState('');
   const [potentialSpotting, setPotentialSpotting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [validationError, setValidationError] = useState(null);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -310,9 +311,10 @@ export default function SearchAreaMap({
   // Submit search area
   const submitSearchArea = async () => {
     if (drawingPoints.length < 3) {
-      alert('Please mark at least 3 points to create an area');
+      setValidationError('Please mark at least 3 points to create an area');
       return;
     }
+    setValidationError(null);
 
     const acreage = calculateAcreage(drawingPoints);
     console.log(`[SEARCH-MAP] Submitting area with ${drawingPoints.length} points, ${acreage} acres`);
@@ -560,6 +562,20 @@ export default function SearchAreaMap({
             />
             ⚠️ Potential pet sighting in this area
           </label>
+
+          {validationError && (
+            <div style={{
+              padding: '0.75rem',
+              background: '#fef3c7',
+              border: '1px solid #fbbf24',
+              borderRadius: '0.5rem',
+              color: '#92400e',
+              marginBottom: '1rem',
+              fontSize: '0.875rem',
+            }}>
+              ⚠️ {validationError}
+            </div>
+          )}
 
           {error && (
             <div style={{

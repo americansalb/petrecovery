@@ -199,7 +199,7 @@ export default function RescueSquadSearchPage() {
     try {
       // Validate we have a valid ZIP code
       if (!zipCode || !/^\d{5}$/.test(zipCode)) {
-        alert('Unable to create squad: valid ZIP code required. Please search by ZIP code instead.');
+        setValidationError('Unable to create squad: valid ZIP code required. Please search by ZIP code instead.');
         return;
       }
 

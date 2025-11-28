@@ -36,6 +36,9 @@ export default function CaseCoordinatePage() {
   const [error, setError] = useState(null);
   const [isParticipant, setIsParticipant] = useState(false);
   const [isLeader, setIsLeader] = useState(false);
+  const [optOutConfirmOpen, setOptOutConfirmOpen] = useState(false);
+  const [actionError, setActionError] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   console.log('[COORDINATE] Page rendering');
   console.log(`[COORDINATE] Case number: ${caseNumber}`);
@@ -111,6 +114,8 @@ export default function CaseCoordinatePage() {
     if (!assignment?.id) return;
 
     console.log('[COORDINATE] Opting into case...');
+    setActionLoading(true);
+    setActionError(null);
     try {
       const res = await fetch(`/api/assignments/${assignment.id}/participants`, {
         method: 'POST',
@@ -123,21 +128,28 @@ export default function CaseCoordinatePage() {
       } else {
         const data = await res.json();
         console.error('[COORDINATE] Opt-in failed:', data.error);
-        alert(data.error || 'Failed to opt in');
+        setActionError(data.error || 'Failed to opt in');
       }
     } catch (err) {
       console.error('[COORDINATE] Opt-in error:', err);
-      alert('Failed to opt in to case');
+      setActionError('Failed to opt in to case');
+    } finally {
+      setActionLoading(false);
     }
   };
 
   // Handle opt-out from case
-  const handleOptOut = async () => {
+  const handleOptOut = () => {
+    setOptOutConfirmOpen(true);
+  };
+
+  const confirmOptOut = async () => {
+    setOptOutConfirmOpen(false);
     if (!assignment?.id) return;
 
-    if (!confirm('Are you sure you want to leave this case?')) return;
-
     console.log('[COORDINATE] Opting out of case...');
+    setActionLoading(true);
+    setActionError(null);
     try {
       const res = await fetch(`/api/assignments/${assignment.id}/participants`, {
         method: 'DELETE',
@@ -150,11 +162,13 @@ export default function CaseCoordinatePage() {
       } else {
         const data = await res.json();
         console.error('[COORDINATE] Opt-out failed:', data.error);
-        alert(data.error || 'Failed to opt out');
+        setActionError(data.error || 'Failed to opt out');
       }
     } catch (err) {
       console.error('[COORDINATE] Opt-out error:', err);
-      alert('Failed to opt out of case');
+      setActionError('Failed to opt out of case');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -227,6 +241,71 @@ export default function CaseCoordinatePage() {
       background: '#f1f5f9',
       fontFamily: 'system-ui, -apple-system, sans-serif',
     }}>
+      {/* Opt-Out Confirmation Dialog */}
+      {optOutConfirmOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '1rem',
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+          }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#0f172a' }}>
+              Leave This Case?
+            </h3>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+              Are you sure you want to leave this case? You can rejoin at any time.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setOptOutConfirmOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmOptOut}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Yes, Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{
         background: 'white',
@@ -379,6 +458,34 @@ export default function CaseCoordinatePage() {
         margin: '0 auto',
         padding: '1.5rem',
       }}>
+        {actionError && (
+          <div style={{
+            padding: '1rem',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '0.75rem',
+            color: '#dc2626',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <span>{actionError}</span>
+            <button
+              onClick={() => setActionError(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#dc2626',
+                cursor: 'pointer',
+                fontSize: '1.25rem',
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {!isParticipant && (
           <div style={{
             background: '#fef3c7',
