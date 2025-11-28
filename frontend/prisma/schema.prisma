@@ -1667,3 +1667,36 @@ model Sighting {
   @@index([caseId])
   @@index([createdAt])
 }
+
+// ============================================================================
+// PHASE 9: EXTERNAL INTEGRATIONS (Slack/Discord)
+// ============================================================================
+
+model Integration {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Integration type
+  type        String   // SLACK, DISCORD, WEBHOOK
+  name        String
+  config      String?  // JSON: webhookUrl, channelInfo, etc.
+
+  // Status
+  isActive    Boolean  @default(true)
+  lastUsedAt  DateTime?
+  failureCount Int     @default(0)
+
+  // Creator
+  createdById String
+
+  // Scope (optional - for case or squad-specific)
+  caseId      String?
+  rescueSquadId String?
+
+  @@index([type])
+  @@index([createdById])
+  @@index([caseId])
+  @@index([rescueSquadId])
+  @@index([isActive])
+}
