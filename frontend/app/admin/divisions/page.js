@@ -203,6 +203,20 @@ export default function AdminDivisionsPage() {
             </Link>
 
             <Link
+              href="/admin/divisions/requests"
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: '#fbbf24',
+                color: 'white',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontWeight: '700'
+              }}
+            >
+              Review Requests
+            </Link>
+
+            <Link
               href="/admin/divisions/create"
               style={{
                 padding: '0.75rem 1.5rem',

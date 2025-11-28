@@ -33,6 +33,12 @@ export default function RescueSquadDetailPage({ params }) {
   const [acceptCaseConfirm, setAcceptCaseConfirm] = useState(null);
   const [optOutConfirm, setOptOutConfirm] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
+  // Division switching state
+  const [userDivision, setUserDivision] = useState(null);
+  const [availableDivisions, setAvailableDivisions] = useState([]);
+  const [divisionsLoading, setDivisionsLoading] = useState(false);
+  const [switchingDivision, setSwitchingDivision] = useState(false);
+  const [divisionModalOpen, setDivisionModalOpen] = useState(false);
 
   useEffect(() => {
     loadSquad();
@@ -46,8 +52,53 @@ export default function RescueSquadDetailPage({ params }) {
     // Load active cases for all members
     if (isMember) {
       loadActiveCases();
+      loadMyDivision();
     }
   }, [userRole, isMember, params.id]);
+
+  const loadMyDivision = async () => {
+    setDivisionsLoading(true);
+    try {
+      const res = await fetch(`/api/rescue-squads/${params.id}/my-division`);
+      if (res.ok) {
+        const data = await res.json();
+        setUserDivision(data.currentDivision);
+        setAvailableDivisions(data.availableDivisions || []);
+      }
+    } catch (err) {
+      console.error('Error loading division info:', err);
+    } finally {
+      setDivisionsLoading(false);
+    }
+  };
+
+  const handleSwitchDivision = async (divisionId) => {
+    setSwitchingDivision(true);
+    setError('');
+
+    try {
+      const res = await fetch(`/api/rescue-squads/${params.id}/my-division`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ divisionId: divisionId || null }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to switch division');
+      }
+
+      setUserDivision(data.membership.division);
+      setSuccessMessage(data.message);
+      setDivisionModalOpen(false);
+      loadSquad(); // Reload squad to refresh division counts
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSwitchingDivision(false);
+    }
+  };
 
   const loadSquad = async () => {
     try {
@@ -556,6 +607,182 @@ export default function RescueSquadDetailPage({ params }) {
         </div>
       )}
 
+      {/* Division Switch Modal */}
+      {divisionModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '1rem',
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            maxWidth: '500px',
+            width: '100%',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+          }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem', color: '#0f172a' }}>
+              Choose Your Division
+            </h3>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+              Join a specialized division to focus your rescue efforts.
+            </p>
+
+            {divisionsLoading ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                Loading divisions...
+              </div>
+            ) : availableDivisions.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '2rem',
+                background: '#f8fafc',
+                borderRadius: '8px',
+                color: '#64748b'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📍</div>
+                <p>No divisions available in this squad yet.</p>
+                <Link
+                  href="/divisions/request"
+                  style={{
+                    display: 'inline-block',
+                    marginTop: '1rem',
+                    padding: '0.5rem 1rem',
+                    background: '#667eea',
+                    color: 'white',
+                    borderRadius: '6px',
+                    textDecoration: 'none',
+                    fontSize: '0.9rem',
+                    fontWeight: '600'
+                  }}
+                >
+                  Request a Division
+                </Link>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {/* Option to leave division */}
+                {userDivision && (
+                  <button
+                    onClick={() => handleSwitchDivision(null)}
+                    disabled={switchingDivision}
+                    style={{
+                      padding: '1rem',
+                      background: '#f8fafc',
+                      border: '2px solid #e2e8f0',
+                      borderRadius: '8px',
+                      textAlign: 'left',
+                      cursor: switchingDivision ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{ fontWeight: '600', color: '#64748b' }}>
+                      No Division (General Member)
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                      Help with all squad activities
+                    </div>
+                  </button>
+                )}
+
+                {/* Available divisions */}
+                {availableDivisions.map(division => {
+                  const isCurrentDivision = userDivision?.id === division.id;
+                  return (
+                    <button
+                      key={division.id}
+                      onClick={() => !isCurrentDivision && handleSwitchDivision(division.id)}
+                      disabled={switchingDivision || isCurrentDivision}
+                      style={{
+                        padding: '1rem',
+                        background: isCurrentDivision ? '#f0fdf4' : 'white',
+                        border: isCurrentDivision ? '2px solid #10b981' : '2px solid #e2e8f0',
+                        borderRadius: '8px',
+                        textAlign: 'left',
+                        cursor: switchingDivision || isCurrentDivision ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s',
+                        opacity: switchingDivision ? 0.6 : 1
+                      }}
+                    >
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <div style={{ fontWeight: '600', color: '#0f172a' }}>
+                          {division.name}
+                        </div>
+                        {isCurrentDivision && (
+                          <span style={{
+                            padding: '0.25rem 0.5rem',
+                            background: '#10b981',
+                            color: 'white',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: '600'
+                          }}>
+                            Current
+                          </span>
+                        )}
+                      </div>
+                      {division.description && (
+                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>
+                          {division.description.length > 100
+                            ? division.description.substring(0, 100) + '...'
+                            : division.description}
+                        </div>
+                      )}
+                      <div style={{
+                        display: 'flex',
+                        gap: '1rem',
+                        marginTop: '0.5rem',
+                        fontSize: '0.8rem',
+                        color: '#94a3b8'
+                      }}>
+                        <span>{division.totalMembers || 0} members</span>
+                        {division.activeCases > 0 && (
+                          <span>{division.activeCases} active cases</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setDivisionModalOpen(false)}
+                disabled={switchingDivision}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: switchingDivision ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Success Message */}
       {successMessage && (
         <div style={{
@@ -837,6 +1064,78 @@ export default function RescueSquadDetailPage({ params }) {
               city={squad.city}
               state={squad.state}
             />
+          </div>
+        )}
+
+        {/* Your Division (Members Only) */}
+        {isMember && (
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '1.5rem 2rem',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+            marginBottom: '2rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '1rem'
+          }}>
+            <div>
+              <div style={{
+                fontSize: '0.85rem',
+                color: '#64748b',
+                marginBottom: '0.25rem',
+                fontWeight: '600'
+              }}>
+                Your Division
+              </div>
+              {divisionsLoading ? (
+                <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Loading...</div>
+              ) : userDivision ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{
+                    fontSize: '1.25rem',
+                    fontWeight: '700',
+                    color: '#0f172a'
+                  }}>
+                    {userDivision.name}
+                  </span>
+                  <span style={{
+                    padding: '0.25rem 0.5rem',
+                    background: '#dbeafe',
+                    color: '#1e40af',
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600'
+                  }}>
+                    {userDivision.totalMembers || 0} members
+                  </span>
+                </div>
+              ) : (
+                <div style={{
+                  fontSize: '1.1rem',
+                  color: '#64748b'
+                }}>
+                  Not assigned to a division
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => setDivisionModalOpen(true)}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: userDivision ? 'white' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: userDivision ? '#667eea' : 'white',
+                border: userDivision ? '2px solid #667eea' : 'none',
+                borderRadius: '8px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              {userDivision ? 'Change Division' : 'Join a Division'}
+            </button>
           </div>
         )}
 

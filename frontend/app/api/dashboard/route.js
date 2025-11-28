@@ -25,6 +25,68 @@ export async function GET(request) {
           }
         },
         profile: true,
+        // Include rescue squad memberships
+        rescueSquadMemberships: {
+          where: { isActive: true },
+          include: {
+            rescueSquad: {
+              select: {
+                id: true,
+                name: true,
+                city: true,
+                state: true,
+                rescueSquadLevel: true,
+                totalCasesCompleted: true,
+                successfulReunions: true,
+                isActive: true,
+                _count: {
+                  select: {
+                    members: { where: { isActive: true } },
+                  }
+                }
+              }
+            },
+            division: {
+              select: {
+                id: true,
+                name: true,
+              }
+            }
+          }
+        },
+        // Include case participations (active searches user is helping with)
+        caseParticipations: {
+          where: { isActive: true },
+          include: {
+            assignment: {
+              include: {
+                case: {
+                  select: {
+                    id: true,
+                    petName: true,
+                    petSpecies: true,
+                    city: true,
+                    state: true,
+                    status: true,
+                    lastSeenAt: true,
+                    caseNumber: true,
+                  }
+                },
+                rescueSquad: {
+                  select: {
+                    id: true,
+                    name: true,
+                  }
+                },
+                _count: {
+                  select: {
+                    participants: { where: { isActive: true } }
+                  }
+                }
+              }
+            }
+          }
+        },
       }
     });
 
@@ -105,9 +167,59 @@ export async function GET(request) {
         }));
     }
 
+    // Format squad memberships
+    const squads = user.rescueSquadMemberships.map(membership => ({
+      id: membership.rescueSquad.id,
+      name: membership.rescueSquad.name,
+      city: membership.rescueSquad.city,
+      state: membership.rescueSquad.state,
+      level: membership.rescueSquad.rescueSquadLevel,
+      memberCount: membership.rescueSquad._count.members,
+      totalCasesCompleted: membership.rescueSquad.totalCasesCompleted,
+      successfulReunions: membership.rescueSquad.successfulReunions,
+      myRole: membership.role,
+      division: membership.division,
+      joinedAt: membership.joinedAt,
+      // Personal stats within this squad
+      casesParticipated: membership.casesParticipated,
+      searchHours: membership.searchHours,
+      areasMarked: membership.areasMarked,
+    }));
+
+    // Format active case participations
+    const activeCases = user.caseParticipations
+      .filter(p => p.assignment?.case)
+      .map(participation => ({
+        id: participation.assignment.case.id,
+        caseNumber: participation.assignment.case.caseNumber,
+        petName: participation.assignment.case.petName,
+        petSpecies: participation.assignment.case.petSpecies,
+        city: participation.assignment.case.city,
+        state: participation.assignment.case.state,
+        status: participation.assignment.case.status,
+        lastSeenAt: participation.assignment.case.lastSeenAt,
+        assignmentId: participation.assignment.id,
+        squadName: participation.assignment.rescueSquad?.name,
+        activeVolunteers: participation.assignment._count.participants,
+        myContribution: {
+          areasMarked: participation.areasMarked,
+          sightingsReported: participation.sightingsReported,
+          searchHours: participation.searchHours,
+        }
+      }));
+
     return NextResponse.json({
       user: {
         id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        rescueLevel: user.rescueLevel,
+        squadsJoinedCount: user.squadsJoinedCount,
+        areasMarkedCount: user.areasMarkedCount,
+        totalAcreageSearched: user.totalAcreageSearched,
+        successfulReunions: user.successfulReunions,
+        honorsReceived: user.honorsReceived,
         hasPatrolProfile: !!user.patrolProfile,
         hasReports: reports.length > 0,
       },
@@ -115,6 +227,8 @@ export async function GET(request) {
       reports, // LOST pets I reported - Will be [] if no reports
       nearbyAlerts, // Nearby LOST pets from others - Will be [] if none
       foundByMe, // FOUND pets I reported - Will be [] if none
+      squads, // Squads user belongs to
+      activeCases, // Cases user is actively helping with
     });
 
   } catch (error) {

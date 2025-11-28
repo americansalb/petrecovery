@@ -107,3 +107,110 @@ export async function GET(request, { params }) {
     );
   }
 }
+
+// PATCH /api/rescue-squads/:id - Update squad settings (leaders only)
+export async function PATCH(request, { params }) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const squadId = params.id;
+    const body = await request.json();
+
+    // Verify user is a FOUNDER or LEADER of this squad
+    const membership = await prisma.rescueSquadMember.findFirst({
+      where: {
+        rescueSquadId: squadId,
+        userId: session.user.id,
+        isActive: true,
+        role: { in: ['FOUNDER', 'LEADER'] },
+      },
+    });
+
+    if (!membership) {
+      return NextResponse.json(
+        { error: 'Only founders and leaders can update squad settings' },
+        { status: 403 }
+      );
+    }
+
+    // Allowed fields to update
+    const allowedFields = [
+      'description',
+      'specializesInDogs',
+      'specializesInCats',
+      'specializesInBirds',
+      'specializesInOther',
+      'availableWeekdays',
+      'availableWeekends',
+      'availableDay',
+      'availableNight',
+      'hasTrackingDogs',
+      'hasDrones',
+      'isAcceptingCases',
+    ];
+
+    // Build update data with only allowed fields
+    const updateData = {};
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        updateData[field] = body[field];
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: 'No valid fields to update' },
+        { status: 400 }
+      );
+    }
+
+    // Update the squad
+    const updatedSquad = await prisma.rescueSquad.update({
+      where: { id: squadId },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        specializesInDogs: true,
+        specializesInCats: true,
+        specializesInBirds: true,
+        specializesInOther: true,
+        availableWeekdays: true,
+        availableWeekends: true,
+        availableDay: true,
+        availableNight: true,
+        hasTrackingDogs: true,
+        hasDrones: true,
+        isAcceptingCases: true,
+        updatedAt: true,
+      },
+    });
+
+    // Log the update
+    await logEvent({
+      event_type: 'squad.settings_updated',
+      resource_type: 'rescue_squad',
+      resource_id: squadId,
+      action: 'update',
+      result: 'success',
+      actor_user_id: session.user.id,
+      actor_role: membership.role,
+      metadata: {
+        squad_id: squadId,
+        updated_fields: Object.keys(updateData),
+      },
+    });
+
+    return NextResponse.json({ squad: updatedSquad });
+  } catch (error) {
+    console.error('Error updating squad:', error);
+    return NextResponse.json(
+      { error: 'Failed to update squad settings' },
+      { status: 500 }
+    );
+  }
+}

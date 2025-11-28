@@ -10,6 +10,7 @@
 
 import { sendEmail } from '@/app/lib/email';
 import { logEvent } from '@/lib/logging';
+import prisma from '@/app/lib/prisma';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL;
@@ -992,4 +993,181 @@ export async function sendCommunityRequestNotification(data) {
   } catch (error) {
     return { success: false, error: error.message };
   }
+}
+
+// ============================================================================
+// IN-APP NOTIFICATIONS
+// ============================================================================
+
+/**
+ * Create an in-app notification for a user
+ *
+ * @param {Object} params - Notification parameters
+ * @param {string} params.userId - User ID to notify
+ * @param {string} params.type - Notification type (CASE_UPDATE, SIGHTING, SQUAD_MESSAGE, SYSTEM)
+ * @param {string} params.title - Notification title
+ * @param {string} params.message - Notification message
+ * @param {Object} params.data - Additional data (will be JSON stringified)
+ * @param {string} params.actionUrl - URL to navigate to when clicked
+ * @param {Date} params.expiresAt - Optional expiration date
+ * @returns {Promise<{success: boolean, notification?: Object, error?: string}>}
+ */
+export async function createInAppNotification({
+  userId,
+  type,
+  title,
+  message,
+  data = null,
+  actionUrl = null,
+  expiresAt = null
+}) {
+  try {
+    if (!userId || !type || !title || !message) {
+      return { success: false, error: 'Missing required fields' };
+    }
+
+    const notification = await prisma.notification.create({
+      data: {
+        userId,
+        type,
+        title,
+        message,
+        data: data ? JSON.stringify(data) : null,
+        actionUrl,
+        expiresAt,
+      },
+    });
+
+    return { success: true, notification };
+  } catch (error) {
+    console.error('Error creating in-app notification:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Create notifications for multiple users at once
+ *
+ * @param {Array<string>} userIds - Array of user IDs to notify
+ * @param {Object} notification - Notification details (type, title, message, data, actionUrl, expiresAt)
+ * @returns {Promise<{success: boolean, count: number, errors: Array}>}
+ */
+export async function createBulkNotifications(userIds, notification) {
+  const { type, title, message, data = null, actionUrl = null, expiresAt = null } = notification;
+
+  if (!userIds || userIds.length === 0) {
+    return { success: false, count: 0, errors: ['No user IDs provided'] };
+  }
+
+  const errors = [];
+  let count = 0;
+
+  try {
+    // Use createMany for efficiency
+    const result = await prisma.notification.createMany({
+      data: userIds.map(userId => ({
+        userId,
+        type,
+        title,
+        message,
+        data: data ? JSON.stringify(data) : null,
+        actionUrl,
+        expiresAt,
+      })),
+      skipDuplicates: true,
+    });
+
+    count = result.count;
+    return { success: true, count, errors };
+  } catch (error) {
+    console.error('Error creating bulk notifications:', error);
+    return { success: false, count, errors: [error.message] };
+  }
+}
+
+/**
+ * Notify a user about a case update
+ */
+export async function notifyUserCaseUpdate({ userId, caseNumber, petName, updateType, message, caseId }) {
+  return createInAppNotification({
+    userId,
+    type: 'CASE_UPDATE',
+    title: `Case ${caseNumber}: ${updateType}`,
+    message,
+    data: { caseNumber, petName, updateType },
+    actionUrl: caseId ? `/cases/${caseNumber}` : null,
+  });
+}
+
+/**
+ * Notify a user about a new sighting
+ */
+export async function notifyUserSighting({ userId, petName, caseNumber, location, confidence }) {
+  return createInAppNotification({
+    userId,
+    type: 'SIGHTING',
+    title: `New sighting of ${petName}!`,
+    message: `Someone reported seeing ${petName} near ${location}. Confidence: ${confidence}/10`,
+    data: { caseNumber, location, confidence },
+    actionUrl: `/cases/${caseNumber}`,
+  });
+}
+
+/**
+ * Notify squad members about a case assignment
+ */
+export async function notifySquadCaseAssignment({ memberIds, squadName, petName, caseNumber, location }) {
+  return createBulkNotifications(memberIds, {
+    type: 'SQUAD_MESSAGE',
+    title: `${squadName}: New case assigned`,
+    message: `Your squad has taken on a new case: ${petName} in ${location}. Join the search effort!`,
+    data: { squadName, caseNumber, petName, location },
+    actionUrl: `/cases/${caseNumber}/coordinate`,
+  });
+}
+
+/**
+ * Notify squad leaders about a new member join request
+ */
+export async function notifySquadJoinRequest({ leaderIds, squadName, squadId, requesterName }) {
+  return createBulkNotifications(leaderIds, {
+    type: 'SQUAD_MESSAGE',
+    title: `New join request for ${squadName}`,
+    message: `${requesterName} has requested to join your squad. Review their request.`,
+    data: { squadName, squadId, requesterName },
+    actionUrl: `/rescue-squads/${squadId}/members`,
+  });
+}
+
+/**
+ * Notify user about role change in squad
+ */
+export async function notifyUserRoleChange({ userId, squadName, squadId, newRole, changedBy }) {
+  const roleMessages = {
+    LEADER: `You've been promoted to Leader in ${squadName}! You can now manage members and accept cases.`,
+    COORDINATOR: `You've been made a Coordinator in ${squadName}! You can now help organize searches.`,
+    MEMBER: `Your role in ${squadName} has been updated to Member.`,
+  };
+
+  return createInAppNotification({
+    userId,
+    type: 'SQUAD_MESSAGE',
+    title: `Role updated in ${squadName}`,
+    message: roleMessages[newRole] || `Your role in ${squadName} has been changed to ${newRole}.`,
+    data: { squadName, squadId, newRole, changedBy },
+    actionUrl: `/rescue-squads/${squadId}`,
+  });
+}
+
+/**
+ * Send a system notification to a user
+ */
+export async function notifyUserSystem({ userId, title, message, actionUrl = null }) {
+  return createInAppNotification({
+    userId,
+    type: 'SYSTEM',
+    title,
+    message,
+    actionUrl,
+  });
 }
