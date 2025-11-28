@@ -35,7 +35,7 @@ export async function POST(request) {
   }
 
   try {
-    const { email, password, firstName, phone } = await request.json();
+    const { email, password, firstName, phone, acceptedTerms } = await request.json();
 
     // Validate required fields
     if (!email || !password || !firstName) {
@@ -114,7 +114,7 @@ export async function POST(request) {
     // Hash password with strong salt rounds
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // Create user
+    // Create user with waiver acceptance if provided
     const user = await prisma.user.create({
       data: {
         email: normalizedEmail,
@@ -123,6 +123,11 @@ export async function POST(request) {
         phone: sanitizedPhone,
         role: 'USER',
         emailVerified: new Date(), // TODO: Implement email verification flow
+        // Set waiver acceptance if user accepted during registration
+        ...(acceptedTerms && {
+          waiverAcceptedAt: new Date(),
+          waiverVersionAccepted: '1.0',
+        }),
       },
     });
 

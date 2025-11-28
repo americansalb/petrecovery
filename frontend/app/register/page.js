@@ -13,6 +13,7 @@ export default function RegisterPage() {
     password: '',
     confirmPassword: '',
   });
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [callbackUrl, setCallbackUrl] = useState('/dashboard');
@@ -48,6 +49,11 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!acceptedTerms) {
+      setError('You must accept the Terms of Service and Liability Waiver to create an account');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -60,6 +66,7 @@ export default function RegisterPage() {
           password: formData.password,
           firstName: formData.firstName,
           phone: formData.phone,
+          acceptedTerms: true,
         }),
       });
 
@@ -274,19 +281,51 @@ export default function RegisterPage() {
             />
           </div>
 
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.75rem',
+              cursor: 'pointer',
+            }}>
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                style={{
+                  width: '1.25rem',
+                  height: '1.25rem',
+                  marginTop: '0.125rem',
+                  cursor: 'pointer',
+                }}
+              />
+              <span style={{ fontSize: '0.875rem', color: '#374151', lineHeight: '1.5' }}>
+                I agree to the{' '}
+                <Link href="/legal/terms" style={{ color: '#2563eb', textDecoration: 'underline' }}>
+                  Terms of Service
+                </Link>
+                {' '}and{' '}
+                <Link href="/legal/consent" style={{ color: '#2563eb', textDecoration: 'underline' }}>
+                  Liability Waiver
+                </Link>
+                . I understand that participation in rescue squad activities involves physical risks.
+              </span>
+            </label>
+          </div>
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !acceptedTerms}
             style={{
               width: '100%',
               padding: '1rem',
-              backgroundColor: loading ? '#9ca3af' : '#10b981',
+              backgroundColor: (loading || !acceptedTerms) ? '#9ca3af' : '#10b981',
               color: 'white',
               border: 'none',
               borderRadius: '0.5rem',
               fontSize: '1.125rem',
               fontWeight: '600',
-              cursor: loading ? 'not-allowed' : 'pointer',
+              cursor: (loading || !acceptedTerms) ? 'not-allowed' : 'pointer',
               marginBottom: '1rem',
             }}
           >
