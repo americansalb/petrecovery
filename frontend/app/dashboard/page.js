@@ -559,7 +559,7 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Lost Pet Reports (if any) */}
+            {/* Lost Pet Reports with Mission Control Integration */}
             {reports.length > 0 && (
               <div style={{
                 background: 'white',
@@ -599,26 +599,151 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   {reports.map((report) => (
-                    <Link
+                    <div
                       key={report.id}
-                      href={`/cases/${report.id}`}
                       style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '1rem 1.5rem',
                         borderBottom: '1px solid #f1f5f9',
-                        textDecoration: 'none',
                       }}
                     >
-                      <div>
-                        <div style={{ fontWeight: '600', color: '#0f172a' }}>{report.petName}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
-                          Last seen: {report.lastSeen} • {report.sightings} sightings
+                      <Link
+                        href={`/cases/${report.caseNumber}`}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '1rem 1.5rem',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          {report.petPhotoUrl ? (
+                            <img
+                              src={report.petPhotoUrl}
+                              alt={report.petName}
+                              style={{
+                                width: '48px',
+                                height: '48px',
+                                borderRadius: '0.75rem',
+                                objectFit: 'cover',
+                              }}
+                            />
+                          ) : (
+                            <div style={{
+                              width: '48px',
+                              height: '48px',
+                              background: '#fef2f2',
+                              borderRadius: '0.75rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '1.5rem',
+                            }}>
+                              {report.petSpecies === 'DOG' ? '🐕' : report.petSpecies === 'CAT' ? '🐈' : '🐾'}
+                            </div>
+                          )}
+                          <div>
+                            <div style={{ fontWeight: '600', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              {report.petName}
+                              {report.isLive && (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
+                                  padding: '0.125rem 0.5rem',
+                                  background: '#dc2626',
+                                  color: 'white',
+                                  borderRadius: '0.25rem',
+                                  fontSize: '0.65rem',
+                                  fontWeight: '700',
+                                  animation: 'pulse 2s infinite',
+                                }}>
+                                  <span style={{ fontSize: '0.5rem' }}>●</span> LIVE
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
+                              {report.status === 'RESOLVED' ? (
+                                <span style={{ color: '#16a34a' }}>✓ Resolved</span>
+                              ) : (
+                                <>
+                                  Missing {report.hoursMissing < 24 ? `${report.hoursMissing}h` : `${Math.floor(report.hoursMissing / 24)}d`}
+                                  {report.activeVolunteers > 0 && ` • ${report.activeVolunteers} searching`}
+                                  {report.sightings > 0 && ` • ${report.sightings} sightings`}
+                                </>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <ChevronRight size={20} style={{ color: '#94a3b8' }} />
-                    </Link>
+                        <ChevronRight size={20} style={{ color: '#94a3b8' }} />
+                      </Link>
+
+                      {/* Mission Control Quick Actions for Active Cases */}
+                      {report.status !== 'RESOLVED' && report.status !== 'CLOSED_OTHER' && (
+                        <div style={{
+                          padding: '0.75rem 1.5rem 1rem',
+                          display: 'flex',
+                          gap: '0.5rem',
+                        }}>
+                          {report.isLive ? (
+                            <Link
+                              href={`/cases/${report.caseNumber}`}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.375rem',
+                                padding: '0.5rem 1rem',
+                                background: '#dc2626',
+                                color: 'white',
+                                borderRadius: '0.5rem',
+                                fontSize: '0.8rem',
+                                fontWeight: '600',
+                                textDecoration: 'none',
+                              }}
+                            >
+                              <Zap size={14} />
+                              Open Mission Control
+                            </Link>
+                          ) : (
+                            <Link
+                              href={`/cases/${report.caseNumber}`}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.375rem',
+                                padding: '0.5rem 1rem',
+                                background: '#4f46e5',
+                                color: 'white',
+                                borderRadius: '0.5rem',
+                                fontSize: '0.8rem',
+                                fontWeight: '600',
+                                textDecoration: 'none',
+                              }}
+                            >
+                              <Zap size={14} />
+                              Start Live Search
+                            </Link>
+                          )}
+                          <Link
+                            href={`/cases/${report.caseNumber}/coordinate`}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.375rem',
+                              padding: '0.5rem 1rem',
+                              background: '#f1f5f9',
+                              color: '#475569',
+                              borderRadius: '0.5rem',
+                              fontSize: '0.8rem',
+                              fontWeight: '600',
+                              textDecoration: 'none',
+                            }}
+                          >
+                            <Target size={14} />
+                            Coordinate
+                          </Link>
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>

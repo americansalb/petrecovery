@@ -3261,15 +3261,19 @@ model MissionBroadcast {
   id              String   @id @default(cuid())
   createdAt       DateTime @default(now())
 
-  missionId       String
-  mission         MissionControl @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  missionId       String?
+  mission         MissionControl? @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  // Squad-wide broadcasts
+  squadId         String?
 
   message         String
-  type            String   // INFO, ALERT, FREEZE, STAND_DOWN
+  type            String   // INFO, ALERT, FREEZE, STAND_DOWN, URGENT
   priority        String   @default("NORMAL") // NORMAL, CRITICAL
   senderId        String?
 
   @@index([missionId])
+  @@index([squadId])
   @@index([createdAt])
 }
 

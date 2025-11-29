@@ -104,15 +104,50 @@ export async function GET(request) {
       sightingCounts.map(s => [s.caseId, s._count.id])
     );
 
-    // Format reports for display - show REAL count (0 if none)
-    const reports = user.cases.map(caseItem => ({
-      id: caseItem.id,
-      petName: caseItem.petName,
-      species: caseItem.petSpecies.toLowerCase(),
-      lastSeen: formatTime(caseItem.lastSeenAt),
-      sightings: sightingMap[caseItem.id] || 0,
-      status: caseItem.status,
-    }));
+    // Get Mission Control status for each case
+    const missionStatuses = await prisma.missionControl.findMany({
+      where: { caseId: { in: caseIds } },
+      select: {
+        caseId: true,
+        mode: true,
+        startedAt: true,
+        volunteers: {
+          where: { status: 'ACTIVE' },
+          select: { id: true }
+        }
+      }
+    });
+    const missionMap = Object.fromEntries(
+      missionStatuses.map(m => [m.caseId, {
+        isLive: ['LIVE_SEARCH', 'CONTAINMENT', 'TRAP_OPS'].includes(m.mode),
+        mode: m.mode,
+        activeVolunteers: m.volunteers?.length || 0,
+        startedAt: m.startedAt
+      }])
+    );
+
+    // Format reports for display with Mission Control status
+    const reports = user.cases.map(caseItem => {
+      const hoursMissing = caseItem.lastSeenAt
+        ? Math.floor((Date.now() - new Date(caseItem.lastSeenAt).getTime()) / 3600000)
+        : 0;
+      const mission = missionMap[caseItem.id] || { isLive: false, activeVolunteers: 0 };
+
+      return {
+        id: caseItem.id,
+        caseNumber: caseItem.caseNumber,
+        petName: caseItem.petName,
+        petSpecies: caseItem.petSpecies,
+        petPhotoUrl: caseItem.petPhotoUrl,
+        lastSeen: formatTime(caseItem.lastSeenAt),
+        hoursMissing,
+        sightings: sightingMap[caseItem.id] || 0,
+        status: caseItem.status,
+        isLive: mission.isLive,
+        activeVolunteers: mission.activeVolunteers,
+        missionMode: mission.mode,
+      };
+    });
 
     // If patrol member, find nearby alerts and user's found pets
     let nearbyAlerts = [];
