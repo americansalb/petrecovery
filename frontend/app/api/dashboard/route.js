@@ -93,6 +93,9 @@ export async function GET(request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    console.log('📊 Dashboard: User found:', user.id, user.email);
+    console.log('📊 Dashboard: Raw memberships:', JSON.stringify(user.rescueSquadMemberships || [], null, 2));
+
     // Get sighting counts for each case
     const caseIds = user.cases.map(c => c.id);
     const sightingCounts = await prisma.caseSighting.groupBy({
