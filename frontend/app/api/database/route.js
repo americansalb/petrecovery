@@ -26,11 +26,10 @@ export async function GET(request) {
       where.reportType = reportType;
     }
 
-    // Fetch all reports
-    const reports = await prisma.lostReport.findMany({
+    // Fetch all cases
+    const cases = await prisma.case.findMany({
       where,
       include: {
-        pet: true,
         reporter: {
           select: {
             firstName: true,
@@ -45,21 +44,21 @@ export async function GET(request) {
     });
 
     // Filter by search query and species
-    let filteredReports = reports;
+    let filteredCases = cases;
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filteredReports = filteredReports.filter(report =>
-        report.pet.name.toLowerCase().includes(query) ||
-        (report.pet.breed && report.pet.breed.toLowerCase().includes(query)) ||
-        report.pet.color.toLowerCase().includes(query) ||
-        report.lastSeenAddress.toLowerCase().includes(query)
+      filteredCases = filteredCases.filter(c =>
+        c.petName.toLowerCase().includes(query) ||
+        (c.petBreed && c.petBreed.toLowerCase().includes(query)) ||
+        c.petColor.toLowerCase().includes(query) ||
+        c.lastSeenAddress.toLowerCase().includes(query)
       );
     }
 
     if (species) {
-      filteredReports = filteredReports.filter(report =>
-        report.pet.species === species
+      filteredCases = filteredCases.filter(c =>
+        c.petSpecies === species
       );
     }
 
@@ -67,25 +66,25 @@ export async function GET(request) {
     const isAuthenticated = !!session?.user?.email;
 
     // Format response
-    const formattedReports = filteredReports.map(report => ({
-      id: report.id,
-      reportType: report.reportType,
-      status: report.status,
-      petName: report.pet.name,
-      species: report.pet.species,
-      breed: report.pet.breed,
-      color: report.pet.color,
-      size: report.pet.size,
-      distinctiveMarks: report.pet.distinctiveMarks,
-      primaryPhotoUrl: report.pet.primaryPhotoUrl,
-      lastSeenAt: report.lastSeenAt,
-      lastSeenAddress: report.lastSeenAddress,
-      createdAt: report.createdAt,
+    const formattedReports = filteredCases.map(c => ({
+      id: c.id,
+      reportType: c.reportType,
+      status: c.status,
+      petName: c.petName,
+      species: c.petSpecies,
+      breed: c.petBreed,
+      color: c.petColor,
+      size: c.petSize,
+      distinctiveMarks: c.petDescription,
+      primaryPhotoUrl: c.petPhotoUrl,
+      lastSeenAt: c.lastSeenAt,
+      lastSeenAddress: c.lastSeenAddress,
+      createdAt: c.createdAt,
       // Only include contact info if authenticated
       ...(isAuthenticated ? {
-        reporterName: report.reporter.firstName,
-        reporterPhone: report.reporter.phone,
-        reporterEmail: report.reporter.email,
+        reporterName: c.reporter?.firstName || c.ownerName,
+        reporterPhone: c.reporter?.phone || c.ownerPhone,
+        reporterEmail: c.reporter?.email || c.ownerEmail,
       } : {}),
     }));
 
