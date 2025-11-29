@@ -201,17 +201,24 @@ export async function GET(request) {
         }));
     }
 
-    // Format squad memberships
-    const squads = user.rescueSquadMemberships.map(membership => ({
-      id: membership.rescueSquad.id,
-      name: membership.rescueSquad.name,
-      city: membership.rescueSquad.city,
-      state: membership.rescueSquad.state,
-      level: membership.rescueSquad.rescueSquadLevel,
-      memberCount: membership.rescueSquad._count.members,
-      totalCasesCompleted: membership.rescueSquad.totalCasesCompleted,
-      successfulReunions: membership.rescueSquad.successfulReunions,
-      myRole: membership.role,
+    // Format squad memberships - filter out inactive squads and null values
+    console.log('📊 Dashboard: rescueSquadMemberships count:', user.rescueSquadMemberships?.length || 0);
+    if (user.rescueSquadMemberships?.length > 0) {
+      console.log('📊 Dashboard: First membership:', JSON.stringify(user.rescueSquadMemberships[0], null, 2));
+    }
+
+    const squads = user.rescueSquadMemberships
+      .filter(membership => membership.rescueSquad && membership.rescueSquad.isActive)
+      .map(membership => ({
+        id: membership.rescueSquad.id,
+        name: membership.rescueSquad.name,
+        city: membership.rescueSquad.city,
+        state: membership.rescueSquad.state,
+        level: membership.rescueSquad.rescueSquadLevel,
+        memberCount: membership.rescueSquad._count.members,
+        totalCasesCompleted: membership.rescueSquad.totalCasesCompleted,
+        successfulReunions: membership.rescueSquad.successfulReunions,
+        myRole: membership.role,
       division: membership.division,
       joinedAt: membership.joinedAt,
       // Personal stats within this squad
