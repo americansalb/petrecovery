@@ -71,7 +71,7 @@ export async function GET(request, { params }) {
         result: 'failure',
         error_code: 'CASE_NOT_FOUND',
         error_message: `Case ${caseNumber} not found`,
-        actor_role: 'public',
+        actor_role: null,
         metadata: {
           caseNumber,
           found: false

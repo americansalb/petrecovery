@@ -185,6 +185,13 @@ export default function ReportLostPet() {
     setIsSubmitting(true);
     setError(null);
 
+    // Validate location is set
+    if (!center || !Array.isArray(center) || center.length !== 2 || !center[0] || !center[1]) {
+      setError('Please set a valid location on the map before submitting. Go back to step 2 to enter the address.');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       // Call REAL API (no more fake data!)
       const response = await fetch('/api/reports/create', {

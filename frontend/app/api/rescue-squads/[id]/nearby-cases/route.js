@@ -46,12 +46,14 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Squad location not configured' }, { status: 400 });
     }
 
-    // Find all ACTIVE or IN_PROGRESS cases
+    // Find all ACTIVE or IN_PROGRESS cases with valid coordinates
     const cases = await prisma.case.findMany({
       where: {
         status: { in: ['ACTIVE', 'IN_PROGRESS'] },
-        lastSeenLatitude: { not: null },
-        lastSeenLongitude: { not: null },
+        NOT: [
+          { lastSeenLatitude: null },
+          { lastSeenLongitude: null },
+        ],
       },
       select: {
         id: true,
