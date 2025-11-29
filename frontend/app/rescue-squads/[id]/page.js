@@ -6,6 +6,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
+// Dynamically import Mission Map
+const MissionMap = dynamic(() => import('@/app/components/missionControl/MissionMap'), {
+  ssr: false,
+  loading: () => <div style={{ height: '200px', background: '#1a1a1a', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888' }}>Loading map...</div>
+});
+
 // Dynamically import map to avoid SSR issues
 const SquadCoverageMap = dynamic(() => import('@/app/components/SquadCoverageMap'), {
   ssr: false,
@@ -40,6 +46,10 @@ export default function RescueSquadDetailPage({ params }) {
   const [switchingDivision, setSwitchingDivision] = useState(false);
   const [divisionModalOpen, setDivisionModalOpen] = useState(false);
 
+  // Live missions state
+  const [liveMissions, setLiveMissions] = useState([]);
+  const [liveMissionsLoading, setLiveMissionsLoading] = useState(false);
+
   useEffect(() => {
     loadSquad();
   }, [params.id, session]);
@@ -54,7 +64,34 @@ export default function RescueSquadDetailPage({ params }) {
       loadActiveCases();
       loadMyDivision();
     }
+    // Load live missions
+    loadLiveMissions();
   }, [userRole, isMember, params.id]);
+
+  // Auto-refresh live missions every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (liveMissions.length > 0) {
+        loadLiveMissions();
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [liveMissions.length, params.id]);
+
+  const loadLiveMissions = async () => {
+    setLiveMissionsLoading(true);
+    try {
+      const res = await fetch(`/api/rescue-squads/${params.id}/live-missions`);
+      if (res.ok) {
+        const data = await res.json();
+        setLiveMissions(data.missions || []);
+      }
+    } catch (err) {
+      console.error('Error loading live missions:', err);
+    } finally {
+      setLiveMissionsLoading(false);
+    }
+  };
 
   const loadMyDivision = async () => {
     setDivisionsLoading(true);
@@ -1053,6 +1090,184 @@ export default function RescueSquadDetailPage({ params }) {
             </div>
           </div>
         </div>
+
+        {/* LIVE MISSIONS - Prominent when active */}
+        {liveMissions.length > 0 && (
+          <div style={{
+            background: 'linear-gradient(135deg, #1a1a1a 0%, #2d1f1f 100%)',
+            borderRadius: '16px',
+            padding: '2rem',
+            marginBottom: '2rem',
+            border: '2px solid #dc2626',
+            boxShadow: '0 0 30px rgba(220, 38, 38, 0.2)',
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1.5rem',
+              flexWrap: 'wrap',
+              gap: '1rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.5rem 1rem',
+                  background: '#dc2626',
+                  borderRadius: '20px',
+                  animation: 'pulse 2s infinite',
+                }}>
+                  <span style={{ color: '#fff', fontWeight: '700' }}>●</span>
+                  <span style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem' }}>LIVE</span>
+                </div>
+                <h2 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '800',
+                  color: '#fff',
+                  margin: 0,
+                }}>
+                  Active Search Operations
+                </h2>
+              </div>
+              <div style={{
+                color: '#888',
+                fontSize: '0.9rem',
+              }}>
+                {liveMissions.reduce((sum, m) => sum + (m.activeVolunteers || 0), 0)} volunteers searching
+              </div>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gap: '1rem',
+            }}>
+              {liveMissions.map(mission => (
+                <div
+                  key={mission.id}
+                  style={{
+                    display: 'flex',
+                    gap: '1.5rem',
+                    padding: '1.5rem',
+                    background: '#2a2a2a',
+                    borderRadius: '12px',
+                    border: mission.mode === 'CONTAINMENT' ? '2px solid #ff5722' : '1px solid #444',
+                    alignItems: 'center',
+                  }}
+                >
+                  {/* Pet photo */}
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <img
+                      src={mission.pet?.photoUrl || '/placeholder-pet.jpg'}
+                      alt={mission.pet?.name}
+                      style={{
+                        width: '80px',
+                        height: '80px',
+                        borderRadius: '12px',
+                        objectFit: 'cover',
+                        border: '3px solid #4CAF50',
+                      }}
+                    />
+                    {mission.mode === 'CONTAINMENT' && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '-8px',
+                        right: '-8px',
+                        background: '#ff5722',
+                        color: '#fff',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.7rem',
+                        fontWeight: '700',
+                      }}>
+                        SIGHTING!
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Mission details */}
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{
+                      fontSize: '1.25rem',
+                      fontWeight: '700',
+                      color: '#fff',
+                      margin: '0 0 0.5rem 0',
+                    }}>
+                      {mission.pet?.name}
+                    </h3>
+                    <p style={{
+                      fontSize: '0.9rem',
+                      color: '#888',
+                      margin: '0 0 0.75rem 0',
+                    }}>
+                      {mission.pet?.color} {mission.pet?.species}
+                      {mission.pet?.breed && ` • ${mission.pet.breed}`}
+                    </p>
+                    <div style={{
+                      display: 'flex',
+                      gap: '1.5rem',
+                      fontSize: '0.85rem',
+                      color: '#aaa',
+                    }}>
+                      <span>👥 {mission.activeVolunteers || 0} searching</span>
+                      <span>📍 {mission.zonesSearched || 0}/{mission.totalZones || 0} zones</span>
+                      {mission.sightings > 0 && (
+                        <span style={{ color: '#4CAF50' }}>👁 {mission.sightings} sighting{mission.sightings === 1 ? '' : 's'}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div style={{
+                    display: 'flex',
+                    gap: '0.75rem',
+                    flexDirection: 'column',
+                  }}>
+                    <Link
+                      href={`/cases/${mission.caseId}`}
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        background: 'linear-gradient(135deg, #4CAF50 0%, #388E3C 100%)',
+                        color: '#fff',
+                        borderRadius: '8px',
+                        textDecoration: 'none',
+                        fontWeight: '700',
+                        fontSize: '0.95rem',
+                        textAlign: 'center',
+                        boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+                      }}
+                    >
+                      Join Search
+                    </Link>
+                    <Link
+                      href={`/cases/${mission.caseId}`}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        background: 'transparent',
+                        color: '#888',
+                        border: '1px solid #444',
+                        borderRadius: '8px',
+                        textDecoration: 'none',
+                        fontSize: '0.85rem',
+                        textAlign: 'center',
+                      }}
+                    >
+                      View Details
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <style jsx>{`
+              @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.7; }
+              }
+            `}</style>
+          </div>
+        )}
 
         {/* Coverage Area Map */}
         {squad.centerLatitude && squad.centerLongitude && (
