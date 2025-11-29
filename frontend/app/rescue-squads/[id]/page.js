@@ -1042,7 +1042,7 @@ export default function RescueSquadDetailPage({ params }) {
                 flexWrap: 'wrap',
               }}>
                 <Link
-                  href={`/rescue-squads/${params.id}/mission-control`}
+                  href={`/rescue-squads/${params.id}/ops`}
                   style={{
                     padding: '0.75rem 1.25rem',
                     background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
@@ -1057,7 +1057,7 @@ export default function RescueSquadDetailPage({ params }) {
                     boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
                   }}
                 >
-                  🎯 Mission Control
+                  🎯 Operations Center
                 </Link>
                 <Link
                   href="/cases"
