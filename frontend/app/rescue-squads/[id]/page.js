@@ -7,142 +7,200 @@
  *
  * Full-screen tactical map with HUD overlays.
  * The map IS the interface - not a page with a map embedded.
- *
- * Architecture:
- * - Layer 0: Full-screen TacticalMap (Leaflet)
- * - Layer 1: HUD overlays (TopBar, CaseCarousel, ActionBar, CaseFocusPanel)
- * - Layer 2: Modal overlays (ContainmentOverlay, settings panels)
  */
 
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
+import Link from 'next/link';
 
-import { SquadProvider, useSquad } from './context/SquadContext';
-
-// Dynamic imports for map (no SSR)
-const TacticalMap = dynamic(() => import('./components/TacticalMap'), {
-  ssr: false,
-  loading: () => (
-    <div style={{
-      position: 'absolute',
-      inset: 0,
-      background: '#0f172a',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: '#64748b',
-    }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{
-          width: '48px',
-          height: '48px',
-          border: '3px solid #334155',
-          borderTop: '3px solid #3b82f6',
-          borderRadius: '50%',
-          margin: '0 auto 16px',
-          animation: 'spin 1s linear infinite',
-        }} />
-        <style jsx>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <div>Loading tactical map...</div>
-      </div>
-    </div>
-  ),
-});
-
-// HUD Components
-import TopBar from './components/TopBar';
-import CaseCarousel from './components/CaseCarousel';
-import CaseFocusPanel from './components/CaseFocusPanel';
-import ActionBar from './components/ActionBar';
-import ContainmentOverlay from './components/ContainmentOverlay';
-
-function SquadOperationsInner({ params }) {
+export default function SquadOperationsPage({ params }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+
+  // State
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showJoinPrompt, setShowJoinPrompt] = useState(false);
+  const [squad, setSquad] = useState(null);
+  const [cases, setCases] = useState([]);
+  const [userRole, setUserRole] = useState(null);
+  const [isMember, setIsMember] = useState(false);
   const [joining, setJoining] = useState(false);
-  const [legalRedirect, setLegalRedirect] = useState(null);
+  const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const [selectedCase, setSelectedCase] = useState(null);
+  const [mapReady, setMapReady] = useState(false);
 
-  const {
-    squad,
-    setSquad,
-    setCases,
-    setVolunteers,
-    userRole,
-    setUserRole,
-  } = useSquad();
-
-  // Load squad and cases data
+  // Load squad data
   const loadData = useCallback(async () => {
-    if (!params.id) return;
+    if (!params.id || status !== 'authenticated') return;
 
     try {
-      // Fetch squad data first
       const squadRes = await fetch(`/api/rescue-squads/${params.id}`);
 
       if (!squadRes.ok) {
-        if (squadRes.status === 404) {
-          throw new Error('Squad not found');
-        }
-        throw new Error('Failed to load squad');
+        throw new Error(squadRes.status === 404 ? 'Squad not found' : 'Failed to load squad');
       }
 
       const squadData = await squadRes.json();
       setSquad(squadData.squad);
 
-      // Check user membership
-      let isMember = false;
+      // Check membership
+      let memberFound = false;
       if (session?.user?.id && squadData.squad.members) {
         const membership = squadData.squad.members.find(
           m => m.userId === session.user.id && m.isActive
         );
         if (membership) {
           setUserRole(membership.role);
-          isMember = true;
-        } else {
-          setUserRole(null);
-          setShowJoinPrompt(true);
+          setIsMember(true);
+          memberFound = true;
         }
-      } else if (session?.user?.id) {
-        // User is logged in but not a member
-        setShowJoinPrompt(true);
       }
 
-      // Load nearby cases if member
-      if (isMember) {
+      // Load cases if member
+      if (memberFound) {
         const casesRes = await fetch(`/api/rescue-squads/${params.id}/nearby-cases`);
         if (casesRes.ok) {
           const casesData = await casesRes.json();
           setCases(casesData.cases || []);
-          if (casesData.userRole) {
-            setUserRole(casesData.userRole);
-          }
         }
       }
-
-      // TODO: Fetch active volunteers
-      setVolunteers([]);
-
     } catch (err) {
-      console.error('Error loading operations data:', err);
+      console.error('Load error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [params.id, session?.user?.id, setSquad, setCases, setVolunteers, setUserRole]);
+  }, [params.id, session?.user?.id, status]);
 
-  // Handle joining the squad
-  const handleJoin = async () => {
-    if (!session) {
+  // Initialize map
+  useEffect(() => {
+    if (!mapRef.current || mapInstanceRef.current) return;
+    if (!squad?.centerLatitude || !squad?.centerLongitude) return;
+
+    const initMap = async () => {
+      try {
+        const L = (await import('leaflet')).default;
+        await import('leaflet/dist/leaflet.css');
+
+        const map = L.map(mapRef.current, {
+          center: [squad.centerLatitude, squad.centerLongitude],
+          zoom: 13,
+          zoomControl: false,
+        });
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          subdomains: 'abcd',
+          maxZoom: 20,
+          attribution: '',
+        }).addTo(map);
+
+        // Squad coverage circle
+        if (squad.radiusMiles) {
+          L.circle([squad.centerLatitude, squad.centerLongitude], {
+            radius: squad.radiusMiles * 1609.34,
+            color: '#3b82f6',
+            fillColor: '#3b82f6',
+            fillOpacity: 0.05,
+            weight: 2,
+            dashArray: '8, 8',
+          }).addTo(map);
+        }
+
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        mapInstanceRef.current = map;
+        setMapReady(true);
+      } catch (err) {
+        console.error('Map init error:', err);
+      }
+    };
+
+    initMap();
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, [squad]);
+
+  // Add case markers
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current) return;
+
+    const addMarkers = async () => {
+      const L = (await import('leaflet')).default;
+
+      cases.forEach(caseItem => {
+        if (!caseItem.lastSeenLatitude || !caseItem.lastSeenLongitude) return;
+
+        const hours = caseItem.lastSeenAt
+          ? (Date.now() - new Date(caseItem.lastSeenAt).getTime()) / 3600000
+          : 999;
+        const color = hours < 4 ? '#ef4444' : hours < 24 ? '#f97316' : '#eab308';
+
+        const icon = L.divIcon({
+          html: `
+            <div style="
+              width: 40px;
+              height: 40px;
+              border-radius: 50%;
+              border: 3px solid ${color};
+              background: ${caseItem.petPhotoUrl ? `url(${caseItem.petPhotoUrl})` : '#1e293b'};
+              background-size: cover;
+              background-position: center;
+              box-shadow: 0 0 15px ${color}60;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            ">
+              ${!caseItem.petPhotoUrl ? '<span style="font-size: 18px;">🐾</span>' : ''}
+            </div>
+          `,
+          className: '',
+          iconSize: [40, 40],
+          iconAnchor: [20, 20],
+        });
+
+        const marker = L.marker(
+          [caseItem.lastSeenLatitude, caseItem.lastSeenLongitude],
+          { icon }
+        ).addTo(mapInstanceRef.current);
+
+        marker.on('click', () => setSelectedCase(caseItem));
+
+        marker.bindTooltip(`<strong>${caseItem.petName || 'Unknown'}</strong>`, {
+          direction: 'top',
+          offset: [0, -20],
+        });
+      });
+    };
+
+    addMarkers();
+  }, [mapReady, cases]);
+
+  // Auth redirect
+  useEffect(() => {
+    if (status === 'unauthenticated') {
       router.push(`/login?callbackUrl=/rescue-squads/${params.id}`);
-      return;
     }
+  }, [status, router, params.id]);
 
+  // Load data
+  useEffect(() => {
+    if (status === 'authenticated') {
+      loadData();
+    }
+  }, [status, loadData]);
+
+  // Join squad
+  const handleJoin = async () => {
     setJoining(true);
+    setError(null);
 
     try {
       const res = await fetch(`/api/rescue-squads/${params.id}/join`, {
@@ -153,156 +211,77 @@ function SquadOperationsInner({ params }) {
 
       if (!res.ok) {
         if (res.status === 403 && data.code === 'WAIVER_NOT_ACCEPTED') {
-          setLegalRedirect(data.redirectTo);
+          router.push(data.redirectTo);
           return;
         }
-        throw new Error(data.error || 'Failed to join squad');
+        throw new Error(data.error || 'Failed to join');
       }
 
-      setShowJoinPrompt(false);
+      setIsMember(true);
       setUserRole('MEMBER');
-      loadData(); // Reload to get cases
+      loadData();
     } catch (err) {
-      console.error('Join error:', err);
       setError(err.message);
     } finally {
       setJoining(false);
     }
   };
 
-  // Auth check
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push(`/login?callbackUrl=/rescue-squads/${params.id}`);
-    }
-  }, [status, router, params.id]);
-
-  // Initial load
-  useEffect(() => {
-    if (status === 'authenticated') {
-      loadData();
-    }
-  }, [status, loadData]);
-
-  // Auto-refresh every 30 seconds
-  useEffect(() => {
-    if (userRole) {
-      const interval = setInterval(loadData, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [loadData, userRole]);
-
-  // Loading state
+  // Loading
   if (status === 'loading' || loading) {
     return (
       <div style={styles.loadingScreen}>
-        <div style={styles.loadingContent}>
-          <div style={styles.spinner} />
-          <style jsx>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          <div style={styles.loadingText}>Initializing Operations...</div>
-        </div>
+        <div style={styles.spinner} />
+        <div style={styles.loadingText}>Loading Operations...</div>
       </div>
     );
   }
 
-  // Error state
+  // Error
   if (error && !squad) {
     return (
       <div style={styles.errorScreen}>
-        <div style={styles.errorContent}>
-          <div style={styles.errorIcon}>⚠️</div>
-          <h2 style={styles.errorTitle}>Unable to Load</h2>
-          <p style={styles.errorMessage}>{error}</p>
-          <button
-            onClick={() => router.push('/rescue-squads')}
-            style={styles.errorButton}
-          >
-            Browse Rescue Squads
-          </button>
-        </div>
+        <div style={styles.errorIcon}>⚠️</div>
+        <h2 style={styles.errorTitle}>Error</h2>
+        <p style={styles.errorText}>{error}</p>
+        <Link href="/rescue-squads" style={styles.errorLink}>
+          ← Back to Squads
+        </Link>
       </div>
     );
   }
 
-  // Legal waiver redirect
-  if (legalRedirect) {
-    return (
-      <div style={styles.legalScreen}>
-        <div style={styles.legalContent}>
-          <div style={styles.legalIcon}>📋</div>
-          <h2 style={styles.legalTitle}>Legal Agreement Required</h2>
-          <p style={styles.legalMessage}>
-            Before joining rescue operations, you need to review and accept our volunteer agreement.
-          </p>
-          <button
-            onClick={() => router.push(legalRedirect)}
-            style={styles.legalButton}
-          >
-            Review Agreement →
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Join prompt for non-members
-  if (showJoinPrompt && !userRole) {
+  // Join prompt
+  if (!isMember && squad) {
     return (
       <div style={styles.joinScreen}>
-        <div style={styles.joinContent}>
-          <div style={styles.joinHeader}>
-            <div style={styles.squadIcon}>🦮</div>
-            <h1 style={styles.squadName}>{squad?.name || 'Rescue Squad'}</h1>
-            {squad?.city && (
-              <p style={styles.squadLocation}>
-                📍 {squad.city}, {squad.state}
-              </p>
-            )}
-          </div>
+        <div style={styles.joinCard}>
+          <div style={styles.joinIcon}>🦮</div>
+          <h1 style={styles.joinTitle}>{squad.name}</h1>
+          <p style={styles.joinLocation}>📍 {squad.city}, {squad.state}</p>
 
           <div style={styles.joinStats}>
             <div style={styles.joinStat}>
-              <span style={styles.joinStatValue}>{squad?._count?.members || 0}</span>
+              <span style={styles.joinStatNum}>{squad._count?.members || 0}</span>
               <span style={styles.joinStatLabel}>Members</span>
             </div>
-            <div style={styles.joinStatDivider} />
             <div style={styles.joinStat}>
-              <span style={styles.joinStatValue}>{squad?.activeCases || 0}</span>
-              <span style={styles.joinStatLabel}>Active Cases</span>
+              <span style={styles.joinStatNum}>{squad.activeCases || 0}</span>
+              <span style={styles.joinStatLabel}>Active</span>
             </div>
-            <div style={styles.joinStatDivider} />
             <div style={styles.joinStat}>
-              <span style={styles.joinStatValue}>{squad?.successfulReunions || 0}</span>
+              <span style={styles.joinStatNum}>{squad.successfulReunions || 0}</span>
               <span style={styles.joinStatLabel}>Reunions</span>
             </div>
           </div>
 
-          <p style={styles.joinDescription}>
-            {squad?.description || 'Join this rescue squad to help find lost pets in your community.'}
-          </p>
-
-          <button
-            onClick={handleJoin}
-            disabled={joining}
-            style={{
-              ...styles.joinButton,
-              opacity: joining ? 0.7 : 1,
-              cursor: joining ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {joining ? 'Joining...' : '🚀 Join Squad & Start Helping'}
+          <button onClick={handleJoin} disabled={joining} style={styles.joinButton}>
+            {joining ? 'Joining...' : 'Join Squad'}
           </button>
 
-          <button
-            onClick={() => router.push('/rescue-squads')}
-            style={styles.browseButton}
-          >
+          <Link href="/rescue-squads" style={styles.browseLink}>
             ← Browse Other Squads
-          </button>
-
-          {error && (
-            <div style={styles.joinError}>{error}</div>
-          )}
+          </Link>
         </div>
       </div>
     );
@@ -311,52 +290,464 @@ function SquadOperationsInner({ params }) {
   // Main Map-OS Interface
   return (
     <div style={styles.container}>
-      {/* Layer 0: Full Screen Map */}
-      <TacticalMap />
+      {/* Layer 0: Map */}
+      <div ref={mapRef} style={styles.map} />
 
-      {/* Layer 1: HUD Overlays */}
-      <TopBar />
-      <CaseCarousel />
-      <CaseFocusPanel />
-      <ActionBar />
+      {/* Layer 1: TopBar */}
+      <header style={styles.topBar}>
+        <Link href="/rescue-squads" style={styles.backBtn}>←</Link>
+        <div style={styles.squadInfo}>
+          <div style={styles.squadName}>{squad?.name}</div>
+          <div style={styles.squadLoc}>{squad?.city}, {squad?.state}</div>
+        </div>
+        <div style={styles.topStats}>
+          <div style={styles.topStat}>
+            <span style={styles.topStatNum}>{cases.length}</span>
+            <span style={styles.topStatLabel}>Active</span>
+          </div>
+        </div>
+        <div style={{
+          ...styles.roleBadge,
+          background: ['FOUNDER', 'LEADER'].includes(userRole) ? '#dc2626' : '#22c55e',
+        }}>
+          {userRole || 'MEMBER'}
+        </div>
+      </header>
 
-      {/* Layer 2: Modal Overlays */}
-      <ContainmentOverlay />
+      {/* Layer 1: Case Carousel */}
+      {!selectedCase && (
+        <div style={styles.carousel}>
+          <div style={styles.carouselHeader}>
+            <span style={styles.carouselTitle}>🔴 {cases.length} Active Case{cases.length !== 1 ? 's' : ''}</span>
+          </div>
+          {cases.length === 0 ? (
+            <div style={styles.emptyState}>
+              <span style={styles.emptyIcon}>✓</span>
+              <span>No active cases in your area</span>
+            </div>
+          ) : (
+            <div style={styles.carouselScroll}>
+              {cases.map(c => (
+                <button key={c.id} onClick={() => setSelectedCase(c)} style={styles.caseCard}>
+                  <div style={{
+                    ...styles.casePhoto,
+                    backgroundImage: c.petPhotoUrl ? `url(${c.petPhotoUrl})` : 'none',
+                  }}>
+                    {!c.petPhotoUrl && <span>🐾</span>}
+                  </div>
+                  <div style={styles.caseInfo}>
+                    <div style={styles.caseName}>{c.petName || 'Unknown'}</div>
+                    <div style={styles.caseTime}>
+                      {c.lastSeenAt ? getTimeAgo(c.lastSeenAt) : 'Unknown'}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Layer 1: Case Focus Panel */}
+      {selectedCase && (
+        <div style={styles.focusPanel}>
+          <button onClick={() => setSelectedCase(null)} style={styles.focusClose}>✕</button>
+          <div style={styles.focusHeader}>
+            <div style={{
+              ...styles.focusPhoto,
+              backgroundImage: selectedCase.petPhotoUrl ? `url(${selectedCase.petPhotoUrl})` : 'none',
+            }}>
+              {!selectedCase.petPhotoUrl && <span style={{ fontSize: '32px' }}>🐾</span>}
+            </div>
+            <div style={styles.focusInfo}>
+              <h2 style={styles.focusName}>{selectedCase.petName || 'Unknown'}</h2>
+              <p style={styles.focusBreed}>{selectedCase.petColor} {selectedCase.petSpecies}</p>
+              <p style={styles.focusTime}>Missing {getTimeAgo(selectedCase.lastSeenAt)}</p>
+            </div>
+          </div>
+          <p style={styles.focusLocation}>📍 {selectedCase.lastSeenAddress || 'Unknown location'}</p>
+          <Link
+            href={`/cases/${selectedCase.caseNumber || selectedCase.id}`}
+            style={styles.focusJoinBtn}
+          >
+            🔍 VIEW CASE DETAILS
+          </Link>
+        </div>
+      )}
+
+      {/* Layer 1: ActionBar */}
+      <div style={styles.actionBar}>
+        <button
+          onClick={() => setIsCheckedIn(!isCheckedIn)}
+          style={{
+            ...styles.actionBtn,
+            background: isCheckedIn ? '#22c55e' : '#334155',
+          }}
+        >
+          <span>{isCheckedIn ? '✓' : '📍'}</span>
+          <span style={styles.actionLabel}>{isCheckedIn ? 'Active' : 'Check In'}</span>
+        </button>
+
+        <button style={styles.sightingBtn}>
+          <span style={{ fontSize: '24px' }}>👁</span>
+          <span style={styles.sightingText}>I SEE ONE</span>
+        </button>
+
+        <Link href="/report/new" style={styles.actionBtn}>
+          <span>🚨</span>
+          <span style={styles.actionLabel}>Report</span>
+        </Link>
+      </div>
+
+      <style jsx global>{`
+        .leaflet-container { background: #0f172a !important; z-index: 1 !important; }
+        .leaflet-control-zoom { margin-bottom: 100px !important; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
 
-export default function SquadOperationsPage({ params }) {
-  return (
-    <SquadProvider>
-      <SquadOperationsInner params={params} />
-    </SquadProvider>
-  );
+function getTimeAgo(dateStr) {
+  if (!dateStr) return 'unknown';
+  const hours = (Date.now() - new Date(dateStr).getTime()) / 3600000;
+  if (hours < 1) return `${Math.round(hours * 60)}m`;
+  if (hours < 24) return `${Math.round(hours)}h`;
+  return `${Math.round(hours / 24)}d`;
 }
 
 const styles = {
   container: {
     position: 'fixed',
+    inset: 0,
+    background: '#0f172a',
+  },
+
+  map: {
+    position: 'absolute',
+    inset: 0,
+    zIndex: 1,
+  },
+
+  // TopBar
+  topBar: {
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    bottom: 0,
-    background: '#0f172a',
-    overflow: 'hidden',
+    height: '64px',
+    background: 'rgba(15, 23, 42, 0.9)',
+    backdropFilter: 'blur(12px)',
+    borderBottom: '1px solid #334155',
+    display: 'flex',
+    alignItems: 'center',
+    padding: '0 16px',
+    gap: '12px',
+    zIndex: 100,
   },
 
-  // Loading Screen
-  loadingScreen: {
-    position: 'fixed',
-    inset: 0,
-    background: '#0f172a',
+  backBtn: {
+    color: '#94a3b8',
+    textDecoration: 'none',
+    fontSize: '20px',
+    padding: '8px',
+  },
+
+  squadInfo: {
+    flex: 1,
+  },
+
+  squadName: {
+    color: '#fff',
+    fontSize: '16px',
+    fontWeight: '700',
+  },
+
+  squadLoc: {
+    color: '#64748b',
+    fontSize: '12px',
+  },
+
+  topStats: {
+    display: 'flex',
+    gap: '16px',
+  },
+
+  topStat: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+
+  topStatNum: {
+    color: '#f97316',
+    fontSize: '18px',
+    fontWeight: '800',
+  },
+
+  topStatLabel: {
+    color: '#64748b',
+    fontSize: '10px',
+    textTransform: 'uppercase',
+  },
+
+  roleBadge: {
+    padding: '6px 12px',
+    borderRadius: '6px',
+    color: '#fff',
+    fontSize: '11px',
+    fontWeight: '700',
+  },
+
+  // Carousel
+  carousel: {
+    position: 'absolute',
+    bottom: '100px',
+    left: 0,
+    right: 0,
+    background: 'rgba(15, 23, 42, 0.95)',
+    backdropFilter: 'blur(12px)',
+    borderTop: '1px solid #334155',
+    borderRadius: '16px 16px 0 0',
+    padding: '12px 0',
+    zIndex: 100,
+  },
+
+  carouselHeader: {
+    padding: '0 16px 12px',
+  },
+
+  carouselTitle: {
+    color: '#fff',
+    fontSize: '14px',
+    fontWeight: '700',
+  },
+
+  carouselScroll: {
+    display: 'flex',
+    gap: '12px',
+    padding: '0 16px',
+    overflowX: 'auto',
+    scrollbarWidth: 'none',
+  },
+
+  emptyState: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '20px 16px',
+    color: '#64748b',
+  },
+
+  emptyIcon: {
+    color: '#22c55e',
+    fontSize: '20px',
+  },
+
+  caseCard: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '10px',
+    background: '#1e293b',
+    border: 'none',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    minWidth: '180px',
+    flexShrink: 0,
+  },
+
+  casePhoto: {
+    width: '44px',
+    height: '44px',
+    borderRadius: '50%',
+    border: '2px solid #f97316',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundColor: '#334155',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '18px',
+  },
+
+  caseInfo: {
+    textAlign: 'left',
+  },
+
+  caseName: {
+    color: '#fff',
+    fontSize: '14px',
+    fontWeight: '700',
+  },
+
+  caseTime: {
+    color: '#f97316',
+    fontSize: '12px',
+    fontWeight: '600',
+  },
+
+  // Focus Panel
+  focusPanel: {
+    position: 'absolute',
+    bottom: '100px',
+    left: 0,
+    right: 0,
+    background: 'rgba(15, 23, 42, 0.98)',
+    backdropFilter: 'blur(16px)',
+    borderTop: '1px solid #334155',
+    borderRadius: '20px 20px 0 0',
+    padding: '20px',
+    zIndex: 100,
+  },
+
+  focusClose: {
+    position: 'absolute',
+    top: '16px',
+    right: '16px',
+    width: '32px',
+    height: '32px',
+    background: '#334155',
+    border: 'none',
+    borderRadius: '50%',
+    color: '#94a3b8',
+    fontSize: '16px',
+    cursor: 'pointer',
+  },
+
+  focusHeader: {
+    display: 'flex',
+    gap: '16px',
+    marginBottom: '16px',
+  },
+
+  focusPhoto: {
+    width: '72px',
+    height: '72px',
+    borderRadius: '16px',
+    border: '3px solid #f97316',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundColor: '#334155',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  loadingContent: {
+  focusInfo: {
+    flex: 1,
+  },
+
+  focusName: {
+    color: '#fff',
+    fontSize: '24px',
+    fontWeight: '800',
+    margin: 0,
+  },
+
+  focusBreed: {
+    color: '#94a3b8',
+    fontSize: '14px',
+    margin: '4px 0',
+  },
+
+  focusTime: {
+    color: '#f97316',
+    fontSize: '14px',
+    fontWeight: '600',
+    margin: 0,
+  },
+
+  focusLocation: {
+    color: '#64748b',
+    fontSize: '14px',
+    marginBottom: '16px',
+  },
+
+  focusJoinBtn: {
+    display: 'block',
     textAlign: 'center',
+    padding: '16px',
+    background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+    border: 'none',
+    borderRadius: '12px',
+    color: '#fff',
+    fontSize: '16px',
+    fontWeight: '800',
+    textDecoration: 'none',
+  },
+
+  // ActionBar
+  actionBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '80px',
+    background: 'rgba(15, 23, 42, 0.95)',
+    backdropFilter: 'blur(12px)',
+    borderTop: '1px solid #334155',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    padding: '0 16px',
+    zIndex: 100,
+  },
+
+  actionBtn: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '70px',
+    height: '56px',
+    background: '#334155',
+    border: 'none',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    textDecoration: 'none',
+    color: '#fff',
+    fontSize: '20px',
+  },
+
+  actionLabel: {
+    fontSize: '11px',
+    fontWeight: '600',
+    marginTop: '2px',
+  },
+
+  sightingBtn: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '88px',
+    height: '88px',
+    marginTop: '-30px',
+    background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+    border: '4px solid #0f172a',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    boxShadow: '0 4px 20px rgba(220, 38, 38, 0.5)',
+    color: '#fff',
+  },
+
+  sightingText: {
+    fontSize: '10px',
+    fontWeight: '800',
+    letterSpacing: '0.5px',
+  },
+
+  // Loading/Error/Join screens
+  loadingScreen: {
+    position: 'fixed',
+    inset: 0,
+    background: '#0f172a',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '16px',
   },
 
   spinner: {
@@ -365,30 +756,24 @@ const styles = {
     border: '3px solid #334155',
     borderTop: '3px solid #3b82f6',
     borderRadius: '50%',
-    margin: '0 auto 16px',
     animation: 'spin 1s linear infinite',
   },
 
   loadingText: {
     color: '#94a3b8',
     fontSize: '16px',
-    fontWeight: '600',
   },
 
-  // Error Screen
   errorScreen: {
     position: 'fixed',
     inset: 0,
     background: '#0f172a',
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     padding: '20px',
-  },
-
-  errorContent: {
     textAlign: 'center',
-    maxWidth: '400px',
   },
 
   errorIcon: {
@@ -399,74 +784,20 @@ const styles = {
   errorTitle: {
     color: '#fff',
     fontSize: '24px',
-    fontWeight: '700',
-    margin: '0 0 8px 0',
+    margin: '0 0 8px',
   },
 
-  errorMessage: {
+  errorText: {
     color: '#94a3b8',
-    fontSize: '16px',
-    margin: '0 0 24px 0',
+    margin: '0 0 24px',
   },
 
-  errorButton: {
-    padding: '12px 24px',
-    background: '#3b82f6',
-    border: 'none',
-    borderRadius: '8px',
-    color: '#fff',
-    fontSize: '16px',
+  errorLink: {
+    color: '#3b82f6',
+    textDecoration: 'none',
     fontWeight: '600',
-    cursor: 'pointer',
   },
 
-  // Legal Screen
-  legalScreen: {
-    position: 'fixed',
-    inset: 0,
-    background: '#0f172a',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '20px',
-  },
-
-  legalContent: {
-    textAlign: 'center',
-    maxWidth: '400px',
-  },
-
-  legalIcon: {
-    fontSize: '48px',
-    marginBottom: '16px',
-  },
-
-  legalTitle: {
-    color: '#fff',
-    fontSize: '24px',
-    fontWeight: '700',
-    margin: '0 0 8px 0',
-  },
-
-  legalMessage: {
-    color: '#94a3b8',
-    fontSize: '16px',
-    margin: '0 0 24px 0',
-    lineHeight: '1.5',
-  },
-
-  legalButton: {
-    padding: '14px 28px',
-    background: '#22c55e',
-    border: 'none',
-    borderRadius: '8px',
-    color: '#fff',
-    fontSize: '16px',
-    fontWeight: '700',
-    cursor: 'pointer',
-  },
-
-  // Join Screen
   joinScreen: {
     position: 'fixed',
     inset: 0,
@@ -477,55 +808,45 @@ const styles = {
     padding: '20px',
   },
 
-  joinContent: {
+  joinCard: {
     background: 'rgba(30, 41, 59, 0.9)',
     backdropFilter: 'blur(16px)',
     borderRadius: '24px',
     padding: '40px',
-    maxWidth: '480px',
+    maxWidth: '400px',
     width: '100%',
-    border: '1px solid #334155',
-  },
-
-  joinHeader: {
     textAlign: 'center',
-    marginBottom: '24px',
   },
 
-  squadIcon: {
+  joinIcon: {
     fontSize: '64px',
     marginBottom: '16px',
   },
 
-  squadName: {
+  joinTitle: {
     color: '#fff',
     fontSize: '28px',
     fontWeight: '800',
-    margin: '0 0 8px 0',
+    margin: '0 0 8px',
   },
 
-  squadLocation: {
+  joinLocation: {
     color: '#94a3b8',
-    fontSize: '16px',
-    margin: 0,
+    margin: '0 0 24px',
   },
 
   joinStats: {
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'center',
-    gap: '24px',
-    padding: '20px',
-    background: '#1e293b',
-    borderRadius: '16px',
-    marginBottom: '24px',
+    gap: '32px',
+    marginBottom: '32px',
   },
 
   joinStat: {
     textAlign: 'center',
   },
 
-  joinStatValue: {
+  joinStatNum: {
     display: 'block',
     color: '#fff',
     fontSize: '28px',
@@ -533,26 +854,9 @@ const styles = {
   },
 
   joinStatLabel: {
-    display: 'block',
     color: '#64748b',
     fontSize: '12px',
     textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-    marginTop: '4px',
-  },
-
-  joinStatDivider: {
-    width: '1px',
-    height: '40px',
-    background: '#334155',
-  },
-
-  joinDescription: {
-    color: '#94a3b8',
-    fontSize: '16px',
-    lineHeight: '1.6',
-    textAlign: 'center',
-    marginBottom: '32px',
   },
 
   joinButton: {
@@ -566,29 +870,11 @@ const styles = {
     fontWeight: '800',
     cursor: 'pointer',
     marginBottom: '16px',
-    boxShadow: '0 4px 20px rgba(34, 197, 94, 0.3)',
   },
 
-  browseButton: {
-    width: '100%',
-    padding: '14px',
-    background: 'transparent',
-    border: '2px solid #475569',
-    borderRadius: '12px',
+  browseLink: {
     color: '#94a3b8',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-  },
-
-  joinError: {
-    marginTop: '16px',
-    padding: '12px',
-    background: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid rgba(239, 68, 68, 0.3)',
-    borderRadius: '8px',
-    color: '#ef4444',
+    textDecoration: 'none',
     fontSize: '14px',
-    textAlign: 'center',
   },
 };
