@@ -1858,39 +1858,6 @@ model GPSBreadcrumb {
   @@index([createdAt])
 }
 
-model SearchGrid {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  caseId      String
-
-  // Grid definition
-  gridId      String   // e.g., "A1", "B3"
-  bounds      String   // JSON: {north, south, east, west}
-  centerLat   Float
-  centerLng   Float
-
-  // Status
-  status      String   @default("PENDING") // PENDING, ASSIGNED, IN_PROGRESS, COMPLETED, SKIPPED
-  priority    String   @default("MEDIUM")  // LOW, MEDIUM, HIGH
-
-  // Assignment
-  assignedToId String?
-  assignedAt   DateTime?
-  startedAt    DateTime?
-  completedAt  DateTime?
-
-  // Results
-  searchNotes  String?
-  sightingFound Boolean @default(false)
-
-  @@unique([caseId, gridId])
-  @@index([caseId])
-  @@index([status])
-  @@index([assignedToId])
-}
-
 // ============================================================================
 // PHASE 14: VOLUNTEER MANAGEMENT
 // ============================================================================
