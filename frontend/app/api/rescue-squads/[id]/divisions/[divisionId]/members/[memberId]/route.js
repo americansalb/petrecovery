@@ -18,7 +18,8 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    const { squadId, divisionId, memberId } = params;
+    const squadId = params.id;
+    const { divisionId, memberId } = params;
 
     // Verify user has permission (founder or leader)
     const userMembership = await prisma.squadMembership.findFirst({

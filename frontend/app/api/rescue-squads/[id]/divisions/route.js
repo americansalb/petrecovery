@@ -11,7 +11,7 @@ import prisma from '@/app/lib/prisma';
 
 export async function GET(request, { params }) {
   try {
-    const { squadId } = params;
+    const squadId = params.id;
 
     const divisions = await prisma.division.findMany({
       where: {
@@ -82,7 +82,7 @@ export async function POST(request, { params }) {
       );
     }
 
-    const { squadId } = params;
+    const squadId = params.id;
     const { name, description, coverageArea } = await request.json();
 
     if (!name?.trim()) {

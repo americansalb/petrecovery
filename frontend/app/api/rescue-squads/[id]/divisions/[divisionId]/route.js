@@ -12,7 +12,8 @@ import prisma from '@/app/lib/prisma';
 
 export async function GET(request, { params }) {
   try {
-    const { squadId, divisionId } = params;
+    const squadId = params.id;
+    const { divisionId } = params;
 
     const division = await prisma.division.findFirst({
       where: {
@@ -98,7 +99,8 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    const { squadId, divisionId } = params;
+    const squadId = params.id;
+    const { divisionId } = params;
     const { name, description, coverageArea } = await request.json();
 
     // Check if user is a squad founder/leader
@@ -201,7 +203,8 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    const { squadId, divisionId } = params;
+    const squadId = params.id;
+    const { divisionId } = params;
 
     // Check if user is a squad founder/leader
     const membership = await prisma.squadMembership.findFirst({

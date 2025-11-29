@@ -1,6 +1,6 @@
 /**
- * Division Missions API
- * Get active missions in a division's coverage area
+ * Live Missions API for Rescue Squads
+ * Returns active Mission Control operations for squad's cases
  */
 
 import { NextResponse } from 'next/server';
@@ -8,29 +8,7 @@ import prisma from '@/app/lib/prisma';
 
 export async function GET(request, { params }) {
   try {
-    const { squadId, divisionId } = params;
-
-    // Get the division
-    const division = await prisma.division.findFirst({
-      where: {
-        id: divisionId,
-        rescueSquadId: squadId,
-        isActive: true,
-      },
-      include: {
-        members: {
-          where: { isActive: true },
-          select: { userId: true }
-        }
-      }
-    });
-
-    if (!division) {
-      return NextResponse.json(
-        { error: 'Division not found' },
-        { status: 404 }
-      );
-    }
+    const squadId = params.id;
 
     // Get active case assignments for this squad
     const assignments = await prisma.caseAssignment.findMany({
@@ -47,8 +25,7 @@ export async function GET(request, { params }) {
 
     const caseIds = assignments.map(a => a.caseId);
 
-    // Get missions - in a real implementation, you'd filter by
-    // the division's coverage area using geo-matching
+    // Get active missions for these cases
     const missions = await prisma.missionControl.findMany({
       where: {
         caseId: { in: caseIds },
@@ -71,11 +48,21 @@ export async function GET(request, { params }) {
           where: { status: 'ACTIVE' },
           select: { id: true }
         },
+        zones: {
+          select: {
+            id: true,
+            status: true
+          }
+        },
         sightings: {
           where: { verified: true },
           select: { id: true }
         }
-      }
+      },
+      orderBy: [
+        { mode: 'asc' }, // CONTAINMENT first (most urgent)
+        { activatedAt: 'desc' }
+      ]
     });
 
     // Format response
@@ -84,7 +71,7 @@ export async function GET(request, { params }) {
       caseId: mission.caseId,
       caseNumber: mission.case?.caseNumber,
       mode: mission.mode,
-      startedAt: mission.startedAt,
+      startedAt: mission.activatedAt,
       pet: {
         name: mission.case?.petName,
         photoUrl: mission.case?.petPhotoUrl,
@@ -96,14 +83,16 @@ export async function GET(request, { params }) {
         lng: mission.case?.lastSeenLongitude,
       },
       activeVolunteers: mission.volunteers?.length || 0,
+      totalZones: mission.zones?.length || 0,
+      zonesSearched: mission.zones?.filter(z => z.status === 'SEARCHED').length || 0,
       sightings: mission.sightings?.length || 0,
     }));
 
     return NextResponse.json({ missions: formattedMissions });
   } catch (error) {
-    console.error('Error fetching division missions:', error);
+    console.error('Error fetching live missions:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch missions' },
+      { error: 'Failed to fetch live missions' },
       { status: 500 }
     );
   }

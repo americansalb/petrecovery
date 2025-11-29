@@ -18,7 +18,7 @@ export async function POST(request, { params }) {
       );
     }
 
-    const { squadId } = params;
+    const squadId = params.id;
     const { message, type = 'INFO', missionIds } = await request.json();
 
     // Verify user is a squad leader/founder/coordinator

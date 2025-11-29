@@ -11,7 +11,8 @@ import prisma from '@/app/lib/prisma';
 
 export async function GET(request, { params }) {
   try {
-    const { squadId, divisionId } = params;
+    const squadId = params.id;
+    const { divisionId } = params;
 
     const division = await prisma.division.findFirst({
       where: {
@@ -74,7 +75,8 @@ export async function POST(request, { params }) {
       );
     }
 
-    const { squadId, divisionId } = params;
+    const squadId = params.id;
+    const { divisionId } = params;
     const { memberId } = await request.json();
 
     // Verify user has permission (founder, leader, or coordinator)
