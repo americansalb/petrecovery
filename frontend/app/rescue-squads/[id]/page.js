@@ -312,6 +312,28 @@ export default function RescueSquadDetailPage({ params }) {
     }
   };
 
+  const loadNearbyCases = async () => {
+    setNearbyCasesLoading(true);
+    try {
+      const res = await fetch(`/api/rescue-squads/${params.id}/nearby-cases`);
+      if (res.ok) {
+        const data = await res.json();
+        setNearbyCases(data.cases || []);
+        // Check if squad has leaders based on the data or squad members
+        if (squad?.members) {
+          const leaders = squad.members.filter(m =>
+            ['FOUNDER', 'LEADER'].includes(m.role) && m.isActive
+          );
+          setHasLeaders(leaders.length > 0);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading nearby cases:', err);
+    } finally {
+      setNearbyCasesLoading(false);
+    }
+  };
+
   const handleOptIn = async (assignmentId) => {
     setOptingCase(assignmentId);
     setError('');
@@ -1019,6 +1041,24 @@ export default function RescueSquadDetailPage({ params }) {
                 gap: '0.75rem',
                 flexWrap: 'wrap',
               }}>
+                <Link
+                  href={`/rescue-squads/${params.id}/mission-control`}
+                  style={{
+                    padding: '0.75rem 1.25rem',
+                    background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                    color: 'white',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontWeight: '700',
+                    fontSize: '0.9rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
+                  }}
+                >
+                  🎯 Mission Control
+                </Link>
                 <Link
                   href="/cases"
                   style={{
