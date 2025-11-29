@@ -11,4 +11,6 @@ export { default as CaseCard } from './CaseCard';
 export { default as MapPanel } from './MapPanel';
 export { default as ActivityPanel } from './ActivityPanel';
 export { default as SquadTabsMobile } from './SquadTabsMobile';
+export { default as CommunityView } from './CommunityView';
+export { default as CommunityTabsMobile } from './CommunityTabsMobile';
 export { SquadHubProvider, useSquadHub } from './context/SquadHubContext';

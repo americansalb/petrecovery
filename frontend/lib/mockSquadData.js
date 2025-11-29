@@ -345,6 +345,133 @@ export const mockChicagoSquadData = {
       divisionId: null,
     },
   ],
+
+  requests: [
+    {
+      id: 'req_001',
+      title: 'Need help putting up flyers in Lincoln Park',
+      body: 'I have 200 flyers printed for Luna (CHI-LP-0001) but need help posting them around the zoo and nearby residential areas. Can meet at the Conservatory entrance.',
+      divisionId: 'div_lincoln_park',
+      authorId: 'user_004',
+      authorName: 'Maria G.',
+      createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+      helpersCount: 3,
+      isUserHelper: false,
+      status: 'OPEN',
+    },
+    {
+      id: 'req_002',
+      title: 'Looking for someone with a drone for aerial search',
+      body: 'Max (CHI-LKV-0001) was spotted near Montrose Harbor yesterday. Would love drone footage to cover the lakefront area more efficiently.',
+      divisionId: 'div_lakeview',
+      authorId: 'user_001',
+      authorName: 'Sarah K.',
+      createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+      helpersCount: 1,
+      isUserHelper: false,
+      status: 'IN_PROGRESS',
+    },
+    {
+      id: 'req_003',
+      title: 'Can someone check under the Irving Park overpass?',
+      body: 'Got a tip that a golden retriever matching Max description was seen there. I am working and cannot check until later tonight.',
+      divisionId: null,
+      authorId: 'user_005',
+      authorName: 'Tom R.',
+      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      helpersCount: 0,
+      isUserHelper: false,
+      status: 'OPEN',
+    },
+  ],
+
+  members: {
+    onDuty: [
+      {
+        id: 'user_002',
+        name: 'David L.',
+        role: 'SQUAD_LEAD',
+        divisionId: 'div_lakeview',
+        divisionName: 'Lakeview',
+        isOnDuty: true,
+        lastActiveAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'user_001',
+        name: 'Sarah K.',
+        role: 'MEMBER',
+        divisionId: 'div_lakeview',
+        divisionName: 'Lakeview',
+        isOnDuty: true,
+        lastActiveAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'user_003',
+        name: 'Jennifer M.',
+        role: 'MEMBER',
+        divisionId: 'div_lakeview',
+        divisionName: 'Lakeview',
+        isOnDuty: true,
+        lastActiveAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'user_006',
+        name: 'Alex P.',
+        role: 'DIVISION_LEAD',
+        divisionId: 'div_lincoln_park',
+        divisionName: 'Lincoln Park',
+        isOnDuty: true,
+        lastActiveAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'user_007',
+        name: 'Chris W.',
+        role: 'MEMBER',
+        divisionId: 'div_lincoln_park',
+        divisionName: 'Lincoln Park',
+        isOnDuty: true,
+        lastActiveAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
+      },
+    ],
+    recentlyActive: [
+      {
+        id: 'user_004',
+        name: 'Maria G.',
+        role: 'MEMBER',
+        divisionId: 'div_lincoln_park',
+        divisionName: 'Lincoln Park',
+        isOnDuty: false,
+        lastActiveAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'user_005',
+        name: 'Tom R.',
+        role: 'MEMBER',
+        divisionId: 'div_logan_square',
+        divisionName: 'Logan Square',
+        isOnDuty: false,
+        lastActiveAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'user_008',
+        name: 'Rachel S.',
+        role: 'MEMBER',
+        divisionId: 'div_wicker_park',
+        divisionName: 'Wicker Park',
+        isOnDuty: false,
+        lastActiveAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'user_009',
+        name: 'Mike T.',
+        role: 'MEMBER',
+        divisionId: 'div_south_loop',
+        divisionName: 'South Loop',
+        isOnDuty: false,
+        lastActiveAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+      },
+    ],
+  },
 };
 
 // Small city mock (no divisions needed)
@@ -424,6 +551,33 @@ export const mockCarpenstersvilleSquadData = {
   },
 
   announcements: [],
+
+  requests: [],
+
+  members: {
+    onDuty: [
+      {
+        id: 'user_cv_001',
+        name: 'John D.',
+        role: 'SQUAD_LEAD',
+        divisionId: 'div_entire_city',
+        divisionName: 'Entire City',
+        isOnDuty: true,
+        lastActiveAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+      },
+    ],
+    recentlyActive: [
+      {
+        id: 'user_cv_002',
+        name: 'Lisa M.',
+        role: 'MEMBER',
+        divisionId: 'div_entire_city',
+        divisionName: 'Entire City',
+        isOnDuty: false,
+        lastActiveAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+      },
+    ],
+  },
 };
 
 // Export a function to get mock data by city slug

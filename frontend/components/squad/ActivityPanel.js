@@ -7,6 +7,9 @@
  * - Chat: Free-form messages (division or squad-wide)
  * - Activity: System events feed
  * - Announcements: Pinned messages from leads
+ *
+ * Props:
+ * - compact: When true, shows compact view with "Open Community view" links
  */
 
 import { useState } from 'react';
@@ -21,6 +24,7 @@ import {
   Plus,
   AlertCircle,
   Pin,
+  ArrowRight,
 } from 'lucide-react';
 
 const tabs = [
@@ -29,8 +33,8 @@ const tabs = [
   { id: 'ANNOUNCEMENTS', label: 'Announcements', icon: Megaphone },
 ];
 
-export default function ActivityPanel() {
-  const { activityTab, setActivityTab, events, chatMessages, announcements, selectedDivisionId, divisions, chatScope, setChatScope } = useSquadHub();
+export default function ActivityPanel({ compact = false }) {
+  const { activityTab, setActivityTab, events, chatMessages, announcements, selectedDivisionId, divisions, chatScope, setChatScope, openCommunityView } = useSquadHub();
 
   return (
     <div className="h-full flex flex-col bg-[var(--hub-bg-panel)]">
@@ -70,16 +74,24 @@ export default function ActivityPanel() {
             divisions={divisions}
             chatScope={chatScope}
             setChatScope={setChatScope}
+            compact={compact}
+            onOpenCommunity={openCommunityView}
           />
         )}
-        {activityTab === 'ACTIVITY' && <ActivityTab events={events} />}
-        {activityTab === 'ANNOUNCEMENTS' && <AnnouncementsTab announcements={announcements} />}
+        {activityTab === 'ACTIVITY' && <ActivityTab events={events} compact={compact} />}
+        {activityTab === 'ANNOUNCEMENTS' && (
+          <AnnouncementsTab
+            announcements={announcements}
+            compact={compact}
+            onOpenCommunity={openCommunityView}
+          />
+        )}
       </div>
     </div>
   );
 }
 
-function ChatTab({ messages, selectedDivisionId, divisions, chatScope, setChatScope }) {
+function ChatTab({ messages, selectedDivisionId, divisions, chatScope, setChatScope, compact, onOpenCommunity }) {
   const [newMessage, setNewMessage] = useState('');
   const { sendChatMessage, membership } = useSquadHub();
 
@@ -99,6 +111,9 @@ function ChatTab({ messages, selectedDivisionId, divisions, chatScope, setChatSc
       handleSend();
     }
   };
+
+  // In compact mode, show limited messages
+  const displayMessages = compact ? messages.slice(-5) : messages;
 
   return (
     <div className="h-full flex flex-col">
@@ -130,7 +145,7 @@ function ChatTab({ messages, selectedDivisionId, divisions, chatScope, setChatSc
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {messages.length === 0 ? (
+        {displayMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <MessageCircle size={32} className="text-[var(--hub-text-muted)] mb-3" />
             <p className="text-xs text-[var(--hub-text-muted)]">
@@ -138,11 +153,22 @@ function ChatTab({ messages, selectedDivisionId, divisions, chatScope, setChatSc
             </p>
           </div>
         ) : (
-          messages.map(msg => (
-            <ChatMessage key={msg.id} message={msg} />
+          displayMessages.map(msg => (
+            <ChatMessage key={msg.id} message={msg} compact={compact} />
           ))
         )}
       </div>
+
+      {/* Open Community link - compact mode */}
+      {compact && onOpenCommunity && (
+        <button
+          onClick={onOpenCommunity}
+          className="mx-3 mb-2 flex items-center justify-center gap-1.5 py-2 text-xs text-[var(--hub-accent-primary)] hover:text-[var(--hub-accent-primary-bright)] transition-colors"
+        >
+          Open Community view
+          <ArrowRight size={12} />
+        </button>
+      )}
 
       {/* Input */}
       {membership.isMember && (
@@ -170,7 +196,7 @@ function ChatTab({ messages, selectedDivisionId, divisions, chatScope, setChatSc
   );
 }
 
-function ChatMessage({ message }) {
+function ChatMessage({ message, compact }) {
   const roleColors = {
     MEMBER: 'var(--hub-text-secondary)',
     LEAD: 'var(--hub-accent-primary)',
@@ -180,13 +206,15 @@ function ChatMessage({ message }) {
   return (
     <div className="hub-activity-item">
       <div className="flex items-start gap-2">
-        <div className="w-8 h-8 rounded-full bg-[var(--hub-bg-elevated)] flex items-center justify-center flex-shrink-0">
-          <User size={14} className="text-[var(--hub-text-muted)]" />
-        </div>
+        {!compact && (
+          <div className="w-8 h-8 rounded-full bg-[var(--hub-bg-elevated)] flex items-center justify-center flex-shrink-0">
+            <User size={14} className="text-[var(--hub-text-muted)]" />
+          </div>
+        )}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-0.5">
             <span
-              className="text-xs font-semibold"
+              className={`font-semibold ${compact ? 'text-[10px]' : 'text-xs'}`}
               style={{ color: roleColors[message.authorRole] || roleColors.MEMBER }}
             >
               {message.authorName}
@@ -195,7 +223,7 @@ function ChatMessage({ message }) {
               {formatTime(message.createdAt)}
             </span>
           </div>
-          <p className="text-sm text-[var(--hub-text-secondary)] break-words">
+          <p className={`text-[var(--hub-text-secondary)] break-words ${compact ? 'text-xs line-clamp-2' : 'text-sm'}`}>
             {message.content}
           </p>
         </div>
@@ -204,10 +232,13 @@ function ChatMessage({ message }) {
   );
 }
 
-function ActivityTab({ events }) {
+function ActivityTab({ events, compact }) {
+  // In compact mode, show limited events
+  const displayEvents = compact ? events.slice(0, 5) : events;
+
   return (
     <div className="h-full overflow-y-auto p-3 space-y-2">
-      {events.length === 0 ? (
+      {displayEvents.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full text-center px-4">
           <Activity size={32} className="text-[var(--hub-text-muted)] mb-3" />
           <p className="text-xs text-[var(--hub-text-muted)]">
@@ -215,27 +246,27 @@ function ActivityTab({ events }) {
           </p>
         </div>
       ) : (
-        events.map(event => (
-          <ActivityEvent key={event.id} event={event} />
+        displayEvents.map(event => (
+          <ActivityEvent key={event.id} event={event} compact={compact} />
         ))
       )}
     </div>
   );
 }
 
-function ActivityEvent({ event }) {
+function ActivityEvent({ event, compact }) {
   const config = getEventConfig(event);
 
   return (
-    <div className="hub-activity-item flex items-start gap-3 p-2 rounded-lg bg-[var(--hub-bg-card)]/50">
+    <div className={`hub-activity-item flex items-start gap-2 ${compact ? 'p-1.5' : 'p-2'} rounded-lg bg-[var(--hub-bg-card)]/50`}>
       <div
-        className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+        className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} rounded-full flex items-center justify-center flex-shrink-0`}
         style={{ backgroundColor: `${config.color}20` }}
       >
-        <config.icon size={14} style={{ color: config.color }} />
+        <config.icon size={compact ? 12 : 14} style={{ color: config.color }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-[var(--hub-text-secondary)]">
+        <p className={`text-[var(--hub-text-secondary)] ${compact ? 'text-[10px] line-clamp-1' : 'text-xs'}`}>
           {config.message}
         </p>
         <span className="text-[10px] text-[var(--hub-text-muted)]">
@@ -246,37 +277,53 @@ function ActivityEvent({ event }) {
   );
 }
 
-function AnnouncementsTab({ announcements }) {
+function AnnouncementsTab({ announcements, compact, onOpenCommunity }) {
+  // In compact mode, show limited announcements
+  const displayAnnouncements = compact ? announcements.slice(0, 2) : announcements;
+
   return (
-    <div className="h-full overflow-y-auto p-3 space-y-3">
-      {announcements.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full text-center px-4">
-          <Megaphone size={32} className="text-[var(--hub-text-muted)] mb-3" />
-          <p className="text-xs text-[var(--hub-text-muted)]">
-            No announcements yet. Squad leads can post important updates here.
-          </p>
-        </div>
-      ) : (
-        announcements.map(ann => (
-          <Announcement key={ann.id} announcement={ann} />
-        ))
+    <div className="h-full flex flex-col">
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        {displayAnnouncements.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center px-4">
+            <Megaphone size={32} className="text-[var(--hub-text-muted)] mb-3" />
+            <p className="text-xs text-[var(--hub-text-muted)]">
+              No announcements yet. Squad leads can post important updates here.
+            </p>
+          </div>
+        ) : (
+          displayAnnouncements.map(ann => (
+            <Announcement key={ann.id} announcement={ann} compact={compact} />
+          ))
+        )}
+      </div>
+
+      {/* Open Community link - compact mode */}
+      {compact && onOpenCommunity && (
+        <button
+          onClick={onOpenCommunity}
+          className="mx-3 mb-3 flex items-center justify-center gap-1.5 py-2 text-xs text-[var(--hub-accent-primary)] hover:text-[var(--hub-accent-primary-bright)] transition-colors"
+        >
+          Open Community view
+          <ArrowRight size={12} />
+        </button>
       )}
     </div>
   );
 }
 
-function Announcement({ announcement }) {
+function Announcement({ announcement, compact }) {
   return (
-    <div className="hub-activity-item p-3 rounded-lg bg-[var(--hub-bg-card)] border border-[var(--hub-border)]">
-      <div className="flex items-center gap-2 mb-2">
+    <div className={`hub-activity-item ${compact ? 'p-2' : 'p-3'} rounded-lg bg-[var(--hub-bg-card)] border border-[var(--hub-border)]`}>
+      <div className="flex items-center gap-2 mb-1">
         {announcement.isPinned && (
-          <Pin size={12} className="text-[var(--hub-accent-primary)]" />
+          <Pin size={compact ? 10 : 12} className="text-[var(--hub-accent-primary)]" />
         )}
-        <span className="text-xs font-semibold text-[var(--hub-text-primary)]">
+        <span className={`font-semibold text-[var(--hub-text-primary)] ${compact ? 'text-[10px]' : 'text-xs'}`}>
           {announcement.title}
         </span>
       </div>
-      <p className="text-sm text-[var(--hub-text-secondary)] mb-2">
+      <p className={`text-[var(--hub-text-secondary)] ${compact ? 'text-xs line-clamp-2 mb-1' : 'text-sm mb-2'}`}>
         {announcement.content}
       </p>
       <div className="flex items-center justify-between">

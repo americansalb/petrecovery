@@ -90,6 +90,33 @@ export type HubAnnouncement = {
   divisionId?: string;      // null = squad-wide
 };
 
+// Help request (not tied to a specific case)
+export type HubRequest = {
+  id: string;
+  title: string;
+  body: string;
+  divisionId: string | null; // null = squad-wide
+  authorId: string;
+  authorName: string;
+  authorAvatarUrl?: string;
+  createdAt: string;
+  helpersCount: number;
+  isUserHelper: boolean;
+  status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED';
+};
+
+// Squad member for presence displays
+export type HubMember = {
+  id: string;
+  name: string;
+  avatarUrl?: string;
+  role: 'MEMBER' | 'DIVISION_LEAD' | 'SQUAD_LEAD' | 'ADMIN';
+  divisionId?: string;
+  divisionName?: string;
+  isOnDuty: boolean;
+  lastActiveAt?: string;
+};
+
 export type SquadMembership = {
   isMember: boolean;
   isOnDuty: boolean;
@@ -121,12 +148,20 @@ export type SquadHubData = {
     messages: HubChatMessage[];
   };
   announcements?: HubAnnouncement[];
+  requests?: HubRequest[];
+  members?: {
+    onDuty: HubMember[];
+    recentlyActive: HubMember[];
+  };
 };
 
 // Context state types
+export type MainTab = 'OPERATIONS' | 'COMMUNITY';
 export type CaseQueueTab = 'INCOMING' | 'ACTIVE' | 'REUNITED';
 export type ActivityTab = 'CHAT' | 'ACTIVITY' | 'ANNOUNCEMENTS';
+export type CommunityTab = 'CHAT' | 'REQUESTS' | 'ANNOUNCEMENTS';
 export type MobileTab = 'CASES' | 'MAP' | 'SQUAD';
+export type MobileCommunityTab = 'CHAT' | 'REQUESTS' | 'ANNOUNCEMENTS';
 export type DivisionFilter = 'ALL' | string;
 
 export type SquadHubState = {
@@ -138,12 +173,18 @@ export type SquadHubState = {
   events: HubEvent[];
   chatMessages: HubChatMessage[];
   announcements: HubAnnouncement[];
+  requests: HubRequest[];
+  onDutyMembers: HubMember[];
+  recentlyActiveMembers: HubMember[];
 
   // Filters & UI state
+  mainTab: MainTab;
   selectedDivisionId: DivisionFilter;
   caseTab: CaseQueueTab;
   activityTab: ActivityTab;
+  communityTab: CommunityTab;
   mobileTab: MobileTab;
+  mobileCommunityTab: MobileCommunityTab;
 
   // Map state
   mapCenter: [number, number] | null;
@@ -152,18 +193,25 @@ export type SquadHubState = {
 
   // Derived
   filteredCases: HubCase[];
+  filteredRequests: HubRequest[];
 };
 
 export type SquadHubActions = {
+  setMainTab: (tab: MainTab) => void;
   setSelectedDivisionId: (id: DivisionFilter) => void;
   setCaseTab: (tab: CaseQueueTab) => void;
   setActivityTab: (tab: ActivityTab) => void;
+  setCommunityTab: (tab: CommunityTab) => void;
   setMobileTab: (tab: MobileTab) => void;
+  setMobileCommunityTab: (tab: MobileCommunityTab) => void;
   selectCase: (caseId: string | null) => void;
   toggleOnDuty: () => Promise<void>;
   helpOnCase: (caseId: string) => Promise<void>;
+  helpOnRequest: (requestId: string) => Promise<void>;
+  postRequest: (title: string, body: string, divisionId?: string) => Promise<void>;
   joinSquad: () => Promise<void>;
   sendChatMessage: (content: string, divisionId?: string) => Promise<void>;
+  openCommunityView: () => void;
 };
 
 export type SquadHubContextValue = SquadHubState & SquadHubActions;
