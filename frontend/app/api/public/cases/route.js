@@ -27,7 +27,9 @@ const VALID_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID
 /**
  * GET /api/public/cases - List public lost pet cases
  * Query params: city, state, species, status, page (default 1), limit (default 20, max 100)
- * Only returns cases where isPublic=true
+ *
+ * IMPORTANT: Now queries the main `Case` model to match where /api/reports/create writes data.
+ * Shows all ACTIVE LOST cases (not resolved/closed ones).
  */
 export async function GET(request) {
   const startTime = Date.now();
@@ -49,19 +51,27 @@ export async function GET(request) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const offset = (page - 1) * limit;
 
-    // Build where clause - CRITICAL: Only show public cases
+    // Build where clause - Show active LOST cases
     const where = {
-      isPublic: true
+      reportType: 'LOST',
+      status: status || 'ACTIVE', // Default to ACTIVE cases
     };
 
-    if (city) where.city = { contains: city, mode: 'insensitive' };
-    if (state) where.state = { contains: state, mode: 'insensitive' };
-    if (status) where.status = status;
+    // Filter by city/state from address if provided
+    if (city) where.lastSeenAddress = { contains: city, mode: 'insensitive' };
+    if (state) {
+      // State might be in address - add OR condition
+      where.lastSeenAddress = {
+        ...(where.lastSeenAddress || {}),
+        contains: state,
+        mode: 'insensitive'
+      };
+    }
     if (species) where.petSpecies = species;
 
-    // Fetch public cases (NO sensitive fields exposed)
-    const [cases, totalCount] = await Promise.all([
-      prisma.lostPetCase.findMany({
+    // Fetch cases from main Case model (NO sensitive fields exposed)
+    const [casesRaw, totalCount] = await Promise.all([
+      prisma.case.findMany({
         where,
         select: {
           id: true,
@@ -73,32 +83,49 @@ export async function GET(request) {
           petSpecies: true,
           petBreed: true,
           petColor: true,
+          petSize: true,
+          petPhotoUrl: true,
           petDescription: true,
           // Location
-          city: true,
-          state: true,
-          zipCode: true,
-          lastSeenLandmark: true,
+          lastSeenAddress: true,
+          lastSeenLatitude: true,
+          lastSeenLongitude: true,
           lastSeenAt: true,
+          searchRadius: true,
           // Status
           status: true,
-          statusReason: true,
-          isUrgent: true,
-          // Public visibility flags
-          isPublic: true,
-          publicContactOk: true,
+          priority: true,
+          reportType: true,
           // IMPORTANT: Do NOT expose:
-          // - contactName, contactPhone, contactEmail (only on detail page if publicContactOk=true)
-          // - createdById (internal only)
-          // - squadId (internal only)
-          // - source (internal only)
+          // - reporterId (internal only)
+          // - ownerPhone, ownerEmail (privacy - only on detail page)
         },
         orderBy: { createdAt: 'desc' },
         skip: offset,
         take: limit
       }),
-      prisma.lostPetCase.count({ where })
+      prisma.case.count({ where })
     ]);
+
+    // Parse city/state from lastSeenAddress for each case
+    const cases = casesRaw.map(caseItem => {
+      let city = 'Unknown';
+      let state = 'XX';
+      if (caseItem.lastSeenAddress) {
+        const parts = caseItem.lastSeenAddress.split(',');
+        if (parts.length >= 2) {
+          city = parts[parts.length - 2]?.trim() || 'Unknown';
+          const stateZip = parts[parts.length - 1]?.trim() || '';
+          state = stateZip.substring(0, 2).toUpperCase() || 'XX';
+        }
+      }
+      return {
+        ...caseItem,
+        city,
+        state,
+        isUrgent: caseItem.priority === 'URGENT',
+      };
+    });
 
     const responseTime = Date.now() - startTime;
 
@@ -107,7 +134,7 @@ export async function GET(request) {
       resource_type: 'public_case',
       action: 'read',
       result: 'success',
-      actor_role: 'public',
+      actor_role: null,
       metadata: {
         filters: { city, state, species, status },
         results_count: cases.length,
@@ -140,7 +167,7 @@ export async function GET(request) {
       result: 'failure',
       error_code: 'INTERNAL_ERROR',
       error_message: error.message,
-      actor_role: 'public',
+      actor_role: null,
       metadata: {
         error_stack: error.stack?.substring(0, 500)
       }
@@ -170,7 +197,7 @@ export async function POST(request) {
       action: 'create',
       result: 'failure',
       error_code: 'RATE_LIMITED',
-      actor_role: 'public'
+      actor_role: null
     });
     return rateLimitResponse(rateLimitResult);
   }
@@ -211,7 +238,7 @@ export async function POST(request) {
         result: 'failure',
         error_code: 'VALIDATION_ERROR',
         error_message: `Missing required fields: ${missingFields.join(', ')}`,
-        actor_role: 'public',
+        actor_role: null,
         metadata: { missingFields }
       });
 
@@ -233,7 +260,7 @@ export async function POST(request) {
         result: 'failure',
         error_code: 'VALIDATION_ERROR',
         error_message: `Invalid pet species: ${petSpecies}`,
-        actor_role: 'public',
+        actor_role: null,
         metadata: { petSpecies, validSpecies }
       });
 
@@ -253,7 +280,7 @@ export async function POST(request) {
         result: 'failure',
         error_code: 'TERMS_NOT_ACCEPTED',
         error_message: 'Public report submitted without agreeing to terms',
-        actor_role: 'public',
+        actor_role: null,
         metadata: {}
       });
 
@@ -270,7 +297,7 @@ export async function POST(request) {
       resource_type: 'public_case',
       action: 'create',
       result: 'success',
-      actor_role: 'public',
+      actor_role: null,
       metadata: {
         city,
         state,
@@ -345,7 +372,7 @@ export async function POST(request) {
       resource_id: newCase.id,
       action: 'create',
       result: 'success',
-      actor_role: 'public',
+      actor_role: null,
       metadata: {
         caseId: newCase.id,
         caseNumber: newCase.caseNumber,
@@ -436,7 +463,7 @@ export async function POST(request) {
       result: 'failure',
       error_code: 'DB_WRITE_FAILED',
       error_message: error.message,
-      actor_role: 'public',
+      actor_role: null,
       metadata: {
         error_stack: error.stack?.substring(0, 500)
       }

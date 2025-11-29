@@ -113,8 +113,8 @@ export async function GET(request) {
       select: {
         caseId: true,
         mode: true,
-        startedAt: true,
-        volunteers: {
+        activatedAt: true,
+        activeVolunteers: {
           where: { status: 'ACTIVE' },
           select: { id: true }
         }
@@ -124,8 +124,8 @@ export async function GET(request) {
       missionStatuses.map(m => [m.caseId, {
         isLive: ['LIVE_SEARCH', 'CONTAINMENT', 'TRAP_OPS'].includes(m.mode),
         mode: m.mode,
-        activeVolunteers: m.volunteers?.length || 0,
-        startedAt: m.startedAt
+        activeVolunteers: m.activeVolunteers?.length || 0,
+        activatedAt: m.activatedAt
       }])
     );
 

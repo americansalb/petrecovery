@@ -12,6 +12,7 @@
 
 import prisma from '@/app/lib/prisma';
 import { OPERATION_MODES, VOLUNTEER_STATUS, SIGHTING_PRIORITY } from './index';
+import { sendPushToMany, PUSH_TEMPLATES } from '@/app/lib/push';
 
 /**
  * Report a sighting - initiates containment protocol
@@ -473,15 +474,89 @@ function calculateDistance(from, to) {
   return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Notification stubs
+// Push notification functions for critical sighting alerts
 async function broadcastContainmentAlert(missionId, sighting, positions) {
-  // TODO: Push notification with SILENT mode instruction
-  console.log(`CONTAINMENT ALERT for mission ${missionId}`);
+  try {
+    // Get all active volunteers for this mission
+    const volunteers = await prisma.missionVolunteer.findMany({
+      where: { missionId, status: 'ACTIVE' },
+      select: { userId: true }
+    });
+
+    const userIds = volunteers.map(v => v.userId).filter(Boolean);
+    if (userIds.length === 0) return;
+
+    const subscriptions = await prisma.pushSubscription.findMany({
+      where: { userId: { in: userIds }, isActive: true },
+      select: { id: true, subscription: true }
+    });
+
+    if (subscriptions.length === 0) return;
+
+    const formattedSubs = subscriptions.map(sub => ({
+      id: sub.id,
+      subscription: JSON.parse(sub.subscription),
+    }));
+
+    // Critical containment alert - requires interaction
+    const payload = {
+      title: '🔴 CONTAINMENT ALERT - FREEZE!',
+      body: 'Pet spotted! Stay silent, move slowly. Do NOT chase. Tap for perimeter positions.',
+      icon: '/icons/alert-icon.png',
+      badge: '/icons/badge-72x72.png',
+      tag: `containment-${missionId}`,
+      type: 'CONTAINMENT_ALERT',
+      requireInteraction: true,
+      vibrate: [200, 100, 200, 100, 200],
+      data: {
+        missionId,
+        sightingId: sighting?.id,
+        type: 'CONTAINMENT_ALERT',
+        silent: true // Tell app to enable silent mode
+      },
+    };
+
+    const result = await sendPushToMany(formattedSubs, payload);
+    console.log(`✅ CONTAINMENT ALERT sent: ${result.sent} notified`);
+  } catch (error) {
+    console.error('Error broadcasting containment alert:', error);
+  }
 }
 
 async function broadcastStandDown(missionId, reason) {
-  // TODO: Push notification
-  console.log(`STAND DOWN for mission ${missionId}: ${reason}`);
+  try {
+    const volunteers = await prisma.missionVolunteer.findMany({
+      where: { missionId, status: 'ACTIVE' },
+      select: { userId: true }
+    });
+
+    const userIds = volunteers.map(v => v.userId).filter(Boolean);
+    if (userIds.length === 0) return;
+
+    const subscriptions = await prisma.pushSubscription.findMany({
+      where: { userId: { in: userIds }, isActive: true },
+      select: { id: true, subscription: true }
+    });
+
+    if (subscriptions.length === 0) return;
+
+    const formattedSubs = subscriptions.map(sub => ({
+      id: sub.id,
+      subscription: JSON.parse(sub.subscription),
+    }));
+
+    const payload = PUSH_TEMPLATES.GENERIC(
+      '⚪ Stand Down',
+      reason || 'Containment cancelled. Resume normal search pattern.',
+      '/'
+    );
+    payload.tag = `standdown-${missionId}`;
+
+    const result = await sendPushToMany(formattedSubs, payload);
+    console.log(`✅ Stand down broadcast: ${result.sent} notified`);
+  } catch (error) {
+    console.error('Error broadcasting stand down:', error);
+  }
 }
 
 export default {
