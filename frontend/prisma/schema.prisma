@@ -105,6 +105,9 @@ model User {
   searchedGridCells GridCell[]
   squadJoinRequests SquadJoinRequest[]
 
+  // Mission Control
+  missionVolunteers MissionVolunteer[]
+
   // Engagement stats
   currentStreak     Int      @default(0)
   longestStreak     Int      @default(0)
@@ -444,6 +447,9 @@ model Case {
   ownerThankYous    OwnerThankYou[]
   priorityModes     CasePriorityMode[]
   priorityLevel     String?  // CRITICAL, HIGH, ELEVATED, NORMAL, LOW
+
+  // Mission Control
+  missionControl    MissionControl?
 
   @@index([status])
   @@index([caseNumber])
@@ -2940,4 +2946,375 @@ model SquadJoinRequest {
   @@unique([userId, rescueSquadId])
   @@index([rescueSquadId])
   @@index([status])
+}
+
+// ============================================================================
+// MISSION CONTROL - Real-time Tactical Coordination
+// ============================================================================
+
+model MissionControl {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Link to case
+  caseId          String   @unique
+  case            Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  // Operation mode
+  mode            String   @default("INACTIVE") // INACTIVE, LIVE_SEARCH, CONTAINMENT, TRAP_OPS, STANDBY, RESOLVED, CLOSED
+
+  // Activation
+  activatedAt     DateTime?
+  activatedById   String?
+  activatorRole   String?  // OWNER, LEADER, ADMIN
+
+  // Initial search config
+  initialRadius   Float?   // Miles
+
+  // Pause state
+  pausedAt        DateTime?
+  pausedById      String?
+  pauseReason     String?
+
+  // Cold case
+  coldCaseAt      DateTime?
+  resumedAt       DateTime?
+  resumeReason    String?
+  resumeConditions String?
+
+  // Resolution
+  resolvedAt      DateTime?
+  resolutionType  String?  // FOUND_ALIVE, FOUND_DECEASED, CLOSED_OTHER
+  foundLocation   String?  // JSON
+  foundById       String?
+  reunionPhotoUrl String?
+  resolutionNotes String?
+
+  // Containment mode
+  containmentCenter     String?  // JSON: {lat, lng}
+  containmentRadius     Float?
+  containmentStartedAt  DateTime?
+  perimeterPositions    String?  // JSON array
+  activeSightingId      String?
+
+  // Trap ops
+  trapOpsStartedAt DateTime?
+
+  // Owner state
+  ownerStatus     String?  // AT_HOME, SEARCHING, AT_SHELTER, etc.
+  ownerLocation   String?  // JSON
+  ownerBroadcast  String?
+  ownerLastUpdate DateTime?
+
+  // Call mode
+  ownerVoiceClipUrl     String?
+  callModeActive        Boolean  @default(false)
+  callModeLastTriggered DateTime?
+
+  // Stats
+  totalVolunteersJoined Int      @default(0)
+  peakVolunteers        Int      @default(0)
+  sightingsCount        Int      @default(0)
+  lastSightingAt        DateTime?
+  lastModeChange        DateTime?
+  lastUpdatedBy         String?
+
+  // Relations
+  activeVolunteers MissionVolunteer[]
+  zones            MissionZone[]
+  sightings        MissionSighting[]
+  resources        MissionResource[]
+  traps            MissionTrap[]
+  logs             MissionLog[]
+  broadcasts       MissionBroadcast[]
+  thankYous        MissionThankYou[]
+
+  @@index([mode])
+  @@index([activatedAt])
+}
+
+model MissionVolunteer {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  missionId       String
+  mission         MissionControl @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  // Identity (supports anonymous)
+  odId            String   // Device/session ID
+  displayName     String
+  isAnonymous     Boolean  @default(true)
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+
+  // Status
+  status          String   @default("ACTIVE") // AVAILABLE, ACTIVE, ON_BREAK, RESPONDING, PERIMETER, OFFLINE
+  joinedAt        DateTime @default(now())
+
+  // Location
+  currentLocation     String?  // JSON
+  lastLocationUpdate  DateTime?
+
+  // Shift
+  shiftStartedAt  DateTime?
+  shiftEndedAt    DateTime?
+  estimatedEndTime DateTime?
+
+  // Zone assignment
+  assignedZoneId  String?
+
+  // Resources
+  resources       String?  // JSON array: ['CAR', 'TRAP', 'FLYERS']
+
+  // Perimeter mode
+  perimeterPosition String?  // NORTH, SOUTH, etc.
+  perimeterTarget   String?  // JSON: {lat, lng}
+  perimeterArrivedAt DateTime?
+
+  // Resources relation
+  missionResources  MissionResource[]
+
+  @@unique([missionId, odId])
+  @@index([missionId])
+  @@index([status])
+  @@index([userId])
+}
+
+model MissionZone {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  missionId       String
+  mission         MissionControl @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  // Grid reference
+  gridRef         String   // A1, B2, etc.
+
+  // Bounds
+  northLat        Float
+  southLat        Float
+  eastLng         Float
+  westLng         Float
+
+  // Status
+  status          String   @default("UNSEARCHED") // UNSEARCHED, IN_PROGRESS, SEARCHED, STALE, HIGH_PROBABILITY, SIGHTING
+  priority        String   @default("MEDIUM")     // LOW, MEDIUM, HIGH
+
+  // Probability
+  probability     Float    @default(0.5)
+
+  // Assignment
+  assignedToId    String?
+  assignedAt      DateTime?
+
+  // Search history
+  lastSearchedAt  DateTime?
+  lastSearchedById String?
+  searchCount     Int      @default(0)
+
+  // Terrain
+  terrainType     String?  // URBAN, WOODED, WATER, OPEN
+  hasHidingSpots  Boolean  @default(false)
+
+  @@unique([missionId, gridRef])
+  @@index([missionId])
+  @@index([status])
+  @@index([probability])
+}
+
+model MissionSighting {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  missionId       String
+  mission         MissionControl @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  // Reporter
+  reporterId      String   // odId or odId
+  reporterName    String?
+
+  // Location
+  latitude        Float
+  longitude       Float
+
+  // Details
+  confidence      String   // CONFIRMED, HIGH, MEDIUM, LOW
+  priority        String   // Maps from confidence
+  photoUrl        String?
+  notes           String?
+  petDirection    String?  // Direction pet was heading
+
+  // Verification
+  verified        Boolean  @default(false)
+  verifiedById    String?
+  verifiedAt      DateTime?
+  status          String   @default("PENDING") // PENDING, VERIFIED, DISMISSED
+
+  @@index([missionId])
+  @@index([createdAt])
+  @@index([verified])
+  @@index([priority])
+}
+
+model MissionResource {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  missionId       String
+  mission         MissionControl @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  // Resource type
+  type            String   // CAR, TRAP, FLYERS, TREATS, CARRIER, FLASHLIGHT
+
+  // Owner
+  volunteerId     String
+  volunteer       MissionVolunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
+
+  // Status
+  location        String?  // JSON
+  available       Boolean  @default(true)
+
+  // If requested
+  requestedById   String?
+  requestedAt     DateTime?
+  requestLocation String?  // JSON
+
+  @@unique([missionId, type, volunteerId])
+  @@index([missionId])
+  @@index([type])
+  @@index([available])
+}
+
+model MissionTrap {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  missionId       String
+  mission         MissionControl @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  // Location
+  latitude        Float
+  longitude       Float
+
+  // Details
+  type            String   @default("HUMANE_TRAP")
+  notes           String?
+
+  // Status
+  status          String   @default("ACTIVE") // ACTIVE, TRIGGERED, REMOVED
+
+  // Placement
+  placedById      String?
+  placedAt        DateTime
+
+  // Monitoring
+  checkSchedule   String?  // JSON
+  lastCheckedAt   DateTime?
+  lastCheckedById String?
+  assignedToId    String?
+
+  // Checks
+  checks          TrapCheck[]
+
+  @@index([missionId])
+  @@index([status])
+}
+
+model TrapCheck {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  trapId          String
+  trap            MissionTrap @relation(fields: [trapId], references: [id], onDelete: Cascade)
+
+  checkedById     String
+  status          String   // OK, NEEDS_REBAIT, TRIGGERED, ISSUE
+  notes           String?
+  triggered       Boolean  @default(false)
+
+  @@index([trapId])
+}
+
+model MissionLog {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  missionId       String
+  mission         MissionControl @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  action          String   // ACTIVATED, MODE_CHANGE, VOLUNTEER_JOINED, SIGHTING_REPORTED, etc.
+  details         String?  // JSON
+  userId          String?
+
+  @@index([missionId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model MissionBroadcast {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  missionId       String
+  mission         MissionControl @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  message         String
+  type            String   // INFO, ALERT, FREEZE, STAND_DOWN
+  priority        String   @default("NORMAL") // NORMAL, CRITICAL
+  senderId        String?
+
+  @@index([missionId])
+  @@index([createdAt])
+}
+
+model MissionThankYou {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  missionId       String
+  mission         MissionControl @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  message         String
+  photoUrl        String?
+  sentAt          DateTime
+
+  @@index([missionId])
+}
+
+model VolunteerPath {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  missionId       String
+  odId            String   // Volunteer device ID
+
+  latitude        Float
+  longitude       Float
+  accuracy        Float?
+  timestamp       DateTime @default(now())
+
+  @@index([missionId])
+  @@index([odId])
+  @@index([timestamp])
+}
+
+model VolunteerSignal {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  missionId       String
+  odId            String
+
+  signalType      String   // NEED_BACKUP, AREA_CLEAR, TAKING_BREAK, HEADING_HOME
+  latitude        Float?
+  longitude       Float?
+
+  @@index([missionId])
+  @@index([signalType])
 }
