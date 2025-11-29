@@ -291,3 +291,262 @@ img {
 @media (prefers-color-scheme: dark) {
   /* Placeholder for dark mode styles */
 }
+
+/* ============================================
+   SQUAD HUB - Bioluminescent Design System
+   ============================================ */
+
+:root {
+  /* Background colors - deep navy/near-black */
+  --hub-bg-root: #020617;
+  --hub-bg-panel: #0f172a;
+  --hub-bg-card: #1e293b;
+  --hub-bg-elevated: #334155;
+
+  /* Accent colors - bioluminescent glow */
+  --hub-accent-primary: #22d3ee;      /* Cyan */
+  --hub-accent-primary-dim: #0891b2;
+  --hub-accent-secondary: #8b5cf6;    /* Violet */
+  --hub-accent-secondary-dim: #6d28d9;
+
+  /* Status/Urgency colors */
+  --hub-status-low: #6366f1;          /* Indigo */
+  --hub-status-medium: #f59e0b;       /* Amber */
+  --hub-status-high: #ef4444;         /* Crimson */
+  --hub-status-success: #22c55e;      /* Green */
+
+  /* Text colors */
+  --hub-text-primary: #f8fafc;
+  --hub-text-secondary: #94a3b8;
+  --hub-text-muted: #64748b;
+
+  /* Border colors */
+  --hub-border: rgba(255, 255, 255, 0.1);
+  --hub-border-glow: rgba(34, 211, 238, 0.3);
+
+  /* Glow effects */
+  --hub-glow-cyan: 0 0 20px rgba(34, 211, 238, 0.4);
+  --hub-glow-violet: 0 0 20px rgba(139, 92, 246, 0.4);
+  --hub-glow-success: 0 0 20px rgba(34, 197, 94, 0.4);
+  --hub-glow-high: 0 0 20px rgba(239, 68, 68, 0.4);
+  --hub-glow-medium: 0 0 20px rgba(245, 158, 11, 0.4);
+}
+
+/* Squad Hub container */
+.squad-hub {
+  background: var(--hub-bg-root);
+  color: var(--hub-text-primary);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+  min-height: 100vh;
+}
+
+/* Bioluminescent card glow effect */
+.hub-card {
+  background: var(--hub-bg-card);
+  border: 1px solid var(--hub-border);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.hub-card:hover {
+  border-color: var(--hub-border-glow);
+  box-shadow: var(--hub-glow-cyan);
+}
+
+/* Urgency-based glow animations */
+@keyframes pulse-glow-high {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.6);
+  }
+}
+
+@keyframes pulse-glow-medium {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.5);
+  }
+}
+
+@keyframes pulse-glow-low {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(99, 102, 241, 0.4);
+  }
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 0.9;
+  }
+}
+
+/* Case card urgency states */
+.hub-case-high {
+  border-color: var(--hub-status-high);
+  animation: pulse-glow-high 2s ease-in-out infinite;
+}
+
+.hub-case-medium {
+  border-color: var(--hub-status-medium);
+  animation: pulse-glow-medium 3s ease-in-out infinite;
+}
+
+.hub-case-low {
+  border-color: var(--hub-status-low);
+  animation: pulse-glow-low 4s ease-in-out infinite;
+}
+
+/* On Duty button glow */
+.hub-on-duty-active {
+  background: rgba(34, 211, 238, 0.15);
+  border-color: var(--hub-accent-primary);
+  box-shadow: var(--hub-glow-cyan);
+  animation: breathe 3s ease-in-out infinite;
+}
+
+/* Division chip active state */
+.hub-chip-active {
+  background: rgba(34, 211, 238, 0.15);
+  border-color: var(--hub-accent-primary);
+  color: var(--hub-accent-primary);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.35);
+}
+
+/* Map pin glow effects */
+.hub-pin {
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.hub-pin-high {
+  box-shadow: 0 0 20px var(--hub-status-high);
+  animation: pulse-glow-high 1.5s ease-in-out infinite;
+}
+
+.hub-pin-medium {
+  box-shadow: 0 0 15px var(--hub-status-medium);
+  animation: pulse-glow-medium 2.5s ease-in-out infinite;
+}
+
+.hub-pin-low {
+  box-shadow: 0 0 10px var(--hub-status-low);
+}
+
+/* Scrollbar styling for dark theme */
+.squad-hub ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.squad-hub ::-webkit-scrollbar-track {
+  background: var(--hub-bg-panel);
+  border-radius: 3px;
+}
+
+.squad-hub ::-webkit-scrollbar-thumb {
+  background: var(--hub-bg-elevated);
+  border-radius: 3px;
+}
+
+.squad-hub ::-webkit-scrollbar-thumb:hover {
+  background: var(--hub-text-muted);
+}
+
+/* Hide scrollbar for horizontal scroll areas */
+.hub-scroll-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hub-scroll-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Leaflet dark theme overrides for Squad Hub */
+.squad-hub .leaflet-container {
+  background: var(--hub-bg-root) !important;
+}
+
+.squad-hub .leaflet-control-zoom {
+  border: 1px solid var(--hub-border) !important;
+  background: var(--hub-bg-panel) !important;
+}
+
+.squad-hub .leaflet-control-zoom a {
+  background: var(--hub-bg-panel) !important;
+  color: var(--hub-text-primary) !important;
+  border-bottom: 1px solid var(--hub-border) !important;
+}
+
+.squad-hub .leaflet-control-zoom a:hover {
+  background: var(--hub-bg-card) !important;
+}
+
+/* Tooltip styling */
+.squad-hub .leaflet-tooltip {
+  background: var(--hub-bg-panel) !important;
+  border: 1px solid var(--hub-border) !important;
+  border-radius: 8px !important;
+  color: var(--hub-text-primary) !important;
+  padding: 8px 12px !important;
+  font-size: 12px !important;
+}
+
+.squad-hub .leaflet-tooltip::before {
+  border-top-color: var(--hub-bg-panel) !important;
+}
+
+/* Activity feed item animation */
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hub-activity-item {
+  animation: slide-in 0.3s ease-out;
+}
+
+/* Mobile tab bar */
+.hub-mobile-tabs {
+  background: var(--hub-bg-panel);
+  border-top: 1px solid var(--hub-border);
+}
+
+.hub-mobile-tab {
+  color: var(--hub-text-muted);
+  transition: all 0.2s ease;
+}
+
+.hub-mobile-tab-active {
+  color: var(--hub-accent-primary);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .hub-case-high,
+  .hub-case-medium,
+  .hub-case-low,
+  .hub-on-duty-active,
+  .hub-pin-high,
+  .hub-pin-medium {
+    animation: none !important;
+  }
+}

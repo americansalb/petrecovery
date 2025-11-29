@@ -1,0 +1,440 @@
+/**
+ * Mock data for Squad Hub development
+ *
+ * Simulates the response from GET /api/squads/[citySlug]/hub
+ */
+
+export const mockChicagoSquadData = {
+  squad: {
+    id: 'squad_chicago',
+    citySlug: 'chicago',
+    cityName: 'Chicago',
+    displayName: 'Chicago Rescue Squad',
+    memberCount: 847,
+    onDutyCount: 23,
+    centerLat: 41.8781,
+    centerLng: -87.6298,
+  },
+
+  membership: {
+    isMember: true,
+    isOnDuty: false,
+    homeDivisionId: 'div_lakeview',
+    divisionIds: ['div_lakeview', 'div_lincoln_park'],
+    role: 'MEMBER',
+  },
+
+  divisions: [
+    {
+      id: 'div_lakeview',
+      name: 'Lakeview',
+      slug: 'lakeview',
+      activeCaseCount: 3,
+      bounds: {
+        north: 41.9500,
+        south: 41.9200,
+        east: -87.6300,
+        west: -87.6700,
+      },
+    },
+    {
+      id: 'div_lincoln_park',
+      name: 'Lincoln Park',
+      slug: 'lincoln-park',
+      activeCaseCount: 2,
+      bounds: {
+        north: 41.9300,
+        south: 41.9000,
+        east: -87.6200,
+        west: -87.6600,
+      },
+    },
+    {
+      id: 'div_logan_square',
+      name: 'Logan Square',
+      slug: 'logan-square',
+      activeCaseCount: 1,
+      bounds: {
+        north: 41.9400,
+        south: 41.9100,
+        east: -87.6800,
+        west: -87.7200,
+      },
+    },
+    {
+      id: 'div_wicker_park',
+      name: 'Wicker Park',
+      slug: 'wicker-park',
+      activeCaseCount: 0,
+      bounds: {
+        north: 41.9150,
+        south: 41.8950,
+        east: -87.6650,
+        west: -87.6950,
+      },
+    },
+    {
+      id: 'div_south_loop',
+      name: 'South Loop',
+      slug: 'south-loop',
+      activeCaseCount: 1,
+      bounds: {
+        north: 41.8800,
+        south: 41.8500,
+        east: -87.6100,
+        west: -87.6500,
+      },
+    },
+  ],
+
+  cases: [
+    {
+      id: 'case_001',
+      caseNumber: 'CHI-LKV-0001',
+      divisionId: 'div_lakeview',
+      petName: 'Max',
+      species: 'DOG',
+      breed: 'Golden Retriever',
+      color: 'Golden',
+      photoUrl: null,
+      status: 'ACTIVE',
+      urgency: 'HIGH',
+      lastSeenAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+      lastSeenLat: 41.9350,
+      lastSeenLng: -87.6520,
+      lastSeenAddress: '3200 N Clark St, Chicago, IL',
+      rewardAmount: 500,
+      isUserHelper: false,
+      helperCount: 8,
+    },
+    {
+      id: 'case_002',
+      caseNumber: 'CHI-LKV-0002',
+      divisionId: 'div_lakeview',
+      petName: 'Whiskers',
+      species: 'CAT',
+      breed: 'Tabby',
+      color: 'Orange',
+      photoUrl: null,
+      status: 'IN_PROGRESS',
+      urgency: 'MEDIUM',
+      lastSeenAt: new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(), // 18 hours ago
+      lastSeenLat: 41.9280,
+      lastSeenLng: -87.6450,
+      lastSeenAddress: '2800 N Broadway, Chicago, IL',
+      rewardAmount: null,
+      isUserHelper: true,
+      helperCount: 5,
+    },
+    {
+      id: 'case_003',
+      caseNumber: 'CHI-LKV-0003',
+      divisionId: 'div_lakeview',
+      petName: 'Buddy',
+      species: 'DOG',
+      breed: 'Beagle',
+      color: 'Tri-color',
+      photoUrl: null,
+      status: 'ACTIVE',
+      urgency: 'LOW',
+      lastSeenAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
+      lastSeenLat: 41.9420,
+      lastSeenLng: -87.6580,
+      lastSeenAddress: '3500 N Ashland Ave, Chicago, IL',
+      rewardAmount: 200,
+      isUserHelper: false,
+      helperCount: 3,
+    },
+    {
+      id: 'case_004',
+      caseNumber: 'CHI-LP-0001',
+      divisionId: 'div_lincoln_park',
+      petName: 'Luna',
+      species: 'CAT',
+      breed: 'Siamese',
+      color: 'Cream',
+      photoUrl: null,
+      status: 'SIGHTING_REPORTED',
+      urgency: 'HIGH',
+      lastSeenAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // 5 hours ago
+      lastSeenLat: 41.9180,
+      lastSeenLng: -87.6350,
+      lastSeenAddress: '2000 N Lincoln Park West, Chicago, IL',
+      rewardAmount: 300,
+      isUserHelper: false,
+      helperCount: 12,
+    },
+    {
+      id: 'case_005',
+      caseNumber: 'CHI-LP-0002',
+      divisionId: 'div_lincoln_park',
+      petName: 'Charlie',
+      species: 'DOG',
+      breed: 'French Bulldog',
+      color: 'Brindle',
+      photoUrl: null,
+      status: 'ACTIVE',
+      urgency: 'MEDIUM',
+      lastSeenAt: new Date(Date.now() - 36 * 60 * 60 * 1000).toISOString(), // 36 hours ago
+      lastSeenLat: 41.9080,
+      lastSeenLng: -87.6420,
+      lastSeenAddress: '1800 N Clark St, Chicago, IL',
+      rewardAmount: null,
+      isUserHelper: false,
+      helperCount: 4,
+    },
+    {
+      id: 'case_006',
+      caseNumber: 'CHI-LS-0001',
+      divisionId: 'div_logan_square',
+      petName: 'Milo',
+      species: 'CAT',
+      breed: 'Maine Coon',
+      color: 'Gray',
+      photoUrl: null,
+      status: 'ACTIVE',
+      urgency: 'MEDIUM',
+      lastSeenAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 24 hours ago
+      lastSeenLat: 41.9250,
+      lastSeenLng: -87.7050,
+      lastSeenAddress: '2500 N Milwaukee Ave, Chicago, IL',
+      rewardAmount: 150,
+      isUserHelper: false,
+      helperCount: 6,
+    },
+    {
+      id: 'case_007',
+      caseNumber: 'CHI-SL-0001',
+      divisionId: 'div_south_loop',
+      petName: 'Rocky',
+      species: 'DOG',
+      breed: 'Pit Bull Mix',
+      color: 'White',
+      photoUrl: null,
+      status: 'ACTIVE',
+      urgency: 'LOW',
+      lastSeenAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+      lastSeenLat: 41.8650,
+      lastSeenLng: -87.6280,
+      lastSeenAddress: '1200 S Michigan Ave, Chicago, IL',
+      rewardAmount: null,
+      isUserHelper: false,
+      helperCount: 2,
+    },
+    // Reunited case for success gallery
+    {
+      id: 'case_008',
+      caseNumber: 'CHI-LKV-0004',
+      divisionId: 'div_lakeview',
+      petName: 'Bella',
+      species: 'DOG',
+      breed: 'Labrador',
+      color: 'Black',
+      photoUrl: null,
+      status: 'REUNITED',
+      urgency: 'LOW',
+      lastSeenAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      lastSeenLat: 41.9380,
+      lastSeenLng: -87.6550,
+      lastSeenAddress: '3400 N Halsted St, Chicago, IL',
+      rewardAmount: 250,
+      isUserHelper: true,
+      helperCount: 15,
+    },
+  ],
+
+  activityPreview: {
+    recentEvents: [
+      {
+        id: 'event_001',
+        type: 'case_created',
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+        payload: {
+          caseNumber: 'CHI-LKV-0001',
+          petName: 'Max',
+        },
+      },
+      {
+        id: 'event_002',
+        type: 'member_joined',
+        createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+        payload: {
+          memberName: 'Sarah K.',
+        },
+      },
+      {
+        id: 'event_003',
+        type: 'sighting_reported',
+        createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+        payload: {
+          caseNumber: 'CHI-LP-0001',
+          petName: 'Luna',
+        },
+      },
+      {
+        id: 'event_004',
+        type: 'case_reunited',
+        createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+        payload: {
+          caseNumber: 'CHI-LKV-0004',
+          petName: 'Bella',
+        },
+      },
+      {
+        id: 'event_005',
+        type: 'member_joined',
+        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+        payload: {
+          memberName: 'Mike T.',
+        },
+      },
+    ],
+  },
+
+  chat: {
+    messages: [
+      {
+        id: 'msg_001',
+        authorId: 'user_001',
+        authorName: 'Sarah K.',
+        authorRole: 'MEMBER',
+        content: 'Just searched the area around Clark & Belmont. No sign of Max yet.',
+        createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+        divisionId: 'div_lakeview',
+      },
+      {
+        id: 'msg_002',
+        authorId: 'user_002',
+        authorName: 'David L.',
+        authorRole: 'LEAD',
+        content: 'Thanks Sarah! Can someone cover the area near the lake? Max might have headed that way.',
+        createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
+        divisionId: 'div_lakeview',
+      },
+      {
+        id: 'msg_003',
+        authorId: 'user_003',
+        authorName: 'Jennifer M.',
+        authorRole: 'MEMBER',
+        content: 'I can head there now. Will report back in 30 mins.',
+        createdAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+        divisionId: 'div_lakeview',
+      },
+    ],
+  },
+
+  announcements: [
+    {
+      id: 'ann_001',
+      authorId: 'user_002',
+      authorName: 'David L.',
+      title: 'Welcome to Chicago Rescue Squad!',
+      content: 'Thank you for joining our community. Remember to always stay safe during searches and coordinate with your team. Check the Active tab to see cases that need help.',
+      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      isPinned: true,
+      divisionId: null,
+    },
+    {
+      id: 'ann_002',
+      authorId: 'user_002',
+      authorName: 'David L.',
+      title: 'Heat Advisory - Stay Hydrated',
+      content: 'With temperatures reaching 90°F today, please bring water and take breaks during searches. Animals may be seeking shade and water sources.',
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      isPinned: false,
+      divisionId: null,
+    },
+  ],
+};
+
+// Small city mock (no divisions needed)
+export const mockCarpenstersvilleSquadData = {
+  squad: {
+    id: 'squad_carpentersville',
+    citySlug: 'carpentersville',
+    cityName: 'Carpentersville',
+    displayName: 'Carpentersville Rescue Squad',
+    memberCount: 45,
+    onDutyCount: 3,
+    centerLat: 42.1214,
+    centerLng: -88.2578,
+  },
+
+  membership: {
+    isMember: false,
+    isOnDuty: false,
+    homeDivisionId: null,
+    divisionIds: [],
+    role: null,
+  },
+
+  divisions: [
+    {
+      id: 'div_entire_city',
+      name: 'Entire City',
+      slug: 'entire-city',
+      activeCaseCount: 1,
+      bounds: {
+        north: 42.1500,
+        south: 42.0900,
+        east: -88.2200,
+        west: -88.3000,
+      },
+    },
+  ],
+
+  cases: [
+    {
+      id: 'case_cv_001',
+      caseNumber: 'CRP-0001',
+      divisionId: 'div_entire_city',
+      petName: 'Shadow',
+      species: 'CAT',
+      breed: 'Black Shorthair',
+      color: 'Black',
+      photoUrl: null,
+      status: 'ACTIVE',
+      urgency: 'MEDIUM',
+      lastSeenAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+      lastSeenLat: 42.1180,
+      lastSeenLng: -88.2620,
+      lastSeenAddress: '100 Main St, Carpentersville, IL',
+      rewardAmount: 100,
+      isUserHelper: false,
+      helperCount: 2,
+    },
+  ],
+
+  activityPreview: {
+    recentEvents: [
+      {
+        id: 'event_cv_001',
+        type: 'case_created',
+        createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+        payload: {
+          caseNumber: 'CRP-0001',
+          petName: 'Shadow',
+        },
+      },
+    ],
+  },
+
+  chat: {
+    messages: [],
+  },
+
+  announcements: [],
+};
+
+// Export a function to get mock data by city slug
+export function getMockSquadData(citySlug) {
+  switch (citySlug) {
+    case 'chicago':
+      return mockChicagoSquadData;
+    case 'carpentersville':
+      return mockCarpenstersvilleSquadData;
+    default:
+      // Return Chicago as default for testing
+      return mockChicagoSquadData;
+  }
+}
