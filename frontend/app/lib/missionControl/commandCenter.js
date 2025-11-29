@@ -7,6 +7,7 @@
 
 import prisma from '@/app/lib/prisma';
 import { OPERATION_MODES, VOLUNTEER_STATUS, ZONE_STATUS } from './index';
+import { sendPushToMany, PUSH_TEMPLATES } from '@/app/lib/push';
 
 /**
  * Get command center view for leaders
@@ -443,11 +444,86 @@ function generateRecommendations(mission) {
 
 // Notification stubs
 async function notifyAllVolunteers(missionId, broadcast) {
-  console.log(`Broadcasting to mission ${missionId}: ${broadcast.message}`);
+  try {
+    // Get all active volunteers for this mission
+    const volunteers = await prisma.missionVolunteer.findMany({
+      where: { missionId, status: 'ACTIVE' },
+      select: { userId: true }
+    });
+
+    const userIds = volunteers.map(v => v.userId).filter(Boolean);
+    if (userIds.length === 0) return;
+
+    const subscriptions = await prisma.pushSubscription.findMany({
+      where: { userId: { in: userIds }, isActive: true },
+      select: { id: true, subscription: true }
+    });
+
+    if (subscriptions.length === 0) return;
+
+    const formattedSubs = subscriptions.map(sub => ({
+      id: sub.id,
+      subscription: JSON.parse(sub.subscription),
+    }));
+
+    // Build payload based on broadcast type
+    let payload;
+    const isCritical = broadcast.priority === 'CRITICAL' || broadcast.type === 'FREEZE';
+
+    if (isCritical) {
+      payload = {
+        title: '🚨 URGENT BROADCAST',
+        body: broadcast.message,
+        icon: '/icons/alert-icon.png',
+        tag: `broadcast-${broadcast.id}`,
+        requireInteraction: true,
+        vibrate: [300, 100, 300],
+        data: { missionId, type: 'BROADCAST', broadcastId: broadcast.id }
+      };
+    } else {
+      payload = PUSH_TEMPLATES.GENERIC(
+        '📢 Team Update',
+        broadcast.message,
+        '/'
+      );
+      payload.tag = `broadcast-${broadcast.id}`;
+    }
+
+    const result = await sendPushToMany(formattedSubs, payload);
+    console.log(`✅ Broadcast sent to ${result.sent} volunteers`);
+  } catch (error) {
+    console.error('Error broadcasting to volunteers:', error);
+  }
 }
 
 async function notifyResourceRequest(volunteer, type, location) {
-  console.log(`Resource request: ${type} to ${location.lat},${location.lng}`);
+  try {
+    if (!volunteer?.userId) return;
+
+    const payload = PUSH_TEMPLATES.GENERIC(
+      '🔧 Resource Requested',
+      `Your ${type} is needed at a search location. Tap for directions.`,
+      '/'
+    );
+    payload.tag = `resource-${Date.now()}`;
+
+    const subscriptions = await prisma.pushSubscription.findMany({
+      where: { userId: volunteer.userId, isActive: true },
+      select: { id: true, subscription: true }
+    });
+
+    if (subscriptions.length === 0) return;
+
+    const formattedSubs = subscriptions.map(sub => ({
+      id: sub.id,
+      subscription: JSON.parse(sub.subscription),
+    }));
+
+    await sendPushToMany(formattedSubs, payload);
+    console.log(`✅ Resource request sent to volunteer ${volunteer.userId}`);
+  } catch (error) {
+    console.error('Error notifying resource request:', error);
+  }
 }
 
 export default {

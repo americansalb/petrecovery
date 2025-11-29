@@ -8,6 +8,7 @@
 import prisma from '@/app/lib/prisma';
 import { VOLUNTEER_STATUS, ZONE_STATUS } from './index';
 import { getProbabilityMap } from './state';
+import { sendPushToMany, PUSH_TEMPLATES } from '@/app/lib/push';
 
 /**
  * Quick join - no account required
@@ -422,8 +423,68 @@ function generateSessionToken(odId) {
 }
 
 async function notifyNearbyVolunteers(missionId, location, message) {
-  // TODO: Implement push notification
-  console.log(`Notifying near ${location?.lat},${location?.lng}: ${message}`);
+  try {
+    // Get active volunteers for this mission
+    const volunteers = await prisma.missionVolunteer.findMany({
+      where: { missionId, status: 'ACTIVE' },
+      select: { userId: true, currentLocation: true }
+    });
+
+    // Filter by proximity if location provided (within 1 mile)
+    let targetUserIds = volunteers.map(v => v.userId).filter(Boolean);
+
+    if (location && targetUserIds.length > 0) {
+      const nearbyVolunteers = volunteers.filter(v => {
+        if (!v.currentLocation) return true; // Include if no location
+        const vLoc = JSON.parse(v.currentLocation);
+        const distance = haversineDistance(
+          location.lat, location.lng,
+          vLoc.lat, vLoc.lng
+        );
+        return distance <= 1; // Within 1 mile
+      });
+      targetUserIds = nearbyVolunteers.map(v => v.userId).filter(Boolean);
+    }
+
+    if (targetUserIds.length === 0) return;
+
+    const subscriptions = await prisma.pushSubscription.findMany({
+      where: { userId: { in: targetUserIds }, isActive: true },
+      select: { id: true, subscription: true }
+    });
+
+    if (subscriptions.length === 0) return;
+
+    const formattedSubs = subscriptions.map(sub => ({
+      id: sub.id,
+      subscription: JSON.parse(sub.subscription),
+    }));
+
+    const payload = PUSH_TEMPLATES.GENERIC(
+      '📍 Nearby Update',
+      message,
+      '/'
+    );
+    payload.tag = `mission-${missionId}-update`;
+
+    const result = await sendPushToMany(formattedSubs, payload);
+    console.log(`✅ Nearby volunteers notified: ${result.sent} sent`);
+  } catch (error) {
+    console.error('Error notifying nearby volunteers:', error);
+  }
+}
+
+// Haversine distance calculation (miles)
+function haversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 3959; // Earth's radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
 export default {

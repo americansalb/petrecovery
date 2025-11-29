@@ -6,6 +6,7 @@
  */
 
 import prisma from '@/app/lib/prisma';
+import { sendPushToUser, sendPushToMany, PUSH_TEMPLATES } from '@/app/lib/push';
 
 /**
  * Start field mode for a volunteer
@@ -569,20 +570,139 @@ async function endSession(session, data) {
   };
 }
 
-// Notification helpers (stubs - implement with push notification system)
+// Push notification helpers
 async function notifyOwnerPetFound(caseData, sighting) {
-  // TODO: Implement push notification to owner
-  console.log(`Notifying owner: Pet found for case ${caseData.id}`);
+  try {
+    if (!caseData?.reporterId) {
+      console.log('No reporter ID for case, cannot notify owner');
+      return;
+    }
+
+    const payload = PUSH_TEMPLATES.SIGHTING_ALERT(
+      caseData.petName || 'Your pet',
+      sighting?.location?.address || 'a location',
+      caseData.id
+    );
+
+    // Make it more urgent for potential find
+    payload.title = '🎉 Possible Pet Sighting!';
+    payload.body = `Someone may have spotted ${caseData.petName}! Tap to view details and location.`;
+    payload.requireInteraction = true;
+    payload.vibrate = [200, 100, 200];
+
+    await sendPushToUser(prisma, caseData.reporterId, payload);
+    console.log(`✅ Owner notified for potential pet find: ${caseData.petName}`);
+  } catch (error) {
+    console.error('Error notifying owner of pet found:', error);
+  }
 }
 
 async function notifyNearbyVolunteers(caseId, sighting) {
-  // TODO: Implement push notification to nearby active volunteers
-  console.log(`Notifying volunteers: Sighting for case ${caseId}`);
+  try {
+    // Get case assignment to find squad members
+    const caseData = await prisma.case.findUnique({
+      where: { id: caseId },
+      select: {
+        petName: true,
+        caseNumber: true,
+        assignment: {
+          select: {
+            participants: {
+              where: { isActive: true },
+              select: { userId: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!caseData?.assignment?.participants) return;
+
+    const userIds = caseData.assignment.participants.map(p => p.userId).filter(Boolean);
+    if (userIds.length === 0) return;
+
+    const subscriptions = await prisma.pushSubscription.findMany({
+      where: { userId: { in: userIds }, isActive: true },
+      select: { id: true, subscription: true }
+    });
+
+    if (subscriptions.length === 0) return;
+
+    const formattedSubs = subscriptions.map(sub => ({
+      id: sub.id,
+      subscription: JSON.parse(sub.subscription),
+    }));
+
+    const payload = PUSH_TEMPLATES.SIGHTING_ALERT(
+      caseData.petName || 'Pet',
+      sighting?.location?.address || 'nearby',
+      caseId
+    );
+    payload.url = `/cases/${caseData.caseNumber}`;
+
+    const result = await sendPushToMany(formattedSubs, payload);
+    console.log(`✅ Nearby volunteers notified: ${result.sent} sent`);
+  } catch (error) {
+    console.error('Error notifying nearby volunteers:', error);
+  }
 }
 
 async function notifyHelpRequest(session) {
-  // TODO: Implement push notification for help request
-  console.log(`Help request from session ${session.id}`);
+  try {
+    if (!session?.participant?.assignment) return;
+
+    // Get squad leaders for this assignment
+    const assignment = await prisma.caseAssignment.findUnique({
+      where: { id: session.participant.assignment.id },
+      select: {
+        rescueSquad: {
+          select: {
+            members: {
+              where: {
+                role: { in: ['FOUNDER', 'LEADER', 'COORDINATOR'] },
+                isActive: true
+              },
+              select: { userId: true }
+            }
+          }
+        },
+        case: {
+          select: { petName: true, caseNumber: true }
+        }
+      }
+    });
+
+    if (!assignment?.rescueSquad?.members) return;
+
+    const leaderIds = assignment.rescueSquad.members.map(m => m.userId).filter(Boolean);
+    if (leaderIds.length === 0) return;
+
+    const subscriptions = await prisma.pushSubscription.findMany({
+      where: { userId: { in: leaderIds }, isActive: true },
+      select: { id: true, subscription: true }
+    });
+
+    if (subscriptions.length === 0) return;
+
+    const formattedSubs = subscriptions.map(sub => ({
+      id: sub.id,
+      subscription: JSON.parse(sub.subscription),
+    }));
+
+    const volunteerName = session.participant?.user?.firstName || 'A volunteer';
+    const payload = PUSH_TEMPLATES.GENERIC(
+      '🆘 Help Requested',
+      `${volunteerName} needs assistance during search for ${assignment.case?.petName || 'pet'}`,
+      `/cases/${assignment.case?.caseNumber}`
+    );
+    payload.tag = `help-${session.id}`;
+    payload.requireInteraction = true;
+
+    const result = await sendPushToMany(formattedSubs, payload);
+    console.log(`✅ Help request sent to ${result.sent} leaders`);
+  } catch (error) {
+    console.error('Error sending help request notification:', error);
+  }
 }
 
 export default {

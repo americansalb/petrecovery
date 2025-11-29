@@ -7,6 +7,7 @@
 
 import prisma from '@/app/lib/prisma';
 import { OPERATION_MODES, ZONE_STATUS } from './index';
+import { sendPushToMany, PUSH_TEMPLATES } from '@/app/lib/push';
 
 /**
  * Check if user can activate live operation
@@ -264,18 +265,163 @@ async function generateSearchZones(missionId, center, radiusMiles) {
   return zones.length;
 }
 
-// Notification stubs
+// Push notification functions
 async function notifySquadActivation(caseId, missionId) {
-  // TODO: Push notifications to squad members
-  console.log(`Mission ${missionId} activated for case ${caseId}`);
+  try {
+    // Get case and squad info for notification
+    const caseData = await prisma.case.findUnique({
+      where: { id: caseId },
+      select: {
+        petName: true,
+        caseNumber: true,
+        lastSeenAddress: true,
+        assignment: {
+          select: {
+            rescueSquad: {
+              select: {
+                id: true,
+                name: true,
+                members: {
+                  where: { isActive: true },
+                  select: { userId: true }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!caseData?.assignment?.rescueSquad) {
+      console.log(`No squad assigned to case ${caseId}`);
+      return;
+    }
+
+    const squad = caseData.assignment.rescueSquad;
+    const userIds = squad.members.map(m => m.userId);
+
+    if (userIds.length === 0) {
+      console.log(`No active members in squad ${squad.id}`);
+      return;
+    }
+
+    // Get push subscriptions for these users
+    const subscriptions = await prisma.pushSubscription.findMany({
+      where: {
+        userId: { in: userIds },
+        isActive: true,
+      },
+      select: {
+        id: true,
+        subscription: true,
+      }
+    });
+
+    if (subscriptions.length === 0) {
+      console.log(`No push subscriptions for squad members`);
+      return;
+    }
+
+    const formattedSubs = subscriptions.map(sub => ({
+      id: sub.id,
+      subscription: JSON.parse(sub.subscription),
+    }));
+
+    const payload = PUSH_TEMPLATES.SQUAD_ACTIVITY(
+      squad.name,
+      `🔴 LIVE SEARCH activated for ${caseData.petName}! Tap to join.`,
+      squad.id
+    );
+
+    // Override URL to go directly to case
+    payload.url = `/cases/${caseData.caseNumber}`;
+    payload.tag = `mission-${missionId}`;
+    payload.requireInteraction = true;
+
+    const result = await sendPushToMany(formattedSubs, payload);
+    console.log(`✅ Mission activation notified: ${result.sent} sent, ${result.failed} failed`);
+
+    // Clean up expired subscriptions
+    if (result.expired?.length > 0) {
+      await prisma.pushSubscription.updateMany({
+        where: { id: { in: result.expired } },
+        data: { isActive: false },
+      });
+    }
+  } catch (error) {
+    console.error('Error sending mission activation notification:', error);
+  }
 }
 
 async function notifyVolunteersPause(missionId, reason) {
-  console.log(`Mission ${missionId} paused: ${reason}`);
+  try {
+    // Get active volunteers for this mission
+    const volunteers = await prisma.missionVolunteer.findMany({
+      where: { missionId, status: 'ACTIVE' },
+      select: { userId: true }
+    });
+
+    const userIds = volunteers.map(v => v.userId);
+    if (userIds.length === 0) return;
+
+    const subscriptions = await prisma.pushSubscription.findMany({
+      where: { userId: { in: userIds }, isActive: true },
+      select: { id: true, subscription: true }
+    });
+
+    if (subscriptions.length === 0) return;
+
+    const formattedSubs = subscriptions.map(sub => ({
+      id: sub.id,
+      subscription: JSON.parse(sub.subscription),
+    }));
+
+    const payload = PUSH_TEMPLATES.GENERIC(
+      '⏸️ Search Paused',
+      reason || 'The search has been temporarily paused.',
+      '/'
+    );
+
+    await sendPushToMany(formattedSubs, payload);
+    console.log(`✅ Mission pause notified to ${subscriptions.length} volunteers`);
+  } catch (error) {
+    console.error('Error sending pause notification:', error);
+  }
 }
 
 async function notifyVolunteersResume(missionId) {
-  console.log(`Mission ${missionId} resumed`);
+  try {
+    const volunteers = await prisma.missionVolunteer.findMany({
+      where: { missionId },
+      select: { userId: true }
+    });
+
+    const userIds = volunteers.map(v => v.userId);
+    if (userIds.length === 0) return;
+
+    const subscriptions = await prisma.pushSubscription.findMany({
+      where: { userId: { in: userIds }, isActive: true },
+      select: { id: true, subscription: true }
+    });
+
+    if (subscriptions.length === 0) return;
+
+    const formattedSubs = subscriptions.map(sub => ({
+      id: sub.id,
+      subscription: JSON.parse(sub.subscription),
+    }));
+
+    const payload = PUSH_TEMPLATES.GENERIC(
+      '▶️ Search Resumed',
+      'The search has resumed! Return to your area.',
+      '/'
+    );
+
+    await sendPushToMany(formattedSubs, payload);
+    console.log(`✅ Mission resume notified to ${subscriptions.length} volunteers`);
+  } catch (error) {
+    console.error('Error sending resume notification:', error);
+  }
 }
 
 export default {

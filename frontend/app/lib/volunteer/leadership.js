@@ -6,6 +6,7 @@
 
 import prisma from '@/app/lib/prisma';
 import { sendDivisionAlert } from './divisionAlerts';
+import { sendPushToUser, PUSH_TEMPLATES } from '@/app/lib/push';
 
 /**
  * Get leadership dashboard data
@@ -421,8 +422,18 @@ export async function reassignSearchArea(options) {
       }
     });
 
-    // Notify the volunteer
-    // TODO: Send push notification
+    // Notify the volunteer about new assignment
+    try {
+      const payload = PUSH_TEMPLATES.GENERIC(
+        '📍 New Search Area Assigned',
+        'You have been assigned a new search area. Tap to view on map.',
+        '/'
+      );
+      payload.tag = `assignment-${cellId}`;
+      await sendPushToUser(prisma, toUserId, payload);
+    } catch (err) {
+      console.error('Error notifying volunteer of assignment:', err);
+    }
   }
 
   return { success: true };
