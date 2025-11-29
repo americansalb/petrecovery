@@ -5,6 +5,9 @@
  * GET /api/public/cases/[caseNumber] - View public case detail
  *
  * NO AUTHENTICATION REQUIRED (public endpoint)
+ *
+ * IMPORTANT: This now queries the main `Case` model (not LostPetCase)
+ * to match where /api/reports/create writes data.
  */
 
 import { NextResponse } from 'next/server';
@@ -16,16 +19,17 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/public/cases/[caseNumber] - View public case detail
- * Returns 404 if case not found OR not public (isPublic=false)
- * Contact info only shown if publicContactOk=true
+ * Returns 404 if case not found
+ * Contact info shown for LOST reports (owner wants to be contacted)
  */
 export async function GET(request, { params }) {
   const startTime = Date.now();
   const { caseNumber } = params;
 
   try {
-    // Fetch case by caseNumber
-    const caseData = await prisma.lostPetCase.findUnique({
+    // Fetch case by caseNumber from the main Case model
+    // This is where /api/reports/create writes data
+    const caseData = await prisma.case.findUnique({
       where: { caseNumber },
       select: {
         id: true,
@@ -37,45 +41,40 @@ export async function GET(request, { params }) {
         petSpecies: true,
         petBreed: true,
         petColor: true,
+        petSize: true,
+        petPhotoUrl: true,
         petDescription: true,
         // Location
-        city: true,
-        state: true,
-        zipCode: true,
-        lastSeenLandmark: true,
+        lastSeenLatitude: true,
+        lastSeenLongitude: true,
+        lastSeenAddress: true,
         lastSeenAt: true,
+        searchRadius: true,
         // Status
         status: true,
-        statusReason: true,
-        isUrgent: true,
-        // Public visibility
-        isPublic: true,
-        publicContactOk: true,
-        // Contact info (conditionally exposed)
-        contactName: true,
-        contactPhone: true,
-        contactEmail: true,
-        // IMPORTANT: Do NOT expose:
-        // - createdById
-        // - squadId
-        // - source
+        priority: true,
+        reportType: true,
+        // Owner/Reporter info
+        reporterId: true,
+        ownerName: true,
+        ownerPhone: true,
+        ownerEmail: true,
       }
     });
 
-    // Return 404 if case not found OR not public
-    if (!caseData || !caseData.isPublic) {
+    // Return 404 if case not found
+    if (!caseData) {
       await logEvent({
         event_type: 'public_case.detail_failed',
         resource_type: 'public_case',
         action: 'read',
         result: 'failure',
         error_code: 'CASE_NOT_FOUND',
-        error_message: `Case ${caseNumber} not found or not public`,
+        error_message: `Case ${caseNumber} not found`,
         actor_role: 'public',
         metadata: {
           caseNumber,
-          found: !!caseData,
-          isPublic: caseData?.isPublic || false
+          found: false
         }
       });
 
@@ -86,7 +85,20 @@ export async function GET(request, { params }) {
       }, { status: 404 });
     }
 
-    // Build response with privacy controls
+    // Parse city/state from lastSeenAddress if available
+    // Format is typically "123 Main St, City, ST 12345"
+    let city = 'Unknown';
+    let state = 'XX';
+    if (caseData.lastSeenAddress) {
+      const parts = caseData.lastSeenAddress.split(',');
+      if (parts.length >= 2) {
+        city = parts[parts.length - 2]?.trim() || 'Unknown';
+        const stateZip = parts[parts.length - 1]?.trim() || '';
+        state = stateZip.substring(0, 2).toUpperCase() || 'XX';
+      }
+    }
+
+    // Build response
     const response = {
       id: caseData.id,
       caseNumber: caseData.caseNumber,
@@ -97,31 +109,40 @@ export async function GET(request, { params }) {
       petSpecies: caseData.petSpecies,
       petBreed: caseData.petBreed,
       petColor: caseData.petColor,
+      petSize: caseData.petSize,
+      petPhotoUrl: caseData.petPhotoUrl,
       petDescription: caseData.petDescription,
       // Location
-      city: caseData.city,
-      state: caseData.state,
-      zipCode: caseData.zipCode,
-      lastSeenLandmark: caseData.lastSeenLandmark,
+      city,
+      state,
+      lastSeenAddress: caseData.lastSeenAddress,
+      lastSeenLatitude: caseData.lastSeenLatitude,
+      lastSeenLongitude: caseData.lastSeenLongitude,
       lastSeenAt: caseData.lastSeenAt,
+      searchRadius: caseData.searchRadius,
       // Status
       status: caseData.status,
-      statusReason: caseData.statusReason,
-      isUrgent: caseData.isUrgent
+      priority: caseData.priority,
+      reportType: caseData.reportType,
+      isUrgent: caseData.priority === 'URGENT',
+      // Reporter ID (for checking ownership)
+      reporterId: caseData.reporterId,
     };
 
-    // Only include contact info if publicContactOk=true
-    if (caseData.publicContactOk) {
+    // Include contact info for LOST reports (owner wants to be contacted)
+    if (caseData.reportType === 'LOST') {
       response.contact = {
-        name: caseData.contactName,
-        phone: caseData.contactPhone,
-        email: caseData.contactEmail,
+        name: caseData.ownerName,
+        phone: caseData.ownerPhone,
+        email: caseData.ownerEmail,
         disclaimer: 'Contact information provided by reporter. Please exercise caution when communicating with strangers.'
       };
     } else {
       response.contact = {
-        available: false,
-        message: 'Contact information is not publicly available for this case'
+        available: true,
+        name: caseData.ownerName,
+        phone: caseData.ownerPhone,
+        disclaimer: 'Contact information provided by reporter. Please exercise caution when communicating with strangers.'
       };
     }
 
@@ -137,10 +158,10 @@ export async function GET(request, { params }) {
       metadata: {
         caseNumber,
         caseId: caseData.id,
-        city: caseData.city,
-        state: caseData.state,
+        city,
+        state,
         petSpecies: caseData.petSpecies,
-        publicContactOk: caseData.publicContactOk,
+        reportType: caseData.reportType,
         response_time_ms: responseTime
       }
     });
