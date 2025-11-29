@@ -6,6 +6,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
+// Dynamically import Mission Map
+const MissionMap = dynamic(() => import('@/app/components/missionControl/MissionMap'), {
+  ssr: false,
+  loading: () => <div style={{ height: '200px', background: '#1a1a1a', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888' }}>Loading map...</div>
+});
+
 // Dynamically import map to avoid SSR issues
 const SquadCoverageMap = dynamic(() => import('@/app/components/SquadCoverageMap'), {
   ssr: false,
@@ -33,6 +39,16 @@ export default function RescueSquadDetailPage({ params }) {
   const [acceptCaseConfirm, setAcceptCaseConfirm] = useState(null);
   const [optOutConfirm, setOptOutConfirm] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
+  // Division switching state
+  const [userDivision, setUserDivision] = useState(null);
+  const [availableDivisions, setAvailableDivisions] = useState([]);
+  const [divisionsLoading, setDivisionsLoading] = useState(false);
+  const [switchingDivision, setSwitchingDivision] = useState(false);
+  const [divisionModalOpen, setDivisionModalOpen] = useState(false);
+
+  // Live missions state
+  const [liveMissions, setLiveMissions] = useState([]);
+  const [liveMissionsLoading, setLiveMissionsLoading] = useState(false);
 
   useEffect(() => {
     loadSquad();
@@ -46,8 +62,80 @@ export default function RescueSquadDetailPage({ params }) {
     // Load active cases for all members
     if (isMember) {
       loadActiveCases();
+      loadMyDivision();
     }
+    // Load live missions
+    loadLiveMissions();
   }, [userRole, isMember, params.id]);
+
+  // Auto-refresh live missions every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (liveMissions.length > 0) {
+        loadLiveMissions();
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [liveMissions.length, params.id]);
+
+  const loadLiveMissions = async () => {
+    setLiveMissionsLoading(true);
+    try {
+      const res = await fetch(`/api/rescue-squads/${params.id}/live-missions`);
+      if (res.ok) {
+        const data = await res.json();
+        setLiveMissions(data.missions || []);
+      }
+    } catch (err) {
+      console.error('Error loading live missions:', err);
+    } finally {
+      setLiveMissionsLoading(false);
+    }
+  };
+
+  const loadMyDivision = async () => {
+    setDivisionsLoading(true);
+    try {
+      const res = await fetch(`/api/rescue-squads/${params.id}/my-division`);
+      if (res.ok) {
+        const data = await res.json();
+        setUserDivision(data.currentDivision);
+        setAvailableDivisions(data.availableDivisions || []);
+      }
+    } catch (err) {
+      console.error('Error loading division info:', err);
+    } finally {
+      setDivisionsLoading(false);
+    }
+  };
+
+  const handleSwitchDivision = async (divisionId) => {
+    setSwitchingDivision(true);
+    setError('');
+
+    try {
+      const res = await fetch(`/api/rescue-squads/${params.id}/my-division`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ divisionId: divisionId || null }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to switch division');
+      }
+
+      setUserDivision(data.membership.division);
+      setSuccessMessage(data.message);
+      setDivisionModalOpen(false);
+      loadSquad(); // Reload squad to refresh division counts
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSwitchingDivision(false);
+    }
+  };
 
   const loadSquad = async () => {
     try {
@@ -556,6 +644,182 @@ export default function RescueSquadDetailPage({ params }) {
         </div>
       )}
 
+      {/* Division Switch Modal */}
+      {divisionModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '1rem',
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            maxWidth: '500px',
+            width: '100%',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+          }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem', color: '#0f172a' }}>
+              Choose Your Division
+            </h3>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+              Join a specialized division to focus your rescue efforts.
+            </p>
+
+            {divisionsLoading ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                Loading divisions...
+              </div>
+            ) : availableDivisions.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '2rem',
+                background: '#f8fafc',
+                borderRadius: '8px',
+                color: '#64748b'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📍</div>
+                <p>No divisions available in this squad yet.</p>
+                <Link
+                  href="/divisions/request"
+                  style={{
+                    display: 'inline-block',
+                    marginTop: '1rem',
+                    padding: '0.5rem 1rem',
+                    background: '#667eea',
+                    color: 'white',
+                    borderRadius: '6px',
+                    textDecoration: 'none',
+                    fontSize: '0.9rem',
+                    fontWeight: '600'
+                  }}
+                >
+                  Request a Division
+                </Link>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {/* Option to leave division */}
+                {userDivision && (
+                  <button
+                    onClick={() => handleSwitchDivision(null)}
+                    disabled={switchingDivision}
+                    style={{
+                      padding: '1rem',
+                      background: '#f8fafc',
+                      border: '2px solid #e2e8f0',
+                      borderRadius: '8px',
+                      textAlign: 'left',
+                      cursor: switchingDivision ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{ fontWeight: '600', color: '#64748b' }}>
+                      No Division (General Member)
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                      Help with all squad activities
+                    </div>
+                  </button>
+                )}
+
+                {/* Available divisions */}
+                {availableDivisions.map(division => {
+                  const isCurrentDivision = userDivision?.id === division.id;
+                  return (
+                    <button
+                      key={division.id}
+                      onClick={() => !isCurrentDivision && handleSwitchDivision(division.id)}
+                      disabled={switchingDivision || isCurrentDivision}
+                      style={{
+                        padding: '1rem',
+                        background: isCurrentDivision ? '#f0fdf4' : 'white',
+                        border: isCurrentDivision ? '2px solid #10b981' : '2px solid #e2e8f0',
+                        borderRadius: '8px',
+                        textAlign: 'left',
+                        cursor: switchingDivision || isCurrentDivision ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s',
+                        opacity: switchingDivision ? 0.6 : 1
+                      }}
+                    >
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <div style={{ fontWeight: '600', color: '#0f172a' }}>
+                          {division.name}
+                        </div>
+                        {isCurrentDivision && (
+                          <span style={{
+                            padding: '0.25rem 0.5rem',
+                            background: '#10b981',
+                            color: 'white',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: '600'
+                          }}>
+                            Current
+                          </span>
+                        )}
+                      </div>
+                      {division.description && (
+                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>
+                          {division.description.length > 100
+                            ? division.description.substring(0, 100) + '...'
+                            : division.description}
+                        </div>
+                      )}
+                      <div style={{
+                        display: 'flex',
+                        gap: '1rem',
+                        marginTop: '0.5rem',
+                        fontSize: '0.8rem',
+                        color: '#94a3b8'
+                      }}>
+                        <span>{division.totalMembers || 0} members</span>
+                        {division.activeCases > 0 && (
+                          <span>{division.activeCases} active cases</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setDivisionModalOpen(false)}
+                disabled={switchingDivision}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: switchingDivision ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Success Message */}
       {successMessage && (
         <div style={{
@@ -827,6 +1091,184 @@ export default function RescueSquadDetailPage({ params }) {
           </div>
         </div>
 
+        {/* LIVE MISSIONS - Prominent when active */}
+        {liveMissions.length > 0 && (
+          <div style={{
+            background: 'linear-gradient(135deg, #1a1a1a 0%, #2d1f1f 100%)',
+            borderRadius: '16px',
+            padding: '2rem',
+            marginBottom: '2rem',
+            border: '2px solid #dc2626',
+            boxShadow: '0 0 30px rgba(220, 38, 38, 0.2)',
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1.5rem',
+              flexWrap: 'wrap',
+              gap: '1rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.5rem 1rem',
+                  background: '#dc2626',
+                  borderRadius: '20px',
+                  animation: 'pulse 2s infinite',
+                }}>
+                  <span style={{ color: '#fff', fontWeight: '700' }}>●</span>
+                  <span style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem' }}>LIVE</span>
+                </div>
+                <h2 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '800',
+                  color: '#fff',
+                  margin: 0,
+                }}>
+                  Active Search Operations
+                </h2>
+              </div>
+              <div style={{
+                color: '#888',
+                fontSize: '0.9rem',
+              }}>
+                {liveMissions.reduce((sum, m) => sum + (m.activeVolunteers || 0), 0)} volunteers searching
+              </div>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gap: '1rem',
+            }}>
+              {liveMissions.map(mission => (
+                <div
+                  key={mission.id}
+                  style={{
+                    display: 'flex',
+                    gap: '1.5rem',
+                    padding: '1.5rem',
+                    background: '#2a2a2a',
+                    borderRadius: '12px',
+                    border: mission.mode === 'CONTAINMENT' ? '2px solid #ff5722' : '1px solid #444',
+                    alignItems: 'center',
+                  }}
+                >
+                  {/* Pet photo */}
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <img
+                      src={mission.pet?.photoUrl || '/placeholder-pet.jpg'}
+                      alt={mission.pet?.name}
+                      style={{
+                        width: '80px',
+                        height: '80px',
+                        borderRadius: '12px',
+                        objectFit: 'cover',
+                        border: '3px solid #4CAF50',
+                      }}
+                    />
+                    {mission.mode === 'CONTAINMENT' && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '-8px',
+                        right: '-8px',
+                        background: '#ff5722',
+                        color: '#fff',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.7rem',
+                        fontWeight: '700',
+                      }}>
+                        SIGHTING!
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Mission details */}
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{
+                      fontSize: '1.25rem',
+                      fontWeight: '700',
+                      color: '#fff',
+                      margin: '0 0 0.5rem 0',
+                    }}>
+                      {mission.pet?.name}
+                    </h3>
+                    <p style={{
+                      fontSize: '0.9rem',
+                      color: '#888',
+                      margin: '0 0 0.75rem 0',
+                    }}>
+                      {mission.pet?.color} {mission.pet?.species}
+                      {mission.pet?.breed && ` • ${mission.pet.breed}`}
+                    </p>
+                    <div style={{
+                      display: 'flex',
+                      gap: '1.5rem',
+                      fontSize: '0.85rem',
+                      color: '#aaa',
+                    }}>
+                      <span>👥 {mission.activeVolunteers || 0} searching</span>
+                      <span>📍 {mission.zonesSearched || 0}/{mission.totalZones || 0} zones</span>
+                      {mission.sightings > 0 && (
+                        <span style={{ color: '#4CAF50' }}>👁 {mission.sightings} sighting{mission.sightings === 1 ? '' : 's'}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div style={{
+                    display: 'flex',
+                    gap: '0.75rem',
+                    flexDirection: 'column',
+                  }}>
+                    <Link
+                      href={`/cases/${mission.caseId}`}
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        background: 'linear-gradient(135deg, #4CAF50 0%, #388E3C 100%)',
+                        color: '#fff',
+                        borderRadius: '8px',
+                        textDecoration: 'none',
+                        fontWeight: '700',
+                        fontSize: '0.95rem',
+                        textAlign: 'center',
+                        boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+                      }}
+                    >
+                      Join Search
+                    </Link>
+                    <Link
+                      href={`/cases/${mission.caseId}`}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        background: 'transparent',
+                        color: '#888',
+                        border: '1px solid #444',
+                        borderRadius: '8px',
+                        textDecoration: 'none',
+                        fontSize: '0.85rem',
+                        textAlign: 'center',
+                      }}
+                    >
+                      View Details
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <style jsx>{`
+              @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.7; }
+              }
+            `}</style>
+          </div>
+        )}
+
         {/* Coverage Area Map */}
         {squad.centerLatitude && squad.centerLongitude && (
           <div style={{ marginBottom: '2rem' }}>
@@ -837,6 +1279,78 @@ export default function RescueSquadDetailPage({ params }) {
               city={squad.city}
               state={squad.state}
             />
+          </div>
+        )}
+
+        {/* Your Division (Members Only) */}
+        {isMember && (
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '1.5rem 2rem',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+            marginBottom: '2rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '1rem'
+          }}>
+            <div>
+              <div style={{
+                fontSize: '0.85rem',
+                color: '#64748b',
+                marginBottom: '0.25rem',
+                fontWeight: '600'
+              }}>
+                Your Division
+              </div>
+              {divisionsLoading ? (
+                <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Loading...</div>
+              ) : userDivision ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{
+                    fontSize: '1.25rem',
+                    fontWeight: '700',
+                    color: '#0f172a'
+                  }}>
+                    {userDivision.name}
+                  </span>
+                  <span style={{
+                    padding: '0.25rem 0.5rem',
+                    background: '#dbeafe',
+                    color: '#1e40af',
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600'
+                  }}>
+                    {userDivision.totalMembers || 0} members
+                  </span>
+                </div>
+              ) : (
+                <div style={{
+                  fontSize: '1.1rem',
+                  color: '#64748b'
+                }}>
+                  Not assigned to a division
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => setDivisionModalOpen(true)}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: userDivision ? 'white' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: userDivision ? '#667eea' : 'white',
+                border: userDivision ? '2px solid #667eea' : 'none',
+                borderRadius: '8px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              {userDivision ? 'Change Division' : 'Join a Division'}
+            </button>
           </div>
         )}
 

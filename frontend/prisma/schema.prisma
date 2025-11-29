@@ -67,6 +67,10 @@ model User {
   squadMessages          SquadMessage[]
   receivedHonors         SquadHonor[] @relation("HonoredUser")
   givenHonors            SquadHonor[] @relation("HonoringUser")
+  squadActivities        SquadActivity[]
+  assignedTasks          SquadTask[] @relation("TaskAssignee")
+  createdTasks           SquadTask[] @relation("TaskCreator")
+  completedTasks         SquadTask[] @relation("TaskCompleter")
 
   // Division Relations
   divisionRequests       DivisionRequest[]
@@ -96,6 +100,22 @@ model User {
 
   // Cases where this user is the primary coordinator (Phase 22-24)
   coordinatedCases LostPetCase[]  @relation("CaseCoordinator")
+
+  // Volunteer Coordination (Phases 1-10)
+  searchedGridCells GridCell[]
+  squadJoinRequests SquadJoinRequest[]
+
+  // Mission Control
+  missionVolunteers MissionVolunteer[]
+
+  // Engagement stats
+  currentStreak     Int      @default(0)
+  longestStreak     Int      @default(0)
+  lastActiveDate    DateTime?
+  totalSearchDays   Int      @default(0)
+  responseRate      Float?   // Percentage of alerts responded to
+  averageResponseTime Float? // Minutes
+  deviceId          String?  // For guest volunteers
 
   @@index([email])
   @@index([rescueLevel])
@@ -423,6 +443,14 @@ model Case {
   updates         CaseUpdate[]
   alerts          Alert[]
 
+  // Volunteer Coordination (Phases 1-10)
+  ownerThankYous    OwnerThankYou[]
+  priorityModes     CasePriorityMode[]
+  priorityLevel     String?  // CRITICAL, HIGH, ELEVATED, NORMAL, LOW
+
+  // Mission Control
+  missionControl    MissionControl?
+
   @@index([status])
   @@index([caseNumber])
   @@index([lastSeenLatitude, lastSeenLongitude])
@@ -596,6 +624,9 @@ model RescueSquad {
   divisions        Division[]
   divisionRequests DivisionRequest[]
   cases            LostPetCase[]  // Phase 13-14: Lost Pet Cases MVP
+  activities       SquadActivity[]
+  tasks            SquadTask[]
+  joinRequests     SquadJoinRequest[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -742,6 +773,9 @@ model CaseParticipant {
   areasMarked     Int      @default(0)
   sightingsReported Int    @default(0)
 
+  // Volunteer Coordination
+  searchSessions  SearchSession[]
+
   @@unique([assignmentId, userId])
   @@index([userId])
   @@index([isActive])
@@ -839,6 +873,77 @@ model SquadHonor {
 
   @@index([honoredUserId])
   @@index([rescueSquadId])
+}
+
+// ============================================================================
+// SQUAD ACTIVITY & TASK SYSTEM
+// ============================================================================
+
+model SquadActivity {
+  id              String   @id @default(cuid())
+  rescueSquadId   String
+  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+
+  // Activity type
+  type            String   // CASE_ACCEPTED, MEMBER_JOINED, SIGHTING_REPORTED, TASK_CREATED, etc.
+  message         String   // Human-readable description
+  details         String?  // Additional context
+
+  // Actor
+  actorId         String?
+  actor           User?    @relation(fields: [actorId], references: [id])
+
+  // Related case (optional)
+  caseId          String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([rescueSquadId])
+  @@index([type])
+  @@index([caseId])
+  @@index([createdAt])
+}
+
+model SquadTask {
+  id              String   @id @default(cuid())
+  rescueSquadId   String
+  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+
+  // Related case (optional)
+  caseId          String?
+
+  // Task details
+  title           String
+  description     String?
+  type            String   // SEARCH_AREA, POSTER_DISTRIBUTION, SHELTER_CHECK, FOLLOWUP, OTHER
+  priority        String   // LOW, MEDIUM, HIGH, URGENT
+  status          String   @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED, CANCELLED
+
+  // Location (optional)
+  latitude        Float?
+  longitude       Float?
+  address         String?
+
+  // Assignment
+  assignedToId    String?
+  assignedTo      User?    @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  createdById     String
+  createdBy       User     @relation("TaskCreator", fields: [createdById], references: [id])
+
+  // Completion
+  completedById   String?
+  completedBy     User?    @relation("TaskCompleter", fields: [completedById], references: [id])
+  completedAt     DateTime?
+  completionNotes String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([rescueSquadId])
+  @@index([caseId])
+  @@index([status])
+  @@index([assignedToId])
+  @@index([priority])
 }
 
 // ============================================================================
@@ -1589,4 +1694,1631 @@ model Sighting {
 
   @@index([caseId])
   @@index([createdAt])
+}
+
+// ============================================================================
+// PHASE 9: EXTERNAL INTEGRATIONS (Slack/Discord)
+// ============================================================================
+
+model Integration {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Integration type
+  type        String   // SLACK, DISCORD, WEBHOOK
+  name        String
+  config      String?  // JSON: webhookUrl, channelInfo, etc.
+
+  // Status
+  isActive    Boolean  @default(true)
+  lastUsedAt  DateTime?
+  failureCount Int     @default(0)
+
+  // Creator
+  createdById String
+
+  // Scope (optional - for case or squad-specific)
+  caseId      String?
+  rescueSquadId String?
+
+  @@index([type])
+  @@index([createdById])
+  @@index([caseId])
+  @@index([rescueSquadId])
+  @@index([isActive])
+}
+
+// ============================================================================
+// PHASE 11: MACHINE LEARNING - Image Analysis
+// ============================================================================
+
+model PetImageAnalysis {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  // Source
+  caseId      String?
+  petId       String?
+  imageUrl    String
+
+  // Analysis results
+  species     String?
+  breedPredictions String @default("[]") // JSON: [{breed, confidence}]
+  colorPalette String @default("[]")     // JSON: [{hex, percentage}]
+  embedding   String?                     // Base64 encoded embedding vector
+
+  // Status
+  status      String   @default("PENDING") // PENDING, PROCESSING, COMPLETE, FAILED
+  errorMessage String?
+
+  @@index([caseId])
+  @@index([petId])
+  @@index([status])
+}
+
+// ============================================================================
+// PHASE 12: SOCIAL FEATURES
+// ============================================================================
+
+model CaseFollow {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  userId      String
+  caseId      String
+
+  // Notification preferences
+  notifyOnSightings Boolean @default(true)
+  notifyOnUpdates   Boolean @default(true)
+  notifyOnResolution Boolean @default(true)
+
+  @@unique([userId, caseId])
+  @@index([userId])
+  @@index([caseId])
+}
+
+model SuccessStory {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  caseId      String   @unique
+  authorId    String
+
+  // Story content
+  title       String
+  story       String
+  photoUrls   String   @default("[]") // JSON array
+  videoUrl    String?
+
+  // Metrics
+  daysLost    Int?
+  searcherCount Int?
+  sightingCount Int?
+
+  // Display
+  isPublic    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  viewCount   Int      @default(0)
+  likeCount   Int      @default(0)
+
+  @@index([authorId])
+  @@index([isPublic, isFeatured])
+  @@index([createdAt])
+}
+
+model ActivityFeedItem {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  // Activity type
+  type        String   // CASE_CREATED, SIGHTING_REPORTED, CASE_RESOLVED, JOINED_SQUAD, etc.
+  message     String
+
+  // Actor
+  actorId     String?
+  actorName   String?
+
+  // Related entities
+  caseId      String?
+  squadId     String?
+  sightingId  String?
+
+  // Visibility
+  isPublic    Boolean  @default(true)
+
+  // Metadata
+  metadata    String   @default("{}") // JSON
+
+  @@index([type])
+  @@index([actorId])
+  @@index([caseId])
+  @@index([createdAt])
+  @@index([isPublic])
+}
+
+// ============================================================================
+// PHASE 13: ADVANCED MAPPING
+// ============================================================================
+
+model GPSBreadcrumb {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  // User tracking
+  userId      String
+  caseId      String?
+  sessionId   String   // Group breadcrumbs by search session
+
+  // Location
+  latitude    Float
+  longitude   Float
+  accuracy    Float?   // GPS accuracy in meters
+  altitude    Float?
+  speed       Float?   // meters per second
+
+  @@index([userId])
+  @@index([caseId])
+  @@index([sessionId])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// PHASE 14: VOLUNTEER MANAGEMENT
+// ============================================================================
+
+model VolunteerShift {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Context
+  caseId      String?
+  squadId     String?
+  eventName   String?
+
+  // Timing
+  startTime   DateTime
+  endTime     DateTime
+  timezone    String   @default("America/Chicago")
+
+  // Capacity
+  maxVolunteers Int     @default(10)
+  currentCount  Int     @default(0)
+
+  // Location
+  meetingPoint  String?
+  latitude      Float?
+  longitude     Float?
+  instructions  String?
+
+  // Status
+  status      String   @default("OPEN") // OPEN, FULL, IN_PROGRESS, COMPLETED, CANCELLED
+
+  // Relations
+  signups     VolunteerSignup[]
+
+  @@index([caseId])
+  @@index([squadId])
+  @@index([startTime])
+  @@index([status])
+}
+
+model VolunteerSignup {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  shiftId     String
+  shift       VolunteerShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  userId      String
+
+  // Status
+  status      String   @default("CONFIRMED") // CONFIRMED, CANCELLED, NO_SHOW, COMPLETED
+  checkedInAt DateTime?
+  checkedOutAt DateTime?
+
+  // Feedback
+  hoursWorked Float?
+  notes       String?
+
+  @@unique([shiftId, userId])
+  @@index([userId])
+  @@index([status])
+}
+
+model VolunteerCertification {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+
+  // Certification details
+  type        String   // BASIC_SEARCH, ADVANCED_TRACKING, DRONE_OPERATOR, FIRST_AID, etc.
+  name        String
+  issuedBy    String?
+  issuedAt    DateTime @default(now())
+  expiresAt   DateTime?
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, EXPIRED, REVOKED
+  verifiedAt  DateTime?
+  verifiedById String?
+
+  // Documents
+  documentUrl String?
+  metadata    String   @default("{}")
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+}
+
+model TrainingModule {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Module info
+  title       String
+  description String?
+  category    String   // BASICS, SEARCH_TECHNIQUES, SAFETY, ANIMAL_BEHAVIOR, etc.
+  difficulty  String   @default("BEGINNER") // BEGINNER, INTERMEDIATE, ADVANCED
+
+  // Content
+  contentType String   @default("VIDEO") // VIDEO, ARTICLE, QUIZ, INTERACTIVE
+  contentUrl  String?
+  duration    Int?     // Minutes
+  order       Int      @default(0)
+
+  // Requirements
+  prerequisiteIds String @default("[]") // JSON array of module IDs
+  certificationGranted String? // Certification type granted upon completion
+
+  // Status
+  isActive    Boolean  @default(true)
+
+  // Relations
+  progress    TrainingProgress[]
+
+  @@index([category])
+  @@index([isActive])
+}
+
+model TrainingProgress {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  moduleId    String
+  module      TrainingModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  // Progress
+  status      String   @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, COMPLETED
+  progress    Int      @default(0)  // Percentage 0-100
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  // Quiz results
+  quizScore   Int?
+  attempts    Int      @default(0)
+
+  @@unique([userId, moduleId])
+  @@index([userId])
+  @@index([status])
+}
+
+// ============================================================================
+// PHASE 15: PAYMENTS & DONATIONS
+// ============================================================================
+
+model Donation {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  // Donor
+  donorId     String?  // Null for anonymous
+  donorEmail  String
+  donorName   String?
+  isAnonymous Boolean  @default(false)
+
+  // Amount
+  amount      Int      // In cents
+  currency    String   @default("usd")
+  fee         Int?     // Processing fee in cents
+  netAmount   Int?     // Amount after fees
+
+  // Designation
+  type        String   @default("GENERAL") // GENERAL, CASE_SPECIFIC, SQUAD, REWARD_FUND
+  caseId      String?
+  squadId     String?
+
+  // Payment
+  stripePaymentId String?  @unique
+  stripeCustomerId String?
+  paymentMethod   String?  // card, bank_transfer, etc.
+  status      String   @default("PENDING") // PENDING, COMPLETED, FAILED, REFUNDED
+
+  // Metadata
+  message     String?
+  isRecurring Boolean  @default(false)
+  receiptUrl  String?
+
+  @@index([donorId])
+  @@index([caseId])
+  @@index([squadId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model RewardEscrow {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  caseId      String
+  ownerId     String   // Pet owner who funded
+
+  // Amount
+  amount      Int      // In cents
+  currency    String   @default("usd")
+
+  // Payment
+  stripePaymentIntentId String? @unique
+  stripeChargeId        String?
+
+  // Status
+  status      String   @default("AUTHORIZED") // AUTHORIZED, CAPTURED, RELEASED, REFUNDED, EXPIRED
+
+  // Payout
+  recipientId String?  // User who found the pet
+  payoutId    String?  // Stripe payout ID
+  paidOutAt   DateTime?
+
+  // Expiry
+  expiresAt   DateTime?
+  expiredAt   DateTime?
+  refundedAt  DateTime?
+
+  @@index([caseId])
+  @@index([ownerId])
+  @@index([status])
+}
+
+model Subscription {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+
+  // Stripe
+  stripeCustomerId     String?
+  stripeSubscriptionId String? @unique
+  stripePriceId        String?
+
+  // Plan
+  planType    String   // FREE, BASIC, PREMIUM, ORGANIZATION
+  interval    String?  // month, year
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, PAST_DUE, CANCELLED, PAUSED
+
+  // Billing
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+  cancelledAt        DateTime?
+
+  // Features
+  features    String   @default("{}") // JSON: enabled features
+
+  @@index([userId])
+  @@index([status])
+  @@index([stripeCustomerId])
+}
+
+// ============================================================================
+// PHASE 20: EMERGENCY RESPONSE
+// ============================================================================
+
+model EmergencyEvent {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Event details
+  type        String   // WILDFIRE, HURRICANE, FLOOD, TORNADO, EARTHQUAKE, EVACUATION, OTHER
+  level       String   // NORMAL, WATCH, WARNING, ACTIVE, RECOVERY
+  name        String
+  description String?
+
+  // Affected area
+  affectedArea String? // JSON: GeoJSON polygon or center+radius
+
+  // Timing
+  startTime   DateTime @default(now())
+  estimatedEndTime DateTime?
+  endTime     DateTime?
+
+  // Resources
+  evacuationRoutes String? // JSON array
+  shelterLocations String? // JSON array
+
+  // Status
+  isActive    Boolean  @default(true)
+  closureNotes String?
+
+  // Creator
+  activatedById String
+
+  // Relations
+  evacuations PetEvacuation[]
+
+  @@index([type])
+  @@index([isActive])
+  @@index([startTime])
+}
+
+model PetEvacuation {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  emergencyEventId String
+  emergencyEvent   EmergencyEvent @relation(fields: [emergencyEventId], references: [id], onDelete: Cascade)
+
+  petId       String
+  ownerId     String
+
+  // Location tracking
+  evacuationLocation String? // JSON: destination location
+  currentLocation    String? // JSON: current location
+
+  // Status
+  status      String   @default("WITH_OWNER") // WITH_OWNER, AT_SHELTER, SEPARATED, MISSING, REUNITED
+
+  // Details
+  transportMethod String?
+  contactInfo     String?
+  notes           String?
+
+  @@index([emergencyEventId])
+  @@index([petId])
+  @@index([ownerId])
+  @@index([status])
+}
+
+// ============================================================================
+// PHASE 21: ADVANCED AI - Pet Recognition
+// ============================================================================
+
+model PetFacialFeatures {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  petId       String?
+  caseId      String?
+  imageUrl    String
+
+  // Facial data
+  faceRegion  String?  // JSON: bounding box
+  landmarks   String?  // JSON: facial landmarks
+  embedding   String?  // Base64 encoded 128-dim vector
+  distinctiveFeatures String? // JSON array
+
+  species     String?
+  confidence  Float?
+
+  @@index([petId])
+  @@index([caseId])
+}
+
+// ============================================================================
+// PHASE 22: GAMIFICATION 2.0
+// ============================================================================
+
+model UserAchievement {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  userId      String
+  achievementId String
+
+  earnedAt    DateTime @default(now())
+  notified    Boolean  @default(false)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+}
+
+model PointsLog {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  userId      String
+  points      Int
+  reason      String
+  awardedAt   DateTime @default(now())
+
+  // Context
+  caseId      String?
+  squadId     String?
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model SquadCompetition {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+
+  // Scoring
+  scoreType   String   @default("REUNIONS") // REUNIONS, SIGHTINGS, SEARCH_HOURS
+  prizes      String?  // JSON array
+
+  status      String   @default("UPCOMING") // UPCOMING, ACTIVE, COMPLETED
+
+  // Relations
+  entries     SquadCompetitionEntry[]
+
+  @@index([status])
+  @@index([startDate])
+}
+
+model SquadCompetitionEntry {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  competitionId String
+  competition   SquadCompetition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  squadId     String
+
+  score       Int      @default(0)
+  rank        Int?
+  metrics     String?  // JSON: detailed metrics
+
+  @@unique([competitionId, squadId])
+  @@index([squadId])
+}
+
+// ============================================================================
+// PHASE 24: BLOCKCHAIN - Pet Identity
+// ============================================================================
+
+model BlockchainIdentity {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  petId       String   @unique
+  tokenId     String   @unique
+  ownerAddress String
+
+  // Blockchain data
+  transactionHash String?
+  imageHash   String?  // IPFS hash
+  metadata    String?  // JSON
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, TRANSFERRED, LOST, FOUND
+
+  @@index([ownerAddress])
+  @@index([status])
+}
+
+model OwnershipHistory {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  tokenId     String
+  fromAddress String
+  toAddress   String
+  transactionHash String?
+  reason      String?
+
+  @@index([tokenId])
+}
+
+// ============================================================================
+// PHASE 25: IOT - Device Management
+// ============================================================================
+
+model DeviceConnection {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  provider    String   // fi, whistle, tractive, etc.
+  deviceId    String
+
+  // Auth
+  accessToken String?
+  refreshToken String?
+  expiresAt   DateTime?
+
+  // Status
+  status      String   @default("CONNECTED") // CONNECTED, DISCONNECTED, ERROR
+  lastSyncAt  DateTime?
+
+  // Settings
+  petId       String?
+  autoCreateCase Boolean @default(false)
+
+  @@unique([userId, provider, deviceId])
+  @@index([userId])
+  @@index([provider])
+}
+
+model Geofence {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  deviceConnectionId String
+  name        String
+  centerLat   Float
+  centerLng   Float
+  radiusMeters Int
+
+  // Alerts
+  notifyOnExit Boolean @default(true)
+  notifyOnEnter Boolean @default(false)
+
+  status      String   @default("ACTIVE") // ACTIVE, PAUSED, DELETED
+
+  @@index([deviceConnectionId])
+}
+
+model TrapSensor {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  sensorId    String   @unique
+  name        String
+
+  // Location
+  latitude    Float?
+  longitude   Float?
+  address     String?
+
+  // Status
+  status      String   @default("ARMED") // ARMED, TRIGGERED, DISABLED
+  lastTriggeredAt DateTime?
+  triggerCount Int     @default(0)
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ============================================================================
+// PHASE 26: GOVERNMENT - Agency Integration
+// ============================================================================
+
+model AgencyIntegration {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  name        String
+  type        String   // animal_control, shelter, police, licensing
+  jurisdiction String? // JSON: state, county, city
+
+  // API
+  apiEndpoint String?
+  apiKeyHash  String?
+  lastSyncAt  DateTime?
+
+  // Status
+  status      String   @default("PENDING") // PENDING, ACTIVE, TESTING, INACTIVE
+
+  // Contact
+  contactEmail String?
+  contactVerified Boolean @default(false)
+
+  @@index([type])
+  @@index([status])
+}
+
+model AgencyIntake {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agencyId    String
+  externalId  String
+
+  // Animal info
+  species     String
+  breed       String?
+  color       String?
+  description String?
+
+  // Intake details
+  intakeDate  DateTime
+  intakeType  String?  // STRAY, SURRENDER, CONFISCATION
+  foundLocation String?
+
+  // Status
+  status      String   @default("AVAILABLE")
+  holdUntil   DateTime?
+
+  // Matching
+  matchedCaseId String?
+  matchScore  Float?
+
+  @@unique([agencyId, externalId])
+  @@index([agencyId])
+  @@index([status])
+}
+
+// ============================================================================
+// PHASE 27: INSURANCE - Claims
+// ============================================================================
+
+model InsurancePolicy {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  petId       String?
+  provider    String
+  policyNumber String
+
+  // Coverage
+  coverageTypes String? // JSON array
+  limits      String?  // JSON: coverage limits
+  deductible  Int?
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, EXPIRED, CANCELLED
+  expiresAt   DateTime?
+
+  // Verification
+  verified    Boolean  @default(false)
+  verifiedAt  DateTime?
+
+  // Relations
+  claims      InsuranceClaim[]
+
+  @@unique([provider, policyNumber])
+  @@index([userId])
+  @@index([petId])
+}
+
+model InsuranceClaim {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  policyId    String
+  policy      InsurancePolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  caseId      String?
+
+  // Claim details
+  claimType   String   // LOST_PET_ADVERTISING, REWARD, SEARCH_EXPENSES
+  claimedAmount Int    // cents
+  description String?
+  documents   String?  // JSON array of document URLs
+
+  // Provider
+  providerClaimId String?
+
+  // Status
+  status      String   @default("PENDING") // PENDING, REVIEWING, APPROVED, DENIED, PAID
+  approvedAmount Int?
+  paidAmount  Int?
+  denialReason String?
+
+  // Timeline
+  submittedAt DateTime @default(now())
+  reviewedAt  DateTime?
+  resolvedAt  DateTime?
+
+  @@index([policyId])
+  @@index([caseId])
+  @@index([status])
+}
+
+// ============================================================================
+// PHASE 29: REPORTING - Scheduled Reports
+// ============================================================================
+
+model ReportSchedule {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  type        String   // EXECUTIVE_SUMMARY, CASE_ANALYTICS, etc.
+  frequency   String   // daily, weekly, monthly
+  recipients  String   // JSON array of emails
+  format      String   @default("pdf")
+  config      String?  // JSON: custom config
+
+  // Schedule
+  nextRunAt   DateTime
+  lastRunAt   DateTime?
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, PAUSED, DELETED
+
+  // Creator
+  createdById String
+
+  @@index([type])
+  @@index([status])
+  @@index([nextRunAt])
+}
+
+// ============================================================================
+// PHASE 30: ENTERPRISE - Multi-tenant
+// ============================================================================
+
+model Tenant {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  name        String
+  type        String   // shelter, rescue_org, municipality, enterprise
+  domain      String   @unique
+
+  // Branding
+  branding    String?  // JSON: colors, logo, etc.
+  features    String?  // JSON: enabled features
+  limits      String?  // JSON: usage limits
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, SUSPENDED, CANCELLED
+
+  // Relations
+  users       TenantUser[]
+  apiKeys     APIKey[]
+  integrations TenantIntegration[]
+
+  @@index([type])
+  @@index([status])
+}
+
+model TenantUser {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      String
+
+  role        String   @default("MEMBER") // ADMIN, MANAGER, MEMBER
+  invitedAt   DateTime @default(now())
+  joinedAt    DateTime?
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+}
+
+model APIKey {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String
+  keyHash     String   @unique
+  keyPrefix   String
+
+  // Permissions
+  permissions String   // JSON array
+  rateLimit   String?  // JSON: requests per window
+  ipWhitelist String?  // JSON array
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, REVOKED
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+
+  @@index([tenantId])
+  @@index([keyPrefix])
+}
+
+model TenantIntegration {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  integrationId String
+
+  config      String?  // JSON: integration config
+  webhookUrl  String?
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, PAUSED, ERROR
+  lastSyncAt  DateTime?
+  errorMessage String?
+
+  @@unique([tenantId, integrationId])
+  @@index([status])
+}
+
+// ============================================================================
+// VOLUNTEER COORDINATION SYSTEM (Phases 1-10)
+// ============================================================================
+
+model SearchSession {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Participation
+  participantId   String
+  participant     CaseParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  caseId          String
+  divisionId      String?
+
+  // Assignment
+  gridCellId      String?
+  gridCell        GridCell? @relation(fields: [gridCellId], references: [id])
+
+  // Session Status
+  status          String   @default("READY") // READY, ACTIVE, PAUSED, COMPLETED
+  startedAt       DateTime?
+  endedAt         DateTime?
+  pausedAt        DateTime?
+  pauseReason     String?
+  endReason       String?
+
+  // Location Tracking
+  startLocation   String?  // JSON: {lat, lng}
+  currentLocation String?  // JSON: {lat, lng, accuracy, heading}
+  lastLocationUpdate DateTime?
+
+  // Stats
+  totalMinutes    Int      @default(0)
+
+  // Location History
+  locationPings   LocationPing[]
+
+  @@index([participantId])
+  @@index([caseId])
+  @@index([status])
+}
+
+model LocationPing {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  sessionId   String
+  session     SearchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  latitude    Float
+  longitude   Float
+  accuracy    Float?
+  heading     Float?
+
+  @@index([sessionId])
+  @@index([createdAt])
+}
+
+model SearchGrid {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  caseId          String   @unique
+  centerLatitude  Float
+  centerLongitude Float
+  radiusMiles     Float
+  cellSizeMeters  Int      @default(100)
+
+  // Stats
+  totalCells      Int      @default(0)
+  cellsSearched   Int      @default(0)
+  lastActivityAt  DateTime?
+
+  // Cells
+  cells           GridCell[]
+
+  @@index([caseId])
+}
+
+model GridCell {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  gridId          String
+  grid            SearchGrid @relation(fields: [gridId], references: [id], onDelete: Cascade)
+
+  // Position
+  row             Int
+  col             Int
+  centerLatitude  Float
+  centerLongitude Float
+  northLat        Float
+  southLat        Float
+  eastLng         Float
+  westLng         Float
+
+  // Status
+  status          String   @default("UNSEARCHED") // UNSEARCHED, IN_PROGRESS, SEARCHED, CLUE_FOUND, NEEDS_REVISIT, PET_FOUND, CLOSED
+  priority        Int      @default(5) // 1-10, higher = more important
+
+  // Claim
+  claimedById     String?
+  claimedAt       DateTime?
+
+  // Search History
+  searchedById    String?
+  searchedBy      User?    @relation(fields: [searchedById], references: [id])
+  searchedAt      DateTime?
+  searchCount     Int      @default(0)
+  notes           String?
+
+  // Sessions
+  sessions        SearchSession[]
+
+  @@unique([gridId, row, col])
+  @@index([gridId])
+  @@index([status])
+  @@index([claimedById])
+}
+
+model CaseClue {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  caseId      String
+  reporterId  String
+
+  // Location
+  latitude    Float?
+  longitude   Float?
+
+  // Clue Details
+  clueType    String   // COLLAR, LEASH, FOOD, TRACKS, SCAT, BEDDING, OTHER
+  description String?
+  photoUrl    String?
+
+  @@index([caseId])
+}
+
+model HelpRequest {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sessionId   String
+  caseId      String
+  requesterId String
+
+  // Request Details
+  helpType    String   @default("GENERAL") // FOUND_PET, INJURED_ANIMAL, NEED_BACKUP, TRAPPED_PET, GENERAL
+  message     String?
+  latitude    Float?
+  longitude   Float?
+
+  // Status
+  status      String   @default("ACTIVE") // ACTIVE, RESPONDING, RESOLVED
+  responderId String?
+  resolvedAt  DateTime?
+
+  @@index([caseId])
+  @@index([status])
+}
+
+model DivisionAlert {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  divisionId      String
+  caseId          String?
+
+  // Alert Content
+  type            String   // NEW_CASE, SIGHTING, HELP_REQUEST, COVERAGE_GAP, REUNION, PRIORITY_SURGE
+  title           String
+  body            String
+  priority        String   @default("NORMAL") // LOW, NORMAL, URGENT
+
+  // Delivery Stats
+  sentAt          DateTime
+  recipientCount  Int      @default(0)
+  deliveredCount  Int      @default(0)
+  failedCount     Int      @default(0)
+
+  @@index([divisionId])
+  @@index([caseId])
+  @@index([type])
+}
+
+model UserAlertPreferences {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  userId          String   @unique
+
+  // Alert Types
+  newCases        Boolean  @default(true)
+  sightings       Boolean  @default(true)
+  helpRequests    Boolean  @default(true)
+  reunions        Boolean  @default(true)
+  coverageGaps    Boolean  @default(false)
+
+  // Quiet Hours
+  quietHoursStart String?  // "22:00"
+  quietHoursEnd   String?  // "07:00"
+
+  // Limits
+  maxAlertsPerDay Int      @default(20)
+}
+
+model OwnerThankYou {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  caseId      String
+  case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  // Message
+  message     String
+  photoUrl    String?  // Reunion photo
+
+  // Recipient (null = all volunteers)
+  recipientId String?
+
+  @@index([caseId])
+  @@index([recipientId])
+}
+
+model CasePriorityMode {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  caseId      String
+  case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  // Timing
+  startedAt   DateTime
+  expiresAt   DateTime
+  endedAt     DateTime?
+  endReason   String?
+
+  // Metadata
+  triggeredBy String   // USER_ID or 'AUTO' or 'SYSTEM'
+  reason      String?
+
+  // Status
+  isActive    Boolean  @default(true)
+
+  @@index([caseId])
+  @@index([isActive])
+}
+
+model SurgeEvent {
+  id                  String   @id @default(cuid())
+  createdAt           DateTime @default(now())
+
+  caseId              String
+  type                String   // PRIORITY_ACTIVATED, COVERAGE_GAP, RE_SURGE
+
+  // Stats
+  squadsNotified      Int      @default(0)
+  volunteersNotified  Int      @default(0)
+
+  @@index([caseId])
+}
+
+model SquadJoinRequest {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rescueSquadId   String
+  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  divisionId      String?
+
+  // Request
+  message         String?
+
+  // Review
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  reviewedById    String?
+  reviewedAt      DateTime?
+  rejectionReason String?
+
+  @@unique([userId, rescueSquadId])
+  @@index([rescueSquadId])
+  @@index([status])
+}
+
+// ============================================================================
+// MISSION CONTROL - Real-time Tactical Coordination
+// ============================================================================
+
+model MissionControl {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Link to case
+  caseId          String   @unique
+  case            Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  // Operation mode
+  mode            String   @default("INACTIVE") // INACTIVE, LIVE_SEARCH, CONTAINMENT, TRAP_OPS, STANDBY, RESOLVED, CLOSED
+
+  // Activation
+  activatedAt     DateTime?
+  activatedById   String?
+  activatorRole   String?  // OWNER, LEADER, ADMIN
+
+  // Initial search config
+  initialRadius   Float?   // Miles
+
+  // Pause state
+  pausedAt        DateTime?
+  pausedById      String?
+  pauseReason     String?
+
+  // Cold case
+  coldCaseAt      DateTime?
+  resumedAt       DateTime?
+  resumeReason    String?
+  resumeConditions String?
+
+  // Resolution
+  resolvedAt      DateTime?
+  resolutionType  String?  // FOUND_ALIVE, FOUND_DECEASED, CLOSED_OTHER
+  foundLocation   String?  // JSON
+  foundById       String?
+  reunionPhotoUrl String?
+  resolutionNotes String?
+
+  // Containment mode
+  containmentCenter     String?  // JSON: {lat, lng}
+  containmentRadius     Float?
+  containmentStartedAt  DateTime?
+  perimeterPositions    String?  // JSON array
+  activeSightingId      String?
+
+  // Trap ops
+  trapOpsStartedAt DateTime?
+
+  // Owner state
+  ownerStatus     String?  // AT_HOME, SEARCHING, AT_SHELTER, etc.
+  ownerLocation   String?  // JSON
+  ownerBroadcast  String?
+  ownerLastUpdate DateTime?
+
+  // Call mode
+  ownerVoiceClipUrl     String?
+  callModeActive        Boolean  @default(false)
+  callModeLastTriggered DateTime?
+
+  // Stats
+  totalVolunteersJoined Int      @default(0)
+  peakVolunteers        Int      @default(0)
+  sightingsCount        Int      @default(0)
+  lastSightingAt        DateTime?
+  lastModeChange        DateTime?
+  lastUpdatedBy         String?
+
+  // Relations
+  activeVolunteers MissionVolunteer[]
+  zones            MissionZone[]
+  sightings        MissionSighting[]
+  resources        MissionResource[]
+  traps            MissionTrap[]
+  logs             MissionLog[]
+  broadcasts       MissionBroadcast[]
+  thankYous        MissionThankYou[]
+
+  @@index([mode])
+  @@index([activatedAt])
+}
+
+model MissionVolunteer {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  missionId       String
+  mission         MissionControl @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  // Identity (supports anonymous)
+  odId            String   // Device/session ID
+  displayName     String
+  isAnonymous     Boolean  @default(true)
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+
+  // Status
+  status          String   @default("ACTIVE") // AVAILABLE, ACTIVE, ON_BREAK, RESPONDING, PERIMETER, OFFLINE
+  joinedAt        DateTime @default(now())
+
+  // Location
+  currentLocation     String?  // JSON
+  lastLocationUpdate  DateTime?
+
+  // Shift
+  shiftStartedAt  DateTime?
+  shiftEndedAt    DateTime?
+  estimatedEndTime DateTime?
+
+  // Zone assignment
+  assignedZoneId  String?
+
+  // Resources
+  resources       String?  // JSON array: ['CAR', 'TRAP', 'FLYERS']
+
+  // Perimeter mode
+  perimeterPosition String?  // NORTH, SOUTH, etc.
+  perimeterTarget   String?  // JSON: {lat, lng}
+  perimeterArrivedAt DateTime?
+
+  // Resources relation
+  missionResources  MissionResource[]
+
+  @@unique([missionId, odId])
+  @@index([missionId])
+  @@index([status])
+  @@index([userId])
+}
+
+model MissionZone {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  missionId       String
+  mission         MissionControl @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  // Grid reference
+  gridRef         String   // A1, B2, etc.
+
+  // Bounds
+  northLat        Float
+  southLat        Float
+  eastLng         Float
+  westLng         Float
+
+  // Status
+  status          String   @default("UNSEARCHED") // UNSEARCHED, IN_PROGRESS, SEARCHED, STALE, HIGH_PROBABILITY, SIGHTING
+  priority        String   @default("MEDIUM")     // LOW, MEDIUM, HIGH
+
+  // Probability
+  probability     Float    @default(0.5)
+
+  // Assignment
+  assignedToId    String?
+  assignedAt      DateTime?
+
+  // Search history
+  lastSearchedAt  DateTime?
+  lastSearchedById String?
+  searchCount     Int      @default(0)
+
+  // Terrain
+  terrainType     String?  // URBAN, WOODED, WATER, OPEN
+  hasHidingSpots  Boolean  @default(false)
+
+  @@unique([missionId, gridRef])
+  @@index([missionId])
+  @@index([status])
+  @@index([probability])
+}
+
+model MissionSighting {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  missionId       String
+  mission         MissionControl @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  // Reporter
+  reporterId      String   // odId or odId
+  reporterName    String?
+
+  // Location
+  latitude        Float
+  longitude       Float
+
+  // Details
+  confidence      String   // CONFIRMED, HIGH, MEDIUM, LOW
+  priority        String   // Maps from confidence
+  photoUrl        String?
+  notes           String?
+  petDirection    String?  // Direction pet was heading
+
+  // Verification
+  verified        Boolean  @default(false)
+  verifiedById    String?
+  verifiedAt      DateTime?
+  status          String   @default("PENDING") // PENDING, VERIFIED, DISMISSED
+
+  @@index([missionId])
+  @@index([createdAt])
+  @@index([verified])
+  @@index([priority])
+}
+
+model MissionResource {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  missionId       String
+  mission         MissionControl @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  // Resource type
+  type            String   // CAR, TRAP, FLYERS, TREATS, CARRIER, FLASHLIGHT
+
+  // Owner
+  volunteerId     String
+  volunteer       MissionVolunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
+
+  // Status
+  location        String?  // JSON
+  available       Boolean  @default(true)
+
+  // If requested
+  requestedById   String?
+  requestedAt     DateTime?
+  requestLocation String?  // JSON
+
+  @@unique([missionId, type, volunteerId])
+  @@index([missionId])
+  @@index([type])
+  @@index([available])
+}
+
+model MissionTrap {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  missionId       String
+  mission         MissionControl @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  // Location
+  latitude        Float
+  longitude       Float
+
+  // Details
+  type            String   @default("HUMANE_TRAP")
+  notes           String?
+
+  // Status
+  status          String   @default("ACTIVE") // ACTIVE, TRIGGERED, REMOVED
+
+  // Placement
+  placedById      String?
+  placedAt        DateTime
+
+  // Monitoring
+  checkSchedule   String?  // JSON
+  lastCheckedAt   DateTime?
+  lastCheckedById String?
+  assignedToId    String?
+
+  // Checks
+  checks          TrapCheck[]
+
+  @@index([missionId])
+  @@index([status])
+}
+
+model TrapCheck {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  trapId          String
+  trap            MissionTrap @relation(fields: [trapId], references: [id], onDelete: Cascade)
+
+  checkedById     String
+  status          String   // OK, NEEDS_REBAIT, TRIGGERED, ISSUE
+  notes           String?
+  triggered       Boolean  @default(false)
+
+  @@index([trapId])
+}
+
+model MissionLog {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  missionId       String
+  mission         MissionControl @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  action          String   // ACTIVATED, MODE_CHANGE, VOLUNTEER_JOINED, SIGHTING_REPORTED, etc.
+  details         String?  // JSON
+  userId          String?
+
+  @@index([missionId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model MissionBroadcast {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  missionId       String?
+  mission         MissionControl? @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  // Squad-wide broadcasts
+  squadId         String?
+
+  message         String
+  type            String   // INFO, ALERT, FREEZE, STAND_DOWN, URGENT
+  priority        String   @default("NORMAL") // NORMAL, CRITICAL
+  senderId        String?
+
+  @@index([missionId])
+  @@index([squadId])
+  @@index([createdAt])
+}
+
+model MissionThankYou {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  missionId       String
+  mission         MissionControl @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  message         String
+  photoUrl        String?
+  sentAt          DateTime
+
+  @@index([missionId])
+}
+
+model VolunteerPath {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  missionId       String
+  odId            String   // Volunteer device ID
+
+  latitude        Float
+  longitude       Float
+  accuracy        Float?
+  timestamp       DateTime @default(now())
+
+  @@index([missionId])
+  @@index([odId])
+  @@index([timestamp])
+}
+
+model VolunteerSignal {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  missionId       String
+  odId            String
+
+  signalType      String   // NEED_BACKUP, AREA_CLEAR, TAKING_BREAK, HEADING_HOME
+  latitude        Float?
+  longitude       Float?
+
+  @@index([missionId])
+  @@index([signalType])
 }

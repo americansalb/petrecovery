@@ -4,120 +4,204 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import {
+  Bell,
+  Smartphone,
+  Mail,
+  MessageSquare,
+  ArrowLeft,
+  Check,
+  AlertCircle,
+  Send,
+  Shield,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 
-/**
- * Email Preferences Settings Page
- *
- * Allows users to manage their email notification preferences.
- */
 export default function NotificationSettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [preferences, setPreferences] = useState({
+  const [message, setMessage] = useState(null);
+
+  // Phone verification state
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
+  // SMS preferences
+  const [smsPrefs, setSmsPrefs] = useState({
+    urgentAlerts: true,
+    sightingAlerts: false,
+    caseUpdates: false,
+  });
+
+  // Email preferences
+  const [emailPrefs, setEmailPrefs] = useState({
     caseUpdates: true,
     sightingAlerts: true,
     squadMessages: true,
     weeklyDigest: false,
     marketingEmails: false,
     systemAnnouncements: true,
-    digestFrequency: 'IMMEDIATE',
-    quietHoursStart: null,
-    quietHoursEnd: null,
-    timezone: 'America/Chicago'
   });
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/login?callbackUrl=/settings/notifications');
-    } else if (status === 'authenticated') {
+      router.push('/auth/signin');
+    } else if (session?.user?.id) {
       loadPreferences();
     }
-  }, [status, router]);
+  }, [session, status]);
 
   const loadPreferences = async () => {
+    setLoading(true);
     try {
-      const res = await fetch('/api/user/email-preferences');
-      if (res.ok) {
-        const data = await res.json();
-        setPreferences(data.preferences);
+      // Load user profile for phone
+      const profileRes = await fetch('/api/profile');
+      if (profileRes.ok) {
+        const profile = await profileRes.json();
+        if (profile.phone) {
+          setPhoneNumber(profile.phone);
+          setPhoneVerified(profile.phoneVerified || false);
+        }
+      }
+
+      // Load SMS preferences
+      const smsRes = await fetch('/api/sms/preferences');
+      if (smsRes.ok) {
+        const data = await smsRes.json();
+        if (data.preferences) {
+          setSmsPrefs({
+            urgentAlerts: data.preferences.urgentAlerts ?? true,
+            sightingAlerts: data.preferences.sightingAlerts ?? false,
+            caseUpdates: data.preferences.caseUpdates ?? false,
+          });
+        }
+      }
+
+      // Load email preferences
+      const emailRes = await fetch('/api/email/preferences');
+      if (emailRes.ok) {
+        const data = await emailRes.json();
+        if (data.preferences) {
+          setEmailPrefs(data.preferences);
+        }
       }
     } catch (err) {
-      setError('Failed to load preferences');
+      console.error('Error loading preferences:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const savePreferences = async () => {
-    setSaving(true);
-    setError('');
-    setSuccess('');
+  const sendVerification = async () => {
+    if (!phoneNumber) return;
 
+    setVerifying(true);
     try {
-      const res = await fetch('/api/user/email-preferences', {
-        method: 'PUT',
+      const res = await fetch('/api/sms/send-verification', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(preferences)
+        body: JSON.stringify({ phoneNumber }),
       });
 
       if (res.ok) {
-        setSuccess('Preferences saved successfully!');
-        setTimeout(() => setSuccess(''), 3000);
+        setVerificationSent(true);
+        setMessage({ type: 'success', text: 'Verification code sent!' });
       } else {
         const data = await res.json();
-        setError(data.error || 'Failed to save preferences');
+        setMessage({ type: 'error', text: data.error || 'Failed to send code' });
       }
     } catch (err) {
-      setError('Failed to save preferences');
+      setMessage({ type: 'error', text: 'Failed to send verification' });
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const verifyCode = async () => {
+    if (!verificationCode) return;
+
+    setVerifying(true);
+    try {
+      const res = await fetch('/api/sms/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber, code: verificationCode }),
+      });
+
+      if (res.ok) {
+        setPhoneVerified(true);
+        setVerificationSent(false);
+        setVerificationCode('');
+        setMessage({ type: 'success', text: 'Phone verified successfully!' });
+      } else {
+        const data = await res.json();
+        setMessage({ type: 'error', text: data.error || 'Invalid code' });
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Verification failed' });
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const saveSmsPrefs = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/sms/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(smsPrefs),
+      });
+
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'SMS preferences saved!' });
+      } else {
+        throw new Error('Failed to save');
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Failed to save preferences' });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleToggle = (key) => {
-    setPreferences(prev => ({ ...prev, [key]: !prev[key] }));
+  const saveEmailPrefs = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/email/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(emailPrefs),
+      });
+
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'Email preferences saved!' });
+      } else {
+        throw new Error('Failed to save');
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Failed to save preferences' });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const timezones = [
-    { value: 'America/New_York', label: 'Eastern Time (ET)' },
-    { value: 'America/Chicago', label: 'Central Time (CT)' },
-    { value: 'America/Denver', label: 'Mountain Time (MT)' },
-    { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
-    { value: 'America/Anchorage', label: 'Alaska Time (AKT)' },
-    { value: 'Pacific/Honolulu', label: 'Hawaii Time (HT)' }
-  ];
-
-  if (loading) {
+  if (status === 'loading' || loading) {
     return (
       <div style={{
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#F9FAFB'
+        background: '#f8fafc',
       }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            border: '4px solid #E5E7EB',
-            borderTop: '4px solid #667EEA',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto 1rem'
-          }} />
-          <p style={{ color: '#6B7280' }}>Loading preferences...</p>
-        </div>
-        <style jsx>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
+        <p style={{ color: '#64748b' }}>Loading...</p>
       </div>
     );
   }
@@ -125,338 +209,337 @@ export default function NotificationSettingsPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#F9FAFB',
-      padding: '2rem 1rem'
+      background: '#f8fafc',
+      padding: '2rem',
     }}>
-      <div style={{ maxWidth: '700px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         {/* Header */}
         <div style={{ marginBottom: '2rem' }}>
           <Link
-            href="/settings"
+            href="/profile"
             style={{
-              color: '#667EEA',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              color: '#64748b',
               textDecoration: 'none',
-              fontWeight: '600',
+              fontSize: '0.9rem',
               marginBottom: '1rem',
-              display: 'inline-block'
             }}
           >
-            ← Back to Settings
+            <ArrowLeft size={16} />
+            Back to Profile
           </Link>
+
           <h1 style={{
-            fontSize: '2rem',
-            fontWeight: '800',
-            color: '#1F2937',
-            marginBottom: '0.5rem'
+            fontSize: '1.75rem',
+            fontWeight: 700,
+            color: '#0f172a',
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
           }}>
-            Notification Preferences
+            <Bell size={28} color="#4f46e5" />
+            Notification Settings
           </h1>
-          <p style={{ color: '#6B7280' }}>
-            Control which emails you receive from PetRecovery.org
+          <p style={{ color: '#64748b', marginTop: '0.5rem' }}>
+            Manage how and when you receive notifications about your pets and rescue activities.
           </p>
         </div>
 
-        {/* Success/Error Messages */}
-        {success && (
+        {/* Message */}
+        {message && (
           <div style={{
             padding: '1rem',
-            background: '#D1FAE5',
-            border: '1px solid #10B981',
-            borderRadius: '8px',
+            borderRadius: '12px',
             marginBottom: '1.5rem',
-            color: '#065F46'
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            background: message.type === 'success' ? '#dcfce7' : '#fee2e2',
+            color: message.type === 'success' ? '#166534' : '#991b1b',
           }}>
-            {success}
+            {message.type === 'success' ? <Check size={18} /> : <AlertCircle size={18} />}
+            {message.text}
           </div>
         )}
 
-        {error && (
+        {/* SMS Section */}
+        <div style={{
+          background: 'white',
+          borderRadius: '16px',
+          padding: '1.5rem',
+          marginBottom: '1.5rem',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        }}>
           <div style={{
-            padding: '1rem',
-            background: '#FEE2E2',
-            border: '1px solid #EF4444',
-            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
             marginBottom: '1.5rem',
-            color: '#991B1B'
           }}>
-            {error}
-          </div>
-        )}
-
-        {/* Email Notifications */}
-        <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          marginBottom: '1.5rem',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            padding: '1.25rem 1.5rem',
-            borderBottom: '1px solid #E5E7EB',
-            background: '#F9FAFB'
-          }}>
-            <h2 style={{
-              fontSize: '1.125rem',
-              fontWeight: '700',
-              color: '#1F2937'
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: '#e0e7ff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}>
-              Email Notifications
-            </h2>
-          </div>
-
-          <div style={{ padding: '1.5rem' }}>
-            {/* Case Updates */}
-            <NotificationToggle
-              label="Case Updates"
-              description="Receive updates about your lost pet cases"
-              checked={preferences.caseUpdates}
-              onChange={() => handleToggle('caseUpdates')}
-            />
-
-            {/* Sighting Alerts */}
-            <NotificationToggle
-              label="Sighting Alerts"
-              description="Get notified when someone reports a sighting"
-              checked={preferences.sightingAlerts}
-              onChange={() => handleToggle('sightingAlerts')}
-              important
-            />
-
-            {/* Squad Messages */}
-            <NotificationToggle
-              label="Squad Messages"
-              description="Messages from your rescue squad"
-              checked={preferences.squadMessages}
-              onChange={() => handleToggle('squadMessages')}
-            />
-
-            {/* Weekly Digest */}
-            <NotificationToggle
-              label="Weekly Digest"
-              description="Weekly summary of cases in your area"
-              checked={preferences.weeklyDigest}
-              onChange={() => handleToggle('weeklyDigest')}
-            />
-
-            {/* Marketing */}
-            <NotificationToggle
-              label="Marketing Emails"
-              description="News, tips, and updates about PetRecovery"
-              checked={preferences.marketingEmails}
-              onChange={() => handleToggle('marketingEmails')}
-            />
-
-            {/* System Announcements */}
-            <NotificationToggle
-              label="System Announcements"
-              description="Important service updates and security notices"
-              checked={preferences.systemAnnouncements}
-              onChange={() => handleToggle('systemAnnouncements')}
-              disabled
-              note="Required for account security"
-            />
-          </div>
-        </div>
-
-        {/* Delivery Preferences */}
-        <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          marginBottom: '1.5rem',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            padding: '1.25rem 1.5rem',
-            borderBottom: '1px solid #E5E7EB',
-            background: '#F9FAFB'
-          }}>
-            <h2 style={{
-              fontSize: '1.125rem',
-              fontWeight: '700',
-              color: '#1F2937'
-            }}>
-              Delivery Preferences
-            </h2>
-          </div>
-
-          <div style={{ padding: '1.5rem' }}>
-            {/* Digest Frequency */}
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{
-                display: 'block',
-                fontWeight: '600',
-                marginBottom: '0.5rem',
-                color: '#374151'
-              }}>
-                Notification Frequency
-              </label>
-              <select
-                value={preferences.digestFrequency}
-                onChange={(e) => setPreferences(prev => ({
-                  ...prev,
-                  digestFrequency: e.target.value
-                }))}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #E5E7EB',
-                  borderRadius: '8px',
-                  fontSize: '1rem',
-                  color: '#374151'
-                }}
-              >
-                <option value="IMMEDIATE">Send immediately</option>
-                <option value="DAILY">Daily digest</option>
-                <option value="WEEKLY">Weekly digest</option>
-              </select>
-              <p style={{
-                fontSize: '0.85rem',
-                color: '#6B7280',
-                marginTop: '0.5rem'
-              }}>
-                Urgent sighting alerts will always be sent immediately
-              </p>
+              <Smartphone size={20} color="#4f46e5" />
             </div>
-
-            {/* Timezone */}
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{
-                display: 'block',
-                fontWeight: '600',
-                marginBottom: '0.5rem',
-                color: '#374151'
-              }}>
-                Timezone
-              </label>
-              <select
-                value={preferences.timezone}
-                onChange={(e) => setPreferences(prev => ({
-                  ...prev,
-                  timezone: e.target.value
-                }))}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #E5E7EB',
-                  borderRadius: '8px',
-                  fontSize: '1rem',
-                  color: '#374151'
-                }}
-              >
-                {timezones.map(tz => (
-                  <option key={tz.value} value={tz.value}>
-                    {tz.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Quiet Hours */}
             <div>
-              <label style={{
-                display: 'block',
-                fontWeight: '600',
-                marginBottom: '0.5rem',
-                color: '#374151'
-              }}>
-                Quiet Hours (optional)
-              </label>
-              <p style={{
-                fontSize: '0.85rem',
-                color: '#6B7280',
-                marginBottom: '0.75rem'
-              }}>
-                Non-urgent notifications won't be sent during these hours
+              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>SMS Alerts</h2>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
+                Get urgent alerts via text message
               </p>
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                <select
-                  value={preferences.quietHoursStart ?? ''}
-                  onChange={(e) => setPreferences(prev => ({
-                    ...prev,
-                    quietHoursStart: e.target.value ? parseInt(e.target.value) : null
-                  }))}
-                  style={{
-                    flex: 1,
-                    padding: '0.75rem',
-                    border: '2px solid #E5E7EB',
-                    borderRadius: '8px',
-                    fontSize: '1rem',
-                    color: '#374151'
-                  }}
-                >
-                  <option value="">No quiet hours</option>
-                  {Array.from({ length: 24 }, (_, i) => (
-                    <option key={i} value={i}>
-                      {i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i - 12}:00 PM`}
-                    </option>
-                  ))}
-                </select>
-                <span style={{ color: '#6B7280' }}>to</span>
-                <select
-                  value={preferences.quietHoursEnd ?? ''}
-                  onChange={(e) => setPreferences(prev => ({
-                    ...prev,
-                    quietHoursEnd: e.target.value ? parseInt(e.target.value) : null
-                  }))}
-                  disabled={preferences.quietHoursStart === null}
-                  style={{
-                    flex: 1,
-                    padding: '0.75rem',
-                    border: '2px solid #E5E7EB',
-                    borderRadius: '8px',
-                    fontSize: '1rem',
-                    color: '#374151',
-                    opacity: preferences.quietHoursStart === null ? 0.5 : 1
-                  }}
-                >
-                  <option value="">Select end time</option>
-                  {Array.from({ length: 24 }, (_, i) => (
-                    <option key={i} value={i}>
-                      {i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i - 12}:00 PM`}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
           </div>
+
+          {/* Phone Number */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.9rem',
+              fontWeight: 500,
+              marginBottom: '0.5rem',
+              color: '#374151',
+            }}>
+              Phone Number
+            </label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="+1 (555) 123-4567"
+                disabled={phoneVerified}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem 1rem',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  background: phoneVerified ? '#f1f5f9' : 'white',
+                }}
+              />
+              {!phoneVerified && !verificationSent && (
+                <button
+                  onClick={sendVerification}
+                  disabled={verifying || !phoneNumber}
+                  style={{
+                    padding: '0.75rem 1rem',
+                    background: '#4f46e5',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    opacity: verifying || !phoneNumber ? 0.5 : 1,
+                  }}
+                >
+                  <Send size={16} />
+                  Verify
+                </button>
+              )}
+            </div>
+
+            {phoneVerified && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                marginTop: '0.5rem',
+                color: '#059669',
+                fontSize: '0.85rem',
+              }}>
+                <Shield size={14} />
+                Phone verified
+              </div>
+            )}
+
+            {verificationSent && !phoneVerified && (
+              <div style={{ marginTop: '1rem' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.9rem',
+                  fontWeight: 500,
+                  marginBottom: '0.5rem',
+                  color: '#374151',
+                }}>
+                  Enter verification code
+                </label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value)}
+                    placeholder="123456"
+                    maxLength={6}
+                    style={{
+                      flex: 1,
+                      padding: '0.75rem 1rem',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      fontSize: '1.25rem',
+                      textAlign: 'center',
+                      letterSpacing: '0.25em',
+                    }}
+                  />
+                  <button
+                    onClick={verifyCode}
+                    disabled={verifying || verificationCode.length !== 6}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      background: '#059669',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      opacity: verifying || verificationCode.length !== 6 ? 0.5 : 1,
+                    }}
+                  >
+                    Verify
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* SMS Toggles */}
+          {phoneVerified && (
+            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem' }}>
+              <ToggleRow
+                label="Urgent Alerts"
+                description="Critical updates about your lost pets"
+                icon={<AlertCircle size={18} color="#ef4444" />}
+                checked={smsPrefs.urgentAlerts}
+                onChange={(checked) => setSmsPrefs({ ...smsPrefs, urgentAlerts: checked })}
+              />
+              <ToggleRow
+                label="Sighting Alerts"
+                description="When someone reports seeing your pet"
+                icon={<Volume2 size={18} color="#10b981" />}
+                checked={smsPrefs.sightingAlerts}
+                onChange={(checked) => setSmsPrefs({ ...smsPrefs, sightingAlerts: checked })}
+              />
+              <ToggleRow
+                label="Case Updates"
+                description="Status changes and important updates"
+                icon={<MessageSquare size={18} color="#f59e0b" />}
+                checked={smsPrefs.caseUpdates}
+                onChange={(checked) => setSmsPrefs({ ...smsPrefs, caseUpdates: checked })}
+              />
+
+              <button
+                onClick={saveSmsPrefs}
+                disabled={saving}
+                style={{
+                  marginTop: '1rem',
+                  padding: '0.75rem 1.5rem',
+                  background: '#4f46e5',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                  opacity: saving ? 0.5 : 1,
+                }}
+              >
+                {saving ? 'Saving...' : 'Save SMS Preferences'}
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Save Button */}
+        {/* Email Section */}
         <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: '1rem'
+          background: 'white',
+          borderRadius: '16px',
+          padding: '1.5rem',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
         }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            marginBottom: '1.5rem',
+          }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: '#fef3c7',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Mail size={20} color="#f59e0b" />
+            </div>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Email Notifications</h2>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
+                Manage your email notification preferences
+              </p>
+            </div>
+          </div>
+
+          <ToggleRow
+            label="Case Updates"
+            description="Status changes and progress on your cases"
+            icon={<AlertCircle size={18} color="#f59e0b" />}
+            checked={emailPrefs.caseUpdates}
+            onChange={(checked) => setEmailPrefs({ ...emailPrefs, caseUpdates: checked })}
+          />
+          <ToggleRow
+            label="Sighting Alerts"
+            description="When someone reports a possible sighting"
+            icon={<Volume2 size={18} color="#10b981" />}
+            checked={emailPrefs.sightingAlerts}
+            onChange={(checked) => setEmailPrefs({ ...emailPrefs, sightingAlerts: checked })}
+          />
+          <ToggleRow
+            label="Squad Messages"
+            description="Messages from your rescue squad"
+            icon={<MessageSquare size={18} color="#4f46e5" />}
+            checked={emailPrefs.squadMessages}
+            onChange={(checked) => setEmailPrefs({ ...emailPrefs, squadMessages: checked })}
+          />
+          <ToggleRow
+            label="Weekly Digest"
+            description="Summary of activity in your area"
+            icon={<Mail size={18} color="#6b7280" />}
+            checked={emailPrefs.weeklyDigest}
+            onChange={(checked) => setEmailPrefs({ ...emailPrefs, weeklyDigest: checked })}
+          />
+          <ToggleRow
+            label="System Announcements"
+            description="Important platform updates and news"
+            icon={<Bell size={18} color="#64748b" />}
+            checked={emailPrefs.systemAnnouncements}
+            onChange={(checked) => setEmailPrefs({ ...emailPrefs, systemAnnouncements: checked })}
+          />
+
           <button
-            onClick={() => router.back()}
-            style={{
-              padding: '0.875rem 1.5rem',
-              background: 'white',
-              color: '#374151',
-              border: '2px solid #E5E7EB',
-              borderRadius: '8px',
-              fontWeight: '600',
-              cursor: 'pointer'
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={savePreferences}
+            onClick={saveEmailPrefs}
             disabled={saving}
             style={{
-              padding: '0.875rem 2rem',
-              background: saving ? '#9CA3AF' : '#667EEA',
+              marginTop: '1rem',
+              padding: '0.75rem 1.5rem',
+              background: '#4f46e5',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
-              fontWeight: '600',
-              cursor: saving ? 'not-allowed' : 'pointer'
+              cursor: 'pointer',
+              fontWeight: 500,
+              opacity: saving ? 0.5 : 1,
             }}
           >
-            {saving ? 'Saving...' : 'Save Preferences'}
+            {saving ? 'Saving...' : 'Save Email Preferences'}
           </button>
         </div>
       </div>
@@ -464,72 +547,33 @@ export default function NotificationSettingsPage() {
   );
 }
 
-/**
- * NotificationToggle Component
- */
-function NotificationToggle({ label, description, checked, onChange, disabled, important, note }) {
+function ToggleRow({ label, description, icon, checked, onChange }) {
   return (
     <div style={{
       display: 'flex',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       justifyContent: 'space-between',
       padding: '1rem 0',
-      borderBottom: '1px solid #F3F4F6'
+      borderBottom: '1px solid #f1f5f9',
     }}>
-      <div style={{ flex: 1, paddingRight: '1rem' }}>
-        <div style={{
-          fontWeight: '600',
-          color: '#374151',
-          marginBottom: '0.25rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem'
-        }}>
-          {label}
-          {important && (
-            <span style={{
-              background: '#FEF3C7',
-              color: '#92400E',
-              fontSize: '0.7rem',
-              fontWeight: '700',
-              padding: '2px 6px',
-              borderRadius: '4px'
-            }}>
-              IMPORTANT
-            </span>
-          )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        {icon}
+        <div>
+          <p style={{ margin: 0, fontWeight: 500, color: '#1e293b' }}>{label}</p>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>{description}</p>
         </div>
-        <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>
-          {description}
-        </div>
-        {note && (
-          <div style={{
-            fontSize: '0.8rem',
-            color: '#9CA3AF',
-            fontStyle: 'italic',
-            marginTop: '0.25rem'
-          }}>
-            {note}
-          </div>
-        )}
       </div>
-
       <button
-        onClick={onChange}
-        disabled={disabled}
-        role="switch"
-        aria-checked={checked}
+        onClick={() => onChange(!checked)}
         style={{
           width: '48px',
           height: '28px',
           borderRadius: '14px',
-          background: checked ? '#667EEA' : '#E5E7EB',
           border: 'none',
-          cursor: disabled ? 'not-allowed' : 'pointer',
+          background: checked ? '#4f46e5' : '#e2e8f0',
+          cursor: 'pointer',
           position: 'relative',
           transition: 'background 0.2s',
-          opacity: disabled ? 0.5 : 1,
-          flexShrink: 0
         }}
       >
         <span style={{
@@ -541,7 +585,7 @@ function NotificationToggle({ label, description, checked, onChange, disabled, i
           borderRadius: '50%',
           background: 'white',
           boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-          transition: 'left 0.2s'
+          transition: 'left 0.2s',
         }} />
       </button>
     </div>

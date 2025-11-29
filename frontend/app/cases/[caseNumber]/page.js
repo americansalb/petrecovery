@@ -1,26 +1,30 @@
 'use client';
 
 /**
- * Public Lost Pet Case Detail Page
- * Phase 15-16: Public Lost Pet Case Portal MVP (TASK-P04)
+ * Case Detail Page with Mission Control Integration
  *
- * Route: /cases/[caseNumber]
- * Public-facing detail page for individual lost pet cases
- * NO AUTHENTICATION REQUIRED
+ * Shows static case info when inactive, full Mission Control when live.
+ * Seamlessly transitions between modes.
  */
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import MatchesPanel from '@/app/components/MatchesPanel';
+import MissionControl from '@/app/components/missionControl/MissionControl';
 
-export default function PublicCaseDetailPage() {
+export default function CaseDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
   const { caseNumber } = params;
 
   const [caseData, setCaseData] = useState(null);
+  const [missionState, setMissionState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userRole, setUserRole] = useState('VISITOR');
+  const [showMissionControl, setShowMissionControl] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
@@ -28,6 +32,13 @@ export default function PublicCaseDetailPage() {
       fetchCaseDetail();
     }
   }, [caseNumber]);
+
+  // Determine user role when session/case data changes
+  useEffect(() => {
+    if (session?.user && caseData) {
+      determineUserRole();
+    }
+  }, [session, caseData]);
 
   const fetchCaseDetail = async () => {
     setLoading(true);
@@ -47,6 +58,11 @@ export default function PublicCaseDetailPage() {
       }
 
       setCaseData(data);
+
+      // Fetch mission state if case has one
+      if (data.id) {
+        fetchMissionState(data.id);
+      }
     } catch (err) {
       console.error('Error fetching case detail:', err);
       setError(err.message);
@@ -55,10 +71,51 @@ export default function PublicCaseDetailPage() {
     }
   };
 
+  const fetchMissionState = async (caseId) => {
+    try {
+      const res = await fetch(`/api/mission/${caseId}`);
+      if (res.ok) {
+        const mission = await res.json();
+        setMissionState(mission);
+
+        // Auto-show Mission Control if live
+        if (mission.isLive) {
+          setShowMissionControl(true);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching mission state:', err);
+    }
+  };
+
+  const determineUserRole = async () => {
+    if (!session?.user?.id || !caseData) {
+      setUserRole('VISITOR');
+      return;
+    }
+
+    // Check if owner
+    if (caseData.reporterId === session.user.id) {
+      setUserRole('OWNER');
+      return;
+    }
+
+    // Check if squad/division leader
+    try {
+      const res = await fetch(`/api/cases/${caseData.id}/user-role`);
+      if (res.ok) {
+        const { role } = await res.json();
+        setUserRole(role || 'VOLUNTEER');
+      }
+    } catch {
+      setUserRole('VOLUNTEER');
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'OPEN': return 'bg-blue-100 text-blue-800';
-      case 'ACTIVE_SEARCH': return 'bg-yellow-100 text-yellow-800';
+      case 'ACTIVE_SEARCH': return 'bg-red-100 text-red-800 animate-pulse';
       case 'RESOLVED': return 'bg-green-100 text-green-800';
       case 'CLOSED_OTHER': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -68,7 +125,7 @@ export default function PublicCaseDetailPage() {
   const getStatusLabel = (status) => {
     switch (status) {
       case 'OPEN': return 'Open';
-      case 'ACTIVE_SEARCH': return 'Active Search';
+      case 'ACTIVE_SEARCH': return '🔴 LIVE SEARCH';
       case 'RESOLVED': return 'Resolved';
       case 'CLOSED_OTHER': return 'Closed';
       default: return status;
@@ -82,14 +139,13 @@ export default function PublicCaseDetailPage() {
       try {
         await navigator.share({
           title: `Lost Pet: ${caseData.petName || 'Unknown Pet'}`,
-          text: `Help find this lost ${caseData.petSpecies} in ${caseData.city}, ${caseData.state}`,
+          text: `Help find this lost ${caseData.petSpecies}!`,
           url: shareUrl
         });
       } catch (err) {
         console.log('Error sharing:', err);
       }
     } else {
-      // Fallback: Copy to clipboard
       try {
         await navigator.clipboard.writeText(shareUrl);
         setCopySuccess(true);
@@ -100,12 +156,16 @@ export default function PublicCaseDetailPage() {
     }
   };
 
+  const handleJoinSearch = () => {
+    router.push(`/join/${caseData.id}`);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading case details...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <p className="mt-4 text-gray-400">Loading case...</p>
         </div>
       </div>
     );
@@ -113,16 +173,16 @@ export default function PublicCaseDetailPage() {
 
   if (error || !caseData) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-900">
         <div className="container mx-auto px-4 max-w-4xl py-12">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
-            <h1 className="text-2xl font-bold text-red-800 mb-4">Case Not Found</h1>
-            <p className="text-red-600 mb-6">{error || 'This case does not exist or is not publicly available.'}</p>
+          <div className="bg-red-900/50 border border-red-500 rounded-lg p-8 text-center">
+            <h1 className="text-2xl font-bold text-red-300 mb-4">Case Not Found</h1>
+            <p className="text-red-400 mb-6">{error || 'This case does not exist.'}</p>
             <button
               onClick={() => router.push('/cases')}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
             >
-              Back to Cases List
+              Back to Cases
             </button>
           </div>
         </div>
@@ -130,196 +190,281 @@ export default function PublicCaseDetailPage() {
     );
   }
 
+  // Show Mission Control if live or user toggled it
+  if (showMissionControl && missionState) {
+    return (
+      <div className="min-h-screen bg-gray-900">
+        {/* Exit Mission Control button */}
+        <div className="bg-gray-800 border-b border-gray-700 px-4 py-2">
+          <button
+            onClick={() => setShowMissionControl(false)}
+            className="text-gray-400 hover:text-white text-sm flex items-center gap-2"
+          >
+            ← View Case Info
+          </button>
+        </div>
+
+        <MissionControl
+          caseId={caseData.id}
+          userRole={userRole}
+          initialState={missionState}
+        />
+      </div>
+    );
+  }
+
+  // Time since missing
+  const hoursMissing = caseData.lastSeenAt
+    ? Math.floor((Date.now() - new Date(caseData.lastSeenAt).getTime()) / 3600000)
+    : null;
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-900 text-white">
+      {/* Live Banner - if active search */}
+      {caseData.status === 'ACTIVE_SEARCH' && (
+        <div className="bg-red-600 text-white py-3 px-4 text-center">
+          <div className="flex items-center justify-center gap-3">
+            <span className="animate-pulse text-2xl">●</span>
+            <span className="font-bold text-lg">LIVE SEARCH IN PROGRESS</span>
+            <button
+              onClick={() => setShowMissionControl(true)}
+              className="ml-4 px-4 py-1 bg-white text-red-600 rounded-full font-bold text-sm hover:bg-gray-100"
+            >
+              Join Now →
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-gray-800 border-b border-gray-700">
         <div className="container mx-auto px-4 max-w-4xl py-6">
           <button
             onClick={() => router.push('/cases')}
-            className="text-blue-600 hover:text-blue-800 mb-4 inline-flex items-center"
+            className="text-blue-400 hover:text-blue-300 mb-4 inline-flex items-center"
           >
-            ← Back to Cases List
+            ← Back to Cases
           </button>
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                {caseData.petName || 'Unknown Pet'}
-              </h1>
-              <p className="text-gray-500">Case #{caseData.caseNumber}</p>
+
+          <div className="flex gap-6 items-start">
+            {/* Pet Photo */}
+            {caseData.petPhotoUrl && (
+              <img
+                src={caseData.petPhotoUrl}
+                alt={caseData.petName}
+                className="w-24 h-24 rounded-xl object-cover border-2 border-gray-600"
+              />
+            )}
+
+            <div className="flex-1">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h1 className="text-3xl font-bold mb-1">
+                    {caseData.petName || 'Unknown Pet'}
+                  </h1>
+                  <p className="text-gray-400">
+                    {caseData.petColor} {caseData.petSpecies}
+                    {caseData.petBreed && ` • ${caseData.petBreed}`}
+                  </p>
+                  <p className="text-gray-500 text-sm mt-1">Case #{caseData.caseNumber}</p>
+                </div>
+                <span className={`px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(caseData.status)}`}>
+                  {getStatusLabel(caseData.status)}
+                </span>
+              </div>
+
+              {/* Time Missing */}
+              {hoursMissing !== null && caseData.status !== 'RESOLVED' && (
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-2xl">⏱</span>
+                  <span className={`text-lg font-semibold ${hoursMissing < 24 ? 'text-red-400' : 'text-orange-400'}`}>
+                    Missing for {hoursMissing < 24 ? `${hoursMissing} hours` : `${Math.floor(hoursMissing / 24)} days`}
+                  </span>
+                </div>
+              )}
             </div>
-            <span className={`px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(caseData.status)}`}>
-              {getStatusLabel(caseData.status)}
-            </span>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 max-w-4xl py-8">
-        {/* Urgent Banner */}
-        {caseData.isUrgent && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-red-800 font-semibold">⚠️ URGENT CASE - Immediate assistance needed</p>
+      <div className="container mx-auto px-4 max-w-4xl py-6 space-y-6">
+        {/* Quick Actions */}
+        {caseData.status !== 'RESOLVED' && caseData.status !== 'CLOSED_OTHER' && (
+          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+            <h2 className="text-xl font-bold mb-4">How You Can Help</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Join Search */}
+              {missionState?.isLive ? (
+                <button
+                  onClick={() => setShowMissionControl(true)}
+                  className="flex flex-col items-center p-4 bg-red-600 hover:bg-red-700 rounded-xl transition"
+                >
+                  <span className="text-3xl mb-2">🔍</span>
+                  <span className="font-bold">Join Live Search</span>
+                  <span className="text-sm text-red-200">{missionState.stats.activeVolunteers} searching now</span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleJoinSearch}
+                  className="flex flex-col items-center p-4 bg-blue-600 hover:bg-blue-700 rounded-xl transition"
+                >
+                  <span className="text-3xl mb-2">🔍</span>
+                  <span className="font-bold">Help Search</span>
+                  <span className="text-sm text-blue-200">Volunteer your time</span>
+                </button>
+              )}
+
+              {/* Report Sighting */}
+              <button
+                onClick={() => router.push(`/report/sighting/${caseData.id}`)}
+                className="flex flex-col items-center p-4 bg-green-600 hover:bg-green-700 rounded-xl transition"
+              >
+                <span className="text-3xl mb-2">👁</span>
+                <span className="font-bold">Report Sighting</span>
+                <span className="text-sm text-green-200">I saw this pet</span>
+              </button>
+
+              {/* Share */}
+              <button
+                onClick={handleShare}
+                className="flex flex-col items-center p-4 bg-purple-600 hover:bg-purple-700 rounded-xl transition"
+              >
+                <span className="text-3xl mb-2">📤</span>
+                <span className="font-bold">{copySuccess ? 'Copied!' : 'Share Case'}</span>
+                <span className="text-sm text-purple-200">Spread the word</span>
+              </button>
+            </div>
+
+            {/* Owner/Leader: Go Live Button */}
+            {(userRole === 'OWNER' || userRole === 'LEADER') && !missionState?.isLive && (
+              <div className="mt-4 pt-4 border-t border-gray-700">
+                <button
+                  onClick={() => setShowMissionControl(true)}
+                  className="w-full py-4 bg-red-600 hover:bg-red-700 rounded-xl font-bold text-lg flex items-center justify-center gap-3"
+                >
+                  <span className="animate-pulse">●</span>
+                  Start Live Search
+                </button>
+                <p className="text-center text-gray-500 text-sm mt-2">
+                  Activate Mission Control to coordinate volunteers in real-time
+                </p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Pet Information */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">Pet Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Pet Details */}
+        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+          <h2 className="text-xl font-bold mb-4">Pet Details</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <p className="text-sm text-gray-500 mb-1">Species</p>
+              <p className="text-gray-500 text-sm">Species</p>
               <p className="font-semibold">{caseData.petSpecies}</p>
             </div>
             {caseData.petBreed && (
               <div>
-                <p className="text-sm text-gray-500 mb-1">Breed</p>
+                <p className="text-gray-500 text-sm">Breed</p>
                 <p className="font-semibold">{caseData.petBreed}</p>
               </div>
             )}
             {caseData.petColor && (
               <div>
-                <p className="text-sm text-gray-500 mb-1">Color</p>
+                <p className="text-gray-500 text-sm">Color</p>
                 <p className="font-semibold">{caseData.petColor}</p>
+              </div>
+            )}
+            {caseData.petSize && (
+              <div>
+                <p className="text-gray-500 text-sm">Size</p>
+                <p className="font-semibold">{caseData.petSize}</p>
               </div>
             )}
           </div>
           {caseData.petDescription && (
-            <div className="mt-4">
-              <p className="text-sm text-gray-500 mb-1">Description</p>
-              <p className="text-gray-700">{caseData.petDescription}</p>
+            <div className="mt-4 pt-4 border-t border-gray-700">
+              <p className="text-gray-500 text-sm mb-1">Description</p>
+              <p className="text-gray-300">{caseData.petDescription}</p>
             </div>
           )}
         </div>
 
-        {/* Location Information */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">Last Known Location</h2>
+        {/* Last Seen Location */}
+        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+          <h2 className="text-xl font-bold mb-4">Last Seen Location</h2>
           <div className="space-y-3">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">City/State</p>
-              <p className="font-semibold">{caseData.city}, {caseData.state} {caseData.zipCode && `(${caseData.zipCode})`}</p>
-            </div>
-            {caseData.lastSeenLandmark && (
+            {caseData.lastSeenAddress && (
               <div>
-                <p className="text-sm text-gray-500 mb-1">Landmark</p>
-                <p className="text-gray-700">{caseData.lastSeenLandmark}</p>
+                <p className="text-gray-500 text-sm">Address</p>
+                <p className="font-semibold">{caseData.lastSeenAddress}</p>
               </div>
             )}
             {caseData.lastSeenAt && (
               <div>
-                <p className="text-sm text-gray-500 mb-1">Last Seen Date</p>
-                <p className="text-gray-700">{new Date(caseData.lastSeenAt).toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}</p>
+                <p className="text-gray-500 text-sm">When</p>
+                <p className="font-semibold">
+                  {new Date(caseData.lastSeenAt).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit'
+                  })}
+                </p>
               </div>
             )}
           </div>
+
+          {/* Map placeholder */}
+          <div className="mt-4 bg-gray-700 rounded-lg h-48 flex items-center justify-center">
+            <span className="text-gray-500">Map View</span>
+          </div>
         </div>
 
-        {/* Contact Information */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">Contact Information</h2>
-          {caseData.contact?.available !== false ? (
-            <>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                <p className="text-sm text-yellow-800">
-                  <strong>Safety Reminder:</strong> Please exercise caution when communicating with strangers.
-                  Meet in public places and consider bringing a friend.
+        {/* Search Stats (if mission exists) */}
+        {missionState && (
+          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+            <h2 className="text-xl font-bold mb-4">Search Progress</h2>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-3xl font-bold text-blue-400">{missionState.stats.totalVolunteers}</p>
+                <p className="text-gray-500 text-sm">Volunteers</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-green-400">
+                  {Math.round((missionState.stats.zonesSearched / missionState.stats.totalZones) * 100) || 0}%
                 </p>
+                <p className="text-gray-500 text-sm">Area Searched</p>
               </div>
-              <div className="space-y-3">
-                {caseData.contact?.name && (
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Name</p>
-                    <p className="font-semibold">{caseData.contact.name}</p>
-                  </div>
-                )}
-                {caseData.contact?.phone && (
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Phone</p>
-                    <p className="font-semibold">
-                      <a href={`tel:${caseData.contact.phone}`} className="text-blue-600 hover:text-blue-800">
-                        {caseData.contact.phone}
-                      </a>
-                    </p>
-                  </div>
-                )}
-                {caseData.contact?.email && (
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Email</p>
-                    <p className="font-semibold">
-                      <a href={`mailto:${caseData.contact.email}`} className="text-blue-600 hover:text-blue-800">
-                        {caseData.contact.email}
-                      </a>
-                    </p>
-                  </div>
-                )}
+              <div>
+                <p className="text-3xl font-bold text-orange-400">{missionState.stats.sightingsCount}</p>
+                <p className="text-gray-500 text-sm">Sightings</p>
               </div>
-            </>
-          ) : (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <p className="text-gray-600">
-                {caseData.contact?.message || 'Contact information is not publicly available for this case.'}
-              </p>
-              <p className="text-sm text-gray-500 mt-2">
-                If you have information about this case, please contact local animal control or police.
-              </p>
             </div>
+          </div>
+        )}
+
+        {/* Contact Info */}
+        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+          <h2 className="text-xl font-bold mb-4">Contact</h2>
+          <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3 mb-4">
+            <p className="text-yellow-300 text-sm">
+              ⚠️ Please exercise caution when meeting strangers. Meet in public places.
+            </p>
+          </div>
+          {caseData.contact?.phone && (
+            <a
+              href={`tel:${caseData.contact.phone}`}
+              className="block w-full py-3 bg-green-600 hover:bg-green-700 rounded-lg text-center font-bold transition"
+            >
+              📞 Call Owner
+            </a>
           )}
         </div>
 
-        {/* Case Status */}
-        {caseData.statusReason && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <h2 className="text-xl font-bold mb-4">Status Update</h2>
-            <p className="text-gray-700">{caseData.statusReason}</p>
-          </div>
+        {/* Matches Panel */}
+        {caseData.status !== 'RESOLVED' && (
+          <MatchesPanel caseNumber={caseNumber} />
         )}
-
-        {/* Potential Matches - Phase 1.4 */}
-        {caseData.status !== 'RESOLVED' && caseData.status !== 'CLOSED_OTHER' && (
-          <div className="mb-6">
-            <MatchesPanel caseNumber={caseNumber} />
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-bold mb-4">Help Spread the Word</h2>
-          <p className="text-gray-600 mb-4">
-            Share this case on social media to help reunite {caseData.petName || 'this pet'} with their family.
-          </p>
-          <div className="flex gap-3">
-            <button
-              onClick={handleShare}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
-            >
-              {copySuccess ? '✓ Link Copied!' : 'Share This Case'}
-            </button>
-            <button
-              onClick={() => router.push('/cases')}
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-semibold"
-            >
-              Back to All Cases
-            </button>
-          </div>
-        </div>
-
-        {/* Legal Disclaimer */}
-        <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <p className="text-xs text-gray-600">
-            <strong>Disclaimer:</strong> This information is provided as a community service. PetRecovery.org is not responsible
-            for the accuracy of the information provided or any interactions that result from this posting. Always exercise
-            caution and common sense when meeting strangers or investigating lost pet cases.
-          </p>
-        </div>
       </div>
     </div>
   );

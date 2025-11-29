@@ -11,6 +11,9 @@ export async function GET(request, { params }) {
     }
 
     const squadId = params.id;
+    const { searchParams } = new URL(request.url);
+    const available = searchParams.get('available') === 'true';
+    const excludeDivisionId = searchParams.get('divisionId');
 
     // Verify user is a member of this squad
     const userMembership = await prisma.rescueSquadMember.findFirst({
@@ -25,12 +28,25 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Not a squad member' }, { status: 403 });
     }
 
-    // Fetch all active members
+    // Build the query based on filters
+    const whereClause = {
+      rescueSquadId: squadId,
+      isActive: true
+    };
+
+    // If looking for available members (not in the specified division)
+    if (available && excludeDivisionId) {
+      whereClause.OR = [
+        { divisionId: null },
+        { divisionId: { not: excludeDivisionId } }
+      ];
+    } else if (available) {
+      whereClause.divisionId = null;
+    }
+
+    // Fetch members
     const members = await prisma.rescueSquadMember.findMany({
-      where: {
-        rescueSquadId: squadId,
-        isActive: true
-      },
+      where: whereClause,
       include: {
         user: {
           select: {
@@ -38,6 +54,12 @@ export async function GET(request, { params }) {
             firstName: true,
             lastName: true,
             email: true
+          }
+        },
+        division: {
+          select: {
+            id: true,
+            name: true
           }
         }
       },
