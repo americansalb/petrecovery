@@ -958,6 +958,114 @@ export default function RescueSquadDetailPage({ params }) {
           )}
         </div>
 
+        {/* Member Quick Actions Bar */}
+        {isMember && (
+          <div style={{
+            background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
+            borderRadius: '16px',
+            padding: '1.5rem 2rem',
+            marginBottom: '2rem',
+            color: 'white',
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '1rem',
+            }}>
+              <div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginBottom: '0.25rem',
+                }}>
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '0.25rem 0.5rem',
+                    background: userRole === 'FOUNDER' ? '#dc2626' :
+                               userRole === 'LEADER' ? '#f59e0b' : '#10b981',
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: '700',
+                  }}>
+                    {userRole || 'MEMBER'}
+                  </span>
+                  {userDivision && (
+                    <span style={{
+                      padding: '0.25rem 0.5rem',
+                      background: 'rgba(255,255,255,0.2)',
+                      borderRadius: '4px',
+                      fontSize: '0.75rem',
+                    }}>
+                      {userDivision.name}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>
+                  You're an active member of this rescue squad
+                </div>
+              </div>
+              <div style={{
+                display: 'flex',
+                gap: '0.75rem',
+                flexWrap: 'wrap',
+              }}>
+                <Link
+                  href="/cases"
+                  style={{
+                    padding: '0.75rem 1.25rem',
+                    background: '#10b981',
+                    color: 'white',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontWeight: '700',
+                    fontSize: '0.9rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  🔍 Find Lost Pets
+                </Link>
+                <button
+                  onClick={() => setDivisionModalOpen(true)}
+                  style={{
+                    padding: '0.75rem 1.25rem',
+                    background: 'rgba(255,255,255,0.15)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '700',
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  🎯 {userDivision ? 'Change Division' : 'Join Division'}
+                </button>
+                <Link
+                  href="/dashboard"
+                  style={{
+                    padding: '0.75rem 1.25rem',
+                    background: 'rgba(255,255,255,0.1)',
+                    color: 'white',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontWeight: '600',
+                    fontSize: '0.9rem',
+                  }}
+                >
+                  📊 Dashboard
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Legal Consent Required Banner */}
         {legalError && (
           <div style={{
@@ -1409,8 +1517,39 @@ export default function RescueSquadDetailPage({ params }) {
                 <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>
                   No available cases in your area
                 </div>
-                <div style={{ marginTop: '0.5rem' }}>
-                  Check back later for new cases to help with
+                <div style={{ marginTop: '0.5rem', marginBottom: '1.5rem' }}>
+                  New cases will appear here when pet owners need help
+                </div>
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <Link
+                    href="/cases"
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      background: '#667eea',
+                      color: 'white',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontWeight: '700',
+                      fontSize: '0.95rem'
+                    }}
+                  >
+                    View All Cases
+                  </Link>
+                  <button
+                    onClick={loadAvailableCases}
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      background: 'white',
+                      color: '#667eea',
+                      border: '2px solid #667eea',
+                      borderRadius: '8px',
+                      fontWeight: '700',
+                      fontSize: '0.95rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    🔄 Refresh
+                  </button>
                 </div>
               </div>
             ) : (
@@ -1673,10 +1812,41 @@ export default function RescueSquadDetailPage({ params }) {
                 <div style={{ fontSize: '1.2rem', fontWeight: '700', color: '#0f172a', marginBottom: '0.5rem' }}>
                   No Active Operations
                 </div>
-                <div style={{ fontSize: '0.95rem', color: '#64748b' }}>
+                <div style={{ fontSize: '0.95rem', color: '#64748b', marginBottom: '1.5rem' }}>
                   {userRole && ['FOUNDER', 'LEADER'].includes(userRole)
                     ? 'Accept cases from the available list above to begin rescue operations'
                     : 'Squad leaders will assign cases when new pets need help'}
+                </div>
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <Link
+                    href="/cases"
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontWeight: '700',
+                      fontSize: '0.95rem'
+                    }}
+                  >
+                    🔍 Browse Lost Pets
+                  </Link>
+                  <Link
+                    href="/report/new"
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      background: 'white',
+                      color: '#dc2626',
+                      border: '2px solid #dc2626',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontWeight: '700',
+                      fontSize: '0.95rem'
+                    }}
+                  >
+                    🚨 Report Lost Pet
+                  </Link>
                 </div>
               </div>
             ) : (

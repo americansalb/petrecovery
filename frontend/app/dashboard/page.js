@@ -99,6 +99,65 @@ export default function DashboardPage() {
     );
   }
 
+  if (error) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f8fafc',
+        padding: '2rem',
+      }}>
+        <div style={{
+          textAlign: 'center',
+          maxWidth: '500px',
+          background: 'white',
+          padding: '3rem',
+          borderRadius: '16px',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+        }}>
+          <AlertCircle size={48} style={{ color: '#dc2626', marginBottom: '1rem' }} />
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#0f172a', marginBottom: '0.5rem' }}>
+            Dashboard Error
+          </h2>
+          <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+            {error}
+          </p>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: '#4f46e5',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: '600',
+                cursor: 'pointer',
+              }}
+            >
+              Try Again
+            </button>
+            <Link
+              href="/"
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: '#f1f5f9',
+                color: '#64748b',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontWeight: '600',
+              }}
+            >
+              Go Home
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!session || !userData) {
     return null;
   }
