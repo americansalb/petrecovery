@@ -77,6 +77,7 @@ export type HubChatMessage = {
   content: string;
   createdAt: string;        // ISO timestamp
   divisionId?: string;      // null = squad-wide
+  caseId?: string | null;   // optional case context
 };
 
 export type HubAnnouncement = {
@@ -90,19 +91,24 @@ export type HubAnnouncement = {
   divisionId?: string;      // null = squad-wide
 };
 
-// Help request (not tied to a specific case)
+// Help request (micro-mission, optionally tied to a case)
+export type HubRequestStatus = 'OPEN' | 'IN_PROGRESS' | 'COMPLETED';
+
 export type HubRequest = {
   id: string;
   title: string;
   body: string;
   divisionId: string | null; // null = squad-wide
+  caseId?: string | null;    // optional link to a case
+  caseCode?: string | null;  // e.g. "CHI-LKV-0001"
   authorId: string;
   authorName: string;
   authorAvatarUrl?: string;
   createdAt: string;
   helpersCount: number;
+  helpers?: { id: string; name: string; avatarUrl?: string }[];  // helper list for display
   isUserHelper: boolean;
-  status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED';
+  status: HubRequestStatus;
 };
 
 // Squad member for presence displays
@@ -163,6 +169,16 @@ export type CommunityTab = 'CHAT' | 'REQUESTS' | 'ANNOUNCEMENTS';
 export type MobileTab = 'CASES' | 'MAP' | 'SQUAD';
 export type MobileCommunityTab = 'CHAT' | 'REQUESTS' | 'ANNOUNCEMENTS';
 export type DivisionFilter = 'ALL' | string;
+export type ChatScopeFilter = 'DIVISION' | 'SQUAD';
+
+// Mission type for "Your Missions" bar
+export type YourMission = {
+  type: 'CASE' | 'REQUEST';
+  id: string;
+  label: string;
+  status: HubCaseStatus | HubRequestStatus;
+  urgency?: HubCaseUrgency;  // only for cases
+};
 
 export type SquadHubState = {
   // Data
@@ -185,15 +201,21 @@ export type SquadHubState = {
   communityTab: CommunityTab;
   mobileTab: MobileTab;
   mobileCommunityTab: MobileCommunityTab;
+  chatScope: ChatScopeFilter;
+  chatCaseFilterId: string | null;  // filter chat by case
 
   // Map state
   mapCenter: [number, number] | null;
   mapZoom: number;
   selectedCaseId: string | null;
 
+  // Request highlight (for scroll-to)
+  highlightRequestId: string | null;
+
   // Derived
   filteredCases: HubCase[];
   filteredRequests: HubRequest[];
+  yourMissions: YourMission[];
 };
 
 export type SquadHubActions = {
@@ -206,12 +228,28 @@ export type SquadHubActions = {
   setMobileCommunityTab: (tab: MobileCommunityTab) => void;
   selectCase: (caseId: string | null) => void;
   toggleOnDuty: () => Promise<void>;
+
+  // Case actions
   helpOnCase: (caseId: string) => Promise<void>;
+  leaveCase: (caseId: string) => Promise<void>;
+
+  // Request (micro-mission) actions
   helpOnRequest: (requestId: string) => Promise<void>;
-  postRequest: (title: string, body: string, divisionId?: string) => Promise<void>;
+  completeRequestForUser: (requestId: string) => Promise<void>;
+  leaveRequest: (requestId: string) => Promise<void>;
+  postRequest: (title: string, body: string, divisionId?: string | null, caseId?: string | null) => Promise<void>;
+
+  // Chat actions
+  sendChatMessage: (content: string, divisionId?: string | null, caseId?: string | null) => Promise<void>;
+  setChatScope: (scope: ChatScopeFilter) => void;
+  setChatCaseFilterId: (caseId: string | null) => void;
+
+  // Navigation actions
   joinSquad: () => Promise<void>;
-  sendChatMessage: (content: string, divisionId?: string) => Promise<void>;
   openCommunityView: () => void;
+  openCaseChat: (caseId: string) => void;
+  openMission: (mission: YourMission) => void;
+  setHighlightRequestId: (requestId: string | null) => void;
 };
 
 export type SquadHubContextValue = SquadHubState & SquadHubActions;

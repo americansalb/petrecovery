@@ -42,6 +42,12 @@ export function SquadHubProvider({ children, initialData }) {
   const [communityTab, setCommunityTab] = useState('CHAT');
   const [mobileCommunityTab, setMobileCommunityTab] = useState('CHAT');
 
+  // UI State - Chat filters
+  const [chatCaseFilterId, setChatCaseFilterId] = useState(null);
+
+  // UI State - Request highlight (for scroll-to)
+  const [highlightRequestId, setHighlightRequestId] = useState(null);
+
   // Computed: filtered cases based on division and tab
   const filteredCases = useMemo(() => {
     let cases = data.cases || [];
@@ -124,18 +130,33 @@ export function SquadHubProvider({ children, initialData }) {
     return requests.filter(r => r.status !== 'COMPLETED');
   }, [data.requests, selectedDivisionId]);
 
-  // Computed: filtered chat messages based on scope and division
+  // Computed: filtered chat messages based on scope, division, and case
   const filteredChatMessages = useMemo(() => {
     let messages = data.chat?.messages || [];
 
+    // Division filter
     if (chatScope === 'DIVISION' && selectedDivisionId !== 'ALL') {
       messages = messages.filter(m =>
         m.divisionId === selectedDivisionId || !m.divisionId
       );
     }
 
+    // Case filter (if set)
+    if (chatCaseFilterId) {
+      messages = messages.filter(m =>
+        m.caseId === chatCaseFilterId || !m.caseId
+      );
+    }
+
     return messages;
-  }, [data.chat?.messages, chatScope, selectedDivisionId]);
+  }, [data.chat?.messages, chatScope, selectedDivisionId, chatCaseFilterId]);
+
+  // Computed: cases that have chat messages (for case filter dropdown)
+  const casesWithChat = useMemo(() => {
+    const messages = data.chat?.messages || [];
+    const caseIds = [...new Set(messages.filter(m => m.caseId).map(m => m.caseId))];
+    return (data.cases || []).filter(c => caseIds.includes(c.id));
+  }, [data.chat?.messages, data.cases]);
 
   // Computed: filtered announcements based on division
   const filteredAnnouncements = useMemo(() => {
@@ -162,6 +183,62 @@ export function SquadHubProvider({ children, initialData }) {
 
     return members;
   }, [data.members?.onDuty, selectedDivisionId]);
+
+  // Computed: Your Missions (cases and requests where user is helping)
+  const yourMissions = useMemo(() => {
+    const missions = [];
+
+    // Add cases where user is helper
+    const myCases = (data.cases || []).filter(c =>
+      c.isUserHelper &&
+      c.status !== 'REUNITED' &&
+      c.status !== 'CLOSED_OTHER'
+    );
+    myCases.forEach(c => {
+      missions.push({
+        type: 'CASE',
+        id: c.id,
+        label: c.petName,
+        status: c.status,
+        urgency: c.urgency,
+        caseNumber: c.caseNumber,
+      });
+    });
+
+    // Add requests where user is helper and not completed
+    const myRequests = (data.requests || []).filter(r =>
+      r.isUserHelper && r.status !== 'COMPLETED'
+    );
+    myRequests.forEach(r => {
+      missions.push({
+        type: 'REQUEST',
+        id: r.id,
+        label: r.title.length > 30 ? r.title.slice(0, 30) + '...' : r.title,
+        status: r.status,
+      });
+    });
+
+    return missions;
+  }, [data.cases, data.requests]);
+
+  // Computed: requests grouped by status
+  const groupedRequests = useMemo(() => {
+    const requests = data.requests || [];
+
+    // Filter by division if needed
+    let filtered = requests;
+    if (selectedDivisionId !== 'ALL') {
+      filtered = requests.filter(r =>
+        r.divisionId === selectedDivisionId || r.divisionId === null
+      );
+    }
+
+    return {
+      OPEN: filtered.filter(r => r.status === 'OPEN'),
+      IN_PROGRESS: filtered.filter(r => r.status === 'IN_PROGRESS'),
+      COMPLETED: filtered.filter(r => r.status === 'COMPLETED'),
+    };
+  }, [data.requests, selectedDivisionId]);
 
   // Action: Open Community View
   const openCommunityView = useCallback(() => {
@@ -227,20 +304,69 @@ export function SquadHubProvider({ children, initialData }) {
       ...prev,
       requests: (prev.requests || []).map(r =>
         r.id === requestId
-          ? { ...r, isUserHelper: true, helpersCount: r.helpersCount + 1 }
+          ? {
+              ...r,
+              isUserHelper: true,
+              helpersCount: r.helpersCount + 1,
+              status: r.status === 'OPEN' ? 'IN_PROGRESS' : r.status,
+            }
           : r
       ),
     }));
     // TODO: Call API
   }, []);
 
+  // Action: Complete request for user (mark their part done)
+  const completeRequestForUser = useCallback(async (requestId) => {
+    setData(prev => ({
+      ...prev,
+      requests: (prev.requests || []).map(r =>
+        r.id === requestId
+          ? { ...r, isUserHelper: false, helpersCount: Math.max(0, r.helpersCount - 1) }
+          : r
+      ),
+    }));
+    // TODO: Call API
+  }, []);
+
+  // Action: Leave request
+  const leaveRequest = useCallback(async (requestId) => {
+    setData(prev => ({
+      ...prev,
+      requests: (prev.requests || []).map(r =>
+        r.id === requestId
+          ? { ...r, isUserHelper: false, helpersCount: Math.max(0, r.helpersCount - 1) }
+          : r
+      ),
+    }));
+    // TODO: Call API
+  }, []);
+
+  // Action: Leave case
+  const leaveCase = useCallback(async (caseId) => {
+    setData(prev => ({
+      ...prev,
+      cases: prev.cases.map(c =>
+        c.id === caseId
+          ? { ...c, isUserHelper: false, helperCount: Math.max(0, c.helperCount - 1) }
+          : c
+      ),
+    }));
+    // TODO: Call API
+  }, []);
+
   // Action: Post Request
-  const postRequest = useCallback(async (title, body, divisionId = null) => {
+  const postRequest = useCallback(async (title, body, divisionId = null, caseId = null) => {
+    // Find case code if caseId provided
+    const linkedCase = caseId ? data.cases?.find(c => c.id === caseId) : null;
+
     const newRequest = {
       id: `req_${Date.now()}`,
       title,
       body,
       divisionId,
+      caseId,
+      caseCode: linkedCase?.caseNumber || null,
       authorId: 'current_user',
       authorName: 'You',
       createdAt: new Date().toISOString(),
@@ -254,7 +380,7 @@ export function SquadHubProvider({ children, initialData }) {
       requests: [newRequest, ...(prev.requests || [])],
     }));
     // TODO: Call API
-  }, []);
+  }, [data.cases]);
 
   // Action: Select case (for map focus)
   const selectCase = useCallback((caseId) => {
@@ -262,7 +388,7 @@ export function SquadHubProvider({ children, initialData }) {
   }, []);
 
   // Action: Send chat message
-  const sendChatMessage = useCallback(async (content, divisionId = null) => {
+  const sendChatMessage = useCallback(async (content, divisionId = null, caseId = null) => {
     const newMessage = {
       id: `msg_${Date.now()}`,
       authorId: 'current_user',
@@ -271,6 +397,7 @@ export function SquadHubProvider({ children, initialData }) {
       content,
       createdAt: new Date().toISOString(),
       divisionId,
+      caseId,
     };
 
     setData(prev => ({
@@ -282,6 +409,31 @@ export function SquadHubProvider({ children, initialData }) {
     }));
     // TODO: Call API
   }, [data.membership.role]);
+
+  // Action: Open case chat (navigate to Community > Chat filtered by case)
+  const openCaseChat = useCallback((caseId) => {
+    setMainTab('COMMUNITY');
+    setCommunityTab('CHAT');
+    setMobileCommunityTab('CHAT');
+    setChatCaseFilterId(caseId);
+  }, []);
+
+  // Action: Open mission (navigate to case or request)
+  const openMission = useCallback((mission) => {
+    if (mission.type === 'CASE') {
+      setMainTab('OPERATIONS');
+      setCaseTab('ACTIVE');
+      setSelectedCaseId(mission.id);
+      setMobileTab('CASES');
+    } else {
+      setMainTab('COMMUNITY');
+      setCommunityTab('REQUESTS');
+      setMobileCommunityTab('REQUESTS');
+      setHighlightRequestId(mission.id);
+      // Clear highlight after a moment
+      setTimeout(() => setHighlightRequestId(null), 3000);
+    }
+  }, []);
 
   const value = {
     // Data
@@ -299,9 +451,12 @@ export function SquadHubProvider({ children, initialData }) {
     // Computed
     filteredCases,
     filteredRequests,
+    groupedRequests,
     mapCases,
     selectedCase,
     totalActiveCases,
+    yourMissions,
+    casesWithChat,
 
     // UI State
     mainTab,
@@ -322,13 +477,22 @@ export function SquadHubProvider({ children, initialData }) {
     selectCase,
     chatScope,
     setChatScope,
+    chatCaseFilterId,
+    setChatCaseFilterId,
+    highlightRequestId,
+    setHighlightRequestId,
 
     // Actions
     openCommunityView,
+    openCaseChat,
+    openMission,
     toggleOnDuty,
     joinSquad,
     helpOnCase,
+    leaveCase,
     helpOnRequest,
+    completeRequestForUser,
+    leaveRequest,
     postRequest,
     sendChatMessage,
   };

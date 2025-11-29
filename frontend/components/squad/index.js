@@ -6,6 +6,7 @@
 
 export { default as SquadHub } from './SquadHub';
 export { default as SquadHeader } from './SquadHeader';
+export { default as YourMissionsBar } from './YourMissionsBar';
 export { default as CaseQueuePanel } from './CaseQueuePanel';
 export { default as CaseCard } from './CaseCard';
 export { default as MapPanel } from './MapPanel';

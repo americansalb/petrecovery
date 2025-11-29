@@ -14,7 +14,7 @@
  */
 
 import { useSquadHub } from './context/SquadHubContext';
-import { Clock, Users, MapPin, Award } from 'lucide-react';
+import { Clock, Users, MapPin, Award, MessageCircle } from 'lucide-react';
 
 // Urgency color mapping
 const urgencyColors = {
@@ -48,7 +48,7 @@ const speciesEmoji = {
 };
 
 export default function CaseCard({ caseItem, compact = false }) {
-  const { helpOnCase, selectCase } = useSquadHub();
+  const { helpOnCase, selectCase, openCaseChat } = useSquadHub();
 
   const urgency = urgencyColors[caseItem.urgency] || urgencyColors.LOW;
   const timeAgo = getTimeAgo(caseItem.lastSeenAt);
@@ -209,6 +209,18 @@ export default function CaseCard({ caseItem, compact = false }) {
             Help with {caseItem.petName}
           </button>
         )}
+
+        {/* Open case chat link */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            openCaseChat(caseItem.id);
+          }}
+          className="w-full mt-2 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[var(--hub-text-muted)] hover:text-[var(--hub-accent-primary)] transition-colors"
+        >
+          <MessageCircle size={10} />
+          Open chat for this case
+        </button>
       </div>
     </div>
   );
