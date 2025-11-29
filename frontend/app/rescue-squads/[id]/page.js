@@ -50,6 +50,12 @@ export default function RescueSquadDetailPage({ params }) {
   const [liveMissions, setLiveMissions] = useState([]);
   const [liveMissionsLoading, setLiveMissionsLoading] = useState(false);
 
+  // Nearby cases state (for all members)
+  const [nearbyCases, setNearbyCases] = useState([]);
+  const [nearbyCasesLoading, setNearbyCasesLoading] = useState(false);
+  const [hasLeaders, setHasLeaders] = useState(true);
+  const [claimingLeadership, setClaimingLeadership] = useState(false);
+
   useEffect(() => {
     loadSquad();
   }, [params.id, session]);
@@ -59,10 +65,11 @@ export default function RescueSquadDetailPage({ params }) {
     if (userRole && ['FOUNDER', 'LEADER'].includes(userRole)) {
       loadAvailableCases();
     }
-    // Load active cases for all members
+    // Load data for all members
     if (isMember) {
       loadActiveCases();
       loadMyDivision();
+      loadNearbyCases(); // Show nearby cases to ALL members
     }
     // Load live missions
     loadLiveMissions();

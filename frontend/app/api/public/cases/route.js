@@ -134,7 +134,7 @@ export async function GET(request) {
       resource_type: 'public_case',
       action: 'read',
       result: 'success',
-      actor_role: 'public',
+      actor_role: null,
       metadata: {
         filters: { city, state, species, status },
         results_count: cases.length,
@@ -167,7 +167,7 @@ export async function GET(request) {
       result: 'failure',
       error_code: 'INTERNAL_ERROR',
       error_message: error.message,
-      actor_role: 'public',
+      actor_role: null,
       metadata: {
         error_stack: error.stack?.substring(0, 500)
       }
@@ -197,7 +197,7 @@ export async function POST(request) {
       action: 'create',
       result: 'failure',
       error_code: 'RATE_LIMITED',
-      actor_role: 'public'
+      actor_role: null
     });
     return rateLimitResponse(rateLimitResult);
   }
@@ -238,7 +238,7 @@ export async function POST(request) {
         result: 'failure',
         error_code: 'VALIDATION_ERROR',
         error_message: `Missing required fields: ${missingFields.join(', ')}`,
-        actor_role: 'public',
+        actor_role: null,
         metadata: { missingFields }
       });
 
@@ -260,7 +260,7 @@ export async function POST(request) {
         result: 'failure',
         error_code: 'VALIDATION_ERROR',
         error_message: `Invalid pet species: ${petSpecies}`,
-        actor_role: 'public',
+        actor_role: null,
         metadata: { petSpecies, validSpecies }
       });
 
@@ -280,7 +280,7 @@ export async function POST(request) {
         result: 'failure',
         error_code: 'TERMS_NOT_ACCEPTED',
         error_message: 'Public report submitted without agreeing to terms',
-        actor_role: 'public',
+        actor_role: null,
         metadata: {}
       });
 
@@ -297,7 +297,7 @@ export async function POST(request) {
       resource_type: 'public_case',
       action: 'create',
       result: 'success',
-      actor_role: 'public',
+      actor_role: null,
       metadata: {
         city,
         state,
@@ -372,7 +372,7 @@ export async function POST(request) {
       resource_id: newCase.id,
       action: 'create',
       result: 'success',
-      actor_role: 'public',
+      actor_role: null,
       metadata: {
         caseId: newCase.id,
         caseNumber: newCase.caseNumber,
@@ -463,7 +463,7 @@ export async function POST(request) {
       result: 'failure',
       error_code: 'DB_WRITE_FAILED',
       error_message: error.message,
-      actor_role: 'public',
+      actor_role: null,
       metadata: {
         error_stack: error.stack?.substring(0, 500)
       }
