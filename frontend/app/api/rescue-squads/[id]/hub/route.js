@@ -96,7 +96,7 @@ export async function GET(request, { params }) {
       if (userMembership) {
         membership = {
           isMember: true,
-          isOnDuty: userMembership.isOnDuty || false,
+          isOnDuty: userMembership.availabilityStatus === 'AVAILABLE',
           homeDivisionId: userMembership.divisionId,
           divisionIds: userMembership.divisionId ? [userMembership.divisionId] : [],
           role: userMembership.role,
@@ -202,11 +202,12 @@ export async function GET(request, { params }) {
           select: { id: true, name: true },
         },
       },
-      orderBy: { lastActiveAt: 'desc' },
+      orderBy: { joinedAt: 'desc' },
     });
 
+    // Use availabilityStatus === 'AVAILABLE' as "on duty"
     const onDutyMembers = allMembers
-      .filter(m => m.isOnDuty)
+      .filter(m => m.availabilityStatus === 'AVAILABLE')
       .map(m => ({
         id: m.id,
         name: `${m.user.firstName} ${m.user.lastName?.[0] || ''}.`,
@@ -214,11 +215,11 @@ export async function GET(request, { params }) {
         divisionId: m.divisionId,
         divisionName: m.division?.name,
         isOnDuty: true,
-        lastActiveAt: m.lastActiveAt?.toISOString(),
+        lastActiveAt: m.joinedAt?.toISOString(),
       }));
 
     const recentlyActiveMembers = allMembers
-      .filter(m => !m.isOnDuty && m.lastActiveAt)
+      .filter(m => m.availabilityStatus !== 'AVAILABLE')
       .slice(0, 10)
       .map(m => ({
         id: m.id,
@@ -227,7 +228,7 @@ export async function GET(request, { params }) {
         divisionId: m.divisionId,
         divisionName: m.division?.name,
         isOnDuty: false,
-        lastActiveAt: m.lastActiveAt?.toISOString(),
+        lastActiveAt: m.joinedAt?.toISOString(),
       }));
 
     // Get recent activities
@@ -300,12 +301,12 @@ export async function GET(request, { params }) {
       status: t.status === 'COMPLETED' ? 'COMPLETED' : t.assigneeId ? 'IN_PROGRESS' : 'OPEN',
     }));
 
-    // Count on-duty members
+    // Count on-duty members (AVAILABLE status = on duty)
     const onDutyCount = await prisma.rescueSquadMember.count({
       where: {
         rescueSquadId: squadId,
         isActive: true,
-        isOnDuty: true,
+        availabilityStatus: 'AVAILABLE',
       },
     });
 

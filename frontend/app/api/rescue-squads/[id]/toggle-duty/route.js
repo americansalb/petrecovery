@@ -30,28 +30,29 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Not a squad member' }, { status: 403 });
     }
 
-    // Toggle on-duty status
+    // Toggle availability status (AVAILABLE = on duty, BUSY = off duty)
+    const newStatus = membership.availabilityStatus === 'AVAILABLE' ? 'BUSY' : 'AVAILABLE';
     const updated = await prisma.rescueSquadMember.update({
       where: { id: membership.id },
       data: {
-        isOnDuty: !membership.isOnDuty,
-        lastActiveAt: new Date(),
+        availabilityStatus: newStatus,
       },
     });
 
     // Log activity
+    const isOnDuty = updated.availabilityStatus === 'AVAILABLE';
     await prisma.squadActivity.create({
       data: {
         rescueSquadId: squadId,
-        type: updated.isOnDuty ? 'MEMBER_OPTED_IN' : 'MEMBER_OPTED_OUT',
-        message: updated.isOnDuty ? 'went on duty' : 'went off duty',
+        type: isOnDuty ? 'MEMBER_OPTED_IN' : 'MEMBER_OPTED_OUT',
+        message: isOnDuty ? 'went on duty' : 'went off duty',
         actorId: session.user.id,
         details: JSON.stringify({}),
       },
     });
 
     return NextResponse.json({
-      isOnDuty: updated.isOnDuty,
+      isOnDuty: isOnDuty,
     });
   } catch (error) {
     console.error('Error toggling duty status:', error);
