@@ -81,7 +81,7 @@ export default function Navigation() {
       <nav className="sticky top-0 z-50 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 border-b-2 border-white/20 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-white font-black text-xl">
-            <img src="https://petrescue.b-cdn.net/Untitled%20design%20(10).svg" alt="PetRecovery" className="h-8 w-auto" />
+            <img src="https://petrescue.b-cdn.net/algogo.png" alt="PetRecovery" className="h-8 w-auto" />
             <span>PetRecovery</span>
           </Link>
 
@@ -115,7 +115,7 @@ export default function Navigation() {
           <div className="h-16 flex items-center justify-between gap-4">
             {/* Logo */}
             <Link href="/dashboard" className="flex items-center gap-2 text-white font-black text-xl shrink-0">
-              <img src="https://petrescue.b-cdn.net/Untitled%20design%20(10).svg" alt="PetRecovery" className="h-8 w-auto" />
+              <img src="https://petrescue.b-cdn.net/algogo.png" alt="PetRecovery" className="h-8 w-auto" />
               <span className="hidden sm:inline">PetRecovery</span>
             </Link>
 

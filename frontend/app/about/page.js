@@ -9,7 +9,7 @@ export default function AboutPage() {
       <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 text-white py-16">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <img
-            src="https://petrescue.b-cdn.net/Untitled%20design%20(10).svg"
+            src="https://petrescue.b-cdn.net/algogo.png"
             alt="Sarama"
             className="h-32 w-auto mx-auto mb-6"
           />

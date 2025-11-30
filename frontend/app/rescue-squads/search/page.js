@@ -190,9 +190,9 @@ export default function RescueSquadSearchPage() {
       return;
     }
 
-    // If we don't have state (city name search with no existing squad), route to create page
+    // If we don't have state (city name search with no existing squad), ask for ZIP
     if (!state) {
-      router.push(`/admin/rescue-squads/create?city=${encodeURIComponent(city)}`);
+      setValidationError(`No squad found for "${city}". Please search by ZIP code to create a new squad for your area.`);
       return;
     }
 
