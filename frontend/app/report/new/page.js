@@ -22,8 +22,8 @@ import {
   ChevronRight, AlertTriangle, Loader2, Sparkles,
   Shield, Users, Bell, ArrowRight
 } from 'lucide-react';
-import BreedSelector from '../../../components/BreedSelector';
-import ColorSelector from '../../../components/ColorSelector';
+import BreedSelector from '../../components/BreedSelector';
+import ColorSelector from '../../components/ColorSelector';
 
 // Step configuration
 const STEPS = [
