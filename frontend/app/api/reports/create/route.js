@@ -194,6 +194,10 @@ export async function POST(request) {
         },
       });
 
+      console.log('[Report Debug] Found', squads.length, 'active squads');
+      console.log('[Report Debug] Case center:', center);
+      console.log('[Report Debug] Location type:', locationType, 'City name:', cityName);
+
       // Calculate distance for all squads
       const squadsWithDistance = squads
         .filter(squad => squad.centerLatitude && squad.centerLongitude)
@@ -205,29 +209,43 @@ export async function POST(request) {
           ),
         }));
 
+      console.log('[Report Debug] Squads with valid coordinates:', squadsWithDistance.length);
+      // Log a few closest squads
+      const closestSquads = [...squadsWithDistance].sort((a, b) => a.distance - b.distance).slice(0, 5);
+      console.log('[Report Debug] 5 closest squads:', closestSquads.map(s => ({ name: s.name, city: s.city, distance: s.distance.toFixed(2) })));
+
       // Determine which squads to notify based on location type
       let squadsToNotify = [];
 
       if (locationType === 'zip') {
         // For zip code: notify squads in same city OR within 2 miles of center
         const normalizedCityName = (cityName || '').toLowerCase().trim();
+        console.log('[Report Debug] Zip mode - looking for city:', normalizedCityName);
         squadsToNotify = squadsWithDistance.filter(squad => {
           const squadCity = (squad.city || '').toLowerCase().trim();
-          // Match by city name OR within 2 miles
-          return squadCity === normalizedCityName || squad.distance <= NOTIFICATION_RADIUS;
+          const cityMatch = squadCity === normalizedCityName;
+          const distanceMatch = squad.distance <= NOTIFICATION_RADIUS;
+          if (cityMatch || distanceMatch) {
+            console.log('[Report Debug] Squad matched:', { name: squad.name, city: squad.city, cityMatch, distanceMatch, distance: squad.distance.toFixed(2) });
+          }
+          return cityMatch || distanceMatch;
         });
       } else {
         // For exact address or pin: notify squads within 2 miles
         squadsToNotify = squadsWithDistance.filter(squad => squad.distance <= NOTIFICATION_RADIUS);
       }
 
+      console.log('[Report Debug] Squads to notify:', squadsToNotify.length);
+
       // Sort by distance
       squadsToNotify.sort((a, b) => a.distance - b.distance);
 
       // Create assignments for all qualifying squads
       if (squadsToNotify.length > 0) {
+        console.log('[Report Debug] Creating assignments for', squadsToNotify.length, 'squads');
         for (const squad of squadsToNotify) {
-          await prisma.caseAssignment.create({
+          console.log('[Report Debug] Creating assignment for squad:', { id: squad.id, name: squad.name, city: squad.city, distance: squad.distance });
+          const assignment = await prisma.caseAssignment.create({
             data: {
               caseId: report.id,
               rescueSquadId: squad.id,
@@ -236,6 +254,7 @@ export async function POST(request) {
               acceptedById: user.id, // Required field - use reporter as initial accepter
             },
           });
+          console.log('[Report Debug] Created assignment:', { id: assignment.id, caseId: assignment.caseId, rescueSquadId: assignment.rescueSquadId });
 
           assignedSquads.push({
             id: squad.id,
