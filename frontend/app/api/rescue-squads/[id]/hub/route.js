@@ -238,25 +238,34 @@ export async function GET(request, { params }) {
         actor: {
           select: { firstName: true, lastName: true },
         },
-        case: {
-          select: { petName: true, caseNumber: true },
-        },
+        // Note: caseId is just a String, not a relation - look up case data separately if needed
       },
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
 
-    const recentEvents = activities.map(a => ({
-      id: a.id,
-      type: a.type.toLowerCase(),
-      createdAt: a.createdAt.toISOString(),
-      payload: {
-        memberName: a.actor ? `${a.actor.firstName} ${a.actor.lastName?.[0] || ''}.` : null,
-        petName: a.case?.petName,
-        caseNumber: a.case?.caseNumber,
-        ...JSON.parse(a.details || '{}'),
-      },
-    }));
+    // Build case lookup map for activity case references
+    const activityCaseIds = [...new Set(activities.map(a => a.caseId).filter(Boolean))];
+    const activityCases = activityCaseIds.length > 0 ? await prisma.case.findMany({
+      where: { id: { in: activityCaseIds } },
+      select: { id: true, petName: true, caseNumber: true },
+    }) : [];
+    const activityCaseMap = new Map(activityCases.map(c => [c.id, c]));
+
+    const recentEvents = activities.map(a => {
+      const linkedCase = a.caseId ? activityCaseMap.get(a.caseId) : null;
+      return {
+        id: a.id,
+        type: a.type.toLowerCase(),
+        createdAt: a.createdAt.toISOString(),
+        payload: {
+          memberName: a.actor ? `${a.actor.firstName} ${a.actor.lastName?.[0] || ''}.` : null,
+          petName: linkedCase?.petName,
+          caseNumber: linkedCase?.caseNumber,
+          ...JSON.parse(a.details || '{}'),
+        },
+      };
+    });
 
     // Get chat messages (stored as SquadActivity with type CHAT_MESSAGE)
     const chatActivities = await prisma.squadActivity.findMany({
@@ -338,34 +347,43 @@ export async function GET(request, { params }) {
         type: 'REQUEST',
       },
       include: {
-        creator: {
+        createdBy: {
           select: { id: true, firstName: true, lastName: true },
         },
-        assignee: {
+        assignedTo: {
           select: { id: true, firstName: true, lastName: true },
         },
-        case: {
-          select: { id: true, caseNumber: true },
-        },
+        // Note: caseId is just a String, not a relation
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    const requests = tasks.map(t => ({
-      id: t.id,
-      title: t.title,
-      body: t.description || '',
-      divisionId: t.divisionId,
-      caseId: t.caseId,
-      caseCode: t.case?.caseNumber,
-      authorId: t.creatorId,
-      authorName: t.creator ? `${t.creator.firstName} ${t.creator.lastName?.[0] || ''}.` : 'Unknown',
-      createdAt: t.createdAt.toISOString(),
-      helpersCount: t.assigneeId ? 1 : 0,
-      helpers: t.assignee ? [{ id: t.assignee.id, name: `${t.assignee.firstName} ${t.assignee.lastName?.[0] || ''}.` }] : [],
-      isUserHelper: session?.user?.id ? t.assigneeId === session.user.id : false,
-      status: t.status === 'COMPLETED' ? 'COMPLETED' : t.assigneeId ? 'IN_PROGRESS' : 'OPEN',
-    }));
+    // Look up case codes for tasks with caseIds
+    const taskCaseIds = [...new Set(tasks.map(t => t.caseId).filter(Boolean))];
+    const taskCases = taskCaseIds.length > 0 ? await prisma.case.findMany({
+      where: { id: { in: taskCaseIds } },
+      select: { id: true, caseNumber: true },
+    }) : [];
+    const taskCaseMap = new Map(taskCases.map(c => [c.id, c]));
+
+    const requests = tasks.map(t => {
+      const linkedCase = t.caseId ? taskCaseMap.get(t.caseId) : null;
+      return {
+        id: t.id,
+        title: t.title,
+        body: t.description || '',
+        divisionId: null, // SquadTask doesn't have divisionId field
+        caseId: t.caseId,
+        caseCode: linkedCase?.caseNumber,
+        authorId: t.createdById,
+        authorName: t.createdBy ? `${t.createdBy.firstName} ${t.createdBy.lastName?.[0] || ''}.` : 'Unknown',
+        createdAt: t.createdAt.toISOString(),
+        helpersCount: t.assignedToId ? 1 : 0,
+        helpers: t.assignedTo ? [{ id: t.assignedTo.id, name: `${t.assignedTo.firstName} ${t.assignedTo.lastName?.[0] || ''}.` }] : [],
+        isUserHelper: session?.user?.id ? t.assignedToId === session.user.id : false,
+        status: t.status === 'COMPLETED' ? 'COMPLETED' : t.assignedToId ? 'IN_PROGRESS' : 'OPEN',
+      };
+    });
 
     // Count on-duty members (AVAILABLE status = on duty)
     const onDutyCount = await prisma.rescueSquadMember.count({
