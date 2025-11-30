@@ -250,7 +250,6 @@ export async function POST(request) {
               caseId: report.id,
               rescueSquadId: squad.id,
               status: 'ACCEPTED',
-              priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'NORMAL',
               acceptedById: user.id, // Required field - use reporter as initial accepter
             },
           });
