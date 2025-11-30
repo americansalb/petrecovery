@@ -70,8 +70,13 @@ export async function GET(request, { params }) {
 
     // Fetch case with all related data
     // Using Case model (not the old lostPetCase)
-    const caseData = await prisma.case.findUnique({
-      where: { id: params.id },
+    // Support both UUID (id) and case number lookup
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.id);
+
+    const caseData = await prisma.case.findFirst({
+      where: isUuid
+        ? { id: params.id }
+        : { caseNumber: params.id },
       include: {
         reporter: {
           select: {
@@ -90,6 +95,19 @@ export async function GET(request, { params }) {
                 city: true,
                 state: true
               }
+            },
+            participants: {
+              select: {
+                id: true,
+                userId: true,
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true
+                  }
+                }
+              }
             }
           }
         },
@@ -106,8 +124,23 @@ export async function GET(request, { params }) {
           orderBy: { createdAt: 'desc' }
         },
         sightings: {
+          include: {
+            reporter: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
+            }
+          },
           orderBy: { createdAt: 'desc' },
-          take: 10
+          take: 20
+        },
+        _count: {
+          select: {
+            updates: true,
+            sightings: true
+          }
         }
       }
     });
@@ -136,23 +169,23 @@ export async function GET(request, { params }) {
     await logEvent({
       event_type: 'case.detail_viewed',
       resource_type: 'case',
-      resource_id: params.id,
+      resource_id: caseData.id,
       action: 'read',
       result: 'success',
       actor_user_id: session.user.id,
       actor_role: session.user.role || 'USER',
       metadata: {
-        caseId: params.id,
+        caseId: caseData.id,
         caseNumber: caseData.caseNumber,
         status: caseData.status,
-        notes_count: caseData.notes.length,
+        updates_count: caseData.updates?.length || 0,
+        sightings_count: caseData.sightings?.length || 0,
         response_time_ms: responseTime
       }
     });
 
-    return NextResponse.json({
-      case: caseData
-    });
+    // Return case data directly (without wrapping in { case: ... })
+    return NextResponse.json(caseData);
 
   } catch (error) {
     console.error('Error fetching case:', error);
