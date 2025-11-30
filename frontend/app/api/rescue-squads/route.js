@@ -436,7 +436,17 @@ export async function POST(request) {
     let squad;
 
     if (deletedSquad) {
-      // Reactivate the deleted squad with new founder
+      // Check if the user is already a member of this squad
+      const existingMembership = await prisma.rescueSquadMember.findUnique({
+        where: {
+          rescueSquadId_userId: {
+            rescueSquadId: deletedSquad.id,
+            userId: session.user.id
+          }
+        }
+      });
+
+      // Reactivate the deleted squad
       squad = await prisma.rescueSquad.update({
         where: { id: deletedSquad.id },
         data: {
@@ -447,15 +457,29 @@ export async function POST(request) {
           centerLatitude: latitude,
           centerLongitude: longitude,
           zipCodes: JSON.stringify([zipCode]),
-          members: {
-            create: {
-              userId: session.user.id,
-              role: 'FOUNDER',
-              isActive: true,
-            },
-          },
         },
       });
+
+      // Either update existing membership to FOUNDER or create new one
+      if (existingMembership) {
+        await prisma.rescueSquadMember.update({
+          where: { id: existingMembership.id },
+          data: {
+            role: 'FOUNDER',
+            isActive: true,
+            leftAt: null,
+          }
+        });
+      } else {
+        await prisma.rescueSquadMember.create({
+          data: {
+            rescueSquadId: deletedSquad.id,
+            userId: session.user.id,
+            role: 'FOUNDER',
+            isActive: true,
+          }
+        });
+      }
 
       await logEvent({
         event_type: 'squad.reactivated',
@@ -464,7 +488,7 @@ export async function POST(request) {
         action: 'update',
         result: 'success',
         actor_user_id: session.user.id,
-        metadata: { city, state, zipCode, reactivated: true }
+        metadata: { city, state, zipCode, reactivated: true, existingMember: !!existingMembership }
       });
     } else {
       // Create new squad
