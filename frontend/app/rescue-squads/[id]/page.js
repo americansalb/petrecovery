@@ -37,6 +37,12 @@ export default function SquadPage() {
 
         if (res.ok) {
           const data = await res.json();
+          console.log('[SquadHub Debug] API response:', {
+            squadId: data.squad?.id,
+            squadName: data.squad?.displayName,
+            casesCount: data.cases?.length || 0,
+            cases: data.cases,
+          });
           setSquadData(data);
           setUsingMockData(false);
         } else if (res.status === 404) {
