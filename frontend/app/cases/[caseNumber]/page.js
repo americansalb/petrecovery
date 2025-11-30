@@ -283,12 +283,21 @@ export default function CaseDetailPage() {
 
           <div className="flex gap-6 items-start">
             {/* Pet Photo */}
-            {caseData.petPhotoUrl && (
+            {caseData.petPhotoUrl && caseData.petPhotoUrl.length > 10 && (
               <img
                 src={caseData.petPhotoUrl}
-                alt={caseData.petName}
+                alt={caseData.petName || 'Pet photo'}
                 className="w-24 h-24 rounded-xl object-cover border-2 border-gray-600"
+                onError={(e) => { e.target.style.display = 'none'; }}
               />
+            )}
+            {/* Fallback if no photo */}
+            {(!caseData.petPhotoUrl || caseData.petPhotoUrl.length <= 10) && (
+              <div className="w-24 h-24 rounded-xl bg-gray-700 flex items-center justify-center border-2 border-gray-600">
+                <span className="text-4xl">
+                  {caseData.petSpecies === 'DOG' ? '🐕' : caseData.petSpecies === 'CAT' ? '🐈' : '🐾'}
+                </span>
+              </div>
             )}
 
             <div className="flex-1">

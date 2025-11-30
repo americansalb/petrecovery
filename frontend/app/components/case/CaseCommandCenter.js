@@ -138,11 +138,12 @@ export default function CaseCommandCenter({ caseId, caseNumber }) {
           <div className="flex items-center justify-between gap-4">
             {/* Pet info */}
             <div className="flex items-center gap-3">
-              {caseData.petPhotoUrl ? (
+              {caseData.petPhotoUrl && caseData.petPhotoUrl.length > 10 ? (
                 <img
                   src={caseData.petPhotoUrl}
-                  alt={caseData.petName}
+                  alt={caseData.petName || 'Pet photo'}
                   className="w-12 h-12 rounded-full object-cover ring-2 ring-cyan-500/50"
+                  onError={(e) => { e.target.style.display = 'none'; }}
                 />
               ) : (
                 <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center ring-2 ring-cyan-500/30">

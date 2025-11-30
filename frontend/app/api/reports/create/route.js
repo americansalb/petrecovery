@@ -6,6 +6,10 @@ import { getServerSession } from 'next-auth';
 import { logEvent } from '@/lib/logging';
 import crypto from 'crypto';
 
+// Allow large body for base64 image uploads and longer timeout
+export const maxDuration = 30;
+export const dynamic = 'force-dynamic';
+
 export async function POST(request) {
   const correlationId = crypto.randomUUID();
 

@@ -45,11 +45,12 @@ export default function CaseInfoPanel({ caseData, userRole, onUpdate }) {
       {/* Pet Details Card */}
       <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700/50">
         <div className="flex items-start gap-4">
-          {caseData.petPhotoUrl ? (
+          {caseData.petPhotoUrl && caseData.petPhotoUrl.length > 10 ? (
             <img
               src={caseData.petPhotoUrl}
-              alt={caseData.petName}
+              alt={caseData.petName || 'Pet photo'}
               className="w-20 h-20 rounded-xl object-cover ring-2 ring-cyan-500/30"
+              onError={(e) => { e.target.style.display = 'none'; }}
             />
           ) : (
             <div className="w-20 h-20 rounded-xl bg-slate-700/50 flex items-center justify-center">
