@@ -28,6 +28,11 @@ export async function GET(request) {
       );
     }
 
+    // Count squads the user is a member of
+    const squadMemberships = await prisma.squadMember.count({
+      where: { userId: user.id }
+    });
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -35,6 +40,13 @@ export async function GET(request) {
         firstName: user.firstName,
         lastName: user.lastName,
         phone: user.phone,
+        // Gamification fields
+        rescueLevel: user.rescueLevel || 'PET_OWNER',
+        squadsJoinedCount: squadMemberships || user.squadsJoinedCount || 0,
+        areasMarkedCount: user.areasMarkedCount || 0,
+        totalAcreageSearched: user.totalAcreageSearched || 0,
+        successfulReunions: user.successfulReunions || 0,
+        honorsReceived: user.honorsReceived || 0,
       },
       profile: user.profile ? {
         latitude: user.profile.latitude,

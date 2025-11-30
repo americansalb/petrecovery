@@ -239,18 +239,63 @@ export default function Navigation() {
                 )}
               </div>
 
-              {/* Admin Link */}
+              {/* Admin Dropdown */}
               {session?.user?.role === 'ADMIN' && (
-                <Link
-                  href="/admin/health"
-                  className={`px-4 py-2 text-sm font-semibold rounded-lg transition ${
-                    pathname.startsWith('/admin')
-                      ? 'bg-white/25 text-white'
-                      : 'text-white/90 hover:bg-white/15 hover:text-white'
-                  }`}
-                >
-                  Admin
-                </Link>
+                <div className="relative">
+                  <button
+                    onClick={() => toggleDropdown('admin')}
+                    className={`px-4 py-2 text-sm font-semibold rounded-lg transition flex items-center gap-1 ${
+                      pathname.startsWith('/admin')
+                        ? 'bg-white/25 text-white'
+                        : 'text-white/90 hover:bg-white/15 hover:text-white'
+                    }`}
+                  >
+                    Admin
+                    <svg className={`w-4 h-4 transition-transform ${activeDropdown === 'admin' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {activeDropdown === 'admin' && (
+                    <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 z-50">
+                      <Link href="/admin" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-indigo-50 transition">
+                        <span className="text-xl">📊</span>
+                        <div>
+                          <div className="font-semibold">Dashboard</div>
+                          <div className="text-xs text-gray-500">Overview & stats</div>
+                        </div>
+                      </Link>
+                      <Link href="/admin/rescue-squads" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-indigo-50 transition">
+                        <span className="text-xl">🛡️</span>
+                        <div>
+                          <div className="font-semibold">Rescue Squads</div>
+                          <div className="text-xs text-gray-500">Manage squads</div>
+                        </div>
+                      </Link>
+                      <Link href="/admin/divisions" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-indigo-50 transition">
+                        <span className="text-xl">📍</span>
+                        <div>
+                          <div className="font-semibold">Divisions</div>
+                          <div className="text-xs text-gray-500">Geographic areas</div>
+                        </div>
+                      </Link>
+                      <Link href="/admin/cases" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-indigo-50 transition">
+                        <span className="text-xl">📋</span>
+                        <div>
+                          <div className="font-semibold">Cases</div>
+                          <div className="text-xs text-gray-500">All lost/found cases</div>
+                        </div>
+                      </Link>
+                      <div className="border-t border-gray-100 my-2" />
+                      <Link href="/admin/analytics" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-indigo-50 transition">
+                        <span className="text-xl">📈</span>
+                        <div>
+                          <div className="font-semibold">Analytics</div>
+                          <div className="text-xs text-gray-500">Reports & metrics</div>
+                        </div>
+                      </Link>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
@@ -435,7 +480,11 @@ export default function Navigation() {
           {session?.user?.role === 'ADMIN' && (
             <>
               <div className="border-t border-gray-100 my-2" />
-              <MobileNavLink href="/admin/health" icon="⚙️" label="Admin Panel" active={pathname.startsWith('/admin')} onClick={() => setMobileMenuOpen(false)} />
+              <div className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Admin</div>
+              <MobileNavLink href="/admin" icon="📊" label="Admin Dashboard" active={pathname === '/admin'} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/admin/rescue-squads" icon="🛡️" label="Manage Squads" active={pathname === '/admin/rescue-squads'} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/admin/divisions" icon="📍" label="Manage Divisions" active={pathname === '/admin/divisions'} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/admin/cases" icon="📋" label="Manage Cases" active={pathname === '/admin/cases'} onClick={() => setMobileMenuOpen(false)} />
             </>
           )}
         </div>
