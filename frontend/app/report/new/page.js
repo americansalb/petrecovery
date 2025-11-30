@@ -20,7 +20,7 @@ import {
   Dog, Cat, Bird, Rabbit, MapPin, Clock, Search,
   User, Mail, Phone, Camera, Check, ChevronLeft,
   ChevronRight, AlertTriangle, Loader2, Sparkles,
-  Shield, Users, Bell, ArrowRight
+  Shield, Users, Bell, ArrowRight, Navigation, Hash, Crosshair
 } from 'lucide-react';
 import BreedSelector from '../../components/BreedSelector';
 import ColorSelector from '../../components/ColorSelector';
@@ -63,11 +63,13 @@ export default function ReportLostPet() {
   const [prefillPet, setPrefillPet] = useState(null);
 
   // Location and map data
+  const [locationMethod, setLocationMethod] = useState(''); // 'address', 'zip', 'pin'
   const [lastSeenAddress, setLastSeenAddress] = useState('');
+  const [zipCode, setZipCode] = useState('');
   const [center, setCenter] = useState(null);
   const [radiusMiles, setRadiusMiles] = useState(1);
   const [timeElapsed, setTimeElapsed] = useState('');
-
+  const [locationConfirmed, setLocationConfirmed] = useState(false);
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
@@ -275,10 +277,11 @@ export default function ReportLostPet() {
     setPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
-  const geocodeAddress = async () => {
-    if (!lastSeenAddress || lastSeenAddress.length < 3) {
-      setError('Please enter a valid address or zip code');
-      return;
+  // Geocode an address or zip code
+  const geocodeLocation = async (query) => {
+    if (!query || query.length < 3) {
+      setError('Please enter a valid location');
+      return false;
     }
 
     setError(null);
@@ -286,7 +289,7 @@ export default function ReportLostPet() {
 
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(lastSeenAddress)}&format=json&limit=1&countrycodes=us`,
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=us`,
         { headers: { 'User-Agent': 'PetRecovery.org' } }
       );
       const data = await response.json();
@@ -294,18 +297,71 @@ export default function ReportLostPet() {
       if (data && data.length > 0) {
         const lat = parseFloat(data[0].lat);
         const lon = parseFloat(data[0].lon);
+        // Also get the display name for the address
+        if (!lastSeenAddress && data[0].display_name) {
+          setLastSeenAddress(data[0].display_name);
+        }
         setCenter([lat, lon]);
+        setLocationConfirmed(false);
         setStep(3);
+        return true;
       } else {
-        setError('Could not find that address. Please try again with more detail.');
+        setError('Could not find that location. Please try a different address or zip code.');
+        return false;
       }
     } catch (err) {
-      setError('Error finding address. Please try again.');
+      setError('Error finding location. Please try again.');
       console.error('Geocoding error:', err);
+      return false;
     } finally {
       setIsGeocoding(false);
     }
   };
+
+  // Handle "drop pin" - get user's current location or default
+  const handleDropPin = async () => {
+    setError(null);
+    setIsGeocoding(true);
+
+    try {
+      // Try to get user's current location
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            setCenter([latitude, longitude]);
+            setLastSeenAddress('Pin dropped on map');
+            setLocationConfirmed(false);
+            setStep(3);
+            setIsGeocoding(false);
+          },
+          (error) => {
+            // If geolocation fails, use a default (Chicago center)
+            console.warn('Geolocation failed:', error);
+            setCenter([41.8781, -87.6298]);
+            setLastSeenAddress('');
+            setLocationConfirmed(false);
+            setStep(3);
+            setIsGeocoding(false);
+          },
+          { timeout: 10000 }
+        );
+      } else {
+        // No geolocation support, use default
+        setCenter([41.8781, -87.6298]);
+        setLastSeenAddress('');
+        setLocationConfirmed(false);
+        setStep(3);
+        setIsGeocoding(false);
+      }
+    } catch (err) {
+      setError('Could not get location. Please try entering an address.');
+      setIsGeocoding(false);
+    }
+  };
+
+  // Legacy function name for compatibility
+  const geocodeAddress = () => geocodeLocation(lastSeenAddress);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -368,9 +424,8 @@ export default function ReportLostPet() {
     }
   };
 
-  const canProceedFromStep2 = lastSeenAddress && timeElapsed;
   const canProceedFromStep4 = reportData.firstName && reportData.email;
-  const canSubmit = reportData.petName && reportData.color;
+  const canSubmit = reportData.petName && reportData.color && center && locationConfirmed;
 
   // Determine which step to skip to based on session
   const nextStepFromMap = session?.user ? 5 : 4;
@@ -531,125 +586,250 @@ export default function ReportLostPet() {
           </div>
         )}
 
-        {/* Step 2: Location & Time */}
+        {/* Step 2: Time & Location Method */}
         {step === 2 && (
-          <div className="max-w-xl mx-auto">
-            <div className="bg-[var(--hub-bg-panel)] rounded-2xl border border-[var(--hub-border)] p-6 md:p-8">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-[var(--hub-accent-primary)]/10 flex items-center justify-center">
-                  <MapPin size={24} className="text-[var(--hub-accent-primary)]" />
+          <div className="max-w-xl mx-auto space-y-6">
+            {/* Time Selection */}
+            <div className="bg-[var(--hub-bg-panel)] rounded-2xl border border-[var(--hub-border)] p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-[var(--hub-status-high)]/10 flex items-center justify-center">
+                  <Clock size={20} className="text-[var(--hub-status-high)]" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold">Where was your pet last seen?</h2>
-                  <p className="text-[var(--hub-text-muted)]">This helps us alert nearby rescuers</p>
+                  <h3 className="text-lg font-bold text-[var(--hub-text-primary)]">When did they go missing?</h3>
                 </div>
               </div>
 
-              <div className="space-y-6">
+              <div className="grid gap-2">
+                {TIME_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setTimeElapsed(option.value)}
+                    className={`
+                      w-full p-3 rounded-xl border text-left transition-all
+                      ${timeElapsed === option.value
+                        ? 'bg-[var(--hub-accent-primary)]/10 border-[var(--hub-accent-primary)]'
+                        : 'bg-[var(--hub-bg-card)] border-[var(--hub-border)] hover:border-[var(--hub-text-muted)]'
+                      }
+                    `}
+                  >
+                    <span className={`flex items-center justify-between ${timeElapsed === option.value ? 'text-[var(--hub-accent-primary)]' : 'text-[var(--hub-text-secondary)]'}`}>
+                      {option.label}
+                      {option.urgency === 'critical' && (
+                        <span className="text-xs px-2 py-0.5 bg-[var(--hub-status-high)]/20 text-[var(--hub-status-high)] rounded-full font-medium">
+                          URGENT
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {!timeElapsed && (
+                <p className="mt-3 text-sm text-[var(--hub-status-medium)]">
+                  Please select when your pet went missing
+                </p>
+              )}
+            </div>
+
+            {/* Location Selection */}
+            <div className="bg-[var(--hub-bg-panel)] rounded-2xl border border-[var(--hub-border)] p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-[var(--hub-accent-primary)]/10 flex items-center justify-center">
+                  <MapPin size={20} className="text-[var(--hub-accent-primary)]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-[var(--hub-text-primary)]">Where were they last seen?</h3>
+                  <p className="text-sm text-[var(--hub-text-muted)]">Choose how to enter the location</p>
+                </div>
+              </div>
+
+              {/* Location method buttons */}
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <button
+                  onClick={() => setLocationMethod('address')}
+                  className={`
+                    p-4 rounded-xl border text-center transition-all
+                    ${locationMethod === 'address'
+                      ? 'bg-[var(--hub-accent-primary)]/10 border-[var(--hub-accent-primary)]'
+                      : 'bg-[var(--hub-bg-card)] border-[var(--hub-border)] hover:border-[var(--hub-text-muted)]'
+                    }
+                  `}
+                >
+                  <Navigation size={24} className={`mx-auto mb-2 ${locationMethod === 'address' ? 'text-[var(--hub-accent-primary)]' : 'text-[var(--hub-text-muted)]'}`} />
+                  <span className={`text-sm font-medium ${locationMethod === 'address' ? 'text-[var(--hub-accent-primary)]' : 'text-[var(--hub-text-secondary)]'}`}>
+                    Address
+                  </span>
+                </button>
+                <button
+                  onClick={() => setLocationMethod('zip')}
+                  className={`
+                    p-4 rounded-xl border text-center transition-all
+                    ${locationMethod === 'zip'
+                      ? 'bg-[var(--hub-accent-primary)]/10 border-[var(--hub-accent-primary)]'
+                      : 'bg-[var(--hub-bg-card)] border-[var(--hub-border)] hover:border-[var(--hub-text-muted)]'
+                    }
+                  `}
+                >
+                  <Hash size={24} className={`mx-auto mb-2 ${locationMethod === 'zip' ? 'text-[var(--hub-accent-primary)]' : 'text-[var(--hub-text-muted)]'}`} />
+                  <span className={`text-sm font-medium ${locationMethod === 'zip' ? 'text-[var(--hub-accent-primary)]' : 'text-[var(--hub-text-secondary)]'}`}>
+                    Zip Code
+                  </span>
+                </button>
+                <button
+                  onClick={() => setLocationMethod('pin')}
+                  className={`
+                    p-4 rounded-xl border text-center transition-all
+                    ${locationMethod === 'pin'
+                      ? 'bg-[var(--hub-accent-primary)]/10 border-[var(--hub-accent-primary)]'
+                      : 'bg-[var(--hub-bg-card)] border-[var(--hub-border)] hover:border-[var(--hub-text-muted)]'
+                    }
+                  `}
+                >
+                  <Crosshair size={24} className={`mx-auto mb-2 ${locationMethod === 'pin' ? 'text-[var(--hub-accent-primary)]' : 'text-[var(--hub-text-muted)]'}`} />
+                  <span className={`text-sm font-medium ${locationMethod === 'pin' ? 'text-[var(--hub-accent-primary)]' : 'text-[var(--hub-text-secondary)]'}`}>
+                    Pin on Map
+                  </span>
+                </button>
+              </div>
+
+              {/* Address input */}
+              {locationMethod === 'address' && (
                 <div>
                   <label className="block text-sm font-medium mb-2 text-[var(--hub-text-secondary)]">
-                    Last Seen Address or Zip Code
+                    Street Address
                   </label>
                   <input
                     type="text"
                     value={lastSeenAddress}
                     onChange={(e) => setLastSeenAddress(e.target.value)}
-                    placeholder="123 Main St, City, State or 60601"
-                    className="w-full px-4 py-3 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-xl
-                      text-[var(--hub-text-primary)] placeholder:text-[var(--hub-text-muted)]
-                      focus:outline-none focus:border-[var(--hub-accent-primary)] focus:ring-1 focus:ring-[var(--hub-accent-primary)]
-                      transition-all"
+                    placeholder="123 Main St, City, State"
+                    className="w-full px-4 py-3 rounded-xl transition-all"
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && canProceedFromStep2) {
-                        geocodeAddress();
+                      if (e.key === 'Enter' && lastSeenAddress && timeElapsed) {
+                        geocodeLocation(lastSeenAddress);
                       }
                     }}
                   />
+                  {!lastSeenAddress && (
+                    <p className="mt-2 text-sm text-[var(--hub-status-medium)]">
+                      Enter the address where your pet was last seen
+                    </p>
+                  )}
                 </div>
+              )}
 
+              {/* Zip code input */}
+              {locationMethod === 'zip' && (
                 <div>
                   <label className="block text-sm font-medium mb-2 text-[var(--hub-text-secondary)]">
-                    <Clock size={14} className="inline mr-1" />
-                    When did they go missing?
+                    Zip Code
                   </label>
-                  <div className="grid gap-2">
-                    {TIME_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => setTimeElapsed(option.value)}
-                        className={`
-                          w-full p-3 rounded-xl border text-left transition-all
-                          ${timeElapsed === option.value
-                            ? 'bg-[var(--hub-accent-primary)]/10 border-[var(--hub-accent-primary)] text-[var(--hub-accent-primary)]'
-                            : 'bg-[var(--hub-bg-card)] border-[var(--hub-border)] text-[var(--hub-text-secondary)] hover:border-[var(--hub-text-muted)]'
-                          }
-                        `}
-                      >
-                        <span className="flex items-center justify-between">
-                          {option.label}
-                          {option.urgency === 'critical' && (
-                            <span className="text-xs px-2 py-0.5 bg-[var(--hub-status-high)]/20 text-[var(--hub-status-high)] rounded-full">
-                              URGENT
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-8">
-                <button
-                  onClick={() => setStep(1)}
-                  className="flex-1 py-3 px-4 rounded-xl bg-[var(--hub-bg-card)] text-[var(--hub-text-secondary)]
-                    border border-[var(--hub-border)] hover:bg-[var(--hub-bg-elevated)] transition-all
-                    flex items-center justify-center gap-2"
-                >
-                  <ChevronLeft size={18} />
-                  Back
-                </button>
-                <button
-                  onClick={geocodeAddress}
-                  disabled={!canProceedFromStep2 || isGeocoding}
-                  className={`
-                    flex-[2] py-3 px-4 rounded-xl font-medium transition-all
-                    flex items-center justify-center gap-2
-                    ${canProceedFromStep2 && !isGeocoding
-                      ? 'bg-gradient-to-r from-[var(--hub-accent-primary)] to-cyan-400 text-[var(--hub-bg-root)] shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]'
-                      : 'bg-[var(--hub-bg-elevated)] text-[var(--hub-text-muted)] cursor-not-allowed'
-                    }
-                  `}
-                >
-                  {isGeocoding ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin" />
-                      Finding location...
-                    </>
-                  ) : (
-                    <>
-                      Continue
-                      <ChevronRight size={18} />
-                    </>
+                  <input
+                    type="text"
+                    value={zipCode}
+                    onChange={(e) => setZipCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                    placeholder="60601"
+                    maxLength={5}
+                    className="w-full px-4 py-3 rounded-xl transition-all"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && zipCode.length === 5 && timeElapsed) {
+                        geocodeLocation(zipCode);
+                      }
+                    }}
+                  />
+                  {zipCode.length > 0 && zipCode.length < 5 && (
+                    <p className="mt-2 text-sm text-[var(--hub-status-medium)]">
+                      Enter a 5-digit zip code
+                    </p>
                   )}
-                </button>
-              </div>
+                </div>
+              )}
+
+              {/* Pin on map info */}
+              {locationMethod === 'pin' && (
+                <div className="p-4 bg-[var(--hub-bg-card)] rounded-xl">
+                  <p className="text-[var(--hub-text-secondary)] text-sm">
+                    We'll use your current location or let you drop a pin on the map to mark where your pet was last seen.
+                  </p>
+                </div>
+              )}
+
+              {!locationMethod && (
+                <p className="text-sm text-[var(--hub-status-medium)]">
+                  Select how you want to enter the location
+                </p>
+              )}
+            </div>
+
+            {/* Navigation buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStep(1)}
+                className="flex-1 py-3 px-4 rounded-xl bg-[var(--hub-bg-card)] text-[var(--hub-text-secondary)]
+                  border border-[var(--hub-border)] hover:bg-[var(--hub-bg-elevated)] transition-all
+                  flex items-center justify-center gap-2"
+              >
+                <ChevronLeft size={18} />
+                Back
+              </button>
+              <button
+                onClick={() => {
+                  if (locationMethod === 'address' && lastSeenAddress) {
+                    geocodeLocation(lastSeenAddress);
+                  } else if (locationMethod === 'zip' && zipCode.length === 5) {
+                    geocodeLocation(zipCode);
+                  } else if (locationMethod === 'pin') {
+                    handleDropPin();
+                  }
+                }}
+                disabled={
+                  !timeElapsed ||
+                  !locationMethod ||
+                  (locationMethod === 'address' && !lastSeenAddress) ||
+                  (locationMethod === 'zip' && zipCode.length !== 5) ||
+                  isGeocoding
+                }
+                className={`
+                  flex-[2] py-3 px-4 rounded-xl font-medium transition-all
+                  flex items-center justify-center gap-2
+                  ${timeElapsed && locationMethod && !isGeocoding &&
+                    ((locationMethod === 'address' && lastSeenAddress) ||
+                     (locationMethod === 'zip' && zipCode.length === 5) ||
+                     locationMethod === 'pin')
+                    ? 'bg-gradient-to-r from-[var(--hub-accent-primary)] to-cyan-400 text-[var(--hub-bg-root)] shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]'
+                    : 'bg-[var(--hub-bg-elevated)] text-[var(--hub-text-muted)] cursor-not-allowed'
+                  }
+                `}
+              >
+                {isGeocoding ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Finding location...
+                  </>
+                ) : (
+                  <>
+                    Set Location on Map
+                    <ChevronRight size={18} />
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}
 
-        {/* Step 3: Map with Search Radius */}
+        {/* Step 3: Confirm Location on Map */}
         {step === 3 && center && (
           <div className="space-y-6">
             <div className="bg-[var(--hub-bg-panel)] rounded-2xl border border-[var(--hub-border)] overflow-hidden">
               <div className="p-6 border-b border-[var(--hub-border)]">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-xl bg-[var(--hub-accent-primary)]/10 flex items-center justify-center">
-                    <Search size={24} className="text-[var(--hub-accent-primary)]" />
+                    <MapPin size={24} className="text-[var(--hub-accent-primary)]" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold">Set Your Search Area</h2>
-                    <p className="text-[var(--hub-text-muted)]">Drag the marker to adjust. Rescuers in this area will be alerted.</p>
+                    <h2 className="text-2xl font-bold text-[var(--hub-text-primary)]">Confirm Last Seen Location</h2>
+                    <p className="text-[var(--hub-text-muted)]">Drag the marker to the exact spot. Set how far they may have wandered.</p>
                   </div>
                 </div>
               </div>
@@ -662,7 +842,7 @@ export default function ReportLostPet() {
               {/* Radius control */}
               <div className="p-6 bg-[var(--hub-bg-card)]">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="font-medium">Search Radius</span>
+                  <span className="font-medium text-[var(--hub-text-primary)]">Last Seen Area Radius</span>
                   <span className="text-2xl font-bold text-[var(--hub-accent-primary)]">
                     {radiusMiles} {radiusMiles === 1 ? 'mile' : 'miles'}
                   </span>
@@ -683,6 +863,9 @@ export default function ReportLostPet() {
                   <span>0.25 mi</span>
                   <span>10 mi</span>
                 </div>
+                <p className="mt-3 text-sm text-[var(--hub-text-muted)]">
+                  This is the area where your pet was last seen, not a search radius. Rescuers will focus on this area first.
+                </p>
               </div>
             </div>
 
@@ -690,8 +873,8 @@ export default function ReportLostPet() {
             <div className="p-4 bg-[var(--hub-accent-primary)]/10 border border-[var(--hub-accent-primary)]/20 rounded-xl flex items-start gap-3">
               <Sparkles size={20} className="text-[var(--hub-accent-primary)] flex-shrink-0 mt-0.5" />
               <p className="text-[var(--hub-text-secondary)]">
-                <strong className="text-[var(--hub-accent-primary)]">Tip:</strong> Most pets stay within 1-2 miles.
-                Increase the radius if they've been missing longer.
+                <strong className="text-[var(--hub-accent-primary)]">Tip:</strong> Most pets stay within 1-2 miles of where they went missing.
+                Set a larger area if they've been gone longer.
               </p>
             </div>
 
@@ -700,6 +883,7 @@ export default function ReportLostPet() {
                 onClick={() => {
                   setStep(2);
                   setCenter(null);
+                  setLocationConfirmed(false);
                 }}
                 className="flex-1 py-3 px-4 rounded-xl bg-[var(--hub-bg-card)] text-[var(--hub-text-secondary)]
                   border border-[var(--hub-border)] hover:bg-[var(--hub-bg-elevated)] transition-all
@@ -709,14 +893,17 @@ export default function ReportLostPet() {
                 Back
               </button>
               <button
-                onClick={() => setStep(nextStepFromMap)}
+                onClick={() => {
+                  setLocationConfirmed(true);
+                  setStep(nextStepFromMap);
+                }}
                 className="flex-[2] py-3 px-4 rounded-xl font-medium transition-all
                   bg-gradient-to-r from-[var(--hub-accent-primary)] to-cyan-400 text-[var(--hub-bg-root)]
                   shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]
                   flex items-center justify-center gap-2"
               >
-                Continue
-                <ChevronRight size={18} />
+                <Check size={18} />
+                Confirm Location
               </button>
             </div>
           </div>
