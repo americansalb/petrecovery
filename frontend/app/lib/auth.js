@@ -162,11 +162,18 @@ export const authOptions = {
               });
             }
 
-            // Update user profile image if not set
+            // Update user: set emailVerified (OAuth proves email ownership) and profile image if not set
+            const updateData = {};
+            if (!existingUser.emailVerified) {
+              updateData.emailVerified = new Date();
+            }
             if (!existingUser.profileImage && user.image) {
+              updateData.profileImage = user.image;
+            }
+            if (Object.keys(updateData).length > 0) {
               await prisma.user.update({
                 where: { id: existingUser.id },
-                data: { profileImage: user.image },
+                data: updateData,
               });
             }
           } else {
