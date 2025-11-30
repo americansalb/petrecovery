@@ -14,7 +14,7 @@
 import { useSession, signOut } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Navigation() {
   const { data: session } = useSession();
@@ -23,7 +23,6 @@ export default function Navigation() {
   const [userSquads, setUserSquads] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
-  const dropdownRef = useRef(null);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -40,13 +39,15 @@ export default function Navigation() {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+      // Check if click is on a dropdown button (they have data-dropdown attribute)
+      const isDropdownButton = e.target.closest('[data-dropdown]');
+      if (!isDropdownButton && activeDropdown) {
         setActiveDropdown(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [activeDropdown]);
 
   // Prevent body scroll when mobile menu is open
   useEffect(() => {
@@ -119,7 +120,7 @@ export default function Navigation() {
             </Link>
 
             {/* Desktop Navigation */}
-            <div className="hidden lg:flex items-center gap-1 flex-1 justify-center" ref={dropdownRef}>
+            <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
               {/* Dashboard */}
               <Link
                 href="/dashboard"
@@ -133,7 +134,7 @@ export default function Navigation() {
               </Link>
 
               {/* My Pets Dropdown */}
-              <div className="relative">
+              <div className="relative" data-dropdown="pets">
                 <button
                   onClick={() => toggleDropdown('pets')}
                   className={`px-4 py-2 text-sm font-semibold rounded-lg transition flex items-center gap-1 ${
@@ -176,7 +177,7 @@ export default function Navigation() {
               </div>
 
               {/* Squads Dropdown */}
-              <div className="relative">
+              <div className="relative" data-dropdown="squads">
                 <button
                   onClick={() => toggleDropdown('squads')}
                   className={`px-4 py-2 text-sm font-semibold rounded-lg transition flex items-center gap-1 ${
@@ -241,7 +242,7 @@ export default function Navigation() {
 
               {/* Admin Dropdown */}
               {session?.user?.role === 'ADMIN' && (
-                <div className="relative">
+                <div className="relative" data-dropdown="admin">
                   <button
                     onClick={() => toggleDropdown('admin')}
                     className={`px-4 py-2 text-sm font-semibold rounded-lg transition flex items-center gap-1 ${
@@ -302,7 +303,7 @@ export default function Navigation() {
             {/* Right Side - Report Button & User Menu */}
             <div className="flex items-center gap-2">
               {/* Report Pet CTA - Desktop */}
-              <div className="hidden md:block relative">
+              <div className="hidden md:block relative" data-dropdown="report">
                 <button
                   onClick={() => toggleDropdown('report')}
                   className="px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold text-sm rounded-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2"
@@ -334,7 +335,7 @@ export default function Navigation() {
               </div>
 
               {/* User Menu - Desktop */}
-              <div className="hidden lg:block relative" ref={dropdownRef}>
+              <div className="hidden lg:block relative" data-dropdown="user">
                 <button
                   onClick={() => toggleDropdown('user')}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/15 border-2 border-white/30 hover:bg-white/25 transition"
