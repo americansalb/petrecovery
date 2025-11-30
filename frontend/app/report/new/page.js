@@ -215,9 +215,12 @@ export default function ReportLostPet() {
       }).addTo(map);
       circleRef.current = circle;
 
-      marker.on('dragend', function(e) {
+      marker.on('dragend', async function(e) {
         const pos = e.target.getLatLng();
         setCenter([pos.lat, pos.lng]);
+        // Update address when marker is dragged
+        const address = await reverseGeocode(pos.lat, pos.lng);
+        setLastSeenAddress(address);
       });
 
       // Fit bounds to circle
@@ -297,10 +300,9 @@ export default function ReportLostPet() {
       if (data && data.length > 0) {
         const lat = parseFloat(data[0].lat);
         const lon = parseFloat(data[0].lon);
-        // Also get the display name for the address
-        if (!lastSeenAddress && data[0].display_name) {
-          setLastSeenAddress(data[0].display_name);
-        }
+        // Always set the display name from geocoding result for better accuracy
+        const displayAddress = data[0].display_name || query;
+        setLastSeenAddress(displayAddress);
         setCenter([lat, lon]);
         setLocationConfirmed(false);
         setStep(3);
@@ -318,6 +320,23 @@ export default function ReportLostPet() {
     }
   };
 
+  // Reverse geocode coordinates to get address
+  const reverseGeocode = async (lat, lon) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+        { headers: { 'User-Agent': 'PetRecovery.org' } }
+      );
+      const data = await response.json();
+      if (data && data.display_name) {
+        return data.display_name;
+      }
+    } catch (err) {
+      console.error('Reverse geocoding error:', err);
+    }
+    return `Location: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  };
+
   // Handle "drop pin" - get user's current location or default
   const handleDropPin = async () => {
     setError(null);
@@ -327,19 +346,23 @@ export default function ReportLostPet() {
       // Try to get user's current location
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-          (position) => {
+          async (position) => {
             const { latitude, longitude } = position.coords;
             setCenter([latitude, longitude]);
-            setLastSeenAddress('Pin dropped on map');
+            // Reverse geocode to get actual address
+            const address = await reverseGeocode(latitude, longitude);
+            setLastSeenAddress(address);
             setLocationConfirmed(false);
             setStep(3);
             setIsGeocoding(false);
           },
-          (error) => {
+          async (error) => {
             // If geolocation fails, use a default (Chicago center)
             console.warn('Geolocation failed:', error);
-            setCenter([41.8781, -87.6298]);
-            setLastSeenAddress('');
+            const defaultLat = 41.8781;
+            const defaultLon = -87.6298;
+            setCenter([defaultLat, defaultLon]);
+            setLastSeenAddress('Chicago, IL (drag pin to your location)');
             setLocationConfirmed(false);
             setStep(3);
             setIsGeocoding(false);
@@ -348,8 +371,10 @@ export default function ReportLostPet() {
         );
       } else {
         // No geolocation support, use default
-        setCenter([41.8781, -87.6298]);
-        setLastSeenAddress('');
+        const defaultLat = 41.8781;
+        const defaultLon = -87.6298;
+        setCenter([defaultLat, defaultLon]);
+        setLastSeenAddress('Chicago, IL (drag pin to your location)');
         setLocationConfirmed(false);
         setStep(3);
         setIsGeocoding(false);
