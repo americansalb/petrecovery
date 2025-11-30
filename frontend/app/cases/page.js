@@ -160,7 +160,7 @@ function CasesContent() {
           </div>
           <div className="mt-6">
             <a
-              href="/cases/report"
+              href="/report/new"
               className="inline-block bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition"
             >
               Report a Lost Pet

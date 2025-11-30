@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { PET_COLORS } from '../lib/colors';
-import { theme } from '../lib/theme';
 
 export default function ColorSelector({ value, onChange }) {
   const [selectedColors, setSelectedColors] = useState([]);
@@ -98,44 +97,17 @@ export default function ColorSelector({ value, onChange }) {
   };
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="color-selector" style={{ position: 'relative' }}>
       {/* Selected Colors Display */}
       {selectedColors.length > 0 && (
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '0.5rem',
-          marginBottom: '0.75rem',
-        }}>
+        <div className="color-selected-list">
           {selectedColors.map((color) => (
-            <div
-              key={color}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.5rem 0.75rem',
-                background: '#f0fdf4',
-                border: '2px solid #10b981',
-                borderRadius: theme.radius.md,
-                fontSize: '0.9rem',
-                fontWeight: '600',
-                color: '#065f46',
-              }}
-            >
+            <div key={color} className="color-tag">
               {color}
               <button
                 type="button"
                 onClick={() => handleRemoveColor(color)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#dc2626',
-                  cursor: 'pointer',
-                  fontSize: '1.1rem',
-                  lineHeight: 1,
-                  padding: 0,
-                }}
+                className="color-tag-remove"
               >
                 ×
               </button>
@@ -160,65 +132,23 @@ export default function ColorSelector({ value, onChange }) {
             ? "Type color and press Enter to add..."
             : "Click to select colors or start typing..."
         }
-        style={{
-          width: '100%',
-          padding: '0.75rem',
-          border: '2px solid #e5e7eb',
-          borderRadius: theme.radius.md,
-          fontSize: '1rem',
-        }}
+        className="color-input"
       />
 
       {/* Dropdown */}
       {showDropdown && !isOther && filteredColors.length > 0 && (
-        <div
-          ref={dropdownRef}
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 0.25rem)',
-            left: 0,
-            right: 0,
-            maxHeight: '250px',
-            overflowY: 'auto',
-            background: 'white',
-            border: '2px solid #e5e7eb',
-            borderRadius: theme.radius.md,
-            boxShadow: theme.shadows.lg,
-            zIndex: 1000,
-          }}
-        >
+        <div ref={dropdownRef} className="color-dropdown">
           {filteredColors.map((color) => (
             <div
               key={color}
               onClick={() => handleColorClick(color)}
-              style={{
-                padding: '0.75rem 1rem',
-                cursor: 'pointer',
-                borderBottom: '1px solid #f3f4f6',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                background: selectedColors.includes(color) ? '#f0fdf4' : 'white',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={(e) => {
-                if (!selectedColors.includes(color)) {
-                  e.currentTarget.style.background = '#f8fafc';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = selectedColors.includes(color) ? '#f0fdf4' : 'white';
-              }}
+              className={`color-dropdown-item ${selectedColors.includes(color) ? 'selected' : ''}`}
             >
               <input
                 type="checkbox"
                 checked={selectedColors.includes(color)}
                 readOnly
-                style={{
-                  width: '18px',
-                  height: '18px',
-                  cursor: 'pointer',
-                }}
+                className="color-checkbox"
               />
               {color}
             </div>
@@ -227,38 +157,131 @@ export default function ColorSelector({ value, onChange }) {
       )}
 
       {/* Other Checkbox */}
-      <label style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        marginTop: '0.75rem',
-        cursor: 'pointer',
-      }}>
+      <label className="color-other-label">
         <input
           type="checkbox"
           checked={isOther}
           onChange={(e) => handleOtherToggle(e.target.checked)}
-          style={{
-            width: '18px',
-            height: '18px',
-            cursor: 'pointer',
-          }}
+          className="color-other-checkbox"
         />
-        <span style={{ fontWeight: '600', color: theme.colors.gray[700] }}>
-          Other / Custom Color
-        </span>
+        <span className="color-other-text">Other / Custom Color</span>
       </label>
 
       {/* Help Text */}
-      <p style={{
-        fontSize: '0.85rem',
-        color: theme.colors.gray[500],
-        marginTop: '0.5rem',
-      }}>
+      <p className="color-help-text">
         {isOther
           ? "Type a color and press Enter to add it"
           : `${selectedColors.length} color${selectedColors.length !== 1 ? 's' : ''} selected - click colors to add/remove`}
       </p>
+
+      <style jsx>{`
+        .color-selector {
+          position: relative;
+        }
+        .color-selected-list {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          margin-bottom: 0.75rem;
+        }
+        .color-tag {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.5rem 0.75rem;
+          background: var(--hub-status-success, #10b981) / 0.15;
+          background: rgba(16, 185, 129, 0.15);
+          border: 2px solid var(--hub-status-success, #10b981);
+          border-radius: 0.5rem;
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: var(--hub-status-success, #10b981);
+        }
+        .color-tag-remove {
+          background: none;
+          border: none;
+          color: var(--hub-status-high, #ef4444);
+          cursor: pointer;
+          font-size: 1.1rem;
+          line-height: 1;
+          padding: 0;
+        }
+        .color-input {
+          width: 100%;
+          padding: 0.75rem;
+          border: 2px solid var(--hub-border, #374151);
+          border-radius: 0.5rem;
+          font-size: 1rem;
+          background: var(--hub-bg-card, #1f2937);
+          color: var(--hub-text-primary, #f9fafb);
+        }
+        .color-input::placeholder {
+          color: var(--hub-text-muted, #6b7280);
+        }
+        .color-input:focus {
+          outline: none;
+          border-color: var(--hub-accent-primary, #22d3ee);
+          box-shadow: 0 0 0 1px var(--hub-accent-primary, #22d3ee);
+        }
+        .color-dropdown {
+          position: absolute;
+          top: calc(100% + 0.25rem);
+          left: 0;
+          right: 0;
+          max-height: 250px;
+          overflow-y: auto;
+          background: var(--hub-bg-panel, #111827);
+          border: 2px solid var(--hub-border, #374151);
+          border-radius: 0.5rem;
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+          z-index: 1000;
+        }
+        .color-dropdown-item {
+          padding: 0.75rem 1rem;
+          cursor: pointer;
+          border-bottom: 1px solid var(--hub-border, #374151);
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          color: var(--hub-text-primary, #f9fafb);
+          transition: background 0.15s;
+        }
+        .color-dropdown-item:hover {
+          background: var(--hub-bg-card, #1f2937);
+        }
+        .color-dropdown-item.selected {
+          background: rgba(16, 185, 129, 0.15);
+        }
+        .color-checkbox {
+          width: 18px;
+          height: 18px;
+          cursor: pointer;
+          accent-color: var(--hub-accent-primary, #22d3ee);
+        }
+        .color-other-label {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          margin-top: 0.75rem;
+          cursor: pointer;
+        }
+        .color-other-checkbox {
+          width: 18px;
+          height: 18px;
+          cursor: pointer;
+          accent-color: var(--hub-accent-primary, #22d3ee);
+        }
+        .color-other-text {
+          font-weight: 600;
+          color: var(--hub-text-secondary, #9ca3af);
+        }
+        .color-help-text {
+          font-size: 0.85rem;
+          color: var(--hub-text-muted, #6b7280);
+          margin-top: 0.5rem;
+          margin-bottom: 0;
+        }
+      `}</style>
     </div>
   );
 }

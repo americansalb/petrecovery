@@ -19,14 +19,15 @@ import SquadTabsMobile from './SquadTabsMobile';
 import CaseQueuePanel from './CaseQueuePanel';
 import MapPanel from './MapPanel';
 import ActivityPanel from './ActivityPanel';
+import CaseDetailPanel from './CaseDetailPanel';
 import CommunityView from './CommunityView';
 import CommunityTabsMobile from './CommunityTabsMobile';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { Radar, Users } from 'lucide-react';
 
-export default function SquadHub({ initialData }) {
+export default function SquadHub({ initialData, squadId }) {
   return (
-    <SquadHubProvider initialData={initialData}>
+    <SquadHubProvider initialData={initialData} squadId={squadId}>
       <SquadHubContent />
     </SquadHubProvider>
   );
@@ -34,7 +35,7 @@ export default function SquadHub({ initialData }) {
 
 function SquadHubContent() {
   const isDesktop = useMediaQuery('(min-width: 1024px)');
-  const { mainTab, setMainTab } = useSquadHub();
+  const { mainTab, setMainTab, selectedCaseId } = useSquadHub();
 
   return (
     <div className="squad-hub min-h-screen flex flex-col">
@@ -74,7 +75,7 @@ function SquadHubContent() {
               <MapPanel />
             </div>
             <div className="w-80 flex-shrink-0 border-l border-[var(--hub-border)] overflow-hidden">
-              <ActivityPanel compact />
+              {selectedCaseId ? <CaseDetailPanel /> : <ActivityPanel compact />}
             </div>
           </div>
         ) : (

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { getBreedsForSpecies } from '../lib/breeds';
-import { theme } from '../lib/theme';
 
 export default function BreedSelector({ species, value, onChange }) {
   const [inputValue, setInputValue] = useState(value || '');
@@ -101,28 +100,16 @@ export default function BreedSelector({ species, value, onChange }) {
   };
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="breed-selector" style={{ position: 'relative' }}>
       {/* Unknown Checkbox */}
-      <label style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        marginBottom: '0.75rem',
-        cursor: 'pointer',
-      }}>
+      <label className="breed-checkbox-label">
         <input
           type="checkbox"
           checked={isUnknown}
           onChange={(e) => handleUnknownChange(e.target.checked)}
-          style={{
-            width: '18px',
-            height: '18px',
-            cursor: 'pointer',
-          }}
+          className="breed-checkbox"
         />
-        <span style={{ fontWeight: '600', color: theme.colors.gray[700] }}>
-          Unknown Breed
-        </span>
+        <span className="breed-checkbox-text">Unknown Breed</span>
       </label>
 
       {/* Input Field */}
@@ -143,47 +130,15 @@ export default function BreedSelector({ species, value, onChange }) {
           "Enter breed name..."
         }
         disabled={isUnknown}
-        style={{
-          width: '100%',
-          padding: '0.75rem',
-          border: '2px solid #e5e7eb',
-          borderRadius: theme.radius.md,
-          fontSize: '1rem',
-          backgroundColor: isUnknown ? '#f9fafb' : 'white',
-          cursor: isUnknown ? 'not-allowed' : 'text',
-        }}
+        className="breed-input"
       />
 
       {/* Dropdown */}
       {showDropdown && filteredBreeds.length > 0 && (
-        <div
-          ref={dropdownRef}
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 0.25rem)',
-            left: 0,
-            right: 0,
-            maxHeight: '300px',
-            overflowY: 'auto',
-            background: 'white',
-            border: '2px solid #e5e7eb',
-            borderRadius: theme.radius.md,
-            boxShadow: theme.shadows.lg,
-            zIndex: 1000,
-          }}
-        >
+        <div ref={dropdownRef} className="breed-dropdown">
           {/* Count header */}
           {inputValue && (
-            <div style={{
-              padding: '0.5rem 1rem',
-              background: '#f8fafc',
-              borderBottom: '1px solid #e5e7eb',
-              fontSize: '0.85rem',
-              fontWeight: '600',
-              color: theme.colors.gray[600],
-              position: 'sticky',
-              top: 0,
-            }}>
+            <div className="breed-dropdown-header">
               {filteredBreeds.length} {filteredBreeds.length === 1 ? 'match' : 'matches'} found
             </div>
           )}
@@ -191,18 +146,7 @@ export default function BreedSelector({ species, value, onChange }) {
             <div
               key={breed}
               onClick={() => handleBreedSelect(breed)}
-              style={{
-                padding: '0.75rem 1rem',
-                cursor: 'pointer',
-                borderBottom: '1px solid #f3f4f6',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#f8fafc';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'white';
-              }}
+              className="breed-dropdown-item"
             >
               {breed}
             </div>
@@ -212,63 +156,126 @@ export default function BreedSelector({ species, value, onChange }) {
 
       {/* No matches message */}
       {showDropdown && inputValue && filteredBreeds.length === 0 && hasBreeds && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 0.25rem)',
-            left: 0,
-            right: 0,
-            padding: '1rem',
-            background: 'white',
-            border: '2px solid #e5e7eb',
-            borderRadius: theme.radius.md,
-            boxShadow: theme.shadows.lg,
-            zIndex: 1000,
-            textAlign: 'center',
-            color: theme.colors.gray[600],
-          }}
-        >
+        <div className="breed-dropdown breed-no-matches">
           No matches found. Try "Other" to enter a custom breed.
         </div>
       )}
 
       {/* Other Checkbox */}
       {hasBreeds && (
-        <label style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          marginTop: '0.75rem',
-          cursor: 'pointer',
-        }}>
+        <label className="breed-checkbox-label breed-other-label">
           <input
             type="checkbox"
             checked={isOther}
             onChange={(e) => handleOtherChange(e.target.checked)}
             disabled={isUnknown}
-            style={{
-              width: '18px',
-              height: '18px',
-              cursor: isUnknown ? 'not-allowed' : 'pointer',
-            }}
+            className="breed-checkbox"
+            style={{ cursor: isUnknown ? 'not-allowed' : 'pointer' }}
           />
-          <span style={{ fontWeight: '600', color: theme.colors.gray[700] }}>
-            Other / Not Listed
-          </span>
+          <span className="breed-checkbox-text">Other / Not Listed</span>
         </label>
       )}
 
       {/* Help Text */}
-      <p style={{
-        fontSize: '0.85rem',
-        color: theme.colors.gray[500],
-        marginTop: '0.5rem',
-      }}>
+      <p className="breed-help-text">
         {isUnknown ? "Breed marked as unknown" :
          isOther ? "Enter any breed name in the field above" :
          hasBreeds ? `${breeds.length} breeds available - click field to see list or start typing to search` :
          "Enter the breed name"}
       </p>
+
+      <style jsx>{`
+        .breed-selector {
+          position: relative;
+        }
+        .breed-checkbox-label {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          margin-bottom: 0.75rem;
+          cursor: pointer;
+        }
+        .breed-other-label {
+          margin-top: 0.75rem;
+          margin-bottom: 0;
+        }
+        .breed-checkbox {
+          width: 18px;
+          height: 18px;
+          cursor: pointer;
+          accent-color: var(--hub-accent-primary, #22d3ee);
+        }
+        .breed-checkbox-text {
+          font-weight: 600;
+          color: var(--hub-text-secondary, #9ca3af);
+        }
+        .breed-input {
+          width: 100%;
+          padding: 0.75rem;
+          border: 2px solid var(--hub-border, #374151);
+          border-radius: 0.5rem;
+          font-size: 1rem;
+          background: var(--hub-bg-card, #1f2937);
+          color: var(--hub-text-primary, #f9fafb);
+        }
+        .breed-input:disabled {
+          background: var(--hub-bg-elevated, #374151);
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
+        .breed-input::placeholder {
+          color: var(--hub-text-muted, #6b7280);
+        }
+        .breed-input:focus {
+          outline: none;
+          border-color: var(--hub-accent-primary, #22d3ee);
+          box-shadow: 0 0 0 1px var(--hub-accent-primary, #22d3ee);
+        }
+        .breed-dropdown {
+          position: absolute;
+          top: calc(100% + 0.25rem);
+          left: 0;
+          right: 0;
+          max-height: 300px;
+          overflow-y: auto;
+          background: var(--hub-bg-panel, #111827);
+          border: 2px solid var(--hub-border, #374151);
+          border-radius: 0.5rem;
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+          z-index: 1000;
+        }
+        .breed-dropdown-header {
+          padding: 0.5rem 1rem;
+          background: var(--hub-bg-elevated, #374151);
+          border-bottom: 1px solid var(--hub-border, #374151);
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: var(--hub-text-muted, #6b7280);
+          position: sticky;
+          top: 0;
+        }
+        .breed-dropdown-item {
+          padding: 0.75rem 1rem;
+          cursor: pointer;
+          border-bottom: 1px solid var(--hub-border, #374151);
+          color: var(--hub-text-primary, #f9fafb);
+          transition: background 0.15s;
+        }
+        .breed-dropdown-item:hover {
+          background: var(--hub-bg-card, #1f2937);
+        }
+        .breed-no-matches {
+          padding: 1rem;
+          text-align: center;
+          color: var(--hub-text-muted, #6b7280);
+        }
+        .breed-help-text {
+          font-size: 0.85rem;
+          color: var(--hub-text-muted, #6b7280);
+          margin-top: 0.5rem;
+          margin-bottom: 0;
+        }
+      `}</style>
     </div>
   );
 }

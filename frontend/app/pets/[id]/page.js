@@ -377,7 +377,7 @@ export default function PetDetailPage() {
             {/* Quick Report Button */}
             {(!pet?.cases?.length || pet.cases[0]?.status === 'RESOLVED' || pet.cases[0]?.status === 'CLOSED_OTHER') && (
               <Link
-                href={`/cases/report?petId=${petId}`}
+                href={`/report/new?petId=${petId}`}
                 style={{
                   padding: '0.75rem 1.5rem',
                   background: '#dc2626',

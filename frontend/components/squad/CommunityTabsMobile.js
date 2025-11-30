@@ -45,6 +45,7 @@ export default function CommunityTabsMobile() {
     membership,
     helpOnRequest,
     postRequest,
+    postAnnouncement,
     squad,
   } = useSquadHub();
 
@@ -118,7 +119,12 @@ export default function CommunityTabsMobile() {
           />
         )}
         {mobileCommunityTab === 'ANNOUNCEMENTS' && (
-          <MobileAnnouncementsView announcements={announcements} />
+          <MobileAnnouncementsView
+            announcements={announcements}
+            membership={membership}
+            postAnnouncement={postAnnouncement}
+            selectedDivisionId={selectedDivisionId}
+          />
         )}
       </div>
     </div>
@@ -401,21 +407,112 @@ function MobileRequestCard({ request, membership, onHelp }) {
 }
 
 // Mobile Announcements View
-function MobileAnnouncementsView({ announcements }) {
+function MobileAnnouncementsView({
+  announcements,
+  membership,
+  postAnnouncement,
+  selectedDivisionId,
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newContent, setNewContent] = useState('');
+
+  // Only leads and admins can post announcements
+  const canPost = membership.isMember &&
+    ['DIVISION_LEAD', 'SQUAD_LEAD', 'ADMIN'].includes(membership.role);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!newTitle.trim() || !newContent.trim()) return;
+    await postAnnouncement(
+      newTitle,
+      newContent,
+      selectedDivisionId !== 'ALL' ? selectedDivisionId : null,
+      false
+    );
+    setNewTitle('');
+    setNewContent('');
+    setShowForm(false);
+  };
+
   return (
-    <div className="h-full overflow-y-auto p-3 space-y-3 bg-[var(--hub-bg-root)]">
-      {announcements.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full text-center px-4">
-          <Megaphone size={36} className="text-[var(--hub-text-muted)] mb-3" />
-          <p className="text-sm text-[var(--hub-text-muted)]">
-            No announcements yet
-          </p>
+    <div className="h-full flex flex-col">
+      {/* Post button for leads */}
+      {canPost && !showForm && (
+        <div className="p-3 bg-[var(--hub-bg-panel)] border-b border-[var(--hub-border)]">
+          <button
+            onClick={() => setShowForm(true)}
+            className="w-full py-2.5 rounded-lg bg-[var(--hub-accent-secondary)] text-white text-sm font-medium flex items-center justify-center gap-2"
+          >
+            <Megaphone size={14} />
+            Post Announcement
+          </button>
         </div>
-      ) : (
-        announcements.map(ann => (
-          <MobileAnnouncementCard key={ann.id} announcement={ann} />
-        ))
       )}
+
+      {/* New Announcement Form */}
+      {showForm && (
+        <form onSubmit={handleSubmit} className="p-3 border-b border-[var(--hub-border)] bg-[var(--hub-bg-card)]">
+          <input
+            type="text"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="Announcement title..."
+            className="w-full px-3 py-2.5 mb-2 rounded-lg bg-[var(--hub-bg-panel)] border border-[var(--hub-border)] text-sm text-[var(--hub-text-primary)] placeholder-[var(--hub-text-muted)] focus:outline-none"
+          />
+          <textarea
+            value={newContent}
+            onChange={(e) => setNewContent(e.target.value)}
+            placeholder="Write your announcement..."
+            rows={3}
+            className="w-full px-3 py-2.5 mb-2 rounded-lg bg-[var(--hub-bg-panel)] border border-[var(--hub-border)] text-sm text-[var(--hub-text-primary)] placeholder-[var(--hub-text-muted)] focus:outline-none resize-none"
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowForm(false);
+                setNewTitle('');
+                setNewContent('');
+              }}
+              className="flex-1 py-2.5 rounded-lg text-sm font-medium text-[var(--hub-text-muted)] bg-[var(--hub-bg-panel)]"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!newTitle.trim() || !newContent.trim()}
+              className="flex-1 py-2.5 rounded-lg bg-[var(--hub-accent-secondary)] text-white text-sm font-medium disabled:opacity-50"
+            >
+              Post
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Announcements List */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-[var(--hub-bg-root)]">
+        {announcements.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center px-4">
+            <Megaphone size={36} className="text-[var(--hub-text-muted)] mb-3" />
+            <p className="text-sm text-[var(--hub-text-muted)]">
+              No announcements yet
+              {canPost && '. Tap above to post one.'}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Pinned first */}
+            {announcements.filter(a => a.isPinned).map(ann => (
+              <MobileAnnouncementCard key={ann.id} announcement={ann} />
+            ))}
+            {/* Then unpinned */}
+            {announcements.filter(a => !a.isPinned).map(ann => (
+              <MobileAnnouncementCard key={ann.id} announcement={ann} />
+            ))}
+          </>
+        )}
+      </div>
     </div>
   );
 }

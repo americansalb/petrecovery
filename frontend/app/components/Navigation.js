@@ -173,7 +173,7 @@ export default function Navigation() {
     { label: 'Dashboard', href: '/dashboard', active: pathname === '/dashboard' },
     { label: 'Cases', href: '/cases', active: pathname.startsWith('/cases') && !pathname.includes('/report') },
     { label: 'My Pets', href: '/pets', active: pathname.startsWith('/pets') },
-    { label: 'Report Lost', href: '/cases/report', active: pathname === '/cases/report' },
+    { label: 'Report Lost', href: '/report/new', active: pathname === '/report/new' },
     { label: 'Found Pet', href: '/found', active: pathname === '/found' },
     { label: 'Squads', href: '/rescue-squads/search', active: pathname === '/rescue-squads/search' },
   ];

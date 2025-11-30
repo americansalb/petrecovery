@@ -436,7 +436,7 @@ export default function MyPetsPage() {
                       </Link>
                       {!caseStatus || caseStatus === 'RESOLVED' || caseStatus === 'CLOSED_OTHER' ? (
                         <Link
-                          href={`/cases/report?petId=${pet.id}`}
+                          href={`/report/new?petId=${pet.id}`}
                           style={{
                             flex: 2,
                             padding: '0.5rem',

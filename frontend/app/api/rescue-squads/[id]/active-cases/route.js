@@ -29,11 +29,11 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Get all assignments for this squad
+    // Get all assignments for this squad (exclude completed/withdrawn)
     const assignments = await prisma.caseAssignment.findMany({
       where: {
         rescueSquadId: squadId,
-        status: { in: ['ACCEPTED', 'ACTIVE', 'STANDBY'] }, // Exclude completed/withdrawn
+        status: { in: ['ACCEPTED', 'ACTIVE', 'STANDBY'] },
       },
       include: {
         case: {

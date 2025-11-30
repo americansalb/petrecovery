@@ -49,12 +49,14 @@ export default function CommunityView() {
     chatCaseFilterId,
     setChatCaseFilterId,
     casesWithChat,
+    cases,
     sendChatMessage,
     membership,
     helpOnRequest,
     completeRequestForUser,
     leaveRequest,
     postRequest,
+    postAnnouncement,
     highlightRequestId,
     setMainTab,
     selectCase,
@@ -104,6 +106,7 @@ export default function CommunityView() {
               chatCaseFilterId={chatCaseFilterId}
               setChatCaseFilterId={setChatCaseFilterId}
               casesWithChat={casesWithChat}
+              allCases={cases}
               sendChatMessage={sendChatMessage}
               membership={membership}
             />
@@ -128,7 +131,13 @@ export default function CommunityView() {
             />
           )}
           {communityTab === 'ANNOUNCEMENTS' && (
-            <AnnouncementsSection announcements={announcements} />
+            <AnnouncementsSection
+              announcements={announcements}
+              membership={membership}
+              postAnnouncement={postAnnouncement}
+              selectedDivisionId={selectedDivisionId}
+              divisions={divisions}
+            />
           )}
         </div>
       </div>
@@ -154,6 +163,7 @@ function ChatSection({
   chatCaseFilterId,
   setChatCaseFilterId,
   casesWithChat,
+  allCases,
   sendChatMessage,
   membership,
 }) {
@@ -164,8 +174,9 @@ function ChatSection({
     ? 'Squad'
     : divisions.find(d => d.id === selectedDivisionId)?.name || 'Division';
 
+  // Look up selected case from all cases (not just those with chat messages)
   const selectedCase = chatCaseFilterId
-    ? casesWithChat.find(c => c.id === chatCaseFilterId)
+    ? (allCases || []).find(c => c.id === chatCaseFilterId)
     : null;
 
   const handleSend = async () => {
@@ -189,34 +200,32 @@ function ChatSection({
     <div className="h-full flex flex-col bg-[var(--hub-bg-panel)]">
       {/* Filter bar */}
       <div className="px-4 py-3 border-b border-[var(--hub-border)] space-y-2">
-        {/* Scope toggle */}
-        {selectedDivisionId !== 'ALL' && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setChatScope('DIVISION')}
-              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
-                chatScope === 'DIVISION'
-                  ? 'bg-[var(--hub-accent-primary)]/20 text-[var(--hub-accent-primary)]'
-                  : 'text-[var(--hub-text-muted)] hover:text-[var(--hub-text-secondary)] hover:bg-[var(--hub-bg-card)]/50'
-              }`}
-            >
-              {divisionName} Only
-            </button>
-            <button
-              onClick={() => setChatScope('SQUAD')}
-              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
-                chatScope === 'SQUAD'
-                  ? 'bg-[var(--hub-accent-primary)]/20 text-[var(--hub-accent-primary)]'
-                  : 'text-[var(--hub-text-muted)] hover:text-[var(--hub-text-secondary)] hover:bg-[var(--hub-bg-card)]/50'
-              }`}
-            >
-              Whole Squad
-            </button>
-          </div>
-        )}
+        {/* Scope toggle - always visible */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setChatScope('DIVISION')}
+            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
+              chatScope === 'DIVISION'
+                ? 'bg-[var(--hub-accent-primary)]/20 text-[var(--hub-accent-primary)]'
+                : 'text-[var(--hub-text-muted)] hover:text-[var(--hub-text-secondary)] hover:bg-[var(--hub-bg-card)]/50'
+            }`}
+          >
+            {selectedDivisionId === 'ALL' ? 'My Division' : `${divisionName} Only`}
+          </button>
+          <button
+            onClick={() => setChatScope('SQUAD')}
+            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
+              chatScope === 'SQUAD'
+                ? 'bg-[var(--hub-accent-primary)]/20 text-[var(--hub-accent-primary)]'
+                : 'text-[var(--hub-text-muted)] hover:text-[var(--hub-text-secondary)] hover:bg-[var(--hub-bg-card)]/50'
+            }`}
+          >
+            Whole Squad
+          </button>
+        </div>
 
-        {/* Case filter */}
-        {casesWithChat.length > 0 && (
+        {/* Case filter - show if there are any active cases */}
+        {(casesWithChat.length > 0 || chatCaseFilterId) && (
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-[var(--hub-text-muted)] uppercase tracking-wider">Filter by case:</span>
             <div className="relative">
@@ -233,7 +242,7 @@ function ChatSection({
                 <ChevronDown size={12} />
               </button>
               {showCaseDropdown && (
-                <div className="absolute top-full left-0 mt-1 w-48 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-lg shadow-lg z-10 py-1">
+                <div className="absolute top-full left-0 mt-1 w-48 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-lg shadow-lg z-10 py-1 max-h-60 overflow-y-auto">
                   <button
                     onClick={() => {
                       setChatCaseFilterId(null);
@@ -711,14 +720,108 @@ function RequestCard({
 }
 
 // Announcements Section
-function AnnouncementsSection({ announcements }) {
+function AnnouncementsSection({
+  announcements,
+  membership,
+  postAnnouncement,
+  selectedDivisionId,
+  divisions,
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newContent, setNewContent] = useState('');
+  const [isPinned, setIsPinned] = useState(false);
+
+  // Only leads and admins can post announcements
+  const canPost = membership.isMember &&
+    ['DIVISION_LEAD', 'SQUAD_LEAD', 'ADMIN'].includes(membership.role);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!newTitle.trim() || !newContent.trim()) return;
+    await postAnnouncement(
+      newTitle,
+      newContent,
+      selectedDivisionId !== 'ALL' ? selectedDivisionId : null,
+      isPinned
+    );
+    setNewTitle('');
+    setNewContent('');
+    setIsPinned(false);
+    setShowForm(false);
+  };
+
   return (
     <div className="h-full flex flex-col bg-[var(--hub-bg-panel)]">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-[var(--hub-border)]">
-        <h3 className="text-sm font-semibold text-[var(--hub-text-primary)]">Announcements</h3>
-        <p className="text-xs text-[var(--hub-text-muted)]">Important updates from squad leads</p>
+      {/* Header with post button */}
+      <div className="px-4 py-3 border-b border-[var(--hub-border)] flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-[var(--hub-text-primary)]">Announcements</h3>
+          <p className="text-xs text-[var(--hub-text-muted)]">Important updates from squad leads</p>
+        </div>
+        {canPost && !showForm && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="px-3 py-1.5 rounded-lg bg-[var(--hub-accent-secondary)] text-white text-xs font-medium hover:opacity-90 transition-all flex items-center gap-1.5"
+          >
+            <Megaphone size={12} />
+            Post Announcement
+          </button>
+        )}
       </div>
+
+      {/* New Announcement Form */}
+      {showForm && (
+        <form onSubmit={handleSubmit} className="p-4 border-b border-[var(--hub-border)] bg-[var(--hub-bg-card)]">
+          <input
+            type="text"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="Announcement title..."
+            className="w-full px-3 py-2 mb-3 rounded-lg bg-[var(--hub-bg-panel)] border border-[var(--hub-border)] text-sm text-[var(--hub-text-primary)] placeholder-[var(--hub-text-muted)] focus:outline-none focus:border-[var(--hub-accent-primary)]/50"
+          />
+          <textarea
+            value={newContent}
+            onChange={(e) => setNewContent(e.target.value)}
+            placeholder="Write your announcement..."
+            rows={4}
+            className="w-full px-3 py-2 mb-3 rounded-lg bg-[var(--hub-bg-panel)] border border-[var(--hub-border)] text-sm text-[var(--hub-text-primary)] placeholder-[var(--hub-text-muted)] focus:outline-none focus:border-[var(--hub-accent-primary)]/50 resize-none"
+          />
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 text-xs text-[var(--hub-text-secondary)] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isPinned}
+                onChange={(e) => setIsPinned(e.target.checked)}
+                className="rounded border-[var(--hub-border)]"
+              />
+              <Pin size={12} />
+              Pin to top
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setNewTitle('');
+                  setNewContent('');
+                  setIsPinned(false);
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--hub-text-muted)] hover:text-[var(--hub-text-secondary)] transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!newTitle.trim() || !newContent.trim()}
+                className="px-4 py-1.5 rounded-lg bg-[var(--hub-accent-secondary)] text-white text-xs font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                Post
+              </button>
+            </div>
+          </div>
+        </form>
+      )}
 
       {/* Announcements List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -726,13 +829,23 @@ function AnnouncementsSection({ announcements }) {
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <Megaphone size={40} className="text-[var(--hub-text-muted)] mb-4" />
             <p className="text-sm text-[var(--hub-text-muted)]">
-              No announcements yet. Squad leads can post important updates here.
+              No announcements yet.
+              {canPost
+                ? ' Click the button above to post one.'
+                : ' Squad leads can post important updates here.'}
             </p>
           </div>
         ) : (
-          announcements.map(ann => (
-            <AnnouncementCard key={ann.id} announcement={ann} />
-          ))
+          <>
+            {/* Pinned announcements first */}
+            {announcements.filter(a => a.isPinned).map(ann => (
+              <AnnouncementCard key={ann.id} announcement={ann} />
+            ))}
+            {/* Then unpinned */}
+            {announcements.filter(a => !a.isPinned).map(ann => (
+              <AnnouncementCard key={ann.id} announcement={ann} />
+            ))}
+          </>
         )}
       </div>
     </div>
