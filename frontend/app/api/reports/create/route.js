@@ -188,20 +188,20 @@ export async function POST(request) {
           id: true,
           name: true,
           city: true,
-          centerLat: true,
-          centerLng: true,
+          centerLatitude: true,
+          centerLongitude: true,
           radiusMiles: true,
         },
       });
 
       // Calculate distance for all squads
       const squadsWithDistance = squads
-        .filter(squad => squad.centerLat && squad.centerLng)
+        .filter(squad => squad.centerLatitude && squad.centerLongitude)
         .map(squad => ({
           ...squad,
           distance: calculateDistance(
             center[0], center[1],
-            squad.centerLat, squad.centerLng
+            squad.centerLatitude, squad.centerLongitude
           ),
         }));
 
