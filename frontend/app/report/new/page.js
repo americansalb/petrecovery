@@ -450,7 +450,7 @@ export default function ReportLostPet() {
         </div>
       )}
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="report-form max-w-4xl mx-auto px-4 py-8">
         {/* Loading state for pet prefill */}
         {isLoadingPet && (
           <div className="text-center py-12">
@@ -1129,6 +1129,26 @@ export default function ReportLostPet() {
         }
         .leaflet-control-zoom a:hover {
           background: var(--hub-bg-elevated) !important;
+        }
+        /* Override global input styles for dark theme */
+        .report-form input[type="text"],
+        .report-form input[type="email"],
+        .report-form input[type="tel"],
+        .report-form textarea,
+        .report-form select {
+          background: var(--hub-bg-card) !important;
+          color: var(--hub-text-primary) !important;
+          border-color: var(--hub-border) !important;
+        }
+        .report-form input::placeholder,
+        .report-form textarea::placeholder {
+          color: var(--hub-text-muted) !important;
+        }
+        .report-form input:focus,
+        .report-form textarea:focus,
+        .report-form select:focus {
+          border-color: var(--hub-accent-primary) !important;
+          box-shadow: 0 0 0 1px var(--hub-accent-primary) !important;
         }
         .breed-selector-wrapper input,
         .color-selector-wrapper button {
