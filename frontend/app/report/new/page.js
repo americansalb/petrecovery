@@ -149,7 +149,25 @@ export default function ReportLostPet() {
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=us&addressdetails=1`,
         { headers: { 'User-Agent': 'PetRecovery.org' } }
       );
-      const data = await response.json();
+
+      // Handle rate limiting or server errors silently for autocomplete
+      if (!response.ok) {
+        console.warn('Address search failed with status:', response.status);
+        setAddressSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.warn('Address search returned non-JSON response');
+        setAddressSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
 
       if (data && data.length > 0) {
         setAddressSuggestions(data.map(item => ({
@@ -157,8 +175,9 @@ export default function ReportLostPet() {
           lat: parseFloat(item.lat),
           lon: parseFloat(item.lon),
           address: item.address,
-          // Extract city/town name
-          city: item.address?.city || item.address?.town || item.address?.village || item.address?.county || '',
+          // Extract city/town name - check multiple fields
+          city: item.address?.city || item.address?.town || item.address?.village ||
+                item.address?.municipality || item.address?.hamlet || item.address?.county || '',
           state: item.address?.state || '',
         })));
         setShowSuggestions(true);
@@ -169,6 +188,7 @@ export default function ReportLostPet() {
     } catch (err) {
       console.error('Address search error:', err);
       setAddressSuggestions([]);
+      setShowSuggestions(false);
     } finally {
       setIsSearchingAddress(false);
     }
@@ -390,36 +410,65 @@ export default function ReportLostPet() {
     setIsGeocoding(true);
 
     try {
-      // For zip codes, use postalcode parameter for better results
+      // For zip codes, search with zip code in query format for better results
       let url;
       if (isZipCode) {
-        url = `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(query)}&country=us&format=json&limit=1&addressdetails=1`;
+        // Use regular search with zip code - more reliable than postalcode parameter
+        url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ' USA')}&format=json&limit=1&addressdetails=1`;
       } else {
         url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=us&addressdetails=1`;
       }
 
       const response = await fetch(url, { headers: { 'User-Agent': 'PetRecovery.org' } });
-      const data = await response.json();
+
+      // Check for rate limiting or server errors
+      if (response.status === 503) {
+        setError('Location service is temporarily busy. Please wait a moment and try again.');
+        return false;
+      }
+
+      if (!response.ok) {
+        setError('Error connecting to location service. Please try again.');
+        return false;
+      }
+
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error('Failed to parse geocoding response:', text);
+        setError('Location service returned invalid data. Please try again.');
+        return false;
+      }
 
       if (data && data.length > 0) {
         const lat = parseFloat(data[0].lat);
         const lon = parseFloat(data[0].lon);
 
-        // Extract city name from address details
+        // Extract city name from address details - check multiple fields
         const addr = data[0].address || {};
-        const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
+        const city = addr.city || addr.town || addr.village || addr.municipality ||
+                     addr.hamlet || addr.suburb || addr.county || addr.state || '';
         const state = addr.state || '';
 
         // Build a proper display address
         let displayAddress;
-        if (isZipCode && city && state) {
-          displayAddress = `${city}, ${state} ${query}`;
+        if (isZipCode) {
+          // For zip codes, show city, state, and zip
+          if (city && state) {
+            displayAddress = `${city}, ${state} ${query}`;
+          } else if (state) {
+            displayAddress = `${state} ${query}`;
+          } else {
+            displayAddress = data[0].display_name || `Zip Code ${query}`;
+          }
         } else {
           displayAddress = data[0].display_name || query;
         }
 
         setLastSeenAddress(displayAddress);
-        setCityName(city);
+        setCityName(city || (isZipCode ? `Zip ${query}` : ''));
         setCenter([lat, lon]);
         setLocationConfirmed(false);
         setStep(3);
@@ -429,7 +478,7 @@ export default function ReportLostPet() {
         return false;
       }
     } catch (err) {
-      setError('Error finding location. Please try again.');
+      setError('Error finding location. Please check your internet connection and try again.');
       console.error('Geocoding error:', err);
       return false;
     } finally {
@@ -444,10 +493,31 @@ export default function ReportLostPet() {
         `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
         { headers: { 'User-Agent': 'PetRecovery.org' } }
       );
-      const data = await response.json();
+
+      if (!response.ok) {
+        console.warn('Reverse geocode failed with status:', response.status);
+        return {
+          address: `Location: ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+          city: '',
+        };
+      }
+
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.warn('Reverse geocode returned non-JSON response');
+        return {
+          address: `Location: ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+          city: '',
+        };
+      }
+
       if (data && data.display_name) {
         const addr = data.address || {};
-        const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
+        const city = addr.city || addr.town || addr.village || addr.municipality ||
+                     addr.hamlet || addr.suburb || addr.county || '';
         return {
           address: data.display_name,
           city: city,
@@ -1460,10 +1530,15 @@ export default function ReportLostPet() {
                   <p className="text-[var(--hub-accent-secondary)] font-medium">Rescue Squad Assigned</p>
                 </div>
                 <p className="text-sm text-[var(--hub-text-secondary)] mb-3">
-                  {reportResult.assignedSquad.name} ({reportResult.assignedSquad.city}) has been notified and will coordinate search efforts.
+                  {reportResult.assignedSquad.name}{reportResult.assignedSquad.city ? ` (${reportResult.assignedSquad.city})` : ''} has been notified and will coordinate search efforts.
+                  {reportResult.squadsNotified > 1 && (
+                    <span className="block mt-1 text-[var(--hub-accent-primary)]">
+                      + {reportResult.squadsNotified - 1} other squad{reportResult.squadsNotified > 2 ? 's' : ''} also notified
+                    </span>
+                  )}
                 </p>
                 <Link
-                  href={`/rescue-squads/${reportResult.assignedSquad.city.toLowerCase().replace(/\s+/g, '-')}`}
+                  href={`/rescue-squads/${reportResult.assignedSquad.id}`}
                   className="inline-flex items-center gap-2 text-sm text-[var(--hub-accent-secondary)] hover:underline"
                 >
                   View Squad Hub
