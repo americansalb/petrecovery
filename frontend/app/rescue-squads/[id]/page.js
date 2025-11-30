@@ -107,6 +107,10 @@ export default function SquadPage() {
     return null;
   }
 
+  // Use the actual squad ID from the API response (not the URL slug)
+  // This ensures action APIs work correctly with the real database ID
+  const resolvedSquadId = squadData.squad?.id || squadId;
+
   return (
     <>
       {usingMockData && process.env.NODE_ENV === 'development' && (
@@ -114,7 +118,7 @@ export default function SquadPage() {
           ⚠️ Using mock data (real squad not found in database)
         </div>
       )}
-      <SquadHub initialData={squadData} squadId={squadId} />
+      <SquadHub initialData={squadData} squadId={resolvedSquadId} />
     </>
   );
 }

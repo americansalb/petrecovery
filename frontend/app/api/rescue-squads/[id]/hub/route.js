@@ -12,11 +12,11 @@ import prisma from '@/app/lib/prisma';
 export async function GET(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
-    const squadId = params.id;
+    const squadIdOrSlug = params.id;
 
-    // Fetch squad with divisions
-    const squad = await prisma.rescueSquad.findUnique({
-      where: { id: squadId },
+    // Try to find squad by ID first, then by city name (slug)
+    let squad = await prisma.rescueSquad.findUnique({
+      where: { id: squadIdOrSlug },
       include: {
         divisions: {
           where: { isActive: true },
@@ -30,9 +30,34 @@ export async function GET(request, { params }) {
       },
     });
 
+    // If not found by ID, try to find by city name (case-insensitive)
+    if (!squad) {
+      const cityName = squadIdOrSlug.replace(/-/g, ' ');
+      squad = await prisma.rescueSquad.findFirst({
+        where: {
+          city: { equals: cityName, mode: 'insensitive' },
+          isActive: true,
+        },
+        include: {
+          divisions: {
+            where: { isActive: true },
+            orderBy: { name: 'asc' },
+          },
+          _count: {
+            select: {
+              members: { where: { isActive: true } },
+            },
+          },
+        },
+      });
+    }
+
     if (!squad) {
       return NextResponse.json({ error: 'Rescue squad not found' }, { status: 404 });
     }
+
+    // Use the actual squad ID for subsequent queries
+    const squadId = squad.id;
 
     // Check user's membership status
     let membership = {
