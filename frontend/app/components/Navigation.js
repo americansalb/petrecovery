@@ -1,24 +1,29 @@
 'use client';
 
 /**
- * Navigation Component - Phase 2.1 Mobile Update
+ * Navigation Component - Redesigned
  *
- * Responsive navigation with hamburger menu for mobile
+ * Clean, modern navigation with easy access to all key features:
+ * - Report Lost/Found Pet (prominent CTA)
+ * - Find Rescue Squads
+ * - My Pets
+ * - My Squads
+ * - Search Database
  */
 
 import { useSession, signOut } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export default function Navigation() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const [userSquads, setUserSquads] = useState([]);
-  const [showSquadsDropdown, setShowSquadsDropdown] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const dropdownRef = useRef(null);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -26,21 +31,27 @@ export default function Navigation() {
     }
   }, [session?.user?.id]);
 
-  // Close mobile menu when route changes
+  // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);
+    setActiveDropdown(null);
   }, [pathname]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Prevent body scroll when mobile menu is open
   useEffect(() => {
-    if (mobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
+    document.body.style.overflow = mobileMenuOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
   }, [mobileMenuOpen]);
 
   const loadUserSquads = async () => {
@@ -55,626 +66,419 @@ export default function Navigation() {
     }
   };
 
-  // Don't show nav on landing page (it has its own header)
-  if (pathname === '/') {
-    return null;
-  }
+  // Don't show nav on landing page
+  if (pathname === '/') return null;
 
-  // Show simplified nav for guests on non-auth pages
-  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register') || pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password');
+  // Hide nav on auth pages
+  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register') ||
+                     pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password');
+  if (isAuthPage) return null;
 
+  // Guest Navigation
   if (!session) {
-    // Show minimal guest nav on non-auth pages
-    if (isAuthPage) {
-      return null;
-    }
-
     return (
-      <>
-        <nav style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 1000,
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          borderBottom: '3px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-        }}>
-          <div style={{
-            maxWidth: '1400px',
-            margin: '0 auto',
-            padding: '0 1rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            height: '64px',
-            gap: '1rem'
-          }}>
-            {/* Logo / Brand */}
-            <Link href="/" style={{
-              fontSize: '1.25rem',
-              fontWeight: '900',
-              color: 'white',
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              whiteSpace: 'nowrap'
-            }}>
-              <span>🐾 PetRecovery</span>
-            </Link>
+      <nav className="sticky top-0 z-50 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 border-b-2 border-white/20 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 text-white font-black text-xl">
+            <span className="text-2xl">🐾</span>
+            <span>PetRecovery</span>
+          </Link>
 
-            {/* Guest Nav Items */}
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <Link
-                href="/database"
-                style={{
-                  padding: '0.5rem 1rem',
-                  color: 'white',
-                  textDecoration: 'none',
-                  fontWeight: '600',
-                  fontSize: '0.9rem',
-                  borderRadius: '8px',
-                  background: pathname === '/database' ? 'rgba(255, 255, 255, 0.25)' : 'transparent',
-                }}
-              >
-                Search
-              </Link>
-              <Link
-                href="/rescue-squads/search"
-                style={{
-                  padding: '0.5rem 1rem',
-                  color: 'white',
-                  textDecoration: 'none',
-                  fontWeight: '600',
-                  fontSize: '0.9rem',
-                  borderRadius: '8px',
-                  background: pathname.includes('/rescue-squads') ? 'rgba(255, 255, 255, 0.25)' : 'transparent',
-                }}
-              >
-                Squads
-              </Link>
-              <Link
-                href="/login"
-                style={{
-                  padding: '0.5rem 1rem',
-                  color: 'white',
-                  textDecoration: 'none',
-                  fontWeight: '700',
-                  fontSize: '0.9rem',
-                  borderRadius: '8px',
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                }}
-              >
-                Login
-              </Link>
-              <Link
-                href="/register"
-                style={{
-                  padding: '0.5rem 1rem',
-                  color: '#667eea',
-                  textDecoration: 'none',
-                  fontWeight: '700',
-                  fontSize: '0.9rem',
-                  borderRadius: '8px',
-                  background: 'white',
-                }}
-              >
-                Sign Up
-              </Link>
-            </div>
+          <div className="flex items-center gap-2">
+            <Link href="/database" className="hidden sm:block px-4 py-2 text-white/90 hover:text-white font-semibold text-sm rounded-lg hover:bg-white/10 transition">
+              Search Pets
+            </Link>
+            <Link href="/rescue-squads/search" className="hidden sm:block px-4 py-2 text-white/90 hover:text-white font-semibold text-sm rounded-lg hover:bg-white/10 transition">
+              Find Squads
+            </Link>
+            <Link href="/login" className="px-4 py-2 text-white font-bold text-sm rounded-lg bg-white/15 border-2 border-white/30 hover:bg-white/25 transition">
+              Login
+            </Link>
+            <Link href="/register" className="px-4 py-2 text-indigo-700 font-bold text-sm rounded-lg bg-white hover:bg-indigo-50 transition">
+              Sign Up
+            </Link>
           </div>
-        </nav>
-      </>
+        </div>
+      </nav>
     );
   }
 
-  const navItems = [
-    { label: 'Dashboard', href: '/dashboard', active: pathname === '/dashboard' },
-    { label: 'Cases', href: '/cases', active: pathname.startsWith('/cases') && !pathname.includes('/report') },
-    { label: 'My Pets', href: '/pets', active: pathname.startsWith('/pets') },
-    { label: 'Report Lost', href: '/report/new', active: pathname === '/report/new' },
-    { label: 'Found Pet', href: '/found', active: pathname === '/found' },
-    { label: 'Squads', href: '/rescue-squads/search', active: pathname === '/rescue-squads/search' },
-  ];
-
-  // Add admin link for admin users
-  if (session?.user?.role === 'ADMIN') {
-    navItems.push({ label: 'Admin', href: '/admin/health', active: pathname.startsWith('/admin') });
-  }
+  const toggleDropdown = (name) => {
+    setActiveDropdown(activeDropdown === name ? null : name);
+  };
 
   return (
     <>
-      <nav style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 1000,
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        borderBottom: '3px solid rgba(255, 255, 255, 0.2)',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-      }}>
-        <div style={{
-          maxWidth: '1400px',
-          margin: '0 auto',
-          padding: '0 1rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          height: '64px',
-          gap: '1rem'
-        }}>
-          {/* Logo / Brand */}
-          <Link href="/dashboard" style={{
-            fontSize: '1.25rem',
-            fontWeight: '900',
-            color: 'white',
-            textDecoration: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            whiteSpace: 'nowrap'
-          }}>
-            <span className="brand-text">PetRecovery</span>
-          </Link>
+      <nav className="sticky top-0 z-50 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="h-16 flex items-center justify-between gap-4">
+            {/* Logo */}
+            <Link href="/dashboard" className="flex items-center gap-2 text-white font-black text-xl shrink-0">
+              <span className="text-2xl">🐾</span>
+              <span className="hidden sm:inline">PetRecovery</span>
+            </Link>
 
-          {/* Desktop Nav Items */}
-          <div className="desktop-nav" style={{
-            display: 'flex',
-            gap: '0.25rem',
-            flex: 1,
-            justifyContent: 'center',
-            flexWrap: 'wrap'
-          }}>
-            {navItems.slice(0, 4).map(item => (
+            {/* Desktop Navigation */}
+            <div className="hidden lg:flex items-center gap-1 flex-1 justify-center" ref={dropdownRef}>
+              {/* Dashboard */}
               <Link
-                key={item.href}
-                href={item.href}
-                style={{
-                  padding: '0.5rem 0.75rem',
-                  color: 'white',
-                  textDecoration: 'none',
-                  fontWeight: '600',
-                  fontSize: '0.85rem',
-                  borderRadius: '8px',
-                  background: item.active ? 'rgba(255, 255, 255, 0.25)' : 'transparent',
-                  transition: 'all 0.2s',
-                  whiteSpace: 'nowrap'
-                }}
+                href="/dashboard"
+                className={`px-4 py-2 text-sm font-semibold rounded-lg transition ${
+                  pathname === '/dashboard'
+                    ? 'bg-white/25 text-white'
+                    : 'text-white/90 hover:bg-white/15 hover:text-white'
+                }`}
               >
-                {item.label}
+                Dashboard
               </Link>
-            ))}
 
-            {/* My Squads Dropdown (Desktop) */}
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setShowSquadsDropdown(!showSquadsDropdown)}
-                onBlur={() => setTimeout(() => setShowSquadsDropdown(false), 200)}
-                style={{
-                  padding: '0.5rem 0.75rem',
-                  color: 'white',
-                  background: pathname.includes('/rescue-squads/') && !pathname.includes('/search')
-                    ? 'rgba(255, 255, 255, 0.25)'
-                    : 'transparent',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontWeight: '600',
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  whiteSpace: 'nowrap',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.25rem'
-                }}
-              >
-                Squads ({userSquads.length}) {showSquadsDropdown ? '▲' : '▼'}
-              </button>
-
-              {showSquadsDropdown && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  right: 0,
-                  marginTop: '0.5rem',
-                  background: 'white',
-                  borderRadius: '12px',
-                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
-                  border: '2px solid #e2e8f0',
-                  minWidth: '250px',
-                  maxHeight: '400px',
-                  overflowY: 'auto',
-                  zIndex: 2000
-                }}>
-                  {userSquads.length === 0 ? (
-                    <div style={{
-                      padding: '1.5rem',
-                      textAlign: 'center',
-                      color: '#64748b'
-                    }}>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '600' }}>
-                        No squads yet
+              {/* My Pets Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => toggleDropdown('pets')}
+                  className={`px-4 py-2 text-sm font-semibold rounded-lg transition flex items-center gap-1 ${
+                    pathname.startsWith('/pets') || pathname.startsWith('/cases')
+                      ? 'bg-white/25 text-white'
+                      : 'text-white/90 hover:bg-white/15 hover:text-white'
+                  }`}
+                >
+                  My Pets
+                  <svg className={`w-4 h-4 transition-transform ${activeDropdown === 'pets' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {activeDropdown === 'pets' && (
+                  <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 z-50">
+                    <Link href="/pets" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-indigo-50 transition">
+                      <span className="text-xl">🏠</span>
+                      <div>
+                        <div className="font-semibold">My Pets</div>
+                        <div className="text-xs text-gray-500">View all your pets</div>
                       </div>
-                      <Link
-                        href="/rescue-squads/search"
-                        style={{
-                          display: 'inline-block',
-                          marginTop: '0.75rem',
-                          padding: '0.5rem 1rem',
-                          background: '#667eea',
-                          color: 'white',
-                          borderRadius: '6px',
-                          textDecoration: 'none',
-                          fontSize: '0.85rem',
-                          fontWeight: '700'
-                        }}
-                      >
-                        Find Squads
-                      </Link>
-                    </div>
-                  ) : (
-                    <>
-                      {userSquads.map(squad => (
-                        <Link
-                          key={squad.id}
-                          href={`/rescue-squads/${squad.id}`}
-                          style={{
-                            display: 'block',
-                            padding: '0.75rem 1rem',
-                            textDecoration: 'none',
-                            borderBottom: '1px solid #f1f5f9'
-                          }}
-                        >
-                          <div style={{
-                            fontWeight: '700',
-                            color: '#0f172a',
-                            marginBottom: '0.25rem',
-                            fontSize: '0.95rem'
-                          }}>
-                            {squad.name}
+                    </Link>
+                    <Link href="/cases" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-indigo-50 transition">
+                      <span className="text-xl">📋</span>
+                      <div>
+                        <div className="font-semibold">My Cases</div>
+                        <div className="text-xs text-gray-500">Active lost/found reports</div>
+                      </div>
+                    </Link>
+                    <div className="border-t border-gray-100 my-2" />
+                    <Link href="/database" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-indigo-50 transition">
+                      <span className="text-xl">🔍</span>
+                      <div>
+                        <div className="font-semibold">Search Database</div>
+                        <div className="text-xs text-gray-500">Find lost & found pets</div>
+                      </div>
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Squads Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => toggleDropdown('squads')}
+                  className={`px-4 py-2 text-sm font-semibold rounded-lg transition flex items-center gap-1 ${
+                    pathname.includes('/rescue-squads')
+                      ? 'bg-white/25 text-white'
+                      : 'text-white/90 hover:bg-white/15 hover:text-white'
+                  }`}
+                >
+                  Squads {userSquads.length > 0 && <span className="ml-1 px-1.5 py-0.5 text-xs bg-white/20 rounded-full">{userSquads.length}</span>}
+                  <svg className={`w-4 h-4 transition-transform ${activeDropdown === 'squads' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {activeDropdown === 'squads' && (
+                  <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 z-50">
+                    <Link href="/rescue-squads/search" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-indigo-50 transition">
+                      <span className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-lg">🔍</span>
+                      <div>
+                        <div className="font-semibold">Find Rescue Squads</div>
+                        <div className="text-xs text-gray-500">Join a squad near you</div>
+                      </div>
+                    </Link>
+
+                    {userSquads.length > 0 && (
+                      <>
+                        <div className="border-t border-gray-100 my-2" />
+                        <div className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">My Squads</div>
+                        {userSquads.slice(0, 4).map(squad => (
+                          <Link
+                            key={squad.id}
+                            href={`/rescue-squads/${squad.id}`}
+                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-indigo-50 transition"
+                          >
+                            <span className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white text-sm font-bold">
+                              {squad.name?.[0] || '?'}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-gray-800 truncate">{squad.name}</div>
+                              <div className="text-xs text-gray-500">{squad.city}, {squad.state}</div>
+                            </div>
+                          </Link>
+                        ))}
+                        {userSquads.length > 4 && (
+                          <div className="px-4 py-2 text-xs text-gray-500 text-center">
+                            +{userSquads.length - 4} more squads
                           </div>
-                          <div style={{
-                            fontSize: '0.8rem',
-                            color: '#64748b'
-                          }}>
-                            {squad.city}, {squad.state} • {squad.role}
-                          </div>
-                        </Link>
-                      ))}
-                      <div style={{
-                        padding: '0.75rem 1rem',
-                        borderTop: '2px solid #e2e8f0',
-                        background: '#f8fafc'
-                      }}>
-                        <Link
-                          href="/rescue-squads/search"
-                          style={{
-                            display: 'block',
-                            textAlign: 'center',
-                            color: '#667eea',
-                            textDecoration: 'none',
-                            fontWeight: '700',
-                            fontSize: '0.85rem'
-                          }}
-                        >
-                          + Find More Squads
+                        )}
+                      </>
+                    )}
+
+                    {userSquads.length === 0 && (
+                      <div className="px-4 py-4 text-center text-gray-500 text-sm">
+                        <div className="mb-2">You haven't joined any squads yet</div>
+                        <Link href="/rescue-squads/search" className="text-indigo-600 font-semibold hover:underline">
+                          Find one near you →
                         </Link>
                       </div>
-                    </>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Admin Link */}
+              {session?.user?.role === 'ADMIN' && (
+                <Link
+                  href="/admin/health"
+                  className={`px-4 py-2 text-sm font-semibold rounded-lg transition ${
+                    pathname.startsWith('/admin')
+                      ? 'bg-white/25 text-white'
+                      : 'text-white/90 hover:bg-white/15 hover:text-white'
+                  }`}
+                >
+                  Admin
+                </Link>
               )}
             </div>
-          </div>
 
-          {/* Desktop User Menu */}
-          <div className="desktop-nav" style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              onBlur={() => setTimeout(() => setShowUserMenu(false), 200)}
-              style={{
-                padding: '0.375rem 0.75rem',
-                color: 'white',
-                background: 'rgba(255, 255, 255, 0.15)',
-                border: '2px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: '8px',
-                fontWeight: '700',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              <div style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: '900',
-                fontSize: '0.8rem'
-              }}>
-                {session.user.firstName?.[0] || session.user.email?.[0]?.toUpperCase() || 'U'}
-              </div>
-              <span className="user-name">{session.user.firstName || 'User'}</span>
-              <span>{showUserMenu ? '▲' : '▼'}</span>
-            </button>
-
-            {showUserMenu && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                right: 0,
-                marginTop: '0.5rem',
-                background: 'white',
-                borderRadius: '12px',
-                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
-                border: '2px solid #e2e8f0',
-                minWidth: '200px',
-                zIndex: 2000
-              }}>
-                <Link
-                  href="/profile"
-                  style={{
-                    display: 'block',
-                    padding: '0.75rem 1rem',
-                    textDecoration: 'none',
-                    color: '#0f172a',
-                    fontWeight: '600',
-                    borderBottom: '1px solid #f1f5f9'
-                  }}
-                >
-                  My Profile
-                </Link>
+            {/* Right Side - Report Button & User Menu */}
+            <div className="flex items-center gap-2">
+              {/* Report Pet CTA - Desktop */}
+              <div className="hidden md:block relative">
                 <button
-                  onClick={() => signOut({ callbackUrl: '/' })}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    padding: '0.75rem 1rem',
-                    textAlign: 'left',
-                    background: 'white',
-                    border: 'none',
-                    color: '#dc2626',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    borderRadius: '0 0 10px 10px'
-                  }}
+                  onClick={() => toggleDropdown('report')}
+                  className="px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold text-sm rounded-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-2"
                 >
-                  Sign Out
+                  <span>🆘</span>
+                  Report Pet
+                  <svg className={`w-4 h-4 transition-transform ${activeDropdown === 'report' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </button>
+                {activeDropdown === 'report' && (
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 z-50">
+                    <Link href="/report/new" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-red-50 transition">
+                      <span className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center text-white text-lg">😿</span>
+                      <div>
+                        <div className="font-bold text-red-600">Report Lost Pet</div>
+                        <div className="text-xs text-gray-500">Get help finding your pet</div>
+                      </div>
+                    </Link>
+                    <Link href="/found" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-emerald-50 transition">
+                      <span className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-lg">🎉</span>
+                      <div>
+                        <div className="font-bold text-emerald-600">Report Found Pet</div>
+                        <div className="text-xs text-gray-500">Help reunite a pet</div>
+                      </div>
+                    </Link>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            className="mobile-menu-btn"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle menu"
-            style={{
-              display: 'none',
-              padding: '0.5rem',
-              background: 'rgba(255, 255, 255, 0.15)',
-              border: '2px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: '8px',
-              color: 'white',
-              cursor: 'pointer',
-              fontSize: '1.5rem',
-              lineHeight: 1,
-            }}
-          >
-            {mobileMenuOpen ? '✕' : '☰'}
-          </button>
+              {/* User Menu - Desktop */}
+              <div className="hidden lg:block relative" ref={dropdownRef}>
+                <button
+                  onClick={() => toggleDropdown('user')}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/15 border-2 border-white/30 hover:bg-white/25 transition"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-sm">
+                    {session.user.firstName?.[0] || session.user.email?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                  <span className="text-white font-semibold text-sm max-w-[100px] truncate">
+                    {session.user.firstName || 'User'}
+                  </span>
+                  <svg className={`w-4 h-4 text-white transition-transform ${activeDropdown === 'user' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {activeDropdown === 'user' && (
+                  <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 z-50">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <div className="font-bold text-gray-800">{session.user.firstName} {session.user.lastName}</div>
+                      <div className="text-xs text-gray-500 truncate">{session.user.email}</div>
+                    </div>
+                    <Link href="/profile" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition">
+                      <span>👤</span>
+                      <span className="font-medium">My Profile</span>
+                    </Link>
+                    <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition">
+                      <span>📊</span>
+                      <span className="font-medium">Dashboard</span>
+                    </Link>
+                    <div className="border-t border-gray-100 my-1" />
+                    <button
+                      onClick={() => signOut({ callbackUrl: '/' })}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 transition"
+                    >
+                      <span>🚪</span>
+                      <span className="font-medium">Sign Out</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden p-2 rounded-lg bg-white/15 border-2 border-white/30 text-white"
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? (
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                ) : (
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </nav>
 
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
         <div
-          className="mobile-overlay"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 1001,
-          }}
         />
       )}
 
       {/* Mobile Menu Drawer */}
-      <div
-        className="mobile-drawer"
-        style={{
-          position: 'fixed',
-          top: 0,
-          right: mobileMenuOpen ? 0 : '-100%',
-          width: '280px',
-          maxWidth: '85vw',
-          height: '100vh',
-          background: 'white',
-          zIndex: 1002,
-          transition: 'right 0.3s ease',
-          overflowY: 'auto',
-          boxShadow: mobileMenuOpen ? '-4px 0 20px rgba(0, 0, 0, 0.2)' : 'none',
-        }}
-      >
-        {/* Mobile Menu Header */}
-        <div style={{
-          padding: '1rem',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: '900',
-              fontSize: '1.25rem'
-            }}>
+      <div className={`fixed top-0 right-0 w-[300px] max-w-[85vw] h-full bg-white z-50 transform transition-transform duration-300 lg:hidden ${
+        mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
+      }`}>
+        {/* Mobile Header */}
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 text-white">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-lg">
               {session.user.firstName?.[0] || session.user.email?.[0]?.toUpperCase() || 'U'}
             </div>
-            <div>
-              <div style={{ fontWeight: '700', fontSize: '1rem' }}>
-                {session.user.firstName} {session.user.lastName}
-              </div>
-              <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
-                {session.user.email}
-              </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-bold truncate">{session.user.firstName} {session.user.lastName}</div>
+              <div className="text-sm opacity-80 truncate">{session.user.email}</div>
             </div>
           </div>
         </div>
 
-        {/* Mobile Nav Items */}
-        <div style={{ padding: '0.5rem 0' }}>
-          {navItems.map(item => (
+        {/* Mobile Quick Actions */}
+        <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200">
+          <div className="grid grid-cols-2 gap-2">
             <Link
-              key={item.href}
-              href={item.href}
+              href="/report/new"
               onClick={() => setMobileMenuOpen(false)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                padding: '1rem 1.25rem',
-                color: item.active ? '#667eea' : '#0f172a',
-                textDecoration: 'none',
-                fontWeight: '600',
-                fontSize: '1rem',
-                background: item.active ? '#f1f5f9' : 'transparent',
-                borderLeft: item.active ? '4px solid #667eea' : '4px solid transparent',
-              }}
+              className="flex flex-col items-center gap-2 p-3 bg-gradient-to-br from-red-500 to-pink-600 text-white rounded-xl shadow-lg"
             >
-              {item.label}
+              <span className="text-2xl">😿</span>
+              <span className="text-xs font-bold">Lost Pet</span>
             </Link>
-          ))}
+            <Link
+              href="/found"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex flex-col items-center gap-2 p-3 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-xl shadow-lg"
+            >
+              <span className="text-2xl">🎉</span>
+              <span className="text-xs font-bold">Found Pet</span>
+            </Link>
+          </div>
         </div>
 
-        {/* Mobile Squads Section */}
-        <div style={{ borderTop: '1px solid #e2e8f0', padding: '0.5rem 0' }}>
-          <div style={{
-            padding: '0.75rem 1.25rem',
-            color: '#64748b',
-            fontWeight: '700',
-            fontSize: '0.75rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-          }}>
-            My Squads ({userSquads.length})
-          </div>
-          {userSquads.length === 0 ? (
-            <div style={{ padding: '0.5rem 1.25rem', color: '#64748b', fontSize: '0.9rem' }}>
-              No squads joined yet
-            </div>
-          ) : (
-            userSquads.slice(0, 3).map(squad => (
-              <Link
-                key={squad.id}
-                href={`/rescue-squads/${squad.id}`}
-                onClick={() => setMobileMenuOpen(false)}
-                style={{
-                  display: 'block',
-                  padding: '0.75rem 1.25rem',
-                  textDecoration: 'none',
-                }}
-              >
-                <div style={{ fontWeight: '600', color: '#0f172a', fontSize: '0.9rem' }}>
-                  {squad.name}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                  {squad.city}, {squad.state}
-                </div>
-              </Link>
-            ))
+        {/* Mobile Nav Links */}
+        <div className="py-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+          <MobileNavLink href="/dashboard" icon="📊" label="Dashboard" active={pathname === '/dashboard'} onClick={() => setMobileMenuOpen(false)} />
+          <MobileNavLink href="/pets" icon="🏠" label="My Pets" active={pathname.startsWith('/pets')} onClick={() => setMobileMenuOpen(false)} />
+          <MobileNavLink href="/cases" icon="📋" label="My Cases" active={pathname.startsWith('/cases')} onClick={() => setMobileMenuOpen(false)} />
+          <MobileNavLink href="/database" icon="🔍" label="Search Database" active={pathname === '/database'} onClick={() => setMobileMenuOpen(false)} />
+
+          <div className="border-t border-gray-100 my-2" />
+          <div className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Rescue Squads</div>
+
+          <MobileNavLink href="/rescue-squads/search" icon="🔎" label="Find Squads" active={pathname === '/rescue-squads/search'} onClick={() => setMobileMenuOpen(false)} />
+
+          {userSquads.length > 0 && (
+            <>
+              <div className="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">My Squads</div>
+              {userSquads.slice(0, 5).map(squad => (
+                <Link
+                  key={squad.id}
+                  href={`/rescue-squads/${squad.id}`}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50"
+                >
+                  <span className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white text-sm font-bold">
+                    {squad.name?.[0] || '?'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-gray-800 truncate text-sm">{squad.name}</div>
+                    <div className="text-xs text-gray-500">{squad.city}, {squad.state}</div>
+                  </div>
+                </Link>
+              ))}
+            </>
+          )}
+
+          {session?.user?.role === 'ADMIN' && (
+            <>
+              <div className="border-t border-gray-100 my-2" />
+              <MobileNavLink href="/admin/health" icon="⚙️" label="Admin Panel" active={pathname.startsWith('/admin')} onClick={() => setMobileMenuOpen(false)} />
+            </>
           )}
         </div>
 
-        {/* Mobile Menu Footer */}
-        <div style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          borderTop: '1px solid #e2e8f0',
-          background: '#f8fafc',
-        }}>
+        {/* Mobile Footer */}
+        <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 bg-gray-50">
           <Link
             href="/profile"
             onClick={() => setMobileMenuOpen(false)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '1rem 1.25rem',
-              color: '#0f172a',
-              textDecoration: 'none',
-              fontWeight: '600',
-              borderBottom: '1px solid #e2e8f0',
-            }}
+            className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-100"
           >
-            My Profile
+            <span>👤</span>
+            <span className="font-medium">My Profile</span>
           </Link>
           <button
             onClick={() => {
               setMobileMenuOpen(false);
               signOut({ callbackUrl: '/' });
             }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              width: '100%',
-              padding: '1rem 1.25rem',
-              background: 'transparent',
-              border: 'none',
-              color: '#dc2626',
-              fontWeight: '600',
-              fontSize: '1rem',
-              cursor: 'pointer',
-              textAlign: 'left',
-            }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50"
           >
-            Sign Out
+            <span>🚪</span>
+            <span className="font-medium">Sign Out</span>
           </button>
         </div>
       </div>
-
-      {/* Responsive Styles */}
-      <style jsx global>{`
-        @media (max-width: 768px) {
-          .desktop-nav {
-            display: none !important;
-          }
-          .mobile-menu-btn {
-            display: block !important;
-          }
-          .brand-text {
-            display: none;
-          }
-          .user-name {
-            display: none;
-          }
-        }
-        @media (min-width: 769px) {
-          .mobile-overlay,
-          .mobile-drawer {
-            display: none !important;
-          }
-        }
-      `}</style>
     </>
+  );
+}
+
+function MobileNavLink({ href, icon, label, active, onClick }) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={`flex items-center gap-3 px-4 py-3 transition ${
+        active
+          ? 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-600'
+          : 'text-gray-700 hover:bg-gray-50 border-l-4 border-transparent'
+      }`}
+    >
+      <span className="text-lg">{icon}</span>
+      <span className="font-semibold">{label}</span>
+    </Link>
   );
 }
