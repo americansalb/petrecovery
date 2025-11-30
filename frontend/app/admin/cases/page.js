@@ -27,6 +27,7 @@ export default function AdminCasesPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [cityFilter, setCityFilter] = useState('');
   const [stateFilter, setStateFilter] = useState('');
+  const [unassignedOnly, setUnassignedOnly] = useState(false);
 
   // Redirect if not authenticated or not admin
   useEffect(() => {
@@ -42,7 +43,7 @@ export default function AdminCasesPage() {
     if (status === 'authenticated' && isAdmin(session)) {
       fetchCases();
     }
-  }, [status, session, statusFilter, cityFilter, stateFilter]);
+  }, [status, session, statusFilter, cityFilter, stateFilter, unassignedOnly]);
 
   const fetchCases = async () => {
     setLoading(true);
@@ -54,6 +55,7 @@ export default function AdminCasesPage() {
       if (statusFilter) params.append('status', statusFilter);
       if (cityFilter) params.append('city', cityFilter);
       if (stateFilter) params.append('state', stateFilter);
+      if (unassignedOnly) params.append('unassigned', 'true');
       params.append('limit', '100');
 
       const response = await fetch('/api/cases?' + params.toString());
@@ -246,9 +248,10 @@ export default function AdminCasesPage() {
                 }}
               >
                 <option value="">All Statuses</option>
-                <option value="OPEN">Open</option>
-                <option value="ACTIVE_SEARCH">Active Search</option>
-                <option value="RESOLVED">Resolved</option>
+                <option value="ACTIVE">Active</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="SIGHTING_REPORTED">Sighting Reported</option>
+                <option value="REUNITED">Reunited</option>
                 <option value="CLOSED_OTHER">Closed</option>
               </select>
             </div>
@@ -304,11 +307,34 @@ export default function AdminCasesPage() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'end' }}>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.5rem 1rem',
+                background: unassignedOnly ? '#fef3c7' : '#f3f4f6',
+                border: unassignedOnly ? '2px solid #f59e0b' : '1px solid #d1d5db',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: unassignedOnly ? '600' : '400'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={unassignedOnly}
+                  onChange={(e) => setUnassignedOnly(e.target.checked)}
+                />
+                Unassigned Only
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'end' }}>
               <button
                 onClick={() => {
                   setStatusFilter('');
                   setCityFilter('');
                   setStateFilter('');
+                  setUnassignedOnly(false);
                 }}
                 style={{
                   padding: '0.5rem 1rem',
@@ -365,12 +391,13 @@ export default function AdminCasesPage() {
               <tbody>
                 {cases.map((caseItem) => {
                   const statusColors = {
-                    'OPEN': { bg: '#dbeafe', color: '#1e40af' },
-                    'ACTIVE_SEARCH': { bg: '#fef3c7', color: '#92400e' },
-                    'RESOLVED': { bg: '#d1fae5', color: '#065f46' },
+                    'ACTIVE': { bg: '#dbeafe', color: '#1e40af' },
+                    'IN_PROGRESS': { bg: '#fef3c7', color: '#92400e' },
+                    'SIGHTING_REPORTED': { bg: '#fce7f3', color: '#9d174d' },
+                    'REUNITED': { bg: '#d1fae5', color: '#065f46' },
                     'CLOSED_OTHER': { bg: '#e5e7eb', color: '#374151' }
                   };
-                  const statusColor = statusColors[caseItem.status] || statusColors['OPEN'];
+                  const statusColor = statusColors[caseItem.status] || statusColors['ACTIVE'];
 
                   return (
                     <tr
@@ -399,7 +426,7 @@ export default function AdminCasesPage() {
                         </div>
                       </td>
                       <td style={cellStyle}>
-                        {caseItem.city}, {caseItem.state}
+                        {caseItem.lastSeenAddress || '—'}
                       </td>
                       <td style={cellStyle}>
                         <span style={{
@@ -419,13 +446,25 @@ export default function AdminCasesPage() {
                           : '—'}
                       </td>
                       <td style={cellStyle}>
-                        {caseItem.squad ? caseItem.squad.name : '—'}
+                        {caseItem.assignedSquad ? (
+                          <span style={{
+                            padding: '0.25rem 0.5rem',
+                            background: '#e0f2fe',
+                            color: '#0369a1',
+                            borderRadius: '4px',
+                            fontSize: '0.8rem'
+                          }}>
+                            {caseItem.assignedSquad.name}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#ef4444', fontWeight: '500' }}>Unassigned</span>
+                        )}
                       </td>
                       <td style={cellStyle}>
                         {new Date(caseItem.createdAt).toLocaleDateString()}
                       </td>
                       <td style={cellStyle}>
-                        {caseItem._count.notes}
+                        {caseItem.updatesCount || 0}
                       </td>
                     </tr>
                   );

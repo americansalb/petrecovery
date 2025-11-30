@@ -408,9 +408,9 @@ export async function POST(request) {
 
     const squadName = `${city} Rescue Squad`;
 
-    // Check if squad already exists
+    // Check if squad already exists (exclude soft-deleted squads)
     const existing = await prisma.rescueSquad.findFirst({
-      where: { city, state }
+      where: { city, state, isDeleted: false }
     });
 
     if (existing) {

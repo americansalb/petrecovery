@@ -1,7 +1,9 @@
 /**
  * Case Squad Assignment API
  *
+ * GET /api/cases/[id]/assign-squad - Get current squad assignment(s) for a case
  * POST /api/cases/[id]/assign-squad - Assign a rescue squad to a case
+ * DELETE /api/cases/[id]/assign-squad - Remove a squad assignment (admin only)
  *
  * Uses CaseAssignment model (not direct squadId on Case)
  */
@@ -14,6 +16,111 @@ import { logEvent } from '@/lib/logging';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
+
+/**
+ * GET /api/cases/[id]/assign-squad
+ * Get current squad assignments for a case
+ */
+export async function GET(request, { params }) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const caseId = params.id;
+
+    const assignments = await prisma.caseAssignment.findMany({
+      where: { caseId },
+      include: {
+        rescueSquad: {
+          select: {
+            id: true,
+            name: true,
+            city: true,
+            state: true,
+            isActive: true,
+            isDeleted: true,
+          },
+        },
+      },
+      orderBy: { acceptedAt: 'desc' },
+    });
+
+    return NextResponse.json({
+      assignments,
+      count: assignments.length,
+    });
+  } catch (error) {
+    console.error('Error fetching squad assignments:', error);
+    return NextResponse.json({ error: 'Failed to fetch assignments' }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/cases/[id]/assign-squad
+ * Remove a squad assignment (admin only, or to reassign)
+ * Body: { squadId: string } - which squad to remove, or omit to remove all
+ */
+export async function DELETE(request, { params }) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Admin only for removing assignments
+    const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
+    if (!isAdmin) {
+      return NextResponse.json({
+        error: 'Permission denied',
+        message: 'Only admins can remove squad assignments'
+      }, { status: 403 });
+    }
+
+    const caseId = params.id;
+    let squadId = null;
+
+    try {
+      const body = await request.json();
+      squadId = body.squadId;
+    } catch {
+      // No body or invalid JSON - will remove all assignments
+    }
+
+    const whereClause = squadId
+      ? { caseId, rescueSquadId: squadId }
+      : { caseId };
+
+    const deleted = await prisma.caseAssignment.deleteMany({
+      where: whereClause,
+    });
+
+    await logEvent({
+      event_type: 'case.squad_unassigned',
+      resource_type: 'case',
+      resource_id: caseId,
+      action: 'delete',
+      result: 'success',
+      actor_user_id: session.user.id,
+      metadata: {
+        squadId: squadId || 'all',
+        deletedCount: deleted.count,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: squadId
+        ? 'Squad assignment removed'
+        : 'All squad assignments removed',
+      deletedCount: deleted.count,
+    });
+  } catch (error) {
+    console.error('Error removing squad assignment:', error);
+    return NextResponse.json({ error: 'Failed to remove assignment' }, { status: 500 });
+  }
+}
 
 /**
  * POST /api/cases/[id]/assign-squad

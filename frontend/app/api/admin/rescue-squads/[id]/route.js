@@ -31,6 +31,12 @@ export async function DELETE(request, { params }) {
       );
     }
 
+    // Remove case assignments first so cases become unassigned (not deleted)
+    // Cases stay in the system and can be reassigned to another squad
+    const deletedAssignments = await prisma.caseAssignment.deleteMany({
+      where: { rescueSquadId: params.id },
+    });
+
     // Soft delete - set isDeleted flag instead of hard delete
     await prisma.rescueSquad.update({
       where: { id: params.id },
@@ -57,6 +63,7 @@ export async function DELETE(request, { params }) {
       metadata: {
         membersAffected: squad._count.members,
         divisionsAffected: squad._count.divisions,
+        casesUnassigned: deletedAssignments.count,
         softDelete: true,
       },
     });

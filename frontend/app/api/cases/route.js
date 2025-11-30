@@ -39,6 +39,8 @@ export async function GET(request) {
     const species = searchParams.get('species');
     const search = searchParams.get('search');
     const myOnly = searchParams.get('myOnly') === 'true';
+    const unassigned = searchParams.get('unassigned') === 'true';
+    const squadId = searchParams.get('squadId');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
     const offset = parseInt(searchParams.get('offset') || '0');
 
@@ -59,6 +61,16 @@ export async function GET(request) {
 
     if (myOnly) {
       where.reporterId = session.user.id;
+    }
+
+    // Filter by unassigned cases (no squad assignments)
+    if (unassigned) {
+      where.assignments = { none: {} };
+    }
+
+    // Filter by specific squad
+    if (squadId) {
+      where.assignments = { some: { rescueSquadId: squadId } };
     }
 
     // Text search
@@ -155,7 +167,7 @@ export async function GET(request) {
       result: 'success',
       actor_user_id: session.user.id,
       metadata: {
-        filters: { status, reportType, species, search, myOnly },
+        filters: { status, reportType, species, search, myOnly, unassigned, squadId },
         results_count: cases.length,
         total_count: totalCount,
         limit,
@@ -169,7 +181,7 @@ export async function GET(request) {
       count: cases.length,
       total: totalCount,
       hasMore: offset + cases.length < totalCount,
-      filters: { status, reportType, species, search, myOnly, limit, offset }
+      filters: { status, reportType, species, search, myOnly, unassigned, squadId, limit, offset }
     });
 
   } catch (error) {
