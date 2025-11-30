@@ -669,7 +669,8 @@ export function getMockSquadData(citySlug) {
     case 'carpentersville':
       return mockCarpenstersvilleSquadData;
     default:
-      // Return Chicago as default for testing
-      return mockChicagoSquadData;
+      // Return null for unknown squads - let the page show an error
+      // instead of incorrectly showing Chicago data
+      return null;
   }
 }

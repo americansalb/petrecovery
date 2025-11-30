@@ -49,19 +49,28 @@ export default function SquadPage() {
             setError('Squad not found');
           }
         } else {
-          // Other error - fall back to mock data
+          // Other error - fall back to mock data or show error
           const errorData = await res.json().catch(() => ({}));
-          console.warn('Hub API error, falling back to mock data:', errorData);
+          console.error('Hub API error:', errorData);
           const mockData = getMockSquadData(squadId);
-          setSquadData(mockData);
-          setUsingMockData(true);
+          if (mockData && mockData.squad) {
+            setSquadData(mockData);
+            setUsingMockData(true);
+          } else {
+            // No mock data available - show the actual error
+            setError(`Failed to load squad data: ${errorData.error || 'Server error'}`);
+          }
         }
       } catch (err) {
-        console.warn('Failed to fetch hub data, using mock data:', err);
-        // Network error - fall back to mock data
+        console.error('Failed to fetch hub data:', err);
+        // Network error - fall back to mock data or show error
         const mockData = getMockSquadData(squadId);
-        setSquadData(mockData);
-        setUsingMockData(true);
+        if (mockData && mockData.squad) {
+          setSquadData(mockData);
+          setUsingMockData(true);
+        } else {
+          setError('Failed to connect to server. Please try again.');
+        }
       } finally {
         setLoading(false);
       }
@@ -84,20 +93,33 @@ export default function SquadPage() {
   }
 
   if (error) {
+    const isNotFound = error === 'Squad not found';
     return (
       <div className="min-h-screen bg-[#0a1628] flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
-          <div className="text-6xl mb-4">🐾</div>
-          <h1 className="text-2xl font-bold text-white mb-2">Squad Not Found</h1>
+          <div className="text-6xl mb-4">{isNotFound ? '🐾' : '⚠️'}</div>
+          <h1 className="text-2xl font-bold text-white mb-2">
+            {isNotFound ? 'Squad Not Found' : 'Error Loading Squad'}
+          </h1>
           <p className="text-gray-400 mb-6">
-            We couldn't find a rescue squad with that ID. It may not exist yet or the link may be incorrect.
+            {isNotFound
+              ? "We couldn't find a rescue squad with that ID. It may not exist yet or the link may be incorrect."
+              : error}
           </p>
-          <a
-            href="/rescue-squads/search"
-            className="inline-block px-6 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition"
-          >
-            Find a Squad Near You
-          </a>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition"
+            >
+              Try Again
+            </button>
+            <a
+              href="/rescue-squads/search"
+              className="px-6 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition"
+            >
+              Find a Squad Near You
+            </a>
+          </div>
         </div>
       </div>
     );
