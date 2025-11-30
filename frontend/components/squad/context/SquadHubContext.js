@@ -17,13 +17,10 @@
  */
 
 import { createContext, useContext, useState, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 
 const SquadHubContext = createContext(null);
 
-export function SquadHubProvider({ children, initialData }) {
-  const router = useRouter();
-
+export function SquadHubProvider({ children, initialData, squadId }) {
   // Core data from server
   const [data, setData] = useState(initialData);
 
@@ -247,6 +244,8 @@ export function SquadHubProvider({ children, initialData }) {
 
   // Action: Toggle On Duty
   const toggleOnDuty = useCallback(async () => {
+    // Optimistic update
+    const wasOnDuty = data.membership.isOnDuty;
     setData(prev => ({
       ...prev,
       membership: {
@@ -261,11 +260,33 @@ export function SquadHubProvider({ children, initialData }) {
           : prev.squad.onDutyCount + 1,
       },
     }));
-    // TODO: Call API
-  }, []);
+
+    // Call API
+    if (squadId) {
+      try {
+        const res = await fetch(`/api/rescue-squads/${squadId}/toggle-duty`, {
+          method: 'POST',
+        });
+        if (!res.ok) {
+          // Revert on error
+          setData(prev => ({
+            ...prev,
+            membership: { ...prev.membership, isOnDuty: wasOnDuty },
+            squad: {
+              ...prev.squad,
+              onDutyCount: wasOnDuty ? prev.squad.onDutyCount + 1 : prev.squad.onDutyCount - 1,
+            },
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to toggle duty:', err);
+      }
+    }
+  }, [data.membership.isOnDuty, squadId]);
 
   // Action: Join Squad
   const joinSquad = useCallback(async () => {
+    // Optimistic update
     setData(prev => ({
       ...prev,
       membership: {
@@ -278,8 +299,26 @@ export function SquadHubProvider({ children, initialData }) {
         memberCount: prev.squad.memberCount + 1,
       },
     }));
-    // TODO: Call API
-  }, []);
+
+    // Call API
+    if (squadId) {
+      try {
+        const res = await fetch(`/api/rescue-squads/${squadId}/join`, {
+          method: 'POST',
+        });
+        if (!res.ok) {
+          // Revert on error
+          setData(prev => ({
+            ...prev,
+            membership: { ...prev.membership, isMember: false },
+            squad: { ...prev.squad, memberCount: prev.squad.memberCount - 1 },
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to join squad:', err);
+      }
+    }
+  }, [squadId]);
 
   // Action: Help on Case
   // Updates local state to mark user as helper, then navigates to Operations tab
@@ -288,6 +327,7 @@ export function SquadHubProvider({ children, initialData }) {
     const targetCase = data.cases?.find(c => c.id === caseId);
     if (!targetCase) return;
 
+    // Optimistic update
     setData(prev => ({
       ...prev,
       cases: prev.cases.map(c =>
@@ -297,16 +337,38 @@ export function SquadHubProvider({ children, initialData }) {
       ),
     }));
 
-    // Navigate to Operations tab with this case selected (stay in Squad Hub)
-    // TODO: When connected to real API, this will also call the help API
+    // Navigate to Operations tab with this case selected
     setMainTab('OPERATIONS');
     setCaseTab('ACTIVE');
     setSelectedCaseId(caseId);
     setMobileTab('CASES');
-  }, [data.cases]);
+
+    // Call API
+    if (squadId) {
+      try {
+        const res = await fetch(`/api/rescue-squads/${squadId}/cases/${caseId}/help`, {
+          method: 'POST',
+        });
+        if (!res.ok) {
+          // Revert on error
+          setData(prev => ({
+            ...prev,
+            cases: prev.cases.map(c =>
+              c.id === caseId
+                ? { ...c, isUserHelper: false, helperCount: c.helperCount - 1 }
+                : c
+            ),
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to help on case:', err);
+      }
+    }
+  }, [data.cases, squadId]);
 
   // Action: Help on Request
   const helpOnRequest = useCallback(async (requestId) => {
+    // Optimistic update
     setData(prev => ({
       ...prev,
       requests: (prev.requests || []).map(r =>
@@ -320,37 +382,70 @@ export function SquadHubProvider({ children, initialData }) {
           : r
       ),
     }));
-    // TODO: Call API
-  }, []);
+
+    // Call API
+    if (squadId) {
+      try {
+        await fetch(`/api/rescue-squads/${squadId}/requests/${requestId}/help`, {
+          method: 'POST',
+        });
+      } catch (err) {
+        console.error('Failed to help on request:', err);
+      }
+    }
+  }, [squadId]);
 
   // Action: Complete request for user (mark their part done)
   const completeRequestForUser = useCallback(async (requestId) => {
+    // Optimistic update
     setData(prev => ({
       ...prev,
       requests: (prev.requests || []).map(r =>
         r.id === requestId
-          ? { ...r, isUserHelper: false, helpersCount: Math.max(0, r.helpersCount - 1) }
+          ? { ...r, isUserHelper: false, helpersCount: Math.max(0, r.helpersCount - 1), status: 'COMPLETED' }
           : r
       ),
     }));
-    // TODO: Call API
-  }, []);
+
+    // Call API
+    if (squadId) {
+      try {
+        await fetch(`/api/rescue-squads/${squadId}/requests/${requestId}/help`, {
+          method: 'PATCH',
+        });
+      } catch (err) {
+        console.error('Failed to complete request:', err);
+      }
+    }
+  }, [squadId]);
 
   // Action: Leave request
   const leaveRequest = useCallback(async (requestId) => {
+    // Optimistic update
     setData(prev => ({
       ...prev,
       requests: (prev.requests || []).map(r =>
         r.id === requestId
-          ? { ...r, isUserHelper: false, helpersCount: Math.max(0, r.helpersCount - 1) }
+          ? { ...r, isUserHelper: false, helpersCount: Math.max(0, r.helpersCount - 1), status: 'OPEN' }
           : r
       ),
     }));
-    // TODO: Call API
-  }, []);
+
+    // Call API
+    if (squadId) {
+      try {
+        await fetch(`/api/rescue-squads/${squadId}/requests/${requestId}/help`, {
+          method: 'DELETE',
+        });
+      } catch (err) {
+        console.error('Failed to leave request:', err);
+      }
+    }
+  }, [squadId]);
 
   // Action: Leave case
   const leaveCase = useCallback(async (caseId) => {
+    // Optimistic update
     setData(prev => ({
       ...prev,
       cases: prev.cases.map(c =>
@@ -359,16 +454,27 @@ export function SquadHubProvider({ children, initialData }) {
           : c
       ),
     }));
-    // TODO: Call API
-  }, []);
+
+    // Call API
+    if (squadId) {
+      try {
+        await fetch(`/api/rescue-squads/${squadId}/cases/${caseId}/help`, {
+          method: 'DELETE',
+        });
+      } catch (err) {
+        console.error('Failed to leave case:', err);
+      }
+    }
+  }, [squadId]);
 
   // Action: Post Request
   const postRequest = useCallback(async (title, body, divisionId = null, caseId = null) => {
     // Find case code if caseId provided
     const linkedCase = caseId ? data.cases?.find(c => c.id === caseId) : null;
 
+    const tempId = `req_${Date.now()}`;
     const newRequest = {
-      id: `req_${Date.now()}`,
+      id: tempId,
       title,
       body,
       divisionId,
@@ -382,12 +488,35 @@ export function SquadHubProvider({ children, initialData }) {
       status: 'OPEN',
     };
 
+    // Optimistic update
     setData(prev => ({
       ...prev,
       requests: [newRequest, ...(prev.requests || [])],
     }));
-    // TODO: Call API
-  }, [data.cases]);
+
+    // Call API
+    if (squadId) {
+      try {
+        const res = await fetch(`/api/rescue-squads/${squadId}/requests`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, body, divisionId, caseId }),
+        });
+        if (res.ok) {
+          const { request } = await res.json();
+          // Update with real ID from server
+          setData(prev => ({
+            ...prev,
+            requests: prev.requests.map(r =>
+              r.id === tempId ? { ...r, ...request } : r
+            ),
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to post request:', err);
+      }
+    }
+  }, [data.cases, squadId]);
 
   // Action: Select case (for map focus)
   const selectCase = useCallback((caseId) => {

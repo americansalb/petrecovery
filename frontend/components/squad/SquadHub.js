@@ -24,9 +24,9 @@ import CommunityTabsMobile from './CommunityTabsMobile';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { Radar, Users } from 'lucide-react';
 
-export default function SquadHub({ initialData }) {
+export default function SquadHub({ initialData, squadId }) {
   return (
-    <SquadHubProvider initialData={initialData}>
+    <SquadHubProvider initialData={initialData} squadId={squadId}>
       <SquadHubContent />
     </SquadHubProvider>
   );
