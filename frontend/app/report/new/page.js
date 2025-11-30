@@ -740,11 +740,29 @@ export default function ReportLostPet() {
           </div>
         )}
 
-        {/* Error display */}
+        {/* Error display with dismiss */}
         {error && !isLoadingPet && (
-          <div className="mb-6 p-4 bg-[var(--hub-status-high)]/10 border border-[var(--hub-status-high)]/30 rounded-xl flex items-start gap-3">
+          <div
+            role="alert"
+            aria-live="polite"
+            className="mb-6 p-4 bg-[var(--hub-status-high)]/10 border border-[var(--hub-status-high)]/30 rounded-xl flex items-start gap-3"
+          >
             <AlertTriangle size={20} className="text-[var(--hub-status-high)] flex-shrink-0 mt-0.5" />
-            <p className="text-[var(--hub-status-high)]">{error}</p>
+            <div className="flex-1">
+              <p className="text-[var(--hub-status-high)]">{error}</p>
+              {error.includes('location') && (
+                <p className="text-sm text-[var(--hub-text-muted)] mt-1">
+                  Try a different address format or use zip code instead.
+                </p>
+              )}
+            </div>
+            <button
+              onClick={() => setError(null)}
+              className="text-[var(--hub-status-high)] hover:text-[var(--hub-text-primary)] transition-colors p-1"
+              aria-label="Dismiss error"
+            >
+              <span className="text-xl leading-none">&times;</span>
+            </button>
           </div>
         )}
 
@@ -773,11 +791,15 @@ export default function ReportLostPet() {
               Alert your community and mobilize rescue squads to help find your pet
             </p>
 
-            <h2 className="text-xl font-semibold mb-6 text-[var(--hub-text-primary)]">
+            <h2 className="text-xl font-semibold mb-6 text-[var(--hub-text-primary)]" id="pet-type-label">
               What type of pet is missing?
             </h2>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div
+              className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4"
+              role="radiogroup"
+              aria-labelledby="pet-type-label"
+            >
               {PET_TYPES.map((pet) => {
                 const Icon = pet.icon;
                 return (
@@ -787,22 +809,27 @@ export default function ReportLostPet() {
                       setPetType(pet.type);
                       setStep(2);
                     }}
+                    role="radio"
+                    aria-checked={petType === pet.type}
+                    aria-label={`Report lost ${pet.label.toLowerCase()}`}
                     className={`
-                      relative group p-6 rounded-2xl border-2 border-[var(--hub-border)]
+                      relative group p-4 sm:p-6 rounded-2xl border-2 border-[var(--hub-border)]
                       bg-[var(--hub-bg-panel)] hover:bg-[var(--hub-bg-card)]
                       transition-all duration-300 hover:scale-[1.02]
                       hover:border-[var(--hub-accent-primary)]/50
                       hover:shadow-[0_0_30px_rgba(34,211,238,0.1)]
+                      focus:outline-none focus:ring-2 focus:ring-[var(--hub-accent-primary)] focus:ring-offset-2 focus:ring-offset-[var(--hub-bg-root)]
                     `}
                   >
                     <div className={`
-                      w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br ${pet.color}
+                      w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-2xl bg-gradient-to-br ${pet.color}
                       flex items-center justify-center shadow-lg
                       group-hover:shadow-xl group-hover:scale-110 transition-all duration-300
                     `}>
-                      <Icon size={32} className="text-white" />
+                      <Icon size={24} className="sm:hidden text-white" />
+                      <Icon size={32} className="hidden sm:block text-white" />
                     </div>
-                    <span className="text-lg font-semibold text-[var(--hub-text-primary)]">
+                    <span className="text-base sm:text-lg font-semibold text-[var(--hub-text-primary)]">
                       {pet.label}
                     </span>
                   </button>
@@ -1110,51 +1137,71 @@ export default function ReportLostPet() {
 
         {/* Step 3: Confirm Location on Map */}
         {step === 3 && center && (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <div className="bg-[var(--hub-bg-panel)] rounded-2xl border border-[var(--hub-border)] overflow-hidden">
-              <div className="p-6 border-b border-[var(--hub-border)]">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-[var(--hub-accent-primary)]/10 flex items-center justify-center">
-                    <MapPin size={24} className="text-[var(--hub-accent-primary)]" />
+              <div className="p-4 sm:p-6 border-b border-[var(--hub-border)]">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[var(--hub-accent-primary)]/10 flex items-center justify-center flex-shrink-0">
+                    <MapPin size={20} className="sm:hidden text-[var(--hub-accent-primary)]" />
+                    <MapPin size={24} className="hidden sm:block text-[var(--hub-accent-primary)]" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-[var(--hub-text-primary)]">Confirm Last Seen Location</h2>
-                    <p className="text-[var(--hub-text-muted)]">Drag the marker to the exact spot. Set how far they may have wandered.</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-[var(--hub-text-primary)]">Confirm Last Seen Location</h2>
+                    <p className="text-sm sm:text-base text-[var(--hub-text-muted)]">
+                      <span className="hidden sm:inline">Drag the marker to the exact spot. Set how far they may have wandered.</span>
+                      <span className="sm:hidden">Drag marker to exact spot</span>
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* Map container */}
-              <div className="h-[400px] md:h-[450px]">
+              {/* Drag instruction banner */}
+              <div className="px-4 py-2 bg-[var(--hub-accent-primary)]/5 border-b border-[var(--hub-border)] flex items-center justify-center gap-2">
+                <Crosshair size={14} className="text-[var(--hub-accent-primary)]" />
+                <span className="text-xs sm:text-sm text-[var(--hub-accent-primary)]">
+                  Drag the cyan marker to adjust location
+                </span>
+              </div>
+
+              {/* Map container - responsive height */}
+              <div className="h-[280px] sm:h-[350px] md:h-[400px] lg:h-[450px]">
                 <div ref={mapRef} className="h-full w-full" />
               </div>
 
               {/* Radius control */}
-              <div className="p-6 bg-[var(--hub-bg-card)]">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="font-medium text-[var(--hub-text-primary)]">Last Seen Area Radius</span>
-                  <span className="text-2xl font-bold text-[var(--hub-accent-primary)]">
-                    {radiusMiles} {radiusMiles === 1 ? 'mile' : 'miles'}
-                  </span>
-                </div>
+              <div className="p-4 sm:p-6 bg-[var(--hub-bg-card)]">
+                <label htmlFor="radius-slider" className="block">
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <span className="font-medium text-[var(--hub-text-primary)]">Search Area Radius</span>
+                    <span className="text-xl sm:text-2xl font-bold text-[var(--hub-accent-primary)]">
+                      {radiusMiles} {radiusMiles === 1 ? 'mile' : 'miles'}
+                    </span>
+                  </div>
+                </label>
                 <input
+                  id="radius-slider"
                   type="range"
                   min="0.25"
                   max="10"
                   step="0.25"
                   value={radiusMiles}
                   onChange={(e) => setRadiusMiles(parseFloat(e.target.value))}
+                  aria-label={`Search area radius: ${radiusMiles} miles`}
+                  aria-valuemin={0.25}
+                  aria-valuemax={10}
+                  aria-valuenow={radiusMiles}
                   className="w-full h-2 bg-[var(--hub-bg-elevated)] rounded-full appearance-none cursor-pointer
-                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5
+                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6
                     [&::-webkit-slider-thumb]:bg-[var(--hub-accent-primary)] [&::-webkit-slider-thumb]:rounded-full
-                    [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(34,211,238,0.5)]"
+                    [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(34,211,238,0.5)]
+                    focus:outline-none focus:ring-2 focus:ring-[var(--hub-accent-primary)]/50"
                 />
-                <div className="flex justify-between mt-2 text-sm text-[var(--hub-text-muted)]">
+                <div className="flex justify-between mt-2 text-xs sm:text-sm text-[var(--hub-text-muted)]">
                   <span>0.25 mi</span>
                   <span>10 mi</span>
                 </div>
-                <p className="mt-3 text-sm text-[var(--hub-text-muted)]">
-                  This is the area where your pet was last seen, not a search radius. Rescuers will focus on this area first.
+                <p className="mt-3 text-xs sm:text-sm text-[var(--hub-text-muted)]">
+                  This is the area where your pet was last seen. Rescuers will focus their search here first.
                 </p>
               </div>
             </div>
@@ -1317,9 +1364,11 @@ export default function ReportLostPet() {
                     value={reportData.petName}
                     onChange={(e) => setReportData({ ...reportData, petName: e.target.value })}
                     placeholder="Max"
-                    className="w-full px-4 py-3 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-xl
+                    disabled={isSubmitting}
+                    className={`w-full px-4 py-3 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-xl
                       text-[var(--hub-text-primary)] placeholder:text-[var(--hub-text-muted)]
-                      focus:outline-none focus:border-[var(--hub-accent-primary)] focus:ring-1 focus:ring-[var(--hub-accent-primary)]"
+                      focus:outline-none focus:border-[var(--hub-accent-primary)] focus:ring-1 focus:ring-[var(--hub-accent-primary)]
+                      ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
                   />
                 </div>
 
@@ -1355,8 +1404,10 @@ export default function ReportLostPet() {
                   <select
                     value={reportData.size}
                     onChange={(e) => setReportData({ ...reportData, size: e.target.value })}
-                    className="w-full px-4 py-3 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-xl
-                      text-[var(--hub-text-primary)] focus:outline-none focus:border-[var(--hub-accent-primary)]"
+                    disabled={isSubmitting}
+                    className={`w-full px-4 py-3 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-xl
+                      text-[var(--hub-text-primary)] focus:outline-none focus:border-[var(--hub-accent-primary)]
+                      ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                     {petType === 'bird' ? (
                       <>
@@ -1400,19 +1451,21 @@ export default function ReportLostPet() {
                             alt={`Pet photo ${index + 1}`}
                             className="w-24 h-24 object-cover rounded-lg border border-[var(--hub-border)]"
                           />
-                          <button
-                            onClick={() => removePhoto(index)}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-[var(--hub-status-high)] rounded-full
-                              flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            &times;
-                          </button>
+                          {!isSubmitting && (
+                            <button
+                              onClick={() => removePhoto(index)}
+                              className="absolute -top-2 -right-2 w-6 h-6 bg-[var(--hub-status-high)] rounded-full
+                                flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              &times;
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
                   )}
 
-                  {photos.length < 5 && (
+                  {photos.length < 5 && !isSubmitting && (
                     <label className="block p-6 border-2 border-dashed border-[var(--hub-border)] rounded-xl
                       hover:border-[var(--hub-accent-primary)] transition-colors cursor-pointer text-center">
                       <Camera size={32} className="mx-auto mb-2 text-[var(--hub-text-muted)]" />
@@ -1438,9 +1491,11 @@ export default function ReportLostPet() {
                     onChange={(e) => setReportData({ ...reportData, distinctiveMarks: e.target.value })}
                     placeholder="Black spot on left ear, scar on right paw, very friendly with strangers..."
                     rows={3}
-                    className="w-full px-4 py-3 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-xl
+                    disabled={isSubmitting}
+                    className={`w-full px-4 py-3 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-xl
                       text-[var(--hub-text-primary)] placeholder:text-[var(--hub-text-muted)]
-                      focus:outline-none focus:border-[var(--hub-accent-primary)] resize-none"
+                      focus:outline-none focus:border-[var(--hub-accent-primary)] resize-none
+                      ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
                   />
                 </div>
               </div>
@@ -1448,9 +1503,10 @@ export default function ReportLostPet() {
               <div className="flex gap-3 mt-8">
                 <button
                   onClick={() => setStep(prevStepFromDetails)}
-                  className="flex-1 py-3 px-4 rounded-xl bg-[var(--hub-bg-card)] text-[var(--hub-text-secondary)]
-                    border border-[var(--hub-border)] hover:bg-[var(--hub-bg-elevated)] transition-all
-                    flex items-center justify-center gap-2"
+                  disabled={isSubmitting}
+                  className={`flex-1 py-3 px-4 rounded-xl bg-[var(--hub-bg-card)] text-[var(--hub-text-secondary)]
+                    border border-[var(--hub-border)] transition-all flex items-center justify-center gap-2
+                    ${isSubmitting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-[var(--hub-bg-elevated)]'}`}
                 >
                   <ChevronLeft size={18} />
                   Back
@@ -1501,8 +1557,45 @@ export default function ReportLostPet() {
               {reportResult.patrolAlerted || 0} rescue patrol members within {radiusMiles} {radiusMiles === 1 ? 'mile' : 'miles'} have been notified about {reportData.petName}.
             </p>
 
+            {/* Report Summary */}
+            <div className="bg-[var(--hub-bg-panel)] rounded-2xl border border-[var(--hub-border)] p-4 sm:p-6 text-left mb-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Search size={20} className="text-[var(--hub-accent-primary)]" />
+                Report Summary
+              </h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-[var(--hub-text-muted)]">Pet Name</p>
+                  <p className="font-medium text-[var(--hub-text-primary)]">{reportData.petName}</p>
+                </div>
+                <div>
+                  <p className="text-[var(--hub-text-muted)]">Type</p>
+                  <p className="font-medium text-[var(--hub-text-primary)] capitalize">{petType}</p>
+                </div>
+                <div>
+                  <p className="text-[var(--hub-text-muted)]">Color</p>
+                  <p className="font-medium text-[var(--hub-text-primary)]">{reportData.color}</p>
+                </div>
+                <div>
+                  <p className="text-[var(--hub-text-muted)]">Search Radius</p>
+                  <p className="font-medium text-[var(--hub-text-primary)]">{radiusMiles} {radiusMiles === 1 ? 'mile' : 'miles'}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-[var(--hub-text-muted)]">Last Seen Location</p>
+                  <p className="font-medium text-[var(--hub-text-primary)] text-sm break-words">{lastSeenAddress}</p>
+                </div>
+              </div>
+              {reportResult.reportId && (
+                <div className="mt-4 pt-4 border-t border-[var(--hub-border)]">
+                  <p className="text-xs text-[var(--hub-text-muted)]">
+                    Report ID: <span className="font-mono text-[var(--hub-accent-primary)]">{reportResult.reportId}</span>
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* What happens next */}
-            <div className="bg-[var(--hub-bg-panel)] rounded-2xl border border-[var(--hub-border)] p-6 text-left mb-6">
+            <div className="bg-[var(--hub-bg-panel)] rounded-2xl border border-[var(--hub-border)] p-4 sm:p-6 text-left mb-6">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Sparkles size={20} className="text-[var(--hub-accent-primary)]" />
                 What happens next
@@ -1516,7 +1609,7 @@ export default function ReportLostPet() {
                 ].map((item, idx) => (
                   <li key={idx} className="flex items-start gap-3">
                     <item.icon size={18} className="text-[var(--hub-accent-primary)] flex-shrink-0 mt-0.5" />
-                    <span className="text-[var(--hub-text-secondary)]">{item.text}</span>
+                    <span className="text-[var(--hub-text-secondary)] text-sm sm:text-base">{item.text}</span>
                   </li>
                 ))}
               </ul>
@@ -1561,7 +1654,7 @@ export default function ReportLostPet() {
             <div className="flex flex-col sm:flex-row gap-3">
               {reportResult.assignedSquad ? (
                 <Link
-                  href={`/rescue-squads/${reportResult.assignedSquad.city.toLowerCase().replace(/\s+/g, '-')}`}
+                  href={`/rescue-squads/${reportResult.assignedSquad.id}`}
                   className="flex-1 py-3 px-6 rounded-xl font-medium transition-all
                     bg-gradient-to-r from-[var(--hub-accent-secondary)] to-violet-400 text-white
                     shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)]
