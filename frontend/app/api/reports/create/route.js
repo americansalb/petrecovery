@@ -231,7 +231,7 @@ export async function POST(request) {
             data: {
               caseId: report.id,
               rescueSquadId: squad.id,
-              status: 'PENDING',
+              status: 'ACCEPTED',
               priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'NORMAL',
             },
           });
