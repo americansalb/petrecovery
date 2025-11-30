@@ -15,6 +15,7 @@ import { useSquadHub } from './context/SquadHubContext';
 import CaseQueuePanel from './CaseQueuePanel';
 import MapPanel from './MapPanel';
 import ActivityPanel from './ActivityPanel';
+import CaseDetailPanel from './CaseDetailPanel';
 import { List, Map, Users } from 'lucide-react';
 
 const tabs = [
@@ -24,7 +25,18 @@ const tabs = [
 ];
 
 export default function SquadTabsMobile() {
-  const { mobileTab, setMobileTab } = useSquadHub();
+  const { mobileTab, setMobileTab, selectedCaseId } = useSquadHub();
+
+  // If a case is selected, show the detail panel as full screen
+  if (selectedCaseId) {
+    return (
+      <div className="flex-1 flex flex-col">
+        <div className="flex-1 overflow-hidden">
+          <CaseDetailPanel />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col">

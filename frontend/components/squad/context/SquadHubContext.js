@@ -518,9 +518,14 @@ export function SquadHubProvider({ children, initialData, squadId }) {
     }
   }, [data.cases, squadId]);
 
-  // Action: Select case (for map focus)
+  // Action: Select case (for map focus and detail panel)
   const selectCase = useCallback((caseId) => {
     setSelectedCaseId(caseId);
+  }, []);
+
+  // Action: Deselect case (close detail panel)
+  const deselectCase = useCallback(() => {
+    setSelectedCaseId(null);
   }, []);
 
   // Action: Send chat message
@@ -656,6 +661,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
     setMobileCommunityTab,
     selectedCaseId,
     selectCase,
+    deselectCase,
     chatScope,
     setChatScope,
     chatCaseFilterId,
