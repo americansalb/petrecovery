@@ -1,9 +1,10 @@
 /**
- * Lost Pet Cases API - List & Create
- * Phase 13-14: Lost Pet Cases MVP (TASK-C02)
+ * Cases API
  *
- * GET /api/cases - List cases with filters
- * POST /api/cases - Create new case (with legal gating)
+ * GET /api/cases - List cases (with filters)
+ * POST /api/cases - Deprecated, use /api/reports/create instead
+ *
+ * Uses the Case model (not the old lostPetCase model)
  */
 
 import { NextResponse } from 'next/server';
@@ -11,14 +12,13 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
-import { requireStaffOrAdmin, PermissionError } from '@/app/lib/permissions';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/cases - List lost pet cases with filters
- * Query params: status, city, state, squadId, limit (default 20, max 100)
+ * GET /api/cases - List cases with filters
+ * Requires authentication
  */
 export async function GET(request) {
   const startTime = Date.now();
@@ -29,96 +29,122 @@ export async function GET(request) {
     session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
-      await logEvent({
-        event_type: 'case.list_failed',
-        resource_type: 'case',
-        action: 'read',
-        result: 'failure',
-        error_code: 'UNAUTHORIZED',
-        error_message: 'Attempted to list cases without authentication',
-        metadata: {}
-      });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check waiver acceptance
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { waiverAcceptedAt: true }
-    });
-
-    if (!user?.waiverAcceptedAt) {
-      await logEvent({
-        event_type: 'case.list_failed',
-        resource_type: 'case',
-        action: 'read',
-        result: 'failure',
-        error_code: 'WAIVER_NOT_ACCEPTED',
-        error_message: 'User attempted to list cases without accepting liability waiver',
-        actor_user_id: session.user.id,
-        actor_role: null,
-        metadata: {}
-      });
-
-      return NextResponse.json({
-        error: 'Liability waiver required',
-        code: 'WAIVER_NOT_ACCEPTED',
-        message: 'You must accept the liability waiver before viewing cases.',
-        redirectTo: `/legal/consent?returnUrl=${encodeURIComponent('/admin/cases')}`
-      }, { status: 403 });
-    }
-
-    // Parse query params
+    // Get query parameters
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    const city = searchParams.get('city');
-    const state = searchParams.get('state');
-    const squadId = searchParams.get('squadId');
+    const reportType = searchParams.get('reportType'); // LOST or FOUND
+    const species = searchParams.get('species');
+    const search = searchParams.get('search');
     const myOnly = searchParams.get('myOnly') === 'true';
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
+    const offset = parseInt(searchParams.get('offset') || '0');
 
     // Build where clause
     const where = {};
-    if (status) where.status = status;
-    if (city) where.city = { contains: city, mode: 'insensitive' };
-    if (state) where.state = { contains: state, mode: 'insensitive' };
-    if (squadId) where.squadId = squadId;
-    if (myOnly) where.createdById = session.user.id;
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (reportType && (reportType === 'LOST' || reportType === 'FOUND')) {
+      where.reportType = reportType;
+    }
+
+    if (species) {
+      where.petSpecies = species;
+    }
+
+    if (myOnly) {
+      where.reporterId = session.user.id;
+    }
+
+    // Text search
+    if (search) {
+      where.OR = [
+        { petName: { contains: search, mode: 'insensitive' } },
+        { petBreed: { contains: search, mode: 'insensitive' } },
+        { petColor: { contains: search, mode: 'insensitive' } },
+        { lastSeenAddress: { contains: search, mode: 'insensitive' } },
+        { caseNumber: { contains: search, mode: 'insensitive' } },
+      ];
+    }
 
     // Fetch cases
-    const cases = await prisma.lostPetCase.findMany({
-      where,
-      include: {
-        squad: {
-          select: {
-            id: true,
-            name: true,
-            city: true,
-            state: true
+    const [cases, totalCount] = await Promise.all([
+      prisma.case.findMany({
+        where,
+        include: {
+          reporter: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
+          },
+          assignments: {
+            include: {
+              rescueSquad: {
+                select: {
+                  id: true,
+                  name: true,
+                  city: true,
+                  state: true,
+                }
+              }
+            },
+            take: 1,
+          },
+          _count: {
+            select: {
+              updates: true,
+              sightings: true,
+            }
           }
         },
-        coordinator: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            role: true
-          }
-        },
-        createdBy: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true
-          }
-        },
-        _count: {
-          select: { notes: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit
-    });
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.case.count({ where }),
+    ]);
+
+    // Format response
+    const formattedCases = cases.map(c => ({
+      id: c.id,
+      caseNumber: c.caseNumber,
+      reportType: c.reportType,
+      status: c.status,
+      priority: c.priority,
+      // Pet info
+      petName: c.petName,
+      petSpecies: c.petSpecies,
+      petBreed: c.petBreed,
+      petColor: c.petColor,
+      petSize: c.petSize,
+      petPhotoUrl: c.petPhotoUrl,
+      // Location
+      lastSeenAt: c.lastSeenAt,
+      lastSeenAddress: c.lastSeenAddress,
+      lastSeenLatitude: c.lastSeenLatitude,
+      lastSeenLongitude: c.lastSeenLongitude,
+      // Reporter
+      reporter: c.reporter,
+      ownerName: c.ownerName,
+      // Timestamps
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+      resolvedAt: c.resolvedAt,
+      resolution: c.resolution,
+      // Counts
+      updatesCount: c._count.updates,
+      sightingsCount: c._count.sightings,
+      // Assigned squad (first one)
+      assignedSquad: c.assignments[0]?.rescueSquad || null,
+    }));
 
     const responseTime = Date.now() - startTime;
 
@@ -128,19 +154,22 @@ export async function GET(request) {
       action: 'read',
       result: 'success',
       actor_user_id: session.user.id,
-      actor_role: null,
       metadata: {
-        filters: { status, city, state, squadId },
+        filters: { status, reportType, species, search, myOnly },
         results_count: cases.length,
+        total_count: totalCount,
         limit,
+        offset,
         response_time_ms: responseTime
       }
     });
 
     return NextResponse.json({
-      cases,
+      cases: formattedCases,
       count: cases.length,
-      filters: { status, city, state, squadId, myOnly, limit }
+      total: totalCount,
+      hasMore: offset + cases.length < totalCount,
+      filters: { status, reportType, species, search, myOnly, limit, offset }
     });
 
   } catch (error) {
@@ -154,7 +183,6 @@ export async function GET(request) {
       error_code: 'INTERNAL_ERROR',
       error_message: error.message,
       actor_user_id: session?.user?.id || null,
-      actor_role: null,
       metadata: {
         error_stack: error.stack?.substring(0, 500)
       }
@@ -168,287 +196,15 @@ export async function GET(request) {
 }
 
 /**
- * POST /api/cases - Create new lost pet case
- * Requires authentication + waiver acceptance
+ * POST /api/cases - Create case
+ *
+ * DEPRECATED: Use /api/reports/create for the full case creation flow
+ * which includes squad assignment, patrol notifications, etc.
  */
 export async function POST(request) {
-  const startTime = Date.now();
-  let session = null;
-
-  try {
-    // Authentication check
-    session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      await logEvent({
-        event_type: 'case.create_failed',
-        resource_type: 'case',
-        action: 'create',
-        result: 'failure',
-        error_code: 'UNAUTHORIZED',
-        error_message: 'Attempted to create case without authentication',
-        metadata: {}
-      });
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Permission check (Phase 22-24: ADMIN/MODERATOR only)
-    try {
-      await requireStaffOrAdmin(session, {
-        resource_type: 'case',
-        resource_id: null,
-        action: 'create',
-        metadata: {
-          api_route: '/api/cases',
-          method: 'POST'
-        }
-      });
-    } catch (error) {
-      if (error instanceof PermissionError) {
-        return NextResponse.json({
-          error: 'Permission denied',
-          code: 'PERMISSION_DENIED',
-          message: error.message
-        }, { status: 403 });
-      }
-      throw error;
-    }
-
-    // Parse request body
-    const body = await request.json();
-    const {
-      city,
-      state,
-      zipCode,
-      squadId,
-      petName,
-      petSpecies,
-      petBreed,
-      petColor,
-      petDescription,
-      lastSeenLandmark,
-      lastSeenAt,
-      isUrgent,
-      contactName,
-      contactPhone,
-      contactEmail
-    } = body;
-
-    // Validate required fields
-    if (!city || !state || !petSpecies) {
-      await logEvent({
-        event_type: 'case.create_failed',
-        resource_type: 'case',
-        action: 'create',
-        result: 'failure',
-        error_code: 'VALIDATION_ERROR',
-        error_message: 'Missing required fields: city, state, or petSpecies',
-        actor_user_id: session.user.id,
-        actor_role: null,
-        metadata: { city, state, petSpecies }
-      });
-      return NextResponse.json({
-        error: 'City, state, and pet species are required'
-      }, { status: 400 });
-    }
-
-    // Validate petSpecies enum
-    const validSpecies = ['DOG', 'CAT', 'BIRD', 'RABBIT', 'OTHER'];
-    if (!validSpecies.includes(petSpecies)) {
-      await logEvent({
-        event_type: 'case.create_failed',
-        resource_type: 'case',
-        action: 'create',
-        result: 'failure',
-        error_code: 'VALIDATION_ERROR',
-        error_message: `Invalid pet species: ${petSpecies}`,
-        actor_user_id: session.user.id,
-        actor_role: null,
-        metadata: { petSpecies, validSpecies }
-      });
-      return NextResponse.json({
-        error: 'Invalid pet species. Must be DOG, CAT, BIRD, or OTHER'
-      }, { status: 400 });
-    }
-
-    // Emit create_attempted event
-    await logEvent({
-      event_type: 'case.create_attempted',
-      resource_type: 'case',
-      action: 'create',
-      result: 'success',
-      actor_user_id: session.user.id,
-      actor_role: null,
-      metadata: {
-        city,
-        state,
-        petSpecies,
-        squadId,
-        isUrgent: isUrgent || false
-      }
-    });
-
-    // Check waiver acceptance (legal gating)
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        waiverAcceptedAt: true,
-        waiverVersionAccepted: true,
-        firstName: true,
-        lastName: true
-      }
-    });
-
-    if (!user?.waiverAcceptedAt) {
-      // Emit dual events for legal visibility
-      await logEvent({
-        event_type: 'legal.blocked_action',
-        resource_type: 'case',
-        action: 'create',
-        result: 'failure',
-        error_code: 'WAIVER_NOT_ACCEPTED',
-        error_message: 'User attempted to create case without accepting liability waiver',
-        actor_user_id: session.user.id,
-        actor_role: null,
-        metadata: {
-          blocked_action: 'case_create',
-          city,
-          state,
-          petSpecies
-        }
-      });
-
-      await logEvent({
-        event_type: 'case.create_failed',
-        resource_type: 'case',
-        action: 'create',
-        result: 'failure',
-        error_code: 'WAIVER_NOT_ACCEPTED',
-        error_message: 'Case creation blocked - liability waiver not accepted',
-        actor_user_id: session.user.id,
-        actor_role: null,
-        metadata: { city, state, petSpecies }
-      });
-
-      return NextResponse.json({
-        error: 'Liability waiver required',
-        code: 'WAIVER_NOT_ACCEPTED',
-        message: 'You must accept the liability waiver before creating a lost pet case.',
-        redirectTo: `/legal/consent?returnUrl=${encodeURIComponent('/admin/cases/new')}`
-      }, { status: 403 });
-    }
-
-    // Generate case number: CITY-YEAR-SEQUENCE
-    // Get count of cases in this city this year
-    const currentYear = new Date().getFullYear();
-    const cityPrefix = city.substring(0, 3).toUpperCase();
-
-    const caseCount = await prisma.lostPetCase.count({
-      where: {
-        caseNumber: {
-          startsWith: `${cityPrefix}-${currentYear}-`
-        }
-      }
-    });
-
-    const sequence = String(caseCount + 1).padStart(4, '0');
-    const caseNumber = `${cityPrefix}-${currentYear}-${sequence}`;
-
-    // Create case with transaction (case + initial note)
-    const newCase = await prisma.$transaction(async (tx) => {
-      const caseRecord = await tx.lostPetCase.create({
-        data: {
-          caseNumber,
-          city,
-          state,
-          zipCode,
-          squadId,
-          petName,
-          petSpecies,
-          petBreed,
-          petColor,
-          petDescription,
-          lastSeenLandmark,
-          lastSeenAt: lastSeenAt ? new Date(lastSeenAt) : null,
-          isUrgent: isUrgent || false,
-          contactName,
-          contactPhone,
-          contactEmail,
-          status: 'OPEN',
-          createdById: session.user.id
-        },
-        include: {
-          squad: {
-            select: {
-              id: true,
-              name: true,
-              city: true,
-              state: true
-            }
-          }
-        }
-      });
-
-      // Create initial note
-      await tx.lostPetCaseNote.create({
-        data: {
-          caseId: caseRecord.id,
-          authorId: session.user.id,
-          type: 'NOTE',
-          content: 'Case created.'
-        }
-      });
-
-      return caseRecord;
-    });
-
-    const responseTime = Date.now() - startTime;
-
-    // Emit success event
-    await logEvent({
-      event_type: 'case.created',
-      resource_type: 'case',
-      resource_id: newCase.id,
-      action: 'create',
-      result: 'success',
-      actor_user_id: session.user.id,
-      actor_role: null,
-      metadata: {
-        caseId: newCase.id,
-        caseNumber: newCase.caseNumber,
-        city: newCase.city,
-        state: newCase.state,
-        petSpecies: newCase.petSpecies,
-        squadId: newCase.squadId,
-        isUrgent: newCase.isUrgent,
-        response_time_ms: responseTime
-      }
-    });
-
-    return NextResponse.json({
-      case: newCase
-    }, { status: 201 });
-
-  } catch (error) {
-    console.error('Error creating case:', error);
-
-    await logEvent({
-      event_type: 'case.create_failed',
-      resource_type: 'case',
-      action: 'create',
-      result: 'failure',
-      error_code: 'DB_WRITE_FAILED',
-      error_message: error.message,
-      actor_user_id: session?.user?.id || null,
-      actor_role: null,
-      metadata: {
-        error_stack: error.stack?.substring(0, 500)
-      }
-    });
-
-    return NextResponse.json({
-      error: 'Failed to create case',
-      message: error.message
-    }, { status: 500 });
-  }
+  return NextResponse.json({
+    error: 'Endpoint deprecated',
+    message: 'Please use /api/reports/create for case creation. This endpoint provided a legacy admin flow that is no longer supported.',
+    redirectTo: '/report/new'
+  }, { status: 410 }); // 410 Gone
 }

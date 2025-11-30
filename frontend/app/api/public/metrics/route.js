@@ -51,22 +51,15 @@ export async function GET(request) {
     // Fetch metrics from database
     console.log('[PUBLIC-METRICS] Querying database...');
 
-    // Count resolved cases (pets reunited)
-    console.log('[PUBLIC-METRICS] Counting resolved cases...');
-    const resolvedCases = await prisma.lostPetCase.count({
-      where: { status: 'RESOLVED' }
-    });
-    console.log(`[PUBLIC-METRICS] Resolved cases: ${resolvedCases}`);
-
-    // Also count REUNITED from the Case model (legacy)
-    console.log('[PUBLIC-METRICS] Counting reunited cases (legacy)...');
+    // Count reunited cases (pets reunited)
+    console.log('[PUBLIC-METRICS] Counting reunited cases...');
     const reunitedCases = await prisma.case.count({
       where: { status: 'REUNITED' }
     });
-    console.log(`[PUBLIC-METRICS] Reunited cases (legacy): ${reunitedCases}`);
+    console.log(`[PUBLIC-METRICS] Reunited cases: ${reunitedCases}`);
 
     // Total pets reunited
-    const totalReunited = resolvedCases + reunitedCases;
+    const totalReunited = reunitedCases;
     console.log(`[PUBLIC-METRICS] Total reunited: ${totalReunited}`);
 
     // Count total users
@@ -90,9 +83,9 @@ export async function GET(request) {
 
     // Count open/active cases
     console.log('[PUBLIC-METRICS] Counting open cases...');
-    const openCases = await prisma.lostPetCase.count({
+    const openCases = await prisma.case.count({
       where: {
-        status: { in: ['OPEN', 'ACTIVE_SEARCH'] }
+        status: { in: ['ACTIVE', 'IN_PROGRESS'] }
       }
     });
     console.log(`[PUBLIC-METRICS] Open cases: ${openCases}`);

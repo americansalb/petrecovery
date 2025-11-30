@@ -1,8 +1,9 @@
 /**
- * Lost Pet Case Notes API
- * Phase 13-14: Lost Pet Cases MVP (TASK-C02)
+ * Case Notes/Updates API
  *
- * POST /api/cases/[id]/notes - Add note to case
+ * POST /api/cases/[id]/notes - Add a note/update to a case
+ *
+ * Uses CaseUpdate model (not lostPetCaseNote)
  */
 
 import { NextResponse } from 'next/server';
@@ -10,14 +11,13 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
-import { requireStaffOrAdmin, PermissionError } from '@/app/lib/permissions';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/cases/[id]/notes - Add note to case
- * Admin or squad member (MVP: admin-only for simplicity)
+ * Allowed: Case owner, admin, or squad member assigned to this case
  */
 export async function POST(request, { params }) {
   const startTime = Date.now();
@@ -28,146 +28,64 @@ export async function POST(request, { params }) {
     session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
-      await logEvent({
-        event_type: 'case.note_add_failed',
-        resource_type: 'case',
-        resource_id: params.id,
-        action: 'create',
-        result: 'failure',
-        error_code: 'UNAUTHORIZED',
-        error_message: 'Attempted to add case note without authentication',
-        metadata: { caseId: params.id }
-      });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Permission check (Phase 22-24: ADMIN/MODERATOR only)
-    try {
-      await requireStaffOrAdmin(session, {
-        resource_type: 'case',
-        resource_id: params.id,
-        action: 'add_note',
-        metadata: {
-          api_route: `/api/cases/${params.id}/notes`,
-          method: 'POST'
-        }
-      });
-    } catch (error) {
-      if (error instanceof PermissionError) {
-        return NextResponse.json({
-          error: 'Permission denied',
-          code: 'PERMISSION_DENIED',
-          message: error.message
-        }, { status: 403 });
-      }
-      throw error;
-    }
-
-    // Check waiver acceptance
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        waiverAcceptedAt: true,
-        role: true
-      }
-    });
-
-    if (!user?.waiverAcceptedAt) {
-      await logEvent({
-        event_type: 'case.note_add_failed',
-        resource_type: 'case',
-        resource_id: params.id,
-        action: 'create',
-        result: 'failure',
-        error_code: 'WAIVER_NOT_ACCEPTED',
-        error_message: 'User attempted to add case note without accepting liability waiver',
-        actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
-        metadata: { caseId: params.id }
-      });
-
-      const encodedReturnUrl = encodeURIComponent('/admin/cases/' + params.id);
-      return NextResponse.json({
-        error: 'Liability waiver required',
-        code: 'WAIVER_NOT_ACCEPTED',
-        message: 'You must accept the liability waiver before adding case notes.',
-        redirectTo: '/legal/consent?returnUrl=' + encodedReturnUrl
-      }, { status: 403 });
-    }
-
-    // MVP: Admin only (could extend to squad members later)
-    if (user.role !== 'ADMIN') {
-      await logEvent({
-        event_type: 'case.note_add_failed',
-        resource_type: 'case',
-        resource_id: params.id,
-        action: 'create',
-        result: 'failure',
-        error_code: 'PERMISSION_DENIED',
-        error_message: 'User attempted to add case note without admin role',
-        actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
-        metadata: { caseId: params.id }
-      });
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
     // Parse request body
     const body = await request.json();
-    const { content, type } = body;
+    const { content, isPinned } = body;
 
     // Validate content
     if (!content || content.trim().length === 0) {
-      await logEvent({
-        event_type: 'case.note_add_failed',
-        resource_type: 'case',
-        resource_id: params.id,
-        action: 'create',
-        result: 'failure',
-        error_code: 'VALIDATION_ERROR',
-        error_message: 'Note content is required',
-        actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
-        metadata: { caseId: params.id }
-      });
       return NextResponse.json({
         error: 'Note content is required'
       }, { status: 400 });
     }
 
-    // Verify case exists
-    const caseExists = await prisma.lostPetCase.findUnique({
+    // Verify case exists and check permissions
+    const existingCase = await prisma.case.findUnique({
       where: { id: params.id },
       select: {
         id: true,
         caseNumber: true,
-        status: true
+        status: true,
+        reporterId: true,
+        assignments: {
+          select: {
+            rescueSquadId: true,
+            participants: {
+              where: { userId: session.user.id },
+              select: { id: true }
+            }
+          }
+        }
       }
     });
 
-    if (!caseExists) {
-      await logEvent({
-        event_type: 'case.note_add_failed',
-        resource_type: 'case',
-        resource_id: params.id,
-        action: 'create',
-        result: 'failure',
-        error_code: 'NOT_FOUND',
-        error_message: 'Case not found: ' + params.id,
-        actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
-        metadata: { caseId: params.id }
-      });
+    if (!existingCase) {
       return NextResponse.json({ error: 'Case not found' }, { status: 404 });
     }
 
-    // Create note
-    const note = await prisma.lostPetCaseNote.create({
+    // Permission check: owner, admin, or participant in case
+    const isOwner = existingCase.reporterId === session.user.id;
+    const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
+    const isParticipant = existingCase.assignments.some(a => a.participants.length > 0);
+
+    if (!isOwner && !isAdmin && !isParticipant) {
+      return NextResponse.json({
+        error: 'Permission denied',
+        message: 'You must be the case owner, admin, or a participant to add notes'
+      }, { status: 403 });
+    }
+
+    // Create update/note
+    const update = await prisma.caseUpdate.create({
       data: {
         caseId: params.id,
         authorId: session.user.id,
-        type: type || 'NOTE',
-        content: content.trim()
+        content: content.trim(),
+        isUpdate: true,
+        isPinned: isPinned || false,
       },
       include: {
         author: {
@@ -182,7 +100,6 @@ export async function POST(request, { params }) {
 
     const responseTime = Date.now() - startTime;
 
-    // Emit success event
     await logEvent({
       event_type: 'case.note_added',
       resource_type: 'case',
@@ -190,19 +107,18 @@ export async function POST(request, { params }) {
       action: 'create',
       result: 'success',
       actor_user_id: session.user.id,
-      actor_role: session.user.role || 'USER',
       metadata: {
         caseId: params.id,
-        caseNumber: caseExists.caseNumber,
-        noteId: note.id,
-        noteType: note.type,
-        contentLength: note.content.length,
+        caseNumber: existingCase.caseNumber,
+        updateId: update.id,
+        contentLength: update.content.length,
+        isOwner,
         response_time_ms: responseTime
       }
     });
 
     return NextResponse.json({
-      note,
+      update,
       message: 'Note added successfully'
     }, { status: 201 });
 
@@ -215,10 +131,9 @@ export async function POST(request, { params }) {
       resource_id: params.id,
       action: 'create',
       result: 'failure',
-      error_code: 'DB_WRITE_FAILED',
+      error_code: 'INTERNAL_ERROR',
       error_message: error.message,
       actor_user_id: session?.user?.id || null,
-      actor_role: session?.user?.role || 'USER',
       metadata: {
         caseId: params.id,
         error_stack: error.stack?.substring(0, 500)
@@ -227,6 +142,46 @@ export async function POST(request, { params }) {
 
     return NextResponse.json({
       error: 'Failed to add note',
+      message: error.message
+    }, { status: 500 });
+  }
+}
+
+/**
+ * GET /api/cases/[id]/notes - Get notes for a case
+ */
+export async function GET(request, { params }) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get case updates/notes
+    const updates = await prisma.caseUpdate.findMany({
+      where: { caseId: params.id },
+      include: {
+        author: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return NextResponse.json({
+      updates,
+      count: updates.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching case notes:', error);
+    return NextResponse.json({
+      error: 'Failed to fetch notes',
       message: error.message
     }, { status: 500 });
   }

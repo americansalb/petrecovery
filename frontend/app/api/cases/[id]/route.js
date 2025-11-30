@@ -69,18 +69,11 @@ export async function GET(request, { params }) {
     }
 
     // Fetch case with all related data
-    const caseData = await prisma.lostPetCase.findUnique({
+    // Using Case model (not the old lostPetCase)
+    const caseData = await prisma.case.findUnique({
       where: { id: params.id },
       include: {
-        squad: {
-          select: {
-            id: true,
-            name: true,
-            city: true,
-            state: true
-          }
-        },
-        createdBy: {
+        reporter: {
           select: {
             id: true,
             firstName: true,
@@ -88,7 +81,19 @@ export async function GET(request, { params }) {
             email: true
           }
         },
-        notes: {
+        assignments: {
+          include: {
+            rescueSquad: {
+              select: {
+                id: true,
+                name: true,
+                city: true,
+                state: true
+              }
+            }
+          }
+        },
+        updates: {
           include: {
             author: {
               select: {
@@ -99,6 +104,10 @@ export async function GET(request, { params }) {
             }
           },
           orderBy: { createdAt: 'desc' }
+        },
+        sightings: {
+          orderBy: { createdAt: 'desc' },
+          take: 10
         }
       }
     });

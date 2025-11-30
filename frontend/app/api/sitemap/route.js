@@ -5,19 +5,15 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://petrecovery.org';
 
 export async function GET() {
   try {
-    // Get active cases for sitemap
+    // Get active cases for sitemap (using Case model)
     const cases = await prisma.case.findMany({
-      where: { status: { in: ['ACTIVE', 'IN_PROGRESS'] } },
+      where: { status: { in: ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'] } },
       select: { caseNumber: true, updatedAt: true },
       take: 1000,
     });
 
-    // Get public lost pet cases
-    const lostPetCases = await prisma.lostPetCase.findMany({
-      where: { isPublic: true, status: { not: 'CLOSED_OTHER' } },
-      select: { caseNumber: true, updatedAt: true },
-      take: 1000,
-    });
+    // Placeholder for legacy lostPetCases (model no longer exists)
+    const lostPetCases = [];
 
     // Get rescue squads
     const squads = await prisma.rescueSquad.findMany({
