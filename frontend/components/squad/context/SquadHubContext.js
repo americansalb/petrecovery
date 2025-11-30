@@ -525,8 +525,9 @@ export function SquadHubProvider({ children, initialData, squadId }) {
 
   // Action: Send chat message
   const sendChatMessage = useCallback(async (content, divisionId = null, caseId = null) => {
+    const tempId = `msg_${Date.now()}`;
     const newMessage = {
-      id: `msg_${Date.now()}`,
+      id: tempId,
       authorId: 'current_user',
       authorName: 'You',
       authorRole: data.membership.role || 'MEMBER',
@@ -536,6 +537,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
       caseId,
     };
 
+    // Optimistic update
     setData(prev => ({
       ...prev,
       chat: {
@@ -543,8 +545,51 @@ export function SquadHubProvider({ children, initialData, squadId }) {
         messages: [...(prev.chat?.messages || []), newMessage],
       },
     }));
-    // TODO: Call API
-  }, [data.membership.role]);
+
+    // Call API
+    if (squadId) {
+      try {
+        const res = await fetch(`/api/rescue-squads/${squadId}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content, divisionId, caseId }),
+        });
+
+        if (res.ok) {
+          const { message } = await res.json();
+          // Replace temp message with real one
+          setData(prev => ({
+            ...prev,
+            chat: {
+              ...prev.chat,
+              messages: prev.chat.messages.map(m =>
+                m.id === tempId ? message : m
+              ),
+            },
+          }));
+        } else {
+          // Remove failed message
+          setData(prev => ({
+            ...prev,
+            chat: {
+              ...prev.chat,
+              messages: prev.chat.messages.filter(m => m.id !== tempId),
+            },
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to send message:', error);
+        // Remove failed message
+        setData(prev => ({
+          ...prev,
+          chat: {
+            ...prev.chat,
+            messages: prev.chat.messages.filter(m => m.id !== tempId),
+          },
+        }));
+      }
+    }
+  }, [data.membership.role, squadId]);
 
   // Action: Open case chat (navigate to Community > Chat filtered by case)
   const openCaseChat = useCallback((caseId) => {

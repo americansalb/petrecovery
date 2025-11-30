@@ -258,12 +258,78 @@ export async function GET(request, { params }) {
       },
     }));
 
-    // Get chat messages (SquadMessage model if exists, otherwise empty)
-    // For now, return empty - can be enhanced later
-    const chatMessages = [];
+    // Get chat messages (stored as SquadActivity with type CHAT_MESSAGE)
+    const chatActivities = await prisma.squadActivity.findMany({
+      where: {
+        rescueSquadId: squadId,
+        type: 'CHAT_MESSAGE',
+      },
+      include: {
+        actor: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
 
-    // Get announcements (can be stored in SquadActivity with type ANNOUNCEMENT)
-    const announcements = [];
+    // Build member role lookup for chat messages
+    const chatAuthorIds = [...new Set(chatActivities.map(a => a.actorId).filter(Boolean))];
+    const chatMemberships = chatAuthorIds.length > 0 ? await prisma.rescueSquadMember.findMany({
+      where: {
+        rescueSquadId: squadId,
+        userId: { in: chatAuthorIds },
+        isActive: true,
+      },
+      select: { userId: true, role: true },
+    }) : [];
+    const chatMembershipMap = new Map(chatMemberships.map(m => [m.userId, m]));
+
+    const chatMessages = chatActivities
+      .map(a => {
+        const details = JSON.parse(a.details || '{}');
+        const membership = chatMembershipMap.get(a.actorId);
+        return {
+          id: a.id,
+          authorId: a.actorId,
+          authorName: a.actor ? `${a.actor.firstName} ${a.actor.lastName?.[0] || ''}.` : 'Unknown',
+          authorRole: membership?.role || 'MEMBER',
+          content: a.message,
+          createdAt: a.createdAt.toISOString(),
+          divisionId: details.divisionId || null,
+          caseId: a.caseId,
+        };
+      })
+      .reverse(); // Oldest first
+
+    // Get announcements (stored as SquadActivity with type ANNOUNCEMENT)
+    const announcementActivities = await prisma.squadActivity.findMany({
+      where: {
+        rescueSquadId: squadId,
+        type: 'ANNOUNCEMENT',
+      },
+      include: {
+        actor: {
+          select: { firstName: true, lastName: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    const announcements = announcementActivities.map(a => {
+      const details = JSON.parse(a.details || '{}');
+      return {
+        id: a.id,
+        authorId: a.actorId,
+        authorName: a.actor ? `${a.actor.firstName} ${a.actor.lastName?.[0] || ''}.` : 'Unknown',
+        title: details.title || 'Announcement',
+        content: a.message,
+        createdAt: a.createdAt.toISOString(),
+        isPinned: details.isPinned || false,
+        divisionId: details.divisionId || null,
+      };
+    });
 
     // Get help requests (SquadTask with type REQUEST)
     const tasks = await prisma.squadTask.findMany({
