@@ -16,8 +16,11 @@ export async function POST(request) {
       email, phone, firstName,
       petName, breed, color, size, distinctiveMarks,
       lastSeenAddress, center, radiusMiles, timeElapsed, petType,
-      photos
+      photos, locationType, cityName
     } = body;
+
+    // Default locationType to 'address' for backwards compatibility
+    locationType = locationType || 'address';
 
     // If user is logged in, use their session data
     if (session?.user) {
@@ -171,8 +174,13 @@ export async function POST(request) {
       });
     }
 
-    // Find and assign to nearest rescue squad
+    // Find and assign to rescue squads based on location type
+    // - Exact address/pin: Notify squads within 2 miles
+    // - Zip code: Notify squads in that town and neighboring towns within 2 miles of center
     let assignedSquad = null;
+    let assignedSquads = [];
+    const NOTIFICATION_RADIUS = 2; // 2 miles for all notification types
+
     try {
       const squads = await prisma.rescueSquad.findMany({
         where: { isActive: true },
@@ -186,8 +194,8 @@ export async function POST(request) {
         },
       });
 
-      // Find squads within range, sorted by distance
-      const nearbySquads = squads
+      // Calculate distance for all squads
+      const squadsWithDistance = squads
         .filter(squad => squad.centerLat && squad.centerLng)
         .map(squad => ({
           ...squad,
@@ -195,42 +203,70 @@ export async function POST(request) {
             center[0], center[1],
             squad.centerLat, squad.centerLng
           ),
-        }))
-        .filter(squad => squad.distance <= (squad.radiusMiles || 25))
-        .sort((a, b) => a.distance - b.distance);
+        }));
 
-      if (nearbySquads.length > 0) {
-        const closestSquad = nearbySquads[0];
+      // Determine which squads to notify based on location type
+      let squadsToNotify = [];
 
-        // Create case assignment
-        await prisma.caseAssignment.create({
-          data: {
-            caseId: report.id,
-            rescueSquadId: closestSquad.id,
-            status: 'ACCEPTED',
-            acceptedAt: new Date(),
-            priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'NORMAL',
-          },
+      if (locationType === 'zip') {
+        // For zip code: notify squads in same city OR within 2 miles of center
+        const normalizedCityName = (cityName || '').toLowerCase().trim();
+        squadsToNotify = squadsWithDistance.filter(squad => {
+          const squadCity = (squad.city || '').toLowerCase().trim();
+          // Match by city name OR within 2 miles
+          return squadCity === normalizedCityName || squad.distance <= NOTIFICATION_RADIUS;
         });
+      } else {
+        // For exact address or pin: notify squads within 2 miles
+        squadsToNotify = squadsWithDistance.filter(squad => squad.distance <= NOTIFICATION_RADIUS);
+      }
 
+      // Sort by distance
+      squadsToNotify.sort((a, b) => a.distance - b.distance);
+
+      // Create assignments for all qualifying squads
+      if (squadsToNotify.length > 0) {
+        for (const squad of squadsToNotify) {
+          await prisma.caseAssignment.create({
+            data: {
+              caseId: report.id,
+              rescueSquadId: squad.id,
+              status: 'PENDING',
+              priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'NORMAL',
+            },
+          });
+
+          assignedSquads.push({
+            id: squad.id,
+            name: squad.name,
+            city: squad.city,
+            distance: squad.distance,
+          });
+        }
+
+        // Set the closest squad as the primary assigned squad
+        const closestSquad = squadsToNotify[0];
         assignedSquad = {
           id: closestSquad.id,
           name: closestSquad.name,
           city: closestSquad.city,
         };
 
-        // Log squad assignment
+        // Log squad assignments
         await logEvent({
-          event_type: 'case.assigned_to_squad',
+          event_type: 'case.assigned_to_squads',
           correlation_id: correlationId,
           resource_type: 'case_assignment',
           resource_id: report.id,
           action: 'create',
           result: 'success',
           metadata: {
-            squadId: closestSquad.id,
-            squadName: closestSquad.name,
-            distance: closestSquad.distance.toFixed(2),
+            locationType,
+            cityName: cityName || '',
+            squadsNotified: squadsToNotify.length,
+            primarySquadId: closestSquad.id,
+            primarySquadName: closestSquad.name,
+            squads: assignedSquads.map(s => ({ id: s.id, name: s.name, distance: s.distance.toFixed(2) })),
           },
         });
       }
@@ -287,6 +323,8 @@ export async function POST(request) {
       accountCreated,
       patrolAlerted: nearbyPatrol.length,
       assignedSquad,
+      squadsNotified: assignedSquads.length,
+      allAssignedSquads: assignedSquads,
     });
 
   } catch (error) {

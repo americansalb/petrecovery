@@ -70,10 +70,19 @@ export default function ReportLostPet() {
   const [radiusMiles, setRadiusMiles] = useState(1);
   const [timeElapsed, setTimeElapsed] = useState('');
   const [locationConfirmed, setLocationConfirmed] = useState(false);
+  const [cityName, setCityName] = useState(''); // For zip code location type
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
   const circleRef = useRef(null);
+
+  // Address autocomplete
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+  const addressInputRef = useRef(null);
+  const suggestionsRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
 
   // Report submission data
   const [reportData, setReportData] = useState({
@@ -104,6 +113,95 @@ export default function ReportLostPet() {
       }));
     }
   }, [session]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target) &&
+          addressInputRef.current && !addressInputRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Cleanup search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Search for address suggestions (debounced)
+  const searchAddresses = useCallback(async (query) => {
+    if (!query || query.length < 3) {
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    setIsSearchingAddress(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=us&addressdetails=1`,
+        { headers: { 'User-Agent': 'PetRecovery.org' } }
+      );
+      const data = await response.json();
+
+      if (data && data.length > 0) {
+        setAddressSuggestions(data.map(item => ({
+          display_name: item.display_name,
+          lat: parseFloat(item.lat),
+          lon: parseFloat(item.lon),
+          address: item.address,
+          // Extract city/town name
+          city: item.address?.city || item.address?.town || item.address?.village || item.address?.county || '',
+          state: item.address?.state || '',
+        })));
+        setShowSuggestions(true);
+      } else {
+        setAddressSuggestions([]);
+        setShowSuggestions(false);
+      }
+    } catch (err) {
+      console.error('Address search error:', err);
+      setAddressSuggestions([]);
+    } finally {
+      setIsSearchingAddress(false);
+    }
+  }, []);
+
+  // Handle address input change with debounce
+  const handleAddressInputChange = (e) => {
+    const value = e.target.value;
+    setLastSeenAddress(value);
+    setLocationConfirmed(false);
+    setCenter(null);
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Debounce search
+    searchTimeoutRef.current = setTimeout(() => {
+      searchAddresses(value);
+    }, 300);
+  };
+
+  // Select an address suggestion
+  const selectAddressSuggestion = (suggestion) => {
+    setLastSeenAddress(suggestion.display_name);
+    setCenter([suggestion.lat, suggestion.lon]);
+    setCityName(suggestion.city);
+    setAddressSuggestions([]);
+    setShowSuggestions(false);
+    setLocationConfirmed(false);
+    setStep(3);
+  };
 
   // Pre-fill from existing pet profile if petId is provided
   useEffect(() => {
@@ -219,8 +317,9 @@ export default function ReportLostPet() {
         const pos = e.target.getLatLng();
         setCenter([pos.lat, pos.lng]);
         // Update address when marker is dragged
-        const address = await reverseGeocode(pos.lat, pos.lng);
-        setLastSeenAddress(address);
+        const result = await reverseGeocode(pos.lat, pos.lng);
+        setLastSeenAddress(result.address);
+        setCityName(result.city);
       });
 
       // Fit bounds to circle
@@ -281,7 +380,7 @@ export default function ReportLostPet() {
   };
 
   // Geocode an address or zip code
-  const geocodeLocation = async (query) => {
+  const geocodeLocation = async (query, isZipCode = false) => {
     if (!query || query.length < 3) {
       setError('Please enter a valid location');
       return false;
@@ -291,18 +390,36 @@ export default function ReportLostPet() {
     setIsGeocoding(true);
 
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=us`,
-        { headers: { 'User-Agent': 'PetRecovery.org' } }
-      );
+      // For zip codes, use postalcode parameter for better results
+      let url;
+      if (isZipCode) {
+        url = `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(query)}&country=us&format=json&limit=1&addressdetails=1`;
+      } else {
+        url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=us&addressdetails=1`;
+      }
+
+      const response = await fetch(url, { headers: { 'User-Agent': 'PetRecovery.org' } });
       const data = await response.json();
 
       if (data && data.length > 0) {
         const lat = parseFloat(data[0].lat);
         const lon = parseFloat(data[0].lon);
-        // Always set the display name from geocoding result for better accuracy
-        const displayAddress = data[0].display_name || query;
+
+        // Extract city name from address details
+        const addr = data[0].address || {};
+        const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
+        const state = addr.state || '';
+
+        // Build a proper display address
+        let displayAddress;
+        if (isZipCode && city && state) {
+          displayAddress = `${city}, ${state} ${query}`;
+        } else {
+          displayAddress = data[0].display_name || query;
+        }
+
         setLastSeenAddress(displayAddress);
+        setCityName(city);
         setCenter([lat, lon]);
         setLocationConfirmed(false);
         setStep(3);
@@ -320,21 +437,29 @@ export default function ReportLostPet() {
     }
   };
 
-  // Reverse geocode coordinates to get address
+  // Reverse geocode coordinates to get address and city
   const reverseGeocode = async (lat, lon) => {
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
         { headers: { 'User-Agent': 'PetRecovery.org' } }
       );
       const data = await response.json();
       if (data && data.display_name) {
-        return data.display_name;
+        const addr = data.address || {};
+        const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
+        return {
+          address: data.display_name,
+          city: city,
+        };
       }
     } catch (err) {
       console.error('Reverse geocoding error:', err);
     }
-    return `Location: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    return {
+      address: `Location: ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+      city: '',
+    };
   };
 
   // Handle "drop pin" - get user's current location or default
@@ -350,8 +475,9 @@ export default function ReportLostPet() {
             const { latitude, longitude } = position.coords;
             setCenter([latitude, longitude]);
             // Reverse geocode to get actual address
-            const address = await reverseGeocode(latitude, longitude);
-            setLastSeenAddress(address);
+            const result = await reverseGeocode(latitude, longitude);
+            setLastSeenAddress(result.address);
+            setCityName(result.city);
             setLocationConfirmed(false);
             setStep(3);
             setIsGeocoding(false);
@@ -363,6 +489,7 @@ export default function ReportLostPet() {
             const defaultLon = -87.6298;
             setCenter([defaultLat, defaultLon]);
             setLastSeenAddress('Chicago, IL (drag pin to your location)');
+            setCityName('Chicago');
             setLocationConfirmed(false);
             setStep(3);
             setIsGeocoding(false);
@@ -375,6 +502,7 @@ export default function ReportLostPet() {
         const defaultLon = -87.6298;
         setCenter([defaultLat, defaultLon]);
         setLastSeenAddress('Chicago, IL (drag pin to your location)');
+        setCityName('Chicago');
         setLocationConfirmed(false);
         setStep(3);
         setIsGeocoding(false);
@@ -431,6 +559,9 @@ export default function ReportLostPet() {
           timeElapsed,
           petType,
           photos,
+          // Location type info for squad notifications
+          locationType: locationMethod, // 'address', 'zip', or 'pin'
+          cityName, // City name for zip code notifications
         }),
       });
 
@@ -718,27 +849,76 @@ export default function ReportLostPet() {
                 </button>
               </div>
 
-              {/* Address input */}
+              {/* Address input with autocomplete */}
               {locationMethod === 'address' && (
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-medium mb-2 text-[var(--hub-text-secondary)]">
                     Street Address
                   </label>
-                  <input
-                    type="text"
-                    value={lastSeenAddress}
-                    onChange={(e) => setLastSeenAddress(e.target.value)}
-                    placeholder="123 Main St, City, State"
-                    className="w-full px-4 py-3 rounded-xl transition-all"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && lastSeenAddress && timeElapsed) {
-                        geocodeLocation(lastSeenAddress);
-                      }
-                    }}
-                  />
-                  {!lastSeenAddress && (
+                  <div className="relative">
+                    <input
+                      ref={addressInputRef}
+                      type="text"
+                      value={lastSeenAddress}
+                      onChange={handleAddressInputChange}
+                      onFocus={() => {
+                        if (addressSuggestions.length > 0) {
+                          setShowSuggestions(true);
+                        }
+                      }}
+                      placeholder="Start typing an address..."
+                      className="w-full px-4 py-3 rounded-xl transition-all"
+                      autoComplete="off"
+                    />
+                    {isSearchingAddress && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <Loader2 size={18} className="animate-spin text-[var(--hub-accent-primary)]" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Address suggestions dropdown */}
+                  {showSuggestions && addressSuggestions.length > 0 && (
+                    <div
+                      ref={suggestionsRef}
+                      className="absolute z-50 w-full mt-1 bg-[var(--hub-bg-panel)] border border-[var(--hub-border)] rounded-xl shadow-lg max-h-64 overflow-y-auto"
+                    >
+                      {addressSuggestions.map((suggestion, index) => (
+                        <button
+                          key={index}
+                          onClick={() => selectAddressSuggestion(suggestion)}
+                          className="w-full px-4 py-3 text-left hover:bg-[var(--hub-bg-card)] border-b border-[var(--hub-border)] last:border-b-0 transition-colors"
+                        >
+                          <div className="flex items-start gap-2">
+                            <MapPin size={16} className="text-[var(--hub-accent-primary)] flex-shrink-0 mt-1" />
+                            <div className="min-w-0">
+                              <p className="text-[var(--hub-text-primary)] text-sm truncate">
+                                {suggestion.display_name.split(',').slice(0, 3).join(', ')}
+                              </p>
+                              <p className="text-[var(--hub-text-muted)] text-xs truncate">
+                                {suggestion.display_name.split(',').slice(3).join(', ')}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Validation message */}
+                  {lastSeenAddress && !center && !isSearchingAddress && addressSuggestions.length === 0 && lastSeenAddress.length >= 3 && (
                     <p className="mt-2 text-sm text-[var(--hub-status-medium)]">
-                      Enter the address where your pet was last seen
+                      No addresses found. Please check your spelling or try a more specific address.
+                    </p>
+                  )}
+                  {!lastSeenAddress && (
+                    <p className="mt-2 text-sm text-[var(--hub-text-muted)]">
+                      Type to search for an address. Select from suggestions to validate.
+                    </p>
+                  )}
+                  {center && lastSeenAddress && (
+                    <p className="mt-2 text-sm text-[var(--hub-status-success)] flex items-center gap-1">
+                      <Check size={14} /> Address validated
                     </p>
                   )}
                 </div>
@@ -753,13 +933,17 @@ export default function ReportLostPet() {
                   <input
                     type="text"
                     value={zipCode}
-                    onChange={(e) => setZipCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                    onChange={(e) => {
+                      setZipCode(e.target.value.replace(/\D/g, '').slice(0, 5));
+                      setCenter(null);
+                      setLocationConfirmed(false);
+                    }}
                     placeholder="60601"
                     maxLength={5}
                     className="w-full px-4 py-3 rounded-xl transition-all"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && zipCode.length === 5 && timeElapsed) {
-                        geocodeLocation(zipCode);
+                        geocodeLocation(zipCode, true);
                       }
                     }}
                   />
@@ -768,6 +952,14 @@ export default function ReportLostPet() {
                       Enter a 5-digit zip code
                     </p>
                   )}
+                  {zipCode.length === 5 && !center && (
+                    <p className="mt-2 text-sm text-[var(--hub-text-muted)]">
+                      Click "Set Location" to find this zip code area
+                    </p>
+                  )}
+                  <p className="mt-2 text-xs text-[var(--hub-text-muted)]">
+                    Using a zip code will notify all rescue squads in that area and neighboring towns.
+                  </p>
                 </div>
               )}
 
@@ -800,10 +992,13 @@ export default function ReportLostPet() {
               </button>
               <button
                 onClick={() => {
-                  if (locationMethod === 'address' && lastSeenAddress) {
-                    geocodeLocation(lastSeenAddress);
+                  if (locationMethod === 'address' && center) {
+                    // Already validated via autocomplete, go to step 3
+                    setStep(3);
+                  } else if (locationMethod === 'address' && lastSeenAddress) {
+                    geocodeLocation(lastSeenAddress, false);
                   } else if (locationMethod === 'zip' && zipCode.length === 5) {
-                    geocodeLocation(zipCode);
+                    geocodeLocation(zipCode, true);
                   } else if (locationMethod === 'pin') {
                     handleDropPin();
                   }
@@ -811,7 +1006,7 @@ export default function ReportLostPet() {
                 disabled={
                   !timeElapsed ||
                   !locationMethod ||
-                  (locationMethod === 'address' && !lastSeenAddress) ||
+                  (locationMethod === 'address' && !lastSeenAddress && !center) ||
                   (locationMethod === 'zip' && zipCode.length !== 5) ||
                   isGeocoding
                 }

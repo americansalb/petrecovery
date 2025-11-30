@@ -104,11 +104,11 @@ export async function GET(request, { params }) {
       }
     }
 
-    // Get cases assigned to this squad
+    // Get cases assigned to this squad (including pending ones)
     const caseAssignments = await prisma.caseAssignment.findMany({
       where: {
         rescueSquadId: squadId,
-        status: { in: ['ACCEPTED', 'ACTIVE', 'STANDBY', 'COMPLETED'] },
+        status: { in: ['PENDING', 'ACCEPTED', 'ACTIVE', 'STANDBY', 'COMPLETED'] },
       },
       include: {
         case: true,
@@ -143,6 +143,7 @@ export async function GET(request, { params }) {
       let status = 'ACTIVE';
       if (c.status === 'RESOLVED' || c.resolution === 'REUNITED') status = 'REUNITED';
       else if (c.status === 'CLOSED' || c.resolution) status = 'CLOSED_OTHER';
+      else if (assignment.status === 'PENDING') status = 'PENDING';
       else if (assignment.status === 'ACTIVE') status = 'IN_PROGRESS';
 
       return {
