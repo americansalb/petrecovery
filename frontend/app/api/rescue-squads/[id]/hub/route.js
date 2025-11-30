@@ -1,7 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import prisma from '@/app/lib/prisma';
 
 /**
  * GET /api/rescue-squads/[id]/hub
@@ -11,6 +8,22 @@ import prisma from '@/app/lib/prisma';
  */
 export async function GET(request, { params }) {
   try {
+    // Dynamic imports to prevent module crash if Prisma not generated
+    let prisma, getServerSession, authOptions;
+    try {
+      prisma = (await import('@/app/lib/prisma')).default;
+      const nextAuth = await import('next-auth');
+      getServerSession = nextAuth.getServerSession;
+      const authModule = await import('@/app/api/auth/[...nextauth]/route');
+      authOptions = authModule.authOptions;
+    } catch (importError) {
+      console.error('Database not available:', importError.message);
+      return NextResponse.json(
+        { error: 'Database not available', fallbackToMock: true },
+        { status: 503 }
+      );
+    }
+
     const session = await getServerSession(authOptions);
     const squadIdOrSlug = params.id;
 
