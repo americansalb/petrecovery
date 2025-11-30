@@ -171,6 +171,82 @@ export async function POST(request) {
       });
     }
 
+    // Find and assign to nearest rescue squad
+    let assignedSquad = null;
+    try {
+      const squads = await prisma.rescueSquad.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          city: true,
+          centerLat: true,
+          centerLng: true,
+          radiusMiles: true,
+        },
+      });
+
+      // Find squads within range, sorted by distance
+      const nearbySquads = squads
+        .filter(squad => squad.centerLat && squad.centerLng)
+        .map(squad => ({
+          ...squad,
+          distance: calculateDistance(
+            center[0], center[1],
+            squad.centerLat, squad.centerLng
+          ),
+        }))
+        .filter(squad => squad.distance <= (squad.radiusMiles || 25))
+        .sort((a, b) => a.distance - b.distance);
+
+      if (nearbySquads.length > 0) {
+        const closestSquad = nearbySquads[0];
+
+        // Create case assignment
+        await prisma.caseAssignment.create({
+          data: {
+            caseId: report.id,
+            rescueSquadId: closestSquad.id,
+            status: 'ACCEPTED',
+            acceptedAt: new Date(),
+            priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'NORMAL',
+          },
+        });
+
+        assignedSquad = {
+          id: closestSquad.id,
+          name: closestSquad.name,
+          city: closestSquad.city,
+        };
+
+        // Log squad assignment
+        await logEvent({
+          event_type: 'case.assigned_to_squad',
+          correlation_id: correlationId,
+          resource_type: 'case_assignment',
+          resource_id: report.id,
+          action: 'create',
+          result: 'success',
+          metadata: {
+            squadId: closestSquad.id,
+            squadName: closestSquad.name,
+            distance: closestSquad.distance.toFixed(2),
+          },
+        });
+      }
+    } catch (squadError) {
+      // Non-fatal: log but continue - case still created successfully
+      console.error('Squad assignment error:', squadError);
+      await logEvent({
+        event_type: 'case.squad_assignment_failed',
+        correlation_id: correlationId,
+        resource_type: 'case_assignment',
+        action: 'create',
+        result: 'failure',
+        error_message: squadError.message,
+      });
+    }
+
     // Log success
     await logEvent({
       event_type: 'case.created',
@@ -210,6 +286,7 @@ export async function POST(request) {
       reportId: report.id,
       accountCreated,
       patrolAlerted: nearbyPatrol.length,
+      assignedSquad,
     });
 
   } catch (error) {
