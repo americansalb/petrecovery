@@ -202,34 +202,38 @@ export default function BreedSelector({ species, value, onChange }) {
         .breed-checkbox {
           width: 18px;
           height: 18px;
+          min-width: 18px;
+          min-height: 18px;
           cursor: pointer;
-          accent-color: var(--hub-accent-primary, #22d3ee);
+          accent-color: #6366f1;
+          border: 2px solid #6b7280;
+          border-radius: 4px;
         }
         .breed-checkbox-text {
           font-weight: 600;
-          color: var(--hub-text-secondary, #9ca3af);
+          color: #374151;
         }
         .breed-input {
           width: 100%;
           padding: 0.75rem;
-          border: 2px solid var(--hub-border, #374151);
+          border: 2px solid #d1d5db;
           border-radius: 0.5rem;
           font-size: 1rem;
-          background: var(--hub-bg-card, #1f2937);
-          color: var(--hub-text-primary, #f9fafb);
+          background: white;
+          color: #111827;
         }
         .breed-input:disabled {
-          background: var(--hub-bg-elevated, #374151);
+          background: #f3f4f6;
           cursor: not-allowed;
           opacity: 0.6;
         }
         .breed-input::placeholder {
-          color: var(--hub-text-muted, #6b7280);
+          color: #9ca3af;
         }
         .breed-input:focus {
           outline: none;
-          border-color: var(--hub-accent-primary, #22d3ee);
-          box-shadow: 0 0 0 1px var(--hub-accent-primary, #22d3ee);
+          border-color: #6366f1;
+          box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
         .breed-dropdown {
           position: absolute;
@@ -238,40 +242,40 @@ export default function BreedSelector({ species, value, onChange }) {
           right: 0;
           max-height: 300px;
           overflow-y: auto;
-          background: var(--hub-bg-panel, #111827);
-          border: 2px solid var(--hub-border, #374151);
+          background: white;
+          border: 2px solid #d1d5db;
           border-radius: 0.5rem;
-          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
           z-index: 1000;
         }
         .breed-dropdown-header {
           padding: 0.5rem 1rem;
-          background: var(--hub-bg-elevated, #374151);
-          border-bottom: 1px solid var(--hub-border, #374151);
+          background: #f9fafb;
+          border-bottom: 1px solid #e5e7eb;
           font-size: 0.85rem;
           font-weight: 600;
-          color: var(--hub-text-muted, #6b7280);
+          color: #6b7280;
           position: sticky;
           top: 0;
         }
         .breed-dropdown-item {
           padding: 0.75rem 1rem;
           cursor: pointer;
-          border-bottom: 1px solid var(--hub-border, #374151);
-          color: var(--hub-text-primary, #f9fafb);
+          border-bottom: 1px solid #e5e7eb;
+          color: #111827;
           transition: background 0.15s;
         }
         .breed-dropdown-item:hover {
-          background: var(--hub-bg-card, #1f2937);
+          background: #f3f4f6;
         }
         .breed-no-matches {
           padding: 1rem;
           text-align: center;
-          color: var(--hub-text-muted, #6b7280);
+          color: #6b7280;
         }
         .breed-help-text {
           font-size: 0.85rem;
-          color: var(--hub-text-muted, #6b7280);
+          color: #6b7280;
           margin-top: 0.5rem;
           margin-bottom: 0;
         }
