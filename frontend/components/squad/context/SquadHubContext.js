@@ -518,6 +518,61 @@ export function SquadHubProvider({ children, initialData, squadId }) {
     }
   }, [data.cases, squadId]);
 
+  // Action: Post Announcement (leads/admins only)
+  const postAnnouncement = useCallback(async (title, content, divisionId = null, isPinned = false) => {
+    const tempId = `ann_${Date.now()}`;
+    const newAnnouncement = {
+      id: tempId,
+      title,
+      content,
+      authorId: 'current_user',
+      authorName: 'You',
+      createdAt: new Date().toISOString(),
+      isPinned,
+      divisionId,
+    };
+
+    // Optimistic update
+    setData(prev => ({
+      ...prev,
+      announcements: [newAnnouncement, ...(prev.announcements || [])],
+    }));
+
+    // Call API
+    if (squadId) {
+      try {
+        const res = await fetch(`/api/rescue-squads/${squadId}/announcements`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, content, divisionId, isPinned }),
+        });
+        if (res.ok) {
+          const { announcement } = await res.json();
+          // Update with real data from server
+          setData(prev => ({
+            ...prev,
+            announcements: prev.announcements.map(a =>
+              a.id === tempId ? { ...a, ...announcement } : a
+            ),
+          }));
+        } else {
+          // Remove optimistic update on error
+          setData(prev => ({
+            ...prev,
+            announcements: prev.announcements.filter(a => a.id !== tempId),
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to post announcement:', err);
+        // Remove optimistic update on error
+        setData(prev => ({
+          ...prev,
+          announcements: prev.announcements.filter(a => a.id !== tempId),
+        }));
+      }
+    }
+  }, [squadId]);
+
   // Action: Select case (for map focus and detail panel)
   const selectCase = useCallback((caseId) => {
     setSelectedCaseId(caseId);
@@ -681,6 +736,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
     completeRequestForUser,
     leaveRequest,
     postRequest,
+    postAnnouncement,
     sendChatMessage,
   };
 
