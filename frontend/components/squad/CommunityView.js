@@ -49,6 +49,7 @@ export default function CommunityView() {
     chatCaseFilterId,
     setChatCaseFilterId,
     casesWithChat,
+    cases,
     sendChatMessage,
     membership,
     helpOnRequest,
@@ -104,6 +105,7 @@ export default function CommunityView() {
               chatCaseFilterId={chatCaseFilterId}
               setChatCaseFilterId={setChatCaseFilterId}
               casesWithChat={casesWithChat}
+              allCases={cases}
               sendChatMessage={sendChatMessage}
               membership={membership}
             />
@@ -154,6 +156,7 @@ function ChatSection({
   chatCaseFilterId,
   setChatCaseFilterId,
   casesWithChat,
+  allCases,
   sendChatMessage,
   membership,
 }) {
@@ -164,8 +167,9 @@ function ChatSection({
     ? 'Squad'
     : divisions.find(d => d.id === selectedDivisionId)?.name || 'Division';
 
+  // Look up selected case from all cases (not just those with chat messages)
   const selectedCase = chatCaseFilterId
-    ? casesWithChat.find(c => c.id === chatCaseFilterId)
+    ? (allCases || []).find(c => c.id === chatCaseFilterId)
     : null;
 
   const handleSend = async () => {
@@ -189,34 +193,32 @@ function ChatSection({
     <div className="h-full flex flex-col bg-[var(--hub-bg-panel)]">
       {/* Filter bar */}
       <div className="px-4 py-3 border-b border-[var(--hub-border)] space-y-2">
-        {/* Scope toggle */}
-        {selectedDivisionId !== 'ALL' && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setChatScope('DIVISION')}
-              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
-                chatScope === 'DIVISION'
-                  ? 'bg-[var(--hub-accent-primary)]/20 text-[var(--hub-accent-primary)]'
-                  : 'text-[var(--hub-text-muted)] hover:text-[var(--hub-text-secondary)] hover:bg-[var(--hub-bg-card)]/50'
-              }`}
-            >
-              {divisionName} Only
-            </button>
-            <button
-              onClick={() => setChatScope('SQUAD')}
-              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
-                chatScope === 'SQUAD'
-                  ? 'bg-[var(--hub-accent-primary)]/20 text-[var(--hub-accent-primary)]'
-                  : 'text-[var(--hub-text-muted)] hover:text-[var(--hub-text-secondary)] hover:bg-[var(--hub-bg-card)]/50'
-              }`}
-            >
-              Whole Squad
-            </button>
-          </div>
-        )}
+        {/* Scope toggle - always visible */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setChatScope('DIVISION')}
+            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
+              chatScope === 'DIVISION'
+                ? 'bg-[var(--hub-accent-primary)]/20 text-[var(--hub-accent-primary)]'
+                : 'text-[var(--hub-text-muted)] hover:text-[var(--hub-text-secondary)] hover:bg-[var(--hub-bg-card)]/50'
+            }`}
+          >
+            {selectedDivisionId === 'ALL' ? 'My Division' : `${divisionName} Only`}
+          </button>
+          <button
+            onClick={() => setChatScope('SQUAD')}
+            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
+              chatScope === 'SQUAD'
+                ? 'bg-[var(--hub-accent-primary)]/20 text-[var(--hub-accent-primary)]'
+                : 'text-[var(--hub-text-muted)] hover:text-[var(--hub-text-secondary)] hover:bg-[var(--hub-bg-card)]/50'
+            }`}
+          >
+            Whole Squad
+          </button>
+        </div>
 
-        {/* Case filter */}
-        {casesWithChat.length > 0 && (
+        {/* Case filter - show if there are any active cases */}
+        {(casesWithChat.length > 0 || chatCaseFilterId) && (
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-[var(--hub-text-muted)] uppercase tracking-wider">Filter by case:</span>
             <div className="relative">
@@ -233,7 +235,7 @@ function ChatSection({
                 <ChevronDown size={12} />
               </button>
               {showCaseDropdown && (
-                <div className="absolute top-full left-0 mt-1 w-48 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-lg shadow-lg z-10 py-1">
+                <div className="absolute top-full left-0 mt-1 w-48 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-lg shadow-lg z-10 py-1 max-h-60 overflow-y-auto">
                   <button
                     onClick={() => {
                       setChatCaseFilterId(null);

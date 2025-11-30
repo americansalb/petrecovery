@@ -282,6 +282,8 @@ export function SquadHubProvider({ children, initialData }) {
   }, []);
 
   // Action: Help on Case
+  // Updates local state to mark user as helper, then navigates to Operations tab
+  // with the case selected so user can see case details
   const helpOnCase = useCallback(async (caseId) => {
     const targetCase = data.cases?.find(c => c.id === caseId);
     if (!targetCase) return;
@@ -295,8 +297,13 @@ export function SquadHubProvider({ children, initialData }) {
       ),
     }));
 
-    router.push(`/cases/${targetCase.caseNumber}`);
-  }, [data.cases, router]);
+    // Navigate to Operations tab with this case selected (stay in Squad Hub)
+    // TODO: When connected to real API, this will also call the help API
+    setMainTab('OPERATIONS');
+    setCaseTab('ACTIVE');
+    setSelectedCaseId(caseId);
+    setMobileTab('CASES');
+  }, [data.cases]);
 
   // Action: Help on Request
   const helpOnRequest = useCallback(async (requestId) => {
