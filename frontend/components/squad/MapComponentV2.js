@@ -3,7 +3,7 @@
 /**
  * MapComponentV2 - Leaflet map implementation
  *
- * Renders the interactive map with case pins and division boundaries
+ * Renders the interactive map with case pins, division boundaries, and city boundary
  */
 
 import { useEffect, useRef } from 'react';
@@ -21,22 +21,22 @@ L.Icon.Default.mergeOptions({
 export default function MapComponentV2({
   cases,
   divisions,
-  selectedDivisionId,
   squad,
   onCaseClick,
 }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
+  const cityBoundaryRef = useRef(null);
 
+  // Initialize map
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
-    // Initialize map
     const map = L.map(mapRef.current, {
       zoomControl: true,
       scrollWheelZoom: true,
-    }).setView([squad.centerLat || 41.8781, squad.centerLng || -87.6298], 11);
+    }).setView([squad.centerLat || 41.8781, squad.centerLng || -87.6298], 13);
 
     // Add tile layer
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -55,6 +55,106 @@ export default function MapComponentV2({
     };
   }, []);
 
+  // Draw city boundary (main coverage area)
+  useEffect(() => {
+    if (!mapInstanceRef.current || !squad.cityName) return;
+
+    const fetchCityBoundary = async () => {
+      try {
+        // Clear old boundary
+        if (cityBoundaryRef.current) {
+          cityBoundaryRef.current.remove();
+          cityBoundaryRef.current = null;
+        }
+
+        const cityName = squad.cityName;
+        const state = squad.state || '';
+        const searchQuery = state ? `${cityName}, ${state}, USA` : `${cityName}, USA`;
+
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=geojson&polygon_geojson=1&limit=1`,
+          {
+            headers: {
+              'User-Agent': 'PetRecovery.org (contact@petrecovery.org)'
+            }
+          }
+        );
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (!data.features || data.features.length === 0) return;
+
+        const feature = data.features[0];
+        if (!feature.geometry) return;
+
+        // Create GeoJSON layer with city boundary
+        cityBoundaryRef.current = L.geoJSON(feature.geometry, {
+          style: {
+            color: '#3b82f6', // blue-500
+            weight: 3,
+            opacity: 0.8,
+            fillColor: '#3b82f6',
+            fillOpacity: 0.05,
+          }
+        }).addTo(mapInstanceRef.current);
+
+        // Bring to back so it doesn't cover markers
+        cityBoundaryRef.current.bringToBack();
+
+      } catch (error) {
+        console.error('Failed to fetch city boundary:', error);
+      }
+    };
+
+    fetchCityBoundary();
+
+    return () => {
+      if (cityBoundaryRef.current) {
+        cityBoundaryRef.current.remove();
+        cityBoundaryRef.current = null;
+      }
+    };
+  }, [squad.cityName, squad.state]);
+
+  // Draw division boundaries (subtle dotted lines)
+  useEffect(() => {
+    if (!mapInstanceRef.current || !divisions || divisions.length === 0) return;
+
+    const rectangles = [];
+
+    divisions.forEach(division => {
+      if (!division.bounds) return;
+
+      const bounds = division.bounds;
+      const rectangle = L.rectangle(
+        [
+          [bounds.south, bounds.west],
+          [bounds.north, bounds.east],
+        ],
+        {
+          color: 'rgba(255, 255, 255, 0.3)',
+          weight: 1,
+          fillOpacity: 0,
+          dashArray: '4, 4',
+        }
+      ).addTo(mapInstanceRef.current);
+
+      // Add division label tooltip
+      rectangle.bindTooltip(division.name, {
+        permanent: false,
+        direction: 'center',
+        className: 'division-tooltip',
+      });
+
+      rectangles.push(rectangle);
+    });
+
+    return () => {
+      rectangles.forEach(rect => rect.remove());
+    };
+  }, [divisions]);
+
   // Update markers when cases change
   useEffect(() => {
     if (!mapInstanceRef.current) return;
@@ -69,7 +169,7 @@ export default function MapComponentV2({
 
       // Determine marker color based on status
       let markerColor = '#ef4444'; // red for active
-      if (caseData.status === 'PENDING') markerColor = '#f59e0b'; // amber for incoming
+      if (caseData.status === 'PENDING') markerColor = '#f59e0b'; // amber for pending
       if (caseData.status === 'REUNITED') markerColor = '#10b981'; // green for reunited
 
       // Create custom icon
@@ -105,78 +205,7 @@ export default function MapComponentV2({
 
       markersRef.current.push(marker);
     });
-
-    // Fit bounds to show all markers if we have cases
-    if (cases.length > 0) {
-      const bounds = L.latLngBounds(
-        cases
-          .filter(c => c.lastSeenLat && c.lastSeenLng)
-          .map(c => [c.lastSeenLat, c.lastSeenLng])
-      );
-      if (bounds.isValid()) {
-        mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50] });
-      }
-    }
   }, [cases, onCaseClick]);
-
-  // Draw division boundaries
-  useEffect(() => {
-    if (!mapInstanceRef.current || !divisions || divisions.length === 0) return;
-
-    const rectangles = [];
-
-    // Draw all division boundaries
-    divisions.forEach(division => {
-      if (!division.bounds) return;
-
-      const bounds = division.bounds;
-      const rectangle = L.rectangle(
-        [
-          [bounds.south, bounds.west],
-          [bounds.north, bounds.east],
-        ],
-        {
-          color: '#ca8a04', // yellow-600
-          weight: 3,
-          fillColor: '#ca8a04',
-          fillOpacity: 0.05,
-          dashArray: '5, 10',
-        }
-      ).addTo(mapInstanceRef.current);
-
-      // Add division label
-      const center = rectangle.getBounds().getCenter();
-      const divisionLabel = L.marker(center, {
-        icon: L.divIcon({
-          className: 'division-label',
-          html: `
-            <div style="
-              background: rgba(15, 23, 42, 0.9);
-              border: 2px solid #ca8a04;
-              color: #facc15;
-              padding: 6px 12px;
-              border-radius: 8px;
-              font-weight: bold;
-              font-size: 12px;
-              white-space: nowrap;
-              backdrop-filter: blur(8px);
-              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-            ">
-              ${division.name}
-            </div>
-          `,
-          iconSize: [0, 0],
-        }),
-      }).addTo(mapInstanceRef.current);
-
-      rectangles.push(rectangle);
-      rectangles.push(divisionLabel);
-    });
-
-    return () => {
-      rectangles.forEach(rect => rect.remove());
-    };
-  }, [divisions]);
 
   return (
     <div>
@@ -199,6 +228,18 @@ export default function MapComponentV2({
         /* Custom marker styles */
         .custom-case-marker {
           filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+        }
+
+        /* Division tooltip styles */
+        .division-tooltip {
+          background: rgba(15, 23, 42, 0.95);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 6px;
+          padding: 4px 8px;
+          color: white;
+          font-size: 12px;
+          font-weight: 600;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         }
       `}</style>
     </div>
