@@ -102,9 +102,9 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
       />
 
       {/* Mode Tabs */}
-      <div className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-xl border-b border-orange-500/20">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex gap-1 py-3">
+      <div className="sticky top-0 z-30 bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 backdrop-blur-xl border-b-2 border-orange-500/30 shadow-lg shadow-slate-900/50">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex gap-2 py-4">
             <ModeTab
               active={activeMode === 'cases'}
               onClick={() => setActiveMode('cases')}
@@ -130,7 +130,7 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
       </div>
 
       {/* Mode Content Area - Only one visible at a time */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-6 py-8">
         {activeMode === 'cases' && (
           <CasesModeV2
             cases={filteredCases}
@@ -180,29 +180,29 @@ function ModeTab({ active, onClick, icon: Icon, label, count }) {
     <button
       onClick={onClick}
       className={`
-        flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold
-        transition-all duration-200 relative
+        flex items-center gap-3 px-8 py-4 rounded-xl text-base font-bold
+        backdrop-blur-sm transition-all duration-300 relative
         ${active
-          ? 'bg-orange-500/20 text-orange-400 shadow-[0_0_20px_rgba(249,115,22,0.3)]'
-          : 'text-slate-400 hover:text-slate-300 hover:bg-slate-800/50'
+          ? 'bg-gradient-to-r from-orange-500/30 to-amber-500/30 text-orange-300 border-2 border-orange-500/60 shadow-lg shadow-orange-500/30 scale-105'
+          : 'text-slate-400 border-2 border-slate-700/40 bg-slate-800/30 hover:text-slate-200 hover:bg-slate-800/50 hover:border-slate-600/50 hover:scale-102'
         }
       `}
     >
-      <Icon size={18} strokeWidth={2.5} />
+      <Icon size={20} strokeWidth={2.5} />
       <span>{label}</span>
       {count !== undefined && count > 0 && (
         <span className={`
-          ml-1 px-2 py-0.5 rounded-full text-xs font-bold
+          px-2.5 py-1 rounded-full text-xs font-bold
           ${active
-            ? 'bg-orange-400 text-slate-900'
-            : 'bg-slate-700 text-slate-300'
+            ? 'bg-gradient-to-r from-orange-400 to-amber-400 text-slate-900 shadow-sm'
+            : 'bg-slate-700/70 text-slate-300'
           }
         `}>
           {count}
         </span>
       )}
       {active && (
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-orange-400 to-transparent" />
+        <div className="absolute -bottom-0.5 left-4 right-4 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent rounded-full" />
       )}
     </button>
   );

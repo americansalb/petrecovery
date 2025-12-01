@@ -99,7 +99,7 @@ export default function CommunityModeV2({
     <div className="flex flex-col h-[calc(100vh-300px)] min-h-[500px]">
       {/* Pinned Announcements */}
       {announcements.length > 0 && (
-        <div className="mb-4 space-y-2">
+        <div className="mb-6 space-y-3">
           {announcements
             .filter(a => a.isPinned)
             .filter(a => !isDivisionPage || a.divisionId === divisionId)
@@ -107,16 +107,19 @@ export default function CommunityModeV2({
             .map(announcement => (
               <div
                 key={announcement.id}
-                className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4"
+                className="relative overflow-hidden bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent backdrop-blur-sm border border-amber-500/40 rounded-2xl p-6 shadow-lg shadow-amber-500/10"
               >
-                <div className="flex items-start gap-3">
-                  <Pin className="text-amber-400 flex-shrink-0 mt-1" size={18} />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl" />
+                <div className="relative flex items-start gap-4">
+                  <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/30">
+                    <Pin className="text-amber-300 flex-shrink-0" size={20} />
+                  </div>
                   <div className="flex-1">
-                    <h4 className="font-semibold text-amber-300 mb-1">
+                    <h4 className="font-bold text-lg text-amber-200 mb-2">
                       {announcement.title || 'Announcement'}
                     </h4>
-                    <p className="text-slate-200 text-sm">{announcement.content}</p>
-                    <p className="text-xs text-slate-400 mt-2">
+                    <p className="text-slate-200 text-base leading-relaxed mb-3">{announcement.content}</p>
+                    <p className="text-xs text-slate-500 font-medium">
                       {announcement.authorName} · {formatDistanceToNow(new Date(announcement.createdAt), { addSuffix: true })}
                     </p>
                   </div>
@@ -128,27 +131,27 @@ export default function CommunityModeV2({
 
       {/* Filter Controls (Squad Page Only) */}
       {!isDivisionPage && divisions.length > 0 && (
-        <div className="mb-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
-          <div className="flex items-center justify-between mb-2">
-            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+        <div className="mb-6 p-5 bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg">
+          <div className="flex items-center justify-between mb-3">
+            <label className="flex items-center gap-3 text-sm text-slate-200 font-medium cursor-pointer group">
               <input
                 type="checkbox"
                 checked={showDivisionMessages}
                 onChange={(e) => setShowDivisionMessages(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-orange-500 focus:ring-orange-500/50"
+                className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-orange-500 focus:ring-2 focus:ring-orange-500/50 cursor-pointer"
               />
-              Include division messages
+              <span className="group-hover:text-white transition-colors">Include division messages</span>
             </label>
             {showDivisionMessages && (
               <button
                 onClick={() => setShowDivisionFilter(!showDivisionFilter)}
-                className="flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300 transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/30 hover:bg-orange-500/20 hover:text-orange-300 transition-all"
               >
                 <Filter size={14} />
                 Filter divisions
                 <ChevronDown
                   size={14}
-                  className={`transition-transform ${showDivisionFilter ? 'rotate-180' : ''}`}
+                  className={`transition-transform duration-200 ${showDivisionFilter ? 'rotate-180' : ''}`}
                 />
               </button>
             )}
@@ -156,19 +159,19 @@ export default function CommunityModeV2({
 
           {/* Division Filter Checkboxes */}
           {showDivisionFilter && showDivisionMessages && (
-            <div className="mt-3 pt-3 border-t border-slate-700/50 grid grid-cols-2 gap-2">
+            <div className="mt-4 pt-4 border-t border-slate-700/50 grid grid-cols-2 gap-3">
               {divisions.map(div => (
                 <label
                   key={div.id}
-                  className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer"
+                  className="flex items-center gap-3 text-sm text-slate-200 font-medium cursor-pointer p-2 rounded-lg hover:bg-slate-700/30 transition-colors group"
                 >
                   <input
                     type="checkbox"
                     checked={selectedDivisions.has(div.id)}
                     onChange={() => toggleDivisionFilter(div.id)}
-                    className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-orange-500 focus:ring-orange-500/50"
+                    className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-orange-500 focus:ring-2 focus:ring-orange-500/50 cursor-pointer"
                   />
-                  {div.name}
+                  <span className="group-hover:text-white transition-colors">{div.name}</span>
                 </label>
               ))}
             </div>
@@ -177,16 +180,19 @@ export default function CommunityModeV2({
       )}
 
       {/* Messages Feed */}
-      <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-2">
+      <div className="flex-1 overflow-y-auto space-y-4 mb-6 pr-2">
         {filteredMessages.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="text-6xl mb-4">💬</div>
-            <h3 className="text-xl font-semibold text-slate-300 mb-2">
-              {isDivisionPage ? 'No division messages yet' : 'No messages yet'}
-            </h3>
-            <p className="text-slate-400">
-              Be the first to start the conversation!
-            </p>
+          <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/30 to-slate-900/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-20 text-center">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-orange-500/5 rounded-full blur-3xl" />
+            <div className="relative">
+              <div className="text-7xl mb-6">💬</div>
+              <h3 className="text-2xl font-bold text-white mb-3">
+                {isDivisionPage ? 'No division messages yet' : 'No messages yet'}
+              </h3>
+              <p className="text-slate-400 text-lg">
+                Be the first to start the conversation!
+              </p>
+            </div>
           </div>
         ) : (
           <>
@@ -203,25 +209,25 @@ export default function CommunityModeV2({
               return (
                 <div
                   key={msg.id}
-                  className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-4 hover:border-slate-600/50 transition-colors"
+                  className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 hover:border-slate-600/70 hover:shadow-lg hover:shadow-slate-900/50 transition-all duration-200"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-white">{msg.authorName}</span>
-                      <span className={`text-xs ${roleColor}`}>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <span className="font-bold text-white">{msg.authorName}</span>
+                      <span className={`text-xs font-semibold uppercase tracking-wide ${roleColor}`}>
                         {msg.authorRole.toLowerCase()}
                       </span>
                       {division && !isDivisionPage && (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-orange-500/20 text-orange-400 border border-orange-500/30">
-                          {division.name}
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/20 text-orange-300 border border-orange-500/40 backdrop-blur-sm">
+                          📍 {division.name}
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-slate-500 font-medium whitespace-nowrap ml-2">
                       {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
                     </span>
                   </div>
-                  <p className="text-slate-200">{msg.content}</p>
+                  <p className="text-slate-200 leading-relaxed">{msg.content}</p>
                 </div>
               );
             })}
@@ -232,8 +238,8 @@ export default function CommunityModeV2({
 
       {/* Message Input */}
       {membership.isMember && (
-        <div className="sticky bottom-0 bg-gradient-to-br from-slate-900 to-slate-800 border-t border-slate-700/50 p-4 rounded-t-lg">
-          <div className="flex gap-3">
+        <div className="sticky bottom-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-t-2 border-slate-700/60 p-6 rounded-t-2xl shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+          <div className="flex gap-4">
             <input
               type="text"
               value={messageText}
@@ -245,32 +251,34 @@ export default function CommunityModeV2({
                   : 'Share an update with your city...'
               }
               className="
-                flex-1 px-4 py-3 rounded-lg
-                bg-slate-800 border border-slate-600
-                text-white placeholder-slate-400
-                focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50
-                transition-all
+                flex-1 px-5 py-4 rounded-xl
+                bg-slate-800/50 backdrop-blur-sm border-2 border-slate-600/50
+                text-white placeholder-slate-500 font-medium
+                focus:outline-none focus:border-orange-500/70 focus:ring-2 focus:ring-orange-500/30
+                hover:border-slate-500/50
+                transition-all duration-200
               "
             />
             <button
               onClick={handleSend}
               disabled={!messageText.trim() || sending}
               className="
-                px-6 py-3 rounded-lg
-                bg-gradient-to-r from-orange-500 to-blue-500
-                text-white font-semibold
+                px-8 py-4 rounded-xl
+                bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500
+                text-white font-bold text-base
                 disabled:opacity-50 disabled:cursor-not-allowed
-                hover:shadow-[0_0_20px_rgba(249,115,22,0.4)]
-                transition-all duration-200
-                flex items-center gap-2
+                enabled:hover:shadow-[0_0_25px_rgba(249,115,22,0.5)]
+                enabled:hover:scale-105
+                transition-all duration-300
+                flex items-center gap-2.5
               "
             >
               {sending ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  <Send size={18} />
-                  Send
+                  <Send size={20} strokeWidth={2.5} />
+                  <span>Send</span>
                 </>
               )}
             </button>
@@ -279,8 +287,8 @@ export default function CommunityModeV2({
       )}
 
       {!membership.isMember && (
-        <div className="sticky bottom-0 bg-slate-800/50 border-t border-slate-700/50 p-4 text-center">
-          <p className="text-slate-400 text-sm">
+        <div className="sticky bottom-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-t-2 border-slate-700/60 p-6 rounded-t-2xl text-center shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+          <p className="text-slate-400 text-base font-medium">
             Join this squad to participate in community chat
           </p>
         </div>

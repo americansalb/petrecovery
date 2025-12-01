@@ -79,28 +79,29 @@ export default function DivisionPreviewCard({
           <button
             onClick={onClose}
             className="
-              absolute top-4 right-4 z-10
-              p-2 rounded-lg
-              bg-slate-800/50 hover:bg-slate-700
+              absolute top-6 right-6 z-10
+              p-3 rounded-xl
+              bg-slate-800/50 backdrop-blur-sm border border-slate-700/50
               text-slate-400 hover:text-white
+              hover:bg-slate-700 hover:border-orange-500/50
               transition-all duration-200
               hover:scale-110
             "
           >
-            <X size={20} />
+            <X size={22} />
           </button>
 
           {/* Header */}
-          <div className="p-6 border-b border-slate-700/50">
-            <div className="flex items-start gap-3">
-              <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/30">
-                <Users className="text-orange-400" size={24} />
+          <div className="p-8 border-b border-slate-700/50">
+            <div className="flex items-start gap-4">
+              <div className="p-4 rounded-xl bg-gradient-to-br from-orange-500/20 to-amber-500/20 border-2 border-orange-500/40 shadow-lg shadow-orange-500/20">
+                <Users className="text-orange-300" size={28} />
               </div>
               <div>
-                <h3 className="text-2xl font-bold text-white mb-1">
+                <h3 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-200 mb-2">
                   {division.name}
                 </h3>
-                <p className="text-slate-400 text-sm">
+                <p className="text-slate-400 text-base font-medium">
                   Division · Part of squad coverage area
                 </p>
               </div>
@@ -108,7 +109,7 @@ export default function DivisionPreviewCard({
           </div>
 
           {/* Stats Grid */}
-          <div className="p-6 grid grid-cols-3 gap-4">
+          <div className="p-8 grid grid-cols-3 gap-5">
             <StatBox
               icon={AlertCircle}
               value={activeCases}
@@ -130,17 +131,20 @@ export default function DivisionPreviewCard({
           </div>
 
           {/* Recent Activity */}
-          <div className="px-6 pb-6">
-            <h4 className="text-sm font-semibold text-slate-300 mb-3">
+          <div className="px-8 pb-8">
+            <h4 className="text-sm font-bold text-white mb-4 tracking-wide uppercase">
               Recent Cases
             </h4>
             {recentCases.length === 0 ? (
-              <div className="text-center py-8 text-slate-400 text-sm">
-                <div className="text-4xl mb-2">🎉</div>
-                No active cases right now
+              <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/30 to-slate-900/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-10 text-center">
+                <div className="absolute inset-0 bg-orange-500/5 rounded-full blur-2xl" />
+                <div className="relative">
+                  <div className="text-5xl mb-3">🎉</div>
+                  <p className="text-slate-400 text-base font-medium">No active cases right now</p>
+                </div>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {recentCases.map(c => {
                   const speciesEmoji = {
                     DOG: '🐕',
@@ -153,14 +157,14 @@ export default function DivisionPreviewCard({
                   return (
                     <div
                       key={c.id}
-                      className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50 hover:border-slate-600 transition-colors"
+                      className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 hover:border-orange-500/40 hover:shadow-lg hover:shadow-orange-500/10 transition-all duration-200"
                     >
-                      <span className="text-2xl">{speciesEmoji}</span>
+                      <div className="text-3xl">{speciesEmoji}</div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-white truncate">
+                        <p className="font-bold text-white truncate text-base mb-1">
                           {c.petName} · {c.species?.toLowerCase()}
                         </p>
-                        <p className="text-xs text-slate-400">
+                        <p className="text-xs text-slate-500 font-medium">
                           {c.lastSeenAt ? formatDistanceToNow(new Date(c.lastSeenAt), { addSuffix: true }) : 'Unknown'}
                         </p>
                       </div>
@@ -172,22 +176,22 @@ export default function DivisionPreviewCard({
           </div>
 
           {/* View Full Page Button */}
-          <div className="p-6 pt-0">
+          <div className="p-8 pt-0">
             <button
               onClick={handleViewFullPage}
               className="
-                w-full flex items-center justify-center gap-2
-                px-6 py-4 rounded-xl
-                bg-gradient-to-r from-orange-500 to-blue-500
+                w-full flex items-center justify-center gap-3
+                px-8 py-5 rounded-xl
+                bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500
                 text-white font-bold text-lg
-                shadow-[0_0_30px_rgba(249,115,22,0.4)]
-                hover:shadow-[0_0_40px_rgba(249,115,22,0.6)]
-                hover:scale-[1.02]
-                transition-all duration-200
+                shadow-[0_0_40px_rgba(249,115,22,0.6)]
+                hover:shadow-[0_0_50px_rgba(249,115,22,0.8)]
+                hover:scale-105
+                transition-all duration-300
               "
             >
               View Full {division.name} Page
-              <ArrowRight size={20} />
+              <ArrowRight size={22} strokeWidth={2.5} />
             </button>
           </div>
         </div>
@@ -221,16 +225,16 @@ export default function DivisionPreviewCard({
 
 function StatBox({ icon: Icon, value, label, color }) {
   const colorClasses = {
-    red: 'text-red-400 bg-red-500/10 border-red-500/30',
-    cyan: 'text-orange-400 bg-orange-500/10 border-orange-500/30',
-    green: 'text-green-400 bg-green-500/10 border-green-500/30',
+    red: 'text-red-300 bg-gradient-to-br from-red-500/15 to-red-500/5 border-red-500/40 shadow-red-500/10',
+    cyan: 'text-orange-300 bg-gradient-to-br from-orange-500/15 to-amber-500/5 border-orange-500/40 shadow-orange-500/10',
+    green: 'text-green-300 bg-gradient-to-br from-green-500/15 to-green-500/5 border-green-500/40 shadow-green-500/10',
   };
 
   return (
-    <div className={`p-4 rounded-lg border ${colorClasses[color]}`}>
-      <Icon size={20} className="mb-2" />
-      <div className="text-2xl font-bold text-white mb-1">{value}</div>
-      <div className="text-xs text-slate-400">{label}</div>
+    <div className={`p-5 rounded-xl border backdrop-blur-sm shadow-lg ${colorClasses[color]} hover:scale-105 transition-transform duration-200`}>
+      <Icon size={22} className="mb-3" />
+      <div className="text-3xl font-bold text-white mb-2">{value}</div>
+      <div className="text-xs text-slate-400 font-semibold uppercase tracking-wide">{label}</div>
     </div>
   );
 }

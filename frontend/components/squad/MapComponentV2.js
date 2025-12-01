@@ -149,7 +149,7 @@ export default function MapComponentV2({
     <div>
       <div
         ref={mapRef}
-        className="w-full h-[600px] rounded-xl overflow-hidden border border-slate-700/50 shadow-[0_0_30px_rgba(0,0,0,0.5)]"
+        className="w-full h-[600px] rounded-2xl overflow-hidden border-2 border-slate-700/60 shadow-[0_0_40px_rgba(0,0,0,0.6)]"
       />
       <style jsx global>{`
         @keyframes pulse {
@@ -161,6 +161,11 @@ export default function MapComponentV2({
             transform: scale(1.1);
             opacity: 0.8;
           }
+        }
+
+        /* Custom marker styles */
+        .custom-case-marker {
+          filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
         }
       `}</style>
     </div>
