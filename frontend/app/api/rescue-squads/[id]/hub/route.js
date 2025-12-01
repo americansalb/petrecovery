@@ -414,6 +414,7 @@ export async function GET(request, { params }) {
         id: squad.id,
         citySlug: squad.city?.toLowerCase().replace(/\s+/g, '-') || squad.id,
         cityName: squad.city || 'Unknown City',
+        state: squad.state || '',
         displayName: squad.name,
         memberCount: squad._count.members,
         onDutyCount,

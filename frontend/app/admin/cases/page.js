@@ -4,7 +4,7 @@
  * Admin Cases List Page
  * Phase 13-14: Lost Pet Cases MVP (TASK-C03)
  *
- * List of all lost pet cases with filters
+ * List of all lost pet cases with filters and bulk actions
  */
 
 import { useState, useEffect } from 'react';
@@ -22,6 +22,12 @@ export default function AdminCasesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [legalError, setLegalError] = useState(null);
+
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [bulkStatusChange, setBulkStatusChange] = useState('');
 
   // Filters
   const [statusFilter, setStatusFilter] = useState('');
@@ -49,6 +55,7 @@ export default function AdminCasesPage() {
     setLoading(true);
     setError(null);
     setLegalError(null);
+    setSelectedIds(new Set()); // Clear selection on refetch
 
     try {
       const params = new URLSearchParams();
@@ -81,6 +88,86 @@ export default function AdminCasesPage() {
     }
   };
 
+  // Selection handlers
+  const toggleSelect = (id, e) => {
+    e.stopPropagation();
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === cases.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(cases.map(c => c.id)));
+    }
+  };
+
+  // Bulk actions
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkActionLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/cases/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete',
+          ids: Array.from(selectedIds)
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete cases');
+      }
+
+      setShowDeleteConfirm(false);
+      fetchCases(); // Refresh list
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkStatusChange = async () => {
+    if (selectedIds.size === 0 || !bulkStatusChange) return;
+    setBulkActionLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/cases/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'updateStatus',
+          ids: Array.from(selectedIds),
+          status: bulkStatusChange
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update cases');
+      }
+
+      setBulkStatusChange('');
+      fetchCases(); // Refresh list
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
   if (status === 'loading' || loading) {
     return (
       <div style={{
@@ -104,6 +191,73 @@ export default function AdminCasesPage() {
       background: '#f9fafb',
       padding: '2rem'
     }}>
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '1rem',
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '2rem',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+          }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#0f172a' }}>
+              Delete {selectedIds.size} Case{selectedIds.size !== 1 ? 's' : ''}?
+            </h3>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+              This action cannot be undone. All case data, updates, and sightings will be permanently deleted.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={bulkActionLoading}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#e5e7eb',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: bulkActionLoading ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkActionLoading}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: bulkActionLoading ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {bulkActionLoading ? 'Deleting...' : 'Yes, Delete All'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{
         maxWidth: '1400px',
@@ -133,7 +287,7 @@ export default function AdminCasesPage() {
                 fontWeight: '600',
                 marginLeft: '0.5rem'
               }}>
-                🔒 ADMIN ONLY
+                ADMIN ONLY
               </span>
             </h1>
             <p style={{ color: '#64748b' }}>
@@ -167,7 +321,7 @@ export default function AdminCasesPage() {
             marginBottom: '2rem'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-              <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+              <span style={{ fontSize: '1.5rem' }}>Warning</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: '700', color: '#92400e', marginBottom: '0.25rem' }}>
                   Legal Agreement Required
@@ -189,7 +343,7 @@ export default function AdminCasesPage() {
                 cursor: 'pointer'
               }}
             >
-              Review & Accept Now →
+              Review & Accept Now
             </button>
           </div>
         )}
@@ -353,6 +507,100 @@ export default function AdminCasesPage() {
         </div>
       </div>
 
+      {/* Bulk Actions Bar */}
+      {selectedIds.size > 0 && (
+        <div style={{
+          maxWidth: '1400px',
+          margin: '0 auto',
+          marginBottom: '1rem'
+        }}>
+          <div style={{
+            background: '#eef2ff',
+            border: '2px solid #6366f1',
+            padding: '1rem 1.5rem',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1.5rem',
+            flexWrap: 'wrap'
+          }}>
+            <div style={{ fontWeight: '600', color: '#4338ca' }}>
+              {selectedIds.size} case{selectedIds.size !== 1 ? 's' : ''} selected
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <select
+                value={bulkStatusChange}
+                onChange={(e) => setBulkStatusChange(e.target.value)}
+                style={{
+                  padding: '0.5rem',
+                  border: '1px solid #c7d2fe',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  background: 'white'
+                }}
+              >
+                <option value="">Change status to...</option>
+                <option value="ACTIVE">Active</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="SIGHTING_REPORTED">Sighting Reported</option>
+                <option value="REUNITED">Reunited</option>
+                <option value="CLOSED_OTHER">Closed</option>
+              </select>
+              <button
+                onClick={handleBulkStatusChange}
+                disabled={!bulkStatusChange || bulkActionLoading}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: bulkStatusChange ? '#6366f1' : '#c7d2fe',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  cursor: bulkStatusChange ? 'pointer' : 'not-allowed',
+                  fontWeight: '600'
+                }}
+              >
+                Apply
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={bulkActionLoading}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#dc2626',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+            >
+              Delete Selected
+            </button>
+
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              style={{
+                padding: '0.5rem 1rem',
+                background: 'transparent',
+                color: '#4338ca',
+                border: '1px solid #c7d2fe',
+                borderRadius: '6px',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+            >
+              Clear Selection
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Cases Table */}
       <div style={{
         maxWidth: '1400px',
@@ -378,6 +626,14 @@ export default function AdminCasesPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead style={{ background: '#f9fafb' }}>
                 <tr>
+                  <th style={{ ...headerStyle, width: '40px' }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === cases.length && cases.length > 0}
+                      onChange={toggleSelectAll}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                  </th>
                   <th style={headerStyle}>Case #</th>
                   <th style={headerStyle}>Pet</th>
                   <th style={headerStyle}>Location</th>
@@ -398,24 +654,37 @@ export default function AdminCasesPage() {
                     'CLOSED_OTHER': { bg: '#e5e7eb', color: '#374151' }
                   };
                   const statusColor = statusColors[caseItem.status] || statusColors['ACTIVE'];
+                  const isSelected = selectedIds.has(caseItem.id);
 
                   return (
                     <tr
                       key={caseItem.id}
-                      onClick={() => router.push('/admin/cases/' + caseItem.id)}
                       style={{
                         cursor: 'pointer',
-                        borderBottom: '1px solid #e5e7eb'
+                        borderBottom: '1px solid #e5e7eb',
+                        background: isSelected ? '#eef2ff' : 'white'
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) e.currentTarget.style.background = '#f9fafb';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = isSelected ? '#eef2ff' : 'white';
+                      }}
                     >
-                      <td style={cellStyle}>
+                      <td style={cellStyle} onClick={(e) => toggleSelect(caseItem.id, e)}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}}
+                          style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                        />
+                      </td>
+                      <td style={cellStyle} onClick={() => router.push('/admin/cases/' + caseItem.id)}>
                         <span style={{ fontWeight: '600', color: '#111827' }}>
                           {caseItem.caseNumber}
                         </span>
                       </td>
-                      <td style={cellStyle}>
+                      <td style={cellStyle} onClick={() => router.push('/admin/cases/' + caseItem.id)}>
                         <div>
                           <div style={{ fontWeight: '600', color: '#111827' }}>
                             {caseItem.petName || 'Unknown'}
@@ -425,10 +694,10 @@ export default function AdminCasesPage() {
                           </div>
                         </div>
                       </td>
-                      <td style={cellStyle}>
-                        {caseItem.lastSeenAddress || '—'}
+                      <td style={cellStyle} onClick={() => router.push('/admin/cases/' + caseItem.id)}>
+                        {caseItem.lastSeenAddress || '-'}
                       </td>
-                      <td style={cellStyle}>
+                      <td style={cellStyle} onClick={() => router.push('/admin/cases/' + caseItem.id)}>
                         <span style={{
                           padding: '0.25rem 0.75rem',
                           background: statusColor.bg,
@@ -440,12 +709,12 @@ export default function AdminCasesPage() {
                           {caseItem.status.replace('_', ' ')}
                         </span>
                       </td>
-                      <td style={cellStyle}>
+                      <td style={cellStyle} onClick={() => router.push('/admin/cases/' + caseItem.id)}>
                         {caseItem.coordinator
                           ? `${caseItem.coordinator.firstName} ${caseItem.coordinator.lastName || ''}`.trim()
-                          : '—'}
+                          : '-'}
                       </td>
-                      <td style={cellStyle}>
+                      <td style={cellStyle} onClick={() => router.push('/admin/cases/' + caseItem.id)}>
                         {caseItem.assignedSquad ? (
                           <span style={{
                             padding: '0.25rem 0.5rem',
@@ -460,10 +729,10 @@ export default function AdminCasesPage() {
                           <span style={{ color: '#ef4444', fontWeight: '500' }}>Unassigned</span>
                         )}
                       </td>
-                      <td style={cellStyle}>
+                      <td style={cellStyle} onClick={() => router.push('/admin/cases/' + caseItem.id)}>
                         {new Date(caseItem.createdAt).toLocaleDateString()}
                       </td>
-                      <td style={cellStyle}>
+                      <td style={cellStyle} onClick={() => router.push('/admin/cases/' + caseItem.id)}>
                         {caseItem.updatesCount || 0}
                       </td>
                     </tr>

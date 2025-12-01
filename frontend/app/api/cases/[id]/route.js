@@ -3,6 +3,7 @@
  * Phase 13-14: Lost Pet Cases MVP (TASK-C02)
  *
  * GET /api/cases/[id] - Get single case with notes
+ * DELETE /api/cases/[id] - Delete a case (admin only)
  */
 
 import { NextResponse } from 'next/server';
@@ -208,6 +209,116 @@ export async function GET(request, { params }) {
 
     return NextResponse.json({
       error: 'Failed to fetch case',
+      message: error.message
+    }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/cases/[id] - Delete a case (admin only)
+ */
+export async function DELETE(request, { params }) {
+  let session = null;
+
+  try {
+    session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Admin only
+    if (session.user.role !== 'ADMIN') {
+      await logEvent({
+        event_type: 'case.delete_failed',
+        resource_type: 'case',
+        resource_id: params.id,
+        action: 'delete',
+        result: 'failure',
+        error_code: 'FORBIDDEN',
+        error_message: 'Non-admin attempted to delete case',
+        actor_user_id: session.user.id,
+        actor_role: session.user.role || 'USER',
+      });
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
+    // Check if case exists
+    const existingCase = await prisma.case.findUnique({
+      where: { id: params.id },
+      select: { id: true, caseNumber: true, petName: true }
+    });
+
+    if (!existingCase) {
+      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+    }
+
+    // Delete related records first (cascade doesn't always work)
+    await prisma.$transaction(async (tx) => {
+      // Delete case participants
+      await tx.caseParticipant.deleteMany({
+        where: { assignment: { caseId: params.id } }
+      });
+
+      // Delete case assignments
+      await tx.caseAssignment.deleteMany({
+        where: { caseId: params.id }
+      });
+
+      // Delete case updates
+      await tx.caseUpdate.deleteMany({
+        where: { caseId: params.id }
+      });
+
+      // Delete sightings
+      await tx.sighting.deleteMany({
+        where: { caseId: params.id }
+      });
+
+      // Delete alerts
+      await tx.alert.deleteMany({
+        where: { caseId: params.id }
+      });
+
+      // Finally delete the case
+      await tx.case.delete({
+        where: { id: params.id }
+      });
+    });
+
+    await logEvent({
+      event_type: 'case.deleted',
+      resource_type: 'case',
+      resource_id: params.id,
+      action: 'delete',
+      result: 'success',
+      actor_user_id: session.user.id,
+      actor_role: 'ADMIN',
+      metadata: {
+        caseNumber: existingCase.caseNumber,
+        petName: existingCase.petName
+      }
+    });
+
+    return NextResponse.json({ success: true, deleted: existingCase.caseNumber });
+
+  } catch (error) {
+    console.error('Error deleting case:', error);
+
+    await logEvent({
+      event_type: 'case.delete_failed',
+      resource_type: 'case',
+      resource_id: params.id,
+      action: 'delete',
+      result: 'failure',
+      error_code: 'INTERNAL_ERROR',
+      error_message: error.message,
+      actor_user_id: session?.user?.id || null,
+      actor_role: session?.user?.role || 'USER',
+    });
+
+    return NextResponse.json({
+      error: 'Failed to delete case',
       message: error.message
     }, { status: 500 });
   }

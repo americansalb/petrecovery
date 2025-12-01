@@ -10,7 +10,7 @@
  */
 
 import { useSquadHub } from './context/SquadHubContext';
-import { Users, Radio } from 'lucide-react';
+import { Users, Radio, MapPin } from 'lucide-react';
 
 export default function SquadHeader() {
   const {
@@ -58,10 +58,15 @@ export default function SquadHeader() {
           <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--hub-text-muted)] font-medium">
             Rescue Squad
           </div>
-          <h1 className="text-lg font-semibold text-[var(--hub-text-primary)] truncate">
-            {squad.displayName}
+          <h1 className="text-xl md:text-2xl font-bold text-[var(--hub-text-primary)] truncate">
+            {squad.cityName || squad.displayName}
           </h1>
-          <div className="flex items-center gap-3 text-xs text-[var(--hub-text-muted)]">
+          {squad.cityName && squad.displayName !== squad.cityName && (
+            <div className="text-sm text-[var(--hub-text-secondary)] font-medium">
+              {squad.displayName}
+            </div>
+          )}
+          <div className="flex items-center gap-3 text-xs text-[var(--hub-text-muted)] mt-1">
             <span className="flex items-center gap-1">
               <Users size={12} />
               {squad.memberCount.toLocaleString()} members
