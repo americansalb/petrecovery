@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import UnifiedNav from '@/app/components/UnifiedNav';
 
 export default function RescueSquadSearchPage() {
   const { data: session } = useSession();
@@ -225,51 +226,28 @@ export default function RescueSquadSearchPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '2rem 1rem' }}>
-      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-        {/* Back Button */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <button
-            onClick={() => router.push('/dashboard')}
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: 'white',
-              color: '#64748b',
-              border: '2px solid #e2e8f0',
-              borderRadius: '8px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              fontSize: '1rem'
-            }}
-          >
-            ← Back to Dashboard
-          </button>
+    <div className="min-h-screen bg-slate-950">
+      <UnifiedNav
+        breadcrumbs={[
+          { label: 'Dashboard', href: '/dashboard', icon: '🏠' },
+          { label: 'Find Squads', icon: '👥' }
+        ]}
+      />
+
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">Find Rescue Squads</h1>
+          <p className="text-slate-400">
+            Enter a city name or ZIP code to find or create a rescue squad
+          </p>
         </div>
 
-        <h1 style={{ fontSize: '2.5rem', fontWeight: '800', textAlign: 'center', marginBottom: '0.5rem' }}>
-          Find Rescue Squads
-        </h1>
-        <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '2rem' }}>
-          Enter a city name or ZIP code to find or create a rescue squad
-        </p>
-
         {/* Search Form */}
-        <form onSubmit={handleSearch} style={{
-          background: 'white',
-          borderRadius: '12px',
-          padding: '1.5rem',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-          marginBottom: '2rem'
-        }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '1rem',
-            marginBottom: validationError || showSuggestions ? '0.5rem' : '0'
-          }}>
+        <form onSubmit={handleSearch} className="bg-slate-800 rounded-xl p-6 border border-slate-700 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* City/ZIP Input */}
-            <div style={{ position: 'relative', gridColumn: 'span 2' }}>
-              <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
+            <div className="relative md:col-span-2">
+              <label className="block font-semibold mb-2 text-slate-300 text-sm">
                 City Name or ZIP Code
               </label>
               <input
@@ -283,80 +261,41 @@ export default function RescueSquadSearchPage() {
                   setTimeout(() => setShowSuggestions(false), 200);
                 }}
                 placeholder="e.g., Lynwood or 60411"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  paddingRight: '2.5rem',
-                  border: `2px solid ${validationError ? '#ef4444' : inputType === 'zip' ? '#3b82f6' : inputType === 'city' ? '#10b981' : '#e2e8f0'}`,
-                  borderRadius: '8px',
-                  fontSize: '1rem',
-                  boxSizing: 'border-box'
-                }}
+                className={`w-full px-4 py-3 bg-slate-700 border rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 ${
+                  validationError ? 'border-red-500' : inputType === 'zip' ? 'border-blue-500' : inputType === 'city' ? 'border-green-500' : 'border-slate-600'
+                }`}
                 required
               />
 
               {/* Input type indicator */}
               {inputType && searchTerm.trim() && (
-                <div style={{
-                  position: 'absolute',
-                  right: '0.75rem',
-                  top: '2.5rem',
-                  fontSize: '0.75rem',
-                  fontWeight: '600',
-                  color: inputType === 'zip' ? '#3b82f6' : '#10b981',
-                  background: inputType === 'zip' ? '#dbeafe' : '#d1fae5',
-                  padding: '0.25rem 0.5rem',
-                  borderRadius: '4px'
-                }}>
+                <div className={`absolute right-3 top-10 text-xs font-semibold px-2 py-0.5 rounded ${
+                  inputType === 'zip' ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'
+                }`}>
                   {inputType === 'zip' ? 'ZIP' : 'City'}
                 </div>
               )}
 
               {/* Validation error */}
               {validationError && (
-                <div style={{
-                  marginTop: '0.5rem',
-                  fontSize: '0.85rem',
-                  color: '#ef4444',
-                  fontWeight: '600'
-                }}>
+                <div className="mt-2 text-sm text-red-400 font-semibold">
                   {validationError}
                 </div>
               )}
 
               {/* Suggestions dropdown */}
               {showSuggestions && suggestions.length > 0 && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  right: 0,
-                  background: 'white',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '8px',
-                  marginTop: '0.5rem',
-                  maxHeight: '200px',
-                  overflowY: 'auto',
-                  zIndex: 1000,
-                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                }}>
+                <div className="absolute top-full left-0 right-0 bg-slate-700 border border-slate-600 rounded-lg mt-2 max-h-48 overflow-y-auto z-50 shadow-xl">
                   {suggestions.map((city, idx) => (
                     <div
                       key={`${city.city}-${city.state_id}-${idx}`}
                       onMouseDown={() => selectSuggestion(city)}
-                      style={{
-                        padding: '0.75rem',
-                        cursor: 'pointer',
-                        borderBottom: idx < suggestions.length - 1 ? '1px solid #f1f5f9' : 'none',
-                        background: 'white'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                      className="px-4 py-3 cursor-pointer hover:bg-slate-600 border-b border-slate-600 last:border-b-0"
                     >
-                      <div style={{ fontWeight: '600', color: '#0f172a' }}>
+                      <div className="font-semibold text-white">
                         {city.city}, {city.state_id}
                       </div>
-                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                      <div className="text-sm text-slate-400">
                         {city.state_name} • {city.zips.length > 0 ? `ZIP ${city.zips[0]}` : 'No ZIP'}
                       </div>
                     </div>
@@ -367,20 +306,13 @@ export default function RescueSquadSearchPage() {
 
             {/* Radius */}
             <div>
-              <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
+              <label className="block font-semibold mb-2 text-slate-300 text-sm">
                 Radius
               </label>
               <select
                 value={radius}
                 onChange={(e) => setRadius(Number(e.target.value))}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: '1rem',
-                  boxSizing: 'border-box'
-                }}
+                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500"
               >
                 <option value={10}>10 miles</option>
                 <option value={25}>25 miles</option>
@@ -389,22 +321,11 @@ export default function RescueSquadSearchPage() {
             </div>
 
             {/* Search Button */}
-            <div style={{ display: 'flex', alignItems: 'end' }}>
+            <div className="flex items-end">
               <button
                 type="submit"
                 disabled={loading}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem 1.5rem',
-                  background: '#667eea',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontWeight: '700',
-                  fontSize: '1rem',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  boxSizing: 'border-box'
-                }}
+                className="w-full px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-white font-bold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Searching...' : 'Search'}
               </button>
@@ -416,14 +337,14 @@ export default function RescueSquadSearchPage() {
         {searched && (
           <div>
             {searchLocation && (
-              <div style={{ marginBottom: '1.5rem' }}>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem', color: '#334155' }}>
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold text-white mb-1">
                   {searchLocation.cities && searchLocation.cities.length > 1
                     ? `Rescue Squads for ${searchLocation.cities.join(', ')}, ${searchLocation.state}`
                     : `Rescue Squads near ${searchLocation.cities?.[0] || searchLocation.city}, ${searchLocation.state}`
                   }
                 </h2>
-                <p style={{ fontSize: '0.9rem', color: '#64748b' }}>
+                <p className="text-sm text-slate-400">
                   Found {cities.filter(c => c.exists).length} rescue squad{cities.filter(c => c.exists).length !== 1 ? 's' : ''} within {radius} miles
                   {cities.filter(c => c.exists).length === 0 && ' - try increasing the search radius or create one for your area'}
                 </p>
@@ -431,36 +352,25 @@ export default function RescueSquadSearchPage() {
             )}
 
             {cities.length === 0 ? (
-              <p style={{ color: '#64748b' }}>No results found</p>
+              <p className="text-slate-400">No results found</p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="flex flex-col gap-4">
                 {cities.map((item, idx) => (
                   <div
                     key={idx}
-                    style={{
-                      background: 'white',
-                      borderRadius: '12px',
-                      padding: '1.5rem',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
-                    }}
+                    className="bg-slate-800 rounded-xl p-5 border border-slate-700"
                   >
                     {/* Squad Header */}
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: '1rem'
-                    }}>
-                      <div style={{ flex: 1 }}>
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.25rem' }}>
+                    <div className="flex justify-between items-center flex-wrap gap-4">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-white mb-1">
                           {item.city} Rescue Squad
                         </h3>
-                        <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
+                        <p className="text-slate-400 text-sm">
                           {item.city}, {item.state} - {item.distance.toFixed(1)} miles away
                         </p>
                         {item.exists && item.squad && (
-                          <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                          <p className="text-slate-500 text-xs mt-1">
                             {item.squad.memberCount} member{item.squad.memberCount !== 1 ? 's' : ''} | {item.squad.totalCasesAccepted || 0} cases
                             {item.divisions && item.divisions.length > 0 && ` | ${item.divisions.length} divisions`}
                           </p>
@@ -472,30 +382,14 @@ export default function RescueSquadSearchPage() {
                         item.squad.isMember ? (
                           <button
                             onClick={() => router.push(`/rescue-squads/${item.squad.id}`)}
-                            style={{
-                              padding: '0.75rem 1.5rem',
-                              background: '#667eea',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '8px',
-                              fontWeight: '600',
-                              cursor: 'pointer'
-                            }}
+                            className="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-400 text-white font-semibold rounded-lg transition"
                           >
                             View Squad
                           </button>
                         ) : (
                           <button
                             onClick={() => handleJoin(item.squad.id)}
-                            style={{
-                              padding: '0.75rem 1.5rem',
-                              background: '#10b981',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '8px',
-                              fontWeight: '600',
-                              cursor: 'pointer'
-                            }}
+                            className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-semibold rounded-lg transition"
                           >
                             Join Squad
                           </button>
@@ -503,15 +397,7 @@ export default function RescueSquadSearchPage() {
                       ) : (
                         <button
                           onClick={() => handleCreate(item.city, item.state, searchLocation?.zipCode)}
-                          style={{
-                            padding: '0.75rem 1.5rem',
-                            background: '#f59e0b',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontWeight: '600',
-                            cursor: 'pointer'
-                          }}
+                          className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-white font-semibold rounded-lg transition"
                         >
                           Create Squad
                         </button>
@@ -520,48 +406,27 @@ export default function RescueSquadSearchPage() {
 
                     {/* Divisions List */}
                     {item.exists && item.divisions && item.divisions.length > 0 && (
-                      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
-                        <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <button
-                            onClick={() => toggleExpanded(idx)}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              cursor: 'pointer',
-                              fontSize: '0.875rem',
-                              fontWeight: '600',
-                              color: '#667eea',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem'
-                            }}
-                          >
-                            <span style={{ fontSize: '1rem' }}>{expandedSquads.has(idx) ? '▼' : '▶'}</span>
-                            {item.divisions.length} Neighborhood Division{item.divisions.length !== 1 ? 's' : ''}
-                          </button>
-                        </div>
+                      <div className="mt-4 pt-4 border-t border-slate-700">
+                        <button
+                          onClick={() => toggleExpanded(idx)}
+                          className="flex items-center gap-2 text-sm font-semibold text-cyan-400 hover:text-cyan-300 transition"
+                        >
+                          <span>{expandedSquads.has(idx) ? '▼' : '▶'}</span>
+                          {item.divisions.length} Neighborhood Division{item.divisions.length !== 1 ? 's' : ''}
+                        </button>
 
                         {expandedSquads.has(idx) && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginLeft: '1.5rem' }}>
+                          <div className="flex flex-col gap-3 mt-3 ml-4">
                             {item.divisions.map(division => (
                               <div
                                 key={division.id}
-                                style={{
-                                  background: '#f8fafc',
-                                  borderRadius: '8px',
-                                  padding: '0.75rem 1rem',
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                  flexWrap: 'wrap',
-                                  gap: '0.5rem'
-                                }}
+                                className="bg-slate-700/50 rounded-lg px-4 py-3 flex justify-between items-center flex-wrap gap-2"
                               >
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ fontWeight: '600', fontSize: '0.95rem', color: '#0f172a' }}>
+                                <div className="flex-1">
+                                  <div className="font-semibold text-white text-sm">
                                     {division.name}
                                   </div>
-                                  <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                                  <div className="text-xs text-slate-400">
                                     {division.distance.toFixed(1)} mi • {division.totalMembers} members
                                   </div>
                                 </div>
@@ -570,32 +435,14 @@ export default function RescueSquadSearchPage() {
                                 {division.isMember ? (
                                   <button
                                     onClick={() => router.push(`/rescue-squads/${item.squad.id}/divisions/${division.id}`)}
-                                    style={{
-                                      padding: '0.5rem 1rem',
-                                      background: '#667eea',
-                                      color: 'white',
-                                      border: 'none',
-                                      borderRadius: '6px',
-                                      fontSize: '0.875rem',
-                                      fontWeight: '600',
-                                      cursor: 'pointer'
-                                    }}
+                                    className="px-4 py-2 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-semibold rounded-lg transition"
                                   >
                                     View Division
                                   </button>
                                 ) : item.squad.isMember ? (
                                   <button
                                     onClick={() => handleJoinDivision(item.squad.id, division.id)}
-                                    style={{
-                                      padding: '0.5rem 1rem',
-                                      background: '#10b981',
-                                      color: 'white',
-                                      border: 'none',
-                                      borderRadius: '6px',
-                                      fontSize: '0.875rem',
-                                      fontWeight: '600',
-                                      cursor: 'pointer'
-                                    }}
+                                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-semibold rounded-lg transition"
                                   >
                                     Join Division
                                   </button>
@@ -603,16 +450,7 @@ export default function RescueSquadSearchPage() {
                                   <button
                                     disabled
                                     title="Join the rescue squad first"
-                                    style={{
-                                      padding: '0.5rem 1rem',
-                                      background: '#e2e8f0',
-                                      color: '#94a3b8',
-                                      border: 'none',
-                                      borderRadius: '6px',
-                                      fontSize: '0.875rem',
-                                      fontWeight: '600',
-                                      cursor: 'not-allowed'
-                                    }}
+                                    className="px-4 py-2 bg-slate-600 text-slate-400 text-sm font-semibold rounded-lg cursor-not-allowed"
                                   >
                                     Join Division
                                   </button>

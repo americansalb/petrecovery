@@ -11,23 +11,17 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import UnifiedNav from '@/app/components/UnifiedNav';
 
 // Loading fallback for Suspense boundary
 function CasesLoading() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-blue-600 text-white py-12">
-        <div className="container mx-auto px-4 max-w-6xl">
-          <h1 className="text-4xl font-bold mb-4">Lost Pet Cases</h1>
-          <p className="text-xl text-blue-100 mb-4">
-            Browse reported lost pet cases in your area and help reunite pets with their families.
-          </p>
-        </div>
-      </div>
-      <div className="container mx-auto px-4 max-w-6xl py-8">
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading cases...</p>
+    <div className="min-h-screen bg-slate-950">
+      <UnifiedNav />
+      <div className="container mx-auto px-4 max-w-6xl py-12">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
+          <p className="mt-4 text-slate-400">Loading cases...</p>
         </div>
       </div>
     </div>
@@ -143,121 +137,111 @@ function CasesContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-950">
+      <UnifiedNav
+        breadcrumbs={[
+          { label: 'Dashboard', href: '/dashboard', icon: '🏠' },
+          { label: 'Browse Cases' }
+        ]}
+      />
+
       {/* Hero Section */}
-      <div className="bg-blue-600 text-white py-12">
+      <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white py-8 border-b border-slate-700">
         <div className="container mx-auto px-4 max-w-6xl">
-          <h1 className="text-4xl font-bold mb-4">Lost Pet Cases</h1>
-          <p className="text-xl text-blue-100 mb-4">
-            Browse reported lost pet cases in your area and help reunite pets with their families.
-          </p>
-          <div className="bg-blue-500 bg-opacity-50 rounded-lg p-4 mt-6">
-            <p className="text-sm">
-              <strong>Community Service:</strong> This is a public service to help reunite lost pets with their owners.
-              If you have information about any of these cases, please use the contact information provided (if available)
-              or report your sighting to local authorities.
-            </p>
-          </div>
-          <div className="mt-6">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h1 className="text-3xl font-bold">Lost Pet Cases</h1>
+              <p className="text-slate-400 mt-1">
+                Browse cases and help reunite pets with their families
+              </p>
+            </div>
             <a
               href="/report/new"
-              className="inline-block bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition"
+              className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition shadow-lg shadow-red-500/20"
             >
-              Report a Lost Pet
+              Report Lost Pet
             </a>
           </div>
         </div>
       </div>
 
       {/* Filters Section */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-4 max-w-6xl py-6">
-          <h2 className="text-lg font-semibold mb-4">Filter Cases</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-              <input
-                type="text"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="e.g., Chicago"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-              <input
-                type="text"
-                value={state}
-                onChange={(e) => setState(e.target.value)}
-                placeholder="e.g., IL"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Pet Type</label>
-              <select
-                value={species}
-                onChange={(e) => setSpecies(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Types</option>
-                <option value="DOG">Dog</option>
-                <option value="CAT">Cat</option>
-                <option value="BIRD">Bird</option>
-                <option value="OTHER">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Statuses</option>
-                <option value="OPEN">Open</option>
-                <option value="ACTIVE_SEARCH">Active Search</option>
-                <option value="RESOLVED">Resolved</option>
-                <option value="CLOSED_OTHER">Closed</option>
-              </select>
-            </div>
-          </div>
-          <div className="flex gap-3 mt-4">
-            <button
-              onClick={applyFilters}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+      <div className="bg-slate-900 border-b border-slate-800">
+        <div className="container mx-auto px-4 max-w-6xl py-4">
+          <h2 className="text-sm font-semibold mb-3 text-slate-400 uppercase tracking-wide">Filter Cases</h2>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <input
+              type="text"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="City"
+              className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+            />
+            <input
+              type="text"
+              value={state}
+              onChange={(e) => setState(e.target.value)}
+              placeholder="State"
+              className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+            />
+            <select
+              value={species}
+              onChange={(e) => setSpecies(e.target.value)}
+              className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
             >
-              Apply Filters
-            </button>
-            <button
-              onClick={clearFilters}
-              className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+              <option value="">All Types</option>
+              <option value="DOG">Dog</option>
+              <option value="CAT">Cat</option>
+              <option value="BIRD">Bird</option>
+              <option value="OTHER">Other</option>
+            </select>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
             >
-              Clear All
-            </button>
+              <option value="">All Statuses</option>
+              <option value="OPEN">Open</option>
+              <option value="ACTIVE_SEARCH">Active Search</option>
+              <option value="RESOLVED">Resolved</option>
+              <option value="CLOSED_OTHER">Closed</option>
+            </select>
+            <div className="flex gap-2">
+              <button
+                onClick={applyFilters}
+                className="flex-1 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-400 transition font-medium"
+              >
+                Search
+              </button>
+              <button
+                onClick={clearFilters}
+                className="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition"
+              >
+                Clear
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Cases List */}
-      <div className="container mx-auto px-4 max-w-6xl py-8">
+      <div className="container mx-auto px-4 max-w-6xl py-6">
         {/* Loading State */}
         {loading && (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">Loading cases...</p>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
+            <p className="mt-4 text-slate-400">Loading cases...</p>
           </div>
         )}
 
         {/* Error State */}
         {error && !loading && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <p className="text-red-800 font-semibold">Error loading cases</p>
-            <p className="text-red-600 mt-2">{error}</p>
+          <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-6 text-center">
+            <p className="text-red-300 font-semibold">Error loading cases</p>
+            <p className="text-red-400 mt-2">{error}</p>
             <button
               onClick={fetchCases}
-              className="mt-4 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+              className="mt-4 px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
             >
               Try Again
             </button>
@@ -266,12 +250,12 @@ function CasesContent() {
 
         {/* Empty State */}
         {!loading && !error && cases.length === 0 && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
-            <p className="text-gray-600 text-lg mb-4">No cases found matching your filters.</p>
-            <p className="text-gray-500 mb-6">Try adjusting your search criteria or clearing filters.</p>
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-12 text-center">
+            <p className="text-slate-300 text-lg mb-4">No cases found matching your filters.</p>
+            <p className="text-slate-500 mb-6">Try adjusting your search criteria or clearing filters.</p>
             <button
               onClick={clearFilters}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              className="px-6 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-400 transition"
             >
               Clear Filters
             </button>
@@ -281,89 +265,76 @@ function CasesContent() {
         {/* Cases Grid */}
         {!loading && !error && cases.length > 0 && (
           <>
-            <div className="mb-4 text-gray-600">
+            <div className="mb-4 text-slate-400 text-sm">
               Showing {cases.length} of {pagination?.totalCount || 0} cases
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {cases.map((caseItem) => (
                 <a
                   key={caseItem.id}
                   href={`/cases/${caseItem.caseNumber}`}
-                  className="bg-white rounded-lg shadow hover:shadow-lg transition border border-gray-200 overflow-hidden"
+                  className="bg-slate-800 rounded-xl hover:bg-slate-750 transition border border-slate-700 hover:border-slate-600 overflow-hidden group"
                 >
                   {/* Pet Photo */}
                   {caseItem.petPhotoUrl ? (
-                    <div className="h-48 bg-gray-100 overflow-hidden">
+                    <div className="h-40 bg-slate-700 overflow-hidden">
                       <img
                         src={caseItem.petPhotoUrl}
                         alt={caseItem.petName || 'Pet photo'}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition"
                         onError={(e) => {
                           e.target.style.display = 'none';
-                          e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-400"><span class="text-6xl">🐾</span></div>';
+                          e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-5xl">🐾</span></div>';
                         }}
                       />
                     </div>
                   ) : (
-                    <div className="h-48 bg-gray-100 flex items-center justify-center">
-                      <span className="text-6xl text-gray-300">🐾</span>
+                    <div className="h-40 bg-slate-700 flex items-center justify-center">
+                      <span className="text-5xl">{caseItem.petSpecies === 'DOG' ? '🐕' : caseItem.petSpecies === 'CAT' ? '🐈' : '🐾'}</span>
                     </div>
                   )}
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-3">
+                  <div className="p-4">
+                    <div className="flex justify-between items-start mb-2">
                       <div>
-                        <h3 className="font-bold text-lg text-gray-900">
+                        <h3 className="font-bold text-white">
                           {caseItem.petName || 'Unknown Pet'}
                         </h3>
-                        <p className="text-sm text-gray-500">{caseItem.caseNumber}</p>
+                        <p className="text-xs text-slate-500">{caseItem.caseNumber}</p>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(caseItem.status)}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(caseItem.status)}`}>
                         {getStatusLabel(caseItem.status)}
                       </span>
                     </div>
 
-                    <div className="space-y-2 text-sm text-gray-600">
-                      <div className="flex items-center">
-                        <span className="font-semibold mr-2">Type:</span>
+                    <div className="space-y-1 text-sm text-slate-400">
+                      <div className="flex items-center gap-2">
                         <span>{caseItem.petSpecies}</span>
+                        {caseItem.petBreed && <span>• {caseItem.petBreed}</span>}
                       </div>
-                      {caseItem.petBreed && (
-                        <div className="flex items-center">
-                          <span className="font-semibold mr-2">Breed:</span>
-                          <span>{caseItem.petBreed}</span>
-                        </div>
-                      )}
-                      {caseItem.petColor && (
-                        <div className="flex items-center">
-                          <span className="font-semibold mr-2">Color:</span>
-                          <span>{caseItem.petColor}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center">
-                        <span className="font-semibold mr-2">Location:</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-lg">📍</span>
                         <span>{caseItem.city}, {caseItem.state}</span>
                       </div>
                       {caseItem.lastSeenAt && (
-                        <div className="flex items-center">
-                          <span className="font-semibold mr-2">Last Seen:</span>
-                          <span>{new Date(caseItem.lastSeenAt).toLocaleDateString()}</span>
+                        <div className="text-slate-500 text-xs">
+                          Missing since {new Date(caseItem.lastSeenAt).toLocaleDateString()}
                         </div>
                       )}
                     </div>
 
                     {caseItem.isUrgent && (
-                      <div className="mt-4 bg-red-50 border border-red-200 rounded px-3 py-2">
-                        <p className="text-xs text-red-800 font-semibold">⚠️ URGENT CASE</p>
+                      <div className="mt-3 bg-red-500/20 border border-red-500/30 rounded px-2 py-1">
+                        <p className="text-xs text-red-400 font-semibold">URGENT</p>
                       </div>
                     )}
 
-                    <div className="mt-4 flex items-center justify-between">
-                      <span className="text-blue-600 text-sm font-semibold">
-                        View Details →
+                    <div className="mt-3 pt-3 border-t border-slate-700 flex items-center justify-between">
+                      <span className="text-cyan-400 text-sm font-medium group-hover:text-cyan-300 transition">
+                        View Details
                       </span>
                       {(caseItem.status === 'ACTIVE' || caseItem.status === 'IN_PROGRESS' || caseItem.status === 'SIGHTING_REPORTED') && (
-                        <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-1 rounded-full font-medium">
-                          🎯 Command Center
+                        <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full font-medium">
+                          Active
                         </span>
                       )}
                     </div>
@@ -378,7 +349,7 @@ function CasesContent() {
                 <button
                   onClick={() => handlePageChange(page - 1)}
                   disabled={page === 1}
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition"
+                  className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition"
                 >
                   Previous
                 </button>
@@ -400,8 +371,8 @@ function CasesContent() {
                         onClick={() => handlePageChange(pageNum)}
                         className={`px-4 py-2 rounded-lg transition ${
                           page === pageNum
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white border border-gray-300 hover:bg-gray-50'
+                            ? 'bg-cyan-500 text-white'
+                            : 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'
                         }`}
                       >
                         {pageNum}
@@ -412,7 +383,7 @@ function CasesContent() {
                 <button
                   onClick={() => handlePageChange(page + 1)}
                   disabled={page === pagination.totalPages}
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition"
+                  className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition"
                 >
                   Next
                 </button>
