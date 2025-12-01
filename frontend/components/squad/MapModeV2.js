@@ -21,7 +21,7 @@ const MapComponent = dynamic(() => import('./MapComponentV2'), {
   loading: () => (
     <div className="w-full h-[600px] bg-slate-800/50 rounded-xl flex items-center justify-center">
       <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mb-4"></div>
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-orange-400 mb-4"></div>
         <p className="text-slate-400">Loading map...</p>
       </div>
     </div>
@@ -31,7 +31,6 @@ const MapComponent = dynamic(() => import('./MapComponentV2'), {
 export default function MapModeV2({
   cases,
   divisions,
-  selectedDivisionId,
   squad,
 }) {
   const [selectedCaseId, setSelectedCaseId] = useState(null);
@@ -40,9 +39,6 @@ export default function MapModeV2({
   // Find selected case
   const selectedCase = cases.find(c => c.id === selectedCaseId);
 
-  // Find selected division
-  const selectedDivision = divisions.find(d => d.id === selectedDivisionId);
-
   return (
     <div className="space-y-6">
       {/* Map Container */}
@@ -50,7 +46,6 @@ export default function MapModeV2({
         <MapComponent
           cases={cases}
           divisions={divisions}
-          selectedDivisionId={selectedDivisionId}
           squad={squad}
           onCaseClick={setSelectedCaseId}
         />
@@ -72,7 +67,7 @@ export default function MapModeV2({
           <LegendItem color="bg-red-500" label="Active Cases" />
           <LegendItem color="bg-amber-500" label="Incoming" />
           <LegendItem color="bg-green-500" label="Reunited" />
-          <LegendItem color="bg-cyan-500" label="Division Boundary" />
+          <LegendItem color="bg-orange-500" label="Division Boundary" />
         </div>
       </div>
     </div>
@@ -108,7 +103,7 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
 
   return (
     <div className="absolute bottom-0 left-0 right-0 z-50 animate-slide-up">
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 border-t-2 border-cyan-500/50 rounded-t-2xl shadow-[0_-10px_50px_rgba(0,0,0,0.5)] p-6">
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 border-t-2 border-orange-500/50 rounded-t-2xl shadow-[0_-10px_50px_rgba(0,0,0,0.5)] p-6">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -155,10 +150,10 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
           onClick={onOpenCase}
           className="
             w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg
-            bg-gradient-to-r from-cyan-500 to-blue-500
+            bg-gradient-to-r from-orange-500 to-blue-500
             text-white font-semibold
-            shadow-[0_0_20px_rgba(6,182,212,0.4)]
-            hover:shadow-[0_0_30px_rgba(6,182,212,0.6)]
+            shadow-[0_0_20px_rgba(249,115,22,0.4)]
+            hover:shadow-[0_0_30px_rgba(249,115,22,0.6)]
             transition-all duration-200
           "
         >

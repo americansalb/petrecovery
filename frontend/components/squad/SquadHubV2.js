@@ -102,7 +102,7 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
       />
 
       {/* Mode Tabs */}
-      <div className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-xl border-b border-cyan-500/20">
+      <div className="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-xl border-b border-orange-500/20">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex gap-1 py-3">
             <ModeTab
@@ -183,7 +183,7 @@ function ModeTab({ active, onClick, icon: Icon, label, count }) {
         flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold
         transition-all duration-200 relative
         ${active
-          ? 'bg-cyan-500/20 text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.3)]'
+          ? 'bg-orange-500/20 text-orange-400 shadow-[0_0_20px_rgba(249,115,22,0.3)]'
           : 'text-slate-400 hover:text-slate-300 hover:bg-slate-800/50'
         }
       `}
@@ -194,7 +194,7 @@ function ModeTab({ active, onClick, icon: Icon, label, count }) {
         <span className={`
           ml-1 px-2 py-0.5 rounded-full text-xs font-bold
           ${active
-            ? 'bg-cyan-400 text-slate-900'
+            ? 'bg-orange-400 text-slate-900'
             : 'bg-slate-700 text-slate-300'
           }
         `}>
@@ -202,7 +202,7 @@ function ModeTab({ active, onClick, icon: Icon, label, count }) {
         </span>
       )}
       {active && (
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-orange-400 to-transparent" />
       )}
     </button>
   );

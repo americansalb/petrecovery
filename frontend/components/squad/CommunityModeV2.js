@@ -135,14 +135,14 @@ export default function CommunityModeV2({
                 type="checkbox"
                 checked={showDivisionMessages}
                 onChange={(e) => setShowDivisionMessages(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500/50"
+                className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-orange-500 focus:ring-orange-500/50"
               />
               Include division messages
             </label>
             {showDivisionMessages && (
               <button
                 onClick={() => setShowDivisionFilter(!showDivisionFilter)}
-                className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+                className="flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300 transition-colors"
               >
                 <Filter size={14} />
                 Filter divisions
@@ -166,7 +166,7 @@ export default function CommunityModeV2({
                     type="checkbox"
                     checked={selectedDivisions.has(div.id)}
                     onChange={() => toggleDivisionFilter(div.id)}
-                    className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500/50"
+                    className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-orange-500 focus:ring-orange-500/50"
                   />
                   {div.name}
                 </label>
@@ -212,7 +212,7 @@ export default function CommunityModeV2({
                         {msg.authorRole.toLowerCase()}
                       </span>
                       {division && !isDivisionPage && (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-orange-500/20 text-orange-400 border border-orange-500/30">
                           {division.name}
                         </span>
                       )}
@@ -248,7 +248,7 @@ export default function CommunityModeV2({
                 flex-1 px-4 py-3 rounded-lg
                 bg-slate-800 border border-slate-600
                 text-white placeholder-slate-400
-                focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50
+                focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50
                 transition-all
               "
             />
@@ -257,10 +257,10 @@ export default function CommunityModeV2({
               disabled={!messageText.trim() || sending}
               className="
                 px-6 py-3 rounded-lg
-                bg-gradient-to-r from-cyan-500 to-blue-500
+                bg-gradient-to-r from-orange-500 to-blue-500
                 text-white font-semibold
                 disabled:opacity-50 disabled:cursor-not-allowed
-                hover:shadow-[0_0_20px_rgba(6,182,212,0.4)]
+                hover:shadow-[0_0_20px_rgba(249,115,22,0.4)]
                 transition-all duration-200
                 flex items-center gap-2
               "

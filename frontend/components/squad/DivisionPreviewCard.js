@@ -65,9 +65,9 @@ export default function DivisionPreviewCard({
             pointer-events-auto
             w-full max-w-lg
             bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900
-            border-2 border-cyan-500/30
+            border-2 border-orange-500/30
             rounded-2xl
-            shadow-[0_0_60px_rgba(6,182,212,0.3)]
+            shadow-[0_0_60px_rgba(249,115,22,0.3)]
             overflow-hidden
             animate-slide-up
           "
@@ -93,8 +93,8 @@ export default function DivisionPreviewCard({
           {/* Header */}
           <div className="p-6 border-b border-slate-700/50">
             <div className="flex items-start gap-3">
-              <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
-                <Users className="text-cyan-400" size={24} />
+              <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/30">
+                <Users className="text-orange-400" size={24} />
               </div>
               <div>
                 <h3 className="text-2xl font-bold text-white mb-1">
@@ -178,10 +178,10 @@ export default function DivisionPreviewCard({
               className="
                 w-full flex items-center justify-center gap-2
                 px-6 py-4 rounded-xl
-                bg-gradient-to-r from-cyan-500 to-blue-500
+                bg-gradient-to-r from-orange-500 to-blue-500
                 text-white font-bold text-lg
-                shadow-[0_0_30px_rgba(6,182,212,0.4)]
-                hover:shadow-[0_0_40px_rgba(6,182,212,0.6)]
+                shadow-[0_0_30px_rgba(249,115,22,0.4)]
+                hover:shadow-[0_0_40px_rgba(249,115,22,0.6)]
                 hover:scale-[1.02]
                 transition-all duration-200
               "
@@ -222,7 +222,7 @@ export default function DivisionPreviewCard({
 function StatBox({ icon: Icon, value, label, color }) {
   const colorClasses = {
     red: 'text-red-400 bg-red-500/10 border-red-500/30',
-    cyan: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30',
+    cyan: 'text-orange-400 bg-orange-500/10 border-orange-500/30',
     green: 'text-green-400 bg-green-500/10 border-green-500/30',
   };
 

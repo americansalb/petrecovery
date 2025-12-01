@@ -81,7 +81,7 @@ function StatusButton({ active, onClick, label, count }) {
         px-5 py-2.5 rounded-lg text-sm font-semibold
         transition-all duration-200
         ${active
-          ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.3)]'
+          ? 'bg-orange-500/20 text-orange-400 border-2 border-orange-500/50 shadow-[0_0_15px_rgba(249,115,22,0.3)]'
           : 'bg-slate-800/50 text-slate-400 border-2 border-slate-700/50 hover:border-slate-600 hover:text-slate-300'
         }
       `}
@@ -139,8 +139,8 @@ function CaseCard({ caseData, onClick }) {
         bg-gradient-to-br from-slate-800/50 to-slate-900/50
         border border-slate-700/50
         rounded-xl p-5
-        hover:border-cyan-500/50
-        hover:shadow-[0_0_30px_rgba(6,182,212,0.2)]
+        hover:border-orange-500/50
+        hover:shadow-[0_0_30px_rgba(249,115,22,0.2)]
         transition-all duration-300
       "
     >
@@ -164,7 +164,7 @@ function CaseCard({ caseData, onClick }) {
         <div className="flex-1 min-w-0">
           {/* Pet Name & Species */}
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="text-xl font-bold text-white group-hover:text-cyan-400 transition-colors">
+            <h3 className="text-xl font-bold text-white group-hover:text-orange-400 transition-colors">
               {petName}
             </h3>
             <span className="text-slate-400">·</span>
@@ -179,7 +179,7 @@ function CaseCard({ caseData, onClick }) {
           {/* Location & Time */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm mb-3">
             <div className="flex items-center gap-1.5 text-slate-300">
-              <MapPin size={14} className="text-cyan-400" />
+              <MapPin size={14} className="text-orange-400" />
               <span className="truncate max-w-xs">{lastSeenAddress || 'Location unknown'}</span>
             </div>
             <div className="flex items-center gap-1.5 text-slate-400">

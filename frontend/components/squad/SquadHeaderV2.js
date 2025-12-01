@@ -46,20 +46,20 @@ export default function SquadHeaderV2({
   };
 
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900/50 to-slate-900 border-b border-cyan-500/30">
+    <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900/50 to-slate-900 border-b border-orange-500/30">
       {/* Background decoration */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(6,182,212,0.1),transparent_50%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(249,115,22,0.1),transparent_50%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(59,130,246,0.08),transparent_50%)]" />
 
       <div className="relative max-w-7xl mx-auto px-4 py-8">
         {/* Title & Subtitle */}
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-2">
-            <Shield className="text-cyan-400" size={32} strokeWidth={2} />
+            <Shield className="text-orange-400" size={32} strokeWidth={2} />
             {isDivisionPage ? (
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="px-2 py-1 rounded-md text-xs font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                  <span className="px-2 py-1 rounded-md text-xs font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">
                     DIVISION
                   </span>
                   <h1 className="text-3xl font-bold text-white">
@@ -73,7 +73,7 @@ export default function SquadHeaderV2({
             ) : (
               <div>
                 <h1 className="text-4xl font-bold text-white">
-                  {cityName} <span className="text-cyan-400">Rescue Squad</span>
+                  {cityName} <span className="text-orange-400">Rescue Squad</span>
                 </h1>
                 <p className="text-slate-400 text-sm mt-1">
                   Covers city limits + 1 mile surrounding area
@@ -159,7 +159,7 @@ export default function SquadHeaderV2({
             <StatItem
               label="Members"
               value={stats.members}
-              color="text-cyan-400"
+              color="text-orange-400"
             />
             <StatItem
               label="On Duty"
@@ -174,10 +174,10 @@ export default function SquadHeaderV2({
               onClick={handleReportCase}
               className="
                 flex items-center gap-2 px-6 py-3 rounded-lg
-                bg-gradient-to-r from-cyan-500 to-blue-500
+                bg-gradient-to-r from-orange-500 to-blue-500
                 text-white font-semibold text-sm
-                shadow-[0_0_30px_rgba(6,182,212,0.4)]
-                hover:shadow-[0_0_40px_rgba(6,182,212,0.6)]
+                shadow-[0_0_30px_rgba(249,115,22,0.4)]
+                hover:shadow-[0_0_40px_rgba(249,115,22,0.6)]
                 hover:scale-105
                 transition-all duration-200
               "
@@ -216,14 +216,14 @@ function DivisionChip({ active, onClick, label, count }) {
         px-4 py-2 rounded-full text-sm font-medium
         transition-all duration-200
         ${active
-          ? 'bg-cyan-500 text-white shadow-[0_0_20px_rgba(6,182,212,0.5)]'
+          ? 'bg-orange-500 text-white shadow-[0_0_20px_rgba(249,115,22,0.5)]'
           : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/70 border border-slate-700'
         }
       `}
     >
       {label}
       {count !== undefined && count > 0 && (
-        <span className={`ml-2 ${active ? 'text-white' : 'text-cyan-400'}`}>
+        <span className={`ml-2 ${active ? 'text-white' : 'text-orange-400'}`}>
           ({count})
         </span>
       )}
