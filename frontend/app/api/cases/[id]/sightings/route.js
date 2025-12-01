@@ -13,6 +13,13 @@ import { logEvent } from '@/lib/logging';
 
 export const dynamic = 'force-dynamic';
 
+// Helper to detect ID format (UUID or CUID)
+function isIdFormat(str) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+  const isCuid = /^c[a-z0-9]{24}$/i.test(str);
+  return isUuid || isCuid;
+}
+
 /**
  * GET /api/cases/[id]/sightings
  */
@@ -23,11 +30,11 @@ export async function GET(request, { params }) {
     // Allow public access to sightings (for case detail page)
     // But limit information for non-authenticated users
 
-    // Support both UUID and case number
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.id);
+    // Support both ID (UUID/CUID) and case number
+    const isId = isIdFormat(params.id);
 
     const caseData = await prisma.case.findFirst({
-      where: isUuid
+      where: isId
         ? { id: params.id }
         : { caseNumber: params.id },
       select: { id: true, caseNumber: true }
@@ -37,10 +44,11 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Case not found' }, { status: 404 });
     }
 
-    const sightings = await prisma.sighting.findMany({
+    // Use CaseSighting model (not Sighting)
+    const sightings = await prisma.caseSighting.findMany({
       where: { caseId: caseData.id },
       include: {
-        reporter: {
+        reportedBy: {
           select: {
             id: true,
             firstName: true,
@@ -48,7 +56,7 @@ export async function GET(request, { params }) {
           }
         }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { sightedAt: 'desc' }
     });
 
     return NextResponse.json({
@@ -74,8 +82,15 @@ export async function POST(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
 
-    // Allow anonymous sighting reports, but track if authenticated
-    const reporterId = session?.user?.id || null;
+    // Require authentication for sighting reports
+    if (!session?.user?.id) {
+      return NextResponse.json({
+        error: 'Authentication required',
+        message: 'Please sign in to report a sighting'
+      }, { status: 401 });
+    }
+
+    const reportedById = session.user.id;
 
     const body = await request.json();
     const {
@@ -98,10 +113,10 @@ export async function POST(request, { params }) {
     }
 
     // Find case
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.id);
+    const isId = isIdFormat(params.id);
 
     const caseData = await prisma.case.findFirst({
-      where: isUuid
+      where: isId
         ? { id: params.id }
         : { caseNumber: params.id },
       select: { id: true, caseNumber: true, status: true }
@@ -126,21 +141,22 @@ export async function POST(request, { params }) {
       directionOfTravel ? `Direction: ${directionOfTravel}` : null
     ].filter(Boolean).join(' | ');
 
-    // Create sighting
-    const sighting = await prisma.sighting.create({
+    // Create sighting using CaseSighting model
+    const sighting = await prisma.caseSighting.create({
       data: {
         caseId: caseData.id,
-        reporterId,
+        reportedById,
+        sightedAt: new Date(),
         latitude: parseFloat(latitude),
         longitude: parseFloat(longitude),
-        address: address || null,
-        description: fullDescription || null,
-        confidence: confidence || 'MEDIUM',
-        photoUrl: photoUrl || null,
-        status: 'PENDING'
+        address: address || 'Unknown location',
+        description: fullDescription || 'No description provided',
+        certaintyLevel: confidence === 'HIGH' ? 5 : confidence === 'MEDIUM' ? 3 : 1,
+        photoUrls: photoUrl ? JSON.stringify([photoUrl]) : '[]',
+        isVerified: false
       },
       include: {
-        reporter: {
+        reportedBy: {
           select: {
             id: true,
             firstName: true,
@@ -162,7 +178,7 @@ export async function POST(request, { params }) {
       await prisma.caseUpdate.create({
         data: {
           caseId: caseData.id,
-          authorId: reporterId,
+          authorId: reportedById,
           content: `New sighting reported${address ? ` near ${address}` : ''}${behaviorLabel ? ` - pet appeared ${behaviorLabel}` : ''}${directionOfTravel ? ` (heading ${directionOfTravel})` : ''}`,
           isUpdate: true
         }
@@ -177,7 +193,7 @@ export async function POST(request, { params }) {
       resource_id: caseData.id,
       action: 'create',
       result: 'success',
-      actor_user_id: reporterId,
+      actor_user_id: reportedById,
       metadata: {
         caseNumber: caseData.caseNumber,
         sightingId: sighting.id,
