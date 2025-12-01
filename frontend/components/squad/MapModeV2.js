@@ -21,7 +21,7 @@ const MapComponent = dynamic(() => import('./MapComponentV2'), {
   loading: () => (
     <div className="w-full h-[600px] bg-slate-800/50 rounded-xl flex items-center justify-center">
       <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-orange-400 mb-4"></div>
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mb-4"></div>
         <p className="text-slate-400">Loading map...</p>
       </div>
     </div>
@@ -67,7 +67,7 @@ export default function MapModeV2({
           <LegendItem color="bg-red-500" label="Active Cases" />
           <LegendItem color="bg-amber-500" label="Incoming" />
           <LegendItem color="bg-green-500" label="Reunited" />
-          <LegendItem color="bg-orange-500" label="Division Boundary" />
+          <LegendItem color="bg-yellow-600" label="Division Boundary" />
         </div>
       </div>
     </div>
@@ -103,11 +103,11 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
 
   return (
     <div className="absolute bottom-0 left-0 right-0 z-50 animate-slide-up">
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 backdrop-blur-xl border-t-2 border-orange-500/60 rounded-t-3xl shadow-[0_-20px_60px_rgba(0,0,0,0.7)] p-8">
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 backdrop-blur-xl border-t-2 border-yellow-600/60 rounded-t-3xl shadow-[0_-20px_60px_rgba(0,0,0,0.7)] p-8">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 p-2.5 rounded-xl bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-white hover:border-orange-500/50 transition-all duration-200 hover:scale-110"
+          className="absolute top-6 right-6 p-2.5 rounded-xl bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-white hover:border-yellow-600/50 transition-all duration-200 hover:scale-110"
         >
           <X size={22} />
         </button>
@@ -150,7 +150,7 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
           onClick={onOpenCase}
           className="
             w-full flex items-center justify-center gap-3 px-8 py-4 rounded-xl
-            bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500
+            bg-gradient-to-r from-yellow-600 via-amber-500 to-yellow-600
             text-white font-bold text-lg
             shadow-[0_0_30px_rgba(249,115,22,0.5)]
             hover:shadow-[0_0_40px_rgba(249,115,22,0.7)]

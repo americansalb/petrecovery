@@ -121,29 +121,62 @@ export default function MapComponentV2({
 
   // Draw division boundaries
   useEffect(() => {
-    if (!mapInstanceRef.current || !selectedDivisionId) return;
+    if (!mapInstanceRef.current || !divisions || divisions.length === 0) return;
 
-    const selectedDivision = divisions.find(d => d.id === selectedDivisionId);
-    if (!selectedDivision || !selectedDivision.bounds) return;
+    const rectangles = [];
 
-    // Draw rectangle for division bounds
-    const bounds = selectedDivision.bounds;
-    const rectangle = L.rectangle(
-      [
-        [bounds.south, bounds.west],
-        [bounds.north, bounds.east],
-      ],
-      {
-        color: '#06b6d4',
-        weight: 2,
-        fillOpacity: 0.1,
-      }
-    ).addTo(mapInstanceRef.current);
+    // Draw all division boundaries
+    divisions.forEach(division => {
+      if (!division.bounds) return;
+
+      const bounds = division.bounds;
+      const rectangle = L.rectangle(
+        [
+          [bounds.south, bounds.west],
+          [bounds.north, bounds.east],
+        ],
+        {
+          color: '#ca8a04', // yellow-600
+          weight: 3,
+          fillColor: '#ca8a04',
+          fillOpacity: 0.05,
+          dashArray: '5, 10',
+        }
+      ).addTo(mapInstanceRef.current);
+
+      // Add division label
+      const center = rectangle.getBounds().getCenter();
+      const divisionLabel = L.marker(center, {
+        icon: L.divIcon({
+          className: 'division-label',
+          html: `
+            <div style="
+              background: rgba(15, 23, 42, 0.9);
+              border: 2px solid #ca8a04;
+              color: #facc15;
+              padding: 6px 12px;
+              border-radius: 8px;
+              font-weight: bold;
+              font-size: 12px;
+              white-space: nowrap;
+              backdrop-filter: blur(8px);
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            ">
+              ${division.name}
+            </div>
+          `,
+          iconSize: [0, 0],
+        }),
+      }).addTo(mapInstanceRef.current);
+
+      rectangles.push(rectangle);
+      rectangles.push(divisionLabel);
+    });
 
     return () => {
-      rectangle.remove();
+      rectangles.forEach(rect => rect.remove());
     };
-  }, [selectedDivisionId, divisions]);
+  }, [divisions]);
 
   return (
     <div>

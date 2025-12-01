@@ -26,17 +26,11 @@ export default function CasesModeV2({
       {/* Status Filter */}
       <div className="flex items-center gap-3 flex-wrap">
         <StatusButton
-          active={selectedStatus === 'INCOMING'}
-          onClick={() => onStatusChange('INCOMING')}
-          label="Incoming"
-          count={cases.filter(c => c.status === 'PENDING').length}
-        />
-        <StatusButton
           active={selectedStatus === 'ACTIVE'}
           onClick={() => onStatusChange('ACTIVE')}
           label="Active"
           count={cases.filter(c =>
-            c.status === 'IN_PROGRESS' || c.status === 'ACTIVE'
+            c.status === 'IN_PROGRESS' || c.status === 'ACTIVE' || c.status === 'PENDING'
           ).length}
         />
         <StatusButton
@@ -51,7 +45,7 @@ export default function CasesModeV2({
       {cases.length === 0 ? (
         <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/30 to-slate-900/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-16 text-center">
           {/* Subtle glow */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-orange-500/5 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-yellow-600/5 rounded-full blur-3xl" />
 
           <div className="relative">
             <div className="text-7xl mb-6">🐾</div>
@@ -86,12 +80,12 @@ function StatusButton({ active, onClick, label, count }) {
         px-6 py-3 rounded-xl text-sm font-bold
         backdrop-blur-sm transition-all duration-300
         ${active
-          ? 'bg-gradient-to-r from-orange-500/30 to-amber-500/30 text-orange-300 border-2 border-orange-500/60 shadow-lg shadow-orange-500/30 scale-105'
-          : 'bg-slate-800/40 text-slate-400 border-2 border-slate-700/50 hover:border-orange-500/40 hover:text-slate-300 hover:bg-slate-800/60 hover:scale-102'
+          ? 'bg-gradient-to-r from-yellow-600/30 to-amber-500/30 text-yellow-400 border-2 border-yellow-600/60 shadow-lg shadow-yellow-600/30 scale-105'
+          : 'bg-slate-800/40 text-slate-400 border-2 border-slate-700/50 hover:border-yellow-600/40 hover:text-slate-300 hover:bg-slate-800/60 hover:scale-102'
         }
       `}
     >
-      {label} {count > 0 && <span className={`ml-1.5 ${active ? 'text-orange-400' : 'text-slate-500'}`}>({count})</span>}
+      {label} {count > 0 && <span className={`ml-1.5 ${active ? 'text-yellow-500' : 'text-slate-500'}`}>({count})</span>}
     </button>
   );
 }
@@ -144,19 +138,19 @@ function CaseCard({ caseData, onClick }) {
         bg-gradient-to-br from-slate-800/40 to-slate-900/40
         backdrop-blur-sm border border-slate-700/50
         rounded-2xl p-6
-        hover:border-orange-500/60
-        hover:shadow-xl hover:shadow-orange-500/20
+        hover:border-yellow-600/60
+        hover:shadow-xl hover:shadow-yellow-600/20
         hover:scale-[1.01]
         transition-all duration-300
       "
     >
       {/* Subtle glow on hover */}
-      <div className="absolute inset-0 bg-gradient-to-r from-orange-500/0 via-orange-500/5 to-orange-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      <div className="absolute inset-0 bg-gradient-to-r from-yellow-600/0 via-yellow-600/5 to-yellow-600/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
       <div className="relative flex gap-5">
         {/* Pet Photo */}
         {photoUrl ? (
-          <div className="flex-shrink-0 w-28 h-28 rounded-xl overflow-hidden bg-slate-700 border-2 border-slate-600/50 group-hover:border-orange-500/30 transition-colors duration-300">
+          <div className="flex-shrink-0 w-28 h-28 rounded-xl overflow-hidden bg-slate-700 border-2 border-slate-600/50 group-hover:border-yellow-600/30 transition-colors duration-300">
             <img
               src={photoUrl}
               alt={petName}
@@ -164,7 +158,7 @@ function CaseCard({ caseData, onClick }) {
             />
           </div>
         ) : (
-          <div className="flex-shrink-0 w-28 h-28 rounded-xl bg-gradient-to-br from-slate-700/80 to-slate-800/80 border-2 border-slate-600/50 group-hover:border-orange-500/30 flex items-center justify-center text-5xl transition-colors duration-300">
+          <div className="flex-shrink-0 w-28 h-28 rounded-xl bg-gradient-to-br from-slate-700/80 to-slate-800/80 border-2 border-slate-600/50 group-hover:border-yellow-600/30 flex items-center justify-center text-5xl transition-colors duration-300">
             {speciesEmoji}
           </div>
         )}
@@ -173,7 +167,7 @@ function CaseCard({ caseData, onClick }) {
         <div className="flex-1 min-w-0">
           {/* Pet Name & Species */}
           <div className="flex items-center gap-2 mb-2">
-            <h3 className="text-2xl font-bold text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-orange-400 group-hover:to-amber-400 transition-all duration-300">
+            <h3 className="text-2xl font-bold text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-yellow-500 group-hover:to-amber-400 transition-all duration-300">
               {petName}
             </h3>
             <span className="text-slate-500">·</span>
@@ -188,7 +182,7 @@ function CaseCard({ caseData, onClick }) {
           {/* Location & Time */}
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm mb-4">
             <div className="flex items-center gap-2 text-slate-300">
-              <MapPin size={16} className="text-orange-400 flex-shrink-0" />
+              <MapPin size={16} className="text-yellow-500 flex-shrink-0" />
               <span className="truncate max-w-xs font-medium">{lastSeenAddress || 'Location unknown'}</span>
             </div>
             <div className="flex items-center gap-2 text-slate-400">
