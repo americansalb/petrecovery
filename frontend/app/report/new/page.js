@@ -99,6 +99,7 @@ export default function ReportLostPet() {
   const [error, setError] = useState(null);
   const [reportResult, setReportResult] = useState(null);
   const [photos, setPhotos] = useState([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
 
   // Validation states
   const [touched, setTouched] = useState({});
@@ -370,7 +371,7 @@ export default function ReportLostPet() {
     }
   }, [radiusMiles]);
 
-  const handlePhotoUpload = (e) => {
+  const handlePhotoUpload = async (e) => {
     const files = Array.from(e.target.files);
     const maxPhotos = 5;
 
@@ -379,20 +380,48 @@ export default function ReportLostPet() {
       return;
     }
 
-    files.forEach(file => {
-      if (file.size > 5 * 1024 * 1024) {
-        setError('Each photo must be under 5MB');
+    // Validate file sizes first
+    for (const file of files) {
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Each photo must be under 10MB');
         return;
       }
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotos(prev => [...prev, reader.result]);
-      };
-      reader.readAsDataURL(file);
-    });
+    }
 
     setError(null);
+    setUploadingPhotos(true);
+
+    try {
+      const uploadedUrls = [];
+
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('context', 'pet');
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to upload photo');
+        }
+
+        const data = await response.json();
+        if (data.url) {
+          uploadedUrls.push(data.url);
+        }
+      }
+
+      setPhotos(prev => [...prev, ...uploadedUrls]);
+    } catch (err) {
+      console.error('Photo upload error:', err);
+      setError(err.message || 'Failed to upload photos. Please try again.');
+    } finally {
+      setUploadingPhotos(false);
+    }
   };
 
   const removePhoto = (index) => {
@@ -651,7 +680,7 @@ export default function ReportLostPet() {
   };
 
   const canProceedFromStep4 = reportData.firstName && reportData.email;
-  const canSubmit = reportData.petName && reportData.color && center && locationConfirmed;
+  const canSubmit = reportData.petName && reportData.color && center && locationConfirmed && !uploadingPhotos;
 
   // Determine which step to skip to based on session
   const nextStepFromMap = session?.user ? 5 : 4;
@@ -1466,19 +1495,26 @@ export default function ReportLostPet() {
                   )}
 
                   {photos.length < 5 && !isSubmitting && (
-                    <label className="block p-6 border-2 border-dashed border-[var(--hub-border)] rounded-xl
-                      hover:border-[var(--hub-accent-primary)] transition-colors cursor-pointer text-center">
-                      <Camera size={32} className="mx-auto mb-2 text-[var(--hub-text-muted)]" />
-                      <span className="text-[var(--hub-text-secondary)]">Click to upload photos</span>
-                      <span className="block text-sm text-[var(--hub-text-muted)]">Max 5MB each</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={handlePhotoUpload}
-                        className="hidden"
-                      />
-                    </label>
+                    uploadingPhotos ? (
+                      <div className="block p-6 border-2 border-dashed border-[var(--hub-accent-primary)] rounded-xl text-center">
+                        <Loader2 size={32} className="mx-auto mb-2 text-[var(--hub-accent-primary)] animate-spin" />
+                        <span className="text-[var(--hub-accent-primary)]">Uploading photos...</span>
+                      </div>
+                    ) : (
+                      <label className="block p-6 border-2 border-dashed border-[var(--hub-border)] rounded-xl
+                        hover:border-[var(--hub-accent-primary)] transition-colors cursor-pointer text-center">
+                        <Camera size={32} className="mx-auto mb-2 text-[var(--hub-text-muted)]" />
+                        <span className="text-[var(--hub-text-secondary)]">Click to upload photos</span>
+                        <span className="block text-sm text-[var(--hub-text-muted)]">Max 10MB each</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handlePhotoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    )
                   )}
                 </div>
 
