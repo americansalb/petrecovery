@@ -160,7 +160,7 @@ export default function CreatePostModal({ isOpen, onClose, onSubmit, squadId, di
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Give your post a title..."
-              className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border-2 border-slate-600/50 text-white placeholder-slate-500 font-medium focus:outline-none focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30 transition-all"
+              className="w-full px-4 py-3 rounded-xl bg-slate-700 border-2 border-slate-600 text-white placeholder-slate-400 font-medium focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all"
               maxLength={200}
             />
           </div>
@@ -175,7 +175,7 @@ export default function CreatePostModal({ isOpen, onClose, onSubmit, squadId, di
               onChange={(e) => setContent(e.target.value)}
               placeholder="What's on your mind?"
               rows={8}
-              className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border-2 border-slate-600/50 text-white placeholder-slate-500 font-medium focus:outline-none focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30 transition-all resize-none"
+              className="w-full px-4 py-3 rounded-xl bg-slate-700 border-2 border-slate-600 text-white placeholder-slate-400 font-medium focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all resize-none"
               maxLength={5000}
             />
             <div className="flex justify-between items-center mt-2">
