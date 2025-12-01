@@ -9,7 +9,6 @@ import {
   ChevronRight, Plus, AlertCircle, CheckCircle2,
   Target, TrendingUp, Star, Zap
 } from 'lucide-react';
-import UnifiedNav from '@/app/components/UnifiedNav';
 
 // Rescue level configuration
 const RESCUE_LEVELS = {
@@ -167,13 +166,15 @@ export default function DashboardPage() {
   const rescueLevel = RESCUE_LEVELS[user?.rescueLevel] || RESCUE_LEVELS.PET_OWNER;
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <UnifiedNav />
-
+    <div style={{
+      minHeight: '100vh',
+      background: '#f8fafc',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+    }}>
       {/* Hero Section */}
       <div style={{
         background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%)',
-        padding: '2rem 2rem 3rem',
+        padding: '3rem 2rem 4rem',
         color: 'white',
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>

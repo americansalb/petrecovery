@@ -14,7 +14,6 @@ import { useSession } from 'next-auth/react';
 import MatchesPanel from '@/app/components/MatchesPanel';
 import MissionControl from '@/app/components/missionControl/MissionControl';
 import CaseCommandCenter from '@/app/components/case/CaseCommandCenter';
-import UnifiedNav from '@/app/components/UnifiedNav';
 
 export default function CaseDetailPage() {
   const params = useParams();
@@ -172,18 +171,10 @@ export default function CaseDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950">
-        <UnifiedNav
-          breadcrumbs={[
-            { label: 'Cases', href: '/cases', icon: '🔍' },
-            { label: 'Loading...' }
-          ]}
-        />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
-            <p className="mt-4 text-slate-400">Loading case...</p>
-          </div>
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <p className="mt-4 text-gray-400">Loading case...</p>
         </div>
       </div>
     );
@@ -191,22 +182,16 @@ export default function CaseDetailPage() {
 
   if (error || !caseData) {
     return (
-      <div className="min-h-screen bg-slate-950">
-        <UnifiedNav
-          breadcrumbs={[
-            { label: 'Cases', href: '/cases', icon: '🔍' },
-            { label: 'Not Found' }
-          ]}
-        />
+      <div className="min-h-screen bg-gray-900">
         <div className="container mx-auto px-4 max-w-4xl py-12">
-          <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-8 text-center">
+          <div className="bg-red-900/50 border border-red-500 rounded-lg p-8 text-center">
             <h1 className="text-2xl font-bold text-red-300 mb-4">Case Not Found</h1>
             <p className="text-red-400 mb-6">{error || 'This case does not exist.'}</p>
             <button
               onClick={() => router.push('/cases')}
-              className="px-6 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-400 transition"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
             >
-              Browse All Cases
+              Back to Cases
             </button>
           </div>
         </div>
@@ -217,17 +202,17 @@ export default function CaseDetailPage() {
   // Show Mission Control if live or user toggled it
   if (showMissionControl && missionState) {
     return (
-      <div className="min-h-screen bg-slate-950">
-        <UnifiedNav
-          breadcrumbs={[
-            { label: 'Cases', href: '/cases', icon: '🔍' },
-            { label: caseData.petName || 'Case', href: `/cases/${caseNumber}` },
-            { label: 'Mission Control', icon: '🎯' }
-          ]}
-          actions={[
-            { label: 'Case Info', onClick: () => setShowMissionControl(false) }
-          ]}
-        />
+      <div className="min-h-screen bg-gray-900">
+        {/* Exit Mission Control button */}
+        <div className="bg-gray-800 border-b border-gray-700 px-4 py-2">
+          <button
+            onClick={() => setShowMissionControl(false)}
+            className="text-gray-400 hover:text-white text-sm flex items-center gap-2"
+          >
+            ← Back to Case Info
+          </button>
+        </div>
+
         <MissionControl
           caseId={caseData.id}
           userRole={userRole}
@@ -240,22 +225,11 @@ export default function CaseDetailPage() {
   // Show Command Center as default view for all cases
   if (showCommandCenter && caseData?.id) {
     return (
-      <div className="min-h-screen bg-slate-950">
-        <UnifiedNav
-          breadcrumbs={[
-            { label: 'Cases', href: '/cases', icon: '🔍' },
-            { label: caseData.petName || 'Case', icon: caseData.petSpecies === 'DOG' ? '🐕' : caseData.petSpecies === 'CAT' ? '🐈' : '🐾' }
-          ]}
-          actions={[
-            { label: 'Basic View', onClick: () => setShowCommandCenter(false) }
-          ]}
-        />
-        <CaseCommandCenter
-          caseId={caseData.id}
-          caseNumber={caseData.caseNumber}
-          onClose={() => setShowCommandCenter(false)}
-        />
-      </div>
+      <CaseCommandCenter
+        caseId={caseData.id}
+        caseNumber={caseData.caseNumber}
+        onClose={() => setShowCommandCenter(false)}
+      />
     );
   }
 
@@ -265,17 +239,7 @@ export default function CaseDetailPage() {
     : null;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <UnifiedNav
-        breadcrumbs={[
-          { label: 'Cases', href: '/cases', icon: '🔍' },
-          { label: caseData.petName || 'Case', icon: caseData.petSpecies === 'DOG' ? '🐕' : caseData.petSpecies === 'CAT' ? '🐈' : '🐾' }
-        ]}
-        actions={[
-          { label: 'Command Center', onClick: () => setShowCommandCenter(true), primary: true, icon: '🎯' }
-        ]}
-      />
-
+    <div className="min-h-screen bg-gray-900 text-white">
       {/* Active Search Banner */}
       {caseData.status === 'IN_PROGRESS' && (
         <div className="bg-gradient-to-r from-cyan-600 to-blue-600 text-white py-3 px-4 text-center">
@@ -309,8 +273,15 @@ export default function CaseDetailPage() {
       )}
 
       {/* Header */}
-      <div className="bg-slate-900 border-b border-slate-800">
+      <div className="bg-gray-800 border-b border-gray-700">
         <div className="container mx-auto px-4 max-w-4xl py-6">
+          <button
+            onClick={() => router.push('/cases')}
+            className="text-blue-400 hover:text-blue-300 mb-4 inline-flex items-center"
+          >
+            ← Back to Cases
+          </button>
+
           <div className="flex gap-6 items-start">
             {/* Pet Photo */}
             {caseData.petPhotoUrl && caseData.petPhotoUrl.length > 10 && (

@@ -11,17 +11,15 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import UnifiedNav from '@/app/components/UnifiedNav';
 
 // Loading fallback for Suspense boundary
 function CasesLoading() {
   return (
-    <div className="min-h-screen bg-slate-950">
-      <UnifiedNav />
+    <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 max-w-6xl py-12">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
-          <p className="mt-4 text-slate-400">Loading cases...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-600">Loading cases...</p>
         </div>
       </div>
     </div>
@@ -137,27 +135,20 @@ function CasesContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <UnifiedNav
-        breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard', icon: '🏠' },
-          { label: 'Browse Cases' }
-        ]}
-      />
-
+    <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white py-8 border-b border-slate-700">
+      <div className="bg-blue-600 text-white py-8">
         <div className="container mx-auto px-4 max-w-6xl">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h1 className="text-3xl font-bold">Lost Pet Cases</h1>
-              <p className="text-slate-400 mt-1">
+              <p className="text-blue-100 mt-1">
                 Browse cases and help reunite pets with their families
               </p>
             </div>
             <a
               href="/report/new"
-              className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition shadow-lg shadow-red-500/20"
+              className="px-6 py-3 bg-white text-blue-600 rounded-lg font-bold hover:bg-blue-50 transition"
             >
               Report Lost Pet
             </a>
@@ -166,28 +157,27 @@ function CasesContent() {
       </div>
 
       {/* Filters Section */}
-      <div className="bg-slate-900 border-b border-slate-800">
+      <div className="bg-white shadow-sm border-b">
         <div className="container mx-auto px-4 max-w-6xl py-4">
-          <h2 className="text-sm font-semibold mb-3 text-slate-400 uppercase tracking-wide">Filter Cases</h2>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <input
               type="text"
               value={city}
               onChange={(e) => setCity(e.target.value)}
               placeholder="City"
-              className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             <input
               type="text"
               value={state}
               onChange={(e) => setState(e.target.value)}
               placeholder="State"
-              className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             <select
               value={species}
               onChange={(e) => setSpecies(e.target.value)}
-              className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Types</option>
               <option value="DOG">Dog</option>
@@ -198,7 +188,7 @@ function CasesContent() {
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Statuses</option>
               <option value="OPEN">Open</option>
@@ -209,13 +199,13 @@ function CasesContent() {
             <div className="flex gap-2">
               <button
                 onClick={applyFilters}
-                className="flex-1 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-400 transition font-medium"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
               >
                 Search
               </button>
               <button
                 onClick={clearFilters}
-                className="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition"
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
               >
                 Clear
               </button>
@@ -229,19 +219,19 @@ function CasesContent() {
         {/* Loading State */}
         {loading && (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
-            <p className="mt-4 text-slate-400">Loading cases...</p>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p className="mt-4 text-gray-600">Loading cases...</p>
           </div>
         )}
 
         {/* Error State */}
         {error && !loading && (
-          <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-6 text-center">
-            <p className="text-red-300 font-semibold">Error loading cases</p>
-            <p className="text-red-400 mt-2">{error}</p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <p className="text-red-800 font-semibold">Error loading cases</p>
+            <p className="text-red-600 mt-2">{error}</p>
             <button
               onClick={fetchCases}
-              className="mt-4 px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+              className="mt-4 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
             >
               Try Again
             </button>
@@ -250,12 +240,12 @@ function CasesContent() {
 
         {/* Empty State */}
         {!loading && !error && cases.length === 0 && (
-          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-12 text-center">
-            <p className="text-slate-300 text-lg mb-4">No cases found matching your filters.</p>
-            <p className="text-slate-500 mb-6">Try adjusting your search criteria or clearing filters.</p>
+          <div className="bg-gray-100 border border-gray-200 rounded-lg p-12 text-center">
+            <p className="text-gray-700 text-lg mb-4">No cases found matching your filters.</p>
+            <p className="text-gray-500 mb-6">Try adjusting your search criteria or clearing filters.</p>
             <button
               onClick={clearFilters}
-              className="px-6 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-400 transition"
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
             >
               Clear Filters
             </button>
@@ -265,7 +255,7 @@ function CasesContent() {
         {/* Cases Grid */}
         {!loading && !error && cases.length > 0 && (
           <>
-            <div className="mb-4 text-slate-400 text-sm">
+            <div className="mb-4 text-gray-600 text-sm">
               Showing {cases.length} of {pagination?.totalCount || 0} cases
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -273,11 +263,11 @@ function CasesContent() {
                 <a
                   key={caseItem.id}
                   href={`/cases/${caseItem.caseNumber}`}
-                  className="bg-slate-800 rounded-xl hover:bg-slate-750 transition border border-slate-700 hover:border-slate-600 overflow-hidden group"
+                  className="bg-white rounded-lg shadow hover:shadow-md transition border border-gray-200 overflow-hidden group"
                 >
                   {/* Pet Photo */}
                   {caseItem.petPhotoUrl ? (
-                    <div className="h-40 bg-slate-700 overflow-hidden">
+                    <div className="h-40 bg-gray-100 overflow-hidden">
                       <img
                         src={caseItem.petPhotoUrl}
                         alt={caseItem.petName || 'Pet photo'}
@@ -289,51 +279,51 @@ function CasesContent() {
                       />
                     </div>
                   ) : (
-                    <div className="h-40 bg-slate-700 flex items-center justify-center">
+                    <div className="h-40 bg-gray-100 flex items-center justify-center">
                       <span className="text-5xl">{caseItem.petSpecies === 'DOG' ? '🐕' : caseItem.petSpecies === 'CAT' ? '🐈' : '🐾'}</span>
                     </div>
                   )}
                   <div className="p-4">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <h3 className="font-bold text-white">
+                        <h3 className="font-bold text-gray-900">
                           {caseItem.petName || 'Unknown Pet'}
                         </h3>
-                        <p className="text-xs text-slate-500">{caseItem.caseNumber}</p>
+                        <p className="text-xs text-gray-500">{caseItem.caseNumber}</p>
                       </div>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(caseItem.status)}`}>
                         {getStatusLabel(caseItem.status)}
                       </span>
                     </div>
 
-                    <div className="space-y-1 text-sm text-slate-400">
+                    <div className="space-y-1 text-sm text-gray-600">
                       <div className="flex items-center gap-2">
                         <span>{caseItem.petSpecies}</span>
                         {caseItem.petBreed && <span>• {caseItem.petBreed}</span>}
                       </div>
                       <div className="flex items-center gap-1">
-                        <span className="text-lg">📍</span>
+                        <span>📍</span>
                         <span>{caseItem.city}, {caseItem.state}</span>
                       </div>
                       {caseItem.lastSeenAt && (
-                        <div className="text-slate-500 text-xs">
+                        <div className="text-gray-500 text-xs">
                           Missing since {new Date(caseItem.lastSeenAt).toLocaleDateString()}
                         </div>
                       )}
                     </div>
 
                     {caseItem.isUrgent && (
-                      <div className="mt-3 bg-red-500/20 border border-red-500/30 rounded px-2 py-1">
-                        <p className="text-xs text-red-400 font-semibold">URGENT</p>
+                      <div className="mt-3 bg-red-50 border border-red-200 rounded px-2 py-1">
+                        <p className="text-xs text-red-700 font-semibold">URGENT</p>
                       </div>
                     )}
 
-                    <div className="mt-3 pt-3 border-t border-slate-700 flex items-center justify-between">
-                      <span className="text-cyan-400 text-sm font-medium group-hover:text-cyan-300 transition">
-                        View Details
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                      <span className="text-blue-600 text-sm font-medium group-hover:text-blue-700 transition">
+                        View Details →
                       </span>
                       {(caseItem.status === 'ACTIVE' || caseItem.status === 'IN_PROGRESS' || caseItem.status === 'SIGHTING_REPORTED') && (
-                        <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full font-medium">
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
                           Active
                         </span>
                       )}
@@ -349,7 +339,7 @@ function CasesContent() {
                 <button
                   onClick={() => handlePageChange(page - 1)}
                   disabled={page === 1}
-                  className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition"
+                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition"
                 >
                   Previous
                 </button>
@@ -371,8 +361,8 @@ function CasesContent() {
                         onClick={() => handlePageChange(pageNum)}
                         className={`px-4 py-2 rounded-lg transition ${
                           page === pageNum
-                            ? 'bg-cyan-500 text-white'
-                            : 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                         }`}
                       >
                         {pageNum}
@@ -383,7 +373,7 @@ function CasesContent() {
                 <button
                   onClick={() => handlePageChange(page + 1)}
                   disabled={page === pagination.totalPages}
-                  className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition"
+                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition"
                 >
                   Next
                 </button>

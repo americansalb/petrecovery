@@ -16,7 +16,6 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import SquadHub from '@/components/squad/SquadHub';
 import { getMockSquadData } from '@/lib/mockSquadData';
-import UnifiedNav from '@/app/components/UnifiedNav';
 
 export default function SquadPage() {
   const params = useParams();
@@ -90,18 +89,10 @@ export default function SquadPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950">
-        <UnifiedNav
-          breadcrumbs={[
-            { label: 'Dashboard', href: '/dashboard', icon: '🏠' },
-            { label: 'Loading...' }
-          ]}
-        />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
-            <p className="mt-4 text-slate-400">Loading squad hub...</p>
-          </div>
+      <div className="min-h-screen bg-[#0a1628] flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+          <p className="mt-4 text-gray-400">Loading squad hub...</p>
         </div>
       </div>
     );
@@ -110,38 +101,30 @@ export default function SquadPage() {
   if (error) {
     const isNotFound = error === 'Squad not found';
     return (
-      <div className="min-h-screen bg-slate-950">
-        <UnifiedNav
-          breadcrumbs={[
-            { label: 'Find Squads', href: '/rescue-squads/search', icon: '👥' },
-            { label: 'Not Found' }
-          ]}
-        />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center max-w-md mx-auto px-4">
-            <div className="text-6xl mb-4">{isNotFound ? '🐾' : '⚠️'}</div>
-            <h1 className="text-2xl font-bold text-white mb-2">
-              {isNotFound ? 'Squad Not Found' : 'Error Loading Squad'}
-            </h1>
-            <p className="text-slate-400 mb-6">
-              {isNotFound
-                ? "We couldn't find a rescue squad with that ID. It may not exist yet or the link may be incorrect."
-                : error}
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button
-                onClick={() => window.location.reload()}
-                className="px-6 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition"
-              >
-                Try Again
-              </button>
-              <a
-                href="/rescue-squads/search"
-                className="px-6 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-400 transition"
-              >
-                Find a Squad Near You
-              </a>
-            </div>
+      <div className="min-h-screen bg-[#0a1628] flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto px-4">
+          <div className="text-6xl mb-4">{isNotFound ? '🐾' : '⚠️'}</div>
+          <h1 className="text-2xl font-bold text-white mb-2">
+            {isNotFound ? 'Squad Not Found' : 'Error Loading Squad'}
+          </h1>
+          <p className="text-gray-400 mb-6">
+            {isNotFound
+              ? "We couldn't find a rescue squad with that ID. It may not exist yet or the link may be incorrect."
+              : error}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition"
+            >
+              Try Again
+            </button>
+            <a
+              href="/rescue-squads/search"
+              className="px-6 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition"
+            >
+              Find a Squad Near You
+            </a>
           </div>
         </div>
       </div>
@@ -155,22 +138,15 @@ export default function SquadPage() {
   // Use the actual squad ID from the API response (not the URL slug)
   // This ensures action APIs work correctly with the real database ID
   const resolvedSquadId = squadData.squad?.id || squadId;
-  const squadName = squadData.squad?.displayName || squadData.squad?.name || 'Rescue Squad';
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <UnifiedNav
-        breadcrumbs={[
-          { label: 'My Squads', href: '/rescue-squads/my', icon: '👥' },
-          { label: squadName, icon: '🚨' }
-        ]}
-      />
+    <>
       {usingMockData && process.env.NODE_ENV === 'development' && (
         <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 text-center text-amber-300 text-sm">
           Using mock data (real squad not found in database)
         </div>
       )}
       <SquadHub initialData={squadData} squadId={resolvedSquadId} />
-    </div>
+    </>
   );
 }
