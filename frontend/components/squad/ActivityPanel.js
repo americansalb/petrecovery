@@ -197,10 +197,11 @@ function ChatTab({ messages, selectedDivisionId, divisions, chatScope, setChatSc
 }
 
 function ChatMessage({ message, compact }) {
-  const roleColors = {
-    MEMBER: 'var(--hub-text-secondary)',
-    LEAD: 'var(--hub-accent-primary)',
-    ADMIN: 'var(--hub-accent-secondary)',
+  // Map roles to CSS classes for high contrast
+  const roleClasses = {
+    MEMBER: 'text-[var(--hub-text-secondary)]',
+    LEAD: 'text-[var(--hub-accent-primary)]',
+    ADMIN: 'text-[var(--hub-accent-secondary)]',
   };
 
   return (
@@ -213,10 +214,7 @@ function ChatMessage({ message, compact }) {
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
-            <span
-              className={`font-semibold ${compact ? 'text-[10px]' : 'text-xs'}`}
-              style={{ color: roleColors[message.authorRole] || roleColors.MEMBER }}
-            >
+            <span className={`font-bold ${compact ? 'text-[10px]' : 'text-xs'} ${roleClasses[message.authorRole] || roleClasses.MEMBER}`}>
               {message.authorName}
             </span>
             <span className="text-[10px] text-[var(--hub-text-muted)]">
@@ -259,11 +257,8 @@ function ActivityEvent({ event, compact }) {
 
   return (
     <div className={`hub-activity-item flex items-start gap-2 ${compact ? 'p-1.5' : 'p-2'} rounded-lg bg-[var(--hub-bg-card)]/50`}>
-      <div
-        className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} rounded-full flex items-center justify-center flex-shrink-0`}
-        style={{ backgroundColor: `${config.color}20` }}
-      >
-        <config.icon size={compact ? 12 : 14} style={{ color: config.color }} />
+      <div className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} rounded-full flex items-center justify-center flex-shrink-0 ${config.bgClass}`}>
+        <config.icon size={compact ? 12 : 14} className={config.iconClass} />
       </div>
       <div className="flex-1 min-w-0">
         <p className={`text-[var(--hub-text-secondary)] ${compact ? 'text-[10px] line-clamp-1' : 'text-xs'}`}>
@@ -338,43 +333,49 @@ function Announcement({ announcement, compact }) {
   );
 }
 
-// Helpers
+// Helpers - using CSS classes for colors
 function getEventConfig(event) {
   switch (event.type) {
     case 'case_created':
       return {
         icon: Plus,
-        color: 'var(--hub-status-high)',
+        bgClass: 'hub-urgency-high-bg',
+        iconClass: 'hub-urgency-high-text',
         message: `New case: ${event.payload.petName || 'Unknown pet'} reported missing`,
       };
     case 'case_reunited':
       return {
         icon: Heart,
-        color: 'var(--hub-status-success)',
+        bgClass: 'bg-[var(--hub-status-success)]/20',
+        iconClass: 'text-[var(--hub-status-success)]',
         message: `${event.payload.petName || 'A pet'} was reunited with their family!`,
       };
     case 'member_joined':
       return {
         icon: User,
-        color: 'var(--hub-accent-primary)',
+        bgClass: 'bg-[var(--hub-accent-primary)]/20',
+        iconClass: 'text-[var(--hub-accent-primary)]',
         message: `${event.payload.memberName || 'Someone'} joined the squad`,
       };
     case 'sighting_reported':
       return {
         icon: AlertCircle,
-        color: 'var(--hub-status-medium)',
+        bgClass: 'hub-urgency-medium-bg',
+        iconClass: 'hub-urgency-medium-text',
         message: `New sighting reported for ${event.payload.petName || 'a pet'}`,
       };
     case 'status_changed':
       return {
         icon: Activity,
-        color: 'var(--hub-accent-secondary)',
+        bgClass: 'bg-[var(--hub-accent-secondary)]/20',
+        iconClass: 'text-[var(--hub-accent-secondary)]',
         message: event.payload.message || 'Case status updated',
       };
     default:
       return {
         icon: Activity,
-        color: 'var(--hub-text-muted)',
+        bgClass: 'bg-[var(--hub-text-muted)]/20',
+        iconClass: 'text-[var(--hub-text-muted)]',
         message: 'Activity recorded',
       };
   }

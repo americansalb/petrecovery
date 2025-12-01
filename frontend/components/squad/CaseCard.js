@@ -1,40 +1,40 @@
 'use client';
 
 /**
- * CaseCard - Individual case card with bioluminescent styling
+ * CaseCard - High-Utility Design
  *
- * Shows:
- * - Pet photo/icon
- * - Pet name and species
- * - Time missing (urgency color coded)
- * - Helper count
- * - "Help" CTA button
- *
- * Glows based on urgency level.
+ * Clean, high-contrast cards with:
+ * - Clear pet photo/icon
+ * - Bold urgency indicators
+ * - Prominent Help CTA
+ * - Zero-friction interactions
  */
 
 import { useSquadHub } from './context/SquadHubContext';
 import { Clock, Users, MapPin, Award, MessageCircle } from 'lucide-react';
 
-// Urgency color mapping
-const urgencyColors = {
+// Urgency configuration - maps to CSS utility classes
+const urgencyConfig = {
   HIGH: {
-    border: 'var(--hub-status-high)',
-    text: 'var(--hub-status-high)',
-    bg: 'rgba(239, 68, 68, 0.1)',
-    class: 'hub-case-high',
+    cardClass: 'hub-case-high hub-urgency-high-border',
+    bgClass: 'hub-urgency-high-bg',
+    textClass: 'hub-urgency-high-text',
+    btnClass: 'hub-btn-high',
+    label: 'URGENT',
   },
   MEDIUM: {
-    border: 'var(--hub-status-medium)',
-    text: 'var(--hub-status-medium)',
-    bg: 'rgba(245, 158, 11, 0.1)',
-    class: 'hub-case-medium',
+    cardClass: 'hub-case-medium hub-urgency-medium-border',
+    bgClass: 'hub-urgency-medium-bg',
+    textClass: 'hub-urgency-medium-text',
+    btnClass: 'hub-btn-medium',
+    label: null,
   },
   LOW: {
-    border: 'var(--hub-status-low)',
-    text: 'var(--hub-status-low)',
-    bg: 'rgba(99, 102, 241, 0.1)',
-    class: 'hub-case-low',
+    cardClass: 'hub-case-low hub-urgency-low-border',
+    bgClass: 'hub-urgency-low-bg',
+    textClass: 'hub-urgency-low-text',
+    btnClass: 'hub-btn-low',
+    label: null,
   },
 };
 
@@ -50,7 +50,7 @@ const speciesEmoji = {
 export default function CaseCard({ caseItem, compact = false }) {
   const { helpOnCase, selectCase, openCaseChat } = useSquadHub();
 
-  const urgency = urgencyColors[caseItem.urgency] || urgencyColors.LOW;
+  const urgency = urgencyConfig[caseItem.urgency] || urgencyConfig.LOW;
   const timeAgo = getTimeAgo(caseItem.lastSeenAt);
   const emoji = speciesEmoji[caseItem.species] || '🐾';
 
@@ -73,20 +73,18 @@ export default function CaseCard({ caseItem, compact = false }) {
           transition-all duration-200 text-left
           hover:border-[var(--hub-border-glow)]
           min-w-[200px] flex-shrink-0
-          ${urgency.class}
+          hub-card-lift
+          ${urgency.cardClass}
         `}
-        style={{ borderColor: urgency.border }}
       >
         {/* Pet photo/icon */}
         <div
-          className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2"
-          style={{
-            borderColor: urgency.border,
-            backgroundColor: urgency.bg,
-            backgroundImage: caseItem.photoUrl ? `url(${caseItem.photoUrl})` : 'none',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
+          className={`
+            w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0
+            border-2 bg-cover bg-center
+            ${urgency.bgClass} ${urgency.cardClass}
+          `}
+          style={caseItem.photoUrl ? { backgroundImage: `url(${caseItem.photoUrl})` } : undefined}
         >
           {!caseItem.photoUrl && (
             <span className="text-xl">{emoji}</span>
@@ -98,21 +96,20 @@ export default function CaseCard({ caseItem, compact = false }) {
           <div className="font-semibold text-[var(--hub-text-primary)] truncate">
             {caseItem.petName}
           </div>
-          <div className="text-xs font-medium" style={{ color: urgency.text }}>
+          <div className={`text-xs font-medium ${urgency.textClass}`}>
             {timeAgo}
           </div>
         </div>
 
         {/* Helper badge or Help button */}
         {caseItem.isUserHelper ? (
-          <div className="px-2 py-1 rounded-full bg-[var(--hub-status-success)]/20 text-[var(--hub-status-success)] text-[10px] font-medium">
+          <div className="px-2 py-1 rounded-full bg-[var(--hub-status-success)]/20 text-[var(--hub-status-success)] text-[10px] font-semibold">
             Helping
           </div>
         ) : (
           <button
             onClick={handleHelp}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold text-white transition-all"
-            style={{ backgroundColor: urgency.border }}
+            className={`px-3 py-1.5 rounded-full text-xs transition-all ${urgency.btnClass}`}
           >
             Help
           </button>
@@ -130,35 +127,27 @@ export default function CaseCard({ caseItem, compact = false }) {
         bg-[var(--hub-bg-card)] border
         transition-all duration-200
         hover:border-[var(--hub-border-glow)]
-        ${urgency.class}
+        hub-card-lift
+        ${urgency.cardClass}
       `}
-      style={{ borderColor: urgency.border }}
     >
       {/* Photo area */}
       <div
-        className="h-24 flex items-center justify-center relative"
-        style={{
-          backgroundColor: urgency.bg,
-          backgroundImage: caseItem.photoUrl ? `url(${caseItem.photoUrl})` : 'none',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
+        className={`h-28 flex items-center justify-center relative bg-cover bg-center ${urgency.bgClass}`}
+        style={caseItem.photoUrl ? { backgroundImage: `url(${caseItem.photoUrl})` } : undefined}
       >
         {!caseItem.photoUrl && (
-          <span className="text-4xl">{emoji}</span>
+          <span className="text-5xl">{emoji}</span>
         )}
 
-        {/* Urgency badge */}
-        <div
-          className="absolute top-2 right-2 px-2 py-1 rounded text-[10px] font-bold text-white"
-          style={{ backgroundColor: urgency.border }}
-        >
-          {caseItem.urgency === 'HIGH' ? 'URGENT' : timeAgo}
+        {/* Urgency badge - only show for URGENT or with time */}
+        <div className={`absolute top-2 right-2 px-2.5 py-1 rounded-md text-[10px] font-bold text-white ${urgency.btnClass}`}>
+          {urgency.label || timeAgo}
         </div>
 
         {/* Reward badge */}
         {caseItem.rewardAmount && caseItem.rewardAmount > 0 && (
-          <div className="absolute top-2 left-2 px-2 py-1 rounded bg-[var(--hub-status-success)] text-[10px] font-bold text-white flex items-center gap-1">
+          <div className="absolute top-2 left-2 px-2.5 py-1 rounded-md bg-[var(--hub-status-success)] text-[10px] font-bold text-white flex items-center gap-1">
             <Award size={10} />
             ${caseItem.rewardAmount}
           </div>
@@ -167,67 +156,66 @@ export default function CaseCard({ caseItem, compact = false }) {
 
       {/* Details */}
       <div className="p-3">
-        <div className="font-semibold text-[var(--hub-text-primary)] truncate mb-1">
+        <div className="font-bold text-[var(--hub-text-primary)] truncate mb-1 text-base">
           {caseItem.petName}
         </div>
 
-        <div className="text-xs text-[var(--hub-text-muted)] mb-2">
-          {caseItem.color && `${caseItem.color} `}
-          {caseItem.species?.charAt(0) + caseItem.species?.slice(1).toLowerCase()}
-          {caseItem.breed && ` • ${caseItem.breed}`}
+        <div className="text-xs text-[var(--hub-text-secondary)] mb-2">
+          {caseItem.color && <span className="capitalize">{caseItem.color} </span>}
+          <span className="capitalize">{caseItem.species?.toLowerCase()}</span>
+          {caseItem.breed && <span className="text-[var(--hub-text-muted)]"> • {caseItem.breed}</span>}
         </div>
 
-        <div className="flex items-center gap-3 text-[10px] text-[var(--hub-text-muted)] mb-3">
-          <span className="flex items-center gap-1">
-            <Clock size={10} style={{ color: urgency.text }} />
-            <span style={{ color: urgency.text }}>{timeAgo}</span>
+        <div className="flex items-center gap-3 text-[11px] text-[var(--hub-text-muted)] mb-3">
+          <span className={`flex items-center gap-1 font-medium ${urgency.textClass}`}>
+            <Clock size={11} />
+            {timeAgo}
           </span>
           <span className="flex items-center gap-1">
-            <Users size={10} />
+            <Users size={11} />
             {caseItem.helperCount} helping
           </span>
         </div>
 
         {caseItem.lastSeenAddress && (
-          <div className="flex items-start gap-1 text-[10px] text-[var(--hub-text-muted)] mb-3 truncate">
-            <MapPin size={10} className="flex-shrink-0 mt-0.5" />
+          <div className="flex items-start gap-1.5 text-[11px] text-[var(--hub-text-muted)] mb-3">
+            <MapPin size={11} className="flex-shrink-0 mt-0.5 text-[var(--hub-accent-primary)]" />
             <span className="truncate">{caseItem.lastSeenAddress.split(',')[0]}</span>
           </div>
         )}
 
-        {/* Action */}
+        {/* Primary Action - high contrast CTA */}
         {caseItem.isUserHelper ? (
-          <div className="w-full py-2 rounded-lg bg-[var(--hub-status-success)]/20 text-[var(--hub-status-success)] text-xs font-semibold text-center">
+          <div className="w-full py-2.5 rounded-lg bg-[var(--hub-status-success)]/20 text-[var(--hub-status-success)] text-sm font-semibold text-center">
             You're Helping
           </div>
         ) : (
           <button
             onClick={handleHelp}
-            className="w-full py-2 rounded-lg text-white text-xs font-semibold transition-all hover:opacity-90"
-            style={{ backgroundColor: urgency.border }}
+            className={`w-full py-2.5 rounded-lg text-sm transition-all hover:opacity-90 ${urgency.btnClass}`}
           >
-            Help with {caseItem.petName}
+            Help Find {caseItem.petName}
           </button>
         )}
 
-        {/* Action links */}
+        {/* Secondary actions */}
         <div className="flex gap-2 mt-2">
           <button
             onClick={(e) => {
               e.stopPropagation();
               openCaseChat(caseItem.id);
             }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[var(--hub-text-muted)] hover:text-[var(--hub-accent-primary)] transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] text-[var(--hub-text-muted)] hover:text-[var(--hub-accent-primary)] hover:bg-[var(--hub-bg-elevated)]/50 rounded-lg transition-colors"
           >
-            <MessageCircle size={10} />
+            <MessageCircle size={12} />
             Chat
           </button>
           <a
             href={`/cases/${caseItem.caseNumber}`}
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] bg-[var(--hub-accent-primary)]/10 text-[var(--hub-accent-primary)] hover:bg-[var(--hub-accent-primary)]/20 rounded-lg transition-colors font-medium"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] bg-[var(--hub-accent-primary)]/10 text-[var(--hub-accent-primary)] hover:bg-[var(--hub-accent-primary)]/20 rounded-lg transition-colors font-medium"
           >
-            🎯 Command Center
+            View Case
           </a>
         </div>
       </div>

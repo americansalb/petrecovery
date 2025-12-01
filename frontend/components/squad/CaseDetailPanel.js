@@ -1,16 +1,13 @@
 'use client';
 
 /**
- * CaseDetailPanel - Shows detailed case information
+ * CaseDetailPanel - High-Utility Design
  *
- * Displayed when a case is selected from the queue or map.
- * Shows:
- * - Pet photo and basic info
- * - Last seen location details
- * - Time missing with urgency indicator
- * - Helper count and user's help status
- * - Action buttons (Help, Chat, View Full Case)
- * - Quick notes/description
+ * Clean, focused case details with:
+ * - Clear pet identification
+ * - High-contrast urgency indicators
+ * - Prominent action buttons
+ * - Zero-friction interactions
  */
 
 import { useSquadHub } from './context/SquadHubContext';
@@ -22,29 +19,28 @@ import {
   Award,
   MessageCircle,
   ExternalLink,
-  Phone,
   AlertCircle,
   Heart,
 } from 'lucide-react';
 
-// Urgency color mapping
-const urgencyColors = {
+// Urgency configuration - maps to CSS utility classes
+const urgencyConfig = {
   HIGH: {
-    border: 'var(--hub-status-high)',
-    text: 'var(--hub-status-high)',
-    bg: 'rgba(239, 68, 68, 0.1)',
+    bgClass: 'hub-urgency-high-bg',
+    textClass: 'hub-urgency-high-text',
+    btnClass: 'hub-btn-high',
     label: 'URGENT',
   },
   MEDIUM: {
-    border: 'var(--hub-status-medium)',
-    text: 'var(--hub-status-medium)',
-    bg: 'rgba(245, 158, 11, 0.1)',
+    bgClass: 'hub-urgency-medium-bg',
+    textClass: 'hub-urgency-medium-text',
+    btnClass: 'hub-btn-medium',
     label: 'MODERATE',
   },
   LOW: {
-    border: 'var(--hub-status-low)',
-    text: 'var(--hub-status-low)',
-    bg: 'rgba(99, 102, 241, 0.1)',
+    bgClass: 'hub-urgency-low-bg',
+    textClass: 'hub-urgency-low-text',
+    btnClass: 'hub-btn-low',
     label: 'ROUTINE',
   },
 };
@@ -63,7 +59,7 @@ export default function CaseDetailPanel() {
 
   if (!selectedCase) return null;
 
-  const urgency = urgencyColors[selectedCase.urgency] || urgencyColors.LOW;
+  const urgency = urgencyConfig[selectedCase.urgency] || urgencyConfig.LOW;
   const emoji = speciesEmoji[selectedCase.species] || '🐾';
   const timeAgo = getTimeAgo(selectedCase.lastSeenAt);
   const division = divisions?.find(d => d.id === selectedCase.divisionId);
@@ -82,7 +78,7 @@ export default function CaseDetailPanel() {
     <div className="h-full flex flex-col bg-[var(--hub-bg-panel)]">
       {/* Header with close button */}
       <div className="flex items-center justify-between p-3 border-b border-[var(--hub-border)]">
-        <h2 className="text-sm font-semibold text-[var(--hub-text-primary)]">
+        <h2 className="text-sm font-bold text-[var(--hub-text-primary)]">
           Case Details
         </h2>
         <button
@@ -97,23 +93,15 @@ export default function CaseDetailPanel() {
       <div className="flex-1 overflow-y-auto">
         {/* Pet photo/icon area */}
         <div
-          className="h-48 flex items-center justify-center relative"
-          style={{
-            backgroundColor: urgency.bg,
-            backgroundImage: selectedCase.photoUrl ? `url(${selectedCase.photoUrl})` : 'none',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
+          className={`h-48 flex items-center justify-center relative bg-cover bg-center ${urgency.bgClass}`}
+          style={selectedCase.photoUrl ? { backgroundImage: `url(${selectedCase.photoUrl})` } : undefined}
         >
           {!selectedCase.photoUrl && (
             <span className="text-6xl">{emoji}</span>
           )}
 
           {/* Urgency badge */}
-          <div
-            className="absolute top-3 right-3 px-3 py-1.5 rounded-lg text-xs font-bold text-white"
-            style={{ backgroundColor: urgency.border }}
-          >
+          <div className={`absolute top-3 right-3 px-3 py-1.5 rounded-lg text-xs font-bold text-white ${urgency.btnClass}`}>
             {urgency.label}
           </div>
 
@@ -127,7 +115,7 @@ export default function CaseDetailPanel() {
 
           {/* Reunited badge */}
           {isReunited && (
-            <div className="absolute bottom-3 left-3 right-3 py-2 rounded-lg bg-[var(--hub-status-success)] text-center text-white font-semibold text-sm flex items-center justify-center gap-2">
+            <div className="absolute bottom-3 left-3 right-3 py-2 rounded-lg bg-[var(--hub-status-success)] text-center text-white font-bold text-sm flex items-center justify-center gap-2">
               <Heart size={16} />
               Reunited!
             </div>
@@ -141,14 +129,14 @@ export default function CaseDetailPanel() {
             <h3 className="text-xl font-bold text-[var(--hub-text-primary)] mb-1">
               {selectedCase.petName}
             </h3>
-            <div className="text-xs text-[var(--hub-text-muted)]">
+            <div className="text-xs text-[var(--hub-text-muted)] font-medium">
               Case #{selectedCase.caseNumber || selectedCase.id.slice(0, 8).toUpperCase()}
             </div>
           </div>
 
           {/* Species/breed/color */}
           <div className="mb-4 p-3 rounded-lg bg-[var(--hub-bg-card)] border border-[var(--hub-border)]">
-            <div className="text-sm text-[var(--hub-text-secondary)]">
+            <div className="text-sm text-[var(--hub-text-secondary)] font-medium">
               {selectedCase.color && <span className="capitalize">{selectedCase.color} </span>}
               <span className="capitalize">
                 {selectedCase.species?.toLowerCase() || 'Pet'}
@@ -159,11 +147,11 @@ export default function CaseDetailPanel() {
             </div>
           </div>
 
-          {/* Time missing */}
-          <div className="flex items-center gap-3 mb-3 p-3 rounded-lg" style={{ backgroundColor: urgency.bg }}>
-            <Clock size={20} style={{ color: urgency.text }} />
+          {/* Time missing - high visibility */}
+          <div className={`flex items-center gap-3 mb-3 p-3 rounded-lg ${urgency.bgClass}`}>
+            <Clock size={20} className={urgency.textClass} />
             <div>
-              <div className="text-sm font-semibold" style={{ color: urgency.text }}>
+              <div className={`text-sm font-bold ${urgency.textClass}`}>
                 Missing {timeAgo}
               </div>
               {selectedCase.lastSeenAt && (
@@ -185,7 +173,7 @@ export default function CaseDetailPanel() {
             <div className="flex items-start gap-3 mb-3 p-3 rounded-lg bg-[var(--hub-bg-card)] border border-[var(--hub-border)]">
               <MapPin size={20} className="text-[var(--hub-accent-primary)] flex-shrink-0 mt-0.5" />
               <div>
-                <div className="text-sm text-[var(--hub-text-primary)]">
+                <div className="text-sm text-[var(--hub-text-primary)] font-medium">
                   {selectedCase.lastSeenAddress}
                 </div>
                 {division && (
@@ -201,11 +189,11 @@ export default function CaseDetailPanel() {
           <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-[var(--hub-bg-card)] border border-[var(--hub-border)]">
             <Users size={20} className="text-[var(--hub-text-muted)]" />
             <div>
-              <div className="text-sm text-[var(--hub-text-primary)]">
+              <div className="text-sm text-[var(--hub-text-primary)] font-medium">
                 {selectedCase.helperCount || 0} {selectedCase.helperCount === 1 ? 'helper' : 'helpers'} active
               </div>
               {selectedCase.isUserHelper && (
-                <div className="text-xs text-[var(--hub-status-success)] font-medium">
+                <div className="text-xs text-[var(--hub-status-success)] font-semibold">
                   You're helping on this case
                 </div>
               )}
@@ -219,14 +207,13 @@ export default function CaseDetailPanel() {
         {!isReunited && (
           <>
             {selectedCase.isUserHelper ? (
-              <div className="w-full py-3 rounded-xl bg-[var(--hub-status-success)]/20 text-[var(--hub-status-success)] text-sm font-semibold text-center">
+              <div className="w-full py-3 rounded-xl bg-[var(--hub-status-success)]/20 text-[var(--hub-status-success)] text-sm font-bold text-center">
                 You're Helping
               </div>
             ) : (
               <button
                 onClick={handleHelp}
-                className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90 flex items-center justify-center gap-2"
-                style={{ backgroundColor: urgency.border }}
+                className={`w-full py-3 rounded-xl text-sm transition-all hover:opacity-90 flex items-center justify-center gap-2 ${urgency.btnClass}`}
               >
                 <AlertCircle size={16} />
                 Help Find {selectedCase.petName}
@@ -235,7 +222,7 @@ export default function CaseDetailPanel() {
 
             <button
               onClick={handleOpenChat}
-              className="w-full py-3 rounded-xl bg-[var(--hub-bg-card)] border border-[var(--hub-border)] text-[var(--hub-text-primary)] text-sm font-medium transition-all hover:border-[var(--hub-accent-primary)] flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-xl bg-[var(--hub-bg-card)] border border-[var(--hub-border)] text-[var(--hub-text-primary)] text-sm font-semibold transition-all hover:border-[var(--hub-accent-primary)] flex items-center justify-center gap-2"
             >
               <MessageCircle size={16} />
               Open Case Chat
@@ -247,7 +234,7 @@ export default function CaseDetailPanel() {
           href={`/cases/${selectedCase.id}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="w-full py-3 rounded-xl bg-[var(--hub-bg-card)] border border-[var(--hub-border)] text-[var(--hub-text-muted)] text-sm font-medium transition-all hover:border-[var(--hub-border-glow)] hover:text-[var(--hub-text-secondary)] flex items-center justify-center gap-2"
+          className="w-full py-3 rounded-xl bg-[var(--hub-bg-card)] border border-[var(--hub-border)] text-[var(--hub-text-secondary)] text-sm font-medium transition-all hover:border-[var(--hub-border-glow)] hover:text-[var(--hub-text-primary)] flex items-center justify-center gap-2"
         >
           <ExternalLink size={14} />
           View Full Case Page
