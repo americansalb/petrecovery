@@ -84,7 +84,9 @@ export async function POST(request, { params }) {
       address,
       description,
       confidence,
-      photoUrl
+      photoUrl,
+      behavior,
+      directionOfTravel
     } = body;
 
     // Validate required fields
@@ -117,6 +119,13 @@ export async function POST(request, { params }) {
       }, { status: 400 });
     }
 
+    // Build full description with behavior details
+    const fullDescription = [
+      description,
+      behavior ? `Behavior: ${behavior}` : null,
+      directionOfTravel ? `Direction: ${directionOfTravel}` : null
+    ].filter(Boolean).join(' | ');
+
     // Create sighting
     const sighting = await prisma.sighting.create({
       data: {
@@ -125,7 +134,7 @@ export async function POST(request, { params }) {
         latitude: parseFloat(latitude),
         longitude: parseFloat(longitude),
         address: address || null,
-        description: description || null,
+        description: fullDescription || null,
         confidence: confidence || 'MEDIUM',
         photoUrl: photoUrl || null,
         status: 'PENDING'
@@ -149,11 +158,12 @@ export async function POST(request, { params }) {
       });
 
       // Create an update entry
+      const behaviorLabel = behavior ? behavior.charAt(0) + behavior.slice(1).toLowerCase().replace('_', ' ') : '';
       await prisma.caseUpdate.create({
         data: {
           caseId: caseData.id,
           authorId: reporterId,
-          content: `New sighting reported${address ? ` near ${address}` : ''}`,
+          content: `New sighting reported${address ? ` near ${address}` : ''}${behaviorLabel ? ` - pet appeared ${behaviorLabel}` : ''}${directionOfTravel ? ` (heading ${directionOfTravel})` : ''}`,
           isUpdate: true
         }
       });
@@ -172,6 +182,8 @@ export async function POST(request, { params }) {
         caseNumber: caseData.caseNumber,
         sightingId: sighting.id,
         confidence,
+        behavior,
+        directionOfTravel,
         hasPhoto: !!photoUrl,
         response_time_ms: responseTime
       }

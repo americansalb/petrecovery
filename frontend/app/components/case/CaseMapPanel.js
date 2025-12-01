@@ -13,14 +13,16 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-export default function CaseMapPanel({ caseData, onSightingClick }) {
+export default function CaseMapPanel({ caseData, searchAreas = [], onSightingClick }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersLayerRef = useRef(null);
+  const searchAreasLayerRef = useRef(null);
   const [sightings, setSightings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [mapView, setMapView] = useState('hybrid'); // 'standard', 'satellite', 'hybrid'
+  const [showSearchAreas, setShowSearchAreas] = useState(true);
 
   // Fetch sightings for this case
   const fetchSightings = useCallback(async () => {
@@ -98,6 +100,9 @@ export default function CaseMapPanel({ caseData, onSightingClick }) {
       // Create markers layer
       markersLayerRef.current = L.layerGroup().addTo(map);
 
+      // Create search areas layer
+      searchAreasLayerRef.current = L.layerGroup().addTo(map);
+
       mapInstanceRef.current = map;
 
       // Add markers
@@ -120,6 +125,70 @@ export default function CaseMapPanel({ caseData, onSightingClick }) {
       addMarkers(L, mapInstanceRef.current);
     });
   }, [sightings, caseData]);
+
+  // Draw search areas
+  useEffect(() => {
+    if (!mapInstanceRef.current || !searchAreasLayerRef.current) return;
+
+    import('leaflet').then((L) => {
+      // Clear existing search areas
+      searchAreasLayerRef.current.clearLayers();
+
+      if (!showSearchAreas || !searchAreas.length) return;
+
+      searchAreas.forEach((area) => {
+        if (!area.geometry?.coordinates) return;
+
+        try {
+          // Parse geometry if it's a string
+          const geometry = typeof area.geometry === 'string'
+            ? JSON.parse(area.geometry)
+            : area.geometry;
+
+          // Create polygon from coordinates
+          // GeoJSON uses [lng, lat] but Leaflet uses [lat, lng]
+          const coords = geometry.coordinates[0]?.map(coord => [coord[1], coord[0]]);
+
+          if (coords && coords.length > 2) {
+            const polygon = L.polygon(coords, {
+              color: '#22c55e', // Green border
+              weight: 2,
+              opacity: 0.8,
+              fillColor: '#22c55e',
+              fillOpacity: 0.15,
+              dashArray: null,
+            });
+
+            // Add popup with area info
+            polygon.bindPopup(`
+              <div class="p-2">
+                <div class="font-bold text-green-600 mb-1">✓ Searched Area</div>
+                ${area.acreage ? `<div class="text-sm text-gray-600">${area.acreage.toFixed(2)} acres</div>` : ''}
+                ${area.notes ? `<div class="text-sm text-gray-500 mt-1">${area.notes}</div>` : ''}
+                ${area.user?.firstName ? `
+                  <div class="text-xs text-gray-400 mt-2 border-t pt-1">
+                    Searched by ${area.user.firstName}
+                  </div>
+                ` : ''}
+                ${area.createdAt ? `
+                  <div class="text-xs text-gray-400">
+                    ${new Date(area.createdAt).toLocaleDateString()}
+                  </div>
+                ` : ''}
+              </div>
+            `, { className: 'custom-popup' });
+
+            polygon.addTo(searchAreasLayerRef.current);
+          }
+        } catch (err) {
+          console.error('Error drawing search area:', err);
+        }
+      });
+    });
+  }, [searchAreas, showSearchAreas]);
+
+  // Calculate total acreage searched
+  const totalAcreage = searchAreas.reduce((sum, area) => sum + (area.acreage || 0), 0);
 
   const addMarkers = (L, map) => {
     if (!markersLayerRef.current) return;
@@ -246,11 +315,30 @@ export default function CaseMapPanel({ caseData, onSightingClick }) {
                 {getLastSightingTime() && ` (${getLastSightingTime()})`}
               </span>
             )}
+            {searchAreas.length > 0 && (
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-green-500" />
+                {totalAcreage.toFixed(1)} acres searched
+              </span>
+            )}
           </div>
         </div>
 
         {/* Quick actions */}
         <div className="flex items-center gap-2">
+          {/* Search areas toggle */}
+          {searchAreas.length > 0 && (
+            <button
+              onClick={() => setShowSearchAreas(!showSearchAreas)}
+              className={`px-3 py-1.5 text-xs rounded-lg transition ${
+                showSearchAreas
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/50'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              }`}
+            >
+              {showSearchAreas ? '✓ Coverage' : 'Coverage'}
+            </button>
+          )}
           <button
             onClick={() => {
               if (mapInstanceRef.current && caseData?.lastSeenLatitude) {

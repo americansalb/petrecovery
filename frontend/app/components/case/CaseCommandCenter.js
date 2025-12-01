@@ -15,17 +15,27 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import CaseInfoPanel from './CaseInfoPanel';
 import CaseMapPanel from './CaseMapPanel';
 import CaseActivityPanel from './CaseActivityPanel';
+import SightingModal from './SightingModal';
 
-export default function CaseCommandCenter({ caseId, caseNumber }) {
+export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
   const { data: session } = useSession();
+  const router = useRouter();
   const [caseData, setCaseData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activePanel, setActivePanel] = useState('map'); // Mobile panel selector
   const [userRole, setUserRole] = useState('VISITOR');
+
+  // Modal states
+  const [showSightingModal, setShowSightingModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [searchAreas, setSearchAreas] = useState([]);
 
   // Fetch case data
   const fetchCase = useCallback(async () => {
@@ -71,6 +81,95 @@ export default function CaseCommandCenter({ caseId, caseNumber }) {
     const interval = setInterval(fetchCase, 30000);
     return () => clearInterval(interval);
   }, [fetchCase]);
+
+  // Fetch search areas for the case
+  const fetchSearchAreas = useCallback(async () => {
+    if (!caseData?.assignments?.[0]?.id) return;
+    try {
+      const res = await fetch(`/api/assignments/${caseData.assignments[0].id}/search-areas`);
+      if (res.ok) {
+        const data = await res.json();
+        setSearchAreas(data.searchAreas || []);
+      }
+    } catch (err) {
+      console.error('Error fetching search areas:', err);
+    }
+  }, [caseData?.assignments]);
+
+  useEffect(() => {
+    if (caseData?.assignments?.[0]?.id) {
+      fetchSearchAreas();
+    }
+  }, [caseData?.assignments, fetchSearchAreas]);
+
+  // Join search as participant
+  const handleJoinSearch = async () => {
+    if (!session?.user?.id || !caseData?.assignments?.[0]?.id) {
+      router.push(`/login?callbackUrl=/cases/${caseData.caseNumber}`);
+      return;
+    }
+
+    setIsJoining(true);
+    try {
+      const res = await fetch(`/api/assignments/${caseData.assignments[0].id}/participants`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        fetchCase(); // Refresh to update role
+      }
+    } catch (err) {
+      console.error('Error joining search:', err);
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  // Share case
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/cases/${caseData.caseNumber}`;
+    const shareText = `Help find ${caseData.petName || 'this lost pet'}! ${caseData.petColor} ${caseData.petSpecies?.toLowerCase()} missing near ${caseData.lastSeenAddress || 'unknown location'}.`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Lost Pet: ${caseData.petName || 'Help Find Me'}`,
+          text: shareText,
+          url: shareUrl,
+        });
+        // Log share
+        fetch(`/api/cases/${caseData.id}/share`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ platform: 'native' }),
+        });
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Share failed:', err);
+        }
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+        // Log share
+        fetch(`/api/cases/${caseData.id}/share`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ platform: 'copy' }),
+        });
+      } catch (err) {
+        console.error('Copy failed:', err);
+      }
+    }
+  };
+
+  // Handle sighting submitted
+  const handleSightingSubmitted = () => {
+    setShowSightingModal(false);
+    fetchCase(); // Refresh case data to show new sighting
+  };
 
   // Time calculations
   const getTimeElapsed = () => {
@@ -177,16 +276,74 @@ export default function CaseCommandCenter({ caseId, caseNumber }) {
           </div>
 
           {/* Status bar */}
-          <div className="flex items-center gap-4 mt-3 text-sm">
-            <StatusBadge status={caseData.status} />
-            {caseData.assignments?.[0]?.rescueSquad && (
-              <span className="text-slate-400">
-                Squad: <span className="text-cyan-400">{caseData.assignments[0].rescueSquad.name}</span>
+          <div className="flex items-center justify-between mt-3">
+            <div className="flex items-center gap-4 text-sm">
+              <StatusBadge status={caseData.status} />
+              {caseData.assignments?.[0]?.rescueSquad && (
+                <span className="text-slate-400">
+                  Squad: <span className="text-cyan-400">{caseData.assignments[0].rescueSquad.name}</span>
+                </span>
+              )}
+              <span className="text-slate-500">
+                {caseData._count?.sightings || 0} sightings • {caseData._count?.updates || 0} updates
               </span>
+            </div>
+
+            {/* Quick Actions Bar */}
+            {caseData.status !== 'REUNITED' && caseData.status !== 'CLOSED_OTHER' && (
+              <div className="hidden md:flex items-center gap-2">
+                {/* Report Sighting */}
+                <button
+                  onClick={() => setShowSightingModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 transition font-medium text-sm"
+                >
+                  <span>👁️</span>
+                  <span>Report Sighting</span>
+                </button>
+
+                {/* Join Search (if not already participant) */}
+                {userRole === 'VOLUNTEER' && (
+                  <button
+                    onClick={handleJoinSearch}
+                    disabled={isJoining}
+                    className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-400 rounded-lg hover:bg-cyan-500/30 transition font-medium text-sm disabled:opacity-50"
+                  >
+                    <span>🔍</span>
+                    <span>{isJoining ? 'Joining...' : 'Join Search'}</span>
+                  </button>
+                )}
+
+                {/* Share */}
+                <button
+                  onClick={handleShare}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30 transition font-medium text-sm"
+                >
+                  <span>📤</span>
+                  <span>{copySuccess ? 'Copied!' : 'Share'}</span>
+                </button>
+
+                {/* Go to Coordination (for participants) */}
+                {(userRole === 'OWNER' || userRole === 'ADMIN' || userRole === 'PARTICIPANT') && (
+                  <button
+                    onClick={() => router.push(`/cases/${caseData.caseNumber}/coordinate`)}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30 transition font-medium text-sm"
+                  >
+                    <span>🎯</span>
+                    <span>Coordinate</span>
+                  </button>
+                )}
+
+                {/* Close button */}
+                {onClose && (
+                  <button
+                    onClick={onClose}
+                    className="ml-2 p-2 text-slate-400 hover:text-white transition"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             )}
-            <span className="text-slate-500">
-              {caseData._count?.sightings || 0} sightings • {caseData._count?.updates || 0} updates
-            </span>
           </div>
         </div>
 
@@ -233,6 +390,7 @@ export default function CaseCommandCenter({ caseId, caseNumber }) {
         `}>
           <CaseMapPanel
             caseData={caseData}
+            searchAreas={searchAreas}
             onSightingClick={(sighting) => {
               // Could open sighting detail modal
               console.log('Sighting clicked:', sighting);
@@ -253,6 +411,35 @@ export default function CaseCommandCenter({ caseId, caseNumber }) {
           />
         </aside>
       </main>
+
+      {/* Mobile Floating Action Button */}
+      {caseData.status !== 'REUNITED' && caseData.status !== 'CLOSED_OTHER' && (
+        <div className="md:hidden fixed bottom-6 right-6 flex flex-col gap-3 z-50">
+          {/* Report Sighting FAB */}
+          <button
+            onClick={() => setShowSightingModal(true)}
+            className="w-14 h-14 rounded-full bg-yellow-500 text-white shadow-lg shadow-yellow-500/30 flex items-center justify-center text-2xl hover:bg-yellow-400 transition"
+          >
+            👁️
+          </button>
+          {/* Share FAB */}
+          <button
+            onClick={handleShare}
+            className="w-14 h-14 rounded-full bg-purple-500 text-white shadow-lg shadow-purple-500/30 flex items-center justify-center text-2xl hover:bg-purple-400 transition"
+          >
+            {copySuccess ? '✓' : '📤'}
+          </button>
+        </div>
+      )}
+
+      {/* Sighting Report Modal */}
+      {showSightingModal && (
+        <SightingModal
+          caseData={caseData}
+          onClose={() => setShowSightingModal(false)}
+          onSubmitted={handleSightingSubmitted}
+        />
+      )}
     </div>
   );
 }
