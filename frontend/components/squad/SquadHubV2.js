@@ -144,7 +144,6 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
           <MapModeV2
             cases={filteredCases}
             divisions={divisions}
-            selectedDivisionId={selectedDivisionId}
             squad={squad}
           />
         )}
