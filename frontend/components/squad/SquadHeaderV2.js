@@ -49,7 +49,7 @@ export default function SquadHeaderV2({
   return (
     <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900">
       {/* Ambient glow effects */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-yellow-600/10 rounded-full blur-3xl" />
+      <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
 
       <div className="relative max-w-7xl mx-auto px-6 py-12">
@@ -82,7 +82,7 @@ export default function SquadHeaderV2({
             <div className="flex-1">
               <h1 className="text-5xl font-bold tracking-tight mb-3">
                 <span className="text-white">{cityName}</span>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-amber-500"> Rescue Squad</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-cyan-400"> Rescue Squad</span>
               </h1>
               <p className="text-lg text-slate-400 mb-3">
                 {customSlogan}
@@ -97,9 +97,9 @@ export default function SquadHeaderV2({
         {/* Division Header (if on division page) */}
         {isDivisionPage && (
           <div className="mb-8 space-y-3">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow-600/10 border border-yellow-600/20">
-              <MapPin size={16} className="text-yellow-500" />
-              <span className="text-sm font-semibold text-yellow-500">Division</span>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+              <MapPin size={16} className="text-cyan-400" />
+              <span className="text-sm font-semibold text-cyan-400">Division</span>
             </div>
             <h1 className="text-5xl font-bold text-white tracking-tight">
               {currentDivision?.name || 'Division'}
@@ -132,7 +132,7 @@ export default function SquadHeaderV2({
           <StatCard
             value={stats.onDuty}
             label="On Duty Now"
-            icon={<div className="w-2 h-2 rounded-full bg-amber-400" />}
+            icon={<div className="w-2 h-2 rounded-full bg-cyan-300" />}
             trend="active"
           />
         </div>
@@ -176,7 +176,7 @@ export default function SquadHeaderV2({
           {membership.isMember ? (
             <button
               onClick={handleReportCase}
-              className="group relative px-8 py-4 rounded-xl bg-gradient-to-r from-yellow-600 via-yellow-500 to-amber-500 text-slate-900 font-bold shadow-lg shadow-yellow-600/30 hover:shadow-xl hover:shadow-yellow-600/50 hover:scale-105 transition-all duration-200"
+              className="group relative px-8 py-4 rounded-xl bg-gradient-to-r from-cyan-500 via-cyan-400 to-cyan-400 text-white font-bold shadow-lg shadow-cyan-500/30 hover:shadow-xl hover:shadow-cyan-500/50 hover:scale-105 transition-all duration-200"
             >
               <div className="flex items-center gap-3">
                 <Plus size={22} strokeWidth={2.5} />
@@ -204,7 +204,7 @@ function StatCard({ value, label, icon, trend }) {
   const trendColors = {
     urgent: 'border-red-500/20 bg-red-500/5',
     positive: 'border-green-500/20 bg-green-500/5',
-    active: 'border-amber-500/20 bg-amber-500/5',
+    active: 'border-cyan-400/20 bg-cyan-400/5',
   };
 
   return (
@@ -225,14 +225,14 @@ function DivisionChip({ active, onClick, label, count }) {
       className={`
         px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-200
         ${active
-          ? 'bg-gradient-to-r from-yellow-600 to-amber-500 text-slate-900 shadow-lg shadow-yellow-600/25'
-          : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50 border border-slate-700/50 hover:border-yellow-600/50'
+          ? 'bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-900 shadow-lg shadow-cyan-500/25'
+          : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50 border border-slate-700/50 hover:border-cyan-500/50'
         }
       `}
     >
       {label}
       {count > 0 && (
-        <span className={`ml-2 ${active ? 'text-slate-900/80' : 'text-yellow-500'}`}>
+        <span className={`ml-2 ${active ? 'text-slate-900/80' : 'text-cyan-400'}`}>
           ({count})
         </span>
       )}

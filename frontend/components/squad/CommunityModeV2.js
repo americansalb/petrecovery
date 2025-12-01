@@ -107,11 +107,11 @@ export default function CommunityModeV2({
             .map(announcement => (
               <div
                 key={announcement.id}
-                className="relative overflow-hidden bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent backdrop-blur-sm border border-amber-500/40 rounded-2xl p-6 shadow-lg shadow-amber-500/10"
+                className="relative overflow-hidden bg-gradient-to-br from-cyan-400/10 via-cyan-400/5 to-transparent backdrop-blur-sm border border-cyan-400/40 rounded-2xl p-6 shadow-lg shadow-cyan-400/10"
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-400/5 rounded-full blur-2xl" />
                 <div className="relative flex items-start gap-4">
-                  <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/30">
+                  <div className="p-2.5 rounded-xl bg-cyan-400/20 border border-cyan-400/30">
                     <Pin className="text-amber-300 flex-shrink-0" size={20} />
                   </div>
                   <div className="flex-1">
@@ -138,14 +138,14 @@ export default function CommunityModeV2({
                 type="checkbox"
                 checked={showDivisionMessages}
                 onChange={(e) => setShowDivisionMessages(e.target.checked)}
-                className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-yellow-600 focus:ring-2 focus:ring-yellow-600/50 cursor-pointer"
+                className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-2 focus:ring-cyan-500/50 cursor-pointer"
               />
               <span className="group-hover:text-white transition-colors">Include division messages</span>
             </label>
             {showDivisionMessages && (
               <button
                 onClick={() => setShowDivisionFilter(!showDivisionFilter)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-yellow-500 bg-yellow-600/10 border border-yellow-600/30 hover:bg-yellow-600/20 hover:text-yellow-400 transition-all"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-cyan-400 bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:text-cyan-300 transition-all"
               >
                 <Filter size={14} />
                 Filter divisions
@@ -169,7 +169,7 @@ export default function CommunityModeV2({
                     type="checkbox"
                     checked={selectedDivisions.has(div.id)}
                     onChange={() => toggleDivisionFilter(div.id)}
-                    className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-yellow-600 focus:ring-2 focus:ring-yellow-600/50 cursor-pointer"
+                    className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-2 focus:ring-cyan-500/50 cursor-pointer"
                   />
                   <span className="group-hover:text-white transition-colors">{div.name}</span>
                 </label>
@@ -183,7 +183,7 @@ export default function CommunityModeV2({
       <div className="flex-1 overflow-y-auto space-y-4 mb-6 pr-2">
         {filteredMessages.length === 0 ? (
           <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/30 to-slate-900/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-20 text-center">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-yellow-600/5 rounded-full blur-3xl" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl" />
             <div className="relative">
               <div className="text-7xl mb-6">💬</div>
               <h3 className="text-2xl font-bold text-white mb-3">
@@ -200,7 +200,7 @@ export default function CommunityModeV2({
               const division = divisions.find(d => d.id === msg.divisionId);
               const roleColors = {
                 FOUNDER: 'text-purple-400',
-                LEADER: 'text-amber-400',
+                LEADER: 'text-cyan-300',
                 COORDINATOR: 'text-blue-400',
                 MEMBER: 'text-slate-400',
               };
@@ -218,7 +218,7 @@ export default function CommunityModeV2({
                         {msg.authorRole.toLowerCase()}
                       </span>
                       {division && !isDivisionPage && (
-                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-600/20 text-yellow-400 border border-yellow-600/40 backdrop-blur-sm">
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 backdrop-blur-sm">
                           📍 {division.name}
                         </span>
                       )}
@@ -254,7 +254,7 @@ export default function CommunityModeV2({
                 flex-1 px-5 py-4 rounded-xl
                 bg-slate-800/50 backdrop-blur-sm border-2 border-slate-600/50
                 text-white placeholder-slate-500 font-medium
-                focus:outline-none focus:border-yellow-600/70 focus:ring-2 focus:ring-yellow-600/30
+                focus:outline-none focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30
                 hover:border-slate-500/50
                 transition-all duration-200
               "
@@ -264,7 +264,7 @@ export default function CommunityModeV2({
               disabled={!messageText.trim() || sending}
               className="
                 px-8 py-4 rounded-xl
-                bg-gradient-to-r from-yellow-600 via-amber-500 to-yellow-600
+                bg-gradient-to-r from-cyan-500 via-cyan-400 to-cyan-500
                 text-white font-bold text-base
                 disabled:opacity-50 disabled:cursor-not-allowed
                 enabled:hover:shadow-[0_0_25px_rgba(249,115,22,0.5)]

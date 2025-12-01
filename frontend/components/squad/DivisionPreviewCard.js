@@ -65,7 +65,7 @@ export default function DivisionPreviewCard({
             pointer-events-auto
             w-full max-w-lg
             bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900
-            border-2 border-yellow-600/30
+            border-2 border-cyan-500/30
             rounded-2xl
             shadow-[0_0_60px_rgba(249,115,22,0.3)]
             overflow-hidden
@@ -83,7 +83,7 @@ export default function DivisionPreviewCard({
               p-3 rounded-xl
               bg-slate-800/50 backdrop-blur-sm border border-slate-700/50
               text-slate-400 hover:text-white
-              hover:bg-slate-700 hover:border-yellow-600/50
+              hover:bg-slate-700 hover:border-cyan-500/50
               transition-all duration-200
               hover:scale-110
             "
@@ -94,8 +94,8 @@ export default function DivisionPreviewCard({
           {/* Header */}
           <div className="p-8 border-b border-slate-700/50">
             <div className="flex items-start gap-4">
-              <div className="p-4 rounded-xl bg-gradient-to-br from-yellow-600/20 to-amber-500/20 border-2 border-yellow-600/40 shadow-lg shadow-yellow-600/20">
-                <Users className="text-yellow-400" size={28} />
+              <div className="p-4 rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-400/20 border-2 border-cyan-500/40 shadow-lg shadow-cyan-500/20">
+                <Users className="text-cyan-300" size={28} />
               </div>
               <div>
                 <h3 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-200 mb-2">
@@ -137,7 +137,7 @@ export default function DivisionPreviewCard({
             </h4>
             {recentCases.length === 0 ? (
               <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/30 to-slate-900/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-10 text-center">
-                <div className="absolute inset-0 bg-yellow-600/5 rounded-full blur-2xl" />
+                <div className="absolute inset-0 bg-cyan-500/5 rounded-full blur-2xl" />
                 <div className="relative">
                   <div className="text-5xl mb-3">🎉</div>
                   <p className="text-slate-400 text-base font-medium">No active cases right now</p>
@@ -157,7 +157,7 @@ export default function DivisionPreviewCard({
                   return (
                     <div
                       key={c.id}
-                      className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 hover:border-yellow-600/40 hover:shadow-lg hover:shadow-yellow-600/10 transition-all duration-200"
+                      className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-200"
                     >
                       <div className="text-3xl">{speciesEmoji}</div>
                       <div className="flex-1 min-w-0">
@@ -182,7 +182,7 @@ export default function DivisionPreviewCard({
               className="
                 w-full flex items-center justify-center gap-3
                 px-8 py-5 rounded-xl
-                bg-gradient-to-r from-yellow-600 via-amber-500 to-yellow-600
+                bg-gradient-to-r from-cyan-500 via-cyan-400 to-cyan-500
                 text-white font-bold text-lg
                 shadow-[0_0_40px_rgba(249,115,22,0.6)]
                 hover:shadow-[0_0_50px_rgba(249,115,22,0.8)]
@@ -226,7 +226,7 @@ export default function DivisionPreviewCard({
 function StatBox({ icon: Icon, value, label, color }) {
   const colorClasses = {
     red: 'text-red-300 bg-gradient-to-br from-red-500/15 to-red-500/5 border-red-500/40 shadow-red-500/10',
-    cyan: 'text-yellow-400 bg-gradient-to-br from-yellow-600/15 to-amber-500/5 border-yellow-600/40 shadow-yellow-600/10',
+    cyan: 'text-cyan-300 bg-gradient-to-br from-cyan-500/15 to-cyan-400/5 border-cyan-500/40 shadow-cyan-500/10',
     green: 'text-green-300 bg-gradient-to-br from-green-500/15 to-green-500/5 border-green-500/40 shadow-green-500/10',
   };
 
