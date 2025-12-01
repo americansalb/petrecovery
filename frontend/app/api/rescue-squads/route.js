@@ -317,32 +317,16 @@ export async function POST(request) {
       }
     });
 
-    // Verify email and legal acceptance
+    // Verify legal acceptance (waiver required for squad participation)
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
-        emailVerified: true,
         firstName: true,
         lastName: true,
         waiverAcceptedAt: true,
         waiverVersionAccepted: true
       }
     });
-
-    if (!user?.emailVerified) {
-      await logEvent({
-        event_type: 'squad.create_failed',
-        resource_type: 'rescue_squad',
-        action: 'create',
-        result: 'failure',
-        error_code: 'EMAIL_NOT_VERIFIED',
-        error_message: 'User attempted to create squad without verified email',
-        actor_user_id: session.user.id,
-        actor_role: null,
-        metadata: { city, state, zipCode }
-      });
-      return NextResponse.json({ error: 'Email verification required' }, { status: 403 });
-    }
 
     // Check waiver acceptance (Phase 0: Legal Baseline)
     if (!user.waiverAcceptedAt) {

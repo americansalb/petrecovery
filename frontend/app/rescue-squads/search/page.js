@@ -217,11 +217,6 @@ export default function RescueSquadSearchPage() {
           router.push(data.redirectTo);
           return;
         }
-        // Handle email verification
-        if (data.error === 'Email verification required') {
-          router.push('/settings?tab=account');
-          return;
-        }
         setValidationError(data.error || 'Failed to create squad');
       }
     } catch (error) {
