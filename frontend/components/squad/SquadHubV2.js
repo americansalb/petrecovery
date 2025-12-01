@@ -17,13 +17,14 @@ import SquadHeaderV2 from './SquadHeaderV2';
 import CasesModeV2 from './CasesModeV2';
 import MapModeV2 from './MapModeV2';
 import CommunityModeV2 from './CommunityModeV2';
+import DivisionPreviewCard from './DivisionPreviewCard';
 
-export default function SquadHubV2({ initialData, squadId }) {
+export default function SquadHubV2({ initialData, squadId, isDivisionPage = false, currentDivisionId = null }) {
   // Active mode: 'cases', 'map', or 'community'
   const [activeMode, setActiveMode] = useState('cases');
 
-  // Selected division filter (null = "All {City}")
-  const [selectedDivisionId, setSelectedDivisionId] = useState(null);
+  // Preview division (for showing preview card)
+  const [previewDivisionId, setPreviewDivisionId] = useState(null);
 
   // Selected status filter for Cases mode
   const [selectedStatus, setSelectedStatus] = useState('ACTIVE');
@@ -36,13 +37,13 @@ export default function SquadHubV2({ initialData, squadId }) {
   const announcements = initialData?.announcements || [];
   const membership = initialData?.membership || {};
 
-  // Filter cases by division and status
+  // Filter cases by division (if on division page) or status
   const filteredCases = useMemo(() => {
     let filtered = allCases;
 
-    // Filter by division
-    if (selectedDivisionId) {
-      filtered = filtered.filter(c => c.divisionId === selectedDivisionId);
+    // If on division page, only show that division's cases
+    if (isDivisionPage && currentDivisionId) {
+      filtered = filtered.filter(c => c.divisionId === currentDivisionId);
     }
 
     // Filter by status
@@ -57,7 +58,19 @@ export default function SquadHubV2({ initialData, squadId }) {
     }
 
     return filtered;
-  }, [allCases, selectedDivisionId, selectedStatus]);
+  }, [allCases, isDivisionPage, currentDivisionId, selectedStatus]);
+
+  // Handler for division chip click
+  const handleDivisionClick = (divisionId) => {
+    setPreviewDivisionId(divisionId);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewDivisionId(null);
+  };
+
+  // Get preview division object
+  const previewDivision = divisions.find(d => d.id === previewDivisionId);
 
   // Calculate stats for header
   const stats = useMemo(() => {
@@ -82,9 +95,10 @@ export default function SquadHubV2({ initialData, squadId }) {
         squad={squad}
         divisions={divisions}
         stats={stats}
-        selectedDivisionId={selectedDivisionId}
-        onDivisionChange={setSelectedDivisionId}
+        onDivisionClick={handleDivisionClick}
         membership={membership}
+        isDivisionPage={isDivisionPage}
+        currentDivisionId={currentDivisionId}
       />
 
       {/* Mode Tabs */}
@@ -141,9 +155,22 @@ export default function SquadHubV2({ initialData, squadId }) {
             messages={chatMessages}
             announcements={announcements}
             membership={membership}
+            isDivisionPage={isDivisionPage}
+            divisionId={currentDivisionId}
+            divisions={divisions}
           />
         )}
       </div>
+
+      {/* Division Preview Card */}
+      {previewDivision && !isDivisionPage && (
+        <DivisionPreviewCard
+          division={previewDivision}
+          cases={allCases}
+          squadId={squadId}
+          onClose={handleClosePreview}
+        />
+      )}
     </div>
   );
 }

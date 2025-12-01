@@ -18,13 +18,15 @@ export default function SquadHeaderV2({
   squad,
   divisions,
   stats,
-  selectedDivisionId,
-  onDivisionChange,
+  onDivisionClick,
   membership,
+  isDivisionPage = false,
+  currentDivisionId = null,
 }) {
   const router = useRouter();
   const cityName = squad.cityName || 'Unknown City';
   const state = squad.state || '';
+  const currentDivision = divisions.find(d => d.id === currentDivisionId);
 
   const handleReportCase = () => {
     router.push('/cases/report');
@@ -54,32 +56,89 @@ export default function SquadHeaderV2({
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-2">
             <Shield className="text-cyan-400" size={32} strokeWidth={2} />
-            <h1 className="text-4xl font-bold text-white">
-              {cityName} <span className="text-cyan-400">Rescue Squad</span>
-            </h1>
+            {isDivisionPage ? (
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-1 rounded-md text-xs font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                    DIVISION
+                  </span>
+                  <h1 className="text-3xl font-bold text-white">
+                    {currentDivision?.name || 'Division'}
+                  </h1>
+                </div>
+                <p className="text-slate-400 text-sm">
+                  Division of {cityName} Rescue Squad
+                </p>
+              </div>
+            ) : (
+              <div>
+                <h1 className="text-4xl font-bold text-white">
+                  {cityName} <span className="text-cyan-400">Rescue Squad</span>
+                </h1>
+                <p className="text-slate-400 text-sm mt-1">
+                  Covers city limits + 1 mile surrounding area
+                </p>
+              </div>
+            )}
           </div>
-          <p className="text-slate-400 text-sm ml-11">
-            Covers city limits + 1 mile surrounding area
-          </p>
         </div>
 
         {/* Division Selector */}
         <div className="mb-6">
           <div className="flex flex-wrap gap-2">
-            <DivisionChip
-              active={selectedDivisionId === null}
-              onClick={() => onDivisionChange(null)}
-              label={`All ${cityName}`}
-            />
-            {divisions.map(div => (
-              <DivisionChip
-                key={div.id}
-                active={selectedDivisionId === div.id}
-                onClick={() => onDivisionChange(div.id)}
-                label={div.name}
-                count={div.activeCaseCount}
-              />
-            ))}
+            {isDivisionPage ? (
+              <>
+                {/* Back to Squad Button */}
+                <button
+                  onClick={() => router.push(`/rescue-squads/${squad.id}`)}
+                  className="
+                    px-4 py-2 rounded-full text-sm font-medium
+                    bg-slate-700/70 text-slate-300 hover:bg-slate-600
+                    border border-slate-600
+                    transition-all duration-200
+                  "
+                >
+                  ← View Citywide Squad
+                </button>
+
+                {/* Current Division (highlighted) */}
+                <DivisionChip
+                  active={true}
+                  onClick={() => {}}
+                  label={currentDivision?.name || 'Division'}
+                />
+
+                {/* Other Divisions (navigate to their pages) */}
+                {divisions.filter(d => d.id !== currentDivisionId).map(div => (
+                  <DivisionChip
+                    key={div.id}
+                    active={false}
+                    onClick={() => router.push(`/rescue-squads/${squad.id}/divisions/${div.id}`)}
+                    label={div.name}
+                    count={div.activeCaseCount}
+                  />
+                ))}
+              </>
+            ) : (
+              <>
+                {/* Squad Page: All divisions as preview triggers */}
+                {divisions.length > 0 ? (
+                  divisions.map(div => (
+                    <DivisionChip
+                      key={div.id}
+                      active={false}
+                      onClick={() => onDivisionClick(div.id)}
+                      label={div.name}
+                      count={div.activeCaseCount}
+                    />
+                  ))
+                ) : (
+                  <div className="text-slate-400 text-sm">
+                    No divisions yet
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
 

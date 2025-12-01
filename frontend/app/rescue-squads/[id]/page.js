@@ -14,7 +14,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import SquadHub from '@/components/squad/SquadHub';
+import SquadHubV2 from '@/components/squad/SquadHubV2';
 import { getMockSquadData } from '@/lib/mockSquadData';
 
 export default function SquadPage() {
@@ -146,7 +146,7 @@ export default function SquadPage() {
           Using mock data (real squad not found in database)
         </div>
       )}
-      <SquadHub initialData={squadData} squadId={resolvedSquadId} />
+      <SquadHubV2 initialData={squadData} squadId={resolvedSquadId} />
     </>
   );
 }
