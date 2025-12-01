@@ -81,7 +81,7 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
     caseNumber,
     status,
     lastSeenAddress,
-    photoUrl,
+    photoUrls,
   } = caseData;
 
   const speciesEmoji = {
@@ -91,6 +91,19 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
     RABBIT: '🐰',
     OTHER: '🐾',
   }[species] || '🐾';
+
+  // Extract first photo from photoUrls JSON array
+  let petPhotoUrl = null;
+  if (photoUrls) {
+    try {
+      const photos = typeof photoUrls === 'string'
+        ? JSON.parse(photoUrls)
+        : photoUrls;
+      petPhotoUrl = Array.isArray(photos) && photos.length > 0 ? photos[0] : null;
+    } catch (e) {
+      console.error('Failed to parse photoUrls:', e);
+    }
+  }
 
   const statusConfig = {
     PENDING: { label: 'Incoming', color: 'text-cyan-300' },
@@ -115,10 +128,10 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
         {/* Content */}
         <div className="flex gap-5 mb-6">
           {/* Pet Photo */}
-          {photoUrl ? (
+          {petPhotoUrl ? (
             <div className="flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-slate-700 border-2 border-slate-600/50">
               <img
-                src={photoUrl}
+                src={petPhotoUrl}
                 alt={petName}
                 className="w-full h-full object-cover"
               />

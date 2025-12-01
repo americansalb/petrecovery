@@ -36,9 +36,14 @@ export default function PostFeed({
       if (res.ok) {
         const data = await res.json();
         setPosts(data.posts || []);
+      } else if (res.status === 500) {
+        // Database migration may not have run yet
+        console.warn('Posts feature not available - database migration may be needed');
+        setPosts([]);
       }
     } catch (error) {
       console.error('Failed to load posts:', error);
+      setPosts([]);
     } finally {
       setLoading(false);
     }

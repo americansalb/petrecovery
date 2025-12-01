@@ -53,6 +53,19 @@ export default function FeaturedCasesCarousel({ cases }) {
     OTHER: '🐾',
   }[currentCase.species] || '🐾';
 
+  // Extract first photo from photoUrls JSON array
+  let petPhotoUrl = null;
+  if (currentCase.photoUrls) {
+    try {
+      const photos = typeof currentCase.photoUrls === 'string'
+        ? JSON.parse(currentCase.photoUrls)
+        : currentCase.photoUrls;
+      petPhotoUrl = Array.isArray(photos) && photos.length > 0 ? photos[0] : null;
+    } catch (e) {
+      console.error('Failed to parse photoUrls:', e);
+    }
+  }
+
   return (
     <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/20 to-slate-900/20 backdrop-blur-sm border border-red-500/30 rounded-xl p-4 mb-6">
       {/* Urgent Badge */}
@@ -64,9 +77,9 @@ export default function FeaturedCasesCarousel({ cases }) {
       <div className="flex gap-4 items-center">
         {/* Pet Photo */}
         <div className="flex-shrink-0">
-          {currentCase.photoUrl ? (
+          {petPhotoUrl ? (
             <img
-              src={currentCase.photoUrl}
+              src={petPhotoUrl}
               alt={currentCase.petName}
               className="w-16 h-16 rounded-lg object-cover border border-red-500/30"
             />

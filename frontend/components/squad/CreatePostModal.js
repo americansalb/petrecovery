@@ -62,7 +62,7 @@ export default function CreatePostModal({ isOpen, onClose, onSubmit, squadId, di
       if (imageFile) {
         const formData = new FormData();
         formData.append('file', imageFile);
-        formData.append('context', 'post');
+        formData.append('context', 'general');
 
         const uploadRes = await fetch('/api/upload', {
           method: 'POST',
