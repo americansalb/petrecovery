@@ -28,6 +28,7 @@ export default function AdminCasesPage() {
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [bulkStatusChange, setBulkStatusChange] = useState('');
+  const [deletingId, setDeletingId] = useState(null); // For individual delete
 
   // Filters
   const [statusFilter, setStatusFilter] = useState('');
@@ -165,6 +166,30 @@ export default function AdminCasesPage() {
       setError(err.message);
     } finally {
       setBulkActionLoading(false);
+    }
+  };
+
+  // Single case delete handler
+  const handleSingleDelete = async (id) => {
+    if (!id) return;
+    setDeletingId(id);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/cases/${id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete case');
+      }
+
+      fetchCases(); // Refresh list
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -642,6 +667,7 @@ export default function AdminCasesPage() {
                   <th style={headerStyle}>Squad</th>
                   <th style={headerStyle}>Created</th>
                   <th style={headerStyle}>Notes</th>
+                  <th style={{ ...headerStyle, width: '100px', textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -734,6 +760,38 @@ export default function AdminCasesPage() {
                       </td>
                       <td style={cellStyle} onClick={() => router.push('/admin/cases/' + caseItem.id)}>
                         {caseItem.updatesCount || 0}
+                      </td>
+                      <td style={{ ...cellStyle, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to delete case ${caseItem.caseNumber}? This cannot be undone.`)) {
+                              handleSingleDelete(caseItem.id);
+                            }
+                          }}
+                          disabled={deletingId === caseItem.id}
+                          style={{
+                            padding: '0.375rem 0.75rem',
+                            background: deletingId === caseItem.id ? '#fca5a5' : '#fee2e2',
+                            color: '#dc2626',
+                            border: '1px solid #fca5a5',
+                            borderRadius: '6px',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            cursor: deletingId === caseItem.id ? 'not-allowed' : 'pointer',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (deletingId !== caseItem.id) {
+                              e.currentTarget.style.background = '#dc2626';
+                              e.currentTarget.style.color = 'white';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = deletingId === caseItem.id ? '#fca5a5' : '#fee2e2';
+                            e.currentTarget.style.color = '#dc2626';
+                          }}
+                        >
+                          {deletingId === caseItem.id ? 'Deleting...' : 'Delete'}
+                        </button>
                       </td>
                     </tr>
                   );
