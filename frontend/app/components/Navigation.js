@@ -400,13 +400,13 @@ export default function Navigation() {
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-[100] lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
       {/* Mobile Menu Drawer */}
-      <div className={`fixed top-0 right-0 w-[300px] max-w-[85vw] h-full bg-white z-50 transform transition-transform duration-300 lg:hidden ${
+      <div className={`fixed top-0 right-0 w-[300px] max-w-[85vw] h-full bg-white z-[110] transform transition-transform duration-300 lg:hidden ${
         mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
       }`}>
         {/* Mobile Header */}

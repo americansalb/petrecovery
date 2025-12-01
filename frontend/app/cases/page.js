@@ -291,6 +291,24 @@ function CasesContent() {
                   href={`/cases/${caseItem.caseNumber}`}
                   className="bg-white rounded-lg shadow hover:shadow-lg transition border border-gray-200 overflow-hidden"
                 >
+                  {/* Pet Photo */}
+                  {caseItem.petPhotoUrl ? (
+                    <div className="h-48 bg-gray-100 overflow-hidden">
+                      <img
+                        src={caseItem.petPhotoUrl}
+                        alt={caseItem.petName || 'Pet photo'}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-400"><span class="text-6xl">🐾</span></div>';
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-48 bg-gray-100 flex items-center justify-center">
+                      <span className="text-6xl text-gray-300">🐾</span>
+                    </div>
+                  )}
                   <div className="p-6">
                     <div className="flex justify-between items-start mb-3">
                       <div>
