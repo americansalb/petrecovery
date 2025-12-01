@@ -71,11 +71,14 @@ export async function GET(request, { params }) {
 
     // Fetch case with all related data
     // Using Case model (not the old lostPetCase)
-    // Support both UUID (id) and case number lookup
+    // Support both ID (UUID or CUID) and case number lookup
+    // UUID: 8-4-4-4-12 hex with dashes, CUID: starts with 'c', 25 alphanumeric chars
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.id);
+    const isCuid = /^c[a-z0-9]{24}$/i.test(params.id);
+    const isId = isUuid || isCuid;
 
     const caseData = await prisma.case.findFirst({
-      where: isUuid
+      where: isId
         ? { id: params.id }
         : { caseNumber: params.id },
       include: {
