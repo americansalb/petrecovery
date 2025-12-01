@@ -9,7 +9,7 @@
 
 import { useSquadHub } from './context/SquadHubContext';
 import CaseCard from './CaseCard';
-import { Inbox, Zap, Heart, PartyPopper } from 'lucide-react';
+import { Inbox, Zap, Heart, PartyPopper, Flame, Sparkles } from 'lucide-react';
 
 const tabs = [
   { id: 'INCOMING', label: 'Incoming', icon: Inbox },
@@ -18,15 +18,51 @@ const tabs = [
 ];
 
 export default function CaseQueuePanel() {
-  const { filteredCases, caseTab, setCaseTab, selectedDivisionId, divisions } = useSquadHub();
+  const {
+    filteredCases,
+    caseTab,
+    setCaseTab,
+    selectedDivisionId,
+    divisions,
+    cases = [],
+  } = useSquadHub();
+
+  const divisionCases = selectedDivisionId === 'ALL'
+    ? cases
+    : cases.filter(c => c.divisionId === selectedDivisionId);
+
+  const urgentCount = divisionCases.filter(c =>
+    c.urgency === 'HIGH' && c.status !== 'REUNITED' && c.status !== 'CLOSED_OTHER'
+  ).length;
+
+  const incomingCount = divisionCases.filter(c =>
+    !c.isUserHelper && c.status !== 'REUNITED' && c.status !== 'CLOSED_OTHER'
+  ).length;
 
   // Get division name for empty state
   const divisionName = selectedDivisionId === 'ALL'
     ? 'your area'
     : divisions.find(d => d.id === selectedDivisionId)?.name || 'this division';
 
+  const focusLabel = selectedDivisionId === 'ALL'
+    ? 'City-wide focus'
+    : `${divisionName} focus`;
+
   return (
     <div className="h-full flex flex-col bg-[var(--hub-bg-panel)]">
+      <div className="px-3 pt-3 pb-1">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--hub-text-muted)] font-semibold">Case queue</p>
+            <p className="text-sm text-[var(--hub-text-secondary)]" aria-live="polite">{focusLabel}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge icon={Flame} label="Urgent" value={urgentCount} tone="text-[var(--hub-status-high)] bg-[var(--hub-status-high)]/15" />
+            <Badge icon={Sparkles} label="Incoming" value={incomingCount} tone="text-[var(--hub-accent-secondary)] bg-[var(--hub-accent-secondary)]/15" />
+          </div>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div className="flex gap-1 p-2 border-b border-[var(--hub-border)]">
         {tabs.map(tab => {
@@ -64,6 +100,16 @@ export default function CaseQueuePanel() {
           ))
         )}
       </div>
+    </div>
+  );
+}
+
+function Badge({ icon: Icon, label, value, tone }) {
+  return (
+    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--hub-border)] ${tone}`}>
+      <Icon size={12} />
+      <span className="hidden sm:inline text-[10px] uppercase tracking-[0.08em] text-[var(--hub-text-muted)]">{label}</span>
+      <span className="text-[var(--hub-text-primary)]">{value}</span>
     </div>
   );
 }
