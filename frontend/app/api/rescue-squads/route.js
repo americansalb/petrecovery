@@ -317,32 +317,16 @@ export async function POST(request) {
       }
     });
 
-    // Verify email and legal acceptance
+    // Verify legal acceptance (waiver required for squad participation)
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
-        emailVerified: true,
         firstName: true,
         lastName: true,
         waiverAcceptedAt: true,
         waiverVersionAccepted: true
       }
     });
-
-    if (!user?.emailVerified) {
-      await logEvent({
-        event_type: 'squad.create_failed',
-        resource_type: 'rescue_squad',
-        action: 'create',
-        result: 'failure',
-        error_code: 'EMAIL_NOT_VERIFIED',
-        error_message: 'User attempted to create squad without verified email',
-        actor_user_id: session.user.id,
-        actor_role: null,
-        metadata: { city, state, zipCode }
-      });
-      return NextResponse.json({ error: 'Email verification required' }, { status: 403 });
-    }
 
     // Check waiver acceptance (Phase 0: Legal Baseline)
     if (!user.waiverAcceptedAt) {
@@ -408,12 +392,12 @@ export async function POST(request) {
 
     const squadName = `${city} Rescue Squad`;
 
-    // Check if squad already exists
-    const existing = await prisma.rescueSquad.findFirst({
-      where: { city, state }
+    // Check if squad already exists (active)
+    const existingActive = await prisma.rescueSquad.findFirst({
+      where: { city, state, isDeleted: false }
     });
 
-    if (existing) {
+    if (existingActive) {
       await logEvent({
         event_type: 'squad.create_failed',
         resource_type: 'rescue_squad',
@@ -423,32 +407,96 @@ export async function POST(request) {
         error_message: `Squad already exists for ${city}, ${state}`,
         actor_user_id: session.user.id,
         actor_role: null,
-        metadata: { city, state, zipCode, existingSquadId: existing.id, existingSquadName: existing.name }
+        metadata: { city, state, zipCode, existingSquadId: existingActive.id, existingSquadName: existingActive.name }
       });
       return NextResponse.json({ error: 'Squad already exists for this city' }, { status: 400 });
     }
 
-    // Create squad
-    const squad = await prisma.rescueSquad.create({
-      data: {
-        name: squadName,
-        city,
-        state,
-        zipCodes: JSON.stringify([zipCode]),
-        centerLatitude: latitude,
-        centerLongitude: longitude,
-        radiusMiles: 10,
-        specializesInDogs: true,
-        specializesInCats: true,
-        members: {
-          create: {
+    // Check if there's a deleted squad we can reactivate
+    const deletedSquad = await prisma.rescueSquad.findFirst({
+      where: { city, state, isDeleted: true }
+    });
+
+    let squad;
+
+    if (deletedSquad) {
+      // Check if the user is already a member of this squad
+      const existingMembership = await prisma.rescueSquadMember.findUnique({
+        where: {
+          rescueSquadId_userId: {
+            rescueSquadId: deletedSquad.id,
+            userId: session.user.id
+          }
+        }
+      });
+
+      // Reactivate the deleted squad
+      squad = await prisma.rescueSquad.update({
+        where: { id: deletedSquad.id },
+        data: {
+          isDeleted: false,
+          deletedAt: null,
+          isActive: true,
+          isAcceptingCases: true,
+          centerLatitude: latitude,
+          centerLongitude: longitude,
+          zipCodes: JSON.stringify([zipCode]),
+        },
+      });
+
+      // Either update existing membership to FOUNDER or create new one
+      if (existingMembership) {
+        await prisma.rescueSquadMember.update({
+          where: { id: existingMembership.id },
+          data: {
+            role: 'FOUNDER',
+            isActive: true,
+            leftAt: null,
+          }
+        });
+      } else {
+        await prisma.rescueSquadMember.create({
+          data: {
+            rescueSquadId: deletedSquad.id,
             userId: session.user.id,
             role: 'FOUNDER',
             isActive: true,
+          }
+        });
+      }
+
+      await logEvent({
+        event_type: 'squad.reactivated',
+        resource_type: 'rescue_squad',
+        resource_id: squad.id,
+        action: 'update',
+        result: 'success',
+        actor_user_id: session.user.id,
+        metadata: { city, state, zipCode, reactivated: true, existingMember: !!existingMembership }
+      });
+    } else {
+      // Create new squad
+      squad = await prisma.rescueSquad.create({
+        data: {
+          name: squadName,
+          city,
+          state,
+          zipCodes: JSON.stringify([zipCode]),
+          centerLatitude: latitude,
+          centerLongitude: longitude,
+          radiusMiles: 10,
+          specializesInDogs: true,
+          specializesInCats: true,
+          members: {
+            create: {
+              userId: session.user.id,
+              role: 'FOUNDER',
+              isActive: true,
+            },
           },
         },
-      },
-    });
+      });
+    }
 
     // Update user stats
     await prisma.user.update({

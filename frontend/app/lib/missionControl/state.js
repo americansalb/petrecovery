@@ -18,7 +18,7 @@ export async function getMissionState(caseId) {
       case: {
         include: {
           reporter: { select: { id: true, firstName: true, phone: true } },
-          assignment: {
+          assignments: {
             include: {
               rescueSquad: true,
               participants: {

@@ -121,8 +121,14 @@ export default function AdminDashboard() {
           <AdminCard
             title="Rescue Squads"
             description="Manage squads, verify organizations, and review activity"
-            href="/admin/squads"
-            icon="🦮"
+            href="/admin/rescue-squads"
+            icon="🛡️"
+          />
+          <AdminCard
+            title="Divisions"
+            description="Manage geographic divisions and territories"
+            href="/admin/divisions"
+            icon="📍"
           />
           <AdminCard
             title="Shelters"

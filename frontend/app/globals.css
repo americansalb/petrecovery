@@ -408,6 +408,83 @@ img {
   animation: pulse-glow-low 4s ease-in-out infinite;
 }
 
+/* Urgency utility classes - High Utility Design */
+.hub-urgency-high-bg {
+  background-color: rgba(239, 68, 68, 0.12);
+}
+
+.hub-urgency-medium-bg {
+  background-color: rgba(245, 158, 11, 0.12);
+}
+
+.hub-urgency-low-bg {
+  background-color: rgba(99, 102, 241, 0.12);
+}
+
+.hub-urgency-high-text {
+  color: var(--hub-status-high);
+}
+
+.hub-urgency-medium-text {
+  color: var(--hub-status-medium);
+}
+
+.hub-urgency-low-text {
+  color: var(--hub-status-low);
+}
+
+.hub-urgency-high-border {
+  border-color: var(--hub-status-high);
+}
+
+.hub-urgency-medium-border {
+  border-color: var(--hub-status-medium);
+}
+
+.hub-urgency-low-border {
+  border-color: var(--hub-status-low);
+}
+
+/* Urgency buttons - solid backgrounds for high contrast CTAs */
+.hub-btn-high {
+  background-color: var(--hub-status-high);
+  color: white;
+  font-weight: 600;
+}
+
+.hub-btn-high:hover {
+  background-color: #dc2626;
+}
+
+.hub-btn-medium {
+  background-color: var(--hub-status-medium);
+  color: white;
+  font-weight: 600;
+}
+
+.hub-btn-medium:hover {
+  background-color: #d97706;
+}
+
+.hub-btn-low {
+  background-color: var(--hub-status-low);
+  color: white;
+  font-weight: 600;
+}
+
+.hub-btn-low:hover {
+  background-color: #4f46e5;
+}
+
+/* Card hover lift effect - tactile feedback */
+.hub-card-lift {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hub-card-lift:hover {
+  transform: translateY(-2px);
+}
+
 /* On Duty button glow */
 .hub-on-duty-active {
   background: rgba(34, 211, 238, 0.15);

@@ -11,16 +11,10 @@ export default function RescueSquadsRedirect() {
   }, [router]);
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: '#f8fafc'
-    }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🚁</div>
-        <div style={{ fontSize: '1.2rem', color: '#64748b' }}>Redirecting...</div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="text-5xl mb-4">🚁</div>
+        <div className="text-gray-500">Redirecting...</div>
       </div>
     </div>
   );

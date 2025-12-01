@@ -72,6 +72,8 @@ export async function GET(request, { params }) {
     // Use the actual squad ID for subsequent queries
     const squadId = squad.id;
 
+    console.log('[Hub Debug] Found squad:', { id: squadId, name: squad.name, city: squad.city });
+
     // Check user's membership status
     let membership = {
       isMember: false,
@@ -123,6 +125,17 @@ export async function GET(request, { params }) {
       },
       orderBy: { acceptedAt: 'desc' },
     });
+
+    console.log('[Hub Debug] Found caseAssignments:', caseAssignments.length);
+    if (caseAssignments.length > 0) {
+      console.log('[Hub Debug] First assignment:', {
+        id: caseAssignments[0].id,
+        caseId: caseAssignments[0].caseId,
+        rescueSquadId: caseAssignments[0].rescueSquadId,
+        status: caseAssignments[0].status,
+        casePetName: caseAssignments[0].case?.petName,
+      });
+    }
 
     // Transform cases to hub format
     const cases = caseAssignments.map(assignment => {
@@ -401,6 +414,7 @@ export async function GET(request, { params }) {
         id: squad.id,
         citySlug: squad.city?.toLowerCase().replace(/\s+/g, '-') || squad.id,
         cityName: squad.city || 'Unknown City',
+        state: squad.state || '',
         displayName: squad.name,
         memberCount: squad._count.members,
         onDutyCount,

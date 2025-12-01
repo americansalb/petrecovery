@@ -87,17 +87,17 @@ export async function GET(request) {
         distinct: ['city', 'state']
       }),
 
-      // Phase 13-14: Lost Pet Cases
-      prisma.lostPetCase.count(),
+      // Cases (using Case model)
+      prisma.case.count(),
 
-      // Cases with OPEN status
-      prisma.lostPetCase.count({
-        where: { status: 'OPEN' }
+      // Cases with ACTIVE status
+      prisma.case.count({
+        where: { status: 'ACTIVE' }
       }),
 
-      // Cases with ACTIVE_SEARCH status
-      prisma.lostPetCase.count({
-        where: { status: 'ACTIVE_SEARCH' }
+      // Cases with IN_PROGRESS status
+      prisma.case.count({
+        where: { status: 'IN_PROGRESS' }
       })
     ]);
 
@@ -116,7 +116,7 @@ export async function GET(request) {
     console.log(`   - Cities: ${citiesTotal}`);
     console.log(`   - Rescue Squads: ${rescueSquadsTotal} (${rescueSquadsActive} active)`);
     console.log(`   - Squad Members: ${squadMembersTotal} (${activeSquadMembers} active)`);
-    console.log(`   - Cases: ${casesTotal} (${casesOpen} open, ${casesActiveSearch} active search)`);
+    console.log(`   - Cases: ${casesTotal} (${casesOpen} active, ${casesActiveSearch} in progress)`);
 
     // ============================================================================
     // EVENT LOGGING

@@ -37,6 +37,12 @@ export default function SquadPage() {
 
         if (res.ok) {
           const data = await res.json();
+          console.log('[SquadHub Debug] API response:', {
+            squadId: data.squad?.id,
+            squadName: data.squad?.displayName,
+            casesCount: data.cases?.length || 0,
+            cases: data.cases,
+          });
           setSquadData(data);
           setUsingMockData(false);
         } else if (res.status === 404) {
@@ -137,7 +143,7 @@ export default function SquadPage() {
     <>
       {usingMockData && process.env.NODE_ENV === 'development' && (
         <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 text-center text-amber-300 text-sm">
-          ⚠️ Using mock data (real squad not found in database)
+          Using mock data (real squad not found in database)
         </div>
       )}
       <SquadHub initialData={squadData} squadId={resolvedSquadId} />

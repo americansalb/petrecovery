@@ -154,7 +154,7 @@ export async function GET(request, { params }) {
       resource_id: caseData.id,
       action: 'read',
       result: 'success',
-      actor_role: 'public',
+      actor_role: null, // anonymous public user
       metadata: {
         caseNumber,
         caseId: caseData.id,
@@ -178,7 +178,7 @@ export async function GET(request, { params }) {
       result: 'failure',
       error_code: 'INTERNAL_ERROR',
       error_message: error.message,
-      actor_role: 'public',
+      actor_role: null, // anonymous public user
       metadata: {
         caseNumber,
         error_stack: error.stack?.substring(0, 500)

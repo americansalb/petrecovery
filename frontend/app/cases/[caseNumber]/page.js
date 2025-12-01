@@ -1,10 +1,11 @@
 'use client';
 
 /**
- * Case Detail Page with Mission Control Integration
+ * Case Detail Page with Command Center
  *
- * Shows static case info when inactive, full Mission Control when live.
- * Seamlessly transitions between modes.
+ * Two view modes:
+ * - Public view: Basic case info for unauthenticated/visitors
+ * - Command Center: Full coordination interface for participants
  */
 
 import { useState, useEffect } from 'react';
@@ -12,11 +13,12 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import MatchesPanel from '@/app/components/MatchesPanel';
 import MissionControl from '@/app/components/missionControl/MissionControl';
+import CaseCommandCenter from '@/app/components/case/CaseCommandCenter';
 
 export default function CaseDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const { caseNumber } = params;
 
   const [caseData, setCaseData] = useState(null);
@@ -25,6 +27,7 @@ export default function CaseDetailPage() {
   const [error, setError] = useState(null);
   const [userRole, setUserRole] = useState('VISITOR');
   const [showMissionControl, setShowMissionControl] = useState(false);
+  const [showCommandCenter, setShowCommandCenter] = useState(true); // Default to Command Center view
   const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
@@ -114,9 +117,10 @@ export default function CaseDetailPage() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'OPEN': return 'bg-blue-100 text-blue-800';
-      case 'ACTIVE_SEARCH': return 'bg-red-100 text-red-800 animate-pulse';
-      case 'RESOLVED': return 'bg-green-100 text-green-800';
+      case 'ACTIVE': return 'bg-green-100 text-green-800';
+      case 'IN_PROGRESS': return 'bg-cyan-100 text-cyan-800 animate-pulse';
+      case 'SIGHTING_REPORTED': return 'bg-yellow-100 text-yellow-800 animate-pulse';
+      case 'REUNITED': return 'bg-emerald-100 text-emerald-800';
       case 'CLOSED_OTHER': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -124,13 +128,18 @@ export default function CaseDetailPage() {
 
   const getStatusLabel = (status) => {
     switch (status) {
-      case 'OPEN': return 'Open';
-      case 'ACTIVE_SEARCH': return '🔴 LIVE SEARCH';
-      case 'RESOLVED': return 'Resolved';
+      case 'ACTIVE': return 'Active';
+      case 'IN_PROGRESS': return '🔍 Searching';
+      case 'SIGHTING_REPORTED': return '👁️ Sighting!';
+      case 'REUNITED': return '🎉 Reunited';
       case 'CLOSED_OTHER': return 'Closed';
       default: return status;
     }
   };
+
+  // Should show Command Center for authenticated users with roles
+  const shouldShowCommandCenter = session?.user &&
+    (userRole === 'OWNER' || userRole === 'ADMIN' || userRole === 'PARTICIPANT' || userRole === 'LEADER');
 
   const handleShare = async () => {
     const shareUrl = window.location.href;
@@ -200,7 +209,7 @@ export default function CaseDetailPage() {
             onClick={() => setShowMissionControl(false)}
             className="text-gray-400 hover:text-white text-sm flex items-center gap-2"
           >
-            ← View Case Info
+            ← Back to Case Info
           </button>
         </div>
 
@@ -213,6 +222,17 @@ export default function CaseDetailPage() {
     );
   }
 
+  // Show Command Center as default view for all cases
+  if (showCommandCenter && caseData?.id) {
+    return (
+      <CaseCommandCenter
+        caseId={caseData.id}
+        caseNumber={caseData.caseNumber}
+        onClose={() => setShowCommandCenter(false)}
+      />
+    );
+  }
+
   // Time since missing
   const hoursMissing = caseData.lastSeenAt
     ? Math.floor((Date.now() - new Date(caseData.lastSeenAt).getTime()) / 3600000)
@@ -220,17 +240,33 @@ export default function CaseDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      {/* Live Banner - if active search */}
-      {caseData.status === 'ACTIVE_SEARCH' && (
-        <div className="bg-red-600 text-white py-3 px-4 text-center">
-          <div className="flex items-center justify-center gap-3">
-            <span className="animate-pulse text-2xl">●</span>
-            <span className="font-bold text-lg">LIVE SEARCH IN PROGRESS</span>
+      {/* Active Search Banner */}
+      {caseData.status === 'IN_PROGRESS' && (
+        <div className="bg-gradient-to-r from-cyan-600 to-blue-600 text-white py-3 px-4 text-center">
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            <span className="animate-pulse text-2xl">🔍</span>
+            <span className="font-bold text-lg">ACTIVE SEARCH IN PROGRESS</span>
             <button
-              onClick={() => setShowMissionControl(true)}
-              className="ml-4 px-4 py-1 bg-white text-red-600 rounded-full font-bold text-sm hover:bg-gray-100"
+              onClick={() => setShowCommandCenter(true)}
+              className="ml-4 px-4 py-2 bg-white text-cyan-600 rounded-full font-bold text-sm hover:bg-gray-100 transition"
             >
-              Join Now →
+              Open Command Center →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sighting Reported Banner */}
+      {caseData.status === 'SIGHTING_REPORTED' && (
+        <div className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white py-3 px-4 text-center">
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            <span className="animate-pulse text-2xl">👁️</span>
+            <span className="font-bold text-lg">SIGHTING REPORTED!</span>
+            <button
+              onClick={() => setShowCommandCenter(true)}
+              className="ml-4 px-4 py-2 bg-white text-amber-600 rounded-full font-bold text-sm hover:bg-gray-100 transition"
+            >
+              View Details →
             </button>
           </div>
         </div>
@@ -248,12 +284,21 @@ export default function CaseDetailPage() {
 
           <div className="flex gap-6 items-start">
             {/* Pet Photo */}
-            {caseData.petPhotoUrl && (
+            {caseData.petPhotoUrl && caseData.petPhotoUrl.length > 10 && (
               <img
                 src={caseData.petPhotoUrl}
-                alt={caseData.petName}
+                alt={caseData.petName || 'Pet photo'}
                 className="w-24 h-24 rounded-xl object-cover border-2 border-gray-600"
+                onError={(e) => { e.target.style.display = 'none'; }}
               />
+            )}
+            {/* Fallback if no photo */}
+            {(!caseData.petPhotoUrl || caseData.petPhotoUrl.length <= 10) && (
+              <div className="w-24 h-24 rounded-xl bg-gray-700 flex items-center justify-center border-2 border-gray-600">
+                <span className="text-4xl">
+                  {caseData.petSpecies === 'DOG' ? '🐕' : caseData.petSpecies === 'CAT' ? '🐈' : '🐾'}
+                </span>
+              </div>
             )}
 
             <div className="flex-1">
@@ -274,7 +319,7 @@ export default function CaseDetailPage() {
               </div>
 
               {/* Time Missing */}
-              {hoursMissing !== null && caseData.status !== 'RESOLVED' && (
+              {hoursMissing !== null && caseData.status !== 'REUNITED' && caseData.status !== 'CLOSED_OTHER' && (
                 <div className="mt-3 flex items-center gap-2">
                   <span className="text-2xl">⏱</span>
                   <span className={`text-lg font-semibold ${hoursMissing < 24 ? 'text-red-400' : 'text-orange-400'}`}>
@@ -288,8 +333,30 @@ export default function CaseDetailPage() {
       </div>
 
       <div className="container mx-auto px-4 max-w-4xl py-6 space-y-6">
+        {/* Command Center Access - for authenticated users */}
+        {shouldShowCommandCenter && caseData.status !== 'REUNITED' && caseData.status !== 'CLOSED_OTHER' && (
+          <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl p-6 border border-cyan-500/30 shadow-lg shadow-cyan-500/10">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <span className="text-2xl">🎯</span> Case Command Center
+                </h2>
+                <p className="text-slate-400 text-sm mt-1">
+                  Full coordination dashboard with map, timeline, and chat
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCommandCenter(true)}
+                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-bold hover:from-cyan-400 hover:to-blue-400 transition shadow-lg shadow-cyan-500/30"
+              >
+                Open Command Center →
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Quick Actions */}
-        {caseData.status !== 'RESOLVED' && caseData.status !== 'CLOSED_OTHER' && (
+        {caseData.status !== 'REUNITED' && caseData.status !== 'CLOSED_OTHER' && (
           <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
             <h2 className="text-xl font-bold mb-4">How You Can Help</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -462,7 +529,7 @@ export default function CaseDetailPage() {
         </div>
 
         {/* Matches Panel */}
-        {caseData.status !== 'RESOLVED' && (
+        {caseData.status !== 'REUNITED' && caseData.status !== 'CLOSED_OTHER' && (
           <MatchesPanel caseNumber={caseNumber} />
         )}
       </div>

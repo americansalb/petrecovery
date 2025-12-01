@@ -45,7 +45,7 @@ export async function POST(request, { params }) {
     // Check if already participating
     const existingParticipant = await prisma.caseParticipant.findFirst({
       where: {
-        caseAssignmentId: assignment.id,
+        assignmentId: assignment.id,
         userId: session.user.id,
       },
     });
@@ -58,17 +58,16 @@ export async function POST(request, { params }) {
       // Reactivate participation
       await prisma.caseParticipant.update({
         where: { id: existingParticipant.id },
-        data: { isActive: true },
+        data: { isActive: true, optedOutAt: null },
       });
     } else {
       // Create new participation
       await prisma.caseParticipant.create({
         data: {
-          caseAssignmentId: assignment.id,
+          assignmentId: assignment.id,
           userId: session.user.id,
-          role: 'SEARCHER',
           isActive: true,
-          joinedAt: new Date(),
+          optedInAt: new Date(),
         },
       });
     }
@@ -78,7 +77,6 @@ export async function POST(request, { params }) {
       where: { id: membership.id },
       data: {
         casesParticipated: { increment: 1 },
-        lastActiveAt: new Date(),
       },
     });
 
@@ -121,7 +119,7 @@ export async function DELETE(request, { params }) {
     // Find and deactivate participation
     const participant = await prisma.caseParticipant.findFirst({
       where: {
-        caseAssignmentId: assignment.id,
+        assignmentId: assignment.id,
         userId: session.user.id,
         isActive: true,
       },
@@ -130,7 +128,7 @@ export async function DELETE(request, { params }) {
     if (participant) {
       await prisma.caseParticipant.update({
         where: { id: participant.id },
-        data: { isActive: false },
+        data: { isActive: false, optedOutAt: new Date() },
       });
     }
 

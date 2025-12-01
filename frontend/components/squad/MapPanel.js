@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSquadHub } from './context/SquadHubContext';
-import { MapPin, Crosshair, Layers } from 'lucide-react';
+import { MapPin, Crosshair, Layers, Map as MapIcon } from 'lucide-react';
 
 // Urgency color mapping
 const urgencyConfig = {
@@ -35,8 +35,10 @@ export default function MapPanel() {
   const mapInstanceRef = useRef(null);
   const markersRef = useRef({});
   const divisionLayersRef = useRef({});
+  const cityBoundaryRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
+  const [showCityBoundary, setShowCityBoundary] = useState(true);
 
   const {
     squad,
@@ -131,6 +133,73 @@ export default function MapPanel() {
 
     drawDivisions();
   }, [mapReady, divisions, selectedDivisionId]);
+
+  // Draw city boundary
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current || !squad.cityName) return;
+    if (!showCityBoundary) {
+      // Remove boundary if toggle is off
+      if (cityBoundaryRef.current) {
+        cityBoundaryRef.current.remove();
+        cityBoundaryRef.current = null;
+      }
+      return;
+    }
+
+    const fetchCityBoundary = async () => {
+      const L = (await import('leaflet')).default;
+
+      // Clear old boundary
+      if (cityBoundaryRef.current) {
+        cityBoundaryRef.current.remove();
+        cityBoundaryRef.current = null;
+      }
+
+      try {
+        // Fetch city boundary from Nominatim
+        const cityName = squad.cityName;
+        const state = squad.state || '';
+        const searchQuery = state ? `${cityName}, ${state}, USA` : `${cityName}, USA`;
+
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=geojson&polygon_geojson=1&limit=1`,
+          {
+            headers: {
+              'User-Agent': 'PetRecovery.org (contact@petrecovery.org)'
+            }
+          }
+        );
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (!data.features || data.features.length === 0) return;
+
+        const feature = data.features[0];
+        if (!feature.geometry) return;
+
+        // Create GeoJSON layer with city boundary styling
+        cityBoundaryRef.current = L.geoJSON(feature.geometry, {
+          style: {
+            color: '#22d3ee', // Cyan color for city boundary
+            weight: 3,
+            opacity: 0.8,
+            fillColor: '#22d3ee',
+            fillOpacity: 0.05,
+            dashArray: null,
+          }
+        }).addTo(mapInstanceRef.current);
+
+        // Bring to back so it doesn't cover markers
+        cityBoundaryRef.current.bringToBack();
+
+      } catch (error) {
+        console.error('Failed to fetch city boundary:', error);
+      }
+    };
+
+    fetchCityBoundary();
+  }, [mapReady, squad.cityName, squad.state, showCityBoundary]);
 
   // Draw case markers
   useEffect(() => {
@@ -368,6 +437,19 @@ export default function MapPanel() {
           title="Find my location"
         >
           <Crosshair size={18} />
+        </button>
+
+        {/* City boundary toggle */}
+        <button
+          onClick={() => setShowCityBoundary(!showCityBoundary)}
+          className={`w-10 h-10 rounded-lg border flex items-center justify-center transition-all ${
+            showCityBoundary
+              ? 'bg-[var(--hub-accent-primary)]/20 border-[var(--hub-accent-primary)] text-[var(--hub-accent-primary)]'
+              : 'bg-[var(--hub-bg-panel)] border-[var(--hub-border)] text-[var(--hub-text-secondary)] hover:text-[var(--hub-accent-primary)] hover:border-[var(--hub-accent-primary)]/40'
+          }`}
+          title={showCityBoundary ? 'Hide city boundary' : 'Show city boundary'}
+        >
+          <MapIcon size={18} />
         </button>
       </div>
 

@@ -17,12 +17,12 @@ export async function POST(request, { params }) {
 
     const squadId = params.id;
 
-    // Check if squad exists
+    // Check if squad exists and is not deleted
     const squad = await prisma.rescueSquad.findUnique({
       where: { id: squadId },
     });
 
-    if (!squad) {
+    if (!squad || squad.isDeleted) {
       return NextResponse.json({ error: 'Squad not found' }, { status: 404 });
     }
 
@@ -44,7 +44,7 @@ export async function POST(request, { params }) {
         where: { id: existingMembership.id },
         data: {
           isActive: true,
-          lastActiveAt: new Date(),
+          leftAt: null,
         },
       });
 
@@ -58,9 +58,7 @@ export async function POST(request, { params }) {
         userId: session.user.id,
         role: 'MEMBER',
         isActive: true,
-        isOnDuty: false,
         joinedAt: new Date(),
-        lastActiveAt: new Date(),
       },
     });
 

@@ -189,18 +189,17 @@ export default function ColorSelector({ value, onChange }) {
           align-items: center;
           gap: 0.5rem;
           padding: 0.5rem 0.75rem;
-          background: var(--hub-status-success, #10b981) / 0.15;
           background: rgba(16, 185, 129, 0.15);
-          border: 2px solid var(--hub-status-success, #10b981);
+          border: 2px solid #10b981;
           border-radius: 0.5rem;
           font-size: 0.9rem;
           font-weight: 600;
-          color: var(--hub-status-success, #10b981);
+          color: #059669;
         }
         .color-tag-remove {
           background: none;
           border: none;
-          color: var(--hub-status-high, #ef4444);
+          color: #ef4444;
           cursor: pointer;
           font-size: 1.1rem;
           line-height: 1;
@@ -209,19 +208,19 @@ export default function ColorSelector({ value, onChange }) {
         .color-input {
           width: 100%;
           padding: 0.75rem;
-          border: 2px solid var(--hub-border, #374151);
+          border: 2px solid #d1d5db;
           border-radius: 0.5rem;
           font-size: 1rem;
-          background: var(--hub-bg-card, #1f2937);
-          color: var(--hub-text-primary, #f9fafb);
+          background: white;
+          color: #111827;
         }
         .color-input::placeholder {
-          color: var(--hub-text-muted, #6b7280);
+          color: #9ca3af;
         }
         .color-input:focus {
           outline: none;
-          border-color: var(--hub-accent-primary, #22d3ee);
-          box-shadow: 0 0 0 1px var(--hub-accent-primary, #22d3ee);
+          border-color: #6366f1;
+          box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
         .color-dropdown {
           position: absolute;
@@ -230,24 +229,24 @@ export default function ColorSelector({ value, onChange }) {
           right: 0;
           max-height: 250px;
           overflow-y: auto;
-          background: var(--hub-bg-panel, #111827);
-          border: 2px solid var(--hub-border, #374151);
+          background: white;
+          border: 2px solid #d1d5db;
           border-radius: 0.5rem;
-          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
           z-index: 1000;
         }
         .color-dropdown-item {
           padding: 0.75rem 1rem;
           cursor: pointer;
-          border-bottom: 1px solid var(--hub-border, #374151);
+          border-bottom: 1px solid #e5e7eb;
           display: flex;
           align-items: center;
           gap: 0.5rem;
-          color: var(--hub-text-primary, #f9fafb);
+          color: #111827;
           transition: background 0.15s;
         }
         .color-dropdown-item:hover {
-          background: var(--hub-bg-card, #1f2937);
+          background: #f3f4f6;
         }
         .color-dropdown-item.selected {
           background: rgba(16, 185, 129, 0.15);
@@ -255,8 +254,10 @@ export default function ColorSelector({ value, onChange }) {
         .color-checkbox {
           width: 18px;
           height: 18px;
+          min-width: 18px;
+          min-height: 18px;
           cursor: pointer;
-          accent-color: var(--hub-accent-primary, #22d3ee);
+          accent-color: #6366f1;
         }
         .color-other-label {
           display: flex;
@@ -268,16 +269,18 @@ export default function ColorSelector({ value, onChange }) {
         .color-other-checkbox {
           width: 18px;
           height: 18px;
+          min-width: 18px;
+          min-height: 18px;
           cursor: pointer;
-          accent-color: var(--hub-accent-primary, #22d3ee);
+          accent-color: #6366f1;
         }
         .color-other-text {
           font-weight: 600;
-          color: var(--hub-text-secondary, #9ca3af);
+          color: #374151;
         }
         .color-help-text {
           font-size: 0.85rem;
-          color: var(--hub-text-muted, #6b7280);
+          color: #6b7280;
           margin-top: 0.5rem;
           margin-bottom: 0;
         }
