@@ -126,7 +126,7 @@ export async function GET(request) {
       resource_type: 'metrics',
       action: 'read',
       result: 'success',
-      actor_role: 'public',
+      actor_role: null, // anonymous public user
       metadata: {
         pets_reunited: totalReunited,
         total_users: totalUsers,
@@ -162,7 +162,7 @@ export async function GET(request) {
       result: 'failure',
       error_code: 'INTERNAL_ERROR',
       error_message: error.message,
-      actor_role: 'public',
+      actor_role: null, // anonymous public user
       metadata: {
         error_stack: error.stack?.substring(0, 500),
         response_time_ms: responseTime
