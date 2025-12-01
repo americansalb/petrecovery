@@ -14,6 +14,7 @@
 
 import { SquadHubProvider, useSquadHub } from './context/SquadHubContext';
 import SquadHeader from './SquadHeader';
+import SquadHero from './SquadHero';
 import YourMissionsBar from './YourMissionsBar';
 import SquadTabsMobile from './SquadTabsMobile';
 import CaseQueuePanel from './CaseQueuePanel';
@@ -38,9 +39,15 @@ function SquadHubContent() {
   const { mainTab, setMainTab, selectedCaseId } = useSquadHub();
 
   return (
-    <div className="squad-hub min-h-screen flex flex-col">
+    <div className="squad-hub min-h-screen flex flex-col relative overflow-hidden">
+      <div className="hub-aurora" aria-hidden />
+      <div className="hub-grid" aria-hidden />
+
       {/* Header - always visible */}
       <SquadHeader />
+
+      {/* Hero summary */}
+      <SquadHero />
 
       {/* Your Missions bar - shows user's active commitments */}
       <YourMissionsBar />

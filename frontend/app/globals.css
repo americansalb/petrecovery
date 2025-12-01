@@ -340,6 +340,37 @@ img {
   min-height: 100vh;
 }
 
+.hub-aurora {
+  position: absolute;
+  inset: -160px -120px auto -120px;
+  height: 360px;
+  background: radial-gradient(circle at 20% 20%, rgba(34, 211, 238, 0.35), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(139, 92, 246, 0.25), transparent 40%),
+    radial-gradient(circle at 60% 60%, rgba(34, 197, 94, 0.2), transparent 35%);
+  filter: blur(50px);
+  opacity: 0.9;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hub-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 140px 140px, 140px 140px;
+  mask-image: radial-gradient(circle at center, rgba(255, 255, 255, 0.6), transparent 70%);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.squad-hub > *:not(.hub-aurora):not(.hub-grid) {
+  position: relative;
+  z-index: 1;
+}
+
 /* Bioluminescent card glow effect */
 .hub-card {
   background: var(--hub-bg-card);
