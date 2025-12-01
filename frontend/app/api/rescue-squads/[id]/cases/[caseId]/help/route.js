@@ -78,7 +78,6 @@ export async function POST(request, { params }) {
       where: { id: membership.id },
       data: {
         casesParticipated: { increment: 1 },
-        lastActiveAt: new Date(),
       },
     });
 
