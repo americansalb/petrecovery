@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { Plus, Shield, Users, TrendingUp, MapPin, Camera } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import PhotoUploadModal from './PhotoUploadModal';
 
 export default function SquadHeaderV2({
   squad,
@@ -19,6 +20,7 @@ export default function SquadHeaderV2({
   currentDivisionId = null,
 }) {
   const router = useRouter();
+  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   const cityName = squad.cityName || 'Unknown City';
   const state = squad.state || '';
   const currentDivision = divisions.find(d => d.id === currentDivisionId);
@@ -72,7 +74,10 @@ export default function SquadHeaderV2({
                 )}
               </div>
               {isAdmin && (
-                <button className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl">
+                <button
+                  onClick={() => setShowPhotoUpload(true)}
+                  className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl"
+                >
                   <Camera size={24} className="text-white" />
                 </button>
               )}
@@ -196,6 +201,16 @@ export default function SquadHeaderV2({
           )}
         </div>
       </div>
+
+      {/* Photo Upload Modal */}
+      <PhotoUploadModal
+        isOpen={showPhotoUpload}
+        onClose={() => setShowPhotoUpload(false)}
+        onUpload={(url) => {
+          console.log('Photo uploaded:', url);
+        }}
+        squadId={squad.id}
+      />
     </div>
   );
 }
