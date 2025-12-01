@@ -210,17 +210,26 @@ export default function CaseCard({ caseItem, compact = false }) {
           </button>
         )}
 
-        {/* Open case chat link */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            openCaseChat(caseItem.id);
-          }}
-          className="w-full mt-2 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[var(--hub-text-muted)] hover:text-[var(--hub-accent-primary)] transition-colors"
-        >
-          <MessageCircle size={10} />
-          Open chat for this case
-        </button>
+        {/* Action links */}
+        <div className="flex gap-2 mt-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              openCaseChat(caseItem.id);
+            }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[var(--hub-text-muted)] hover:text-[var(--hub-accent-primary)] transition-colors"
+          >
+            <MessageCircle size={10} />
+            Chat
+          </button>
+          <a
+            href={`/cases/${caseItem.caseNumber}`}
+            onClick={(e) => e.stopPropagation()}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] bg-[var(--hub-accent-primary)]/10 text-[var(--hub-accent-primary)] hover:bg-[var(--hub-accent-primary)]/20 rounded-lg transition-colors font-medium"
+          >
+            🎯 Command Center
+          </a>
+        </div>
       </div>
     </div>
   );

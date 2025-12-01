@@ -357,8 +357,15 @@ function CasesContent() {
                       </div>
                     )}
 
-                    <div className="mt-4 text-blue-600 text-sm font-semibold">
-                      View Details →
+                    <div className="mt-4 flex items-center justify-between">
+                      <span className="text-blue-600 text-sm font-semibold">
+                        View Details →
+                      </span>
+                      {(caseItem.status === 'ACTIVE' || caseItem.status === 'IN_PROGRESS' || caseItem.status === 'SIGHTING_REPORTED') && (
+                        <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-1 rounded-full font-medium">
+                          🎯 Command Center
+                        </span>
+                      )}
                     </div>
                   </div>
                 </a>

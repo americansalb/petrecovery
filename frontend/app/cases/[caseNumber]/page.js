@@ -27,7 +27,7 @@ export default function CaseDetailPage() {
   const [error, setError] = useState(null);
   const [userRole, setUserRole] = useState('VISITOR');
   const [showMissionControl, setShowMissionControl] = useState(false);
-  const [showCommandCenter, setShowCommandCenter] = useState(false);
+  const [showCommandCenter, setShowCommandCenter] = useState(true); // Default to Command Center view
   const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
@@ -222,13 +222,31 @@ export default function CaseDetailPage() {
     );
   }
 
-  // Show Command Center for authenticated users with appropriate roles
+  // Show Command Center as default view for all cases
   if (showCommandCenter && caseData?.id) {
     return (
-      <CaseCommandCenter
-        caseId={caseData.id}
-        caseNumber={caseData.caseNumber}
-      />
+      <div className="min-h-screen bg-slate-950">
+        {/* Back to basic view button */}
+        <div className="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center justify-between">
+          <button
+            onClick={() => setShowCommandCenter(false)}
+            className="text-slate-400 hover:text-white text-sm flex items-center gap-2"
+          >
+            ← Basic View
+          </button>
+          <a
+            href="/cases"
+            className="text-slate-400 hover:text-white text-sm"
+          >
+            All Cases
+          </a>
+        </div>
+        <CaseCommandCenter
+          caseId={caseData.id}
+          caseNumber={caseData.caseNumber}
+          onClose={() => setShowCommandCenter(false)}
+        />
+      </div>
     );
   }
 
