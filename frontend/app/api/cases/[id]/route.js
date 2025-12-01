@@ -126,7 +126,7 @@ export async function GET(request, { params }) {
         },
         sightings: {
           include: {
-            reporter: {
+            reportedBy: {
               select: {
                 id: true,
                 firstName: true,

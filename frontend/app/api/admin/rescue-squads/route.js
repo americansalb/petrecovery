@@ -15,6 +15,9 @@ export async function GET(request) {
     }
 
     const squads = await prisma.rescueSquad.findMany({
+      where: {
+        isDeleted: false, // Don't show deleted squads
+      },
       orderBy: { createdAt: 'desc' },
       include: {
         _count: {
