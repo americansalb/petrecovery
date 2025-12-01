@@ -9,10 +9,15 @@
  * - Desktop: Coordinator view (full dashboard)
  *
  * Design Philosophy: "Calm Urgency" - Clear, focused, minimal cognitive load
+ *
+ * Per spec: This is the tactical page for ONE lost pet - mission control for one case.
+ * All interactions here are case-specific, not city-wide.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
 // Lazy load map for better performance
@@ -25,17 +30,33 @@ const MapView = dynamic(() => import('./SARMapView'), {
   )
 });
 
+// Standard checklist tasks for lost pet cases (per spec: concrete, actionable items)
+const DEFAULT_CHECKLIST = [
+  { id: 'alert_neighbors', label: 'Alert neighbors & nearby residents', icon: '🏠', category: 'immediate' },
+  { id: 'post_flyers', label: 'Post flyers in the area', icon: '📄', category: 'immediate' },
+  { id: 'call_shelters', label: 'Call local shelters', icon: '📞', category: 'immediate' },
+  { id: 'check_yard', label: 'Search your property thoroughly', icon: '🔍', category: 'immediate' },
+  { id: 'social_media', label: 'Post on social media', icon: '📱', category: 'outreach' },
+  { id: 'check_shelters', label: 'Visit shelters in person', icon: '🏥', category: 'outreach' },
+  { id: 'night_search', label: 'Search at dawn/dusk (quiet time)', icon: '🌙', category: 'search' },
+  { id: 'leave_items', label: 'Leave familiar items outside', icon: '👕', category: 'search' },
+];
+
 export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
   const { data: session } = useSession();
+  const router = useRouter();
 
   // Core state
   const [caseData, setCaseData] = useState(null);
   const [sightings, setSightings] = useState([]);
+  const [timeline, setTimeline] = useState([]);
+  const [checklist, setChecklist] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // UI state
-  const [activeView, setActiveView] = useState('map'); // map | team | activity
+  const [activeView, setActiveView] = useState('map'); // map | timeline | checklist | team
+  const [activePanel, setActivePanel] = useState('activity'); // activity | checklist | info (for desktop right panel)
   const [showSightingForm, setShowSightingForm] = useState(false);
   const [userStatus, setUserStatus] = useState('READY'); // READY | SEARCHING | BREAK | DONE
   const [showPetCard, setShowPetCard] = useState(true);
@@ -63,6 +84,12 @@ export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
       const data = await res.json();
       setCaseData(data);
       setError(null);
+
+      // Initialize checklist from case data or defaults
+      initializeChecklist(data);
+
+      // Build initial timeline
+      buildTimeline(data, []);
     } catch (err) {
       console.error('Error fetching case:', err);
       setError(err.message);
@@ -71,6 +98,75 @@ export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
     }
   }, [caseId, caseNumber]);
 
+  // Initialize checklist with saved state or defaults
+  const initializeChecklist = (data) => {
+    const savedChecklist = data.checklist || [];
+    const initialChecklist = DEFAULT_CHECKLIST.map(item => ({
+      ...item,
+      completed: savedChecklist.includes(item.id),
+      completedAt: null,
+    }));
+    setChecklist(initialChecklist);
+  };
+
+  // Build timeline from case events
+  const buildTimeline = useCallback((data, sightingsList) => {
+    const events = [];
+
+    // Case created
+    if (data?.createdAt) {
+      events.push({
+        id: 'case_created',
+        type: 'system',
+        icon: '📋',
+        title: 'Case reported',
+        description: `${data.petName || 'Pet'} reported missing`,
+        timestamp: new Date(data.createdAt),
+      });
+    }
+
+    // Last seen event
+    if (data?.lastSeenAt) {
+      events.push({
+        id: 'last_seen',
+        type: 'location',
+        icon: '📍',
+        title: 'Last seen',
+        description: data.lastSeenAddress || 'Location recorded',
+        timestamp: new Date(data.lastSeenAt),
+      });
+    }
+
+    // Squad assigned
+    if (data?.squadId && data?.squad) {
+      events.push({
+        id: 'squad_assigned',
+        type: 'team',
+        icon: '👥',
+        title: 'Squad assigned',
+        description: `${data.squad.displayName || data.squad.name} joined`,
+        timestamp: new Date(data.updatedAt || data.createdAt),
+      });
+    }
+
+    // Sightings
+    sightingsList.forEach((sighting, index) => {
+      events.push({
+        id: `sighting_${sighting.id}`,
+        type: 'sighting',
+        icon: '👁️',
+        title: `Sighting #${index + 1}`,
+        description: sighting.description || sighting.address || 'Sighting reported',
+        timestamp: new Date(sighting.createdAt || sighting.sightedAt),
+        confidence: sighting.confidence,
+      });
+    });
+
+    // Sort by timestamp (newest first)
+    events.sort((a, b) => b.timestamp - a.timestamp);
+    setTimeline(events);
+  }, []);
+
   // Fetch sightings
   const fetchSightings = useCallback(async () => {
     if (!caseData?.id) return;
@@ -78,12 +174,50 @@ export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
       const res = await fetch(`/api/cases/${caseData.id}/sightings`);
       if (res.ok) {
         const data = await res.json();
-        setSightings(data.sightings || []);
+        const sightingsList = data.sightings || [];
+        setSightings(sightingsList);
+
+        // Update timeline with sightings
+        buildTimeline(caseData, sightingsList);
       }
     } catch (err) {
       console.error('Error fetching sightings:', err);
     }
-  }, [caseData?.id]);
+  }, [caseData, buildTimeline]);
+
+  // Toggle checklist item
+  const toggleChecklistItem = async (itemId) => {
+    setChecklist(prev => prev.map(item =>
+      item.id === itemId
+        ? { ...item, completed: !item.completed, completedAt: !item.completed ? new Date() : null }
+        : item
+    ));
+
+    // Persist to backend (fire and forget)
+    if (caseData?.id) {
+      try {
+        await fetch(`/api/cases/${caseData.id}/checklist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemId, completed: !checklist.find(i => i.id === itemId)?.completed }),
+        });
+      } catch (err) {
+        console.error('Error saving checklist:', err);
+      }
+    }
+  };
+
+  // Navigate back to Squad Hub
+  const handleBackToSquad = () => {
+    if (caseData?.squad?.id) {
+      router.push(`/rescue-squads/${caseData.squad.id}`);
+    } else if (caseData?.squadId) {
+      router.push(`/rescue-squads/${caseData.squadId}`);
+    } else {
+      // Fallback to cases list
+      router.push('/cases');
+    }
+  };
 
   useEffect(() => {
     fetchCase();
@@ -504,6 +638,10 @@ export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
     );
   }
 
+  // Calculate checklist progress
+  const checklistProgress = checklist.filter(i => i.completed).length;
+  const checklistTotal = checklist.length;
+
   // ============================================================================
   // DESKTOP VIEW - Coordinator Dashboard
   // ============================================================================
@@ -514,13 +652,13 @@ export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
         {/* Header */}
         <div className="p-4 border-b border-slate-800">
           <button
-            onClick={onClose || (() => window.history.back())}
+            onClick={handleBackToSquad}
             className="text-slate-400 hover:text-white text-sm flex items-center gap-2 mb-4"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Back to Cases
+            {caseData?.squad ? `Back to ${caseData.squad.displayName || caseData.squad.name}` : 'Back to Cases'}
           </button>
 
           {/* Pet Card */}
@@ -608,40 +746,239 @@ export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
         />
       </div>
 
-      {/* Right Panel - Activity */}
+      {/* Right Panel - Activity, Timeline, Checklist */}
       <div className="w-96 bg-slate-900 border-l border-slate-800 flex flex-col">
-        <div className="p-4 border-b border-slate-800">
-          <h3 className="text-lg font-bold text-white">Activity Feed</h3>
+        {/* Tab Switcher */}
+        <div className="flex border-b border-slate-800">
+          {[
+            { id: 'activity', label: 'Activity', icon: '📋' },
+            { id: 'timeline', label: 'Timeline', icon: '⏱️' },
+            { id: 'checklist', label: 'Tasks', icon: '✅' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActivePanel(tab.id)}
+              className={`flex-1 py-3 px-2 text-sm font-semibold transition ${
+                activePanel === tab.id
+                  ? 'text-cyan-400 border-b-2 border-cyan-400'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <span className="mr-1">{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        <div className="flex-1 overflow-auto p-4">
-          {sightings.length === 0 ? (
-            <div className="text-center py-12 text-slate-600">
-              <div className="text-5xl mb-4">👀</div>
-              <p className="text-lg font-semibold">No activity yet</p>
-              <p className="text-sm mt-2">Sightings and updates will appear here</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {sightings.map((s, i) => (
-                <div key={s.id || i} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
-                      👁
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-white font-semibold text-sm">Sighting Reported</span>
-                        <span className="text-slate-600 text-xs">
-                          {new Date(s.sightedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
+        <div className="flex-1 overflow-auto">
+          {/* Activity Tab - Sightings */}
+          {activePanel === 'activity' && (
+            <div className="p-4">
+              {sightings.length === 0 ? (
+                <div className="text-center py-12 text-slate-600">
+                  <div className="text-5xl mb-4">👀</div>
+                  <p className="text-lg font-semibold">No sightings yet</p>
+                  <p className="text-sm mt-2">Reported sightings will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {sightings.map((s, i) => (
+                    <div key={s.id || i} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                          👁
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-white font-semibold text-sm">Sighting #{sightings.length - i}</span>
+                            <span className="text-slate-600 text-xs">
+                              {new Date(s.sightedAt || s.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="text-slate-400 text-sm mt-1">{s.description || 'No details'}</p>
+                          <p className="text-slate-600 text-xs mt-2">{s.address}</p>
+                          {s.confidence && (
+                            <span className={`inline-block mt-2 text-xs px-2 py-0.5 rounded ${
+                              s.confidence === 'HIGH' ? 'bg-green-500/20 text-green-400' :
+                              s.confidence === 'MEDIUM' ? 'bg-amber-500/20 text-amber-400' :
+                              'bg-slate-500/20 text-slate-400'
+                            }`}>
+                              {s.confidence} confidence
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-slate-400 text-sm mt-1">{s.description || 'No details'}</p>
-                      <p className="text-slate-600 text-xs mt-2">{s.address}</p>
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Timeline Tab - Case Events */}
+          {activePanel === 'timeline' && (
+            <div className="p-4">
+              {timeline.length === 0 ? (
+                <div className="text-center py-12 text-slate-600">
+                  <div className="text-5xl mb-4">⏱️</div>
+                  <p className="text-lg font-semibold">No events yet</p>
+                </div>
+              ) : (
+                <div className="relative">
+                  {/* Timeline line */}
+                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-700" />
+
+                  <div className="space-y-4">
+                    {timeline.map((event, i) => (
+                      <div key={event.id} className="relative pl-10">
+                        {/* Timeline dot */}
+                        <div className={`absolute left-2 w-5 h-5 rounded-full flex items-center justify-center text-xs ${
+                          event.type === 'sighting' ? 'bg-amber-500/30 border-2 border-amber-500' :
+                          event.type === 'location' ? 'bg-red-500/30 border-2 border-red-500' :
+                          event.type === 'team' ? 'bg-green-500/30 border-2 border-green-500' :
+                          'bg-slate-700 border-2 border-slate-600'
+                        }`}>
+                          {event.icon}
+                        </div>
+
+                        <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700/50">
+                          <div className="flex items-center justify-between">
+                            <span className="text-white font-semibold text-sm">{event.title}</span>
+                            <span className="text-slate-600 text-xs">
+                              {event.timestamp.toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-slate-400 text-sm mt-1">{event.description}</p>
+                          {event.confidence && (
+                            <span className={`inline-block mt-2 text-xs px-2 py-0.5 rounded ${
+                              event.confidence === 'HIGH' ? 'bg-green-500/20 text-green-400' :
+                              event.confidence === 'MEDIUM' ? 'bg-amber-500/20 text-amber-400' :
+                              'bg-slate-500/20 text-slate-400'
+                            }`}>
+                              {event.confidence} confidence
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
+              )}
+            </div>
+          )}
+
+          {/* Checklist Tab - Action Items */}
+          {activePanel === 'checklist' && (
+            <div className="p-4">
+              {/* Progress bar */}
+              <div className="mb-4 bg-slate-800 rounded-xl p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-slate-400 text-sm">Progress</span>
+                  <span className="text-white font-bold">{checklistProgress} / {checklistTotal}</span>
+                </div>
+                <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 transition-all duration-300"
+                    style={{ width: `${(checklistProgress / checklistTotal) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Grouped checklist items */}
+              <div className="space-y-4">
+                {/* Immediate Actions */}
+                <div>
+                  <h4 className="text-amber-400 text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <span>⚡</span> Do First
+                  </h4>
+                  <div className="space-y-2">
+                    {checklist.filter(i => i.category === 'immediate').map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => toggleChecklistItem(item.id)}
+                        className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
+                          item.completed
+                            ? 'bg-emerald-500/10 border border-emerald-500/30'
+                            : 'bg-slate-800/50 border border-slate-700/50 hover:bg-slate-800'
+                        }`}
+                      >
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-sm ${
+                          item.completed
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-slate-700 border-2 border-slate-600'
+                        }`}>
+                          {item.completed ? '✓' : item.icon}
+                        </span>
+                        <span className={`flex-1 text-sm ${item.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
+                          {item.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Outreach */}
+                <div>
+                  <h4 className="text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <span>📢</span> Outreach
+                  </h4>
+                  <div className="space-y-2">
+                    {checklist.filter(i => i.category === 'outreach').map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => toggleChecklistItem(item.id)}
+                        className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
+                          item.completed
+                            ? 'bg-emerald-500/10 border border-emerald-500/30'
+                            : 'bg-slate-800/50 border border-slate-700/50 hover:bg-slate-800'
+                        }`}
+                      >
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-sm ${
+                          item.completed
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-slate-700 border-2 border-slate-600'
+                        }`}>
+                          {item.completed ? '✓' : item.icon}
+                        </span>
+                        <span className={`flex-1 text-sm ${item.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
+                          {item.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Search */}
+                <div>
+                  <h4 className="text-purple-400 text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <span>🔍</span> Search Tips
+                  </h4>
+                  <div className="space-y-2">
+                    {checklist.filter(i => i.category === 'search').map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => toggleChecklistItem(item.id)}
+                        className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
+                          item.completed
+                            ? 'bg-emerald-500/10 border border-emerald-500/30'
+                            : 'bg-slate-800/50 border border-slate-700/50 hover:bg-slate-800'
+                        }`}
+                      >
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-sm ${
+                          item.completed
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-slate-700 border-2 border-slate-600'
+                        }`}>
+                          {item.completed ? '✓' : item.icon}
+                        </span>
+                        <span className={`flex-1 text-sm ${item.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
+                          {item.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
