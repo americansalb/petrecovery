@@ -3,14 +3,18 @@
 /**
  * CaseCard - High-Utility Design
  *
+ * Per spec: Every case card must have a primary action to "Help with this pet"
+ * that navigates to that Case's Command Center at /cases/[caseNumber].
+ *
  * Clean, high-contrast cards with:
  * - Clear pet photo/icon
  * - Bold urgency indicators
- * - Prominent Help CTA
+ * - Prominent Help CTA that navigates to Case Command Center
  * - Zero-friction interactions
  */
 
 import { useSquadHub } from './context/SquadHubContext';
+import { useRouter } from 'next/navigation';
 import { Clock, Users, MapPin, Award, MessageCircle } from 'lucide-react';
 
 // Urgency configuration - maps to CSS utility classes
@@ -49,14 +53,19 @@ const speciesEmoji = {
 
 export default function CaseCard({ caseItem, compact = false }) {
   const { helpOnCase, selectCase, openCaseChat } = useSquadHub();
+  const router = useRouter();
 
   const urgency = urgencyConfig[caseItem.urgency] || urgencyConfig.LOW;
   const timeAgo = getTimeAgo(caseItem.lastSeenAt);
   const emoji = speciesEmoji[caseItem.species] || '🐾';
 
+  // Per spec: "Help with this pet" navigates to Case Command Center
   const handleHelp = (e) => {
     e.stopPropagation();
+    // Mark user as helper (optimistic UI update)
     helpOnCase(caseItem.id);
+    // Navigate to Case Command Center
+    router.push(`/cases/${caseItem.caseNumber}`);
   };
 
   const handleCardClick = () => {
