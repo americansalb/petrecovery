@@ -14,6 +14,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Pin, Send, Filter, ChevronDown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import FeaturedCasesCarousel from './FeaturedCasesCarousel';
 
 export default function CommunityModeV2({
   squadId,
@@ -23,6 +24,7 @@ export default function CommunityModeV2({
   isDivisionPage = false,
   divisionId = null,
   divisions = [],
+  cases = [],
 }) {
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
@@ -97,6 +99,9 @@ export default function CommunityModeV2({
 
   return (
     <div className="flex flex-col h-[calc(100vh-300px)] min-h-[500px]">
+      {/* Featured Cases Carousel */}
+      <FeaturedCasesCarousel cases={cases} />
+
       {/* Pinned Announcements */}
       {announcements.length > 0 && (
         <div className="mb-6 space-y-3">

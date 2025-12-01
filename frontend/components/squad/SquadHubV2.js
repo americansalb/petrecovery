@@ -155,6 +155,7 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
             isDivisionPage={isDivisionPage}
             divisionId={currentDivisionId}
             divisions={divisions}
+            cases={allCases}
           />
         )}
       </div>
