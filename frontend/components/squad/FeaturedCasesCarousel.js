@@ -54,24 +54,24 @@ export default function FeaturedCasesCarousel({ cases }) {
   }[currentCase.species] || '🐾';
 
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-red-950/40 to-slate-900/40 backdrop-blur-sm border-2 border-red-500/50 rounded-2xl p-8 mb-8 shadow-lg shadow-red-500/20">
+    <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/20 to-slate-900/20 backdrop-blur-sm border border-red-500/30 rounded-xl p-4 mb-6">
       {/* Urgent Badge */}
-      <div className="absolute top-4 right-4 px-4 py-2 rounded-full bg-red-500 text-white font-bold text-xs uppercase tracking-wider animate-pulse shadow-lg shadow-red-500/50">
+      <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-red-500/80 text-white font-bold text-xs uppercase tracking-wider">
         ⚡ Urgent
       </div>
 
       {/* Case Content */}
-      <div className="flex gap-6 items-center">
+      <div className="flex gap-4 items-center">
         {/* Pet Photo */}
         <div className="flex-shrink-0">
           {currentCase.photoUrl ? (
             <img
               src={currentCase.photoUrl}
               alt={currentCase.petName}
-              className="w-32 h-32 rounded-xl object-cover border-2 border-red-500/50 shadow-xl"
+              className="w-16 h-16 rounded-lg object-cover border border-red-500/30"
             />
           ) : (
-            <div className="w-32 h-32 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-6xl border-2 border-red-500/50">
+            <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-3xl border border-red-500/30">
               {speciesEmoji}
             </div>
           )}
@@ -79,74 +79,50 @@ export default function FeaturedCasesCarousel({ cases }) {
 
         {/* Case Info */}
         <div className="flex-1 min-w-0">
-          <h3 className="text-3xl font-bold text-white mb-2">
-            {currentCase.petName}
-            <span className="text-red-400 ml-3">·</span>
-            <span className="text-slate-300 text-2xl ml-3 capitalize">{currentCase.species?.toLowerCase()}</span>
+          <h3 className="text-lg font-bold text-white mb-1">
+            {currentCase.petName} · {currentCase.species?.toLowerCase()}
           </h3>
 
-          {currentCase.lastSeenAddress && (
-            <div className="flex items-center gap-2 text-slate-300 mb-3">
-              <MapPin size={18} className="text-red-400 flex-shrink-0" />
-              <span className="font-medium">{currentCase.lastSeenAddress}</span>
-            </div>
-          )}
-
-          {currentCase.lastSeenAt && (
-            <div className="flex items-center gap-2 text-slate-400 mb-4">
-              <Clock size={16} className="flex-shrink-0" />
-              <span className="text-sm">
-                Last seen {formatDistanceToNow(new Date(currentCase.lastSeenAt), { addSuffix: true })}
+          <div className="flex items-center gap-3 text-xs text-slate-400 mb-2">
+            {currentCase.lastSeenAddress && (
+              <div className="flex items-center gap-1">
+                <MapPin size={12} className="text-red-400" />
+                <span className="truncate max-w-[200px]">{currentCase.lastSeenAddress}</span>
+              </div>
+            )}
+            {currentCase.lastSeenAt && (
+              <span>
+                {formatDistanceToNow(new Date(currentCase.lastSeenAt), { addSuffix: true })}
               </span>
-            </div>
-          )}
+            )}
+          </div>
 
           <button
             onClick={() => router.push(`/cases/${currentCase.caseNumber}`)}
-            className="px-6 py-3 rounded-xl bg-gradient-to-r from-red-600 to-red-500 text-white font-bold shadow-lg shadow-red-600/30 hover:shadow-xl hover:shadow-red-600/50 hover:scale-105 transition-all duration-200"
+            className="text-xs px-3 py-1.5 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-500 transition-colors"
           >
-            View Case & Help →
+            Help Now →
           </button>
         </div>
 
         {/* Navigation */}
         {featuredCases.length > 1 && (
-          <div className="flex flex-col gap-3">
+          <div className="flex gap-1">
             <button
               onClick={goToPrevious}
-              className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-white hover:bg-slate-700 hover:border-cyan-500/50 transition-all"
+              className="p-1.5 rounded-lg bg-slate-800/50 text-slate-400 hover:text-white transition-all"
             >
-              <ChevronLeft size={24} />
+              <ChevronLeft size={16} />
             </button>
             <button
               onClick={goToNext}
-              className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/50 text-white hover:bg-slate-700 hover:border-cyan-500/50 transition-all"
+              className="p-1.5 rounded-lg bg-slate-800/50 text-slate-400 hover:text-white transition-all"
             >
-              <ChevronRight size={24} />
+              <ChevronRight size={16} />
             </button>
           </div>
         )}
       </div>
-
-      {/* Dots Indicator */}
-      {featuredCases.length > 1 && (
-        <div className="flex justify-center gap-2 mt-6">
-          {featuredCases.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => {
-                setCurrentIndex(index);
-                setIsAutoPlaying(false);
-              }}
-              className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                index === currentIndex
-                  ? 'w-8 bg-red-500'
-                  : 'bg-slate-600 hover:bg-slate-500'
-              }`}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
