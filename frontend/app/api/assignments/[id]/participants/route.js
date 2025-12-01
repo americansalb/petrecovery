@@ -19,6 +19,13 @@ export async function GET(request, { params }) {
             rescueLevel: true,
           },
         },
+        searchSessions: {
+          where: {
+            status: { in: ['READY', 'ACTIVE', 'PAUSED'] },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
       },
       orderBy: { optedInAt: 'asc' },
     });

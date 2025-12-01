@@ -19,6 +19,7 @@ import { useRouter } from 'next/navigation';
 import CaseInfoPanel from './CaseInfoPanel';
 import CaseMapPanel from './CaseMapPanel';
 import CaseActivityPanel from './CaseActivityPanel';
+import VolunteerPanel from './VolunteerPanel';
 import SightingModal from './SightingModal';
 
 export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
@@ -28,6 +29,7 @@ export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activePanel, setActivePanel] = useState('map'); // Mobile panel selector
+  const [rightPanelView, setRightPanelView] = useState('activity'); // 'activity' | 'team'
   const [userRole, setUserRole] = useState('VISITOR');
 
   // Modal states
@@ -349,7 +351,7 @@ export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
 
         {/* Mobile panel selector */}
         <div className="lg:hidden flex border-t border-slate-700/50">
-          {['info', 'map', 'activity'].map((panel) => (
+          {['info', 'map', 'team', 'activity'].map((panel) => (
             <button
               key={panel}
               onClick={() => setActivePanel(panel)}
@@ -362,6 +364,7 @@ export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
             >
               {panel === 'info' && '📋 '}
               {panel === 'map' && '🗺️ '}
+              {panel === 'team' && '👥 '}
               {panel === 'activity' && '💬 '}
               {panel}
             </button>
@@ -398,17 +401,77 @@ export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
           />
         </section>
 
-        {/* Right Panel - Activity/Chat */}
+        {/* Team Panel (mobile only) */}
+        <aside className={`
+          lg:hidden
+          ${activePanel === 'team' ? 'block' : 'hidden'}
+        `}>
+          {caseData?.assignments?.[0]?.id && (
+            <VolunteerPanel
+              caseData={caseData}
+              assignmentId={caseData.assignments[0].id}
+              currentUserId={session?.user?.id}
+              userRole={userRole}
+              onUpdate={fetchCase}
+            />
+          )}
+        </aside>
+
+        {/* Right Panel - Activity/Chat + Team Toggle */}
         <aside className={`
           lg:w-96 lg:border-l lg:border-slate-700/50 lg:overflow-hidden lg:flex lg:flex-col
           ${activePanel === 'activity' ? 'block' : 'hidden lg:block'}
         `}>
-          <CaseActivityPanel
-            caseData={caseData}
-            userRole={userRole}
-            currentUserId={session?.user?.id}
-            onUpdate={fetchCase}
-          />
+          {/* Desktop toggle between Activity and Team */}
+          <div className="hidden lg:flex border-b border-slate-700/50">
+            <button
+              onClick={() => setRightPanelView('activity')}
+              className={`flex-1 py-3 text-sm font-medium transition ${
+                rightPanelView === 'activity'
+                  ? 'text-cyan-400 border-b-2 border-cyan-400 bg-cyan-500/5'
+                  : 'text-slate-400 hover:text-slate-300'
+              }`}
+            >
+              💬 Activity
+            </button>
+            <button
+              onClick={() => setRightPanelView('team')}
+              className={`flex-1 py-3 text-sm font-medium transition ${
+                rightPanelView === 'team'
+                  ? 'text-cyan-400 border-b-2 border-cyan-400 bg-cyan-500/5'
+                  : 'text-slate-400 hover:text-slate-300'
+              }`}
+            >
+              👥 Team
+            </button>
+          </div>
+
+          {/* Content based on selection */}
+          <div className="flex-1 overflow-hidden">
+            {rightPanelView === 'activity' ? (
+              <CaseActivityPanel
+                caseData={caseData}
+                userRole={userRole}
+                currentUserId={session?.user?.id}
+                onUpdate={fetchCase}
+              />
+            ) : caseData?.assignments?.[0]?.id ? (
+              <VolunteerPanel
+                caseData={caseData}
+                assignmentId={caseData.assignments[0].id}
+                currentUserId={session?.user?.id}
+                userRole={userRole}
+                onUpdate={fetchCase}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-slate-500">
+                <div className="text-center">
+                  <span className="text-4xl mb-3 block">👥</span>
+                  <p>No squad assigned</p>
+                </div>
+              </div>
+            )}
+          </div>
         </aside>
       </main>
 
