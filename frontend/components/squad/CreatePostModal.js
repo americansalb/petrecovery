@@ -160,8 +160,9 @@ export default function CreatePostModal({ isOpen, onClose, onSubmit, squadId, di
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Give your post a title..."
-              className="w-full px-4 py-3 rounded-xl bg-slate-700 border-2 border-slate-600 text-white placeholder-slate-400 font-medium focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all"
+              className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-600 text-white placeholder-slate-500 font-medium focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all"
               maxLength={200}
+              style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
             />
           </div>
 

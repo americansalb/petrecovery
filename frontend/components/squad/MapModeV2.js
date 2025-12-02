@@ -36,8 +36,16 @@ export default function MapModeV2({
   const [selectedCaseId, setSelectedCaseId] = useState(null);
   const router = useRouter();
 
+  const handleCaseClick = (caseId) => {
+    console.log('[MapModeV2] Case clicked:', caseId);
+    console.log('[MapModeV2] Available cases:', cases.map(c => ({ id: c.id, petName: c.petName })));
+    setSelectedCaseId(caseId);
+  };
+
   // Find selected case
   const selectedCase = cases.find(c => c.id === selectedCaseId);
+  console.log('[MapModeV2] Selected case ID:', selectedCaseId);
+  console.log('[MapModeV2] Found selected case:', selectedCase ? { id: selectedCase.id, petName: selectedCase.petName } : null);
 
   return (
     <div className="space-y-6">
@@ -47,7 +55,7 @@ export default function MapModeV2({
           cases={cases}
           divisions={divisions}
           squad={squad}
-          onCaseClick={setSelectedCaseId}
+          onCaseClick={handleCaseClick}
         />
 
         {/* Case Detail Bottom Sheet */}
@@ -115,8 +123,8 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
   const statusStyle = statusConfig[status] || statusConfig.ACTIVE;
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-50 animate-slide-up">
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 backdrop-blur-xl border-t-2 border-cyan-500/60 rounded-t-3xl shadow-[0_-20px_60px_rgba(0,0,0,0.7)] p-8">
+    <div className="absolute bottom-0 left-0 right-0 z-[100] animate-slide-up pointer-events-auto">
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 backdrop-blur-xl border-t-2 border-cyan-500/60 rounded-t-3xl shadow-[0_-20px_60px_rgba(0,0,0,0.7)] p-8" style={{ minHeight: '250px' }}>
         {/* Close Button */}
         <button
           onClick={onClose}
