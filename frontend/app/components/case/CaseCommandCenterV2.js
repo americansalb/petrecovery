@@ -251,7 +251,8 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
               className="px-6 py-3 bg-slate-800/80 text-slate-300 font-bold rounded-xl hover:bg-slate-800 hover:text-white transition border-2 border-slate-700"
             >
               Go Back
-          </button>
+            </button>
+          </div>
         </div>
       </div>
     );
