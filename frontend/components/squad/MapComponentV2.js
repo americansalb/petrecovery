@@ -159,57 +159,86 @@ export default function MapComponentV2({
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
 
-    // Add case markers
+    // Group cases by location to handle overlapping
+    const locationGroups = new Map();
     cases.forEach(caseData => {
       if (!caseData.lastSeenLat || !caseData.lastSeenLng) return;
+      const key = `${caseData.lastSeenLat.toFixed(6)},${caseData.lastSeenLng.toFixed(6)}`;
+      if (!locationGroups.has(key)) {
+        locationGroups.set(key, []);
+      }
+      locationGroups.get(key).push(caseData);
+    });
 
-      // Determine marker color based on status
-      let markerColor = '#ef4444'; // red for active
-      if (caseData.status === 'PENDING') markerColor = '#f59e0b'; // amber for pending
-      if (caseData.status === 'REUNITED') markerColor = '#10b981'; // green for reunited
+    // Add case markers with offset for overlapping cases
+    locationGroups.forEach((casesAtLocation, locationKey) => {
+      casesAtLocation.forEach((caseData, index) => {
+        // Calculate offset for overlapping markers (spiral pattern)
+        let offsetLat = 0;
+        let offsetLng = 0;
+        if (index > 0) {
+          const angle = (index * 60) * (Math.PI / 180); // 60 degrees apart
+          const radius = 0.0003 * Math.ceil(index / 6); // Expand radius every 6 markers
+          offsetLat = Math.sin(angle) * radius;
+          offsetLng = Math.cos(angle) * radius;
+        }
 
-      // Create custom icon
-      const icon = L.divIcon({
-        className: 'custom-case-marker',
-        html: `
-          <div data-case-id="${caseData.id}" style="
-            width: 32px;
-            height: 32px;
-            background: ${markerColor};
-            border: 3px solid white;
-            border-radius: 50%;
-            box-shadow: 0 0 20px ${markerColor}80;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            cursor: pointer;
-            ${caseData.urgency === 'HIGH' ? 'animation: pulse 2s infinite;' : ''}
-          ">
-            ${getSpeciesEmoji(caseData.species)}
-          </div>
-        `,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
+        const lat = caseData.lastSeenLat + offsetLat;
+        const lng = caseData.lastSeenLng + offsetLng;
+
+        // Determine marker color based on status
+        let markerColor = '#ef4444'; // red for active
+        if (caseData.status === 'PENDING') markerColor = '#f59e0b'; // amber for pending
+        if (caseData.status === 'REUNITED') markerColor = '#10b981'; // green for reunited
+
+        // Create custom icon with photo or emoji
+        const hasPhoto = caseData.photoUrl && caseData.photoUrl.trim();
+        const icon = L.divIcon({
+          className: 'custom-case-marker',
+          html: `
+            <div data-case-id="${caseData.id}" style="
+              width: 48px;
+              height: 48px;
+              background: ${markerColor};
+              border: 3px solid white;
+              border-radius: 50%;
+              box-shadow: 0 0 20px ${markerColor}80;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: ${hasPhoto ? '0' : '24px'};
+              cursor: pointer;
+              overflow: hidden;
+              ${caseData.urgency === 'HIGH' ? 'animation: pulse 2s infinite;' : ''}
+            ">
+              ${hasPhoto
+                ? `<img src="${caseData.photoUrl}" alt="${caseData.petName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.parentElement.innerHTML='${getSpeciesEmoji(caseData.species)}'; this.parentElement.style.fontSize='24px';" />`
+                : getSpeciesEmoji(caseData.species)
+              }
+            </div>
+          `,
+          iconSize: [48, 48],
+          iconAnchor: [24, 24],
+        });
+
+        const marker = L.marker([lat, lng], { icon })
+          .addTo(mapInstanceRef.current);
+
+        // Add click event that will definitely work
+        marker.on('click', (e) => {
+          console.log('Marker clicked!', caseData.id);
+          onCaseClick(caseData.id);
+        });
+
+        // Also add click handler to the HTML element for better reliability
+        marker.getElement()?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          console.log('Marker HTML clicked!', caseData.id);
+          onCaseClick(caseData.id);
+        });
+
+        markersRef.current.push(marker);
       });
-
-      const marker = L.marker([caseData.lastSeenLat, caseData.lastSeenLng], { icon })
-        .addTo(mapInstanceRef.current);
-
-      // Add click event that will definitely work
-      marker.on('click', (e) => {
-        console.log('Marker clicked!', caseData.id);
-        onCaseClick(caseData.id);
-      });
-
-      // Also add click handler to the HTML element for better reliability
-      marker.getElement()?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        console.log('Marker HTML clicked!', caseData.id);
-        onCaseClick(caseData.id);
-      });
-
-      markersRef.current.push(marker);
     });
   }, [cases, onCaseClick]);
 

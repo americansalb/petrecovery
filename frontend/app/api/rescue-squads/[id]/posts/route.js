@@ -229,9 +229,9 @@ export async function POST(request, { params }) {
     // Check if user is a member of this squad
     const membership = await prisma.rescueSquadMember.findUnique({
       where: {
-        userId_rescueSquadId: {
-          userId: session.user.id,
+        rescueSquadId_userId: {
           rescueSquadId: id,
+          userId: session.user.id,
         },
       },
     });
