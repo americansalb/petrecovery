@@ -94,20 +94,29 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'POST_FLYERS':
         return (
           <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+              <p className="text-blue-200 text-sm">
+                💡 <strong>Great choice!</strong> Flyers help get the word out fast. The more people who know, the better our chances.
+              </p>
+            </div>
+
             <div>
-              <label className="text-slate-300 text-sm font-semibold block mb-2">
-                Where did you post flyers?
+              <label className="text-slate-200 text-base font-semibold block mb-3">
+                Where did you put up flyers?
               </label>
+              <p className="text-slate-400 text-sm mb-3">
+                Tap your location when you're at each spot - this helps us track coverage 📍
+              </p>
 
               {/* Added locations list */}
               {details.flyerLocations.length > 0 && (
                 <div className="space-y-2 mb-3">
                   {details.flyerLocations.map((loc, i) => (
-                    <div key={i} className="bg-slate-800/50 border-2 border-slate-700 rounded-xl p-3 flex items-start justify-between">
+                    <div key={i} className="bg-emerald-900/20 border-2 border-emerald-500/30 rounded-xl p-3 flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="text-white font-semibold text-sm">{loc.description || 'Flyer location'}</div>
-                        <div className="text-slate-500 text-xs mt-1">
-                          {loc.lat.toFixed(5)}, {loc.lng.toFixed(5)} • {loc.date}
+                        <div className="text-emerald-200 font-semibold text-sm">✓ {loc.description || 'Flyer posted'}</div>
+                        <div className="text-emerald-400/60 text-xs mt-1">
+                          {loc.date}
                         </div>
                       </div>
                       <button
@@ -142,7 +151,7 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                     type="text"
                     value={details.flyerDescription}
                     onChange={(e) => setDetails({ ...details, flyerDescription: e.target.value })}
-                    placeholder="Describe the area (e.g., 'Main St & Oak Ave intersection')"
+                    placeholder="Where exactly? (like 'Coffee shop bulletin board' or 'Main & Oak intersection')"
                     className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                     style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
                   />
@@ -210,23 +219,29 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'VISIT_SHELTERS':
         return (
           <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+              <p className="text-blue-200 text-sm">
+                💙 <strong>Thank you for checking!</strong> Shelters get new animals daily - keep checking back every few days.
+              </p>
+            </div>
+
             <div>
-              <label className="text-slate-300 text-sm font-semibold block mb-2">
-                Which shelter? *
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Which shelter did you contact?
               </label>
               <input
                 type="text"
                 value={details.shelterName}
                 onChange={(e) => setDetails({ ...details, shelterName: e.target.value })}
-                placeholder="e.g., 'Cook County Animal Control'"
+                placeholder="Shelter name (like 'County Animal Control' or 'Humane Society')"
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               />
             </div>
 
             <div>
-              <label className="text-slate-300 text-sm font-semibold block mb-2">
-                Result
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                What happened?
               </label>
               <select
                 value={details.shelterResult}
@@ -234,35 +249,35 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white focus:outline-none focus:border-cyan-500"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               >
-                <option value="CALLED">Called - no match</option>
-                <option value="VISITED">Visited - no match</option>
-                <option value="POSSIBLE_MATCH">Possible match - investigating</option>
+                <option value="CALLED">Called them - no match yet</option>
+                <option value="VISITED">Went in person - no match yet</option>
+                <option value="POSSIBLE_MATCH">They might have them! 🎉</option>
                 <option value="LEFT_INFO">Left our contact info</option>
               </select>
             </div>
 
             <div>
-              <label className="text-slate-300 text-sm font-semibold block mb-2">
-                Contact person (optional)
+              <label className="text-slate-200 text-sm font-medium block mb-2">
+                Who helped you? <span className="text-slate-500">(optional but helpful)</span>
               </label>
               <input
                 type="text"
                 value={details.shelterContact}
                 onChange={(e) => setDetails({ ...details, shelterContact: e.target.value })}
-                placeholder="Who did you speak with?"
+                placeholder="Staff member's name"
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               />
             </div>
 
             <div>
-              <label className="text-slate-300 text-sm font-semibold block mb-2">
-                Notes (optional)
+              <label className="text-slate-200 text-sm font-medium block mb-2">
+                Anything else we should know? <span className="text-slate-500">(optional)</span>
               </label>
               <textarea
                 value={details.notes}
                 onChange={(e) => setDetails({ ...details, notes: e.target.value })}
-                placeholder="Any additional information..."
+                placeholder="Like when to call back, or if they suggested checking another location..."
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
                 rows={3}
@@ -274,9 +289,15 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'POST_SOCIAL_MEDIA':
         return (
           <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+              <p className="text-blue-200 text-sm">
+                📱 <strong>Smart!</strong> Social media spreads the word fast - neighbors sharing with neighbors.
+              </p>
+            </div>
+
             <div>
-              <label className="text-slate-300 text-sm font-semibold block mb-2">
-                Platform *
+              <label className="text-slate-200 text-base font-semibold block mb-3">
+                Where did you post?
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {['FACEBOOK', 'NEXTDOOR', 'TWITTER', 'INSTAGRAM'].map(platform => (
@@ -296,27 +317,27 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
             </div>
 
             <div>
-              <label className="text-slate-300 text-sm font-semibold block mb-2">
-                Post URL (optional)
+              <label className="text-slate-200 text-sm font-medium block mb-2">
+                Link to your post? <span className="text-slate-500">(optional - helps others share it)</span>
               </label>
               <input
                 type="url"
                 value={details.postUrl}
                 onChange={(e) => setDetails({ ...details, postUrl: e.target.value })}
-                placeholder="https://facebook.com/..."
+                placeholder="Paste the link here..."
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               />
             </div>
 
             <div>
-              <label className="text-slate-300 text-sm font-semibold block mb-2">
-                Notes (optional)
+              <label className="text-slate-200 text-sm font-medium block mb-2">
+                Details <span className="text-slate-500">(optional)</span>
               </label>
               <textarea
                 value={details.notes}
                 onChange={(e) => setDetails({ ...details, notes: e.target.value })}
-                placeholder="e.g., 'Posted in 3 local Facebook groups'"
+                placeholder="Like which groups you posted in, or how many people have shared it..."
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
                 rows={3}
@@ -328,14 +349,23 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'SEARCH_PROPERTY':
         return (
           <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+              <p className="text-blue-200 text-sm">
+                🏠 <strong>Good thinking!</strong> Pets often hide close to home when scared. Check quiet, dark spaces.
+              </p>
+            </div>
+
             <div>
-              <label className="text-slate-300 text-sm font-semibold block mb-2">
-                Which areas did you search? *
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Where did you look?
               </label>
+              <p className="text-slate-400 text-sm mb-3">
+                Be specific - it helps others know where's been covered
+              </p>
               <textarea
                 value={details.areasChecked}
                 onChange={(e) => setDetails({ ...details, areasChecked: e.target.value })}
-                placeholder="e.g., 'Backyard, garage, under deck, bushes along fence'"
+                placeholder="Like: backyard, garage, under deck, bushes along fence, neighbor's yard..."
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
                 rows={4}
@@ -343,13 +373,13 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
             </div>
 
             <div>
-              <label className="text-slate-300 text-sm font-semibold block mb-2">
-                Notes (optional)
+              <label className="text-slate-200 text-sm font-medium block mb-2">
+                Notice anything? <span className="text-slate-500">(optional)</span>
               </label>
               <textarea
                 value={details.notes}
                 onChange={(e) => setDetails({ ...details, notes: e.target.value })}
-                placeholder="Anything unusual found? Any hiding spots?"
+                placeholder="Any paw prints, favorite toys moved, food missing, hiding spots you found..."
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
                 rows={3}
@@ -360,18 +390,29 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
 
       default:
         return (
-          <div>
-            <label className="text-slate-300 text-sm font-semibold block mb-2">
-              Notes (optional)
-            </label>
-            <textarea
-              value={details.notes}
-              onChange={(e) => setDetails({ ...details, notes: e.target.value })}
-              placeholder="Add any details about completing this task..."
-              className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
-              style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
-              rows={4}
-            />
+          <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+              <p className="text-blue-200 text-sm">
+                💪 <strong>Every action counts!</strong> You're making a real difference in bringing them home.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Tell us what you did
+              </label>
+              <p className="text-slate-400 text-sm mb-3">
+                Even small details help the team understand what's been covered
+              </p>
+              <textarea
+                value={details.notes}
+                onChange={(e) => setDetails({ ...details, notes: e.target.value })}
+                placeholder="What did you do? Where did you go? What happened?"
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                rows={4}
+              />
+            </div>
           </div>
         );
     }

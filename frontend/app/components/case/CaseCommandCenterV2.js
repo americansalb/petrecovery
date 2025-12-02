@@ -361,10 +361,10 @@ function OverviewTab({ caseData, timeMissing, isUrgent, isReunited, sightingsCou
                 <AlertCircle size={32} className="text-red-400" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-red-400 mb-2">🚨 TIME-SENSITIVE CASE</h3>
+                <h3 className="text-xl font-bold text-red-400 mb-2">⏰ Act Fast - Every Moment Matters</h3>
                 <p className="text-red-200">
-                  {caseData?.petName} has been missing for {timeMissing}. The first 24 hours are critical.
-                  Every minute counts - please help search!
+                  {caseData?.petName} has been missing for {timeMissing}. The first 24 hours are when pets are most likely to be found nearby.
+                  Let's bring them home! 💪
                 </p>
               </div>
             </div>
@@ -409,7 +409,7 @@ function OverviewTab({ caseData, timeMissing, isUrgent, isReunited, sightingsCou
         <div className="bg-slate-900/50 border-2 border-amber-500/30 rounded-2xl p-6 shadow-xl shadow-amber-500/10">
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <MapPin size={20} className="text-amber-400" />
-            Last Seen Location
+            Where They Ran Away From
           </h3>
 
           <div className="space-y-3">
@@ -562,9 +562,10 @@ function ActivityTab({ sightings, timeline, chatMessages, newMessage, setNewMess
 
         <div className="space-y-4 max-h-[600px] overflow-y-auto">
           {sightings.length === 0 ? (
-            <div className="text-center py-12 text-slate-500">
+            <div className="text-center py-12 text-slate-400">
               <div className="text-5xl mb-3">👀</div>
-              <p>No sightings reported yet</p>
+              <p className="mb-2">No sightings yet - but that's okay!</p>
+              <p className="text-slate-500 text-sm">Keep spreading the word and checking the area</p>
             </div>
           ) : (
             sightings.map((s, i) => (
@@ -608,9 +609,10 @@ function ActivityTab({ sightings, timeline, chatMessages, newMessage, setNewMess
 
         <div className="space-y-4 max-h-[500px] overflow-y-auto mb-4">
           {chatMessages.length === 0 ? (
-            <div className="text-center py-12 text-slate-500">
+            <div className="text-center py-12 text-slate-400">
               <div className="text-5xl mb-3">💬</div>
-              <p>No updates yet</p>
+              <p className="mb-2">This is where updates will appear</p>
+              <p className="text-slate-500 text-sm">Share progress and coordinate with your team here</p>
             </div>
           ) : (
             chatMessages.map((msg, i) => (
@@ -745,7 +747,7 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath }) {
       //   }),
       // });
 
-      alert(`Recorded ${gpsPath.length} GPS points over your search area!`);
+      alert(`🎉 Amazing work! We recorded ${gpsPath.length} GPS points showing where you searched. This helps everyone coordinate better!`);
     }
   };
 
@@ -760,8 +762,11 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath }) {
 
         {!isGPSTracking ? (
           <div className="space-y-4">
+            <p className="text-slate-300 text-sm mb-1">
+              📍 Going out to search?
+            </p>
             <p className="text-slate-400 text-sm">
-              Track your search area automatically with GPS. Turn it on when you start searching.
+              Turn on GPS tracking so everyone knows which areas you've already covered. It helps coordinate the search!
             </p>
             <button
               onClick={startGPSTracking}
@@ -785,9 +790,9 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath }) {
 
             <button
               onClick={stopGPSTracking}
-              className="w-full py-4 bg-red-500/20 border-2 border-red-500/50 text-red-400 font-bold rounded-xl hover:bg-red-500/30 transition flex items-center justify-center gap-2"
+              className="w-full py-4 bg-emerald-500/20 border-2 border-emerald-500/50 text-emerald-400 font-bold rounded-xl hover:bg-emerald-500/30 transition flex items-center justify-center gap-2"
             >
-              Stop & Save Search Area
+              ✓ Done Searching - Save My Path
             </button>
           </div>
         )}
@@ -800,9 +805,10 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath }) {
           Search Team (0)
         </h3>
 
-        <div className="text-center py-12 text-slate-500">
+        <div className="text-center py-12 text-slate-400">
           <div className="text-5xl mb-3">👥</div>
-          <p className="mb-4">No team members yet</p>
+          <p className="mb-2">Your search team will gather here</p>
+          <p className="text-slate-500 text-sm mb-4">Invite friends, family, and neighbors to help search</p>
           <button className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl hover:scale-105 transition">
             + Invite Volunteers
           </button>
@@ -997,8 +1003,10 @@ function SightingFormModal({ caseId, onClose, onSuccess }) {
         onClick={e => e.stopPropagation()}
       >
         <div className="p-6 border-b-2 border-slate-700/60">
-          <h2 className="text-2xl font-bold text-white">Report Sighting</h2>
-          <p className="text-slate-400 text-sm mt-1">Help us locate this pet by reporting where you saw them</p>
+          <h2 className="text-2xl font-bold text-white">👁 Report Sighting</h2>
+          <p className="text-slate-300 text-sm mt-2">
+            Every sighting helps! Even if you're not 100% sure, it's worth reporting.
+          </p>
         </div>
 
         <div className="p-6 space-y-4">
