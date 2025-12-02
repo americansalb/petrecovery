@@ -162,6 +162,49 @@ export async function POST(request) {
     }
 
     console.log('[MIGRATE] Created all indexes');
+
+    // 7. Add foreign key constraints (each separately)
+    const foreignKeys = [
+      `ALTER TABLE "SquadPost" DROP CONSTRAINT IF EXISTS "SquadPost_rescueSquadId_fkey"`,
+      `ALTER TABLE "SquadPost" ADD CONSTRAINT "SquadPost_rescueSquadId_fkey" FOREIGN KEY ("rescueSquadId") REFERENCES "RescueSquad"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+      `ALTER TABLE "SquadPost" DROP CONSTRAINT IF EXISTS "SquadPost_divisionId_fkey"`,
+      `ALTER TABLE "SquadPost" ADD CONSTRAINT "SquadPost_divisionId_fkey" FOREIGN KEY ("divisionId") REFERENCES "Division"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+
+      `ALTER TABLE "SquadPost" DROP CONSTRAINT IF EXISTS "SquadPost_authorId_fkey"`,
+      `ALTER TABLE "SquadPost" ADD CONSTRAINT "SquadPost_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+      `ALTER TABLE "SquadPostComment" DROP CONSTRAINT IF EXISTS "SquadPostComment_postId_fkey"`,
+      `ALTER TABLE "SquadPostComment" ADD CONSTRAINT "SquadPostComment_postId_fkey" FOREIGN KEY ("postId") REFERENCES "SquadPost"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+      `ALTER TABLE "SquadPostComment" DROP CONSTRAINT IF EXISTS "SquadPostComment_authorId_fkey"`,
+      `ALTER TABLE "SquadPostComment" ADD CONSTRAINT "SquadPostComment_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+      `ALTER TABLE "SquadPostComment" DROP CONSTRAINT IF EXISTS "SquadPostComment_parentCommentId_fkey"`,
+      `ALTER TABLE "SquadPostComment" ADD CONSTRAINT "SquadPostComment_parentCommentId_fkey" FOREIGN KEY ("parentCommentId") REFERENCES "SquadPostComment"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+      `ALTER TABLE "SquadPostVote" DROP CONSTRAINT IF EXISTS "SquadPostVote_postId_fkey"`,
+      `ALTER TABLE "SquadPostVote" ADD CONSTRAINT "SquadPostVote_postId_fkey" FOREIGN KEY ("postId") REFERENCES "SquadPost"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+      `ALTER TABLE "SquadPostVote" DROP CONSTRAINT IF EXISTS "SquadPostVote_userId_fkey"`,
+      `ALTER TABLE "SquadPostVote" ADD CONSTRAINT "SquadPostVote_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+      `ALTER TABLE "SquadCommentVote" DROP CONSTRAINT IF EXISTS "SquadCommentVote_commentId_fkey"`,
+      `ALTER TABLE "SquadCommentVote" ADD CONSTRAINT "SquadCommentVote_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "SquadPostComment"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+
+      `ALTER TABLE "SquadCommentVote" DROP CONSTRAINT IF EXISTS "SquadCommentVote_userId_fkey"`,
+      `ALTER TABLE "SquadCommentVote" ADD CONSTRAINT "SquadCommentVote_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+    ];
+
+    for (const fkSql of foreignKeys) {
+      try {
+        await prisma.$executeRawUnsafe(fkSql);
+      } catch (e) {
+        console.log('[MIGRATE] Foreign key constraint issue:', e.message);
+      }
+    }
+
+    console.log('[MIGRATE] Added all foreign key constraints');
     console.log('[MIGRATE] Migration completed successfully!');
 
     return NextResponse.json({
