@@ -16,16 +16,16 @@
  */
 
 import { useParams } from 'next/navigation';
-import CaseCommandCenter from '@/app/components/case/CaseCommandCenter';
+import CaseCommandCenterV2 from '@/app/components/case/CaseCommandCenterV2';
 
 export default function CaseDetailPage() {
   const params = useParams();
   const { caseNumber } = params;
 
-  // Render the Case Command Center directly
+  // Render the Case Command Center V2 - clean tab-based design
   // The component handles all authentication, role detection, and appropriate UI rendering
   return (
-    <CaseCommandCenter
+    <CaseCommandCenterV2
       caseNumber={caseNumber}
       // No onClose - this is the main page, not an overlay
       // Navigation back to squad hub is handled within the component
