@@ -180,9 +180,19 @@ export async function GET(request, { params }) {
       posts: formattedPosts,
     });
   } catch (error) {
-    console.error('[SQUAD_POSTS_GET] Error:', error);
+    console.error('========================================');
+    console.error('[SQUAD_POSTS_GET] Error occurred');
+    console.error('[SQUAD_POSTS_GET] Error name:', error.name);
+    console.error('[SQUAD_POSTS_GET] Error message:', error.message);
+    console.error('[SQUAD_POSTS_GET] Error code:', error.code);
+    console.error('[SQUAD_POSTS_GET] Full error:', error);
+    console.error('[SQUAD_POSTS_GET] Stack trace:', error.stack);
+    console.error('========================================');
     return NextResponse.json(
-      { error: 'Failed to fetch posts' },
+      {
+        error: 'Failed to fetch posts',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500 }
     );
   }
@@ -281,9 +291,19 @@ export async function POST(request, { params }) {
       },
     });
   } catch (error) {
-    console.error('[SQUAD_POSTS_POST] Error:', error);
+    console.error('========================================');
+    console.error('[SQUAD_POSTS_POST] Error occurred');
+    console.error('[SQUAD_POSTS_POST] Error name:', error.name);
+    console.error('[SQUAD_POSTS_POST] Error message:', error.message);
+    console.error('[SQUAD_POSTS_POST] Error code:', error.code);
+    console.error('[SQUAD_POSTS_POST] Full error:', error);
+    console.error('[SQUAD_POSTS_POST] Stack trace:', error.stack);
+    console.error('========================================');
     return NextResponse.json(
-      { error: 'Failed to create post' },
+      {
+        error: 'Failed to create post',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500 }
     );
   }

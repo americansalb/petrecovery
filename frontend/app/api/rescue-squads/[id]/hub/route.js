@@ -128,12 +128,9 @@ export async function GET(request, { params }) {
 
     console.log('[Hub Debug] Found caseAssignments:', caseAssignments.length);
     if (caseAssignments.length > 0) {
-      console.log('[Hub Debug] First assignment:', {
-        id: caseAssignments[0].id,
-        caseId: caseAssignments[0].caseId,
-        rescueSquadId: caseAssignments[0].rescueSquadId,
-        status: caseAssignments[0].status,
-        casePetName: caseAssignments[0].case?.petName,
+      console.log('[Hub Debug] Assignment details:');
+      caseAssignments.forEach((assignment, idx) => {
+        console.log(`  [${idx}] ID: ${assignment.id}, CaseID: ${assignment.caseId}, Status: ${assignment.status}, PetName: ${assignment.case?.petName}, CaseStatus: ${assignment.case?.status}`);
       });
     }
 
