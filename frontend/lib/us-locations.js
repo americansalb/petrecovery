@@ -389,45 +389,69 @@ export function searchLocations(query, existingCommunities = []) {
 
   // Check if it's a valid ZIP code
   if (isValidZipCode(searchTerm)) {
-    // Import dynamically to avoid circular dependency
+    // Try the comprehensive cities database first
     try {
-      const { getZipCodeInfo } = require('./zip-city-mapping');
-      const zipInfo = getZipCodeInfo(searchTerm);
+      const { getCitiesByZip } = require('../app/lib/cities');
+      const cities = getCitiesByZip(searchTerm);
 
-      if (zipInfo) {
-        // Return the city name, not the ZIP code
+      if (cities && cities.length > 0) {
+        // Use the first city found for this ZIP
+        const city = cities[0];
+
+        // Check if this city exists in our locations database
         const existingCity = US_LOCATIONS.find(loc =>
-          loc.label === zipInfo.city || loc.value.includes(zipInfo.city.toUpperCase().replace(/\s+/g, '_'))
+          (loc.label === city.city && loc.state === city.state_id) ||
+          loc.value === `${city.city}, ${city.state_id}`
         );
 
         if (existingCity) {
           return [existingCity];
         }
 
-        // City not in our database, create a temporary entry
+        // City exists in database but not in our curated locations list
+        // Return it as a valid option
         return [{
-          value: zipInfo.city.toUpperCase().replace(/\s+/g, '_'),
-          label: `${zipInfo.city}, ${zipInfo.metro.split(',')[1].trim()}`,
-          type: 'SUBCOMMUNITY',
-          state: zipInfo.metro.split(',')[1].trim(),
+          value: `${city.city}, ${city.state_id}`,
+          label: `${city.city}`,
+          type: 'CITY',
+          state: city.state_id,
           isZip: true,
-          zipCode: formatZipCode(searchTerm),
-          parentMetro: zipInfo.metroValue
+          zipCode: formatZipCode(searchTerm)
         }];
       }
 
-      // Valid ZIP but not in our tracked metros
+      // ZIP not found in comprehensive database - it's truly invalid
       return [{
         value: formatZipCode(searchTerm),
-        label: `ZIP Code ${formatZipCode(searchTerm)}`,
+        label: `ZIP Code ${formatZipCode(searchTerm)} (not found)`,
         type: 'ZIP',
         state: 'US',
         isZip: true,
         disabled: true,
-        disabledReason: 'ZIP code not in tracked metro area'
+        disabledReason: 'ZIP code not found in database'
       }];
     } catch (err) {
-      // Fallback if import fails
+      // Fallback if import fails - still try the metro mapping
+      try {
+        const { getZipCodeInfo } = require('./zip-city-mapping');
+        const zipInfo = getZipCodeInfo(searchTerm);
+
+        if (zipInfo) {
+          return [{
+            value: `${zipInfo.city}, ${zipInfo.state}`,
+            label: zipInfo.city,
+            type: 'SUBCOMMUNITY',
+            state: zipInfo.state,
+            isZip: true,
+            zipCode: formatZipCode(searchTerm),
+            parentMetro: zipInfo.metroValue
+          }];
+        }
+      } catch (innerErr) {
+        // Both fallbacks failed
+      }
+
+      // Final fallback - accept the ZIP as-is
       return [{
         value: formatZipCode(searchTerm),
         label: `ZIP Code ${formatZipCode(searchTerm)}`,
