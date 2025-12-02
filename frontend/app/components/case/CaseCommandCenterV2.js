@@ -308,6 +308,8 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
             chatMessages={chatMessages}
             newMessage={newMessage}
             setNewMessage={setNewMessage}
+            tasks={tasks}
+            gpsPath={gpsPath}
           />
         )}
 
@@ -548,96 +550,202 @@ function MapTab({ caseData, sightings, timeMissing, gpsPath, onReportSighting })
 }
 
 // ============================================================================
-// ACTIVITY TAB - Timeline + Chat
+// ACTIVITY TAB - Unified Timeline
 // ============================================================================
-function ActivityTab({ sightings, timeline, chatMessages, newMessage, setNewMessage }) {
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Sightings Feed */}
-      <div className="bg-slate-900/50 border-2 border-amber-500/30 rounded-2xl p-6">
-        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <Eye size={20} className="text-amber-400" />
-          Sightings ({sightings.length})
-        </h3>
+function ActivityTab({ sightings, tasks, gpsPath }) {
+  // Build unified timeline from all activities
+  const buildTimeline = () => {
+    const items = [];
 
-        <div className="space-y-4 max-h-[600px] overflow-y-auto">
-          {sightings.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
-              <div className="text-5xl mb-3">👀</div>
-              <p className="mb-2">No sightings yet - but that's okay!</p>
-              <p className="text-slate-500 text-sm">Keep spreading the word and checking the area</p>
-            </div>
-          ) : (
-            sightings.map((s, i) => (
-              <div key={s.id || i} className="bg-slate-800/50 rounded-xl p-4 border border-amber-500/30 hover:border-amber-500/50 transition">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
-                    👁
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-white font-semibold">Sighting #{sightings.length - i}</span>
-                      <span className="text-slate-500 text-xs">
-                        {new Date(s.sightedAt || s.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <p className="text-slate-300 text-sm mb-2">{s.description || 'Sighting reported'}</p>
-                    <p className="text-slate-500 text-xs">{s.address}</p>
-                    {s.confidence && (
-                      <span className={`inline-block mt-2 text-xs px-2 py-1 rounded ${
-                        s.confidence === 'HIGH' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' :
-                        s.confidence === 'MEDIUM' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' :
-                        'bg-slate-500/20 text-slate-400 border border-slate-500/50'
-                      }`}>
-                        {s.confidence} confidence
-                      </span>
-                    )}
-                  </div>
+    // Add sightings
+    sightings.forEach(s => {
+      items.push({
+        type: 'sighting',
+        timestamp: new Date(s.sightedAt || s.createdAt).getTime(),
+        data: s
+      });
+    });
+
+    // Add task completions
+    tasks.forEach(task => {
+      task.completions?.forEach(completion => {
+        items.push({
+          type: 'task',
+          timestamp: new Date(completion.completedAt).getTime(),
+          data: { ...completion, task }
+        });
+      });
+    });
+
+    // Add GPS search if exists
+    if (gpsPath && gpsPath.length > 0) {
+      const startTime = gpsPath[0].timestamp;
+      const endTime = gpsPath[gpsPath.length - 1].timestamp;
+      items.push({
+        type: 'gps_search',
+        timestamp: startTime,
+        data: { startTime, endTime, pointCount: gpsPath.length, path: gpsPath }
+      });
+    }
+
+    // Sort by timestamp (newest first)
+    return items.sort((a, b) => b.timestamp - a.timestamp);
+  };
+
+  const timelineItems = buildTimeline();
+
+  const renderTimelineItem = (item, index) => {
+    const timestamp = new Date(item.timestamp);
+
+    switch (item.type) {
+      case 'sighting':
+        const s = item.data;
+        return (
+          <div key={`sighting-${index}`} className="bg-slate-800/50 rounded-xl p-4 border-2 border-amber-500/30 hover:border-amber-500/50 transition">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0 text-xl">
+                👁
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-amber-400 font-bold">Sighting Reported</span>
+                  <span className="text-slate-500 text-xs">
+                    {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
+                <p className="text-slate-300 text-sm mb-2">{s.description || 'Sighting reported'}</p>
+                <p className="text-slate-500 text-xs mb-2">📍 {s.address}</p>
+                {s.confidence && (
+                  <span className={`inline-block text-xs px-2 py-1 rounded font-semibold ${
+                    s.confidence === 'HIGH' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' :
+                    s.confidence === 'MEDIUM' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' :
+                    'bg-slate-500/20 text-slate-400 border border-slate-500/50'
+                  }`}>
+                    {s.confidence} confidence
+                  </span>
+                )}
               </div>
-            ))
-          )}
-        </div>
-      </div>
+            </div>
+          </div>
+        );
 
-      {/* Case Updates / Chat */}
+      case 'task':
+        const { task, taskType, details } = item.data;
+        return (
+          <div key={`task-${index}`} className="bg-slate-800/50 rounded-xl p-4 border-2 border-emerald-500/30 hover:border-emerald-500/50 transition">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 text-xl">
+                ✓
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-emerald-400 font-bold">{task.label}</span>
+                  <span className="text-slate-500 text-xs">
+                    {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+
+                {/* Render task-specific details */}
+                {taskType === 'CALL_SHELTERS' || taskType === 'VISIT_SHELTERS' ? (
+                  <div className="space-y-1 text-sm">
+                    {details.shelterName && <p className="text-white">🏥 <strong>{details.shelterName}</strong></p>}
+                    {details.shelterResult && (
+                      <p className="text-slate-300">
+                        {details.shelterResult === 'POSSIBLE_MATCH' ? '🎉 They might have them!' :
+                         details.shelterResult === 'VISITED' ? '✓ Visited in person - no match yet' :
+                         details.shelterResult === 'CALLED' ? '📞 Called - no match yet' :
+                         details.shelterResult === 'LEFT_INFO' ? '📝 Left contact info' : details.shelterResult}
+                      </p>
+                    )}
+                    {details.shelterContact && <p className="text-slate-400 text-xs">Contact: {details.shelterContact}</p>}
+                    {details.notes && <p className="text-slate-400 text-xs mt-2">{details.notes}</p>}
+                  </div>
+                ) : taskType === 'POST_FLYERS' ? (
+                  <div className="space-y-1 text-sm">
+                    {details.flyerLocations?.length > 0 && (
+                      <div>
+                        <p className="text-white">📍 Posted at {details.flyerLocations.length} location{details.flyerLocations.length !== 1 ? 's' : ''}:</p>
+                        {details.flyerLocations.map((loc, i) => (
+                          <p key={i} className="text-slate-300 text-xs ml-4">• {loc.description || 'Flyer posted'}</p>
+                        ))}
+                      </div>
+                    )}
+                    {details.notes && <p className="text-slate-400 text-xs mt-2">{details.notes}</p>}
+                  </div>
+                ) : taskType === 'POST_SOCIAL_MEDIA' ? (
+                  <div className="space-y-1 text-sm">
+                    {details.platform && <p className="text-white">📱 Posted on <strong>{details.platform}</strong></p>}
+                    {details.postUrl && (
+                      <a href={details.postUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 text-xs underline block">
+                        View post →
+                      </a>
+                    )}
+                    {details.notes && <p className="text-slate-400 text-xs mt-2">{details.notes}</p>}
+                  </div>
+                ) : taskType === 'SEARCH_PROPERTY' ? (
+                  <div className="space-y-1 text-sm">
+                    {details.areasChecked && <p className="text-slate-300">🔍 {details.areasChecked}</p>}
+                    {details.notes && <p className="text-slate-400 text-xs mt-2">{details.notes}</p>}
+                  </div>
+                ) : (
+                  details.notes && <p className="text-slate-300 text-sm">{details.notes}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'gps_search':
+        const { startTime, endTime, pointCount } = item.data;
+        const duration = Math.round((endTime - startTime) / 60000); // minutes
+        return (
+          <div key={`gps-${index}`} className="bg-slate-800/50 rounded-xl p-4 border-2 border-purple-500/30 hover:border-purple-500/50 transition">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 shrink-0 text-xl">
+                📍
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-purple-400 font-bold">Area Searched (GPS Tracked)</span>
+                  <span className="text-slate-500 text-xs">
+                    {new Date(startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <p className="text-slate-300 text-sm">
+                  Searched for {duration} minute{duration !== 1 ? 's' : ''} • {pointCount} GPS points recorded
+                </p>
+                <p className="text-slate-400 text-xs mt-1">View the purple path on the Map tab to see where they searched</p>
+              </div>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto">
       <div className="bg-slate-900/50 border-2 border-cyan-500/30 rounded-2xl p-6">
-        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <MessageSquare size={20} className="text-cyan-400" />
-          Case Updates
+        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+          <ActivityIcon size={24} className="text-cyan-400" />
+          Search Activity Timeline
         </h3>
 
-        <div className="space-y-4 max-h-[500px] overflow-y-auto mb-4">
-          {chatMessages.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
-              <div className="text-5xl mb-3">💬</div>
-              <p className="mb-2">This is where updates will appear</p>
-              <p className="text-slate-500 text-sm">Share progress and coordinate with your team here</p>
+        <div className="space-y-3 max-h-[800px] overflow-y-auto">
+          {timelineItems.length === 0 ? (
+            <div className="text-center py-16 text-slate-400">
+              <div className="text-6xl mb-4">📋</div>
+              <p className="text-lg mb-2">No activity yet</p>
+              <p className="text-slate-500 text-sm">
+                As people complete tasks, report sightings, and search areas,<br />
+                everything will show up here with all the details!
+              </p>
             </div>
           ) : (
-            chatMessages.map((msg, i) => (
-              <div key={i} className="bg-slate-800/50 rounded-xl p-3 border border-cyan-500/20">
-                <div className="text-cyan-400 text-sm font-semibold mb-1">{msg.author}</div>
-                <div className="text-white text-sm">{msg.content}</div>
-                <div className="text-slate-600 text-xs mt-1">{msg.timestamp}</div>
-              </div>
-            ))
+            timelineItems.map((item, index) => renderTimelineItem(item, index))
           )}
-        </div>
-
-        {/* Message Input */}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Add an update..."
-            className="flex-1 px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition"
-            style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
-          />
-          <button className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl hover:scale-105 transition">
-            <Send size={18} />
-          </button>
         </div>
       </div>
     </div>
@@ -666,6 +774,25 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath }) {
 
   const [selectedTask, setSelectedTask] = useState(null);
   const [isGPSTracking, setIsGPSTracking] = useState(false);
+
+  // Auto-save GPS path when tab closes (people forget to click "Done Searching")
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isGPSTracking && gpsPath.length > 0) {
+        // Stop GPS tracking
+        if (window._gpsWatchId) {
+          navigator.geolocation.clearWatch(window._gpsWatchId);
+          window._gpsWatchId = null;
+        }
+
+        // Path is already saved to localStorage via parent component's useEffect
+        // No need to show confirmation dialog - just let it save silently
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isGPSTracking, gpsPath]);
 
   const handleTaskClick = (task) => {
     // Open the detailed completion modal

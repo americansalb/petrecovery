@@ -269,60 +269,114 @@ export default function SARMapView({
       // Convert GPS path to leaflet format
       const pathCoords = gpsPath.map(point => [point.lat, point.lng]);
 
-      // Draw purple line showing where person walked
+      // Calculate search duration
+      const startTime = gpsPath[0].timestamp;
+      const endTime = gpsPath[gpsPath.length - 1].timestamp;
+      const durationMinutes = Math.round((endTime - startTime) / 60000);
+
+      // Draw semi-transparent polygon corridor showing search area covered
+      const searchCorridor = L.polyline(pathCoords, {
+        color: '#a855f7', // Purple
+        weight: 40, // Wide corridor to show search area
+        opacity: 0.25,
+        smoothFactor: 1,
+        lineJoin: 'round',
+        lineCap: 'round'
+      }).addTo(mapInstance.current);
+
+      // Add click handler to show details
+      searchCorridor.on('click', () => {
+        L.popup()
+          .setLatLng(pathCoords[Math.floor(pathCoords.length / 2)])
+          .setContent(`
+            <div style="min-width: 200px;">
+              <strong style="color: #a855f7;">GPS Tracked Search Area</strong>
+              <br/>
+              <span style="font-size: 12px; color: #666;">
+                Duration: ${durationMinutes} minute${durationMinutes !== 1 ? 's' : ''}
+              </span>
+              <br/>
+              <span style="font-size: 12px; color: #666;">
+                ${gpsPath.length} GPS points recorded
+              </span>
+              <br/>
+              <span style="font-size: 11px; color: #999;">
+                ${new Date(startTime).toLocaleTimeString()} - ${new Date(endTime).toLocaleTimeString()}
+              </span>
+            </div>
+          `)
+          .openOn(mapInstance.current);
+      });
+      gpsLayersRef.current.push(searchCorridor);
+
+      // Draw center line showing exact path walked
       const polyline = L.polyline(pathCoords, {
         color: '#a855f7', // Purple
-        weight: 4,
-        opacity: 0.8,
+        weight: 3,
+        opacity: 0.9,
         smoothFactor: 1
       }).addTo(mapInstance.current);
       gpsLayersRef.current.push(polyline);
 
-      // Add start marker
+      // Add start marker (green)
       const startIcon = L.divIcon({
         className: 'gps-start-marker',
         html: `
           <div style="
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             background: #22c55e;
-            border: 2px solid white;
+            border: 3px solid white;
             border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-center;
-            box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
           "></div>
         `,
-        iconSize: [20, 20],
-        iconAnchor: [10, 10]
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
       });
       const startMarker = L.marker(pathCoords[0], { icon: startIcon })
-        .bindPopup('<strong>Search Started</strong>')
+        .bindPopup(`
+          <div style="min-width: 150px;">
+            <strong style="color: #22c55e;">Search Started</strong>
+            <br/>
+            <span style="font-size: 11px; color: #666;">
+              ${new Date(startTime).toLocaleTimeString()}
+            </span>
+          </div>
+        `)
         .addTo(mapInstance.current);
       gpsLayersRef.current.push(startMarker);
 
-      // Add end marker
+      // Add end marker (orange)
       const endIcon = L.divIcon({
         className: 'gps-end-marker',
         html: `
           <div style="
-            width: 20px;
-            height: 20px;
-            background: #ef4444;
-            border: 2px solid white;
+            width: 24px;
+            height: 24px;
+            background: #f97316;
+            border: 3px solid white;
             border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-center;
-            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
           "></div>
         `,
-        iconSize: [20, 20],
-        iconAnchor: [10, 10]
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
       });
       const endMarker = L.marker(pathCoords[pathCoords.length - 1], { icon: endIcon })
-        .bindPopup('<strong>Search Ended</strong>')
+        .bindPopup(`
+          <div style="min-width: 150px;">
+            <strong style="color: #f97316;">Search Ended</strong>
+            <br/>
+            <span style="font-size: 11px; color: #666;">
+              ${new Date(endTime).toLocaleTimeString()}
+            </span>
+            <br/>
+            <span style="font-size: 11px; color: #666;">
+              Duration: ${durationMinutes} min
+            </span>
+          </div>
+        `)
         .addTo(mapInstance.current);
       gpsLayersRef.current.push(endMarker);
 
@@ -349,8 +403,8 @@ export default function SARMapView({
         </div>
         {gpsPath && gpsPath.length > 0 && (
           <div className="flex items-center gap-2 mb-1.5">
-            <div className="w-4 h-1 bg-purple-500 rounded" />
-            <span className="text-slate-200 font-medium">Area searched</span>
+            <div className="w-8 h-3 bg-purple-500/30 rounded border border-purple-500" />
+            <span className="text-slate-200 font-medium">GPS tracked search area (click for details)</span>
           </div>
         )}
         <div className="flex items-center gap-2">
