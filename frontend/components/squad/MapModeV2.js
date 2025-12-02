@@ -50,15 +50,17 @@ export default function MapModeV2({
   return (
     <div className="space-y-6">
       {/* Map Container */}
-      <div className="relative overflow-hidden rounded-2xl" style={{ minHeight: '600px', height: '600px' }}>
-        <MapComponent
-          cases={cases}
-          divisions={divisions}
-          squad={squad}
-          onCaseClick={handleCaseClick}
-        />
+      <div className="relative rounded-2xl" style={{ minHeight: '600px', height: '600px' }}>
+        <div className="absolute inset-0 rounded-2xl overflow-hidden">
+          <MapComponent
+            cases={cases}
+            divisions={divisions}
+            squad={squad}
+            onCaseClick={handleCaseClick}
+          />
+        </div>
 
-        {/* Case Detail Bottom Sheet - INSIDE map container */}
+        {/* Case Detail Bottom Sheet - Overlays on map */}
         {selectedCase && (
           <CaseBottomSheet
             caseData={selectedCase}
@@ -124,20 +126,20 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
 
   return (
     <div className="absolute bottom-0 left-0 right-0 z-[100] animate-slide-up pointer-events-auto">
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 backdrop-blur-xl border-t-2 border-cyan-500/60 rounded-t-3xl shadow-[0_-20px_60px_rgba(0,0,0,0.7)] p-6" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+      <div className="bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl border-t-2 border-cyan-500/80 rounded-t-2xl shadow-[0_-10px_40px_rgba(34,211,238,0.3)] p-4" style={{ maxHeight: '280px', overflowY: 'auto' }}>
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 p-2.5 rounded-xl bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-white hover:border-cyan-500/50 transition-all duration-200 hover:scale-110"
+          className="absolute top-3 right-3 p-1.5 rounded-lg bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-white hover:border-cyan-500/50 transition-all duration-200"
         >
-          <X size={22} />
+          <X size={18} />
         </button>
 
         {/* Content */}
-        <div className="flex gap-5 mb-6">
+        <div className="flex gap-3 mb-3">
           {/* Pet Photo */}
           {petPhotoUrl ? (
-            <div className="flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-slate-700 border-2 border-slate-600/50">
+            <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-slate-700 border border-slate-600/50">
               <img
                 src={petPhotoUrl}
                 alt={petName}
@@ -145,38 +147,38 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
               />
             </div>
           ) : (
-            <div className="flex-shrink-0 w-24 h-24 rounded-xl bg-gradient-to-br from-slate-700/80 to-slate-800/80 border-2 border-slate-600/50 flex items-center justify-center text-4xl">
+            <div className="flex-shrink-0 w-16 h-16 rounded-lg bg-gradient-to-br from-slate-700/80 to-slate-800/80 border border-slate-600/50 flex items-center justify-center text-3xl">
               {speciesEmoji}
             </div>
           )}
 
           {/* Case Info */}
           <div className="flex-1 min-w-0">
-            <h3 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-200 mb-2">{petName}</h3>
-            <p className="text-sm text-slate-500 font-medium mb-3">Case #{caseNumber}</p>
-            <span className={`inline-block px-3 py-1.5 rounded-full text-xs font-bold ${statusStyle.color} bg-slate-800/50 border border-slate-700/50`}>
+            <h3 className="text-xl font-bold text-white mb-1">{petName}</h3>
+            <p className="text-xs text-slate-400 font-medium mb-2">Case #{caseNumber}</p>
+            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${statusStyle.color} bg-slate-800/50 border border-slate-700/50`}>
               {statusStyle.label}
             </span>
           </div>
         </div>
 
         {/* Location */}
-        <div className="mb-6 p-4 bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl">
-          <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">Last seen:</p>
-          <p className="text-slate-200 font-medium text-base">{lastSeenAddress || 'Location unknown'}</p>
+        <div className="mb-3 p-3 bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-lg">
+          <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Last seen:</p>
+          <p className="text-slate-200 font-medium text-sm">{lastSeenAddress || 'Location unknown'}</p>
         </div>
 
         {/* Open Case Button */}
         <button
           onClick={onOpenCase}
           className="
-            w-full flex items-center justify-center gap-3 px-8 py-4 rounded-xl
-            bg-gradient-to-r from-cyan-500 via-cyan-400 to-cyan-500
-            text-white font-bold text-lg
-            shadow-[0_0_30px_rgba(249,115,22,0.5)]
-            hover:shadow-[0_0_40px_rgba(249,115,22,0.7)]
-            hover:scale-105
-            transition-all duration-300
+            w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg
+            bg-gradient-to-r from-cyan-500 to-cyan-400
+            text-white font-bold text-sm
+            shadow-lg shadow-cyan-500/30
+            hover:shadow-xl hover:shadow-cyan-500/40
+            hover:scale-[1.02]
+            transition-all duration-200
           "
         >
           Open Full Case
