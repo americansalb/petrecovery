@@ -1,6 +1,9 @@
 // Comprehensive US location validation for PetRecovery communities
 // Includes cities, counties, and ZIP code validation
 
+import { getCitiesByZip } from '../app/lib/cities';
+import { getZipCodeInfo } from './zip-city-mapping';
+
 // ZIP Code validation
 export function isValidZipCode(zip) {
   // Remove spaces and hyphens
@@ -391,7 +394,6 @@ export function searchLocations(query, existingCommunities = []) {
   if (isValidZipCode(searchTerm)) {
     // Try the comprehensive cities database first
     try {
-      const { getCitiesByZip } = require('../app/lib/cities');
       const cities = getCitiesByZip(searchTerm);
 
       if (cities && cities.length > 0) {
@@ -420,7 +422,21 @@ export function searchLocations(query, existingCommunities = []) {
         }];
       }
 
-      // ZIP not found in comprehensive database - it's truly invalid
+      // ZIP not found in comprehensive database - try metro mapping
+      const zipInfo = getZipCodeInfo(searchTerm);
+      if (zipInfo) {
+        return [{
+          value: `${zipInfo.city}, ${zipInfo.state}`,
+          label: zipInfo.city,
+          type: 'SUBCOMMUNITY',
+          state: zipInfo.state,
+          isZip: true,
+          zipCode: formatZipCode(searchTerm),
+          parentMetro: zipInfo.metroValue
+        }];
+      }
+
+      // ZIP not found in either database - mark as not found
       return [{
         value: formatZipCode(searchTerm),
         label: `ZIP Code ${formatZipCode(searchTerm)} (not found)`,
@@ -431,26 +447,7 @@ export function searchLocations(query, existingCommunities = []) {
         disabledReason: 'ZIP code not found in database'
       }];
     } catch (err) {
-      // Fallback if import fails - still try the metro mapping
-      try {
-        const { getZipCodeInfo } = require('./zip-city-mapping');
-        const zipInfo = getZipCodeInfo(searchTerm);
-
-        if (zipInfo) {
-          return [{
-            value: `${zipInfo.city}, ${zipInfo.state}`,
-            label: zipInfo.city,
-            type: 'SUBCOMMUNITY',
-            state: zipInfo.state,
-            isZip: true,
-            zipCode: formatZipCode(searchTerm),
-            parentMetro: zipInfo.metroValue
-          }];
-        }
-      } catch (innerErr) {
-        // Both fallbacks failed
-      }
-
+      console.error('[us-locations] ZIP lookup error:', err);
       // Final fallback - accept the ZIP as-is
       return [{
         value: formatZipCode(searchTerm),

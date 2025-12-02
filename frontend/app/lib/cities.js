@@ -10,17 +10,11 @@
  * }
  */
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+// Import JSON directly - works in both Node.js and webpack/browser
+import allCitiesDataRaw from './uscities.full.json';
 
-// Load JSON using require() - works reliably in all Node.js environments
-let allCitiesData = [];
-try {
-  allCitiesData = require('./uscities.full.json');
-  console.log(`[Cities] Loaded ${allCitiesData.length} cities`);
-} catch (e) {
-  console.error('[Cities] Failed to load cities database:', e.message);
-}
+const allCitiesData = allCitiesDataRaw || [];
+console.log(`[Cities] Loaded ${allCitiesData.length} cities`);
 
 const ZIP_REGEX = /^\d{5}$/;
 
