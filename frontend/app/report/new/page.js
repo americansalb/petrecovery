@@ -146,12 +146,28 @@ export default function ReportLostPet() {
 
     setIsSearchingAddress(true);
     try {
-      // Use backend proxy to avoid CORS issues
-      const response = await fetch(
-        `/api/geocode?q=${encodeURIComponent(query)}&limit=5&countrycodes=us&addressdetails=1`
+      // Try Google Maps first (more precise for report creation)
+      let response = await fetch(
+        `/api/google-geocode?input=${encodeURIComponent(query)}`
       );
 
-      // Handle rate limiting or server errors silently for autocomplete
+      let data;
+      let useGoogleFormat = false;
+
+      // If Google fails or is unavailable, fallback to Nominatim
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.fallback) {
+          console.log('[REPORT] Google Maps unavailable, using Nominatim fallback');
+          response = await fetch(
+            `/api/geocode?q=${encodeURIComponent(query)}&limit=5&countrycodes=us&addressdetails=1`
+          );
+        }
+      } else {
+        useGoogleFormat = true;
+      }
+
+      // Handle errors silently for autocomplete
       if (!response.ok) {
         console.warn('Address search failed with status:', response.status);
         setAddressSuggestions([]);
@@ -160,7 +176,6 @@ export default function ReportLostPet() {
       }
 
       const text = await response.text();
-      let data;
       try {
         data = JSON.parse(text);
       } catch (parseError) {
@@ -170,16 +185,26 @@ export default function ReportLostPet() {
         return;
       }
 
-      if (data && data.length > 0) {
+      // Process results based on format
+      if (useGoogleFormat && data.predictions && data.predictions.length > 0) {
+        // Google Places Autocomplete format
+        setAddressSuggestions(data.predictions.map(pred => ({
+          display_name: pred.description,
+          place_id: pred.place_id,
+          isGoogle: true,
+        })));
+        setShowSuggestions(true);
+      } else if (!useGoogleFormat && data && Array.isArray(data) && data.length > 0) {
+        // Nominatim format
         setAddressSuggestions(data.map(item => ({
           display_name: item.display_name,
           lat: parseFloat(item.lat),
           lon: parseFloat(item.lon),
           address: item.address,
-          // Extract city/town name - check multiple fields
           city: item.address?.city || item.address?.town || item.address?.village ||
                 item.address?.municipality || item.address?.hamlet || item.address?.county || '',
           state: item.address?.state || '',
+          isGoogle: false,
         })));
         setShowSuggestions(true);
       } else {
@@ -214,14 +239,71 @@ export default function ReportLostPet() {
   };
 
   // Select an address suggestion
-  const selectAddressSuggestion = (suggestion) => {
-    setLastSeenAddress(suggestion.display_name);
-    setCenter([suggestion.lat, suggestion.lon]);
-    setCityName(suggestion.city);
-    setAddressSuggestions([]);
-    setShowSuggestions(false);
-    setLocationConfirmed(false);
-    setStep(3);
+  const selectAddressSuggestion = async (suggestion) => {
+    // If it's a Google suggestion, we need to geocode it first to get coordinates
+    if (suggestion.isGoogle) {
+      setIsGeocoding(true);
+      try {
+        const response = await fetch(
+          `/api/google-geocode?address=${encodeURIComponent(suggestion.display_name)}`
+        );
+
+        if (!response.ok) {
+          // Fallback to Nominatim
+          const fallbackResponse = await fetch(
+            `/api/geocode?q=${encodeURIComponent(suggestion.display_name)}&limit=1&countrycodes=us&addressdetails=1`
+          );
+
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            if (fallbackData.length > 0) {
+              const result = fallbackData[0];
+              setLastSeenAddress(suggestion.display_name);
+              setCenter([parseFloat(result.lat), parseFloat(result.lon)]);
+              setCityName(result.address?.city || result.address?.town || '');
+              setAddressSuggestions([]);
+              setShowSuggestions(false);
+              setLocationConfirmed(false);
+              setStep(3);
+            }
+          }
+          return;
+        }
+
+        const data = await response.json();
+
+        if (data.results && data.results.length > 0) {
+          const location = data.results[0].geometry.location;
+          const addressComponents = data.results[0].address_components;
+
+          // Extract city from address components
+          const cityComponent = addressComponents.find(comp =>
+            comp.types.includes('locality') || comp.types.includes('sublocality')
+          );
+
+          setLastSeenAddress(suggestion.display_name);
+          setCenter([location.lat, location.lng]);
+          setCityName(cityComponent?.long_name || '');
+          setAddressSuggestions([]);
+          setShowSuggestions(false);
+          setLocationConfirmed(false);
+          setStep(3);
+        }
+      } catch (err) {
+        console.error('Error geocoding Google suggestion:', err);
+      } finally {
+        setIsGeocoding(false);
+      }
+    } else {
+      // Nominatim suggestion already has coordinates
+      setLastSeenAddress(suggestion.display_name);
+      setCenter([suggestion.lat, suggestion.lon]);
+      setCityName(suggestion.city);
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+      setLocationConfirmed(false);
+      setStep(3);
+    }
   };
 
   // Pre-fill from existing pet profile if petId is provided
@@ -439,16 +521,30 @@ export default function ReportLostPet() {
     setIsGeocoding(true);
 
     try {
-      // Use backend proxy to avoid CORS issues
-      let url;
-      if (isZipCode) {
-        // Use regular search with zip code in query format for better results
-        url = `/api/geocode?q=${encodeURIComponent(query + ' USA')}&limit=1&addressdetails=1`;
-      } else {
-        url = `/api/geocode?q=${encodeURIComponent(query)}&limit=1&countrycodes=us&addressdetails=1`;
-      }
+      // Try Google Maps first for precise coordinates
+      let response = await fetch(
+        `/api/google-geocode?address=${encodeURIComponent(query)}`
+      );
 
-      const response = await fetch(url);
+      let data;
+      let useGoogleFormat = false;
+
+      // If Google fails, fallback to Nominatim
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.fallback) {
+          console.log('[REPORT] Google Maps unavailable, using Nominatim fallback for geocoding');
+          let url;
+          if (isZipCode) {
+            url = `/api/geocode?q=${encodeURIComponent(query + ' USA')}&limit=1&addressdetails=1`;
+          } else {
+            url = `/api/geocode?q=${encodeURIComponent(query)}&limit=1&countrycodes=us&addressdetails=1`;
+          }
+          response = await fetch(url);
+        }
+      } else {
+        useGoogleFormat = true;
+      }
 
       // Check for rate limiting or server errors
       if (response.status === 503) {
@@ -462,7 +558,6 @@ export default function ReportLostPet() {
       }
 
       const text = await response.text();
-      let data;
       try {
         data = JSON.parse(text);
       } catch (parseError) {
@@ -471,18 +566,39 @@ export default function ReportLostPet() {
         return false;
       }
 
-      if (data && data.length > 0) {
-        const lat = parseFloat(data[0].lat);
-        const lon = parseFloat(data[0].lon);
+      let lat, lon, city, state, displayAddress;
+
+      if (useGoogleFormat && data.results && data.results.length > 0) {
+        // Google Maps format
+        const result = data.results[0];
+        lat = result.geometry.location.lat;
+        lon = result.geometry.location.lng;
+
+        // Extract city and state from address components
+        const addressComponents = result.address_components;
+        const cityComponent = addressComponents.find(comp =>
+          comp.types.includes('locality') || comp.types.includes('sublocality')
+        );
+        const stateComponent = addressComponents.find(comp =>
+          comp.types.includes('administrative_area_level_1')
+        );
+
+        city = cityComponent?.long_name || '';
+        state = stateComponent?.short_name || '';
+        displayAddress = result.formatted_address;
+      } else if (!useGoogleFormat && data && Array.isArray(data) && data.length > 0) {
+        // Nominatim format
+        lat = parseFloat(data[0].lat);
+        lon = parseFloat(data[0].lon);
 
         // Extract city name from address details - check multiple fields
         const addr = data[0].address || {};
-        const city = addr.city || addr.town || addr.village || addr.municipality ||
-                     addr.hamlet || addr.suburb || addr.county || addr.state || '';
-        const state = addr.state || '';
+        city = addr.city || addr.town || addr.village || addr.municipality ||
+               addr.hamlet || addr.suburb || addr.county || addr.state || '';
+        state = addr.state || '';
 
         // Build a proper display address
-        let displayAddress;
+        displayAddress;
         if (isZipCode) {
           // For zip codes, show city, state, and zip
           if (city && state) {
@@ -518,10 +634,25 @@ export default function ReportLostPet() {
   // Reverse geocode coordinates to get address and city
   const reverseGeocode = async (lat, lon) => {
     try {
-      // Use backend proxy to avoid CORS issues
-      const response = await fetch(
-        `/api/geocode?lat=${lat}&lon=${lon}&addressdetails=1`
+      // Try Google Maps first for precise address
+      let response = await fetch(
+        `/api/google-geocode?latlng=${lat},${lon}`
       );
+
+      let useGoogleFormat = false;
+
+      // If Google fails, fallback to Nominatim
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.fallback) {
+          console.log('[REPORT] Google Maps unavailable, using Nominatim for reverse geocoding');
+          response = await fetch(
+            `/api/geocode?lat=${lat}&lon=${lon}&addressdetails=1`
+          );
+        }
+      } else {
+        useGoogleFormat = true;
+      }
 
       if (!response.ok) {
         console.warn('Reverse geocode failed with status:', response.status);
@@ -543,7 +674,19 @@ export default function ReportLostPet() {
         };
       }
 
-      if (data && data.display_name) {
+      if (useGoogleFormat && data.results && data.results.length > 0) {
+        // Google Maps format
+        const result = data.results[0];
+        const addressComponents = result.address_components;
+        const cityComponent = addressComponents.find(comp =>
+          comp.types.includes('locality') || comp.types.includes('sublocality')
+        );
+        return {
+          address: result.formatted_address,
+          city: cityComponent?.long_name || '',
+        };
+      } else if (!useGoogleFormat && data && data.display_name) {
+        // Nominatim format
         const addr = data.address || {};
         const city = addr.city || addr.town || addr.village || addr.municipality ||
                      addr.hamlet || addr.suburb || addr.county || '';
