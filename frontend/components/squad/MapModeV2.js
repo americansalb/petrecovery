@@ -50,23 +50,23 @@ export default function MapModeV2({
   return (
     <div className="space-y-6">
       {/* Map Container */}
-      <div className="relative">
+      <div className="relative" style={{ minHeight: '500px' }}>
         <MapComponent
           cases={cases}
           divisions={divisions}
           squad={squad}
           onCaseClick={handleCaseClick}
         />
-
-        {/* Case Detail Bottom Sheet */}
-        {selectedCase && (
-          <CaseBottomSheet
-            caseData={selectedCase}
-            onClose={() => setSelectedCaseId(null)}
-            onOpenCase={() => router.push(`/cases/${selectedCase.caseNumber}`)}
-          />
-        )}
       </div>
+
+      {/* Case Detail Bottom Sheet - OUTSIDE map container for proper positioning */}
+      {selectedCase && (
+        <CaseBottomSheet
+          caseData={selectedCase}
+          onClose={() => setSelectedCaseId(null)}
+          onOpenCase={() => router.push(`/cases/${selectedCase.caseNumber}`)}
+        />
+      )}
 
       {/* Map Legend */}
       <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 shadow-lg">
@@ -123,7 +123,7 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
   const statusStyle = statusConfig[status] || statusConfig.ACTIVE;
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-[100] animate-slide-up pointer-events-auto">
+    <div className="fixed bottom-0 left-0 right-0 z-[100] animate-slide-up pointer-events-auto">
       <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 backdrop-blur-xl border-t-2 border-cyan-500/60 rounded-t-3xl shadow-[0_-20px_60px_rgba(0,0,0,0.7)] p-8" style={{ minHeight: '250px' }}>
         {/* Close Button */}
         <button

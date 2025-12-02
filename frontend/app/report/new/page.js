@@ -146,9 +146,9 @@ export default function ReportLostPet() {
 
     setIsSearchingAddress(true);
     try {
+      // Use backend proxy to avoid CORS issues
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=us&addressdetails=1`,
-        { headers: { 'User-Agent': 'PetRecovery.org' } }
+        `/api/geocode?q=${encodeURIComponent(query)}&limit=5&countrycodes=us&addressdetails=1`
       );
 
       // Handle rate limiting or server errors silently for autocomplete
@@ -439,16 +439,16 @@ export default function ReportLostPet() {
     setIsGeocoding(true);
 
     try {
-      // For zip codes, search with zip code in query format for better results
+      // Use backend proxy to avoid CORS issues
       let url;
       if (isZipCode) {
-        // Use regular search with zip code - more reliable than postalcode parameter
-        url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ' USA')}&format=json&limit=1&addressdetails=1`;
+        // Use regular search with zip code in query format for better results
+        url = `/api/geocode?q=${encodeURIComponent(query + ' USA')}&limit=1&addressdetails=1`;
       } else {
-        url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=us&addressdetails=1`;
+        url = `/api/geocode?q=${encodeURIComponent(query)}&limit=1&countrycodes=us&addressdetails=1`;
       }
 
-      const response = await fetch(url, { headers: { 'User-Agent': 'PetRecovery.org' } });
+      const response = await fetch(url);
 
       // Check for rate limiting or server errors
       if (response.status === 503) {
@@ -518,9 +518,9 @@ export default function ReportLostPet() {
   // Reverse geocode coordinates to get address and city
   const reverseGeocode = async (lat, lon) => {
     try {
+      // Use backend proxy to avoid CORS issues
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
-        { headers: { 'User-Agent': 'PetRecovery.org' } }
+        `/api/geocode?lat=${lat}&lon=${lon}&addressdetails=1`
       );
 
       if (!response.ok) {
