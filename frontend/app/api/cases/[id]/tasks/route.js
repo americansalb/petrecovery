@@ -96,7 +96,18 @@ export async function POST(request, { params }) {
 
     const { id } = params;
     const body = await request.json();
-    const { title, description, type, priority, assigneeId, latitude, longitude, address } = body;
+    const {
+      title,
+      description,
+      type,
+      priority,
+      assigneeId,
+      latitude,
+      longitude,
+      address,
+      status,
+      completionNotes
+    } = body;
 
     if (!title?.trim()) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
@@ -152,6 +163,7 @@ export async function POST(request, { params }) {
     }
 
     // Create the task
+    const isCompleted = status === 'COMPLETED';
     const task = await prisma.squadTask.create({
       data: {
         rescueSquadId,
@@ -160,12 +172,16 @@ export async function POST(request, { params }) {
         description: description?.trim() || null,
         type: type || 'OTHER',
         priority: priority || 'MEDIUM',
-        status: 'OPEN',
-        assigneeId: assigneeId || null,
+        status: status || 'OPEN',
+        assigneeId: assigneeId || session.user.id || null,
         creatorId: session.user.id,
         latitude: latitude || null,
         longitude: longitude || null,
         address: address || null,
+        // If already completed, set completion fields
+        completedById: isCompleted ? session.user.id : null,
+        completedAt: isCompleted ? new Date() : null,
+        completionNotes: completionNotes || null,
       },
       include: {
         assignee: {
@@ -179,11 +195,15 @@ export async function POST(request, { params }) {
     });
 
     // Create activity log
+    const activityMessage = isCompleted
+      ? `✅ Completed task: "${title}"`
+      : `Task created: "${title}"${assigneeId ? ' (assigned)' : ''}`;
+
     await prisma.caseUpdate.create({
       data: {
         caseId: caseData.id,
         authorId: session.user.id,
-        content: `Task created: "${title}"${assigneeId ? ' (assigned)' : ''}`,
+        content: activityMessage,
         isUpdate: true,
       },
     });

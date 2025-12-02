@@ -1027,12 +1027,32 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
       setGpsPath(prev => [...prev, ...newMarkers]);
     }
 
-    // TODO: Save to backend API
-    // await fetch(`/api/cases/${caseData.id}/tasks`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(completionWithUser),
-    // });
+    // Save to backend API
+    try {
+      const response = await fetch(`/api/cases/${caseData.id}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: selectedTask.label,
+          description: `Task completed: ${selectedTask.label}`,
+          type: completionWithUser.taskType || 'OTHER',
+          priority: 'MEDIUM',
+          status: 'COMPLETED',
+          completionNotes: JSON.stringify(completionWithUser.details),
+          assigneeId: session?.user?.id,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to save task completion to backend');
+        // Continue anyway - data is in localStorage
+      } else {
+        console.log('Task completion saved to backend successfully');
+      }
+    } catch (error) {
+      console.error('Error saving task completion:', error);
+      // Continue anyway - data is in localStorage
+    }
 
     // Update local state
     setTasks(prev => prev.map(t =>
@@ -1112,20 +1132,32 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
     setIsGPSTracking(false);
 
     if (gpsPath.length > 0) {
-      // Save the search area
+      // Save the search area to backend
       console.log('GPS path recorded:', gpsPath);
 
-      // TODO: Save to backend
-      // await fetch(`/api/cases/${caseData.id}/search-areas`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     method: 'GPS_AUTO',
-      //     path: gpsPath,
-      //   }),
-      // });
+      try {
+        const response = await fetch(`/api/cases/${caseData.id}/search-areas`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            method: 'GPS_AUTO',
+            path: gpsPath,
+            notes: `GPS-tracked search with ${gpsPath.length} waypoints`,
+          }),
+        });
 
-      alert(`🎉 Amazing work! We recorded ${gpsPath.length} GPS points showing where you searched. This helps everyone coordinate better!`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('GPS search area saved successfully:', data);
+          alert(`🎉 Amazing work! We recorded ${gpsPath.length} GPS points (~${data.searchArea?.acreage?.toFixed(2)} acres) showing where you searched. This helps everyone coordinate better!`);
+        } else {
+          console.error('Failed to save GPS search area to backend');
+          alert(`📍 Recorded ${gpsPath.length} GPS points locally. (Note: Server save failed, but your data is stored on your device)`);
+        }
+      } catch (error) {
+        console.error('Error saving GPS search area:', error);
+        alert(`📍 Recorded ${gpsPath.length} GPS points locally. (Note: Server save failed, but your data is stored on your device)`);
+      }
     }
   };
 
