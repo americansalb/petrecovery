@@ -12,7 +12,9 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import TaskCompletionModal from '@/components/case/TaskCompletionModal';
-import { normalizePhotoUrl } from '@/app/lib/utils';
+import { normalizePhotoUrl, fetchWithRetry, formatErrorMessage, isOnline } from '@/app/lib/utils';
+import { PageLoading } from '@/components/LoadingSkeleton';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import {
   MapPin,
   Clock,
@@ -107,12 +109,30 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
     localStorage.setItem(tasksKey, JSON.stringify(tasks));
   }, [tasks, caseData?.id]);
 
-  // Fetch case data
+  // Fetch case data with retry logic
   const fetchCase = useCallback(async () => {
     try {
       const identifier = caseId || caseNumber;
-      const res = await fetch(`/api/cases/${identifier}`);
-      if (!res.ok) throw new Error('Case not found');
+
+      // Check if online before making request
+      if (!isOnline()) {
+        setError('You are offline. Please check your internet connection.');
+        setLoading(false);
+        return;
+      }
+
+      const res = await fetchWithRetry(`/api/cases/${identifier}`);
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          throw new Error('Case not found');
+        } else if (res.status === 403) {
+          throw new Error('You do not have permission to view this case');
+        } else {
+          throw new Error(`Failed to load case (${res.status})`);
+        }
+      }
+
       const data = await res.json();
       setCaseData(data);
 
@@ -142,7 +162,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
       setError(null);
     } catch (err) {
       console.error('Error fetching case:', err);
-      setError(err.message);
+      setError(formatErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -190,29 +210,47 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
 
   // Loading state
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-400">Loading case...</p>
-        </div>
-      </div>
-    );
+    return <PageLoading message="Loading case details..." />;
   }
 
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center p-4">
-        <div className="bg-red-900/30 border-2 border-red-500/50 rounded-2xl p-8 max-w-md text-center">
-          <div className="text-4xl mb-4">⚠️</div>
-          <h2 className="text-xl font-bold text-white mb-2">Unable to Load Case</h2>
-          <p className="text-red-300 mb-6">{error}</p>
-          <button
-            onClick={onClose || (() => window.history.back())}
-            className="px-6 py-3 bg-slate-700 text-white rounded-xl font-semibold hover:bg-slate-600 transition"
-          >
-            Go Back
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-slate-900/80 backdrop-blur-xl border-2 border-red-500/30 rounded-2xl p-8 shadow-2xl">
+          {/* Error Icon */}
+          <div className="flex justify-center mb-6">
+            <div className="p-4 bg-red-500/20 rounded-full border-2 border-red-500/50">
+              <AlertCircle size={48} className="text-red-400" />
+            </div>
+          </div>
+
+          {/* Error Message */}
+          <h2 className="text-2xl font-bold text-white text-center mb-3">
+            Unable to Load Case
+          </h2>
+          <p className="text-red-300 text-center mb-8">
+            {error}
+          </p>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => {
+                setError(null);
+                setLoading(true);
+                fetchCase();
+              }}
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl hover:scale-105 transition shadow-lg shadow-cyan-500/30"
+            >
+              <RefreshCw size={20} />
+              Try Again
+            </button>
+            <button
+              onClick={onClose || (() => window.history.back())}
+              className="px-6 py-3 bg-slate-800/80 text-slate-300 font-bold rounded-xl hover:bg-slate-800 hover:text-white transition border-2 border-slate-700"
+            >
+              Go Back
           </button>
         </div>
       </div>

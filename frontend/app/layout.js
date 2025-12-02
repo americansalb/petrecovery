@@ -3,6 +3,7 @@ import SessionProvider from './components/SessionProvider';
 import { ModeProvider } from './contexts/ModeContext';
 import Navigation from './components/Navigation';
 import ErrorBoundary from './components/ErrorBoundary';
+import OfflineBanner from '@/components/OfflineBanner';
 
 export const metadata = {
   title: 'PetRecovery.org - Reunite Lost Pets with Their Families',
@@ -32,6 +33,7 @@ export default function RootLayout({ children }) {
         <SessionProvider>
           <ModeProvider>
             <ErrorBoundary>
+              <OfflineBanner />
               <Navigation />
               {children}
             </ErrorBoundary>

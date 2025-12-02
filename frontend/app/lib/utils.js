@@ -143,3 +143,127 @@ export function getPrimaryPhotoUrl(data, fallbackUrl = null) {
 
   return fallbackUrl;
 }
+
+/**
+ * Fetch with retry logic and better error handling
+ *
+ * @param {string} url - URL to fetch
+ * @param {Object} options - Fetch options
+ * @param {number} maxRetries - Maximum number of retries (default: 3)
+ * @param {number} retryDelay - Delay between retries in ms (default: 1000)
+ * @returns {Promise<Response>} - Fetch response
+ *
+ * @example
+ * const data = await fetchWithRetry('/api/cases')
+ *   .then(res => res.json())
+ *   .catch(err => console.error(err));
+ */
+export async function fetchWithRetry(url, options = {}, maxRetries = 3, retryDelay = 1000) {
+  let lastError;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+
+      // If successful or client error (4xx), return immediately
+      // Don't retry client errors as they won't succeed on retry
+      if (response.ok || (response.status >= 400 && response.status < 500)) {
+        return response;
+      }
+
+      // Server error (5xx) - will retry
+      lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+      if (attempt < maxRetries) {
+        // Exponential backoff
+        const delay = retryDelay * Math.pow(2, attempt);
+        console.log(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    } catch (error) {
+      // Network error or other fetch failure
+      lastError = error;
+
+      if (attempt < maxRetries) {
+        const delay = retryDelay * Math.pow(2, attempt);
+        console.log(`Network error, retry ${attempt + 1}/${maxRetries} after ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  // All retries failed
+  throw lastError || new Error('Request failed after retries');
+}
+
+/**
+ * Check if the browser is online
+ * @returns {boolean} - True if online
+ */
+export function isOnline() {
+  return typeof navigator !== 'undefined' ? navigator.onLine : true;
+}
+
+/**
+ * Add online/offline event listeners
+ * @param {Function} onOnline - Callback when going online
+ * @param {Function} onOffline - Callback when going offline
+ * @returns {Function} - Cleanup function to remove listeners
+ */
+export function addNetworkListeners(onOnline, onOffline) {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+
+  window.addEventListener('online', onOnline);
+  window.addEventListener('offline', onOffline);
+
+  return () => {
+    window.removeEventListener('online', onOnline);
+    window.removeEventListener('offline', onOffline);
+  };
+}
+
+/**
+ * Format error message for user display
+ * @param {Error|string} error - Error object or message
+ * @returns {string} - User-friendly error message
+ */
+export function formatErrorMessage(error) {
+  if (!error) return 'An unknown error occurred';
+
+  if (typeof error === 'string') return error;
+
+  // Network errors
+  if (error.message?.includes('Failed to fetch') || error.message?.includes('Network')) {
+    return 'Network error. Please check your internet connection and try again.';
+  }
+
+  // Timeout errors
+  if (error.message?.includes('timeout')) {
+    return 'Request timed out. Please try again.';
+  }
+
+  // HTTP errors
+  if (error.message?.match(/HTTP \d+/)) {
+    return `Server error: ${error.message}. Please try again later.`;
+  }
+
+  // Generic error
+  return error.message || 'An unexpected error occurred. Please try again.';
+}
+
+/**
+ * Async timeout wrapper
+ * @param {Promise} promise - Promise to wrap
+ * @param {number} timeoutMs - Timeout in milliseconds
+ * @returns {Promise} - Promise that rejects on timeout
+ */
+export function withTimeout(promise, timeoutMs = 30000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+    ),
+  ]);
+}
