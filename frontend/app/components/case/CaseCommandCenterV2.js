@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import TaskCompletionModal from '@/components/case/TaskCompletionModal';
 import {
   MapPin,
   Clock,
@@ -30,6 +31,7 @@ import {
   ChevronLeft,
   Eye,
   Send,
+  Navigation,
 } from 'lucide-react';
 
 // Lazy load map for better performance
@@ -596,22 +598,147 @@ function ActivityTab({ sightings, timeline, chatMessages, newMessage, setNewMess
 // ============================================================================
 function TeamTab({ team, caseData }) {
   const defaultTasks = [
-    { id: 1, label: 'Alert neighbors & nearby residents', completed: false },
-    { id: 2, label: 'Post flyers in the area', completed: false },
-    { id: 3, label: 'Call local shelters', completed: false },
-    { id: 4, label: 'Check your property thoroughly', completed: false },
-    { id: 5, label: 'Post on social media', completed: false },
-    { id: 6, label: 'Visit shelters in person', completed: false },
+    { id: 1, label: 'Alert neighbors & nearby residents', type: 'ALERT_NEIGHBORS', completed: false, completions: [] },
+    { id: 2, label: 'Post flyers in the area', type: 'POST_FLYERS', completed: false, completions: [] },
+    { id: 3, label: 'Call local shelters', type: 'CALL_SHELTERS', completed: false, completions: [] },
+    { id: 4, label: 'Check your property thoroughly', type: 'SEARCH_PROPERTY', completed: false, completions: [] },
+    { id: 5, label: 'Post on social media', type: 'POST_SOCIAL_MEDIA', completed: false, completions: [] },
+    { id: 6, label: 'Visit shelters in person', type: 'VISIT_SHELTERS', completed: false, completions: [] },
   ];
 
   const [tasks, setTasks] = useState(defaultTasks);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [isGPSTracking, setIsGPSTracking] = useState(false);
+  const [gpsPath, setGpsPath] = useState([]);
 
-  const toggleTask = (id) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  const handleTaskClick = (task) => {
+    // Open the detailed completion modal
+    setSelectedTask(task);
+  };
+
+  const handleTaskComplete = async (completionData) => {
+    console.log('Task completed:', completionData);
+
+    // TODO: Save to backend API
+    // await fetch(`/api/cases/${caseData.id}/tasks`, {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify(completionData),
+    // });
+
+    // Update local state
+    setTasks(prev => prev.map(t =>
+      t.id === selectedTask.id
+        ? {
+            ...t,
+            completed: true,
+            completions: [...t.completions, completionData]
+          }
+        : t
+    ));
+  };
+
+  const startGPSTracking = () => {
+    if (!('geolocation' in navigator)) {
+      alert('GPS not available on this device');
+      return;
+    }
+
+    setIsGPSTracking(true);
+    setGpsPath([]);
+
+    // Track position every 10 seconds
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const point = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          timestamp: Date.now(),
+          accuracy: position.coords.accuracy
+        };
+        setGpsPath(prev => [...prev, point]);
+      },
+      (error) => {
+        console.error('GPS error:', error);
+        setIsGPSTracking(false);
+      },
+      { enableHighAccuracy: true, maximumAge: 0 }
+    );
+
+    // Store watchId for cleanup
+    window._gpsWatchId = watchId;
+  };
+
+  const stopGPSTracking = async () => {
+    if (window._gpsWatchId) {
+      navigator.geolocation.clearWatch(window._gpsWatchId);
+      window._gpsWatchId = null;
+    }
+
+    setIsGPSTracking(false);
+
+    if (gpsPath.length > 0) {
+      // Save the search area
+      console.log('GPS path recorded:', gpsPath);
+
+      // TODO: Save to backend
+      // await fetch(`/api/cases/${caseData.id}/search-areas`, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({
+      //     method: 'GPS_AUTO',
+      //     path: gpsPath,
+      //   }),
+      // });
+
+      alert(`Recorded ${gpsPath.length} GPS points over your search area!`);
+    }
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Search Area Tracking */}
+      <div className="bg-slate-900/50 border-2 border-purple-500/30 rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+          <Navigation size={20} className="text-purple-400" />
+          GPS Search Tracking
+        </h3>
+
+        {!isGPSTracking ? (
+          <div className="space-y-4">
+            <p className="text-slate-400 text-sm">
+              Track your search area automatically with GPS. Turn it on when you start searching.
+            </p>
+            <button
+              onClick={startGPSTracking}
+              className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-xl shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/50 hover:scale-105 transition flex items-center justify-center gap-2"
+            >
+              <Navigation size={20} />
+              Start GPS Tracking
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="bg-purple-500/10 border-2 border-purple-500/30 rounded-xl p-4">
+              <div className="flex items-center gap-2 text-purple-400 font-bold mb-2">
+                <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse" />
+                Recording GPS Path
+              </div>
+              <div className="text-slate-300 text-sm">
+                {gpsPath.length} points recorded
+              </div>
+            </div>
+
+            <button
+              onClick={stopGPSTracking}
+              className="w-full py-4 bg-red-500/20 border-2 border-red-500/50 text-red-400 font-bold rounded-xl hover:bg-red-500/30 transition flex items-center justify-center gap-2"
+            >
+              Stop & Save Search Area
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Active Helpers */}
       <div className="bg-slate-900/50 border-2 border-cyan-500/30 rounded-2xl p-6">
         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
@@ -639,7 +766,7 @@ function TeamTab({ team, caseData }) {
           {tasks.map(task => (
             <button
               key={task.id}
-              onClick={() => toggleTask(task.id)}
+              onClick={() => handleTaskClick(task)}
               className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
                 task.completed
                   ? 'bg-emerald-500/10 border border-emerald-500/30'
@@ -656,6 +783,11 @@ function TeamTab({ team, caseData }) {
               <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
                 {task.label}
               </span>
+              {task.completions.length > 0 && (
+                <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
+                  {task.completions.length}×
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -673,6 +805,15 @@ function TeamTab({ team, caseData }) {
           </div>
         </div>
       </div>
+
+      {/* Task Completion Modal */}
+      {selectedTask && (
+        <TaskCompletionModal
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+          onComplete={handleTaskComplete}
+        />
+      )}
     </div>
   );
 }
