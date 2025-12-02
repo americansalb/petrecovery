@@ -50,8 +50,8 @@ export default function MapModeV2({
   return (
     <div className="space-y-6">
       {/* Map Container */}
-      <div className="relative rounded-2xl" style={{ minHeight: '600px', height: '600px' }}>
-        <div className="absolute inset-0 rounded-2xl overflow-hidden">
+      <div className="relative" style={{ minHeight: '600px', height: '600px' }}>
+        <div className="absolute inset-0 rounded-2xl overflow-hidden z-10">
           <MapComponent
             cases={cases}
             divisions={divisions}
@@ -62,11 +62,13 @@ export default function MapModeV2({
 
         {/* Case Detail Bottom Sheet - Overlays on map */}
         {selectedCase && (
-          <CaseBottomSheet
-            caseData={selectedCase}
-            onClose={() => setSelectedCaseId(null)}
-            onOpenCase={() => router.push(`/cases/${selectedCase.caseNumber}`)}
-          />
+          <div className="absolute inset-0 pointer-events-none z-20">
+            <CaseBottomSheet
+              caseData={selectedCase}
+              onClose={() => setSelectedCaseId(null)}
+              onOpenCase={() => router.push(`/cases/${selectedCase.caseNumber}`)}
+            />
+          </div>
         )}
       </div>
 
