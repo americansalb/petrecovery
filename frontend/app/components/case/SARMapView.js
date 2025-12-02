@@ -27,14 +27,21 @@ export default function SARMapView({
   sightings = [],
   petSpecies = 'DOG',
   hoursElapsed = 24,
-  showControls = false
+  showControls = false,
+  gpsPath = [], // NEW: GPS tracking path
+  showProbabilityCircles = false // NEW: Make circles optional
 }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markersRef = useRef([]);
   const circlesRef = useRef([]);
+  const gpsLayersRef = useRef([]);
   const [userLocation, setUserLocation] = useState(null);
   const userMarkerRef = useRef(null);
+  const [mapLayer, setMapLayer] = useState('satellite'); // 'satellite' or 'street'
+  const baseLayersRef = useRef({});
+  const [showHeatmap, setShowHeatmap] = useState(true); // Toggle for search coverage heatmap
+  const heatmapLayersRef = useRef([]);
 
   // Calculate search radius based on time and pet type
   const getSearchRadius = () => {
@@ -60,10 +67,18 @@ export default function SARMapView({
       attributionControl: false
     });
 
-    // Dark theme tiles
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // Create base layers
+    baseLayersRef.current.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Esri, DigitalGlobe, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community'
+    });
+
+    baseLayersRef.current.street = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       maxZoom: 19
-    }).addTo(mapInstance.current);
+    });
+
+    // Add default layer (satellite)
+    baseLayersRef.current[mapLayer].addTo(mapInstance.current);
 
     // Track user location
     if ('geolocation' in navigator) {
@@ -92,6 +107,20 @@ export default function SARMapView({
       mapInstance.current.setView(center, 15);
     }
   }, [center]);
+
+  // Handle layer switching
+  useEffect(() => {
+    if (!mapInstance.current || !baseLayersRef.current.satellite || !baseLayersRef.current.street) return;
+
+    // Remove current layer
+    const currentLayer = mapLayer === 'satellite' ? 'street' : 'satellite';
+    if (baseLayersRef.current[currentLayer]) {
+      mapInstance.current.removeLayer(baseLayersRef.current[currentLayer]);
+    }
+
+    // Add new layer
+    baseLayersRef.current[mapLayer].addTo(mapInstance.current);
+  }, [mapLayer]);
 
   // Update user location marker
   useEffect(() => {
@@ -155,7 +184,7 @@ export default function SARMapView({
       const lastSeenMarker = L.marker([lastSeen.lat, lastSeen.lng], { icon: lastSeenIcon })
         .bindPopup(`
           <div style="text-align: center; min-width: 150px;">
-            <strong style="color: #ef4444;">Last Seen Location</strong>
+            <strong style="color: #ef4444;">Ran Away From Home</strong>
             <br/>
             <span style="font-size: 12px; color: #666;">${lastSeen.address || 'Unknown address'}</span>
           </div>
@@ -163,42 +192,44 @@ export default function SARMapView({
         .addTo(mapInstance.current);
       markersRef.current.push(lastSeenMarker);
 
-      // Add search probability circles
-      const radius = getSearchRadius();
-      const milesToMeters = (miles) => miles * 1609.34;
+      // Add search probability circles (OPTIONAL - usually too confusing)
+      if (showProbabilityCircles) {
+        const radius = getSearchRadius();
+        const milesToMeters = (miles) => miles * 1609.34;
 
-      // Inner circle (high probability)
-      const innerCircle = L.circle([lastSeen.lat, lastSeen.lng], {
-        radius: milesToMeters(radius.inner),
-        color: '#22c55e',
-        fillColor: '#22c55e',
-        fillOpacity: 0.15,
-        weight: 2,
-        dashArray: '5, 5'
-      }).addTo(mapInstance.current);
-      circlesRef.current.push(innerCircle);
+        // Inner circle (high probability) - much less prominent
+        const innerCircle = L.circle([lastSeen.lat, lastSeen.lng], {
+          radius: milesToMeters(radius.inner),
+          color: '#22c55e',
+          fillColor: '#22c55e',
+          fillOpacity: 0.05,
+          weight: 1,
+          dashArray: '5, 5'
+        }).addTo(mapInstance.current);
+        circlesRef.current.push(innerCircle);
 
-      // Middle circle (medium probability)
-      const middleCircle = L.circle([lastSeen.lat, lastSeen.lng], {
-        radius: milesToMeters(radius.middle),
-        color: '#eab308',
-        fillColor: '#eab308',
-        fillOpacity: 0.08,
-        weight: 2,
-        dashArray: '10, 5'
-      }).addTo(mapInstance.current);
-      circlesRef.current.push(middleCircle);
+        // Middle circle (medium probability)
+        const middleCircle = L.circle([lastSeen.lat, lastSeen.lng], {
+          radius: milesToMeters(radius.middle),
+          color: '#eab308',
+          fillColor: '#eab308',
+          fillOpacity: 0.03,
+          weight: 1,
+          dashArray: '10, 5'
+        }).addTo(mapInstance.current);
+        circlesRef.current.push(middleCircle);
 
-      // Outer circle (low probability)
-      const outerCircle = L.circle([lastSeen.lat, lastSeen.lng], {
-        radius: milesToMeters(radius.outer),
-        color: '#6366f1',
-        fillColor: '#6366f1',
-        fillOpacity: 0.05,
-        weight: 1,
-        dashArray: '15, 10'
-      }).addTo(mapInstance.current);
-      circlesRef.current.push(outerCircle);
+        // Outer circle (low probability)
+        const outerCircle = L.circle([lastSeen.lat, lastSeen.lng], {
+          radius: milesToMeters(radius.outer),
+          color: '#6366f1',
+          fillColor: '#6366f1',
+          fillOpacity: 0.02,
+          weight: 1,
+          dashArray: '15, 10'
+        }).addTo(mapInstance.current);
+        circlesRef.current.push(outerCircle);
+      }
     }
 
     // Add sighting markers
@@ -256,25 +287,218 @@ export default function SARMapView({
       markersRef.current.push(marker);
     });
 
-  }, [lastSeen, sightings, petSpecies, hoursElapsed]);
+    // Add GPS paths (search areas walked)
+    gpsLayersRef.current.forEach(layer => layer.remove());
+    gpsLayersRef.current = [];
+
+    if (gpsPath && gpsPath.length > 1) {
+      // Convert GPS path to leaflet format
+      const pathCoords = gpsPath.map(point => [point.lat, point.lng]);
+
+      // Calculate search duration
+      const startTime = gpsPath[0].timestamp;
+      const endTime = gpsPath[gpsPath.length - 1].timestamp;
+      const durationMinutes = Math.round((endTime - startTime) / 60000);
+
+      // Draw semi-transparent polygon corridor showing search area covered
+      const searchCorridor = L.polyline(pathCoords, {
+        color: '#a855f7', // Purple
+        weight: 40, // Wide corridor to show search area
+        opacity: 0.25,
+        smoothFactor: 1,
+        lineJoin: 'round',
+        lineCap: 'round'
+      }).addTo(mapInstance.current);
+
+      // Add click handler to show details
+      searchCorridor.on('click', () => {
+        L.popup()
+          .setLatLng(pathCoords[Math.floor(pathCoords.length / 2)])
+          .setContent(`
+            <div style="min-width: 200px;">
+              <strong style="color: #a855f7;">GPS Tracked Search Area</strong>
+              <br/>
+              <span style="font-size: 12px; color: #666;">
+                Duration: ${durationMinutes} minute${durationMinutes !== 1 ? 's' : ''}
+              </span>
+              <br/>
+              <span style="font-size: 12px; color: #666;">
+                ${gpsPath.length} GPS points recorded
+              </span>
+              <br/>
+              <span style="font-size: 11px; color: #999;">
+                ${new Date(startTime).toLocaleTimeString()} - ${new Date(endTime).toLocaleTimeString()}
+              </span>
+            </div>
+          `)
+          .openOn(mapInstance.current);
+      });
+      gpsLayersRef.current.push(searchCorridor);
+
+      // Draw center line showing exact path walked
+      const polyline = L.polyline(pathCoords, {
+        color: '#a855f7', // Purple
+        weight: 3,
+        opacity: 0.9,
+        smoothFactor: 1
+      }).addTo(mapInstance.current);
+      gpsLayersRef.current.push(polyline);
+
+      // Add start marker (green)
+      const startIcon = L.divIcon({
+        className: 'gps-start-marker',
+        html: `
+          <div style="
+            width: 24px;
+            height: 24px;
+            background: #22c55e;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          "></div>
+        `,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+      const startMarker = L.marker(pathCoords[0], { icon: startIcon })
+        .bindPopup(`
+          <div style="min-width: 150px;">
+            <strong style="color: #22c55e;">Search Started</strong>
+            <br/>
+            <span style="font-size: 11px; color: #666;">
+              ${new Date(startTime).toLocaleTimeString()}
+            </span>
+          </div>
+        `)
+        .addTo(mapInstance.current);
+      gpsLayersRef.current.push(startMarker);
+
+      // Add end marker (orange)
+      const endIcon = L.divIcon({
+        className: 'gps-end-marker',
+        html: `
+          <div style="
+            width: 24px;
+            height: 24px;
+            background: #f97316;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          "></div>
+        `,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+      const endMarker = L.marker(pathCoords[pathCoords.length - 1], { icon: endIcon })
+        .bindPopup(`
+          <div style="min-width: 150px;">
+            <strong style="color: #f97316;">Search Ended</strong>
+            <br/>
+            <span style="font-size: 11px; color: #666;">
+              ${new Date(endTime).toLocaleTimeString()}
+            </span>
+            <br/>
+            <span style="font-size: 11px; color: #666;">
+              Duration: ${durationMinutes} min
+            </span>
+          </div>
+        `)
+        .addTo(mapInstance.current);
+      gpsLayersRef.current.push(endMarker);
+
+      // Fit bounds to show entire GPS path
+      mapInstance.current.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+    }
+
+    // Add search coverage heatmap
+    heatmapLayersRef.current.forEach(layer => layer.remove());
+    heatmapLayersRef.current = [];
+
+    if (showHeatmap && gpsPath && gpsPath.length > 0) {
+      // Create coverage circles for each GPS point
+      gpsPath.forEach((point, index) => {
+        // Create a circle representing search coverage at this point
+        // Coverage radius: 100 feet (~30 meters) - typical search visibility
+        const coverageCircle = L.circle([point.lat, point.lng], {
+          radius: 30, // 30 meters
+          fillColor: '#3b82f6', // Blue
+          fillOpacity: 0.1,
+          stroke: false,
+          interactive: false
+        }).addTo(mapInstance.current);
+        heatmapLayersRef.current.push(coverageCircle);
+      });
+    }
+
+  }, [lastSeen, sightings, petSpecies, hoursElapsed, gpsPath, showHeatmap]);
 
   return (
     <div className="w-full h-full relative">
       <div ref={mapRef} className="w-full h-full" />
 
+      {/* Layer Toggle Button */}
+      <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2">
+        <button
+          onClick={() => setMapLayer(mapLayer === 'satellite' ? 'street' : 'satellite')}
+          className="bg-slate-900/90 backdrop-blur border border-slate-700 rounded-xl px-4 py-2.5 text-white font-semibold text-sm hover:bg-slate-800 transition flex items-center gap-2 shadow-lg"
+        >
+          {mapLayer === 'satellite' ? (
+            <>
+              <span>🗺️</span>
+              <span>Street View</span>
+            </>
+          ) : (
+            <>
+              <span>🛰️</span>
+              <span>Satellite</span>
+            </>
+          )}
+        </button>
+
+        {/* Heatmap Toggle Button - Only show if there's GPS data */}
+        {gpsPath && gpsPath.length > 0 && (
+          <button
+            onClick={() => setShowHeatmap(!showHeatmap)}
+            className={`backdrop-blur border rounded-xl px-4 py-2.5 font-semibold text-sm transition flex items-center gap-2 shadow-lg ${
+              showHeatmap
+                ? 'bg-blue-600/90 border-blue-500 text-white hover:bg-blue-700'
+                : 'bg-slate-900/90 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <span>{showHeatmap ? '🔵' : '⚫'}</span>
+            <span>Coverage {showHeatmap ? 'ON' : 'OFF'}</span>
+          </button>
+        )}
+      </div>
+
       {/* Legend */}
-      <div className="absolute bottom-4 left-4 bg-slate-900/90 backdrop-blur rounded-xl p-3 text-xs z-[400]">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-3 h-3 rounded-full bg-red-500" />
-          <span className="text-slate-300">Last Seen</span>
+      <div className="absolute bottom-4 left-4 bg-slate-900/90 backdrop-blur rounded-xl p-3 text-xs z-[400] border border-slate-700">
+        <div className="text-slate-400 font-semibold mb-2 text-[10px] uppercase tracking-wide">Map Legend</div>
+        <div className="flex items-center gap-2 mb-1.5">
+          <div className="w-4 h-4 rounded-full bg-red-500 border border-white flex items-center justify-center text-[10px]">📍</div>
+          <span className="text-slate-200 font-medium">Ran away from home</span>
         </div>
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-3 h-3 rounded-full bg-amber-500" />
-          <span className="text-slate-300">Sighting</span>
+        <div className="flex items-center gap-2 mb-1.5">
+          <div className="w-4 h-4 rounded-full bg-amber-500 border border-white flex items-center justify-center text-[10px]">👁</div>
+          <span className="text-slate-200 font-medium">Reported sighting</span>
         </div>
+        {gpsPath && gpsPath.length > 0 && (
+          <>
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-8 h-3 bg-purple-500/30 rounded border border-purple-500" />
+              <span className="text-slate-200 font-medium">GPS tracked search area (click for details)</span>
+            </div>
+            {showHeatmap && (
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-4 h-4 rounded-full bg-blue-500/20 border border-blue-500" />
+                <span className="text-slate-200 font-medium">Search coverage (~30m visibility)</span>
+              </div>
+            )}
+          </>
+        )}
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-blue-500" />
-          <span className="text-slate-300">You</span>
+          <div className="w-3 h-3 rounded-full bg-blue-500 border border-white" />
+          <span className="text-slate-200 font-medium">Your location</span>
         </div>
       </div>
 

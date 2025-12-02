@@ -228,47 +228,50 @@ export async function POST(request) {
       let squadsToNotify = [];
 
       if (locationType === 'zip') {
-        // For zip code: notify squads in same city OR within their coverage area
+        // For zip code: notify ALL squads in same city OR within 1 mile of city borders
+        const BORDER_DISTANCE_MILES = 1; // Within 1 mile of borders
         const normalizedCityName = (cityName || '').toLowerCase().trim();
         console.log('[Report Debug] Zip mode - looking for city:', normalizedCityName);
+
         squadsToNotify = squadsWithDistance.filter(squad => {
           const squadCity = (squad.city || '').toLowerCase().trim();
-          const cityMatch = squadCity === normalizedCityName;
-          const withinCoverage = squad.distance <= squad.effectiveRadius;
-          if (cityMatch || withinCoverage) {
+          const sameCityMatch = squadCity === normalizedCityName;
+          const withinBorders = squad.distance <= BORDER_DISTANCE_MILES;
+
+          if (sameCityMatch || withinBorders) {
             console.log('[Report Debug] Squad matched:', {
               name: squad.name,
               city: squad.city,
-              cityMatch,
-              withinCoverage,
-              distance: squad.distance.toFixed(2),
-              coverageRadius: squad.effectiveRadius
+              sameCityMatch,
+              withinBorders,
+              distance: squad.distance.toFixed(2)
             });
           }
-          return cityMatch || withinCoverage;
+          return sameCityMatch || withinBorders;
         });
       } else {
-        // For exact address or pin: notify squads whose coverage area includes this location
+        // For exact address or pin: notify ALL squads within 1 mile
+        const BORDER_DISTANCE_MILES = 1; // Within 1 mile
+
         squadsToNotify = squadsWithDistance.filter(squad => {
-          const withinCoverage = squad.distance <= squad.effectiveRadius;
-          if (withinCoverage) {
-            console.log('[Report Debug] Squad matched (address):', {
+          const withinBorders = squad.distance <= BORDER_DISTANCE_MILES;
+          if (withinBorders) {
+            console.log('[Report Debug] Squad within 1 mile:', {
               name: squad.name,
               city: squad.city,
-              distance: squad.distance.toFixed(2),
-              coverageRadius: squad.effectiveRadius
+              distance: squad.distance.toFixed(2)
             });
           }
-          return withinCoverage;
+          return withinBorders;
         });
       }
 
       console.log('[Report Debug] Squads to notify:', squadsToNotify.length);
 
-      // Sort by distance
+      // Sort by distance (closest first)
       squadsToNotify.sort((a, b) => a.distance - b.distance);
 
-      // Create assignments for all qualifying squads
+      // Create assignments for all qualifying squads (unlimited)
       if (squadsToNotify.length > 0) {
         console.log('[Report Debug] Creating assignments for', squadsToNotify.length, 'squads');
         for (const squad of squadsToNotify) {
