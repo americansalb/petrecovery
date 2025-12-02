@@ -16,13 +16,9 @@ const STATE_ABBREV = {
 
 export async function geocodeZipCode(zipCode) {
   try {
+    // Use our backend proxy to avoid CORS issues
     const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?postalcode=${zipCode}&country=US&format=json&limit=1&addressdetails=1`,
-      {
-        headers: {
-          'User-Agent': 'PetRecovery.org/1.0'
-        }
-      }
+      `/api/geocode?q=${zipCode} USA&limit=1&addressdetails=1&countrycodes=us`
     );
 
     if (!response.ok) {

@@ -368,27 +368,62 @@ export async function POST(request) {
       }, { status: 403 });
     }
 
-    // Geocode to get coordinates
-    const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
-    if (!geoRes.ok) {
+    // Geocode to get coordinates - try multiple methods
+    let latitude, longitude;
+
+    // Method 1: Try zippopotam.us (ZIP code lookup)
+    try {
+      const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+      if (geoRes.ok) {
+        const geoData = await geoRes.json();
+        const place = geoData.places[0];
+        latitude = parseFloat(place['latitude']);
+        longitude = parseFloat(place['longitude']);
+        console.log(`[Squad Create] Geocoded via zippopotam: ${latitude}, ${longitude}`);
+      }
+    } catch (err) {
+      console.log('[Squad Create] zippopotam.us failed, trying fallback...');
+    }
+
+    // Method 2: Fallback to Nominatim (city, state lookup)
+    if (!latitude || !longitude) {
+      try {
+        const query = encodeURIComponent(`${city}, ${state}, USA`);
+        const nomRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
+          { headers: { 'User-Agent': 'PetRecovery-RescueSquad/1.0' } }
+        );
+
+        if (nomRes.ok) {
+          const nomData = await nomRes.json();
+          if (nomData.length > 0) {
+            latitude = parseFloat(nomData[0].lat);
+            longitude = parseFloat(nomData[0].lon);
+            console.log(`[Squad Create] Geocoded via Nominatim: ${latitude}, ${longitude}`);
+          }
+        }
+      } catch (err) {
+        console.error('[Squad Create] Nominatim geocoding failed:', err);
+      }
+    }
+
+    // If both methods failed, return error
+    if (!latitude || !longitude) {
       await logEvent({
         event_type: 'squad.create_failed',
         resource_type: 'rescue_squad',
         action: 'create',
         result: 'failure',
         error_code: 'GEOCODING_FAILED',
-        error_message: `Geocoding API returned ${geoRes.status} for ZIP ${zipCode}`,
+        error_message: `Could not geocode ${city}, ${state} (ZIP: ${zipCode})`,
         actor_user_id: session.user.id,
         actor_role: null,
-        metadata: { city, state, zipCode, geoStatus: geoRes.status }
+        metadata: { city, state, zipCode }
       });
-      return NextResponse.json({ error: 'Invalid zip code' }, { status: 400 });
+      return NextResponse.json({
+        error: 'Could not determine location coordinates. Please try again or contact support.'
+      }, { status: 400 });
     }
-
-    const geoData = await geoRes.json();
-    const place = geoData.places[0];
-    const latitude = parseFloat(place['latitude']);
-    const longitude = parseFloat(place['longitude']);
 
     const squadName = `${city} Rescue Squad`;
 
@@ -507,6 +542,97 @@ export async function POST(request) {
       },
     });
 
+    // Auto-assign existing active cases within coverage area
+    const COVERAGE_BUFFER = 1; // Same buffer as case creation
+    let assignedCasesCount = 0;
+
+    try {
+      // Find all active cases (not resolved or closed)
+      const activeCases = await prisma.case.findMany({
+        where: {
+          status: { not: 'RESOLVED' },
+          isDeleted: false,
+          lastSeenLatitude: { not: null },
+          lastSeenLongitude: { not: null },
+        },
+        select: {
+          id: true,
+          lastSeenLatitude: true,
+          lastSeenLongitude: true,
+          petName: true,
+          caseNumber: true,
+        },
+      });
+
+      console.log(`[Squad Create] Found ${activeCases.length} active cases to check for auto-assignment`);
+
+      // Calculate distances and filter cases within coverage
+      const effectiveRadius = squad.radiusMiles + COVERAGE_BUFFER;
+      const casesToAssign = activeCases.filter(c => {
+        const distance = calculateDistance(
+          squad.centerLatitude,
+          squad.centerLongitude,
+          c.lastSeenLatitude,
+          c.lastSeenLongitude
+        );
+        return distance <= effectiveRadius;
+      });
+
+      console.log(`[Squad Create] ${casesToAssign.length} cases within ${effectiveRadius} mile coverage area`);
+
+      // Create assignments for qualifying cases
+      for (const caseData of casesToAssign) {
+        // Check if assignment already exists
+        const existingAssignment = await prisma.caseAssignment.findFirst({
+          where: {
+            caseId: caseData.id,
+            rescueSquadId: squad.id,
+          },
+        });
+
+        if (!existingAssignment) {
+          await prisma.caseAssignment.create({
+            data: {
+              caseId: caseData.id,
+              rescueSquadId: squad.id,
+              status: 'ACCEPTED',
+              acceptedById: session.user.id,
+            },
+          });
+          assignedCasesCount++;
+          console.log(`[Squad Create] Auto-assigned case ${caseData.caseNumber} (${caseData.petName}) to new squad`);
+        }
+      }
+
+      if (assignedCasesCount > 0) {
+        await logEvent({
+          event_type: 'squad.auto_assigned_cases',
+          resource_type: 'rescue_squad',
+          resource_id: squad.id,
+          action: 'update',
+          result: 'success',
+          actor_user_id: session.user.id,
+          metadata: {
+            squadId: squad.id,
+            squadName: squad.name,
+            casesAssigned: assignedCasesCount,
+            coverageRadius: effectiveRadius,
+          },
+        });
+      }
+    } catch (assignmentError) {
+      // Non-fatal: log but continue - squad still created successfully
+      console.error('[Squad Create] Auto-assignment error:', assignmentError);
+      await logEvent({
+        event_type: 'squad.auto_assignment_failed',
+        resource_type: 'rescue_squad',
+        resource_id: squad.id,
+        action: 'update',
+        result: 'failure',
+        error_message: assignmentError.message,
+      });
+    }
+
     // Emit squad.created success event
     await logEvent({
       event_type: 'squad.created',
@@ -526,11 +652,12 @@ export async function POST(request) {
         centerLongitude: squad.centerLongitude,
         radiusMiles: squad.radiusMiles,
         founderRole: 'FOUNDER',
-        isActive: squad.isActive
+        isActive: squad.isActive,
+        casesAutoAssigned: assignedCasesCount,
       }
     });
 
-    return NextResponse.json({ squad }, { status: 201 });
+    return NextResponse.json({ squad, casesAutoAssigned: assignedCasesCount }, { status: 201 });
   } catch (error) {
     await logEvent({
       event_type: 'squad.create_failed',

@@ -179,11 +179,10 @@ export async function POST(request) {
     }
 
     // Find and assign to rescue squads based on location type
-    // - Exact address/pin: Notify squads within 2 miles
-    // - Zip code: Notify squads in that town and neighboring towns within 2 miles of center
+    // Use squad's coverage area (radiusMiles) + 1 mile buffer for all location types
     let assignedSquad = null;
     let assignedSquads = [];
-    const NOTIFICATION_RADIUS = 2; // 2 miles for all notification types
+    const COVERAGE_BUFFER = 1; // Add 1 mile to squad's coverage radius
 
     try {
       const squads = await prisma.rescueSquad.findMany({
@@ -211,32 +210,57 @@ export async function POST(request) {
             center[0], center[1],
             squad.centerLatitude, squad.centerLongitude
           ),
+          effectiveRadius: squad.radiusMiles + COVERAGE_BUFFER, // Squad coverage + buffer
         }));
 
       console.log('[Report Debug] Squads with valid coordinates:', squadsWithDistance.length);
-      // Log a few closest squads
+      // Log a few closest squads with their coverage
       const closestSquads = [...squadsWithDistance].sort((a, b) => a.distance - b.distance).slice(0, 5);
-      console.log('[Report Debug] 5 closest squads:', closestSquads.map(s => ({ name: s.name, city: s.city, distance: s.distance.toFixed(2) })));
+      console.log('[Report Debug] 5 closest squads:', closestSquads.map(s => ({
+        name: s.name,
+        city: s.city,
+        distance: s.distance.toFixed(2),
+        coverageRadius: s.effectiveRadius,
+        withinCoverage: s.distance <= s.effectiveRadius
+      })));
 
-      // Determine which squads to notify based on location type
+      // Determine which squads to notify - use squad's coverage area + buffer
       let squadsToNotify = [];
 
       if (locationType === 'zip') {
-        // For zip code: notify squads in same city OR within 2 miles of center
+        // For zip code: notify squads in same city OR within their coverage area
         const normalizedCityName = (cityName || '').toLowerCase().trim();
         console.log('[Report Debug] Zip mode - looking for city:', normalizedCityName);
         squadsToNotify = squadsWithDistance.filter(squad => {
           const squadCity = (squad.city || '').toLowerCase().trim();
           const cityMatch = squadCity === normalizedCityName;
-          const distanceMatch = squad.distance <= NOTIFICATION_RADIUS;
-          if (cityMatch || distanceMatch) {
-            console.log('[Report Debug] Squad matched:', { name: squad.name, city: squad.city, cityMatch, distanceMatch, distance: squad.distance.toFixed(2) });
+          const withinCoverage = squad.distance <= squad.effectiveRadius;
+          if (cityMatch || withinCoverage) {
+            console.log('[Report Debug] Squad matched:', {
+              name: squad.name,
+              city: squad.city,
+              cityMatch,
+              withinCoverage,
+              distance: squad.distance.toFixed(2),
+              coverageRadius: squad.effectiveRadius
+            });
           }
-          return cityMatch || distanceMatch;
+          return cityMatch || withinCoverage;
         });
       } else {
-        // For exact address or pin: notify squads within 2 miles
-        squadsToNotify = squadsWithDistance.filter(squad => squad.distance <= NOTIFICATION_RADIUS);
+        // For exact address or pin: notify squads whose coverage area includes this location
+        squadsToNotify = squadsWithDistance.filter(squad => {
+          const withinCoverage = squad.distance <= squad.effectiveRadius;
+          if (withinCoverage) {
+            console.log('[Report Debug] Squad matched (address):', {
+              name: squad.name,
+              city: squad.city,
+              distance: squad.distance.toFixed(2),
+              coverageRadius: squad.effectiveRadius
+            });
+          }
+          return withinCoverage;
+        });
       }
 
       console.log('[Report Debug] Squads to notify:', squadsToNotify.length);

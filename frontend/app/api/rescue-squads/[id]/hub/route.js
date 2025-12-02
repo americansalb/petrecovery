@@ -128,12 +128,9 @@ export async function GET(request, { params }) {
 
     console.log('[Hub Debug] Found caseAssignments:', caseAssignments.length);
     if (caseAssignments.length > 0) {
-      console.log('[Hub Debug] First assignment:', {
-        id: caseAssignments[0].id,
-        caseId: caseAssignments[0].caseId,
-        rescueSquadId: caseAssignments[0].rescueSquadId,
-        status: caseAssignments[0].status,
-        casePetName: caseAssignments[0].case?.petName,
+      console.log('[Hub Debug] Assignment details:');
+      caseAssignments.forEach((assignment, idx) => {
+        console.log(`  [${idx}] ID: ${assignment.id}, CaseID: ${assignment.caseId}, Status: ${assignment.status}, PetName: ${assignment.case?.petName}, CaseStatus: ${assignment.case?.status}`);
       });
     }
 
@@ -159,6 +156,14 @@ export async function GET(request, { params }) {
       else if (assignment.status === 'ACCEPTED') status = 'PENDING';
       else if (assignment.status === 'ACTIVE') status = 'IN_PROGRESS';
 
+      // Get photo URL from petPhotoUrl field (Case model doesn't have photoUrls)
+      let photoUrl = c.petPhotoUrl || null;
+
+      // DEFENSIVE: Ensure photo URL has https:// prefix
+      if (photoUrl && !photoUrl.startsWith('http')) {
+        photoUrl = `https://${photoUrl}`;
+      }
+
       return {
         id: c.id,
         caseNumber: c.caseNumber,
@@ -171,7 +176,7 @@ export async function GET(request, { params }) {
         species: c.petSpecies,
         breed: c.petBreed,
         color: c.petColor,
-        photoUrl: c.petPhotoUrl,
+        photoUrl,  // Single photo URL from petPhotoUrl field
         status,
         urgency,
         lastSeenAt: c.lastSeenAt?.toISOString(),
