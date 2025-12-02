@@ -807,10 +807,21 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
     { id: 25, label: 'Contact breed-specific rescue groups', type: 'CONTACT_BREED_RESCUES', completed: false, completions: [] },
   ];
 
-  // Initialize tasks if empty
+  // Initialize tasks - force update to v2 (25 tasks) if user has old v1 (6 tasks)
   useEffect(() => {
     if (tasks.length === 0) {
       setTasks(defaultTasks);
+    } else if (tasks.length < 25) {
+      // User has old 6-task version, force upgrade to 25-task version
+      // Preserve any completions from matching old tasks
+      const upgradedTasks = defaultTasks.map(newTask => {
+        const oldTask = tasks.find(t => t.type === newTask.type);
+        if (oldTask && oldTask.completed) {
+          return { ...newTask, completed: oldTask.completed, completions: oldTask.completions };
+        }
+        return newTask;
+      });
+      setTasks(upgradedTasks);
     }
   }, []);
 
