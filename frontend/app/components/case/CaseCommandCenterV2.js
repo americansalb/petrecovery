@@ -14,7 +14,6 @@ import dynamic from 'next/dynamic';
 import TaskCompletionModal from '@/components/case/TaskCompletionModal';
 import { normalizePhotoUrl, fetchWithRetry, formatErrorMessage, isOnline } from '@/app/lib/utils';
 import { PageLoading } from '@/components/LoadingSkeleton';
-import { AlertCircle, RefreshCw } from 'lucide-react';
 import {
   MapPin,
   Clock,
@@ -35,6 +34,7 @@ import {
   Eye,
   Send,
   Navigation,
+  RefreshCw,
 } from 'lucide-react';
 
 // Lazy load map for better performance
