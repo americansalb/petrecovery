@@ -42,6 +42,7 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
     // Station setup
     stationType: 'FOOD_WATER',
     stationLocation: '',
+    stationGPS: null,
     itemsUsed: '',
 
     // Vet specific
@@ -65,11 +66,13 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
 
     // Trap setup
     trapLocation: '',
+    trapGPS: null,
     trapType: '',
     checkingSchedule: '',
 
     // Camera setup
     cameraLocation: '',
+    cameraGPS: null,
     cameraType: '',
 
     // Online monitoring
@@ -127,6 +130,28 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
               timestamp: new Date().toISOString(),
             }]
           }));
+        },
+        (err) => {
+          alert('Could not get your location. Please enable location services.');
+          console.error('Geolocation error:', err);
+        }
+      );
+    } else {
+      alert('Geolocation is not supported by your browser.');
+    }
+  };
+
+  // Generic GPS capture for single-location tasks
+  const captureGPSLocation = (fieldName) => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const gpsData = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            timestamp: new Date().toISOString(),
+          };
+          setDetails(prev => ({ ...prev, [fieldName]: gpsData }));
         },
         (err) => {
           alert('Could not get your location. Please enable location services.');
@@ -527,18 +552,46 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                 <option value="COMBINATION">Combination (food + scent items)</option>
               </select>
             </div>
+
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Where exactly did you place it? *
               </label>
-              <input
-                type="text"
-                value={details.stationLocation}
-                onChange={(e) => setDetails({ ...details, stationLocation: e.target.value })}
-                placeholder="Like 'front porch', 'back door', 'garage entrance'..."
-                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
-              />
+              {details.stationGPS ? (
+                <div className="bg-emerald-900/20 border-2 border-emerald-500/30 rounded-xl p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-emerald-200 font-semibold text-sm mb-2">📍 Location captured</div>
+                      <div className="text-emerald-400/60 text-xs space-y-1">
+                        <div>{details.stationGPS.lat.toFixed(5)}, {details.stationGPS.lng.toFixed(5)}</div>
+                        <div>{new Date(details.stationGPS.timestamp).toLocaleString()}</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setDetails({ ...details, stationGPS: null })}
+                      className="text-red-400 hover:text-red-300 text-xs"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={details.stationLocation}
+                    onChange={(e) => setDetails({ ...details, stationLocation: e.target.value })}
+                    placeholder="Optional description: 'front porch', 'back door'..."
+                    className="w-full px-3 py-2 mt-3 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-cyan-500"
+                    style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={() => captureGPSLocation('stationGPS')}
+                  className="w-full py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-cyan-600 transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
+                >
+                  <MapPin size={20} />
+                  Capture My Location Now
+                </button>
+              )}
             </div>
             <div>
               <label className="text-slate-200 text-sm font-medium block mb-2">
@@ -815,14 +868,41 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Where did you place the trap? *
               </label>
-              <input
-                type="text"
-                value={details.trapLocation}
-                onChange={(e) => setDetails({ ...details, trapLocation: e.target.value })}
-                placeholder="Exact location - backyard, last sighting area, etc."
-                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
-              />
+              {details.trapGPS ? (
+                <div className="bg-emerald-900/20 border-2 border-emerald-500/30 rounded-xl p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-emerald-200 font-semibold text-sm mb-2">📍 Trap location captured</div>
+                      <div className="text-emerald-400/60 text-xs space-y-1">
+                        <div>{details.trapGPS.lat.toFixed(5)}, {details.trapGPS.lng.toFixed(5)}</div>
+                        <div>{new Date(details.trapGPS.timestamp).toLocaleString()}</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setDetails({ ...details, trapGPS: null })}
+                      className="text-red-400 hover:text-red-300 text-xs"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={details.trapLocation}
+                    onChange={(e) => setDetails({ ...details, trapLocation: e.target.value })}
+                    placeholder="Optional description: 'backyard', 'last sighting area'..."
+                    className="w-full px-3 py-2 mt-3 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-cyan-500"
+                    style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={() => captureGPSLocation('trapGPS')}
+                  className="w-full py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-cyan-600 transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
+                >
+                  <MapPin size={20} />
+                  Capture Trap Location Now
+                </button>
+              )}
             </div>
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
@@ -874,14 +954,41 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Where did you set up cameras? *
               </label>
-              <textarea
-                value={details.cameraLocation}
-                onChange={(e) => setDetails({ ...details, cameraLocation: e.target.value })}
-                placeholder="Specific locations - near food station, back door, last seen area..."
-                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
-                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
-                rows={3}
-              />
+              {details.cameraGPS ? (
+                <div className="bg-emerald-900/20 border-2 border-emerald-500/30 rounded-xl p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-emerald-200 font-semibold text-sm mb-2">📹 Camera location captured</div>
+                      <div className="text-emerald-400/60 text-xs space-y-1">
+                        <div>{details.cameraGPS.lat.toFixed(5)}, {details.cameraGPS.lng.toFixed(5)}</div>
+                        <div>{new Date(details.cameraGPS.timestamp).toLocaleString()}</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setDetails({ ...details, cameraGPS: null })}
+                      className="text-red-400 hover:text-red-300 text-xs"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={details.cameraLocation}
+                    onChange={(e) => setDetails({ ...details, cameraLocation: e.target.value })}
+                    placeholder="Optional: 'near food station', 'back door'..."
+                    className="w-full px-3 py-2 mt-3 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-cyan-500"
+                    style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={() => captureGPSLocation('cameraGPS')}
+                  className="w-full py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-cyan-600 transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
+                >
+                  <MapPin size={20} />
+                  Capture Camera Location Now
+                </button>
+              )}
             </div>
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
