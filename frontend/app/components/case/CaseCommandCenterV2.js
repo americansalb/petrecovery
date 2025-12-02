@@ -73,6 +73,9 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
   const [newMessage, setNewMessage] = useState('');
   const [selectedLocationHighlight, setSelectedLocationHighlight] = useState(null); // For highlighting locations on map
   const [expandedCategories, setExpandedCategories] = useState(['immediate']); // Start with immediate expanded
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [isGPSTracking, setIsGPSTracking] = useState(false);
+  const [showCustomActionModal, setShowCustomActionModal] = useState(false);
 
   // Load GPS path and tasks from localStorage on mount
   useEffect(() => {
@@ -959,10 +962,6 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
       setTasks(upgradedTasks);
     }
   }, []);
-
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [isGPSTracking, setIsGPSTracking] = useState(false);
-  const [showCustomActionModal, setShowCustomActionModal] = useState(false);
 
   // Auto-save GPS path when tab closes (people forget to click "Done Searching")
   useEffect(() => {
