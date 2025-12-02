@@ -62,13 +62,11 @@ export default function MapModeV2({
 
         {/* Case Detail Bottom Sheet - Overlays on map */}
         {selectedCase && (
-          <div className="absolute inset-0 pointer-events-none z-20">
-            <CaseBottomSheet
-              caseData={selectedCase}
-              onClose={() => setSelectedCaseId(null)}
-              onOpenCase={() => router.push(`/cases/${selectedCase.caseNumber}`)}
-            />
-          </div>
+          <CaseBottomSheet
+            caseData={selectedCase}
+            onClose={() => setSelectedCaseId(null)}
+            onOpenCase={() => router.push(`/cases/${selectedCase.caseNumber}`)}
+          />
         )}
       </div>
 
@@ -127,8 +125,8 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
   const statusStyle = statusConfig[status] || statusConfig.ACTIVE;
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-[100] animate-slide-up pointer-events-auto">
-      <div className="bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl border-t-2 border-cyan-500/80 rounded-t-2xl shadow-[0_-10px_40px_rgba(34,211,238,0.3)] p-4" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+    <div className="absolute bottom-0 left-0 right-0 z-[100] pointer-events-auto">
+      <div className="bg-slate-900 border-t-4 border-cyan-400 rounded-t-2xl shadow-[0_-10px_40px_rgba(34,211,238,0.5)] p-4" style={{ maxHeight: '280px', overflowY: 'auto', minHeight: '200px' }}>
         {/* Close Button */}
         <button
           onClick={onClose}
