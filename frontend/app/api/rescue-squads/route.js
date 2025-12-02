@@ -368,27 +368,62 @@ export async function POST(request) {
       }, { status: 403 });
     }
 
-    // Geocode to get coordinates
-    const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
-    if (!geoRes.ok) {
+    // Geocode to get coordinates - try multiple methods
+    let latitude, longitude;
+
+    // Method 1: Try zippopotam.us (ZIP code lookup)
+    try {
+      const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+      if (geoRes.ok) {
+        const geoData = await geoRes.json();
+        const place = geoData.places[0];
+        latitude = parseFloat(place['latitude']);
+        longitude = parseFloat(place['longitude']);
+        console.log(`[Squad Create] Geocoded via zippopotam: ${latitude}, ${longitude}`);
+      }
+    } catch (err) {
+      console.log('[Squad Create] zippopotam.us failed, trying fallback...');
+    }
+
+    // Method 2: Fallback to Nominatim (city, state lookup)
+    if (!latitude || !longitude) {
+      try {
+        const query = encodeURIComponent(`${city}, ${state}, USA`);
+        const nomRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
+          { headers: { 'User-Agent': 'PetRecovery-RescueSquad/1.0' } }
+        );
+
+        if (nomRes.ok) {
+          const nomData = await nomRes.json();
+          if (nomData.length > 0) {
+            latitude = parseFloat(nomData[0].lat);
+            longitude = parseFloat(nomData[0].lon);
+            console.log(`[Squad Create] Geocoded via Nominatim: ${latitude}, ${longitude}`);
+          }
+        }
+      } catch (err) {
+        console.error('[Squad Create] Nominatim geocoding failed:', err);
+      }
+    }
+
+    // If both methods failed, return error
+    if (!latitude || !longitude) {
       await logEvent({
         event_type: 'squad.create_failed',
         resource_type: 'rescue_squad',
         action: 'create',
         result: 'failure',
         error_code: 'GEOCODING_FAILED',
-        error_message: `Geocoding API returned ${geoRes.status} for ZIP ${zipCode}`,
+        error_message: `Could not geocode ${city}, ${state} (ZIP: ${zipCode})`,
         actor_user_id: session.user.id,
         actor_role: null,
-        metadata: { city, state, zipCode, geoStatus: geoRes.status }
+        metadata: { city, state, zipCode }
       });
-      return NextResponse.json({ error: 'Invalid zip code' }, { status: 400 });
+      return NextResponse.json({
+        error: 'Could not determine location coordinates. Please try again or contact support.'
+      }, { status: 400 });
     }
-
-    const geoData = await geoRes.json();
-    const place = geoData.places[0];
-    const latitude = parseFloat(place['latitude']);
-    const longitude = parseFloat(place['longitude']);
 
     const squadName = `${city} Rescue Squad`;
 
