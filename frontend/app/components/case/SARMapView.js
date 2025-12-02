@@ -40,6 +40,8 @@ export default function SARMapView({
   const userMarkerRef = useRef(null);
   const [mapLayer, setMapLayer] = useState('satellite'); // 'satellite' or 'street'
   const baseLayersRef = useRef({});
+  const [showHeatmap, setShowHeatmap] = useState(true); // Toggle for search coverage heatmap
+  const heatmapLayersRef = useRef([]);
 
   // Calculate search radius based on time and pet type
   const getSearchRadius = () => {
@@ -408,14 +410,34 @@ export default function SARMapView({
       mapInstance.current.fitBounds(polyline.getBounds(), { padding: [50, 50] });
     }
 
-  }, [lastSeen, sightings, petSpecies, hoursElapsed, gpsPath]);
+    // Add search coverage heatmap
+    heatmapLayersRef.current.forEach(layer => layer.remove());
+    heatmapLayersRef.current = [];
+
+    if (showHeatmap && gpsPath && gpsPath.length > 0) {
+      // Create coverage circles for each GPS point
+      gpsPath.forEach((point, index) => {
+        // Create a circle representing search coverage at this point
+        // Coverage radius: 100 feet (~30 meters) - typical search visibility
+        const coverageCircle = L.circle([point.lat, point.lng], {
+          radius: 30, // 30 meters
+          fillColor: '#3b82f6', // Blue
+          fillOpacity: 0.1,
+          stroke: false,
+          interactive: false
+        }).addTo(mapInstance.current);
+        heatmapLayersRef.current.push(coverageCircle);
+      });
+    }
+
+  }, [lastSeen, sightings, petSpecies, hoursElapsed, gpsPath, showHeatmap]);
 
   return (
     <div className="w-full h-full relative">
       <div ref={mapRef} className="w-full h-full" />
 
       {/* Layer Toggle Button */}
-      <div className="absolute top-4 right-4 z-[400]">
+      <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2">
         <button
           onClick={() => setMapLayer(mapLayer === 'satellite' ? 'street' : 'satellite')}
           className="bg-slate-900/90 backdrop-blur border border-slate-700 rounded-xl px-4 py-2.5 text-white font-semibold text-sm hover:bg-slate-800 transition flex items-center gap-2 shadow-lg"
@@ -432,6 +454,21 @@ export default function SARMapView({
             </>
           )}
         </button>
+
+        {/* Heatmap Toggle Button - Only show if there's GPS data */}
+        {gpsPath && gpsPath.length > 0 && (
+          <button
+            onClick={() => setShowHeatmap(!showHeatmap)}
+            className={`backdrop-blur border rounded-xl px-4 py-2.5 font-semibold text-sm transition flex items-center gap-2 shadow-lg ${
+              showHeatmap
+                ? 'bg-blue-600/90 border-blue-500 text-white hover:bg-blue-700'
+                : 'bg-slate-900/90 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <span>{showHeatmap ? '🔵' : '⚫'}</span>
+            <span>Coverage {showHeatmap ? 'ON' : 'OFF'}</span>
+          </button>
+        )}
       </div>
 
       {/* Legend */}
@@ -446,10 +483,18 @@ export default function SARMapView({
           <span className="text-slate-200 font-medium">Reported sighting</span>
         </div>
         {gpsPath && gpsPath.length > 0 && (
-          <div className="flex items-center gap-2 mb-1.5">
-            <div className="w-8 h-3 bg-purple-500/30 rounded border border-purple-500" />
-            <span className="text-slate-200 font-medium">GPS tracked search area (click for details)</span>
-          </div>
+          <>
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-8 h-3 bg-purple-500/30 rounded border border-purple-500" />
+              <span className="text-slate-200 font-medium">GPS tracked search area (click for details)</span>
+            </div>
+            {showHeatmap && (
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-4 h-4 rounded-full bg-blue-500/20 border border-blue-500" />
+                <span className="text-slate-200 font-medium">Search coverage (~30m visibility)</span>
+              </div>
+            )}
+          </>
         )}
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-blue-500 border border-white" />
