@@ -165,6 +165,7 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
                 onKeyPress={(e) => e.key === 'Enter' && handleComment()}
                 placeholder="Write a comment..."
                 className="flex-1 px-4 py-3 rounded-xl bg-slate-800/50 border-2 border-slate-600/50 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30 transition-all"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               />
               <button
                 onClick={handleComment}
