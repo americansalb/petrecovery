@@ -228,47 +228,77 @@ export async function POST(request) {
       let squadsToNotify = [];
 
       if (locationType === 'zip') {
-        // For zip code: notify squads in same city OR within their coverage area
+        // For zip code: prioritize squads in the same city, then closest nearby squads
+        const MAX_DISTANCE_MILES = 5; // Only squads within 5 miles
+        const MAX_SQUADS = 2; // At most 2 squads per case
+
         const normalizedCityName = (cityName || '').toLowerCase().trim();
         console.log('[Report Debug] Zip mode - looking for city:', normalizedCityName);
-        squadsToNotify = squadsWithDistance.filter(squad => {
+
+        // First try to find squads in the exact same city
+        const sameCitySquads = squadsWithDistance.filter(squad => {
           const squadCity = (squad.city || '').toLowerCase().trim();
-          const cityMatch = squadCity === normalizedCityName;
-          const withinCoverage = squad.distance <= squad.effectiveRadius;
-          if (cityMatch || withinCoverage) {
-            console.log('[Report Debug] Squad matched:', {
-              name: squad.name,
-              city: squad.city,
-              cityMatch,
-              withinCoverage,
-              distance: squad.distance.toFixed(2),
-              coverageRadius: squad.effectiveRadius
-            });
-          }
-          return cityMatch || withinCoverage;
+          return squadCity === normalizedCityName;
         });
+
+        if (sameCitySquads.length > 0) {
+          // If there are squads in the same city, only use those (closest 2)
+          sameCitySquads.sort((a, b) => a.distance - b.distance);
+          squadsToNotify = sameCitySquads.slice(0, MAX_SQUADS);
+          console.log('[Report Debug] Found squads in same city:', squadsToNotify.map(s => ({
+            name: s.name,
+            city: s.city,
+            distance: s.distance.toFixed(2)
+          })));
+        } else {
+          // If no squads in same city, find closest nearby squads
+          const nearbySquads = squadsWithDistance.filter(squad =>
+            squad.distance <= MAX_DISTANCE_MILES
+          );
+          nearbySquads.sort((a, b) => a.distance - b.distance);
+          squadsToNotify = nearbySquads.slice(0, MAX_SQUADS);
+          console.log('[Report Debug] No squads in city, using nearest:', squadsToNotify.map(s => ({
+            name: s.name,
+            city: s.city,
+            distance: s.distance.toFixed(2)
+          })));
+        }
       } else {
-        // For exact address or pin: notify squads whose coverage area includes this location
-        squadsToNotify = squadsWithDistance.filter(squad => {
-          const withinCoverage = squad.distance <= squad.effectiveRadius;
-          if (withinCoverage) {
-            console.log('[Report Debug] Squad matched (address):', {
+        // For exact address or pin: only notify the closest 1-2 squads (not all squads within coverage radius)
+        // This prevents cases from being assigned to squads that are too far away
+        const MAX_DISTANCE_MILES = 5; // Only squads within 5 miles
+        const MAX_SQUADS = 2; // At most 2 squads per case
+
+        // First filter to squads within reasonable distance
+        const nearbySquads = squadsWithDistance.filter(squad => {
+          const withinReasonableDistance = squad.distance <= MAX_DISTANCE_MILES;
+          if (withinReasonableDistance) {
+            console.log('[Report Debug] Squad within range (address):', {
               name: squad.name,
               city: squad.city,
               distance: squad.distance.toFixed(2),
-              coverageRadius: squad.effectiveRadius
+              maxDistance: MAX_DISTANCE_MILES
             });
           }
-          return withinCoverage;
+          return withinReasonableDistance;
         });
+
+        // Sort by distance and take only closest 1-2
+        nearbySquads.sort((a, b) => a.distance - b.distance);
+        squadsToNotify = nearbySquads.slice(0, MAX_SQUADS);
+
+        console.log('[Report Debug] Filtered to closest squads:', squadsToNotify.map(s => ({
+          name: s.name,
+          distance: s.distance.toFixed(2)
+        })));
       }
 
       console.log('[Report Debug] Squads to notify:', squadsToNotify.length);
 
-      // Sort by distance
+      // Sort by distance (already sorted for pin/address, but re-sort for zip code)
       squadsToNotify.sort((a, b) => a.distance - b.distance);
 
-      // Create assignments for all qualifying squads
+      // Create assignments for qualifying squads
       if (squadsToNotify.length > 0) {
         console.log('[Report Debug] Creating assignments for', squadsToNotify.length, 'squads');
         for (const squad of squadsToNotify) {
