@@ -65,6 +65,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
   const [activeTab, setActiveTab] = useState('overview'); // overview | map | activity | team | manage
   const [showSightingForm, setShowSightingForm] = useState(false);
   const [newMessage, setNewMessage] = useState('');
+  const [selectedLocationHighlight, setSelectedLocationHighlight] = useState(null); // For highlighting locations on map
 
   // Load GPS path and tasks from localStorage on mount
   useEffect(() => {
@@ -297,6 +298,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
             sightings={sightings}
             timeMissing={timeMissing}
             gpsPath={gpsPath}
+            highlightLocation={selectedLocationHighlight}
             onReportSighting={() => setShowSightingForm(true)}
           />
         )}
@@ -310,6 +312,10 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
             setNewMessage={setNewMessage}
             tasks={tasks}
             gpsPath={gpsPath}
+            onLocationClick={(location) => {
+              setSelectedLocationHighlight(location);
+              setActiveTab('map');
+            }}
           />
         )}
 
@@ -507,7 +513,7 @@ function OverviewTab({ caseData, timeMissing, isUrgent, isReunited, sightingsCou
 // ============================================================================
 // MAP TAB - Full-screen search coordination
 // ============================================================================
-function MapTab({ caseData, sightings, timeMissing, gpsPath, onReportSighting }) {
+function MapTab({ caseData, sightings, timeMissing, gpsPath, highlightLocation, onReportSighting }) {
   return (
     <div className="relative">
       {/* Map Container */}
@@ -525,6 +531,7 @@ function MapTab({ caseData, sightings, timeMissing, gpsPath, onReportSighting })
           petSpecies={caseData?.petSpecies}
           hoursElapsed={timeMissing ? parseInt(timeMissing) : 24}
           gpsPath={gpsPath}
+          highlightLocation={highlightLocation}
           showControls
         />
 
@@ -553,7 +560,7 @@ function MapTab({ caseData, sightings, timeMissing, gpsPath, onReportSighting })
 // ============================================================================
 // ACTIVITY TAB - Unified Timeline
 // ============================================================================
-function ActivityTab({ sightings, tasks, gpsPath }) {
+function ActivityTab({ sightings, tasks, gpsPath, onLocationClick }) {
   // Build unified timeline from all activities
   const buildTimeline = () => {
     const items = [];
@@ -598,18 +605,64 @@ function ActivityTab({ sightings, tasks, gpsPath }) {
   const renderTimelineItem = (item, index) => {
     const timestamp = new Date(item.timestamp);
 
+    // Helper to extract location from sighting
+    const getSightingLocation = (s) => {
+      if (s.latitude && s.longitude) {
+        return { lat: s.latitude, lng: s.longitude, label: 'Sighting', description: s.address };
+      }
+      return null;
+    };
+
+    // Helper to extract first location from task
+    const getTaskLocation = (details) => {
+      // Check multi-location GPS fields
+      if (details.flyerLocations?.length > 0) {
+        const loc = details.flyerLocations[0];
+        return { lat: loc.lat, lng: loc.lng, label: 'Flyer Location', description: loc.description };
+      }
+      if (details.areasGPS?.length > 0) {
+        const loc = details.areasGPS[0];
+        return { lat: loc.lat, lng: loc.lng, label: 'Search Area', description: loc.description };
+      }
+      if (details.searchGPS?.length > 0) {
+        const loc = details.searchGPS[0];
+        return { lat: loc.lat, lng: loc.lng, label: 'Search Point', description: loc.description };
+      }
+      // Check single-location GPS fields
+      if (details.stationGPS) {
+        return { lat: details.stationGPS.lat, lng: details.stationGPS.lng, label: 'Station', description: details.stationLocation };
+      }
+      if (details.trapGPS) {
+        return { lat: details.trapGPS.lat, lng: details.trapGPS.lng, label: 'Trap', description: details.trapLocation };
+      }
+      if (details.cameraGPS) {
+        return { lat: details.cameraGPS.lat, lng: details.cameraGPS.lng, label: 'Camera', description: details.cameraLocation };
+      }
+      return null;
+    };
+
     switch (item.type) {
       case 'sighting':
         const s = item.data;
+        const sightingLocation = getSightingLocation(s);
         return (
-          <div key={`sighting-${index}`} className="bg-slate-800/50 rounded-xl p-4 border-2 border-amber-500/30 hover:border-amber-500/50 transition">
+          <div
+            key={`sighting-${index}`}
+            onClick={() => sightingLocation && onLocationClick(sightingLocation)}
+            className={`bg-slate-800/50 rounded-xl p-4 border-2 border-amber-500/30 hover:border-amber-500/50 transition ${sightingLocation ? 'cursor-pointer hover:bg-slate-800/70' : ''}`}
+          >
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0 text-xl">
                 👁
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-amber-400 font-bold">Sighting Reported</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-amber-400 font-bold">Sighting Reported</span>
+                    {sightingLocation && (
+                      <span className="text-xs text-cyan-400">Click to view on map →</span>
+                    )}
+                  </div>
                   <span className="text-slate-500 text-xs">
                     {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
@@ -632,8 +685,13 @@ function ActivityTab({ sightings, tasks, gpsPath }) {
 
       case 'task':
         const { task, taskType, details, completedBy } = item.data;
+        const taskLocation = getTaskLocation(details);
         return (
-          <div key={`task-${index}`} className="bg-slate-800/50 rounded-xl p-4 border-2 border-emerald-500/30 hover:border-emerald-500/50 transition">
+          <div
+            key={`task-${index}`}
+            onClick={() => taskLocation && onLocationClick(taskLocation)}
+            className={`bg-slate-800/50 rounded-xl p-4 border-2 border-emerald-500/30 hover:border-emerald-500/50 transition ${taskLocation ? 'cursor-pointer hover:bg-slate-800/70' : ''}`}
+          >
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 text-xl">
                 ✓
@@ -641,7 +699,12 @@ function ActivityTab({ sightings, tasks, gpsPath }) {
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex-1">
-                    <span className="text-emerald-400 font-bold">{task.label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-emerald-400 font-bold">{task.label}</span>
+                      {taskLocation && (
+                        <span className="text-xs text-cyan-400">Click to view on map →</span>
+                      )}
+                    </div>
                     {completedBy && (
                       <p className="text-slate-400 text-xs mt-1">
                         👤 {completedBy.name || completedBy.email || 'Team member'}
