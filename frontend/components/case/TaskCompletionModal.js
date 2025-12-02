@@ -26,13 +26,55 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
     shelterName: '',
     shelterResult: 'CALLED',
     shelterContact: '',
+    leftPhoto: false,
+    leftDescription: false,
+    scheduledCallback: '',
 
     // Social media specific
     platform: 'FACEBOOK',
     postUrl: '',
+    groupsPosted: '',
 
     // Property search specific
     areasChecked: '',
+    searchDuration: '',
+
+    // Station setup
+    stationType: 'FOOD_WATER',
+    stationLocation: '',
+    itemsUsed: '',
+
+    // Vet specific
+    vetName: '',
+    vetResult: '',
+
+    // Microchip
+    chipCompany: '',
+    chipNumber: '',
+    updatedInfo: false,
+
+    // Contact info
+    organizationName: '',
+    contactPerson: '',
+    contactResult: '',
+
+    // Search timing
+    searchTime: 'DAWN',
+    searchLocation: '',
+    anyResponse: '',
+
+    // Trap setup
+    trapLocation: '',
+    trapType: '',
+    checkingSchedule: '',
+
+    // Camera setup
+    cameraLocation: '',
+    cameraType: '',
+
+    // Online monitoring
+    sitesChecked: '',
+    foundMatches: false,
   });
 
   const [isAddingLocation, setIsAddingLocation] = useState(false);
@@ -221,19 +263,19 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
           <div className="space-y-4">
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
               <p className="text-blue-200 text-sm">
-                💙 <strong>Thank you for checking!</strong> Shelters get new animals daily - keep checking back every few days.
+                💙 <strong>Thank you for checking!</strong> Shelters get new animals daily - check back every 2-3 days. Many pets come in days later.
               </p>
             </div>
 
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
-                Which shelter did you contact?
+                Which shelter did you contact? *
               </label>
               <input
                 type="text"
                 value={details.shelterName}
                 onChange={(e) => setDetails({ ...details, shelterName: e.target.value })}
-                placeholder="Shelter name (like 'County Animal Control' or 'Humane Society')"
+                placeholder="Full name like 'Cook County Animal Control' or 'Humane Society of Chicago'"
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               />
@@ -241,7 +283,7 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
 
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
-                What happened?
+                What happened? *
               </label>
               <select
                 value={details.shelterResult}
@@ -249,35 +291,73 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white focus:outline-none focus:border-cyan-500"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               >
-                <option value="CALLED">Called them - no match yet</option>
-                <option value="VISITED">Went in person - no match yet</option>
-                <option value="POSSIBLE_MATCH">They might have them! 🎉</option>
-                <option value="LEFT_INFO">Left our contact info</option>
+                <option value="NO_MATCH">No match found - they'll watch for them</option>
+                <option value="POSSIBLE_MATCH">POSSIBLE MATCH - going to check! 🎉</option>
+                <option value="LEFT_VOICEMAIL">Left voicemail with callback number</option>
+                <option value="BUSY_TRY_AGAIN">Line busy - will try again later</option>
               </select>
             </div>
 
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+              <p className="text-amber-200 text-xs font-semibold mb-3">Did you provide them with:</p>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-slate-200 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={details.leftPhoto}
+                    onChange={(e) => setDetails({ ...details, leftPhoto: e.target.checked })}
+                    className="w-4 h-4 rounded border-slate-600"
+                  />
+                  <span>Photo of the pet</span>
+                </label>
+                <label className="flex items-center gap-2 text-slate-200 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={details.leftDescription}
+                    onChange={(e) => setDetails({ ...details, leftDescription: e.target.checked })}
+                    className="w-4 h-4 rounded border-slate-600"
+                  />
+                  <span>Detailed description (breed, color, markings, collar)</span>
+                </label>
+              </div>
+            </div>
+
             <div>
-              <label className="text-slate-200 text-sm font-medium block mb-2">
-                Who helped you? <span className="text-slate-500">(optional but helpful)</span>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Who did you speak with?
               </label>
               <input
                 type="text"
                 value={details.shelterContact}
                 onChange={(e) => setDetails({ ...details, shelterContact: e.target.value })}
-                placeholder="Staff member's name"
+                placeholder="Staff member's name (helpful for follow-ups)"
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               />
             </div>
 
             <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                When should you check back?
+              </label>
+              <input
+                type="date"
+                value={details.scheduledCallback}
+                onChange={(e) => setDetails({ ...details, scheduledCallback: e.target.value })}
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              />
+              <p className="text-slate-400 text-xs mt-2">💡 Shelters recommend checking every 2-3 days</p>
+            </div>
+
+            <div>
               <label className="text-slate-200 text-sm font-medium block mb-2">
-                Anything else we should know? <span className="text-slate-500">(optional)</span>
+                Did they suggest anything else?
               </label>
               <textarea
                 value={details.notes}
                 onChange={(e) => setDetails({ ...details, notes: e.target.value })}
-                placeholder="Like when to call back, or if they suggested checking another location..."
+                placeholder="Other shelters to check? Areas where strays are commonly found? Best time to call back?"
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
                 rows={3}
@@ -291,16 +371,16 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
           <div className="space-y-4">
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
               <p className="text-blue-200 text-sm">
-                📱 <strong>Smart!</strong> Social media spreads the word fast - neighbors sharing with neighbors.
+                📱 <strong>Smart!</strong> Lost pet groups on Facebook/Nextdoor get thousands of eyes. Post to MULTIPLE groups for best results.
               </p>
             </div>
 
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-3">
-                Where did you post?
+                Where did you post? *
               </label>
               <div className="grid grid-cols-2 gap-2">
-                {['FACEBOOK', 'NEXTDOOR', 'TWITTER', 'INSTAGRAM'].map(platform => (
+                {['FACEBOOK', 'NEXTDOOR', 'PAWBOOST', 'FINDINGR ROVER'].map(platform => (
                   <button
                     key={platform}
                     onClick={() => setDetails({ ...details, platform })}
@@ -317,14 +397,29 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
             </div>
 
             <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Which groups/pages did you post to?
+              </label>
+              <textarea
+                value={details.groupsPosted}
+                onChange={(e) => setDetails({ ...details, groupsPosted: e.target.value })}
+                placeholder="e.g., Lost Dogs Illinois, Chicago Pet Owners, Nextdoor - Lincoln Park..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                rows={3}
+              />
+              <p className="text-slate-400 text-xs mt-2">💡 Post to at least 3-5 local groups for maximum visibility</p>
+            </div>
+
+            <div>
               <label className="text-slate-200 text-sm font-medium block mb-2">
-                Link to your post? <span className="text-slate-500">(optional - helps others share it)</span>
+                Link to your main post?
               </label>
               <input
                 type="url"
                 value={details.postUrl}
                 onChange={(e) => setDetails({ ...details, postUrl: e.target.value })}
-                placeholder="Paste the link here..."
+                placeholder="Paste link so others can share it..."
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               />
@@ -332,12 +427,12 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
 
             <div>
               <label className="text-slate-200 text-sm font-medium block mb-2">
-                Details <span className="text-slate-500">(optional)</span>
+                How's the response so far?
               </label>
               <textarea
                 value={details.notes}
                 onChange={(e) => setDetails({ ...details, notes: e.target.value })}
-                placeholder="Like which groups you posted in, or how many people have shared it..."
+                placeholder="How many shares/comments? Any leads? People offering to help search?"
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
                 rows={3}
@@ -380,6 +475,576 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                 value={details.notes}
                 onChange={(e) => setDetails({ ...details, notes: e.target.value })}
                 placeholder="Any paw prints, favorite toys moved, food missing, hiding spots you found..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                rows={3}
+              />
+            </div>
+          </div>
+        );
+
+      case 'SETUP_STATION':
+        return (
+          <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+              <p className="text-blue-200 text-sm">
+                🍖 <strong>Excellent idea!</strong> Familiar scents can guide them home. Leave out their bed, food, water, or even your worn clothes.
+              </p>
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                What did you set up? *
+              </label>
+              <select
+                value={details.stationType}
+                onChange={(e) => setDetails({ ...details, stationType: e.target.value })}
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              >
+                <option value="FOOD_WATER">Food & water station</option>
+                <option value="LITTER_BOX">Litter box (for cats)</option>
+                <option value="SCENT_ITEMS">Scent items (bed, toys, worn clothes)</option>
+                <option value="COMBINATION">Combination (food + scent items)</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Where exactly did you place it? *
+              </label>
+              <input
+                type="text"
+                value={details.stationLocation}
+                onChange={(e) => setDetails({ ...details, stationLocation: e.target.value })}
+                placeholder="Like 'front porch', 'back door', 'garage entrance'..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              />
+            </div>
+            <div>
+              <label className="text-slate-200 text-sm font-medium block mb-2">
+                What specific items did you use?
+              </label>
+              <textarea
+                value={details.itemsUsed}
+                onChange={(e) => setDetails({ ...details, itemsUsed: e.target.value })}
+                placeholder="Favorite treats? Their bed? Your worn hoodie? Specific food brand?"
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                rows={3}
+              />
+              <p className="text-slate-400 text-xs mt-2">💡 The stronger the scent, the better! Unwashed clothes work great.</p>
+            </div>
+          </div>
+        );
+
+      case 'CALL_VETS':
+        return (
+          <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+              <p className="text-blue-200 text-sm">
+                🏥 <strong>Smart!</strong> Injured pets often get brought to vets. Many clinics scan for microchips on strays.
+              </p>
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Which vet office? *
+              </label>
+              <input
+                type="text"
+                value={details.vetName}
+                onChange={(e) => setDetails({ ...details, vetName: e.target.value })}
+                placeholder="Full clinic name..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              />
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Result? *
+              </label>
+              <select
+                value={details.vetResult}
+                onChange={(e) => setDetails({ ...details, vetResult: e.target.value })}
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              >
+                <option value="NO_MATCH">No match - they'll keep an eye out</option>
+                <option value="LEFT_INFO">Left description & callback number</option>
+                <option value="POSSIBLE_MATCH">Possible match! Going to check</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-slate-200 text-sm font-medium block mb-2">
+                Notes
+              </label>
+              <textarea
+                value={details.notes}
+                onChange={(e) => setDetails({ ...details, notes: e.target.value })}
+                placeholder="Did they suggest other clinics to call? Emergency vets in the area?"
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                rows={3}
+              />
+            </div>
+          </div>
+        );
+
+      case 'CONTACT_MICROCHIP':
+        return (
+          <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+              <p className="text-blue-200 text-sm">
+                🔍 <strong>Critical step!</strong> Update your contact info and report them missing - if someone finds them and scans the chip, you'll get notified immediately.
+              </p>
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Microchip company? *
+              </label>
+              <input
+                type="text"
+                value={details.chipCompany}
+                onChange={(e) => setDetails({ ...details, chipCompany: e.target.value })}
+                placeholder="Like 'Home Again', '24PetWatch', 'AKC Reunite'..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              />
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Microchip number
+              </label>
+              <input
+                type="text"
+                value={details.chipNumber}
+                onChange={(e) => setDetails({ ...details, chipNumber: e.target.value })}
+                placeholder="If you have it handy..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              />
+            </div>
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+              <label className="flex items-center gap-2 text-slate-200 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={details.updatedInfo}
+                  onChange={(e) => setDetails({ ...details, updatedInfo: e.target.checked })}
+                  className="w-4 h-4 rounded border-slate-600"
+                />
+                <span>✓ Confirmed contact info is up to date & reported them missing</span>
+              </label>
+            </div>
+            <div>
+              <label className="text-slate-200 text-sm font-medium block mb-2">
+                Notes
+              </label>
+              <textarea
+                value={details.notes}
+                onChange={(e) => setDetails({ ...details, notes: e.target.value })}
+                placeholder="Any updates you made? Issues accessing the account?"
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                rows={3}
+              />
+            </div>
+          </div>
+        );
+
+      case 'CONTACT_ANIMAL_CONTROL':
+      case 'CONTACT_RESCUES':
+      case 'CONTACT_BUSINESSES':
+      case 'ALERT_MAIL_CARRIERS':
+      case 'CONTACT_PET_LOCATIONS':
+      case 'ALERT_SCHOOLS':
+      case 'CONTACT_BREED_RESCUES':
+        return (
+          <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+              <p className="text-blue-200 text-sm">
+                📞 <strong>Great thinking!</strong> The more people who know, the better. Every contact point increases your chances.
+              </p>
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Who did you contact? *
+              </label>
+              <input
+                type="text"
+                value={details.organizationName}
+                onChange={(e) => setDetails({ ...details, organizationName: e.target.value })}
+                placeholder="Organization or business name..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              />
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Contact person (if any)
+              </label>
+              <input
+                type="text"
+                value={details.contactPerson}
+                onChange={(e) => setDetails({ ...details, contactPerson: e.target.value })}
+                placeholder="Who did you speak with?"
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              />
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                What happened? *
+              </label>
+              <select
+                value={details.contactResult}
+                onChange={(e) => setDetails({ ...details, contactResult: e.target.value })}
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              >
+                <option value="NOTIFIED">Notified them - they'll watch out</option>
+                <option value="LEFT_MESSAGE">Left message/voicemail</option>
+                <option value="WILL_HELP">They offered to help!</option>
+                <option value="NO_MATCH">No sightings yet</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-slate-200 text-sm font-medium block mb-2">
+                Details
+              </label>
+              <textarea
+                value={details.notes}
+                onChange={(e) => setDetails({ ...details, notes: e.target.value })}
+                placeholder="Did they have any suggestions? Offer to post flyers? Mention other places to check?"
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                rows={3}
+              />
+            </div>
+          </div>
+        );
+
+      case 'SEARCH_DAWN_DUSK':
+      case 'WALK_CALLING':
+        return (
+          <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+              <p className="text-blue-200 text-sm">
+                🌅 <strong>Perfect timing!</strong> Pets are more active and responsive at dawn/dusk. Keep calling their name softly - scared pets respond better to calm voices.
+              </p>
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                When did you search? *
+              </label>
+              <select
+                value={details.searchTime}
+                onChange={(e) => setDetails({ ...details, searchTime: e.target.value })}
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              >
+                <option value="DAWN">Dawn (5-7 AM)</option>
+                <option value="DUSK">Dusk (6-8 PM)</option>
+                <option value="NIGHT">Late night (quiet hours)</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Where did you search? *
+              </label>
+              <textarea
+                value={details.searchLocation}
+                onChange={(e) => setDetails({ ...details, searchLocation: e.target.value })}
+                placeholder="Streets covered, neighborhoods, specific areas..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                rows={3}
+              />
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Any response? Signs? Sounds?
+              </label>
+              <textarea
+                value={details.anyResponse}
+                onChange={(e) => setDetails({ ...details, anyResponse: e.target.value })}
+                placeholder="Did you hear barking? See movement? Any signs they might be nearby?"
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                rows={3}
+              />
+            </div>
+          </div>
+        );
+
+      case 'CHECK_HIDING_SPOTS':
+      case 'SEARCH_CONSTRUCTION':
+        return (
+          <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+              <p className="text-blue-200 text-sm">
+                🔦 <strong>Good thinking!</strong> Scared pets hide in tight, dark spaces. Check under decks, in sheds, crawl spaces, garages, construction sites.
+              </p>
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Where exactly did you check? *
+              </label>
+              <textarea
+                value={details.areasChecked}
+                onChange={(e) => setDetails({ ...details, areasChecked: e.target.value })}
+                placeholder="Be specific - sheds, garages, under porches, construction sites, dumpsters, crawl spaces..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                rows={4}
+              />
+            </div>
+            <div>
+              <label className="text-slate-200 text-sm font-medium block mb-2">
+                Find anything?
+              </label>
+              <textarea
+                value={details.notes}
+                onChange={(e) => setDetails({ ...details, notes: e.target.value })}
+                placeholder="Paw prints? Fur? Spots they might return to? Areas you couldn't access?"
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                rows={3}
+              />
+            </div>
+          </div>
+        );
+
+      case 'SETUP_TRAP':
+        return (
+          <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+              <p className="text-blue-200 text-sm">
+                🪤 <strong>Smart strategy!</strong> Humane traps work great for scared pets who won't come when called. Check traps frequently!
+              </p>
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Where did you place the trap? *
+              </label>
+              <input
+                type="text"
+                value={details.trapLocation}
+                onChange={(e) => setDetails({ ...details, trapLocation: e.target.value })}
+                placeholder="Exact location - backyard, last sighting area, etc."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              />
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Type of trap? *
+              </label>
+              <input
+                type="text"
+                value={details.trapType}
+                onChange={(e) => setDetails({ ...details, trapType: e.target.value })}
+                placeholder="Humane live trap, drop trap, etc..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              />
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                How often will you check it? *
+              </label>
+              <input
+                type="text"
+                value={details.checkingSchedule}
+                onChange={(e) => setDetails({ ...details, checkingSchedule: e.target.value })}
+                placeholder="Every 2 hours, every morning/evening, etc..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              />
+              <p className="text-slate-400 text-xs mt-2">⚠️ Check traps at least every 2-4 hours to avoid stress to trapped animals</p>
+            </div>
+            <div>
+              <label className="text-slate-200 text-sm font-medium block mb-2">
+                What bait are you using?
+              </label>
+              <textarea
+                value={details.notes}
+                onChange={(e) => setDetails({ ...details, notes: e.target.value })}
+                placeholder="Favorite treats, smelly food, items with your scent..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                rows={2}
+              />
+            </div>
+          </div>
+        );
+
+      case 'SETUP_CAMERAS':
+        return (
+          <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+              <p className="text-blue-200 text-sm">
+                📹 <strong>Excellent!</strong> Cameras help you know when they return without scaring them away. Plus you'll see exactly when they show up.
+              </p>
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Where did you set up cameras? *
+              </label>
+              <textarea
+                value={details.cameraLocation}
+                onChange={(e) => setDetails({ ...details, cameraLocation: e.target.value })}
+                placeholder="Specific locations - near food station, back door, last seen area..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                rows={3}
+              />
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Type of camera? *
+              </label>
+              <input
+                type="text"
+                value={details.cameraType}
+                onChange={(e) => setDetails({ ...details, cameraType: e.target.value })}
+                placeholder="Wildlife camera, Ring doorbell, security cam..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              />
+            </div>
+            <div>
+              <label className="text-slate-200 text-sm font-medium block mb-2">
+                Notes
+              </label>
+              <textarea
+                value={details.notes}
+                onChange={(e) => setDetails({ ...details, notes: e.target.value })}
+                placeholder="Motion activated? Night vision? How are you monitoring it?"
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                rows={3}
+              />
+            </div>
+          </div>
+        );
+
+      case 'CHECK_FOUND_LISTINGS':
+      case 'MONITOR_MARKETPLACES':
+        return (
+          <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+              <p className="text-blue-200 text-sm">
+                💻 <strong>Smart!</strong> Check PetFinder, local shelter sites, Craigslist, Facebook Marketplace. Sometimes people post found pets before contacting shelters.
+              </p>
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Which sites did you check? *
+              </label>
+              <textarea
+                value={details.sitesChecked}
+                onChange={(e) => setDetails({ ...details, sitesChecked: e.target.value })}
+                placeholder="PetFinder, Craigslist, Facebook Marketplace, local shelter websites..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                rows={3}
+              />
+            </div>
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
+              <label className="flex items-center gap-2 text-slate-200 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={details.foundMatches}
+                  onChange={(e) => setDetails({ ...details, foundMatches: e.target.checked })}
+                  className="w-4 h-4 rounded border-slate-600"
+                />
+                <span>🎉 Found possible matches to follow up on</span>
+              </label>
+            </div>
+            <div>
+              <label className="text-slate-200 text-sm font-medium block mb-2">
+                Details
+              </label>
+              <textarea
+                value={details.notes}
+                onChange={(e) => setDetails({ ...details, notes: e.target.value })}
+                placeholder="Any promising posts? Set up alerts for new listings?"
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                rows={3}
+              />
+            </div>
+          </div>
+        );
+
+      case 'FILE_POLICE_REPORT':
+        return (
+          <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+              <p className="text-blue-200 text-sm">
+                🚔 <strong>Good call!</strong> A police report creates an official record. Helpful if someone tries to keep or sell your pet.
+              </p>
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                Report confirmation/case number
+              </label>
+              <input
+                type="text"
+                value={details.notes}
+                onChange={(e) => setDetails({ ...details, notes: e.target.value })}
+                placeholder="Case number or confirmation..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              />
+            </div>
+          </div>
+        );
+
+      case 'ALERT_NEIGHBORS':
+        return (
+          <div className="space-y-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+              <p className="text-blue-200 text-sm">
+                👋 <strong>Great idea!</strong> Neighbors are your best allies - they're home all day and know what's normal in the neighborhood.
+              </p>
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                How did you alert them? *
+              </label>
+              <select
+                value={details.contactResult}
+                onChange={(e) => setDetails({ ...details, contactResult: e.target.value })}
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              >
+                <option value="DOOR_TO_DOOR">Went door-to-door</option>
+                <option value="FLYERS">Left flyers at doors</option>
+                <option value="NEXTDOOR">Posted on Nextdoor</option>
+                <option value="COMBINATION">Multiple methods</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-slate-200 text-base font-semibold block mb-2">
+                How many neighbors did you reach?
+              </label>
+              <input
+                type="text"
+                value={details.organizationName}
+                onChange={(e) => setDetails({ ...details, organizationName: e.target.value })}
+                placeholder="Approximate number or area covered..."
+                className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              />
+            </div>
+            <div>
+              <label className="text-slate-200 text-sm font-medium block mb-2">
+                Any leads or offers to help?
+              </label>
+              <textarea
+                value={details.notes}
+                onChange={(e) => setDetails({ ...details, notes: e.target.value })}
+                placeholder="Did anyone see them? Offer to watch out? Have suggestions?"
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
                 rows={3}

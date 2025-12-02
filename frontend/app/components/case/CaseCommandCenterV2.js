@@ -765,12 +765,46 @@ function ActivityTab({ sightings, tasks, gpsPath }) {
 // ============================================================================
 function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session }) {
   const defaultTasks = [
-    { id: 1, label: 'Alert neighbors & nearby residents', type: 'ALERT_NEIGHBORS', completed: false, completions: [] },
-    { id: 2, label: 'Post flyers in the area', type: 'POST_FLYERS', completed: false, completions: [] },
-    { id: 3, label: 'Call local shelters', type: 'CALL_SHELTERS', completed: false, completions: [] },
-    { id: 4, label: 'Check your property thoroughly', type: 'SEARCH_PROPERTY', completed: false, completions: [] },
-    { id: 5, label: 'Post on social media', type: 'POST_SOCIAL_MEDIA', completed: false, completions: [] },
-    { id: 6, label: 'Visit shelters in person', type: 'VISIT_SHELTERS', completed: false, completions: [] },
+    // Immediate critical actions
+    { id: 1, label: 'Search property & immediate area thoroughly', type: 'SEARCH_PROPERTY', completed: false, completions: [] },
+    { id: 2, label: 'Alert neighbors & nearby residents', type: 'ALERT_NEIGHBORS', completed: false, completions: [] },
+    { id: 3, label: 'Post flyers in the area', type: 'POST_FLYERS', completed: false, completions: [] },
+    { id: 4, label: 'Set up food/water/scent station', type: 'SETUP_STATION', completed: false, completions: [] },
+
+    // Shelters & Animal Control (critical)
+    { id: 5, label: 'Call local animal shelters', type: 'CALL_SHELTERS', completed: false, completions: [] },
+    { id: 6, label: 'Visit local shelters in person', type: 'VISIT_SHELTERS', completed: false, completions: [] },
+    { id: 7, label: 'Contact animal control', type: 'CONTACT_ANIMAL_CONTROL', completed: false, completions: [] },
+
+    // Veterinary & Medical
+    { id: 8, label: 'Call local veterinary offices', type: 'CALL_VETS', completed: false, completions: [] },
+    { id: 9, label: 'Contact microchip company', type: 'CONTACT_MICROCHIP', completed: false, completions: [] },
+
+    // Community Outreach
+    { id: 10, label: 'Post on social media & lost pet sites', type: 'POST_SOCIAL_MEDIA', completed: false, completions: [] },
+    { id: 11, label: 'Contact local rescue groups', type: 'CONTACT_RESCUES', completed: false, completions: [] },
+    { id: 12, label: 'Alert mail carriers & delivery drivers', type: 'ALERT_MAIL_CARRIERS', completed: false, completions: [] },
+    { id: 13, label: 'Contact nearby businesses', type: 'CONTACT_BUSINESSES', completed: false, completions: [] },
+
+    // Search Strategy
+    { id: 14, label: 'Search at dawn/dusk', type: 'SEARCH_DAWN_DUSK', completed: false, completions: [] },
+    { id: 15, label: 'Walk area calling their name', type: 'WALK_CALLING', completed: false, completions: [] },
+    { id: 16, label: 'Check hiding spots (sheds, garages, crawl spaces)', type: 'CHECK_HIDING_SPOTS', completed: false, completions: [] },
+    { id: 17, label: 'Search construction sites & dumpsters', type: 'SEARCH_CONSTRUCTION', completed: false, completions: [] },
+
+    // Traps & Monitoring
+    { id: 18, label: 'Set up humane trap', type: 'SETUP_TRAP', completed: false, completions: [] },
+    { id: 19, label: 'Set up wildlife/security cameras', type: 'SETUP_CAMERAS', completed: false, completions: [] },
+
+    // Online & Reporting
+    { id: 20, label: 'Check found pet listings online', type: 'CHECK_FOUND_LISTINGS', completed: false, completions: [] },
+    { id: 21, label: 'Monitor Craigslist & marketplace sites', type: 'MONITOR_MARKETPLACES', completed: false, completions: [] },
+    { id: 22, label: 'File lost pet report with police', type: 'FILE_POLICE_REPORT', completed: false, completions: [] },
+
+    // Extended Outreach
+    { id: 23, label: 'Contact local dog parks & pet stores', type: 'CONTACT_PET_LOCATIONS', completed: false, completions: [] },
+    { id: 24, label: 'Alert schools in the area', type: 'ALERT_SCHOOLS', completed: false, completions: [] },
+    { id: 25, label: 'Contact breed-specific rescue groups', type: 'CONTACT_BREED_RESCUES', completed: false, completions: [] },
   ];
 
   // Initialize tasks if empty
