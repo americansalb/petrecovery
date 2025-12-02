@@ -84,6 +84,8 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
 
   const [isAddingLocation, setIsAddingLocation] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
+  const [locationMode, setLocationMode] = useState('gps'); // 'gps' or 'manual'
+  const [manualAddress, setManualAddress] = useState('');
 
   // Get current location for flyer marking
   const getCurrentLocation = () => {
@@ -143,25 +145,72 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
     }
   };
 
-  // Generic GPS capture for single-location tasks
-  const captureGPSLocation = (fieldName) => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const gpsData = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            timestamp: new Date().toISOString(),
-          };
-          setDetails(prev => ({ ...prev, [fieldName]: gpsData }));
-        },
-        (err) => {
-          alert('Could not get your location. Please enable location services.');
-          console.error('Geolocation error:', err);
-        }
+  // Geocode address/zip to coordinates
+  const geocodeAddress = async (address) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`
       );
+      const data = await response.json();
+
+      if (data && data.length > 0) {
+        return {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon),
+          address: data[0].display_name,
+        };
+      } else {
+        alert('Address not found. Please try a different address or zip code.');
+        return null;
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      alert('Could not find location. Please check your internet connection.');
+      return null;
+    }
+  };
+
+  // Generic GPS capture for single-location tasks
+  const captureGPSLocation = async (fieldName) => {
+    if (locationMode === 'manual') {
+      // Manual address entry
+      if (!manualAddress.trim()) {
+        alert('Please enter an address or zip code');
+        return;
+      }
+
+      const location = await geocodeAddress(manualAddress);
+      if (location) {
+        const gpsData = {
+          lat: location.lat,
+          lng: location.lng,
+          timestamp: new Date().toISOString(),
+          address: location.address,
+          isManual: true,
+        };
+        setDetails(prev => ({ ...prev, [fieldName]: gpsData }));
+        setManualAddress('');
+      }
     } else {
-      alert('Geolocation is not supported by your browser.');
+      // GPS mode
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const gpsData = {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              timestamp: new Date().toISOString(),
+            };
+            setDetails(prev => ({ ...prev, [fieldName]: gpsData }));
+          },
+          (err) => {
+            alert('Could not get your location. Please enable location services or switch to manual entry.');
+            console.error('Geolocation error:', err);
+          }
+        );
+      } else {
+        alert('Geolocation is not supported. Please use manual entry.');
+      }
     }
   };
 
@@ -631,13 +680,17 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Where exactly did you place it? *
               </label>
+
               {details.stationGPS ? (
                 <div className="bg-emerald-900/20 border-2 border-emerald-500/30 rounded-xl p-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="text-emerald-200 font-semibold text-sm mb-2">📍 Location captured</div>
+                      <div className="text-emerald-200 font-semibold text-sm mb-2">
+                        📍 Location captured {details.stationGPS.isManual && '(manual entry)'}
+                      </div>
                       <div className="text-emerald-400/60 text-xs space-y-1">
                         <div>{details.stationGPS.lat.toFixed(5)}, {details.stationGPS.lng.toFixed(5)}</div>
+                        {details.stationGPS.address && <div>{details.stationGPS.address}</div>}
                         <div>{new Date(details.stationGPS.timestamp).toLocaleString()}</div>
                       </div>
                     </div>
@@ -658,13 +711,55 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                   />
                 </div>
               ) : (
-                <button
-                  onClick={() => captureGPSLocation('stationGPS')}
-                  className="w-full py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-cyan-600 transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
-                >
-                  <MapPin size={20} />
-                  Capture My Location Now
-                </button>
+                <div className="space-y-3">
+                  {/* Mode Toggle */}
+                  <div className="flex gap-2 bg-slate-800 p-1 rounded-lg">
+                    <button
+                      onClick={() => setLocationMode('gps')}
+                      className={`flex-1 py-2 px-4 rounded-md font-semibold text-sm transition ${
+                        locationMode === 'gps'
+                          ? 'bg-emerald-500 text-white'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      📍 GPS
+                    </button>
+                    <button
+                      onClick={() => setLocationMode('manual')}
+                      className={`flex-1 py-2 px-4 rounded-md font-semibold text-sm transition ${
+                        locationMode === 'manual'
+                          ? 'bg-cyan-500 text-white'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      ✏️ Zip/Address
+                    </button>
+                  </div>
+
+                  {locationMode === 'manual' && (
+                    <input
+                      type="text"
+                      value={manualAddress}
+                      onChange={(e) => setManualAddress(e.target.value)}
+                      placeholder="Enter zip code or address..."
+                      className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                      style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                    />
+                  )}
+
+                  <button
+                    onClick={() => captureGPSLocation('stationGPS')}
+                    className="w-full py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-cyan-600 transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
+                  >
+                    <MapPin size={20} />
+                    {locationMode === 'gps' ? 'Capture My Location Now' : 'Pin This Location'}
+                  </button>
+                  <p className="text-slate-400 text-xs text-center">
+                    {locationMode === 'gps'
+                      ? 'Uses your device GPS for accurate location'
+                      : 'We\'ll convert the address to map coordinates'}
+                  </p>
+                </div>
               )}
             </div>
             <div>
@@ -1027,13 +1122,17 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Where did you place the trap? *
               </label>
+
               {details.trapGPS ? (
                 <div className="bg-emerald-900/20 border-2 border-emerald-500/30 rounded-xl p-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="text-emerald-200 font-semibold text-sm mb-2">📍 Trap location captured</div>
+                      <div className="text-emerald-200 font-semibold text-sm mb-2">
+                        📍 Trap location captured {details.trapGPS.isManual && '(manual entry)'}
+                      </div>
                       <div className="text-emerald-400/60 text-xs space-y-1">
                         <div>{details.trapGPS.lat.toFixed(5)}, {details.trapGPS.lng.toFixed(5)}</div>
+                        {details.trapGPS.address && <div>{details.trapGPS.address}</div>}
                         <div>{new Date(details.trapGPS.timestamp).toLocaleString()}</div>
                       </div>
                     </div>
@@ -1054,13 +1153,49 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                   />
                 </div>
               ) : (
-                <button
-                  onClick={() => captureGPSLocation('trapGPS')}
-                  className="w-full py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-cyan-600 transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
-                >
-                  <MapPin size={20} />
-                  Capture Trap Location Now
-                </button>
+                <div className="space-y-3">
+                  <div className="flex gap-2 bg-slate-800 p-1 rounded-lg">
+                    <button
+                      onClick={() => setLocationMode('gps')}
+                      className={`flex-1 py-2 px-4 rounded-md font-semibold text-sm transition ${
+                        locationMode === 'gps'
+                          ? 'bg-emerald-500 text-white'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      📍 GPS
+                    </button>
+                    <button
+                      onClick={() => setLocationMode('manual')}
+                      className={`flex-1 py-2 px-4 rounded-md font-semibold text-sm transition ${
+                        locationMode === 'manual'
+                          ? 'bg-cyan-500 text-white'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      ✏️ Zip/Address
+                    </button>
+                  </div>
+
+                  {locationMode === 'manual' && (
+                    <input
+                      type="text"
+                      value={manualAddress}
+                      onChange={(e) => setManualAddress(e.target.value)}
+                      placeholder="Enter zip code or address..."
+                      className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                      style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                    />
+                  )}
+
+                  <button
+                    onClick={() => captureGPSLocation('trapGPS')}
+                    className="w-full py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-cyan-600 transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
+                  >
+                    <MapPin size={20} />
+                    {locationMode === 'gps' ? 'Capture Trap Location' : 'Pin Trap Location'}
+                  </button>
+                </div>
               )}
             </div>
             <div>
@@ -1113,13 +1248,17 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Where did you set up cameras? *
               </label>
+
               {details.cameraGPS ? (
                 <div className="bg-emerald-900/20 border-2 border-emerald-500/30 rounded-xl p-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="text-emerald-200 font-semibold text-sm mb-2">📹 Camera location captured</div>
+                      <div className="text-emerald-200 font-semibold text-sm mb-2">
+                        📹 Camera location captured {details.cameraGPS.isManual && '(manual entry)'}
+                      </div>
                       <div className="text-emerald-400/60 text-xs space-y-1">
                         <div>{details.cameraGPS.lat.toFixed(5)}, {details.cameraGPS.lng.toFixed(5)}</div>
+                        {details.cameraGPS.address && <div>{details.cameraGPS.address}</div>}
                         <div>{new Date(details.cameraGPS.timestamp).toLocaleString()}</div>
                       </div>
                     </div>
@@ -1140,13 +1279,49 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                   />
                 </div>
               ) : (
-                <button
-                  onClick={() => captureGPSLocation('cameraGPS')}
-                  className="w-full py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-cyan-600 transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
-                >
-                  <MapPin size={20} />
-                  Capture Camera Location Now
-                </button>
+                <div className="space-y-3">
+                  <div className="flex gap-2 bg-slate-800 p-1 rounded-lg">
+                    <button
+                      onClick={() => setLocationMode('gps')}
+                      className={`flex-1 py-2 px-4 rounded-md font-semibold text-sm transition ${
+                        locationMode === 'gps'
+                          ? 'bg-emerald-500 text-white'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      📍 GPS
+                    </button>
+                    <button
+                      onClick={() => setLocationMode('manual')}
+                      className={`flex-1 py-2 px-4 rounded-md font-semibold text-sm transition ${
+                        locationMode === 'manual'
+                          ? 'bg-cyan-500 text-white'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      ✏️ Zip/Address
+                    </button>
+                  </div>
+
+                  {locationMode === 'manual' && (
+                    <input
+                      type="text"
+                      value={manualAddress}
+                      onChange={(e) => setManualAddress(e.target.value)}
+                      placeholder="Enter zip code or address..."
+                      className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                      style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+                    />
+                  )}
+
+                  <button
+                    onClick={() => captureGPSLocation('cameraGPS')}
+                    className="w-full py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-cyan-600 transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
+                  >
+                    <MapPin size={20} />
+                    {locationMode === 'gps' ? 'Capture Camera Location' : 'Pin Camera Location'}
+                  </button>
+                </div>
               )}
             </div>
             <div>
