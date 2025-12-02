@@ -743,12 +743,16 @@ function ActivityTab({ sightings, tasks, gpsPath }) {
 
         <div className="space-y-3 max-h-[800px] overflow-y-auto">
           {timelineItems.length === 0 ? (
-            <div className="text-center py-16 text-slate-400">
-              <div className="text-6xl mb-4">📋</div>
-              <p className="text-lg mb-2">No activity yet</p>
-              <p className="text-slate-500 text-sm">
+            <div className="text-center py-12 text-slate-400">
+              <img
+                src="https://petrescue.b-cdn.net/Logos%20(1).svg"
+                alt="Surumaa"
+                className="h-40 w-auto mx-auto mb-6 drop-shadow-xl"
+              />
+              <p className="text-white text-lg font-semibold mb-2">Activity Timeline</p>
+              <p className="text-slate-400 text-sm">
                 As people complete tasks, report sightings, and search areas,<br />
-                everything will show up here with all the details!
+                everything will show up here with all the details
               </p>
             </div>
           ) : (
@@ -1022,10 +1026,14 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
           Search Team (0)
         </h3>
 
-        <div className="text-center py-12 text-slate-400">
-          <div className="text-5xl mb-3">👥</div>
-          <p className="mb-2">Your search team will gather here</p>
-          <p className="text-slate-500 text-sm mb-4">Invite friends, family, and neighbors to help search</p>
+        <div className="text-center py-8 text-slate-400">
+          <img
+            src="https://petrescue.b-cdn.net/Logos%20(2).svg"
+            alt="Surumaa"
+            className="h-32 w-auto mx-auto mb-4 drop-shadow-xl"
+          />
+          <p className="text-white font-semibold mb-2">Build Your Search Team</p>
+          <p className="text-slate-400 text-sm mb-4">Invite friends, family, and neighbors to coordinate the search</p>
           <button className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl hover:scale-105 transition">
             + Invite Volunteers
           </button>
@@ -1049,34 +1057,276 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
 
         <p className="text-slate-400 text-sm mb-4">Common actions + anything else you've done to help</p>
 
-        <div className="space-y-2">
-          {tasks.map(task => (
-            <button
-              key={task.id}
-              onClick={() => handleTaskClick(task)}
-              className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
-                task.completed
-                  ? 'bg-emerald-500/10 border border-emerald-500/30'
-                  : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
-              }`}
-            >
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                task.completed
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-slate-700 border-2 border-slate-600'
-              }`}>
-                {task.completed && '✓'}
-              </div>
-              <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
-                {task.label}
-              </span>
-              {task.completions.length > 0 && (
-                <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
-                  {task.completions.length}×
+        {/* Immediate Actions (1-4) */}
+        <div className="mb-4">
+          <h4 className="text-xs font-bold text-emerald-400 mb-2 uppercase tracking-wide">🚨 Immediate</h4>
+          <div className="space-y-2">
+            {tasks.slice(0, 4).map(task => (
+              <button
+                key={task.id}
+                onClick={() => handleTaskClick(task)}
+                className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
+                  task.completed
+                    ? 'bg-emerald-500/10 border border-emerald-500/30'
+                    : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
+                }`}
+              >
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  task.completed
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-slate-700 border-2 border-slate-600'
+                }`}>
+                  {task.completed && '✓'}
+                </div>
+                <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
+                  {task.label}
                 </span>
-              )}
-            </button>
-          ))}
+                {task.completions.length > 0 && (
+                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
+                    {task.completions.length}×
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Shelters & Authorities (5-7) */}
+        <div className="mb-4">
+          <h4 className="text-xs font-bold text-blue-400 mb-2 uppercase tracking-wide">🏥 Shelters & Authorities</h4>
+          <div className="space-y-2">
+            {tasks.slice(4, 7).map(task => (
+              <button
+                key={task.id}
+                onClick={() => handleTaskClick(task)}
+                className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
+                  task.completed
+                    ? 'bg-emerald-500/10 border border-emerald-500/30'
+                    : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
+                }`}
+              >
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  task.completed
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-slate-700 border-2 border-slate-600'
+                }`}>
+                  {task.completed && '✓'}
+                </div>
+                <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
+                  {task.label}
+                </span>
+                {task.completions.length > 0 && (
+                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
+                    {task.completions.length}×
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Veterinary (8-9) */}
+        <div className="mb-4">
+          <h4 className="text-xs font-bold text-purple-400 mb-2 uppercase tracking-wide">💉 Veterinary</h4>
+          <div className="space-y-2">
+            {tasks.slice(7, 9).map(task => (
+              <button
+                key={task.id}
+                onClick={() => handleTaskClick(task)}
+                className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
+                  task.completed
+                    ? 'bg-emerald-500/10 border border-emerald-500/30'
+                    : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
+                }`}
+              >
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  task.completed
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-slate-700 border-2 border-slate-600'
+                }`}>
+                  {task.completed && '✓'}
+                </div>
+                <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
+                  {task.label}
+                </span>
+                {task.completions.length > 0 && (
+                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
+                    {task.completions.length}×
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Community (10-13) */}
+        <div className="mb-4">
+          <h4 className="text-xs font-bold text-cyan-400 mb-2 uppercase tracking-wide">👥 Community</h4>
+          <div className="space-y-2">
+            {tasks.slice(9, 13).map(task => (
+              <button
+                key={task.id}
+                onClick={() => handleTaskClick(task)}
+                className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
+                  task.completed
+                    ? 'bg-emerald-500/10 border border-emerald-500/30'
+                    : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
+                }`}
+              >
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  task.completed
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-slate-700 border-2 border-slate-600'
+                }`}>
+                  {task.completed && '✓'}
+                </div>
+                <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
+                  {task.label}
+                </span>
+                {task.completions.length > 0 && (
+                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
+                    {task.completions.length}×
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Search Operations (14-17) */}
+        <div className="mb-4">
+          <h4 className="text-xs font-bold text-amber-400 mb-2 uppercase tracking-wide">🔍 Search Operations</h4>
+          <div className="space-y-2">
+            {tasks.slice(13, 17).map(task => (
+              <button
+                key={task.id}
+                onClick={() => handleTaskClick(task)}
+                className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
+                  task.completed
+                    ? 'bg-emerald-500/10 border border-emerald-500/30'
+                    : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
+                }`}
+              >
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  task.completed
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-slate-700 border-2 border-slate-600'
+                }`}>
+                  {task.completed && '✓'}
+                </div>
+                <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
+                  {task.label}
+                </span>
+                {task.completions.length > 0 && (
+                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
+                    {task.completions.length}×
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Advanced Tactics (18-19) */}
+        <div className="mb-4">
+          <h4 className="text-xs font-bold text-rose-400 mb-2 uppercase tracking-wide">🎯 Advanced Tactics</h4>
+          <div className="space-y-2">
+            {tasks.slice(17, 19).map(task => (
+              <button
+                key={task.id}
+                onClick={() => handleTaskClick(task)}
+                className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
+                  task.completed
+                    ? 'bg-emerald-500/10 border border-emerald-500/30'
+                    : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
+                }`}
+              >
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  task.completed
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-slate-700 border-2 border-slate-600'
+                }`}>
+                  {task.completed && '✓'}
+                </div>
+                <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
+                  {task.label}
+                </span>
+                {task.completions.length > 0 && (
+                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
+                    {task.completions.length}×
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Online & Documentation (20-22) */}
+        <div className="mb-4">
+          <h4 className="text-xs font-bold text-indigo-400 mb-2 uppercase tracking-wide">💻 Online & Documentation</h4>
+          <div className="space-y-2">
+            {tasks.slice(19, 22).map(task => (
+              <button
+                key={task.id}
+                onClick={() => handleTaskClick(task)}
+                className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
+                  task.completed
+                    ? 'bg-emerald-500/10 border border-emerald-500/30'
+                    : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
+                }`}
+              >
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  task.completed
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-slate-700 border-2 border-slate-600'
+                }`}>
+                  {task.completed && '✓'}
+                </div>
+                <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
+                  {task.label}
+                </span>
+                {task.completions.length > 0 && (
+                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
+                    {task.completions.length}×
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Extended Outreach (23-25) */}
+        <div className="mb-4">
+          <h4 className="text-xs font-bold text-yellow-400 mb-2 uppercase tracking-wide">🌟 Extended Outreach</h4>
+          <div className="space-y-2">
+            {tasks.slice(22, 25).map(task => (
+              <button
+                key={task.id}
+                onClick={() => handleTaskClick(task)}
+                className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
+                  task.completed
+                    ? 'bg-emerald-500/10 border border-emerald-500/30'
+                    : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
+                }`}
+              >
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  task.completed
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-slate-700 border-2 border-slate-600'
+                }`}>
+                  {task.completed && '✓'}
+                </div>
+                <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
+                  {task.label}
+                </span>
+                {task.completions.length > 0 && (
+                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
+                    {task.completions.length}×
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="mt-4 p-4 bg-slate-800/50 rounded-xl border border-slate-700">
