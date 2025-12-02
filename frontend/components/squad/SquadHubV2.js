@@ -73,7 +73,7 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
   // Calculate stats for header
   const stats = useMemo(() => {
     const activeCases = allCases.filter(c =>
-      c.status === 'IN_PROGRESS' || c.status === 'ACTIVE'
+      c.status === 'PENDING' || c.status === 'IN_PROGRESS' || c.status === 'ACTIVE'
     ).length;
 
     const reunitedCases = allCases.filter(c => c.status === 'REUNITED').length;
