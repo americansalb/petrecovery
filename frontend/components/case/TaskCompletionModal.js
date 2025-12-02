@@ -112,6 +112,32 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
     setIsAddingLocation(false);
   };
 
+  // Quick GPS capture for flyer posting
+  const quickAddFlyerLocation = () => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setDetails(prev => ({
+            ...prev,
+            flyerLocations: [...prev.flyerLocations, {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              description: 'Flyer posted',
+              date: new Date().toISOString().split('T')[0],
+              timestamp: new Date().toISOString(),
+            }]
+          }));
+        },
+        (err) => {
+          alert('Could not get your location. Please enable location services.');
+          console.error('Geolocation error:', err);
+        }
+      );
+    } else {
+      alert('Geolocation is not supported by your browser.');
+    }
+  };
+
   const removeFlyerLocation = (index) => {
     setDetails(prev => ({
       ...prev,
@@ -136,19 +162,25 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'POST_FLYERS':
         return (
           <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
-              <p className="text-blue-200 text-sm">
-                💡 <strong>Great choice!</strong> Flyers help get the word out fast. The more people who know, the better our chances.
+            {/* Quick GPS Add Button */}
+            <div className="bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border-2 border-emerald-500/40 rounded-xl p-5">
+              <p className="text-white font-semibold mb-3 text-center">📍 Posted a flyer right now?</p>
+              <button
+                onClick={quickAddFlyerLocation}
+                className="w-full py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-cyan-600 transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
+              >
+                <MapPin size={20} />
+                Capture My Location Now
+              </button>
+              <p className="text-slate-300 text-xs mt-2 text-center">
+                One tap to save where you are right now
               </p>
             </div>
 
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-3">
-                Where did you put up flyers?
+                Flyer Locations
               </label>
-              <p className="text-slate-400 text-sm mb-3">
-                Tap your location when you're at each spot - this helps us track coverage 📍
-              </p>
 
               {/* Added locations list */}
               {details.flyerLocations.length > 0 && (
@@ -156,9 +188,13 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                   {details.flyerLocations.map((loc, i) => (
                     <div key={i} className="bg-emerald-900/20 border-2 border-emerald-500/30 rounded-xl p-3 flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="text-emerald-200 font-semibold text-sm">✓ {loc.description || 'Flyer posted'}</div>
-                        <div className="text-emerald-400/60 text-xs mt-1">
-                          {loc.date}
+                        <div className="text-emerald-200 font-semibold text-sm flex items-center gap-2">
+                          <MapPin size={14} />
+                          {loc.description || 'Flyer posted'}
+                        </div>
+                        <div className="text-emerald-400/60 text-xs mt-1 space-y-0.5">
+                          <div>📍 {loc.lat.toFixed(5)}, {loc.lng.toFixed(5)}</div>
+                          <div>📅 {loc.date} {loc.timestamp && `at ${new Date(loc.timestamp).toLocaleTimeString()}`}</div>
                         </div>
                       </div>
                       <button
@@ -172,9 +208,15 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                 </div>
               )}
 
-              {/* Add location form */}
-              {isAddingLocation ? (
-                <div className="bg-cyan-500/10 border-2 border-cyan-500/30 rounded-xl p-4 space-y-3">
+              {/* Manual add section - optional */}
+              <div className="border-t border-slate-700 pt-4 mt-4">
+                <p className="text-slate-400 text-xs mb-3 text-center">
+                  Need to add a location from earlier? Use manual entry below
+                </p>
+
+                {/* Add location form */}
+                {isAddingLocation ? (
+                  <div className="bg-cyan-500/10 border-2 border-cyan-500/30 rounded-xl p-4 space-y-3">
                   {!currentLocation ? (
                     <button
                       onClick={getCurrentLocation}
@@ -231,14 +273,15 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => setIsAddingLocation(true)}
-                  className="w-full py-3 bg-slate-800 border-2 border-slate-700 text-white font-semibold rounded-xl hover:border-cyan-500 transition flex items-center justify-center gap-2"
-                >
-                  <MapPin size={18} />
-                  + Add Flyer Location
-                </button>
-              )}
+                  <button
+                    onClick={() => setIsAddingLocation(true)}
+                    className="w-full py-3 bg-slate-800 border-2 border-slate-700 text-slate-400 font-semibold rounded-xl hover:border-cyan-500 hover:text-white transition flex items-center justify-center gap-2"
+                  >
+                    <MapPin size={18} />
+                    + Manual Entry (from earlier)
+                  </button>
+                )}
+              </div>
             </div>
 
             <div>
@@ -261,12 +304,6 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'VISIT_SHELTERS':
         return (
           <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
-              <p className="text-blue-200 text-sm">
-                💙 <strong>Thank you for checking!</strong> Shelters get new animals daily - check back every 2-3 days. Many pets come in days later.
-              </p>
-            </div>
-
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Which shelter did you contact? *
@@ -369,12 +406,6 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'POST_SOCIAL_MEDIA':
         return (
           <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
-              <p className="text-blue-200 text-sm">
-                📱 <strong>Smart!</strong> Lost pet groups on Facebook/Nextdoor get thousands of eyes. Post to MULTIPLE groups for best results.
-              </p>
-            </div>
-
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-3">
                 Where did you post? *
@@ -444,12 +475,6 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'SEARCH_PROPERTY':
         return (
           <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
-              <p className="text-blue-200 text-sm">
-                🏠 <strong>Good thinking!</strong> Pets often hide close to home when scared. Check quiet, dark spaces.
-              </p>
-            </div>
-
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Where did you look?
@@ -486,11 +511,6 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'SETUP_STATION':
         return (
           <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
-              <p className="text-blue-200 text-sm">
-                🍖 <strong>Excellent idea!</strong> Familiar scents can guide them home. Leave out their bed, food, water, or even your worn clothes.
-              </p>
-            </div>
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 What did you set up? *
@@ -540,11 +560,6 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'CALL_VETS':
         return (
           <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
-              <p className="text-blue-200 text-sm">
-                🏥 <strong>Smart!</strong> Injured pets often get brought to vets. Many clinics scan for microchips on strays.
-              </p>
-            </div>
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Which vet office? *
@@ -592,11 +607,6 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'CONTACT_MICROCHIP':
         return (
           <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
-              <p className="text-blue-200 text-sm">
-                🔍 <strong>Critical step!</strong> Update your contact info and report them missing - if someone finds them and scans the chip, you'll get notified immediately.
-              </p>
-            </div>
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Microchip company? *
@@ -659,11 +669,6 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'CONTACT_BREED_RESCUES':
         return (
           <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
-              <p className="text-blue-200 text-sm">
-                📞 <strong>Great thinking!</strong> The more people who know, the better. Every contact point increases your chances.
-              </p>
-            </div>
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Who did you contact? *
@@ -726,11 +731,6 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'WALK_CALLING':
         return (
           <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
-              <p className="text-blue-200 text-sm">
-                🌅 <strong>Perfect timing!</strong> Pets are more active and responsive at dawn/dusk. Keep calling their name softly - scared pets respond better to calm voices.
-              </p>
-            </div>
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 When did you search? *
@@ -779,11 +779,6 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'SEARCH_CONSTRUCTION':
         return (
           <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
-              <p className="text-blue-200 text-sm">
-                🔦 <strong>Good thinking!</strong> Scared pets hide in tight, dark spaces. Check under decks, in sheds, crawl spaces, garages, construction sites.
-              </p>
-            </div>
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Where exactly did you check? *
@@ -816,11 +811,6 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'SETUP_TRAP':
         return (
           <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
-              <p className="text-blue-200 text-sm">
-                🪤 <strong>Smart strategy!</strong> Humane traps work great for scared pets who won't come when called. Check traps frequently!
-              </p>
-            </div>
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Where did you place the trap? *
@@ -880,11 +870,6 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'SETUP_CAMERAS':
         return (
           <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
-              <p className="text-blue-200 text-sm">
-                📹 <strong>Excellent!</strong> Cameras help you know when they return without scaring them away. Plus you'll see exactly when they show up.
-              </p>
-            </div>
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Where did you set up cameras? *
@@ -931,11 +916,6 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'MONITOR_MARKETPLACES':
         return (
           <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
-              <p className="text-blue-200 text-sm">
-                💻 <strong>Smart!</strong> Check PetFinder, local shelter sites, Craigslist, Facebook Marketplace. Sometimes people post found pets before contacting shelters.
-              </p>
-            </div>
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Which sites did you check? *
@@ -979,11 +959,6 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'FILE_POLICE_REPORT':
         return (
           <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
-              <p className="text-blue-200 text-sm">
-                🚔 <strong>Good call!</strong> A police report creates an official record. Helpful if someone tries to keep or sell your pet.
-              </p>
-            </div>
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Report confirmation/case number
@@ -1003,11 +978,6 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       case 'ALERT_NEIGHBORS':
         return (
           <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
-              <p className="text-blue-200 text-sm">
-                👋 <strong>Great idea!</strong> Neighbors are your best allies - they're home all day and know what's normal in the neighborhood.
-              </p>
-            </div>
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 How did you alert them? *
@@ -1056,12 +1026,6 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
       default:
         return (
           <div className="space-y-4">
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
-              <p className="text-blue-200 text-sm">
-                💪 <strong>Every action counts!</strong> You're making a real difference in bringing them home.
-              </p>
-            </div>
-
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
                 Tell us what you did
