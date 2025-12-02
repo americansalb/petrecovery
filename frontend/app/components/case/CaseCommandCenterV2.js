@@ -114,6 +114,30 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
       if (!res.ok) throw new Error('Case not found');
       const data = await res.json();
       setCaseData(data);
+
+      // Extract team members from assignments
+      if (data.assignments && data.assignments.length > 0) {
+        const allParticipants = data.assignments.flatMap(assignment =>
+          assignment.participants?.map(p => ({
+            id: p.id,
+            userId: p.userId,
+            name: `${p.user.firstName} ${p.user.lastName || ''}`.trim(),
+            firstName: p.user.firstName,
+            lastName: p.user.lastName,
+            isActive: p.isActive !== false, // Default to true if not specified
+          })) || []
+        );
+
+        // Remove duplicates by userId
+        const uniqueParticipants = Array.from(
+          new Map(allParticipants.map(p => [p.userId, p])).values()
+        );
+
+        setTeam(uniqueParticipants);
+      } else {
+        setTeam([]);
+      }
+
       setError(null);
     } catch (err) {
       console.error('Error fetching case:', err);
@@ -1212,21 +1236,54 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
       <div className="bg-slate-900/50 border-2 border-cyan-500/30 rounded-2xl p-6">
         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
           <Users size={20} className="text-cyan-400" />
-          Search Team (0)
+          Search Team ({team.length})
         </h3>
 
-        <div className="text-center py-8 text-slate-400">
-          <img
-            src="https://petrescue.b-cdn.net/Logos%20(2).svg"
-            alt="Surumaa"
-            className="h-32 w-auto mx-auto mb-4 drop-shadow-xl"
-          />
-          <p className="text-white font-semibold mb-2">Build Your Search Team</p>
-          <p className="text-slate-400 text-sm mb-4">Invite friends, family, and neighbors to coordinate the search</p>
-          <button className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl hover:scale-105 transition">
-            + Invite Volunteers
-          </button>
-        </div>
+        {team.length === 0 ? (
+          <div className="text-center py-8 text-slate-400">
+            <img
+              src="https://petrescue.b-cdn.net/Logos%20(2).svg"
+              alt="Surumaa"
+              className="h-32 w-auto mx-auto mb-4 drop-shadow-xl"
+            />
+            <p className="text-white font-semibold mb-2">Build Your Search Team</p>
+            <p className="text-slate-400 text-sm mb-4">Invite friends, family, and neighbors to coordinate the search</p>
+            <button className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl hover:scale-105 transition">
+              + Invite Volunteers
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {team.map(member => (
+              <div
+                key={member.id}
+                className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-xl border border-cyan-500/20 hover:border-cyan-500/40 transition"
+              >
+                {/* Avatar */}
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                  {member.firstName?.[0]}{member.lastName?.[0] || ''}
+                </div>
+
+                {/* Name */}
+                <div className="flex-1 min-w-0">
+                  <div className="text-white font-semibold text-sm truncate">
+                    {member.name}
+                  </div>
+                  <div className="text-slate-400 text-xs">
+                    Search volunteer
+                  </div>
+                </div>
+
+                {/* Active indicator */}
+                {member.isActive && (
+                  <div className="flex-shrink-0">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Search Checklist */}

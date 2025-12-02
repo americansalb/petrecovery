@@ -1,6 +1,108 @@
 import { NextResponse } from 'next/server';
 
 /**
+ * Check if a point is inside a GeoJSON polygon using ray casting algorithm
+ * @param {number} lat - Latitude of the point
+ * @param {number} lng - Longitude of the point
+ * @param {Object} geoJson - GeoJSON polygon object
+ * @returns {boolean} - True if point is inside polygon
+ */
+function isPointInPolygon(lat, lng, geoJson) {
+  if (!geoJson || geoJson.type !== 'Polygon' || !geoJson.coordinates?.[0]) {
+    return false;
+  }
+
+  const polygon = geoJson.coordinates[0];
+  let inside = false;
+
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i][1]; // GeoJSON is [lng, lat]
+    const yi = polygon[i][0];
+    const xj = polygon[j][1];
+    const yj = polygon[j][0];
+
+    const intersect = ((yi > lng) !== (yj > lng)) &&
+      (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi);
+
+    if (intersect) inside = !inside;
+  }
+
+  return inside;
+}
+
+/**
+ * Calculate distance between two lat/lng points using Haversine formula
+ * @returns {number} - Distance in miles
+ */
+function calculateDistance(lat1, lng1, lat2, lng2) {
+  const R = 3959; // Earth's radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+/**
+ * Assign a case to the most appropriate division based on location
+ * @param {Object} caseData - Case with lastSeenLatitude and lastSeenLongitude
+ * @param {Array} divisions - Array of division objects
+ * @returns {string|null} - Division ID or null
+ */
+function assignCaseToDivision(caseData, divisions) {
+  const caseLat = caseData.lastSeenLatitude;
+  const caseLng = caseData.lastSeenLongitude;
+
+  if (!caseLat || !caseLng || !divisions || divisions.length === 0) {
+    return divisions[0]?.id || null;
+  }
+
+  // First, try to find a division with a polygon boundary that contains the point
+  for (const division of divisions) {
+    if (division.customBoundary) {
+      try {
+        const boundary = typeof division.customBoundary === 'string'
+          ? JSON.parse(division.customBoundary)
+          : division.customBoundary;
+
+        if (isPointInPolygon(caseLat, caseLng, boundary)) {
+          return division.id;
+        }
+      } catch (e) {
+        console.error('Error parsing division boundary:', e);
+      }
+    }
+  }
+
+  // Fallback: find nearest division by center point and check if within radius
+  let nearestDivision = null;
+  let minDistance = Infinity;
+
+  for (const division of divisions) {
+    if (division.centerLatitude && division.centerLongitude) {
+      const distance = calculateDistance(
+        caseLat,
+        caseLng,
+        division.centerLatitude,
+        division.centerLongitude
+      );
+
+      const radiusMiles = division.radiusMiles || 3;
+      if (distance <= radiusMiles && distance < minDistance) {
+        minDistance = distance;
+        nearestDivision = division;
+      }
+    }
+  }
+
+  // Return nearest division within radius, or first division as last resort
+  return nearestDivision?.id || divisions[0]?.id || null;
+}
+
+/**
  * GET /api/rescue-squads/[id]/hub
  *
  * Returns all data needed for the Squad Hub in a single API call.
@@ -167,11 +269,7 @@ export async function GET(request, { params }) {
       return {
         id: c.id,
         caseNumber: c.caseNumber,
-        divisionId: squad.divisions.find(d => {
-          // Simple assignment: first division for now
-          // TODO: Add proper division assignment logic
-          return true;
-        })?.id || squad.divisions[0]?.id || null,
+        divisionId: assignCaseToDivision(c, squad.divisions),
         petName: c.petName,
         species: c.petSpecies,
         breed: c.petBreed,
