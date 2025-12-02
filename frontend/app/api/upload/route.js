@@ -23,7 +23,11 @@ import crypto from 'crypto';
 // Configuration
 const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE;
 const BUNNY_API_KEY = process.env.BUNNY_API_KEY;
-const BUNNY_CDN_URL = process.env.BUNNY_CDN_URL;
+// Ensure CDN URL has https:// prefix
+let BUNNY_CDN_URL = process.env.BUNNY_CDN_URL;
+if (BUNNY_CDN_URL && !BUNNY_CDN_URL.startsWith('http')) {
+  BUNNY_CDN_URL = `https://${BUNNY_CDN_URL}`;
+}
 const BUNNY_STORAGE_URL = process.env.BUNNY_STORAGE_URL || 'https://storage.bunnycdn.com';
 
 // Allowed file types and max size
