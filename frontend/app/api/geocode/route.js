@@ -9,6 +9,8 @@ import { NextResponse } from 'next/server';
  * - limit: number of results (default 1)
  * - addressdetails: include address breakdown (default 1)
  * - countrycodes: filter by country (e.g., 'us')
+ * - format: json (default) or geojson
+ * - polygon_geojson: 1 to include polygon boundaries (for format=geojson)
  *
  * Reverse geocoding (coordinates to address):
  * - lat: latitude
@@ -24,6 +26,8 @@ export async function GET(request) {
     const limit = searchParams.get('limit') || '1';
     const addressdetails = searchParams.get('addressdetails') || '1';
     const countrycodes = searchParams.get('countrycodes') || '';
+    const format = searchParams.get('format') || 'json';
+    const polygon_geojson = searchParams.get('polygon_geojson') || '';
 
     let nominatimUrl;
 
@@ -32,7 +36,7 @@ export async function GET(request) {
       const params = new URLSearchParams({
         lat,
         lon,
-        format: 'json',
+        format,
         addressdetails,
       });
       nominatimUrl = `https://nominatim.openstreetmap.org/reverse?${params.toString()}`;
@@ -41,13 +45,17 @@ export async function GET(request) {
     else if (query) {
       const params = new URLSearchParams({
         q: query,
-        format: 'json',
+        format,
         limit,
         addressdetails,
       });
 
       if (countrycodes) {
         params.append('countrycodes', countrycodes);
+      }
+
+      if (polygon_geojson) {
+        params.append('polygon_geojson', polygon_geojson);
       }
 
       nominatimUrl = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
@@ -79,7 +87,13 @@ export async function GET(request) {
     }
 
     const data = await response.json();
-    console.log('[GEOCODE] Found results:', data.length);
+
+    // Log results differently for geojson vs json
+    if (format === 'geojson') {
+      console.log('[GEOCODE] Found GeoJSON features:', data.features?.length || 0);
+    } else {
+      console.log('[GEOCODE] Found results:', Array.isArray(data) ? data.length : 1);
+    }
 
     return NextResponse.json(data);
 

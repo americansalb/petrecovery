@@ -71,13 +71,9 @@ export default function MapComponentV2({
         const state = squad.state || '';
         const searchQuery = state ? `${cityName}, ${state}, USA` : `${cityName}, USA`;
 
+        // Use backend proxy to avoid CORS issues
         const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=geojson&polygon_geojson=1&limit=1`,
-          {
-            headers: {
-              'User-Agent': 'PetRecovery.org (contact@petrecovery.org)'
-            }
-          }
+          `/api/geocode?q=${encodeURIComponent(searchQuery)}&format=geojson&polygon_geojson=1&limit=1`
         );
 
         if (!response.ok) return;
