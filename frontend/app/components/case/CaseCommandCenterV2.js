@@ -67,7 +67,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
   const [gpsPath, setGpsPath] = useState([]);
   const [tasks, setTasks] = useState([]);
 
-  // UI state
+  // UI state - All useState hooks must be at component top level
   const [activeTab, setActiveTab] = useState('overview'); // overview | map | activity | team | manage
   const [showSightingForm, setShowSightingForm] = useState(false);
   const [newMessage, setNewMessage] = useState('');
