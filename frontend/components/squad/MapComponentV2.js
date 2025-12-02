@@ -176,7 +176,7 @@ export default function MapComponentV2({
       const icon = L.divIcon({
         className: 'custom-case-marker',
         html: `
-          <div style="
+          <div data-case-id="${caseData.id}" style="
             width: 32px;
             height: 32px;
             background: ${markerColor};
@@ -198,10 +198,20 @@ export default function MapComponentV2({
       });
 
       const marker = L.marker([caseData.lastSeenLat, caseData.lastSeenLng], { icon })
-        .addTo(mapInstanceRef.current)
-        .on('click', () => {
-          onCaseClick(caseData.id);
-        });
+        .addTo(mapInstanceRef.current);
+
+      // Add click event that will definitely work
+      marker.on('click', (e) => {
+        console.log('Marker clicked!', caseData.id);
+        onCaseClick(caseData.id);
+      });
+
+      // Also add click handler to the HTML element for better reliability
+      marker.getElement()?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('Marker HTML clicked!', caseData.id);
+        onCaseClick(caseData.id);
+      });
 
       markersRef.current.push(marker);
     });
