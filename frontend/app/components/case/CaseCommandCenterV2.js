@@ -12,6 +12,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import TaskCompletionModal from '@/components/case/TaskCompletionModal';
+import { normalizePhotoUrl } from '@/app/lib/utils';
 import {
   MapPin,
   Clock,
@@ -244,7 +245,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
               <div className="flex items-center gap-3">
                 {caseData?.petPhotoUrl ? (
                   <img
-                    src={caseData.petPhotoUrl}
+                    src={normalizePhotoUrl(caseData.petPhotoUrl)}
                     alt={caseData.petName}
                     className="w-12 h-12 rounded-xl object-cover border-2 border-cyan-500/30"
                   />

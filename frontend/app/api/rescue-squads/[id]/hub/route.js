@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { normalizePhotoUrl } from '@/app/lib/utils';
 
 /**
  * Check if a point is inside a GeoJSON polygon using ray casting algorithm
@@ -259,12 +260,7 @@ export async function GET(request, { params }) {
       else if (assignment.status === 'ACTIVE') status = 'IN_PROGRESS';
 
       // Get photo URL from petPhotoUrl field (Case model doesn't have photoUrls)
-      let photoUrl = c.petPhotoUrl || null;
-
-      // DEFENSIVE: Ensure photo URL has https:// prefix
-      if (photoUrl && !photoUrl.startsWith('http')) {
-        photoUrl = `https://${photoUrl}`;
-      }
+      const photoUrl = normalizePhotoUrl(c.petPhotoUrl);
 
       return {
         id: c.id,
