@@ -2,6 +2,10 @@
 const nextConfig = {
   output: 'standalone',
 
+  // Build optimizations for memory and speed
+  swcMinify: true,
+  productionBrowserSourceMaps: false,
+
   // Ensure static files needed at runtime are copied to standalone output
   experimental: {
     outputFileTracingIncludes: {
@@ -143,6 +147,20 @@ const nextConfig = {
         tls: false,
       };
     }
+
+    // Memory optimizations for large builds
+    config.optimization = {
+      ...config.optimization,
+      moduleIds: 'deterministic',
+      // Reduce memory usage during build
+      splitChunks: {
+        ...config.optimization.splitChunks,
+        cacheGroups: {
+          default: false,
+          vendors: false,
+        },
+      },
+    };
 
     return config;
   },
