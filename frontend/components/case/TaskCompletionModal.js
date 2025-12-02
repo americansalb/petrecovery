@@ -37,6 +37,7 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
 
     // Property search specific
     areasChecked: '',
+    areasGPS: [],
     searchDuration: '',
 
     // Station setup
@@ -62,6 +63,7 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
     // Search timing
     searchTime: 'DAWN',
     searchLocation: '',
+    searchGPS: [],
     anyResponse: '',
 
     // Trap setup
@@ -161,6 +163,39 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
     } else {
       alert('Geolocation is not supported by your browser.');
     }
+  };
+
+  // Add GPS point to array for multi-location tracking (search paths)
+  const addGPSPoint = (arrayFieldName, description = '') => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const gpsPoint = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            timestamp: new Date().toISOString(),
+            description: description || 'Search point',
+          };
+          setDetails(prev => ({
+            ...prev,
+            [arrayFieldName]: [...prev[arrayFieldName], gpsPoint]
+          }));
+        },
+        (err) => {
+          alert('Could not get your location. Please enable location services.');
+          console.error('Geolocation error:', err);
+        }
+      );
+    } else {
+      alert('Geolocation is not supported by your browser.');
+    }
+  };
+
+  const removeGPSPoint = (arrayFieldName, index) => {
+    setDetails(prev => ({
+      ...prev,
+      [arrayFieldName]: prev[arrayFieldName].filter((_, i) => i !== index)
+    }));
   };
 
   const removeFlyerLocation = (index) => {
@@ -502,18 +537,57 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
           <div className="space-y-4">
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
-                Where did you look?
+                Track your search path
               </label>
-              <p className="text-slate-400 text-sm mb-3">
-                Be specific - it helps others know where's been covered
+
+              {/* GPS Points List */}
+              {details.areasGPS.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {details.areasGPS.map((point, i) => (
+                    <div key={i} className="bg-cyan-900/20 border-2 border-cyan-500/30 rounded-xl p-3 flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="text-cyan-200 font-semibold text-sm flex items-center gap-2">
+                          <MapPin size={14} />
+                          {point.description}
+                        </div>
+                        <div className="text-cyan-400/60 text-xs mt-1">
+                          📍 {point.lat.toFixed(5)}, {point.lng.toFixed(5)} • {new Date(point.timestamp).toLocaleTimeString()}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeGPSPoint('areasGPS', i)}
+                        className="text-red-400 hover:text-red-300 p-1"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={() => addGPSPoint('areasGPS', 'Searched here')}
+                className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl hover:from-cyan-600 hover:to-blue-600 transition shadow-lg shadow-cyan-500/30 flex items-center justify-center gap-2"
+              >
+                <MapPin size={20} />
+                Mark Current Location as Searched
+              </button>
+              <p className="text-slate-400 text-xs mt-2 text-center">
+                Tap this button at each area you search to build a search path
               </p>
+            </div>
+
+            <div>
+              <label className="text-slate-300 text-sm font-medium block mb-2">
+                Additional details (optional)
+              </label>
               <textarea
                 value={details.areasChecked}
                 onChange={(e) => setDetails({ ...details, areasChecked: e.target.value })}
-                placeholder="Like: backyard, garage, under deck, bushes along fence, neighbor's yard..."
+                placeholder="Any specific areas like 'under deck', 'neighbor's shed', etc..."
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
-                rows={4}
+                rows={3}
               />
             </div>
 
@@ -799,17 +873,60 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                 <option value="NIGHT">Late night (quiet hours)</option>
               </select>
             </div>
+
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
-                Where did you search? *
+                Track your search route
+              </label>
+
+              {/* GPS Points List */}
+              {details.searchGPS.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {details.searchGPS.map((point, i) => (
+                    <div key={i} className="bg-amber-900/20 border-2 border-amber-500/30 rounded-xl p-3 flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="text-amber-200 font-semibold text-sm flex items-center gap-2">
+                          <MapPin size={14} />
+                          Search point #{i + 1}
+                        </div>
+                        <div className="text-amber-400/60 text-xs mt-1">
+                          📍 {point.lat.toFixed(5)}, {point.lng.toFixed(5)} • {new Date(point.timestamp).toLocaleTimeString()}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeGPSPoint('searchGPS', i)}
+                        className="text-red-400 hover:text-red-300 p-1"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={() => addGPSPoint('searchGPS', 'Search point')}
+                className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl hover:from-amber-600 hover:to-orange-600 transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2"
+              >
+                <MapPin size={20} />
+                Mark Location on Search Route
+              </button>
+              <p className="text-slate-400 text-xs mt-2 text-center">
+                Track your path as you walk and call - tap at key intersection points
+              </p>
+            </div>
+
+            <div>
+              <label className="text-slate-300 text-sm font-medium block mb-2">
+                Additional details (optional)
               </label>
               <textarea
                 value={details.searchLocation}
                 onChange={(e) => setDetails({ ...details, searchLocation: e.target.value })}
-                placeholder="Streets covered, neighborhoods, specific areas..."
+                placeholder="Street names, neighborhoods, or landmarks..."
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
-                rows={3}
+                rows={2}
               />
             </div>
             <div>
@@ -834,15 +951,57 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
           <div className="space-y-4">
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
-                Where exactly did you check? *
+                Mark hiding spots you checked
+              </label>
+
+              {/* GPS Points List */}
+              {details.areasGPS.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {details.areasGPS.map((point, i) => (
+                    <div key={i} className="bg-purple-900/20 border-2 border-purple-500/30 rounded-xl p-3 flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="text-purple-200 font-semibold text-sm flex items-center gap-2">
+                          <MapPin size={14} />
+                          Hiding spot #{i + 1}
+                        </div>
+                        <div className="text-purple-400/60 text-xs mt-1">
+                          📍 {point.lat.toFixed(5)}, {point.lng.toFixed(5)} • {new Date(point.timestamp).toLocaleTimeString()}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeGPSPoint('areasGPS', i)}
+                        className="text-red-400 hover:text-red-300 p-1"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={() => addGPSPoint('areasGPS', 'Checked here')}
+                className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-xl hover:from-purple-600 hover:to-pink-600 transition shadow-lg shadow-purple-500/30 flex items-center justify-center gap-2"
+              >
+                <MapPin size={20} />
+                Mark Hiding Spot Checked
+              </button>
+              <p className="text-slate-400 text-xs mt-2 text-center">
+                Tap at each shed, garage, crawl space, or hiding spot you check
+              </p>
+            </div>
+
+            <div>
+              <label className="text-slate-300 text-sm font-medium block mb-2">
+                Describe specific spots (optional)
               </label>
               <textarea
                 value={details.areasChecked}
                 onChange={(e) => setDetails({ ...details, areasChecked: e.target.value })}
-                placeholder="Be specific - sheds, garages, under porches, construction sites, dumpsters, crawl spaces..."
+                placeholder="Under porches, sheds, garages, construction sites..."
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
-                rows={4}
+                rows={3}
               />
             </div>
             <div>
