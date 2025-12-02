@@ -156,17 +156,12 @@ export async function GET(request, { params }) {
       else if (assignment.status === 'ACCEPTED') status = 'PENDING';
       else if (assignment.status === 'ACTIVE') status = 'IN_PROGRESS';
 
-      // Extract first photo from photoUrls JSON array
-      let photoUrl = null;
-      if (c.photoUrls) {
-        try {
-          const photos = typeof c.photoUrls === 'string'
-            ? JSON.parse(c.photoUrls)
-            : c.photoUrls;
-          photoUrl = Array.isArray(photos) && photos.length > 0 ? photos[0] : null;
-        } catch (e) {
-          console.error('Failed to parse photoUrls for case:', c.id, e);
-        }
+      // Get photo URL from petPhotoUrl field (Case model doesn't have photoUrls)
+      let photoUrl = c.petPhotoUrl || null;
+
+      // DEFENSIVE: Ensure photo URL has https:// prefix
+      if (photoUrl && !photoUrl.startsWith('http')) {
+        photoUrl = `https://${photoUrl}`;
       }
 
       return {
@@ -181,8 +176,7 @@ export async function GET(request, { params }) {
         species: c.petSpecies,
         breed: c.petBreed,
         color: c.petColor,
-        photoUrl,  // Now correctly extracts from photoUrls
-        photoUrls: c.photoUrls,  // Also include the full array for components that need it
+        photoUrl,  // Single photo URL from petPhotoUrl field
         status,
         urgency,
         lastSeenAt: c.lastSeenAt?.toISOString(),

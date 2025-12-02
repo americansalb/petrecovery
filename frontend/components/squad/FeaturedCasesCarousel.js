@@ -53,18 +53,8 @@ export default function FeaturedCasesCarousel({ cases }) {
     OTHER: '🐾',
   }[currentCase.species] || '🐾';
 
-  // Extract first photo from photoUrls JSON array
-  let petPhotoUrl = null;
-  if (currentCase.photoUrls) {
-    try {
-      const photos = typeof currentCase.photoUrls === 'string'
-        ? JSON.parse(currentCase.photoUrls)
-        : currentCase.photoUrls;
-      petPhotoUrl = Array.isArray(photos) && photos.length > 0 ? photos[0] : null;
-    } catch (e) {
-      console.error('Failed to parse photoUrls:', e);
-    }
-  }
+  // Use photoUrl from case data
+  const petPhotoUrl = currentCase.photoUrl;
 
   return (
     <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/20 to-slate-900/20 backdrop-blur-sm border border-red-500/30 rounded-xl p-4 mb-6">
