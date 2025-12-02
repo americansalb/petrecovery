@@ -38,6 +38,8 @@ export default function SARMapView({
   const gpsLayersRef = useRef([]);
   const [userLocation, setUserLocation] = useState(null);
   const userMarkerRef = useRef(null);
+  const [mapLayer, setMapLayer] = useState('satellite'); // 'satellite' or 'street'
+  const baseLayersRef = useRef({});
 
   // Calculate search radius based on time and pet type
   const getSearchRadius = () => {
@@ -63,10 +65,18 @@ export default function SARMapView({
       attributionControl: false
     });
 
-    // Dark theme tiles
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // Create base layers
+    baseLayersRef.current.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Esri, DigitalGlobe, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community'
+    });
+
+    baseLayersRef.current.street = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       maxZoom: 19
-    }).addTo(mapInstance.current);
+    });
+
+    // Add default layer (satellite)
+    baseLayersRef.current[mapLayer].addTo(mapInstance.current);
 
     // Track user location
     if ('geolocation' in navigator) {
@@ -95,6 +105,20 @@ export default function SARMapView({
       mapInstance.current.setView(center, 15);
     }
   }, [center]);
+
+  // Handle layer switching
+  useEffect(() => {
+    if (!mapInstance.current || !baseLayersRef.current.satellite || !baseLayersRef.current.street) return;
+
+    // Remove current layer
+    const currentLayer = mapLayer === 'satellite' ? 'street' : 'satellite';
+    if (baseLayersRef.current[currentLayer]) {
+      mapInstance.current.removeLayer(baseLayersRef.current[currentLayer]);
+    }
+
+    // Add new layer
+    baseLayersRef.current[mapLayer].addTo(mapInstance.current);
+  }, [mapLayer]);
 
   // Update user location marker
   useEffect(() => {
@@ -389,6 +413,26 @@ export default function SARMapView({
   return (
     <div className="w-full h-full relative">
       <div ref={mapRef} className="w-full h-full" />
+
+      {/* Layer Toggle Button */}
+      <div className="absolute top-4 right-4 z-[400]">
+        <button
+          onClick={() => setMapLayer(mapLayer === 'satellite' ? 'street' : 'satellite')}
+          className="bg-slate-900/90 backdrop-blur border border-slate-700 rounded-xl px-4 py-2.5 text-white font-semibold text-sm hover:bg-slate-800 transition flex items-center gap-2 shadow-lg"
+        >
+          {mapLayer === 'satellite' ? (
+            <>
+              <span>🗺️</span>
+              <span>Street View</span>
+            </>
+          ) : (
+            <>
+              <span>🛰️</span>
+              <span>Satellite</span>
+            </>
+          )}
+        </button>
+      </div>
 
       {/* Legend */}
       <div className="absolute bottom-4 left-4 bg-slate-900/90 backdrop-blur rounded-xl p-3 text-xs z-[400] border border-slate-700">
