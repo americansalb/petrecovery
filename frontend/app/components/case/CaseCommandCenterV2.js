@@ -870,6 +870,100 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
       } : null
     };
 
+    // Extract GPS data and add to map
+    const extractGPSMarkers = (data) => {
+      const markers = [];
+      const { details, taskType } = data;
+
+      // Multi-location tasks (flyers, search paths)
+      if (details.flyerLocations && details.flyerLocations.length > 0) {
+        details.flyerLocations.forEach(loc => {
+          markers.push({
+            lat: loc.lat,
+            lng: loc.lng,
+            type: 'flyer',
+            label: 'Flyer Posted',
+            description: loc.description || 'Flyer location',
+            timestamp: loc.timestamp || loc.date,
+            taskType: 'POST_FLYERS'
+          });
+        });
+      }
+
+      if (details.areasGPS && details.areasGPS.length > 0) {
+        details.areasGPS.forEach(loc => {
+          markers.push({
+            lat: loc.lat,
+            lng: loc.lng,
+            type: 'search',
+            label: 'Searched',
+            description: loc.description || 'Search area',
+            timestamp: loc.timestamp,
+            taskType
+          });
+        });
+      }
+
+      if (details.searchGPS && details.searchGPS.length > 0) {
+        details.searchGPS.forEach(loc => {
+          markers.push({
+            lat: loc.lat,
+            lng: loc.lng,
+            type: 'search_route',
+            label: 'Search Route',
+            description: loc.description || 'Search point',
+            timestamp: loc.timestamp,
+            taskType
+          });
+        });
+      }
+
+      // Single-location tasks (stations, traps, cameras)
+      if (details.stationGPS) {
+        markers.push({
+          lat: details.stationGPS.lat,
+          lng: details.stationGPS.lng,
+          type: 'station',
+          label: details.stationType || 'Station',
+          description: details.stationLocation || 'Recovery station',
+          timestamp: details.stationGPS.timestamp,
+          taskType: 'SETUP_STATION'
+        });
+      }
+
+      if (details.trapGPS) {
+        markers.push({
+          lat: details.trapGPS.lat,
+          lng: details.trapGPS.lng,
+          type: 'trap',
+          label: 'Trap',
+          description: details.trapLocation || 'Humane trap',
+          timestamp: details.trapGPS.timestamp,
+          taskType: 'SETUP_TRAP'
+        });
+      }
+
+      if (details.cameraGPS) {
+        markers.push({
+          lat: details.cameraGPS.lat,
+          lng: details.cameraGPS.lng,
+          type: 'camera',
+          label: 'Camera',
+          description: details.cameraLocation || 'Surveillance camera',
+          timestamp: details.cameraGPS.timestamp,
+          taskType: 'SETUP_CAMERAS'
+        });
+      }
+
+      return markers;
+    };
+
+    // Add extracted markers to gpsPath
+    const newMarkers = extractGPSMarkers(completionWithUser);
+    if (newMarkers.length > 0) {
+      setGpsPath(prev => [...prev, ...newMarkers]);
+    }
+
     // TODO: Save to backend API
     // await fetch(`/api/cases/${caseData.id}/tasks`, {
     //   method: 'POST',
