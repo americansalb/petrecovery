@@ -282,7 +282,7 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                 Capture My Location Now
               </button>
               <p className="text-slate-300 text-xs mt-2 text-center">
-                One tap to save where you are right now
+                Save current GPS coordinates
               </p>
             </div>
 
@@ -320,7 +320,7 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
               {/* Manual add section - optional */}
               <div className="border-t border-slate-700 pt-4 mt-4">
                 <p className="text-slate-400 text-xs mb-3 text-center">
-                  Need to add a location from earlier? Use manual entry below
+                  Add previous location via manual entry
                 </p>
 
                 {/* Add location form */}
@@ -476,7 +476,7 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                 type="text"
                 value={details.shelterContact}
                 onChange={(e) => setDetails({ ...details, shelterContact: e.target.value })}
-                placeholder="Staff member's name (helpful for follow-ups)"
+                placeholder="Staff member's name"
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               />
@@ -493,7 +493,7 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white focus:outline-none focus:border-cyan-500"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               />
-              <p className="text-slate-400 text-xs mt-2">💡 Shelters recommend checking every 2-3 days</p>
+              <p className="text-slate-400 text-xs mt-2">Check back every 2-3 days</p>
             </div>
 
             <div>
@@ -548,7 +548,7 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
                 rows={3}
               />
-              <p className="text-slate-400 text-xs mt-2">💡 Post to at least 3-5 local groups for maximum visibility</p>
+              <p className="text-slate-400 text-xs mt-2">Post to 3-5 local groups for best reach</p>
             </div>
 
             <div>
@@ -622,7 +622,7 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                 Mark Current Location as Searched
               </button>
               <p className="text-slate-400 text-xs mt-2 text-center">
-                Tap this button at each area you search to build a search path
+                Mark locations as you search to track coverage
               </p>
             </div>
 
@@ -774,7 +774,7 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
                 rows={3}
               />
-              <p className="text-slate-400 text-xs mt-2">💡 The stronger the scent, the better! Unwashed clothes work great.</p>
+              <p className="text-slate-400 text-xs mt-2">Strong scents work best - unwashed clothes are ideal</p>
             </div>
           </div>
         );
@@ -1007,7 +1007,7 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                 Mark Location on Search Route
               </button>
               <p className="text-slate-400 text-xs mt-2 text-center">
-                Track your path as you walk and call - tap at key intersection points
+                Mark key points along your search route
               </p>
             </div>
 
@@ -1082,7 +1082,7 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                 Mark Hiding Spot Checked
               </button>
               <p className="text-slate-400 text-xs mt-2 text-center">
-                Tap at each shed, garage, crawl space, or hiding spot you check
+                Mark each location checked
               </p>
             </div>
 
@@ -1469,15 +1469,12 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
           <div className="space-y-4">
             <div>
               <label className="text-slate-200 text-base font-semibold block mb-2">
-                Tell us what you did
+                What did you do? *
               </label>
-              <p className="text-slate-400 text-sm mb-3">
-                Even small details help the team understand what's been covered
-              </p>
               <textarea
                 value={details.notes}
                 onChange={(e) => setDetails({ ...details, notes: e.target.value })}
-                placeholder="What did you do? Where did you go? What happened?"
+                placeholder="Actions taken, locations visited, results..."
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
                 rows={4}
