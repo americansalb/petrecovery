@@ -958,7 +958,33 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="space-y-6">
+      {/* Surumaa Encouragement */}
+      <div className="bg-gradient-to-br from-amber-500/10 via-rose-500/10 to-purple-500/10 border-2 border-amber-400/30 rounded-2xl p-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 opacity-10">
+          <img src="https://petrescue.b-cdn.net/Untitled%20design%20(13).svg" alt="" className="h-64 w-auto" />
+        </div>
+        <div className="relative flex items-start gap-4">
+          <img
+            src="https://petrescue.b-cdn.net/Untitled%20design%20(13).svg"
+            alt="Surumaa"
+            className="h-20 w-auto shrink-0 drop-shadow-xl"
+          />
+          <div className="flex-1">
+            <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+              💙 Surumaa is here to help!
+            </h3>
+            <p className="text-slate-200 text-sm leading-relaxed mb-3">
+              You're doing amazing! Every action you take brings you closer to bringing them home. I'm tracking your progress and cheering you on every step of the way.
+            </p>
+            <p className="text-amber-300 text-xs font-semibold">
+              💡 Tip: Most lost pets are found within the first 24 hours. Keep going - you've got this!
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Search Area Tracking */}
       <div className="bg-slate-900/50 border-2 border-purple-500/30 rounded-2xl p-6">
         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
@@ -1101,6 +1127,7 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
           }}
         />
       )}
+      </div>
     </div>
   );
 }

@@ -54,8 +54,8 @@ const HomeHeader = ({ session }) => {
   return (
     <div className="absolute top-0 left-0 right-0 z-50 bg-transparent">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-        <Link href="/" className="text-2xl font-black text-white drop-shadow-lg flex items-center gap-2">
-          <img src="https://petrescue.b-cdn.net/Untitled%20design%20(12).svg" alt="PetRecovery" className="h-10 w-auto" />
+        <Link href="/" className="text-2xl font-black text-white drop-shadow-lg flex items-center gap-3">
+          <img src="https://petrescue.b-cdn.net/Untitled%20design%20(13).svg" alt="Surumaa" className="h-12 w-auto drop-shadow-xl" />
           <span>PetRecovery</span>
         </Link>
         <div className="flex items-center gap-3">
@@ -112,6 +112,30 @@ const HeroSection = ({ session }) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
+          {/* Surumaa floating helper */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5, y: 50 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.8, type: "spring" }}
+            className="mb-8 flex justify-center"
+          >
+            <div className="relative">
+              <img
+                src="https://petrescue.b-cdn.net/Untitled%20design%20(13).svg"
+                alt="Surumaa"
+                className="h-32 w-auto drop-shadow-2xl"
+              />
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 1.2 }}
+                className="absolute -right-32 top-8 bg-white text-slate-800 px-6 py-3 rounded-2xl rounded-bl-none shadow-xl border-2 border-amber-400 max-w-xs"
+              >
+                <p className="text-sm font-bold">👋 Hi! I'm Surumaa, and I'm here to help bring your loved one home!</p>
+              </motion.div>
+            </div>
+          </motion.div>
+
           <h1 className="text-6xl md:text-8xl font-black text-white mb-8 tracking-tight drop-shadow-lg">
             Bring Them <span className="text-amber-400">Home.</span>
           </h1>
@@ -241,6 +265,31 @@ export default function Home() {
               image="https://images.unsplash.com/photo-1601758228041-f3b2795255f1?q=80&w=1000&auto=format&fit=crop"
               story="We found a scared beagle and used the database to find his owners instantly. Seeing their reunion was the highlight of my year."
             />
+          </div>
+        </div>
+      </div>
+
+      {/* Footer with Surumaa */}
+      <div className="bg-slate-900 py-16 border-t border-slate-800">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="flex items-center gap-4">
+              <img
+                src="https://petrescue.b-cdn.net/Untitled%20design%20(13).svg"
+                alt="Surumaa"
+                className="h-16 w-auto drop-shadow-xl"
+              />
+              <div>
+                <p className="text-white font-bold text-lg">Meet Surumaa</p>
+                <p className="text-slate-400 text-sm">Your guide on the journey home</p>
+              </div>
+            </div>
+            <Link
+              href="/about-surumaa"
+              className="px-6 py-3 bg-amber-500/20 border-2 border-amber-500/50 text-amber-400 font-bold rounded-full hover:bg-amber-500/30 transition-all"
+            >
+              Learn About Surumaa →
+            </Link>
           </div>
         </div>
       </div>
