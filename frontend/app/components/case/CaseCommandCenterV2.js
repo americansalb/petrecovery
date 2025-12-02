@@ -57,10 +57,53 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // GPS tracking state (shared between Team and Map tabs)
+  const [gpsPath, setGpsPath] = useState([]);
+  const [tasks, setTasks] = useState([]);
+
   // UI state
   const [activeTab, setActiveTab] = useState('overview'); // overview | map | activity | team | manage
   const [showSightingForm, setShowSightingForm] = useState(false);
   const [newMessage, setNewMessage] = useState('');
+
+  // Load GPS path and tasks from localStorage on mount
+  useEffect(() => {
+    if (!caseData?.id) return;
+    const storageKey = `case_${caseData.id}_gps`;
+    const tasksKey = `case_${caseData.id}_tasks`;
+
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        setGpsPath(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to load GPS path:', e);
+      }
+    }
+
+    const savedTasks = localStorage.getItem(tasksKey);
+    if (savedTasks) {
+      try {
+        setTasks(JSON.parse(savedTasks));
+      } catch (e) {
+        console.error('Failed to load tasks:', e);
+      }
+    }
+  }, [caseData?.id]);
+
+  // Save GPS path to localStorage whenever it changes
+  useEffect(() => {
+    if (!caseData?.id || gpsPath.length === 0) return;
+    const storageKey = `case_${caseData.id}_gps`;
+    localStorage.setItem(storageKey, JSON.stringify(gpsPath));
+  }, [gpsPath, caseData?.id]);
+
+  // Save tasks to localStorage whenever they change
+  useEffect(() => {
+    if (!caseData?.id || tasks.length === 0) return;
+    const tasksKey = `case_${caseData.id}_tasks`;
+    localStorage.setItem(tasksKey, JSON.stringify(tasks));
+  }, [tasks, caseData?.id]);
 
   // Fetch case data
   const fetchCase = useCallback(async () => {
@@ -253,6 +296,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
             caseData={caseData}
             sightings={sightings}
             timeMissing={timeMissing}
+            gpsPath={gpsPath}
             onReportSighting={() => setShowSightingForm(true)}
           />
         )}
@@ -271,6 +315,10 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
           <TeamTab
             team={team}
             caseData={caseData}
+            tasks={tasks}
+            setTasks={setTasks}
+            gpsPath={gpsPath}
+            setGpsPath={setGpsPath}
           />
         )}
 
@@ -456,7 +504,7 @@ function OverviewTab({ caseData, timeMissing, isUrgent, isReunited, sightingsCou
 // ============================================================================
 // MAP TAB - Full-screen search coordination
 // ============================================================================
-function MapTab({ caseData, sightings, timeMissing, onReportSighting }) {
+function MapTab({ caseData, sightings, timeMissing, gpsPath, onReportSighting }) {
   return (
     <div className="relative">
       {/* Map Container */}
@@ -473,6 +521,7 @@ function MapTab({ caseData, sightings, timeMissing, onReportSighting }) {
           sightings={sightings}
           petSpecies={caseData?.petSpecies}
           hoursElapsed={timeMissing ? parseInt(timeMissing) : 24}
+          gpsPath={gpsPath}
           showControls
         />
 
@@ -596,7 +645,7 @@ function ActivityTab({ sightings, timeline, chatMessages, newMessage, setNewMess
 // ============================================================================
 // TEAM TAB - Helpers and coordination
 // ============================================================================
-function TeamTab({ team, caseData }) {
+function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath }) {
   const defaultTasks = [
     { id: 1, label: 'Alert neighbors & nearby residents', type: 'ALERT_NEIGHBORS', completed: false, completions: [] },
     { id: 2, label: 'Post flyers in the area', type: 'POST_FLYERS', completed: false, completions: [] },
@@ -606,10 +655,15 @@ function TeamTab({ team, caseData }) {
     { id: 6, label: 'Visit shelters in person', type: 'VISIT_SHELTERS', completed: false, completions: [] },
   ];
 
-  const [tasks, setTasks] = useState(defaultTasks);
+  // Initialize tasks if empty
+  useEffect(() => {
+    if (tasks.length === 0) {
+      setTasks(defaultTasks);
+    }
+  }, []);
+
   const [selectedTask, setSelectedTask] = useState(null);
   const [isGPSTracking, setIsGPSTracking] = useState(false);
-  const [gpsPath, setGpsPath] = useState([]);
 
   const handleTaskClick = (task) => {
     // Open the detailed completion modal
