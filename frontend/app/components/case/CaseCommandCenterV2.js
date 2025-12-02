@@ -12,6 +12,8 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import TaskCompletionModal from '@/components/case/TaskCompletionModal';
+import { normalizePhotoUrl, fetchWithRetry, formatErrorMessage, isOnline } from '@/app/lib/utils';
+import { PageLoading } from '@/components/LoadingSkeleton';
 import {
   MapPin,
   Clock,
@@ -32,6 +34,7 @@ import {
   Eye,
   Send,
   Navigation,
+  RefreshCw,
 } from 'lucide-react';
 
 // Lazy load map for better performance
@@ -106,18 +109,60 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
     localStorage.setItem(tasksKey, JSON.stringify(tasks));
   }, [tasks, caseData?.id]);
 
-  // Fetch case data
+  // Fetch case data with retry logic
   const fetchCase = useCallback(async () => {
     try {
       const identifier = caseId || caseNumber;
-      const res = await fetch(`/api/cases/${identifier}`);
-      if (!res.ok) throw new Error('Case not found');
+
+      // Check if online before making request
+      if (!isOnline()) {
+        setError('You are offline. Please check your internet connection.');
+        setLoading(false);
+        return;
+      }
+
+      const res = await fetchWithRetry(`/api/cases/${identifier}`);
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          throw new Error('Case not found');
+        } else if (res.status === 403) {
+          throw new Error('You do not have permission to view this case');
+        } else {
+          throw new Error(`Failed to load case (${res.status})`);
+        }
+      }
+
       const data = await res.json();
       setCaseData(data);
+
+      // Extract team members from assignments
+      if (data.assignments && data.assignments.length > 0) {
+        const allParticipants = data.assignments.flatMap(assignment =>
+          assignment.participants?.map(p => ({
+            id: p.id,
+            userId: p.userId,
+            name: `${p.user.firstName} ${p.user.lastName || ''}`.trim(),
+            firstName: p.user.firstName,
+            lastName: p.user.lastName,
+            isActive: p.isActive !== false, // Default to true if not specified
+          })) || []
+        );
+
+        // Remove duplicates by userId
+        const uniqueParticipants = Array.from(
+          new Map(allParticipants.map(p => [p.userId, p])).values()
+        );
+
+        setTeam(uniqueParticipants);
+      } else {
+        setTeam([]);
+      }
+
       setError(null);
     } catch (err) {
       console.error('Error fetching case:', err);
-      setError(err.message);
+      setError(formatErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -165,30 +210,49 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
 
   // Loading state
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-400">Loading case...</p>
-        </div>
-      </div>
-    );
+    return <PageLoading message="Loading case details..." />;
   }
 
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center p-4">
-        <div className="bg-red-900/30 border-2 border-red-500/50 rounded-2xl p-8 max-w-md text-center">
-          <div className="text-4xl mb-4">⚠️</div>
-          <h2 className="text-xl font-bold text-white mb-2">Unable to Load Case</h2>
-          <p className="text-red-300 mb-6">{error}</p>
-          <button
-            onClick={onClose || (() => window.history.back())}
-            className="px-6 py-3 bg-slate-700 text-white rounded-xl font-semibold hover:bg-slate-600 transition"
-          >
-            Go Back
-          </button>
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-slate-900/80 backdrop-blur-xl border-2 border-red-500/30 rounded-2xl p-8 shadow-2xl">
+          {/* Error Icon */}
+          <div className="flex justify-center mb-6">
+            <div className="p-4 bg-red-500/20 rounded-full border-2 border-red-500/50">
+              <AlertCircle size={48} className="text-red-400" />
+            </div>
+          </div>
+
+          {/* Error Message */}
+          <h2 className="text-2xl font-bold text-white text-center mb-3">
+            Unable to Load Case
+          </h2>
+          <p className="text-red-300 text-center mb-8">
+            {error}
+          </p>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => {
+                setError(null);
+                setLoading(true);
+                fetchCase();
+              }}
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl hover:scale-105 transition shadow-lg shadow-cyan-500/30"
+            >
+              <RefreshCw size={20} />
+              Try Again
+            </button>
+            <button
+              onClick={onClose || (() => window.history.back())}
+              className="px-6 py-3 bg-slate-800/80 text-slate-300 font-bold rounded-xl hover:bg-slate-800 hover:text-white transition border-2 border-slate-700"
+            >
+              Go Back
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -220,7 +284,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
               <div className="flex items-center gap-3">
                 {caseData?.petPhotoUrl ? (
                   <img
-                    src={caseData.petPhotoUrl}
+                    src={normalizePhotoUrl(caseData.petPhotoUrl)}
                     alt={caseData.petName}
                     className="w-12 h-12 rounded-xl object-cover border-2 border-cyan-500/30"
                   />
@@ -1027,12 +1091,32 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
       setGpsPath(prev => [...prev, ...newMarkers]);
     }
 
-    // TODO: Save to backend API
-    // await fetch(`/api/cases/${caseData.id}/tasks`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(completionWithUser),
-    // });
+    // Save to backend API
+    try {
+      const response = await fetch(`/api/cases/${caseData.id}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: selectedTask.label,
+          description: `Task completed: ${selectedTask.label}`,
+          type: completionWithUser.taskType || 'OTHER',
+          priority: 'MEDIUM',
+          status: 'COMPLETED',
+          completionNotes: JSON.stringify(completionWithUser.details),
+          assigneeId: session?.user?.id,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to save task completion to backend');
+        // Continue anyway - data is in localStorage
+      } else {
+        console.log('Task completion saved to backend successfully');
+      }
+    } catch (error) {
+      console.error('Error saving task completion:', error);
+      // Continue anyway - data is in localStorage
+    }
 
     // Update local state
     setTasks(prev => prev.map(t =>
@@ -1112,20 +1196,32 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
     setIsGPSTracking(false);
 
     if (gpsPath.length > 0) {
-      // Save the search area
+      // Save the search area to backend
       console.log('GPS path recorded:', gpsPath);
 
-      // TODO: Save to backend
-      // await fetch(`/api/cases/${caseData.id}/search-areas`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     method: 'GPS_AUTO',
-      //     path: gpsPath,
-      //   }),
-      // });
+      try {
+        const response = await fetch(`/api/cases/${caseData.id}/search-areas`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            method: 'GPS_AUTO',
+            path: gpsPath,
+            notes: `GPS-tracked search with ${gpsPath.length} waypoints`,
+          }),
+        });
 
-      alert(`🎉 Amazing work! We recorded ${gpsPath.length} GPS points showing where you searched. This helps everyone coordinate better!`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('GPS search area saved successfully:', data);
+          alert(`🎉 Amazing work! We recorded ${gpsPath.length} GPS points (~${data.searchArea?.acreage?.toFixed(2)} acres) showing where you searched. This helps everyone coordinate better!`);
+        } else {
+          console.error('Failed to save GPS search area to backend');
+          alert(`📍 Recorded ${gpsPath.length} GPS points locally. (Note: Server save failed, but your data is stored on your device)`);
+        }
+      } catch (error) {
+        console.error('Error saving GPS search area:', error);
+        alert(`📍 Recorded ${gpsPath.length} GPS points locally. (Note: Server save failed, but your data is stored on your device)`);
+      }
     }
   };
 
@@ -1180,21 +1276,54 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
       <div className="bg-slate-900/50 border-2 border-cyan-500/30 rounded-2xl p-6">
         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
           <Users size={20} className="text-cyan-400" />
-          Search Team (0)
+          Search Team ({team.length})
         </h3>
 
-        <div className="text-center py-8 text-slate-400">
-          <img
-            src="https://petrescue.b-cdn.net/Logos%20(2).svg"
-            alt="Surumaa"
-            className="h-32 w-auto mx-auto mb-4 drop-shadow-xl"
-          />
-          <p className="text-white font-semibold mb-2">Build Your Search Team</p>
-          <p className="text-slate-400 text-sm mb-4">Invite friends, family, and neighbors to coordinate the search</p>
-          <button className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl hover:scale-105 transition">
-            + Invite Volunteers
-          </button>
-        </div>
+        {team.length === 0 ? (
+          <div className="text-center py-8 text-slate-400">
+            <img
+              src="https://petrescue.b-cdn.net/Logos%20(2).svg"
+              alt="Surumaa"
+              className="h-32 w-auto mx-auto mb-4 drop-shadow-xl"
+            />
+            <p className="text-white font-semibold mb-2">Build Your Search Team</p>
+            <p className="text-slate-400 text-sm mb-4">Invite friends, family, and neighbors to coordinate the search</p>
+            <button className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl hover:scale-105 transition">
+              + Invite Volunteers
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {team.map(member => (
+              <div
+                key={member.id}
+                className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-xl border border-cyan-500/20 hover:border-cyan-500/40 transition"
+              >
+                {/* Avatar */}
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                  {member.firstName?.[0]}{member.lastName?.[0] || ''}
+                </div>
+
+                {/* Name */}
+                <div className="flex-1 min-w-0">
+                  <div className="text-white font-semibold text-sm truncate">
+                    {member.name}
+                  </div>
+                  <div className="text-slate-400 text-xs">
+                    Search volunteer
+                  </div>
+                </div>
+
+                {/* Active indicator */}
+                {member.isActive && (
+                  <div className="flex-shrink-0">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Search Checklist */}

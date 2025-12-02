@@ -11,6 +11,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
+import { normalizePhotoUrl } from '@/app/lib/utils';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -188,8 +189,14 @@ export async function GET(request, { params }) {
       }
     });
 
+    // Normalize photo URL before returning
+    const normalizedCase = {
+      ...caseData,
+      petPhotoUrl: normalizePhotoUrl(caseData.petPhotoUrl)
+    };
+
     // Return case data directly (without wrapping in { case: ... })
-    return NextResponse.json(caseData);
+    return NextResponse.json(normalizedCase);
 
   } catch (error) {
     console.error('Error fetching case:', error);

@@ -13,6 +13,7 @@ import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { sendCaseReportConfirmation, sendAdminPublicReportAlert } from '@/app/lib/notifications';
 import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
+import { normalizePhotoUrl } from '@/app/lib/utils';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -121,6 +122,7 @@ export async function GET(request) {
       }
       return {
         ...caseItem,
+        petPhotoUrl: normalizePhotoUrl(caseItem.petPhotoUrl),
         city,
         state,
         isUrgent: caseItem.priority === 'URGENT',

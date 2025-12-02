@@ -13,6 +13,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
+import { normalizePhotoUrl } from '@/app/lib/utils';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -110,7 +111,7 @@ export async function GET(request, { params }) {
       petBreed: caseData.petBreed,
       petColor: caseData.petColor,
       petSize: caseData.petSize,
-      petPhotoUrl: caseData.petPhotoUrl,
+      petPhotoUrl: normalizePhotoUrl(caseData.petPhotoUrl),
       petDescription: caseData.petDescription,
       // Location
       city,

@@ -12,6 +12,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
+import { normalizePhotoUrl } from '@/app/lib/utils';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -137,7 +138,7 @@ export async function GET(request) {
       petBreed: c.petBreed,
       petColor: c.petColor,
       petSize: c.petSize,
-      petPhotoUrl: c.petPhotoUrl,
+      petPhotoUrl: normalizePhotoUrl(c.petPhotoUrl),
       // Location
       lastSeenAt: c.lastSeenAt,
       lastSeenAddress: c.lastSeenAddress,
