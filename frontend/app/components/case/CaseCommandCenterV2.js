@@ -321,6 +321,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
             setTasks={setTasks}
             gpsPath={gpsPath}
             setGpsPath={setGpsPath}
+            session={session}
           />
         )}
 
@@ -630,7 +631,7 @@ function ActivityTab({ sightings, tasks, gpsPath }) {
         );
 
       case 'task':
-        const { task, taskType, details } = item.data;
+        const { task, taskType, details, completedBy } = item.data;
         return (
           <div key={`task-${index}`} className="bg-slate-800/50 rounded-xl p-4 border-2 border-emerald-500/30 hover:border-emerald-500/50 transition">
             <div className="flex items-start gap-3">
@@ -639,7 +640,14 @@ function ActivityTab({ sightings, tasks, gpsPath }) {
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-emerald-400 font-bold">{task.label}</span>
+                  <div className="flex-1">
+                    <span className="text-emerald-400 font-bold">{task.label}</span>
+                    {completedBy && (
+                      <p className="text-slate-400 text-xs mt-1">
+                        👤 {completedBy.name || completedBy.email || 'Team member'}
+                      </p>
+                    )}
+                  </div>
                   <span className="text-slate-500 text-xs">
                     {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
@@ -755,7 +763,7 @@ function ActivityTab({ sightings, tasks, gpsPath }) {
 // ============================================================================
 // TEAM TAB - Helpers and coordination
 // ============================================================================
-function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath }) {
+function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session }) {
   const defaultTasks = [
     { id: 1, label: 'Alert neighbors & nearby residents', type: 'ALERT_NEIGHBORS', completed: false, completions: [] },
     { id: 2, label: 'Post flyers in the area', type: 'POST_FLYERS', completed: false, completions: [] },
@@ -774,6 +782,7 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath }) {
 
   const [selectedTask, setSelectedTask] = useState(null);
   const [isGPSTracking, setIsGPSTracking] = useState(false);
+  const [showCustomActionModal, setShowCustomActionModal] = useState(false);
 
   // Auto-save GPS path when tab closes (people forget to click "Done Searching")
   useEffect(() => {
@@ -802,11 +811,21 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath }) {
   const handleTaskComplete = async (completionData) => {
     console.log('Task completed:', completionData);
 
+    // Add user attribution
+    const completionWithUser = {
+      ...completionData,
+      completedBy: session?.user ? {
+        id: session.user.id,
+        name: session.user.name,
+        email: session.user.email
+      } : null
+    };
+
     // TODO: Save to backend API
     // await fetch(`/api/cases/${caseData.id}/tasks`, {
     //   method: 'POST',
     //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(completionData),
+    //   body: JSON.stringify(completionWithUser),
     // });
 
     // Update local state
@@ -815,10 +834,36 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath }) {
         ? {
             ...t,
             completed: true,
-            completions: [...t.completions, completionData]
+            completions: [...t.completions, completionWithUser]
           }
         : t
     ));
+  };
+
+  const handleCustomActionComplete = async (actionData) => {
+    // Create a new custom task
+    const newTask = {
+      id: Date.now(), // Use timestamp as unique ID
+      label: actionData.actionName,
+      type: 'CUSTOM',
+      completed: true,
+      completions: [{
+        taskId: Date.now(),
+        taskType: 'CUSTOM',
+        details: {
+          notes: actionData.details
+        },
+        completedAt: new Date().toISOString(),
+        completedBy: session?.user ? {
+          id: session.user.id,
+          name: session.user.name,
+          email: session.user.email
+        } : null
+      }]
+    };
+
+    // Add to tasks list
+    setTasks(prev => [...prev, newTask]);
   };
 
   const startGPSTracking = () => {
@@ -944,10 +989,20 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath }) {
 
       {/* Search Checklist */}
       <div className="bg-slate-900/50 border-2 border-emerald-500/30 rounded-2xl p-6">
-        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <CheckCircle2 size={20} className="text-emerald-400" />
-          Search Checklist
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <CheckCircle2 size={20} className="text-emerald-400" />
+            Actions Taken
+          </h3>
+          <button
+            onClick={() => setShowCustomActionModal(true)}
+            className="px-3 py-1.5 bg-cyan-500/20 border border-cyan-500/50 text-cyan-400 text-sm font-semibold rounded-lg hover:bg-cyan-500/30 transition"
+          >
+            + Log Action
+          </button>
+        </div>
+
+        <p className="text-slate-400 text-sm mb-4">Common actions + anything else you've done to help</p>
 
         <div className="space-y-2">
           {tasks.map(task => (
@@ -999,6 +1054,17 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath }) {
           task={selectedTask}
           onClose={() => setSelectedTask(null)}
           onComplete={handleTaskComplete}
+        />
+      )}
+
+      {/* Custom Action Modal */}
+      {showCustomActionModal && (
+        <CustomActionModal
+          onClose={() => setShowCustomActionModal(false)}
+          onComplete={(actionData) => {
+            handleCustomActionComplete(actionData);
+            setShowCustomActionModal(false);
+          }}
         />
       )}
     </div>
@@ -1217,6 +1283,87 @@ function SightingFormModal({ caseId, onClose, onSuccess }) {
             }`}
           >
             {submitting ? 'Submitting...' : 'Submit Sighting'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CustomActionModal({ onClose, onComplete }) {
+  const [actionName, setActionName] = useState('');
+  const [details, setDetails] = useState('');
+
+  const handleSubmit = () => {
+    if (!actionName.trim()) return;
+    onComplete({
+      actionName: actionName.trim(),
+      details: details.trim()
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-cyan-500/30 rounded-2xl w-full max-w-lg shadow-2xl shadow-cyan-500/20" onClick={(e) => e.stopPropagation()}>
+        <div className="p-6 border-b-2 border-slate-700/60">
+          <h2 className="text-2xl font-bold text-white">✨ Log Custom Action</h2>
+          <p className="text-slate-300 text-sm mt-2">
+            Did something not on the list? Log it here! Every action matters.
+          </p>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+            <p className="text-blue-200 text-sm">
+              💡 <strong>Think outside the box!</strong> Checked a local vet? Asked mail carrier? Contacted microchip company? Log it all!
+            </p>
+          </div>
+
+          {/* Action Name */}
+          <div>
+            <label className="text-slate-300 text-sm font-semibold block mb-2">What did you do? *</label>
+            <input
+              type="text"
+              value={actionName}
+              onChange={(e) => setActionName(e.target.value)}
+              placeholder="e.g., Called local vet offices, Checked with mail carrier..."
+              className="w-full bg-slate-800 text-white rounded-xl p-4 border-2 border-slate-700 focus:border-cyan-500 focus:outline-none"
+              style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              autoFocus
+            />
+          </div>
+
+          {/* Details */}
+          <div>
+            <label className="text-slate-300 text-sm font-semibold block mb-2">Details (optional)</label>
+            <textarea
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
+              placeholder="Any notes about what you did, what you learned, etc..."
+              className="w-full bg-slate-800 text-white rounded-xl p-4 border-2 border-slate-700 focus:border-cyan-500 focus:outline-none resize-none"
+              style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
+              rows={4}
+            />
+          </div>
+        </div>
+
+        <div className="p-6 border-t-2 border-slate-700/60 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 bg-slate-800 border-2 border-slate-700 text-white font-semibold rounded-xl hover:bg-slate-700 transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!actionName.trim()}
+            className={`flex-1 py-3 font-bold rounded-xl transition ${
+              actionName.trim()
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/30 hover:shadow-xl hover:shadow-cyan-500/50'
+                : 'bg-slate-800 text-slate-600 cursor-not-allowed'
+            }`}
+          >
+            Log Action
           </button>
         </div>
       </div>
