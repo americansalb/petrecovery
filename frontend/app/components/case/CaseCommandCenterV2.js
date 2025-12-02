@@ -1745,12 +1745,40 @@ function SightingFormModal({ caseId, onClose, onSuccess }) {
 function CustomActionModal({ onClose, onComplete }) {
   const [actionName, setActionName] = useState('');
   const [details, setDetails] = useState('');
+  const [photos, setPhotos] = useState([]);
+
+  const handlePhotoUpload = (e) => {
+    const files = Array.from(e.target.files);
+
+    files.forEach(file => {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        alert(`${file.name} is too large. Please use photos under 10MB.`);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setPhotos(prev => [...prev, {
+          name: file.name,
+          url: event.target.result,
+          size: file.size,
+          type: file.type
+        }]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removePhoto = (index) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = () => {
     if (!actionName.trim()) return;
     onComplete({
       actionName: actionName.trim(),
-      details: details.trim()
+      details: details.trim(),
+      photos: photos
     });
   };
 
@@ -1765,12 +1793,6 @@ function CustomActionModal({ onClose, onComplete }) {
         </div>
 
         <div className="p-6 space-y-4">
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
-            <p className="text-blue-200 text-sm">
-              💡 <strong>Think outside the box!</strong> Checked a local vet? Asked mail carrier? Contacted microchip company? Log it all!
-            </p>
-          </div>
-
           {/* Action Name */}
           <div>
             <label className="text-slate-300 text-sm font-semibold block mb-2">What did you do? *</label>
@@ -1796,6 +1818,52 @@ function CustomActionModal({ onClose, onComplete }) {
               style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               rows={4}
             />
+          </div>
+
+          {/* Photo Upload */}
+          <div>
+            <label className="text-slate-300 text-sm font-semibold block mb-2">
+              Photos (optional)
+            </label>
+
+            {/* Photo preview grid */}
+            {photos.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {photos.map((photo, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={photo.url}
+                      alt={photo.name}
+                      className="w-full h-24 object-cover rounded-lg border-2 border-slate-700"
+                    />
+                    <button
+                      onClick={() => removePhoto(index)}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition shadow-lg"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Upload button */}
+            <label className="block">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
+              <div className="w-full py-3 px-4 bg-slate-800 border-2 border-dashed border-slate-600 text-slate-400 rounded-xl hover:border-cyan-500 hover:text-cyan-400 transition cursor-pointer flex items-center justify-center gap-2 text-sm font-semibold">
+                <Camera size={18} />
+                {photos.length > 0 ? 'Add More Photos' : 'Upload Photos'}
+              </div>
+            </label>
+            <p className="text-slate-500 text-xs mt-2">
+              📸 Add photos of flyers, sightings, or anything relevant (max 10MB each)
+            </p>
           </div>
         </div>
 
