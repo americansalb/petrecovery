@@ -67,7 +67,7 @@ export default function ReportLostPet() {
   const [lastSeenAddress, setLastSeenAddress] = useState('');
   const [zipCode, setZipCode] = useState('');
   const [center, setCenter] = useState(null);
-  const [radiusMiles, setRadiusMiles] = useState(1);
+  const [radiusMiles] = useState(5); // Auto-set to 5 miles (squad coverage determines actual assignment)
   const [timeElapsed, setTimeElapsed] = useState('');
   const [locationConfirmed, setLocationConfirmed] = useState(false);
   const [cityName, setCityName] = useState(''); // For zip code location type
@@ -1340,40 +1340,11 @@ export default function ReportLostPet() {
                 <div ref={mapRef} className="h-full w-full" />
               </div>
 
-              {/* Radius control */}
-              <div className="p-4 sm:p-6 bg-[var(--hub-bg-card)]">
-                <label htmlFor="radius-slider" className="block">
-                  <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <span className="font-medium text-[var(--hub-text-primary)]">Search Area Radius</span>
-                    <span className="text-xl sm:text-2xl font-bold text-[var(--hub-accent-primary)]">
-                      {radiusMiles} {radiusMiles === 1 ? 'mile' : 'miles'}
-                    </span>
-                  </div>
-                </label>
-                <input
-                  id="radius-slider"
-                  type="range"
-                  min="0.25"
-                  max="10"
-                  step="0.25"
-                  value={radiusMiles}
-                  onChange={(e) => setRadiusMiles(parseFloat(e.target.value))}
-                  aria-label={`Search area radius: ${radiusMiles} miles`}
-                  aria-valuemin={0.25}
-                  aria-valuemax={10}
-                  aria-valuenow={radiusMiles}
-                  className="w-full h-2 bg-[var(--hub-bg-elevated)] rounded-full appearance-none cursor-pointer
-                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6
-                    [&::-webkit-slider-thumb]:bg-[var(--hub-accent-primary)] [&::-webkit-slider-thumb]:rounded-full
-                    [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(34,211,238,0.5)]
-                    focus:outline-none focus:ring-2 focus:ring-[var(--hub-accent-primary)]/50"
-                />
-                <div className="flex justify-between mt-2 text-xs sm:text-sm text-[var(--hub-text-muted)]">
-                  <span>0.25 mi</span>
-                  <span>10 mi</span>
-                </div>
-                <p className="mt-3 text-xs sm:text-sm text-[var(--hub-text-muted)]">
-                  This is the area where your pet was last seen. Rescuers will focus their search here first.
+              {/* Info about coverage */}
+              <div className="p-4 sm:p-6 bg-[var(--hub-bg-card)] rounded-xl">
+                <p className="text-sm text-[var(--hub-text-secondary)]">
+                  Your local rescue squad will be automatically notified based on your location.
+                  The search area is set to {radiusMiles} miles and nearby rescue squads will be alerted.
                 </p>
               </div>
             </div>
@@ -1382,8 +1353,8 @@ export default function ReportLostPet() {
             <div className="p-4 bg-[var(--hub-accent-primary)]/10 border border-[var(--hub-accent-primary)]/20 rounded-xl flex items-start gap-3">
               <Sparkles size={20} className="text-[var(--hub-accent-primary)] flex-shrink-0 mt-0.5" />
               <p className="text-[var(--hub-text-secondary)]">
-                <strong className="text-[var(--hub-accent-primary)]">Tip:</strong> Most pets stay within 1-2 miles of where they went missing.
-                Set a larger area if they've been gone longer.
+                <strong className="text-[var(--hub-accent-primary)]">Tip:</strong> Rescue squads in your area will be automatically notified.
+                They'll coordinate search efforts based on your pet's last known location.
               </p>
             </div>
 
@@ -1733,7 +1704,7 @@ export default function ReportLostPet() {
               Alert Created!
             </h1>
             <p className="text-lg text-[var(--hub-text-secondary)] mb-8">
-              {reportResult.patrolAlerted || 0} rescue patrol members within {radiusMiles} {radiusMiles === 1 ? 'mile' : 'miles'} have been notified about {reportData.petName}.
+              {reportResult.squadsNotified || 0} rescue squad{reportResult.squadsNotified === 1 ? '' : 's'} and {reportResult.patrolAlerted || 0} patrol member{reportResult.patrolAlerted === 1 ? '' : 's'} have been notified about {reportData.petName}.
             </p>
 
             {/* Report Summary */}
@@ -1756,8 +1727,10 @@ export default function ReportLostPet() {
                   <p className="font-medium text-[var(--hub-text-primary)]">{reportData.color}</p>
                 </div>
                 <div>
-                  <p className="text-[var(--hub-text-muted)]">Search Radius</p>
-                  <p className="font-medium text-[var(--hub-text-primary)]">{radiusMiles} {radiusMiles === 1 ? 'mile' : 'miles'}</p>
+                  <p className="text-[var(--hub-text-muted)]">Last Seen</p>
+                  <p className="font-medium text-[var(--hub-text-primary)]">
+                    {TIME_OPTIONS.find(opt => opt.value === timeElapsed)?.label || 'Recently'}
+                  </p>
                 </div>
                 <div className="col-span-2">
                   <p className="text-[var(--hub-text-muted)]">Last Seen Location</p>
