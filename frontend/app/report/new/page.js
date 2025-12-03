@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Report Lost Pet - Modern Bioluminescent Wizard
+ * Report Lost Pet - Midnight & Flash Design
  *
  * Multi-step wizard for reporting a lost pet:
  * 1. Pet type selection
@@ -370,7 +370,7 @@ export default function ReportLostPet() {
     if (mapInstanceRef.current) return;
 
     import('leaflet').then((L) => {
-      // Dark map style matching Squad Hub
+      // Dark map style matching midnight theme
       const map = L.map(mapRef.current, {
         zoomControl: false,
       }).setView(center, 14);
@@ -383,13 +383,13 @@ export default function ReportLostPet() {
         maxZoom: 19,
       }).addTo(map);
 
-      // Custom marker with glow
+      // Custom marker with flash yellow glow
       const markerIcon = L.divIcon({
         className: 'custom-marker',
         html: `
           <div class="relative">
-            <div class="absolute -inset-4 bg-cyan-500/30 rounded-full animate-ping"></div>
-            <div class="w-8 h-8 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-full border-2 border-white shadow-lg shadow-cyan-500/50 flex items-center justify-center">
+            <div class="absolute -inset-4 bg-flash-500/30 rounded-full animate-ping"></div>
+            <div class="w-8 h-8 bg-gradient-to-br from-flash-400 to-flash-600 rounded-full border-2 border-white shadow-lg shadow-flash-500/50 flex items-center justify-center">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                 <circle cx="12" cy="10" r="3"></circle>
@@ -408,8 +408,8 @@ export default function ReportLostPet() {
       markerRef.current = marker;
 
       const circle = L.circle(center, {
-        color: '#22d3ee',
-        fillColor: '#22d3ee',
+        color: '#facc15',
+        fillColor: '#facc15',
         fillOpacity: 0.15,
         weight: 2,
         radius: radiusMiles * 1609.34,
@@ -830,22 +830,22 @@ export default function ReportLostPet() {
   const prevStepFromDetails = session?.user ? 3 : 4;
 
   return (
-    <div className="min-h-screen bg-[var(--hub-bg-root)] text-[var(--hub-text-primary)]">
+    <div className="min-h-screen bg-midnight-50 text-midnight-900">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[var(--hub-bg-panel)]/95 backdrop-blur-sm border-b border-[var(--hub-border)]">
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-midnight-200">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link
             href="/"
-            className="flex items-center gap-2 text-[var(--hub-text-muted)] hover:text-[var(--hub-text-primary)] transition-colors"
+            className="flex items-center gap-2 text-midnight-600 hover:text-midnight-900 transition-colors"
           >
             <ChevronLeft size={20} />
             <span className="font-medium">Back</span>
           </Link>
 
           {session?.user && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--hub-status-success)]/10 border border-[var(--hub-status-success)]/30 rounded-full text-sm">
-              <Check size={14} className="text-[var(--hub-status-success)]" />
-              <span className="text-[var(--hub-status-success)]">Signed in</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-full text-sm">
+              <Check size={14} className="text-green-600" />
+              <span className="text-green-700">Signed in</span>
             </div>
           )}
         </div>
@@ -853,7 +853,7 @@ export default function ReportLostPet() {
 
       {/* Progress indicator - only show during form steps */}
       {step >= 2 && step <= 5 && (
-        <div className="bg-[var(--hub-bg-panel)] border-b border-[var(--hub-border)] py-4">
+        <div className="bg-white border-b border-midnight-200 py-4">
           <div className="max-w-4xl mx-auto px-4">
             <div className="flex items-center justify-between gap-2">
               {STEPS.slice(1).map((s, idx) => {
@@ -871,17 +871,17 @@ export default function ReportLostPet() {
                       className={`
                         w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300
                         ${isComplete
-                          ? 'bg-[var(--hub-accent-primary)] shadow-[0_0_20px_rgba(34,211,238,0.4)]'
+                          ? 'bg-flash-500 shadow-glow-flash'
                           : isActive
-                            ? 'bg-[var(--hub-accent-primary)]/20 border-2 border-[var(--hub-accent-primary)] shadow-[0_0_15px_rgba(34,211,238,0.3)]'
-                            : 'bg-[var(--hub-bg-card)] border border-[var(--hub-border)]'
+                            ? 'bg-flash-100 border-2 border-flash-500 shadow-glow-flash-sm'
+                            : 'bg-midnight-50 border border-midnight-200'
                         }
                       `}
                     >
                       {isComplete ? (
-                        <Check size={18} className="text-[var(--hub-bg-root)]" />
+                        <Check size={18} className="text-midnight-900" />
                       ) : (
-                        <Icon size={18} className={isActive ? 'text-[var(--hub-accent-primary)]' : 'text-[var(--hub-text-muted)]'} />
+                        <Icon size={18} className={isActive ? 'text-flash-600' : 'text-midnight-400'} />
                       )}
                     </div>
                     {idx < (session?.user ? 2 : 3) && (
@@ -889,8 +889,8 @@ export default function ReportLostPet() {
                         className={`
                           flex-1 h-1 mx-2 rounded-full transition-all duration-300
                           ${isComplete
-                            ? 'bg-gradient-to-r from-[var(--hub-accent-primary)] to-[var(--hub-accent-primary)]'
-                            : 'bg-[var(--hub-bg-card)]'
+                            ? 'bg-gradient-to-r from-flash-400 to-flash-500'
+                            : 'bg-midnight-100'
                           }
                         `}
                       />
@@ -907,8 +907,8 @@ export default function ReportLostPet() {
         {/* Loading state for pet prefill */}
         {isLoadingPet && (
           <div className="text-center py-12">
-            <Loader2 size={48} className="mx-auto mb-4 text-[var(--hub-accent-primary)] animate-spin" />
-            <p className="text-[var(--hub-text-secondary)]">Loading pet information...</p>
+            <Loader2 size={48} className="mx-auto mb-4 text-flash-500 animate-spin" />
+            <p className="text-midnight-700">Loading pet information...</p>
           </div>
         )}
 
@@ -917,20 +917,20 @@ export default function ReportLostPet() {
           <div
             role="alert"
             aria-live="polite"
-            className="mb-6 p-4 bg-[var(--hub-status-high)]/10 border border-[var(--hub-status-high)]/30 rounded-xl flex items-start gap-3"
+            className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3"
           >
-            <AlertTriangle size={20} className="text-[var(--hub-status-high)] flex-shrink-0 mt-0.5" />
+            <AlertTriangle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-[var(--hub-status-high)]">{error}</p>
+              <p className="text-red-700">{error}</p>
               {error.includes('location') && (
-                <p className="text-sm text-[var(--hub-text-muted)] mt-1">
+                <p className="text-sm text-midnight-600 mt-1">
                   Try a different address format or use zip code instead.
                 </p>
               )}
             </div>
             <button
               onClick={() => setError(null)}
-              className="text-[var(--hub-status-high)] hover:text-[var(--hub-text-primary)] transition-colors p-1"
+              className="text-red-600 hover:text-midnight-900 transition-colors p-1"
               aria-label="Dismiss error"
             >
               <span className="text-xl leading-none">&times;</span>
@@ -940,10 +940,10 @@ export default function ReportLostPet() {
 
         {/* Pre-filled pet notice */}
         {prefillPet && step >= 2 && step <= 5 && (
-          <div className="mb-6 p-4 bg-[var(--hub-accent-primary)]/10 border border-[var(--hub-accent-primary)]/20 rounded-xl flex items-start gap-3">
-            <Sparkles size={20} className="text-[var(--hub-accent-primary)] flex-shrink-0 mt-0.5" />
-            <p className="text-[var(--hub-text-secondary)]">
-              <strong className="text-[var(--hub-accent-primary)]">Pre-filled from {prefillPet.name}'s profile.</strong> You can update any details below.
+          <div className="mb-6 p-4 bg-flash-50 border border-flash-200 rounded-xl flex items-start gap-3">
+            <Sparkles size={20} className="text-flash-500 flex-shrink-0 mt-0.5" />
+            <p className="text-midnight-700">
+              <strong className="text-flash-600">Pre-filled from {prefillPet.name}'s profile.</strong> You can update any details below.
             </p>
           </div>
         )}
@@ -952,18 +952,18 @@ export default function ReportLostPet() {
         {step === 1 && !isLoadingPet && (
           <div className="text-center max-w-xl mx-auto">
             <div className="relative inline-block mb-6">
-              <div className="absolute inset-0 bg-[var(--hub-status-high)] blur-3xl opacity-20 rounded-full" />
-              <AlertTriangle size={64} className="relative text-[var(--hub-status-high)]" />
+              <div className="absolute inset-0 bg-red-500 blur-3xl opacity-20 rounded-full" />
+              <AlertTriangle size={64} className="relative text-red-600" />
             </div>
 
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-[var(--hub-status-high)] to-orange-400 bg-clip-text text-transparent">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-red-600 to-orange-400 bg-clip-text text-transparent">
               Report Lost Pet
             </h1>
-            <p className="text-lg text-[var(--hub-text-secondary)] mb-10">
+            <p className="text-lg text-midnight-700 mb-10">
               Alert your community and mobilize rescue squads to help find your pet
             </p>
 
-            <h2 className="text-xl font-semibold mb-6 text-[var(--hub-text-primary)]" id="pet-type-label">
+            <h2 className="text-xl font-semibold mb-6 text-midnight-900" id="pet-type-label">
               What type of pet is missing?
             </h2>
 
@@ -985,12 +985,12 @@ export default function ReportLostPet() {
                     aria-checked={petType === pet.type}
                     aria-label={`Report lost ${pet.label.toLowerCase()}`}
                     className={`
-                      relative group p-4 sm:p-6 rounded-2xl border-2 border-[var(--hub-border)]
-                      bg-[var(--hub-bg-panel)] hover:bg-[var(--hub-bg-card)]
+                      relative group p-4 sm:p-6 rounded-2xl border-2 border-midnight-200
+                      bg-white hover:bg-midnight-50
                       transition-all duration-300 hover:scale-[1.02]
-                      hover:border-[var(--hub-accent-primary)]/50
-                      hover:shadow-[0_0_30px_rgba(34,211,238,0.1)]
-                      focus:outline-none focus:ring-2 focus:ring-[var(--hub-accent-primary)] focus:ring-offset-2 focus:ring-offset-[var(--hub-bg-root)]
+                      hover:border-flash-400
+                      hover:shadow-glow-flash-sm
+                      focus:outline-none focus:ring-2 focus:ring-flash-400 focus:ring-offset-2 focus:ring-offset-midnight-50
                     `}
                   >
                     <div className={`
@@ -1001,7 +1001,7 @@ export default function ReportLostPet() {
                       <Icon size={24} className="sm:hidden text-white" />
                       <Icon size={32} className="hidden sm:block text-white" />
                     </div>
-                    <span className="text-base sm:text-lg font-semibold text-[var(--hub-text-primary)]">
+                    <span className="text-base sm:text-lg font-semibold text-midnight-900">
                       {pet.label}
                     </span>
                   </button>
@@ -1015,13 +1015,13 @@ export default function ReportLostPet() {
         {step === 2 && (
           <div className="max-w-xl mx-auto space-y-6">
             {/* Time Selection */}
-            <div className="bg-[var(--hub-bg-panel)] rounded-2xl border border-[var(--hub-border)] p-6">
+            <div className="bg-white rounded-2xl border border-midnight-200 p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-[var(--hub-status-high)]/10 flex items-center justify-center">
-                  <Clock size={20} className="text-[var(--hub-status-high)]" />
+                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                  <Clock size={20} className="text-red-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-[var(--hub-text-primary)]">When did they go missing?</h3>
+                  <h3 className="text-lg font-bold text-midnight-900">When did they go missing?</h3>
                 </div>
               </div>
 
@@ -1033,15 +1033,15 @@ export default function ReportLostPet() {
                     className={`
                       w-full p-3 rounded-xl border text-left transition-all
                       ${timeElapsed === option.value
-                        ? 'bg-[var(--hub-accent-primary)]/10 border-[var(--hub-accent-primary)]'
-                        : 'bg-[var(--hub-bg-card)] border-[var(--hub-border)] hover:border-[var(--hub-text-muted)]'
+                        ? 'bg-flash-100 border-flash-500'
+                        : 'bg-midnight-50 border-midnight-200 hover:border-midnight-400'
                       }
                     `}
                   >
-                    <span className={`flex items-center justify-between ${timeElapsed === option.value ? 'text-[var(--hub-accent-primary)]' : 'text-[var(--hub-text-secondary)]'}`}>
+                    <span className={`flex items-center justify-between ${timeElapsed === option.value ? 'text-flash-700' : 'text-midnight-700'}`}>
                       {option.label}
                       {option.urgency === 'critical' && (
-                        <span className="text-xs px-2 py-0.5 bg-[var(--hub-status-high)]/20 text-[var(--hub-status-high)] rounded-full font-medium">
+                        <span className="text-xs px-2 py-0.5 bg-red-100 text-red-600 rounded-full font-medium">
                           URGENT
                         </span>
                       )}
@@ -1051,21 +1051,21 @@ export default function ReportLostPet() {
               </div>
 
               {!timeElapsed && (
-                <p className="mt-3 text-sm text-[var(--hub-status-medium)]">
+                <p className="mt-3 text-sm text-amber-600">
                   Please select when your pet went missing
                 </p>
               )}
             </div>
 
             {/* Location Selection */}
-            <div className="bg-[var(--hub-bg-panel)] rounded-2xl border border-[var(--hub-border)] p-6">
+            <div className="bg-white rounded-2xl border border-midnight-200 p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-[var(--hub-accent-primary)]/10 flex items-center justify-center">
-                  <MapPin size={20} className="text-[var(--hub-accent-primary)]" />
+                <div className="w-10 h-10 rounded-xl bg-flash-100 flex items-center justify-center">
+                  <MapPin size={20} className="text-flash-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-[var(--hub-text-primary)]">Where were they last seen?</h3>
-                  <p className="text-sm text-[var(--hub-text-muted)]">Choose how to enter the location</p>
+                  <h3 className="text-lg font-bold text-midnight-900">Where were they last seen?</h3>
+                  <p className="text-sm text-midnight-600">Choose how to enter the location</p>
                 </div>
               </div>
 
@@ -1076,13 +1076,13 @@ export default function ReportLostPet() {
                   className={`
                     p-4 rounded-xl border text-center transition-all
                     ${locationMethod === 'address'
-                      ? 'bg-[var(--hub-accent-primary)]/10 border-[var(--hub-accent-primary)]'
-                      : 'bg-[var(--hub-bg-card)] border-[var(--hub-border)] hover:border-[var(--hub-text-muted)]'
+                      ? 'bg-flash-100 border-flash-500'
+                      : 'bg-midnight-50 border-midnight-200 hover:border-midnight-400'
                     }
                   `}
                 >
-                  <Navigation size={24} className={`mx-auto mb-2 ${locationMethod === 'address' ? 'text-[var(--hub-accent-primary)]' : 'text-[var(--hub-text-muted)]'}`} />
-                  <span className={`text-sm font-medium ${locationMethod === 'address' ? 'text-[var(--hub-accent-primary)]' : 'text-[var(--hub-text-secondary)]'}`}>
+                  <Navigation size={24} className={`mx-auto mb-2 ${locationMethod === 'address' ? 'text-flash-600' : 'text-midnight-600'}`} />
+                  <span className={`text-sm font-medium ${locationMethod === 'address' ? 'text-flash-700' : 'text-midnight-700'}`}>
                     Address
                   </span>
                 </button>
@@ -1091,13 +1091,13 @@ export default function ReportLostPet() {
                   className={`
                     p-4 rounded-xl border text-center transition-all
                     ${locationMethod === 'zip'
-                      ? 'bg-[var(--hub-accent-primary)]/10 border-[var(--hub-accent-primary)]'
-                      : 'bg-[var(--hub-bg-card)] border-[var(--hub-border)] hover:border-[var(--hub-text-muted)]'
+                      ? 'bg-flash-100 border-flash-500'
+                      : 'bg-midnight-50 border-midnight-200 hover:border-midnight-400'
                     }
                   `}
                 >
-                  <Hash size={24} className={`mx-auto mb-2 ${locationMethod === 'zip' ? 'text-[var(--hub-accent-primary)]' : 'text-[var(--hub-text-muted)]'}`} />
-                  <span className={`text-sm font-medium ${locationMethod === 'zip' ? 'text-[var(--hub-accent-primary)]' : 'text-[var(--hub-text-secondary)]'}`}>
+                  <Hash size={24} className={`mx-auto mb-2 ${locationMethod === 'zip' ? 'text-flash-600' : 'text-midnight-600'}`} />
+                  <span className={`text-sm font-medium ${locationMethod === 'zip' ? 'text-flash-700' : 'text-midnight-700'}`}>
                     Zip Code
                   </span>
                 </button>
@@ -1106,13 +1106,13 @@ export default function ReportLostPet() {
                   className={`
                     p-4 rounded-xl border text-center transition-all
                     ${locationMethod === 'pin'
-                      ? 'bg-[var(--hub-accent-primary)]/10 border-[var(--hub-accent-primary)]'
-                      : 'bg-[var(--hub-bg-card)] border-[var(--hub-border)] hover:border-[var(--hub-text-muted)]'
+                      ? 'bg-flash-100 border-flash-500'
+                      : 'bg-midnight-50 border-midnight-200 hover:border-midnight-400'
                     }
                   `}
                 >
-                  <Crosshair size={24} className={`mx-auto mb-2 ${locationMethod === 'pin' ? 'text-[var(--hub-accent-primary)]' : 'text-[var(--hub-text-muted)]'}`} />
-                  <span className={`text-sm font-medium ${locationMethod === 'pin' ? 'text-[var(--hub-accent-primary)]' : 'text-[var(--hub-text-secondary)]'}`}>
+                  <Crosshair size={24} className={`mx-auto mb-2 ${locationMethod === 'pin' ? 'text-flash-600' : 'text-midnight-600'}`} />
+                  <span className={`text-sm font-medium ${locationMethod === 'pin' ? 'text-flash-700' : 'text-midnight-700'}`}>
                     Pin on Map
                   </span>
                 </button>
@@ -1121,7 +1121,7 @@ export default function ReportLostPet() {
               {/* Address input with autocomplete */}
               {locationMethod === 'address' && (
                 <div className="relative">
-                  <label className="block text-sm font-medium mb-2 text-[var(--hub-text-secondary)]">
+                  <label className="block text-sm font-medium mb-2 text-midnight-700">
                     Street Address
                   </label>
                   <div className="relative">
@@ -1136,12 +1136,12 @@ export default function ReportLostPet() {
                         }
                       }}
                       placeholder="Start typing an address..."
-                      className="w-full px-4 py-3 rounded-xl transition-all"
+                      className="w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl text-midnight-900 placeholder:text-midnight-600 focus:outline-none focus:border-flash-500 focus:ring-1 focus:ring-flash-500 transition-all"
                       autoComplete="off"
                     />
                     {isSearchingAddress && (
                       <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <Loader2 size={18} className="animate-spin text-[var(--hub-accent-primary)]" />
+                        <Loader2 size={18} className="animate-spin text-flash-500" />
                       </div>
                     )}
                   </div>
@@ -1150,21 +1150,21 @@ export default function ReportLostPet() {
                   {showSuggestions && addressSuggestions.length > 0 && (
                     <div
                       ref={suggestionsRef}
-                      className="absolute z-50 w-full mt-1 bg-[var(--hub-bg-panel)] border border-[var(--hub-border)] rounded-xl shadow-lg max-h-64 overflow-y-auto"
+                      className="absolute z-50 w-full mt-1 bg-white border border-midnight-200 rounded-xl shadow-lg max-h-64 overflow-y-auto"
                     >
                       {addressSuggestions.map((suggestion, index) => (
                         <button
                           key={index}
                           onClick={() => selectAddressSuggestion(suggestion)}
-                          className="w-full px-4 py-3 text-left hover:bg-[var(--hub-bg-card)] border-b border-[var(--hub-border)] last:border-b-0 transition-colors"
+                          className="w-full px-4 py-3 text-left hover:bg-midnight-50 border-b border-midnight-100 last:border-b-0 transition-colors"
                         >
                           <div className="flex items-start gap-2">
-                            <MapPin size={16} className="text-[var(--hub-accent-primary)] flex-shrink-0 mt-1" />
+                            <MapPin size={16} className="text-flash-500 flex-shrink-0 mt-1" />
                             <div className="min-w-0">
-                              <p className="text-[var(--hub-text-primary)] text-sm truncate">
+                              <p className="text-midnight-900 text-sm truncate">
                                 {suggestion.display_name.split(',').slice(0, 3).join(', ')}
                               </p>
-                              <p className="text-[var(--hub-text-muted)] text-xs truncate">
+                              <p className="text-midnight-600 text-xs truncate">
                                 {suggestion.display_name.split(',').slice(3).join(', ')}
                               </p>
                             </div>
@@ -1176,17 +1176,17 @@ export default function ReportLostPet() {
 
                   {/* Validation message */}
                   {lastSeenAddress && !center && !isSearchingAddress && addressSuggestions.length === 0 && lastSeenAddress.length >= 3 && (
-                    <p className="mt-2 text-sm text-[var(--hub-status-medium)]">
+                    <p className="mt-2 text-sm text-amber-600">
                       No addresses found. Please check your spelling or try a more specific address.
                     </p>
                   )}
                   {!lastSeenAddress && (
-                    <p className="mt-2 text-sm text-[var(--hub-text-muted)]">
+                    <p className="mt-2 text-sm text-midnight-600">
                       Type to search for an address. Select from suggestions to validate.
                     </p>
                   )}
                   {center && lastSeenAddress && (
-                    <p className="mt-2 text-sm text-[var(--hub-status-success)] flex items-center gap-1">
+                    <p className="mt-2 text-sm text-green-600 flex items-center gap-1">
                       <Check size={14} /> Address validated
                     </p>
                   )}
@@ -1196,7 +1196,7 @@ export default function ReportLostPet() {
               {/* Zip code input */}
               {locationMethod === 'zip' && (
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-[var(--hub-text-secondary)]">
+                  <label className="block text-sm font-medium mb-2 text-midnight-700">
                     Zip Code
                   </label>
                   <input
@@ -1209,7 +1209,7 @@ export default function ReportLostPet() {
                     }}
                     placeholder="60601"
                     maxLength={5}
-                    className="w-full px-4 py-3 rounded-xl transition-all"
+                    className="w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl text-midnight-900 placeholder:text-midnight-600 focus:outline-none focus:border-flash-500 focus:ring-1 focus:ring-flash-500 transition-all"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && zipCode.length === 5 && timeElapsed) {
                         geocodeLocation(zipCode, true);
@@ -1217,16 +1217,16 @@ export default function ReportLostPet() {
                     }}
                   />
                   {zipCode.length > 0 && zipCode.length < 5 && (
-                    <p className="mt-2 text-sm text-[var(--hub-status-medium)]">
+                    <p className="mt-2 text-sm text-amber-600">
                       Enter a 5-digit zip code
                     </p>
                   )}
                   {zipCode.length === 5 && !center && (
-                    <p className="mt-2 text-sm text-[var(--hub-text-muted)]">
+                    <p className="mt-2 text-sm text-midnight-600">
                       Click "Set Location" to find this zip code area
                     </p>
                   )}
-                  <p className="mt-2 text-xs text-[var(--hub-text-muted)]">
+                  <p className="mt-2 text-xs text-midnight-600">
                     Using a zip code will notify all rescue squads in that area and neighboring towns.
                   </p>
                 </div>
@@ -1234,15 +1234,15 @@ export default function ReportLostPet() {
 
               {/* Pin on map info */}
               {locationMethod === 'pin' && (
-                <div className="p-4 bg-[var(--hub-bg-card)] rounded-xl">
-                  <p className="text-[var(--hub-text-secondary)] text-sm">
+                <div className="p-4 bg-midnight-50 rounded-xl">
+                  <p className="text-midnight-700 text-sm">
                     We'll use your current location or let you drop a pin on the map to mark where your pet was last seen.
                   </p>
                 </div>
               )}
 
               {!locationMethod && (
-                <p className="text-sm text-[var(--hub-status-medium)]">
+                <p className="text-sm text-amber-600">
                   Select how you want to enter the location
                 </p>
               )}
@@ -1252,8 +1252,8 @@ export default function ReportLostPet() {
             <div className="flex gap-3">
               <button
                 onClick={() => setStep(1)}
-                className="flex-1 py-3 px-4 rounded-xl bg-[var(--hub-bg-card)] text-[var(--hub-text-secondary)]
-                  border border-[var(--hub-border)] hover:bg-[var(--hub-bg-elevated)] transition-all
+                className="flex-1 py-3 px-4 rounded-xl bg-midnight-50 text-midnight-700
+                  border border-midnight-200 hover:bg-midnight-100 transition-all
                   flex items-center justify-center gap-2"
               >
                 <ChevronLeft size={18} />
@@ -1286,8 +1286,8 @@ export default function ReportLostPet() {
                     ((locationMethod === 'address' && lastSeenAddress) ||
                      (locationMethod === 'zip' && zipCode.length === 5) ||
                      locationMethod === 'pin')
-                    ? 'bg-gradient-to-r from-[var(--hub-accent-primary)] to-cyan-400 text-[var(--hub-bg-root)] shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]'
-                    : 'bg-[var(--hub-bg-elevated)] text-[var(--hub-text-muted)] cursor-not-allowed'
+                    ? 'bg-gradient-to-r from-flash-400 to-flash-500 text-midnight-900 shadow-glow-flash hover:shadow-glow-flash-lg'
+                    : 'bg-midnight-100 text-midnight-400 cursor-not-allowed'
                   }
                 `}
               >
@@ -1310,16 +1310,16 @@ export default function ReportLostPet() {
         {/* Step 3: Confirm Location on Map */}
         {step === 3 && center && (
           <div className="space-y-4 sm:space-y-6">
-            <div className="bg-[var(--hub-bg-panel)] rounded-2xl border border-[var(--hub-border)] overflow-hidden">
-              <div className="p-4 sm:p-6 border-b border-[var(--hub-border)]">
+            <div className="bg-white rounded-2xl border border-midnight-200 overflow-hidden">
+              <div className="p-4 sm:p-6 border-b border-midnight-200">
                 <div className="flex items-start sm:items-center gap-3">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[var(--hub-accent-primary)]/10 flex items-center justify-center flex-shrink-0">
-                    <MapPin size={20} className="sm:hidden text-[var(--hub-accent-primary)]" />
-                    <MapPin size={24} className="hidden sm:block text-[var(--hub-accent-primary)]" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-flash-100 flex items-center justify-center flex-shrink-0">
+                    <MapPin size={20} className="sm:hidden text-flash-600" />
+                    <MapPin size={24} className="hidden sm:block text-flash-600" />
                   </div>
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-[var(--hub-text-primary)]">Confirm Last Seen Location</h2>
-                    <p className="text-sm sm:text-base text-[var(--hub-text-muted)]">
+                    <h2 className="text-xl sm:text-2xl font-bold text-midnight-900">Confirm Last Seen Location</h2>
+                    <p className="text-sm sm:text-base text-midnight-600">
                       <span className="hidden sm:inline">Drag the marker to the exact spot. Set how far they may have wandered.</span>
                       <span className="sm:hidden">Drag marker to exact spot</span>
                     </p>
@@ -1328,10 +1328,10 @@ export default function ReportLostPet() {
               </div>
 
               {/* Drag instruction banner */}
-              <div className="px-4 py-2 bg-[var(--hub-accent-primary)]/5 border-b border-[var(--hub-border)] flex items-center justify-center gap-2">
-                <Crosshair size={14} className="text-[var(--hub-accent-primary)]" />
-                <span className="text-xs sm:text-sm text-[var(--hub-accent-primary)]">
-                  Drag the cyan marker to adjust location
+              <div className="px-4 py-2 bg-flash-50 border-b border-midnight-200 flex items-center justify-center gap-2">
+                <Crosshair size={14} className="text-flash-600" />
+                <span className="text-xs sm:text-sm text-flash-700">
+                  Drag the flash yellow marker to adjust location
                 </span>
               </div>
 
@@ -1341,8 +1341,8 @@ export default function ReportLostPet() {
               </div>
 
               {/* Info about coverage */}
-              <div className="p-4 sm:p-6 bg-[var(--hub-bg-card)] rounded-xl">
-                <p className="text-sm text-[var(--hub-text-secondary)]">
+              <div className="p-4 sm:p-6 bg-midnight-50 rounded-xl">
+                <p className="text-sm text-midnight-700">
                   Your local rescue squad will be automatically notified based on your location.
                   The search area is set to {radiusMiles} miles and nearby rescue squads will be alerted.
                 </p>
@@ -1350,10 +1350,10 @@ export default function ReportLostPet() {
             </div>
 
             {/* Tip */}
-            <div className="p-4 bg-[var(--hub-accent-primary)]/10 border border-[var(--hub-accent-primary)]/20 rounded-xl flex items-start gap-3">
-              <Sparkles size={20} className="text-[var(--hub-accent-primary)] flex-shrink-0 mt-0.5" />
-              <p className="text-[var(--hub-text-secondary)]">
-                <strong className="text-[var(--hub-accent-primary)]">Tip:</strong> Rescue squads in your area will be automatically notified.
+            <div className="p-4 bg-flash-50 border border-flash-200 rounded-xl flex items-start gap-3">
+              <Sparkles size={20} className="text-flash-600 flex-shrink-0 mt-0.5" />
+              <p className="text-midnight-700">
+                <strong className="text-flash-700">Tip:</strong> Rescue squads in your area will be automatically notified.
                 They'll coordinate search efforts based on your pet's last known location.
               </p>
             </div>
@@ -1365,8 +1365,8 @@ export default function ReportLostPet() {
                   setCenter(null);
                   setLocationConfirmed(false);
                 }}
-                className="flex-1 py-3 px-4 rounded-xl bg-[var(--hub-bg-card)] text-[var(--hub-text-secondary)]
-                  border border-[var(--hub-border)] hover:bg-[var(--hub-bg-elevated)] transition-all
+                className="flex-1 py-3 px-4 rounded-xl bg-midnight-50 text-midnight-700
+                  border border-midnight-200 hover:bg-midnight-100 transition-all
                   flex items-center justify-center gap-2"
               >
                 <ChevronLeft size={18} />
@@ -1378,8 +1378,8 @@ export default function ReportLostPet() {
                   setStep(nextStepFromMap);
                 }}
                 className="flex-[2] py-3 px-4 rounded-xl font-medium transition-all
-                  bg-gradient-to-r from-[var(--hub-accent-primary)] to-cyan-400 text-[var(--hub-bg-root)]
-                  shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]
+                  bg-gradient-to-r from-flash-400 to-flash-500 text-midnight-900
+                  shadow-glow-flash hover:shadow-glow-flash-lg
                   flex items-center justify-center gap-2"
               >
                 <Check size={18} />
@@ -1392,20 +1392,20 @@ export default function ReportLostPet() {
         {/* Step 4: Contact Info (only if not logged in) */}
         {step === 4 && !session?.user && (
           <div className="max-w-xl mx-auto">
-            <div className="bg-[var(--hub-bg-panel)] rounded-2xl border border-[var(--hub-border)] p-6 md:p-8">
+            <div className="bg-white rounded-2xl border border-midnight-200 p-6 md:p-8">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-[var(--hub-accent-secondary)]/10 flex items-center justify-center">
-                  <User size={24} className="text-[var(--hub-accent-secondary)]" />
+                <div className="w-12 h-12 rounded-xl bg-violet-50 flex items-center justify-center">
+                  <User size={24} className="text-violet-600" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold">Your Contact Information</h2>
-                  <p className="text-[var(--hub-text-muted)]">So rescuers can reach you with sightings</p>
+                  <h2 className="text-2xl font-bold text-midnight-900">Your Contact Information</h2>
+                  <p className="text-midnight-600">So rescuers can reach you with sightings</p>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-[var(--hub-text-secondary)]">
+                  <label className="block text-sm font-medium mb-2 text-midnight-700">
                     Your Name *
                   </label>
                   <input
@@ -1413,14 +1413,14 @@ export default function ReportLostPet() {
                     value={reportData.firstName}
                     onChange={(e) => setReportData({ ...reportData, firstName: e.target.value })}
                     placeholder="John"
-                    className="w-full px-4 py-3 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-xl
-                      text-[var(--hub-text-primary)] placeholder:text-[var(--hub-text-muted)]
-                      focus:outline-none focus:border-[var(--hub-accent-primary)] focus:ring-1 focus:ring-[var(--hub-accent-primary)]"
+                    className="w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl
+                      text-midnight-900 placeholder:text-midnight-600
+                      focus:outline-none focus:border-flash-500 focus:ring-1 focus:ring-flash-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-[var(--hub-text-secondary)]">
+                  <label className="block text-sm font-medium mb-2 text-midnight-700">
                     <Mail size={14} className="inline mr-1" />
                     Email *
                   </label>
@@ -1429,14 +1429,14 @@ export default function ReportLostPet() {
                     value={reportData.email}
                     onChange={(e) => setReportData({ ...reportData, email: e.target.value })}
                     placeholder="john@example.com"
-                    className="w-full px-4 py-3 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-xl
-                      text-[var(--hub-text-primary)] placeholder:text-[var(--hub-text-muted)]
-                      focus:outline-none focus:border-[var(--hub-accent-primary)] focus:ring-1 focus:ring-[var(--hub-accent-primary)]"
+                    className="w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl
+                      text-midnight-900 placeholder:text-midnight-600
+                      focus:outline-none focus:border-flash-500 focus:ring-1 focus:ring-flash-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-[var(--hub-text-secondary)]">
+                  <label className="block text-sm font-medium mb-2 text-midnight-700">
                     <Phone size={14} className="inline mr-1" />
                     Phone Number
                   </label>
@@ -1445,19 +1445,19 @@ export default function ReportLostPet() {
                     value={reportData.phone}
                     onChange={(e) => setReportData({ ...reportData, phone: e.target.value })}
                     placeholder="(555) 123-4567"
-                    className="w-full px-4 py-3 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-xl
-                      text-[var(--hub-text-primary)] placeholder:text-[var(--hub-text-muted)]
-                      focus:outline-none focus:border-[var(--hub-accent-primary)] focus:ring-1 focus:ring-[var(--hub-accent-primary)]"
+                    className="w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl
+                      text-midnight-900 placeholder:text-midnight-600
+                      focus:outline-none focus:border-flash-500 focus:ring-1 focus:ring-flash-500"
                   />
-                  <p className="mt-1 text-sm text-[var(--hub-text-muted)]">For text alerts about sightings</p>
+                  <p className="mt-1 text-sm text-midnight-600">For text alerts about sightings</p>
                 </div>
               </div>
 
               <div className="flex gap-3 mt-8">
                 <button
                   onClick={() => setStep(3)}
-                  className="flex-1 py-3 px-4 rounded-xl bg-[var(--hub-bg-card)] text-[var(--hub-text-secondary)]
-                    border border-[var(--hub-border)] hover:bg-[var(--hub-bg-elevated)] transition-all
+                  className="flex-1 py-3 px-4 rounded-xl bg-midnight-50 text-midnight-700
+                    border border-midnight-200 hover:bg-midnight-100 transition-all
                     flex items-center justify-center gap-2"
                 >
                   <ChevronLeft size={18} />
@@ -1470,8 +1470,8 @@ export default function ReportLostPet() {
                     flex-[2] py-3 px-4 rounded-xl font-medium transition-all
                     flex items-center justify-center gap-2
                     ${canProceedFromStep4
-                      ? 'bg-gradient-to-r from-[var(--hub-accent-primary)] to-cyan-400 text-[var(--hub-bg-root)] shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]'
-                      : 'bg-[var(--hub-bg-elevated)] text-[var(--hub-text-muted)] cursor-not-allowed'
+                      ? 'bg-gradient-to-r from-flash-400 to-flash-500 text-midnight-900 shadow-glow-flash hover:shadow-glow-flash-lg'
+                      : 'bg-midnight-100 text-midnight-400 cursor-not-allowed'
                     }
                   `}
                 >
@@ -1486,20 +1486,20 @@ export default function ReportLostPet() {
         {/* Step 5: Pet Details */}
         {step === 5 && (
           <div className="max-w-2xl mx-auto">
-            <div className="bg-[var(--hub-bg-panel)] rounded-2xl border border-[var(--hub-border)] p-6 md:p-8">
+            <div className="bg-white rounded-2xl border border-midnight-200 p-6 md:p-8">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
                   <Camera size={24} className="text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold">Tell us about your pet</h2>
-                  <p className="text-[var(--hub-text-muted)]">Help people identify and find them</p>
+                  <h2 className="text-2xl font-bold text-midnight-900">Tell us about your pet</h2>
+                  <p className="text-midnight-600">Help people identify and find them</p>
                 </div>
               </div>
 
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-[var(--hub-text-secondary)]">
+                  <label className="block text-sm font-medium mb-2 text-midnight-700">
                     Pet's Name *
                   </label>
                   <input
@@ -1508,15 +1508,15 @@ export default function ReportLostPet() {
                     onChange={(e) => setReportData({ ...reportData, petName: e.target.value })}
                     placeholder="Max"
                     disabled={isSubmitting}
-                    className={`w-full px-4 py-3 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-xl
-                      text-[var(--hub-text-primary)] placeholder:text-[var(--hub-text-muted)]
-                      focus:outline-none focus:border-[var(--hub-accent-primary)] focus:ring-1 focus:ring-[var(--hub-accent-primary)]
+                    className={`w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl
+                      text-midnight-900 placeholder:text-midnight-600
+                      focus:outline-none focus:border-flash-500 focus:ring-1 focus:ring-flash-500
                       ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-[var(--hub-text-secondary)]">
+                  <label className="block text-sm font-medium mb-2 text-midnight-700">
                     Breed
                   </label>
                   <div className="breed-selector-wrapper">
@@ -1529,7 +1529,7 @@ export default function ReportLostPet() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-[var(--hub-text-secondary)]">
+                  <label className="block text-sm font-medium mb-2 text-midnight-700">
                     Color/Pattern *
                   </label>
                   <div className="color-selector-wrapper">
@@ -1541,15 +1541,15 @@ export default function ReportLostPet() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-[var(--hub-text-secondary)]">
+                  <label className="block text-sm font-medium mb-2 text-midnight-700">
                     Size
                   </label>
                   <select
                     value={reportData.size}
                     onChange={(e) => setReportData({ ...reportData, size: e.target.value })}
                     disabled={isSubmitting}
-                    className={`w-full px-4 py-3 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-xl
-                      text-[var(--hub-text-primary)] focus:outline-none focus:border-[var(--hub-accent-primary)]
+                    className={`w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl
+                      text-midnight-900 focus:outline-none focus:border-flash-500
                       ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                     {petType === 'bird' ? (
@@ -1580,7 +1580,7 @@ export default function ReportLostPet() {
 
                 {/* Photo upload */}
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-[var(--hub-text-secondary)]">
+                  <label className="block text-sm font-medium mb-2 text-midnight-700">
                     <Camera size={14} className="inline mr-1" />
                     Photos (up to 5)
                   </label>
@@ -1592,12 +1592,12 @@ export default function ReportLostPet() {
                           <img
                             src={photo}
                             alt={`Pet photo ${index + 1}`}
-                            className="w-24 h-24 object-cover rounded-lg border border-[var(--hub-border)]"
+                            className="w-24 h-24 object-cover rounded-lg border border-midnight-200"
                           />
                           {!isSubmitting && (
                             <button
                               onClick={() => removePhoto(index)}
-                              className="absolute -top-2 -right-2 w-6 h-6 bg-[var(--hub-status-high)] rounded-full
+                              className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 rounded-full
                                 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               &times;
@@ -1610,16 +1610,16 @@ export default function ReportLostPet() {
 
                   {photos.length < 5 && !isSubmitting && (
                     uploadingPhotos ? (
-                      <div className="block p-6 border-2 border-dashed border-[var(--hub-accent-primary)] rounded-xl text-center">
-                        <Loader2 size={32} className="mx-auto mb-2 text-[var(--hub-accent-primary)] animate-spin" />
-                        <span className="text-[var(--hub-accent-primary)]">Uploading photos...</span>
+                      <div className="block p-6 border-2 border-dashed border-flash-500 rounded-xl text-center">
+                        <Loader2 size={32} className="mx-auto mb-2 text-flash-500 animate-spin" />
+                        <span className="text-flash-600">Uploading photos...</span>
                       </div>
                     ) : (
-                      <label className="block p-6 border-2 border-dashed border-[var(--hub-border)] rounded-xl
-                        hover:border-[var(--hub-accent-primary)] transition-colors cursor-pointer text-center">
-                        <Camera size={32} className="mx-auto mb-2 text-[var(--hub-text-muted)]" />
-                        <span className="text-[var(--hub-text-secondary)]">Click to upload photos</span>
-                        <span className="block text-sm text-[var(--hub-text-muted)]">Max 10MB each</span>
+                      <label className="block p-6 border-2 border-dashed border-midnight-200 rounded-xl
+                        hover:border-flash-500 transition-colors cursor-pointer text-center">
+                        <Camera size={32} className="mx-auto mb-2 text-midnight-400" />
+                        <span className="text-midnight-700">Click to upload photos</span>
+                        <span className="block text-sm text-midnight-600">Max 10MB each</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -1633,7 +1633,7 @@ export default function ReportLostPet() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-[var(--hub-text-secondary)]">
+                  <label className="block text-sm font-medium mb-2 text-midnight-700">
                     Distinctive Features
                   </label>
                   <textarea
@@ -1642,9 +1642,9 @@ export default function ReportLostPet() {
                     placeholder="Black spot on left ear, scar on right paw, very friendly with strangers..."
                     rows={3}
                     disabled={isSubmitting}
-                    className={`w-full px-4 py-3 bg-[var(--hub-bg-card)] border border-[var(--hub-border)] rounded-xl
-                      text-[var(--hub-text-primary)] placeholder:text-[var(--hub-text-muted)]
-                      focus:outline-none focus:border-[var(--hub-accent-primary)] resize-none
+                    className={`w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl
+                      text-midnight-900 placeholder:text-midnight-600
+                      focus:outline-none focus:border-flash-500 resize-none
                       ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
                   />
                 </div>
@@ -1654,9 +1654,9 @@ export default function ReportLostPet() {
                 <button
                   onClick={() => setStep(prevStepFromDetails)}
                   disabled={isSubmitting}
-                  className={`flex-1 py-3 px-4 rounded-xl bg-[var(--hub-bg-card)] text-[var(--hub-text-secondary)]
-                    border border-[var(--hub-border)] transition-all flex items-center justify-center gap-2
-                    ${isSubmitting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-[var(--hub-bg-elevated)]'}`}
+                  className={`flex-1 py-3 px-4 rounded-xl bg-midnight-50 text-midnight-700
+                    border border-midnight-200 transition-all flex items-center justify-center gap-2
+                    ${isSubmitting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-midnight-100'}`}
                 >
                   <ChevronLeft size={18} />
                   Back
@@ -1668,8 +1668,8 @@ export default function ReportLostPet() {
                     flex-[2] py-3 px-4 rounded-xl font-medium transition-all
                     flex items-center justify-center gap-2
                     ${canSubmit && !isSubmitting
-                      ? 'bg-gradient-to-r from-[var(--hub-status-success)] to-emerald-400 text-[var(--hub-bg-root)] shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)]'
-                      : 'bg-[var(--hub-bg-elevated)] text-[var(--hub-text-muted)] cursor-not-allowed'
+                      ? 'bg-gradient-to-r from-green-500 to-emerald-400 text-white shadow-glow-green hover:shadow-glow-green-lg'
+                      : 'bg-midnight-100 text-midnight-400 cursor-not-allowed'
                     }
                   `}
                 >
@@ -1694,62 +1694,62 @@ export default function ReportLostPet() {
         {step === 6 && reportResult && (
           <div className="max-w-xl mx-auto text-center">
             <div className="relative inline-block mb-6">
-              <div className="absolute inset-0 bg-[var(--hub-status-success)] blur-3xl opacity-30 rounded-full animate-pulse" />
-              <div className="relative w-24 h-24 bg-gradient-to-br from-[var(--hub-status-success)] to-emerald-400 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(34,197,94,0.4)]">
+              <div className="absolute inset-0 bg-green-500 blur-3xl opacity-30 rounded-full animate-pulse" />
+              <div className="relative w-24 h-24 bg-gradient-to-br from-green-500 to-emerald-400 rounded-full flex items-center justify-center shadow-glow-green">
                 <Check size={48} className="text-white" />
               </div>
             </div>
 
-            <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-[var(--hub-status-success)] to-emerald-400 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-green-600 to-emerald-500 bg-clip-text text-transparent">
               Alert Created!
             </h1>
-            <p className="text-lg text-[var(--hub-text-secondary)] mb-8">
+            <p className="text-lg text-midnight-700 mb-8">
               {reportResult.squadsNotified || 0} rescue squad{reportResult.squadsNotified === 1 ? '' : 's'} and {reportResult.patrolAlerted || 0} patrol member{reportResult.patrolAlerted === 1 ? '' : 's'} have been notified about {reportData.petName}.
             </p>
 
             {/* Report Summary */}
-            <div className="bg-[var(--hub-bg-panel)] rounded-2xl border border-[var(--hub-border)] p-4 sm:p-6 text-left mb-6">
+            <div className="bg-white rounded-2xl border border-midnight-200 p-4 sm:p-6 text-left mb-6">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Search size={20} className="text-[var(--hub-accent-primary)]" />
+                <Search size={20} className="text-flash-500" />
                 Report Summary
               </h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-[var(--hub-text-muted)]">Pet Name</p>
-                  <p className="font-medium text-[var(--hub-text-primary)]">{reportData.petName}</p>
+                  <p className="text-midnight-600">Pet Name</p>
+                  <p className="font-medium text-midnight-900">{reportData.petName}</p>
                 </div>
                 <div>
-                  <p className="text-[var(--hub-text-muted)]">Type</p>
-                  <p className="font-medium text-[var(--hub-text-primary)] capitalize">{petType}</p>
+                  <p className="text-midnight-600">Type</p>
+                  <p className="font-medium text-midnight-900 capitalize">{petType}</p>
                 </div>
                 <div>
-                  <p className="text-[var(--hub-text-muted)]">Color</p>
-                  <p className="font-medium text-[var(--hub-text-primary)]">{reportData.color}</p>
+                  <p className="text-midnight-600">Color</p>
+                  <p className="font-medium text-midnight-900">{reportData.color}</p>
                 </div>
                 <div>
-                  <p className="text-[var(--hub-text-muted)]">Last Seen</p>
-                  <p className="font-medium text-[var(--hub-text-primary)]">
+                  <p className="text-midnight-600">Last Seen</p>
+                  <p className="font-medium text-midnight-900">
                     {TIME_OPTIONS.find(opt => opt.value === timeElapsed)?.label || 'Recently'}
                   </p>
                 </div>
                 <div className="col-span-2">
-                  <p className="text-[var(--hub-text-muted)]">Last Seen Location</p>
-                  <p className="font-medium text-[var(--hub-text-primary)] text-sm break-words">{lastSeenAddress}</p>
+                  <p className="text-midnight-600">Last Seen Location</p>
+                  <p className="font-medium text-midnight-900 text-sm break-words">{lastSeenAddress}</p>
                 </div>
               </div>
               {reportResult.reportId && (
-                <div className="mt-4 pt-4 border-t border-[var(--hub-border)]">
-                  <p className="text-xs text-[var(--hub-text-muted)]">
-                    Report ID: <span className="font-mono text-[var(--hub-accent-primary)]">{reportResult.reportId}</span>
+                <div className="mt-4 pt-4 border-t border-midnight-200">
+                  <p className="text-xs text-midnight-600">
+                    Report ID: <span className="font-mono text-flash-600">{reportResult.reportId}</span>
                   </p>
                 </div>
               )}
             </div>
 
             {/* What happens next */}
-            <div className="bg-[var(--hub-bg-panel)] rounded-2xl border border-[var(--hub-border)] p-4 sm:p-6 text-left mb-6">
+            <div className="bg-white rounded-2xl border border-midnight-200 p-4 sm:p-6 text-left mb-6">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Sparkles size={20} className="text-[var(--hub-accent-primary)]" />
+                <Sparkles size={20} className="text-flash-500" />
                 What happens next
               </h3>
               <ul className="space-y-3">
@@ -1760,8 +1760,8 @@ export default function ReportLostPet() {
                   { icon: MapPin, text: 'Check your dashboard to see reported sightings on the map' },
                 ].map((item, idx) => (
                   <li key={idx} className="flex items-start gap-3">
-                    <item.icon size={18} className="text-[var(--hub-accent-primary)] flex-shrink-0 mt-0.5" />
-                    <span className="text-[var(--hub-text-secondary)] text-sm sm:text-base">{item.text}</span>
+                    <item.icon size={18} className="text-flash-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-midnight-700 text-sm sm:text-base">{item.text}</span>
                   </li>
                 ))}
               </ul>
@@ -1769,22 +1769,22 @@ export default function ReportLostPet() {
 
             {/* Assigned squad notice */}
             {reportResult.assignedSquad && (
-              <div className="bg-[var(--hub-accent-secondary)]/10 border border-[var(--hub-accent-secondary)]/20 rounded-xl p-4 mb-6 text-left">
+              <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 mb-6 text-left">
                 <div className="flex items-center gap-3 mb-2">
-                  <Shield size={20} className="text-[var(--hub-accent-secondary)]" />
-                  <p className="text-[var(--hub-accent-secondary)] font-medium">Rescue Squad Assigned</p>
+                  <Shield size={20} className="text-violet-600" />
+                  <p className="text-violet-700 font-medium">Rescue Squad Assigned</p>
                 </div>
-                <p className="text-sm text-[var(--hub-text-secondary)] mb-3">
+                <p className="text-sm text-midnight-700 mb-3">
                   {reportResult.assignedSquad.name}{reportResult.assignedSquad.city ? ` (${reportResult.assignedSquad.city})` : ''} has been notified and will coordinate search efforts.
                   {reportResult.squadsNotified > 1 && (
-                    <span className="block mt-1 text-[var(--hub-accent-primary)]">
+                    <span className="block mt-1 text-flash-600">
                       + {reportResult.squadsNotified - 1} other squad{reportResult.squadsNotified > 2 ? 's' : ''} also notified
                     </span>
                   )}
                 </p>
                 <Link
                   href={`/rescue-squads/${reportResult.assignedSquad.id}`}
-                  className="inline-flex items-center gap-2 text-sm text-[var(--hub-accent-secondary)] hover:underline"
+                  className="inline-flex items-center gap-2 text-sm text-violet-600 hover:underline"
                 >
                   View Squad Hub
                   <ArrowRight size={14} />
@@ -1794,9 +1794,9 @@ export default function ReportLostPet() {
 
             {/* Account created notice */}
             {reportResult.accountCreated && (
-              <div className="bg-[var(--hub-accent-primary)]/10 border border-[var(--hub-accent-primary)]/20 rounded-xl p-4 mb-6 text-left">
-                <p className="text-[var(--hub-accent-primary)] font-medium mb-1">Account Created</p>
-                <p className="text-sm text-[var(--hub-text-secondary)]">
+              <div className="bg-flash-50 border border-flash-200 rounded-xl p-4 mb-6 text-left">
+                <p className="text-flash-700 font-medium mb-1">Account Created</p>
+                <p className="text-sm text-midnight-700">
                   Check your email for login credentials to access your dashboard.
                 </p>
               </div>
@@ -1808,8 +1808,8 @@ export default function ReportLostPet() {
                 <Link
                   href={`/rescue-squads/${reportResult.assignedSquad.id}`}
                   className="flex-1 py-3 px-6 rounded-xl font-medium transition-all
-                    bg-gradient-to-r from-[var(--hub-accent-secondary)] to-violet-400 text-white
-                    shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)]
+                    bg-gradient-to-r from-violet-500 to-violet-400 text-white
+                    shadow-glow-violet hover:shadow-glow-violet-lg
                     flex items-center justify-center gap-2"
                 >
                   Go to Squad Hub
@@ -1819,8 +1819,8 @@ export default function ReportLostPet() {
                 <Link
                   href="/dashboard"
                   className="flex-1 py-3 px-6 rounded-xl font-medium transition-all
-                    bg-gradient-to-r from-[var(--hub-accent-primary)] to-cyan-400 text-[var(--hub-bg-root)]
-                    shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]
+                    bg-gradient-to-r from-flash-400 to-flash-500 text-midnight-900
+                    shadow-glow-flash hover:shadow-glow-flash-lg
                     flex items-center justify-center gap-2"
                 >
                   Go to Dashboard
@@ -1829,8 +1829,8 @@ export default function ReportLostPet() {
               )}
               <Link
                 href="/dashboard"
-                className="flex-1 py-3 px-6 rounded-xl bg-[var(--hub-bg-card)] text-[var(--hub-text-secondary)]
-                  border border-[var(--hub-border)] hover:bg-[var(--hub-bg-elevated)] transition-all
+                className="flex-1 py-3 px-6 rounded-xl bg-midnight-50 text-midnight-700
+                  border border-midnight-200 hover:bg-midnight-100 transition-all
                   flex items-center justify-center"
               >
                 My Dashboard
@@ -1843,45 +1843,45 @@ export default function ReportLostPet() {
       {/* Leaflet CSS injection for dark theme */}
       <style jsx global>{`
         .leaflet-container {
-          background: var(--hub-bg-root);
+          background: #0f172a;
         }
         .custom-marker {
           background: transparent;
           border: none;
         }
         .leaflet-control-zoom a {
-          background: var(--hub-bg-card) !important;
-          color: var(--hub-text-primary) !important;
-          border-color: var(--hub-border) !important;
+          background: #ffffff !important;
+          color: #0f172a !important;
+          border-color: #e2e8f0 !important;
         }
         .leaflet-control-zoom a:hover {
-          background: var(--hub-bg-elevated) !important;
+          background: #f1f5f9 !important;
         }
-        /* Override global input styles for dark theme */
+        /* Override global input styles */
         .report-form input[type="text"],
         .report-form input[type="email"],
         .report-form input[type="tel"],
         .report-form textarea,
         .report-form select {
-          background: var(--hub-bg-card) !important;
-          color: var(--hub-text-primary) !important;
-          border-color: var(--hub-border) !important;
+          background: #f8fafc !important;
+          color: #0f172a !important;
+          border-color: #e2e8f0 !important;
         }
         .report-form input::placeholder,
         .report-form textarea::placeholder {
-          color: var(--hub-text-muted) !important;
+          color: #64748b !important;
         }
         .report-form input:focus,
         .report-form textarea:focus,
         .report-form select:focus {
-          border-color: var(--hub-accent-primary) !important;
-          box-shadow: 0 0 0 1px var(--hub-accent-primary) !important;
+          border-color: #facc15 !important;
+          box-shadow: 0 0 0 1px #facc15 !important;
         }
         .breed-selector-wrapper input,
         .color-selector-wrapper button {
-          background: var(--hub-bg-card) !important;
-          border-color: var(--hub-border) !important;
-          color: var(--hub-text-primary) !important;
+          background: #f8fafc !important;
+          border-color: #e2e8f0 !important;
+          color: #0f172a !important;
         }
       `}</style>
     </div>
