@@ -3,6 +3,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { CheckCircle, XCircle, Loader2, Mail } from 'lucide-react';
+import { Card, Button } from '@/components/ui';
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
@@ -14,12 +16,15 @@ function VerifyEmailContent() {
 
   useEffect(() => {
     if (!token) {
+      console.log('[VERIFY-EMAIL] No token provided');
       setStatus('error');
       setError('No verification token provided.');
       return;
     }
 
     async function verifyEmail() {
+      console.log('[VERIFY-EMAIL] Starting verification with token:', token);
+
       try {
         const res = await fetch('/api/auth/verify-email', {
           method: 'POST',
@@ -28,18 +33,24 @@ function VerifyEmailContent() {
         });
 
         const data = await res.json();
+        console.log('[VERIFY-EMAIL] Response status:', res.status);
+        console.log('[VERIFY-EMAIL] Response data:', data);
 
         if (res.ok) {
+          console.log('[VERIFY-EMAIL] Verification successful');
           setStatus('success');
           // Redirect to login after 3 seconds
           setTimeout(() => {
+            console.log('[VERIFY-EMAIL] Redirecting to login');
             router.push('/login?verified=true');
           }, 3000);
         } else {
+          console.log('[VERIFY-EMAIL] Verification failed:', data.error);
           setStatus('error');
           setError(data.error || 'Verification failed.');
         }
       } catch (err) {
+        console.error('[VERIFY-EMAIL] Verification error:', err);
         setStatus('error');
         setError('An error occurred. Please try again.');
       }
@@ -49,139 +60,97 @@ function VerifyEmailContent() {
   }, [token, router]);
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#f3f4f6',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      padding: '1rem',
-    }}>
-      <div style={{
-        maxWidth: '500px',
-        backgroundColor: 'white',
-        borderRadius: '1rem',
-        padding: '2rem',
-        textAlign: 'center',
-        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-      }}>
-        {status === 'verifying' && (
-          <>
-            <div style={{
-              width: '60px',
-              height: '60px',
-              border: '4px solid #e5e7eb',
-              borderTopColor: '#10b981',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              margin: '0 auto 1.5rem',
-            }} />
-            <h2 style={{
-              fontSize: '1.5rem',
-              fontWeight: 'bold',
-              color: '#1f2937',
-              marginBottom: '0.5rem',
-            }}>
-              Verifying Your Email
-            </h2>
-            <p style={{ color: '#6b7280' }}>
-              Please wait while we verify your email address...
-            </p>
-          </>
-        )}
-
-        {status === 'success' && (
-          <>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>
-              <span role="img" aria-label="success">✅</span>
+    <div className="min-h-screen bg-midnight-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <Card className="p-8 text-center">
+          {/* Logo/Icon at top */}
+          <div className="mb-6">
+            <div className="w-16 h-16 mx-auto bg-flash-100 rounded-2xl flex items-center justify-center">
+              <Mail className="w-8 h-8 text-flash-500" />
             </div>
-            <h2 style={{
-              fontSize: '1.75rem',
-              fontWeight: 'bold',
-              color: '#10b981',
-              marginBottom: '0.5rem',
-            }}>
-              Email Verified!
-            </h2>
-            <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>
-              Your email has been verified successfully. You can now log in to your account.
-            </p>
-            <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '1rem' }}>
-              Redirecting to login...
-            </p>
-            <Link
-              href="/login"
-              style={{
-                display: 'inline-block',
-                backgroundColor: '#10b981',
-                color: 'white',
-                padding: '0.75rem 1.5rem',
-                borderRadius: '0.5rem',
-                textDecoration: 'none',
-                fontWeight: '600',
-              }}
-            >
-              Go to Login
-            </Link>
-          </>
-        )}
+          </div>
 
-        {status === 'error' && (
-          <>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>
-              <span role="img" aria-label="error">❌</span>
-            </div>
-            <h2 style={{
-              fontSize: '1.75rem',
-              fontWeight: 'bold',
-              color: '#dc2626',
-              marginBottom: '0.5rem',
-            }}>
-              Verification Failed
-            </h2>
-            <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>
-              {error}
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <Link
+          {status === 'verifying' && (
+            <>
+              <div className="flex justify-center mb-6">
+                <Loader2 className="w-12 h-12 text-flash-500 animate-spin" />
+              </div>
+              <h2 className="text-2xl font-bold text-midnight-900 mb-2">
+                Verifying Your Email
+              </h2>
+              <p className="text-midnight-600">
+                Please wait while we verify your email address...
+              </p>
+            </>
+          )}
+
+          {status === 'success' && (
+            <>
+              <div className="flex justify-center mb-6">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-10 h-10 text-green-600" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-green-600 mb-2">
+                Email Verified!
+              </h2>
+              <p className="text-midnight-600 mb-4">
+                Your email has been verified successfully. You can now log in to your account.
+              </p>
+              <p className="text-sm text-midnight-500 mb-6">
+                Redirecting to login in 3 seconds...
+              </p>
+              <Button
+                variant="success"
                 href="/login"
-                style={{
-                  display: 'inline-block',
-                  backgroundColor: '#2563eb',
-                  color: 'white',
-                  padding: '0.75rem 1.5rem',
-                  borderRadius: '0.5rem',
-                  textDecoration: 'none',
-                  fontWeight: '600',
-                }}
+                className="w-full"
               >
                 Go to Login
-              </Link>
-              <Link
-                href="/register"
-                style={{
-                  display: 'inline-block',
-                  backgroundColor: '#e5e7eb',
-                  color: '#374151',
-                  padding: '0.75rem 1.5rem',
-                  borderRadius: '0.5rem',
-                  textDecoration: 'none',
-                  fontWeight: '600',
-                }}
-              >
-                Create New Account
-              </Link>
-            </div>
-          </>
-        )}
-      </div>
+              </Button>
+            </>
+          )}
 
-      <style jsx global>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+          {status === 'error' && (
+            <>
+              <div className="flex justify-center mb-6">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                  <XCircle className="w-10 h-10 text-red-600" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-red-600 mb-2">
+                Verification Failed
+              </h2>
+              <p className="text-midnight-600 mb-6">
+                {error}
+              </p>
+              <div className="space-y-3">
+                <Button
+                  variant="primary"
+                  href="/login"
+                  className="w-full"
+                >
+                  Go to Login
+                </Button>
+                <Button
+                  variant="outline"
+                  href="/register"
+                  className="w-full"
+                >
+                  Create New Account
+                </Button>
+              </div>
+            </>
+          )}
+        </Card>
+
+        {/* Help text */}
+        <p className="text-center text-sm text-midnight-600 mt-6">
+          Need help?{' '}
+          <Link href="/contact" className="text-flash-500 hover:text-flash-600 font-medium">
+            Contact Support
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
@@ -189,14 +158,11 @@ function VerifyEmailContent() {
 export default function VerifyEmailPage() {
   return (
     <Suspense fallback={
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#f3f4f6',
-      }}>
-        <div>Loading...</div>
+      <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-6 h-6 text-flash-500 animate-spin" />
+          <span className="text-midnight-700 font-medium">Loading...</span>
+        </div>
       </div>
     }>
       <VerifyEmailContent />
