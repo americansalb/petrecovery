@@ -286,7 +286,7 @@ export default function Home() {
             delay={0.2}
           />
           <ActionCard
-            href="/rescue-squads"
+            href="/rescue-squads/search"
             icon={Shield}
             title="Join the Patrol"
             desc="Join local volunteer squads. Coordinate searches and bring lost pets home safely."
