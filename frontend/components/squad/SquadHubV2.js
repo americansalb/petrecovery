@@ -87,7 +87,7 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
   }, [allCases, squad]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Squad Header */}
       <SquadHeaderV2
         squad={squad}

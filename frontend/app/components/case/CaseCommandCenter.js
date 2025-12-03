@@ -243,7 +243,7 @@ export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
   // Loading state
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-slate-950 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-slate-900 flex items-center justify-center z-50">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-slate-400">Loading Command Center...</p>
@@ -255,7 +255,7 @@ export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
   // Error state
   if (error) {
     return (
-      <div className="fixed inset-0 bg-slate-950 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-slate-900 flex items-center justify-center z-50 p-4">
         <div className="bg-red-900/30 border border-red-500/50 rounded-2xl p-8 max-w-md text-center">
           <div className="text-4xl mb-4">⚠️</div>
           <h2 className="text-xl font-bold text-white mb-2">Unable to Load Case</h2>
@@ -279,7 +279,7 @@ export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
   // ============================================================================
   if (isMobile) {
     return (
-      <div className="fixed inset-0 bg-slate-950 z-50 flex flex-col">
+      <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col">
         {/* Compact Header */}
         <div className="bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 py-2 flex items-center justify-between safe-area-top">
           <button
@@ -412,7 +412,7 @@ export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
 
         {/* Activity Sheet (slides up) */}
         {activeView === 'activity' && (
-          <div className="absolute inset-0 bg-slate-950/80 z-40" onClick={() => setActiveView('map')}>
+          <div className="absolute inset-0 bg-slate-900/80 z-40" onClick={() => setActiveView('map')}>
             <div
               className="absolute bottom-0 left-0 right-0 bg-slate-900 rounded-t-3xl max-h-[70vh] overflow-auto"
               onClick={e => e.stopPropagation()}
@@ -455,11 +455,11 @@ export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
   // ============================================================================
   if (isTablet) {
     return (
-      <div className="fixed inset-0 bg-slate-950 z-50 flex">
+      <div className="fixed inset-0 bg-slate-900 z-50 flex">
         {/* Map Section (60%) */}
         <div className="w-[60%] relative">
           {/* Header */}
-          <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-slate-950 to-transparent p-4">
+          <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-slate-900 to-transparent p-4">
             <div className="flex items-center gap-4">
               <button
                 onClick={onClose || (() => window.history.back())}
@@ -646,7 +646,7 @@ export default function CaseCommandCenter({ caseId, caseNumber, onClose }) {
   // DESKTOP VIEW - Coordinator Dashboard
   // ============================================================================
   return (
-    <div className="fixed inset-0 bg-slate-950 z-50 flex">
+    <div className="fixed inset-0 bg-slate-900 z-50 flex">
       {/* Left Panel - Pet Info & Stats */}
       <div className="w-80 bg-slate-900 border-r border-slate-800 flex flex-col">
         {/* Header */}

@@ -117,15 +117,15 @@ export default function CommunityModeV2({
             .map(announcement => (
               <div
                 key={announcement.id}
-                className="relative overflow-hidden bg-gradient-to-br from-cyan-400/10 via-cyan-400/5 to-transparent backdrop-blur-sm border border-cyan-400/40 rounded-2xl p-6 shadow-lg shadow-cyan-400/10"
+                className="relative overflow-hidden bg-gradient-to-br from-flash-400/10 via-flash-400/5 to-transparent backdrop-blur-sm border border-flash-400/40 rounded-2xl p-6 shadow-lg shadow-flash-400/10"
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-400/5 rounded-full blur-2xl" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-flash-400/5 rounded-full blur-2xl" />
                 <div className="relative flex items-start gap-4">
-                  <div className="p-2.5 rounded-xl bg-cyan-400/20 border border-cyan-400/30">
-                    <Pin className="text-cyan-300 flex-shrink-0" size={20} />
+                  <div className="p-2.5 rounded-xl bg-flash-400/20 border border-flash-400/30">
+                    <Pin className="text-flash-300 flex-shrink-0" size={20} />
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-bold text-lg text-cyan-200 mb-2">
+                    <h4 className="font-bold text-lg text-flash-200 mb-2">
                       {announcement.title || 'Announcement'}
                     </h4>
                     <p className="text-slate-200 text-base leading-relaxed mb-3">{announcement.content}</p>
@@ -156,7 +156,7 @@ export default function CommunityModeV2({
             className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-800/50 transition-all"
           >
             <div className="flex items-center gap-3">
-              <MessageSquare size={20} className="text-cyan-400" />
+              <MessageSquare size={20} className="text-flash-400" />
               <span className="font-bold text-white">Squad Chat</span>
               <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-700/70 text-slate-300">
                 {filteredMessages.length}
@@ -179,14 +179,14 @@ export default function CommunityModeV2({
                         type="checkbox"
                         checked={showDivisionMessages}
                         onChange={(e) => setShowDivisionMessages(e.target.checked)}
-                        className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-2 focus:ring-cyan-500/50 cursor-pointer"
+                        className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-flash-500 focus:ring-2 focus:ring-cyan-500/50 cursor-pointer"
                       />
                       <span className="group-hover:text-white transition-colors">Include division messages</span>
                     </label>
                     {showDivisionMessages && (
                       <button
                         onClick={() => setShowDivisionFilter(!showDivisionFilter)}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-cyan-400 bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:text-cyan-300 transition-all"
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-flash-400 bg-flash-500/10 border border-flash-500/30 hover:bg-flash-500/20 hover:text-flash-300 transition-all"
                       >
                         <Filter size={14} />
                         Filter
@@ -209,7 +209,7 @@ export default function CommunityModeV2({
                             type="checkbox"
                             checked={selectedDivisions.has(div.id)}
                             onChange={() => toggleDivisionFilter(div.id)}
-                            className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500"
+                            className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-flash-500"
                           />
                           <span className="text-xs">{div.name}</span>
                         </label>
@@ -232,7 +232,7 @@ export default function CommunityModeV2({
                       const division = divisions.find(d => d.id === msg.divisionId);
                       const roleColors = {
                         FOUNDER: 'text-purple-400',
-                        LEADER: 'text-cyan-300',
+                        LEADER: 'text-flash-300',
                         COORDINATOR: 'text-blue-400',
                         MEMBER: 'text-slate-400',
                       };
@@ -249,7 +249,7 @@ export default function CommunityModeV2({
                               {msg.authorRole.toLowerCase()}
                             </span>
                             {division && !isDivisionPage && (
-                              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/20 text-cyan-300">
+                              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/20 text-flash-300">
                                 {division.name}
                               </span>
                             )}
@@ -276,12 +276,12 @@ export default function CommunityModeV2({
                       onChange={(e) => setMessageText(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
                       placeholder="Quick message..."
-                      className="flex-1 px-4 py-2 rounded-lg bg-slate-800/50 border border-slate-600/50 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-cyan-500/70 focus:ring-1 focus:ring-cyan-500/30 transition-all"
+                      className="flex-1 px-4 py-2 rounded-lg bg-slate-800/50 border border-slate-600/50 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-flash-500/70 focus:ring-1 focus:ring-flash-500/30 transition-all"
                     />
                     <button
                       onClick={handleSend}
                       disabled={!messageText.trim() || sending}
-                      className="px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-cyan-400 text-white font-semibold text-sm disabled:opacity-50 hover:shadow-lg transition-all"
+                      className="px-4 py-2 rounded-lg bg-gradient-to-r from-flash-500 to-flash-400 text-white font-semibold text-sm disabled:opacity-50 hover:shadow-lg transition-all"
                     >
                       {sending ? '...' : 'Send'}
                     </button>

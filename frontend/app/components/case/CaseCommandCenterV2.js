@@ -251,7 +251,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
   // Waiting for waiver acceptance
   if (showWaiverModal && !caseData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-6">
         <div className="max-w-md w-full text-center">
           <div className="mb-6">
             <div className="inline-block p-4 bg-flash-500/20 rounded-full border-2 border-flash-500/50">
@@ -286,7 +286,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-6">
         <div className="max-w-md w-full bg-slate-900/80 backdrop-blur-xl border-2 border-red-500/30 rounded-2xl p-8 shadow-2xl">
           {/* Error Icon */}
           <div className="flex justify-center mb-6">
@@ -351,7 +351,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header */}
       <div className="bg-slate-900/80 backdrop-blur-xl border-b-2 border-slate-800/60 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">

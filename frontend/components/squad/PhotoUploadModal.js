@@ -99,7 +99,7 @@ export default function PhotoUploadModal({ isOpen, onClose, onUpload, squadId })
       />
 
       {/* Modal */}
-      <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-cyan-500/30 rounded-2xl shadow-[0_0_60px_rgba(34,211,238,0.3)] max-w-md w-full p-8">
+      <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-flash-500/30 rounded-2xl shadow-[0_0_60px_rgba(250,204,21,0.3)] max-w-md w-full p-8">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -135,7 +135,7 @@ export default function PhotoUploadModal({ isOpen, onClose, onUpload, squadId })
         ) : (
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="mb-6 border-2 border-dashed border-slate-600 rounded-xl p-12 text-center cursor-pointer hover:border-cyan-500/50 hover:bg-slate-800/30 transition-all"
+            className="mb-6 border-2 border-dashed border-slate-600 rounded-xl p-12 text-center cursor-pointer hover:border-flash-500/50 hover:bg-slate-800/30 transition-all"
           >
             <Camera size={48} className="mx-auto mb-4 text-slate-500" />
             <p className="text-slate-300 font-medium mb-1">Click to select photo</p>
@@ -155,7 +155,7 @@ export default function PhotoUploadModal({ isOpen, onClose, onUpload, squadId })
         <button
           onClick={handleUpload}
           disabled={!selectedFile || uploading}
-          className="w-full px-6 py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-400 text-white font-bold shadow-lg shadow-cyan-500/30 hover:shadow-xl hover:shadow-cyan-500/50 hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          className="w-full px-6 py-4 rounded-xl bg-gradient-to-r from-flash-500 to-flash-400 text-midnight-900 font-bold shadow-lg shadow-flash-500/30 hover:shadow-xl hover:shadow-flash-500/50 hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
         >
           {uploading ? (
             <div className="flex items-center justify-center gap-2">

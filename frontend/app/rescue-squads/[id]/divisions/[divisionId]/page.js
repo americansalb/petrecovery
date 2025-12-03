@@ -65,7 +65,7 @@ export default function DivisionPage() {
     return (
       <div className="min-h-screen bg-[#0a1628] flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-flash-400"></div>
           <p className="mt-4 text-gray-400">Loading division...</p>
         </div>
       </div>
@@ -92,7 +92,7 @@ export default function DivisionPage() {
             </button>
             <a
               href={`/rescue-squads/${squadId}`}
-              className="px-6 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition"
+              className="px-6 py-3 bg-flash-500 text-midnight-900 font-semibold rounded-lg hover:bg-flash-600 transition"
             >
               View Full Squad
             </a>
