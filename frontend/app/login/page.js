@@ -1,9 +1,16 @@
 'use client';
 
+/**
+ * Login Page - Updated with PetRecovery Design System
+ * Uses: Midnight Blue + Flashlight Yellow color palette
+ */
+
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { LogIn, Mail, Lock, ArrowLeft } from 'lucide-react';
+import { Button, Card } from '@/components/ui';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -47,194 +54,110 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(to bottom, #dbeafe, #bfdbfe)',
-      padding: '1rem',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}>
-      <main
-        role="main"
-        aria-labelledby="login-heading"
-        style={{
-          maxWidth: '450px',
-          width: '100%',
-          backgroundColor: 'white',
-          borderRadius: '1rem',
-          padding: '2rem',
-          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-        }}
-      >
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h1
-            id="login-heading"
-            style={{
-              fontSize: '2rem',
-              fontWeight: 'bold',
-              color: '#1e40af',
-              marginBottom: '0.5rem',
-            }}
-          >
-            Welcome Back
-          </h1>
-          <p style={{ color: '#6b7280' }}>
-            Sign in to track your alerts
-          </p>
-        </div>
-
-        {error && (
-          <div
-            role="alert"
-            aria-live="polite"
-            id="login-error"
-            style={{
-              backgroundColor: '#fee2e2',
-              border: '1px solid #fecaca',
-              color: '#991b1b',
-              padding: '0.75rem',
-              borderRadius: '0.5rem',
-              marginBottom: '1.5rem',
-              fontSize: '0.875rem',
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} aria-describedby={error ? 'login-error' : undefined}>
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label
-              htmlFor="email"
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '600',
-                color: '#1f2937',
-              }}
-            >
-              Email Address
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              required
-              aria-required="true"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #e5e7eb',
-                borderRadius: '0.5rem',
-                fontSize: '1rem',
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '0.5rem',
-            }}>
-              <label
-                htmlFor="password"
-                style={{
-                  fontWeight: '600',
-                  color: '#1f2937',
-                }}
-              >
-                Password
-              </label>
-              <Link
-                href="/forgot-password"
-                style={{
-                  color: '#2563eb',
-                  fontSize: '0.875rem',
-                  textDecoration: 'none',
-                }}
-              >
-                Forgot Password?
-              </Link>
-            </div>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              required
-              aria-required="true"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #e5e7eb',
-                borderRadius: '0.5rem',
-                fontSize: '1rem',
-              }}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            aria-busy={loading}
-            style={{
-              width: '100%',
-              padding: '1rem',
-              backgroundColor: loading ? '#9ca3af' : '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.5rem',
-              fontSize: '1.125rem',
-              fontWeight: '600',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              marginBottom: '1rem',
-            }}
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
-
-        <div style={{
-          textAlign: 'center',
-          paddingTop: '1.5rem',
-          borderTop: '1px solid #e5e7eb',
-        }}>
-          <p style={{ color: '#6b7280', marginBottom: '0.5rem' }}>
-            Don't have an account?
-          </p>
-          <Link
-            href="/register"
-            style={{
-              color: '#2563eb',
-              fontWeight: '600',
-              textDecoration: 'none',
-            }}
-          >
-            Create Account
+    <div className="min-h-screen bg-gradient-to-b from-midnight-100 to-midnight-200 flex items-center justify-center p-4">
+      <main role="main" aria-labelledby="login-heading" className="w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-flex items-center gap-2 text-midnight-900 font-bold text-2xl">
+            <img src="https://petrescue.b-cdn.net/Logos.svg" alt="Surumaa" className="h-12 w-auto" />
+            PetRecovery
           </Link>
         </div>
 
-        <nav aria-label="Back navigation" style={{ textAlign: 'center', marginTop: '1rem' }}>
-          <Link
-            href="/"
-            style={{
-              color: '#6b7280',
-              fontSize: '0.875rem',
-              textDecoration: 'none',
-            }}
-          >
-            ← Back to Home
+        <Card className="shadow-xl">
+          <div className="text-center mb-6">
+            <h1 id="login-heading" className="text-2xl font-bold text-midnight-900 mb-2">
+              Welcome Back
+            </h1>
+            <p className="text-midnight-500">
+              Sign in to track your alerts
+            </p>
+          </div>
+
+          {error && (
+            <div
+              role="alert"
+              aria-live="polite"
+              id="login-error"
+              className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm"
+            >
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} aria-describedby={error ? 'login-error' : undefined}>
+            <div className="mb-5">
+              <label htmlFor="email" className="block mb-2 font-semibold text-midnight-700 text-sm">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400" />
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  aria-required="true"
+                  className="w-full pl-11 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                />
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <label htmlFor="password" className="font-semibold text-midnight-700 text-sm">
+                  Password
+                </label>
+                <Link href="/forgot-password" className="text-midnight-600 hover:text-midnight-900 text-sm font-medium transition">
+                  Forgot Password?
+                </Link>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400" />
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                  aria-required="true"
+                  className="w-full pl-11 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                />
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              fullWidth
+              loading={loading}
+              leftIcon={LogIn}
+              size="lg"
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
+            </Button>
+          </form>
+
+          <div className="text-center pt-6 mt-6 border-t border-midnight-100">
+            <p className="text-midnight-500 mb-2">
+              Don't have an account?
+            </p>
+            <Link href="/register" className="text-midnight-900 font-semibold hover:text-flash-600 transition">
+              Create Account
+            </Link>
+          </div>
+        </Card>
+
+        <nav aria-label="Back navigation" className="text-center mt-6">
+          <Link href="/" className="inline-flex items-center gap-2 text-midnight-500 hover:text-midnight-700 text-sm transition">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Home
           </Link>
         </nav>
       </main>

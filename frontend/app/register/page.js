@@ -1,9 +1,16 @@
 'use client';
 
+/**
+ * Register Page - Updated with PetRecovery Design System
+ * Uses: Midnight Blue + Flashlight Yellow color palette
+ */
+
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { UserPlus, Mail, Lock, Phone, User, ArrowLeft, Check } from 'lucide-react';
+import { Button, Card } from '@/components/ui';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -38,7 +45,6 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
 
-    // Validation
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -57,7 +63,6 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Register user
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -78,7 +83,6 @@ export default function RegisterPage() {
         return;
       }
 
-      // Auto sign in after registration
       const result = await signIn('credentials', {
         redirect: false,
         email: formData.email,
@@ -99,325 +103,214 @@ export default function RegisterPage() {
   };
 
   return (
-    <main
-      role="main"
-      aria-labelledby="register-heading"
-      style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(to bottom, #dbeafe, #bfdbfe)',
-        padding: '1rem',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <div style={{
-        maxWidth: '450px',
-        width: '100%',
-        backgroundColor: 'white',
-        borderRadius: '1rem',
-        padding: '2rem',
-        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h1
-            id="register-heading"
-            style={{
-              fontSize: '2rem',
-              fontWeight: 'bold',
-              color: '#1e40af',
-              marginBottom: '0.5rem',
-            }}
-          >
-            Create Account
-          </h1>
-          <p style={{ color: '#6b7280' }}>
-            Join the pet recovery community
-          </p>
+    <div className="min-h-screen bg-gradient-to-b from-midnight-100 to-midnight-200 flex items-center justify-center p-4 py-8">
+      <main role="main" aria-labelledby="register-heading" className="w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-flex items-center gap-2 text-midnight-900 font-bold text-2xl">
+            <img src="https://petrescue.b-cdn.net/Logos.svg" alt="Surumaa" className="h-12 w-auto" />
+            PetRecovery
+          </Link>
         </div>
 
-        {error && (
-          <div
-            role="alert"
-            aria-live="polite"
-            id="register-error"
-            style={{
-              backgroundColor: '#fee2e2',
-              border: '1px solid #fecaca',
-              color: '#991b1b',
-              padding: '0.75rem',
-              borderRadius: '0.5rem',
-              marginBottom: '1.5rem',
-              fontSize: '0.875rem',
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} aria-describedby={error ? 'register-error' : undefined}>
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label
-              htmlFor="firstName"
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '600',
-                color: '#1f2937',
-              }}
-            >
-              First Name *
-            </label>
-            <input
-              id="firstName"
-              type="text"
-              name="firstName"
-              value={formData.firstName}
-              onChange={handleChange}
-              placeholder="Jane"
-              required
-              autoComplete="given-name"
-              aria-required="true"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #e5e7eb',
-                borderRadius: '0.5rem',
-                fontSize: '1rem',
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label
-              htmlFor="email"
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '600',
-                color: '#1f2937',
-              }}
-            >
-              Email Address *
-            </label>
-            <input
-              id="email"
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="you@example.com"
-              required
-              autoComplete="email"
-              aria-required="true"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #e5e7eb',
-                borderRadius: '0.5rem',
-                fontSize: '1rem',
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label
-              htmlFor="phone"
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '600',
-                color: '#1f2937',
-              }}
-            >
-              Phone Number
-            </label>
-            <input
-              id="phone"
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              placeholder="555-0100"
-              autoComplete="tel"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #e5e7eb',
-                borderRadius: '0.5rem',
-                fontSize: '1rem',
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label
-              htmlFor="password"
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '600',
-                color: '#1f2937',
-              }}
-            >
-              Password *
-            </label>
-            <input
-              id="password"
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="••••••••"
-              required
-              autoComplete="new-password"
-              aria-required="true"
-              aria-describedby="password-hint"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #e5e7eb',
-                borderRadius: '0.5rem',
-                fontSize: '1rem',
-              }}
-            />
-            <p
-              id="password-hint"
-              style={{
-                fontSize: '0.875rem',
-                color: '#6b7280',
-                marginTop: '0.5rem',
-              }}
-            >
-              Must be at least 8 characters
+        <Card className="shadow-xl">
+          <div className="text-center mb-6">
+            <h1 id="register-heading" className="text-2xl font-bold text-midnight-900 mb-2">
+              Create Account
+            </h1>
+            <p className="text-midnight-500">
+              Join the pet recovery community
             </p>
           </div>
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label
-              htmlFor="confirmPassword"
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '600',
-                color: '#1f2937',
-              }}
+          {error && (
+            <div
+              role="alert"
+              aria-live="polite"
+              id="register-error"
+              className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm"
             >
-              Confirm Password *
-            </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              placeholder="••••••••"
-              required
-              autoComplete="new-password"
-              aria-required="true"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid #e5e7eb',
-                borderRadius: '0.5rem',
-                fontSize: '1rem',
-              }}
-            />
-          </div>
+              {error}
+            </div>
+          )}
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label
-              htmlFor="acceptTerms"
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '0.75rem',
-                cursor: 'pointer',
-              }}
+          <form onSubmit={handleSubmit} aria-describedby={error ? 'register-error' : undefined}>
+            {/* First Name */}
+            <div className="mb-4">
+              <label htmlFor="firstName" className="block mb-2 font-semibold text-midnight-700 text-sm">
+                First Name <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400" />
+                <input
+                  id="firstName"
+                  type="text"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  placeholder="Jane"
+                  required
+                  autoComplete="given-name"
+                  aria-required="true"
+                  className="w-full pl-11 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                />
+              </div>
+            </div>
+
+            {/* Email */}
+            <div className="mb-4">
+              <label htmlFor="email" className="block mb-2 font-semibold text-midnight-700 text-sm">
+                Email Address <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400" />
+                <input
+                  id="email"
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="you@example.com"
+                  required
+                  autoComplete="email"
+                  aria-required="true"
+                  className="w-full pl-11 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                />
+              </div>
+            </div>
+
+            {/* Phone */}
+            <div className="mb-4">
+              <label htmlFor="phone" className="block mb-2 font-semibold text-midnight-700 text-sm">
+                Phone Number <span className="text-midnight-400">(optional)</span>
+              </label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400" />
+                <input
+                  id="phone"
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="555-0100"
+                  autoComplete="tel"
+                  className="w-full pl-11 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div className="mb-4">
+              <label htmlFor="password" className="block mb-2 font-semibold text-midnight-700 text-sm">
+                Password <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400" />
+                <input
+                  id="password"
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  required
+                  autoComplete="new-password"
+                  aria-required="true"
+                  aria-describedby="password-hint"
+                  className="w-full pl-11 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                />
+              </div>
+              <p id="password-hint" className="text-xs text-midnight-500 mt-1">
+                Must be at least 8 characters
+              </p>
+            </div>
+
+            {/* Confirm Password */}
+            <div className="mb-5">
+              <label htmlFor="confirmPassword" className="block mb-2 font-semibold text-midnight-700 text-sm">
+                Confirm Password <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400" />
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  required
+                  autoComplete="new-password"
+                  aria-required="true"
+                  className="w-full pl-11 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                />
+              </div>
+            </div>
+
+            {/* Terms Checkbox */}
+            <div className="mb-6">
+              <label htmlFor="acceptTerms" className="flex items-start gap-3 cursor-pointer">
+                <div className="relative mt-0.5">
+                  <input
+                    id="acceptTerms"
+                    type="checkbox"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    aria-required="true"
+                    className="sr-only peer"
+                  />
+                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition ${
+                    acceptedTerms
+                      ? 'bg-flash-400 border-flash-400'
+                      : 'bg-white border-midnight-300 peer-focus:ring-2 peer-focus:ring-flash-400'
+                  }`}>
+                    {acceptedTerms && <Check className="w-3 h-3 text-midnight-900" strokeWidth={3} />}
+                  </div>
+                </div>
+                <span className="text-sm text-midnight-600 leading-relaxed">
+                  I agree to the{' '}
+                  <Link href="/legal/terms" className="text-midnight-900 font-medium underline hover:text-flash-600">
+                    Terms of Service
+                  </Link>
+                  {' '}and{' '}
+                  <Link href="/legal/consent" className="text-midnight-900 font-medium underline hover:text-flash-600">
+                    Liability Waiver
+                  </Link>
+                  . I understand that participation in rescue squad activities involves physical risks.
+                </span>
+              </label>
+            </div>
+
+            <Button
+              type="submit"
+              fullWidth
+              loading={loading}
+              disabled={!acceptedTerms}
+              leftIcon={UserPlus}
+              size="lg"
+              variant="success"
             >
-              <input
-                id="acceptTerms"
-                type="checkbox"
-                checked={acceptedTerms}
-                onChange={(e) => setAcceptedTerms(e.target.checked)}
-                aria-required="true"
-                style={{
-                  width: '1.25rem',
-                  height: '1.25rem',
-                  marginTop: '0.125rem',
-                  cursor: 'pointer',
-                }}
-              />
-              <span style={{ fontSize: '0.875rem', color: '#374151', lineHeight: '1.5' }}>
-                I agree to the{' '}
-                <Link href="/legal/terms" style={{ color: '#2563eb', textDecoration: 'underline' }}>
-                  Terms of Service
-                </Link>
-                {' '}and{' '}
-                <Link href="/legal/consent" style={{ color: '#2563eb', textDecoration: 'underline' }}>
-                  Liability Waiver
-                </Link>
-                . I understand that participation in rescue squad activities involves physical risks.
-              </span>
-            </label>
+              {loading ? 'Creating Account...' : 'Create Account'}
+            </Button>
+          </form>
+
+          <div className="text-center pt-6 mt-6 border-t border-midnight-100">
+            <p className="text-midnight-500 mb-2">
+              Already have an account?
+            </p>
+            <Link href="/login" className="text-midnight-900 font-semibold hover:text-flash-600 transition">
+              Sign In
+            </Link>
           </div>
+        </Card>
 
-          <button
-            type="submit"
-            disabled={loading || !acceptedTerms}
-            aria-busy={loading}
-            aria-disabled={loading || !acceptedTerms}
-            style={{
-              width: '100%',
-              padding: '1rem',
-              backgroundColor: (loading || !acceptedTerms) ? '#9ca3af' : '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.5rem',
-              fontSize: '1.125rem',
-              fontWeight: '600',
-              cursor: (loading || !acceptedTerms) ? 'not-allowed' : 'pointer',
-              marginBottom: '1rem',
-            }}
-          >
-            {loading ? 'Creating Account...' : 'Create Account'}
-          </button>
-        </form>
-
-        <div style={{
-          textAlign: 'center',
-          paddingTop: '1.5rem',
-          borderTop: '1px solid #e5e7eb',
-        }}>
-          <p style={{ color: '#6b7280', marginBottom: '0.5rem' }}>
-            Already have an account?
-          </p>
-          <Link
-            href="/login"
-            style={{
-              color: '#2563eb',
-              fontWeight: '600',
-              textDecoration: 'none',
-            }}
-          >
-            Sign In
-          </Link>
-        </div>
-
-        <nav aria-label="Back navigation" style={{ textAlign: 'center', marginTop: '1rem' }}>
-          <Link
-            href="/"
-            style={{
-              color: '#6b7280',
-              fontSize: '0.875rem',
-              textDecoration: 'none',
-            }}
-          >
-            ← Back to Home
+        <nav aria-label="Back navigation" className="text-center mt-6">
+          <Link href="/" className="inline-flex items-center gap-2 text-midnight-500 hover:text-midnight-700 text-sm transition">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Home
           </Link>
         </nav>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
