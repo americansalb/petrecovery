@@ -64,8 +64,8 @@ export default function CasesModeV2({
               key={caseData.id}
               caseData={caseData}
               onClick={() => {
-                console.log('[CaseClick] Navigating to case:', caseData.caseNumber, caseData);
-                router.push(`/cases/${caseData.caseNumber}`);
+                console.log('[CaseClick] Opening in Mission Control:', caseData.caseNumber, caseData);
+                router.push(`/mission-control?mission=${caseData.caseNumber}`);
               }}
             />
           ))}

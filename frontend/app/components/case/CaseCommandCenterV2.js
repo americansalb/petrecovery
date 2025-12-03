@@ -54,12 +54,12 @@ const MapView = dynamic(() => import('./SARMapView'), {
   )
 });
 
-export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
+export default function CaseCommandCenterV2({ caseId, caseNumber, onClose, hideHeader = false, initialData = null }) {
   const { data: session } = useSession();
   const router = useRouter();
 
   // Core state
-  const [caseData, setCaseData] = useState(null);
+  const [caseData, setCaseData] = useState(initialData);
   const [sightings, setSightings] = useState([]);
   const [timeline, setTimeline] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
@@ -218,8 +218,13 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
   }, [caseData?.id]);
 
   useEffect(() => {
-    fetchCase();
-  }, [fetchCase]);
+    // Skip fetching if initialData is provided (Mission Control mode)
+    if (!initialData) {
+      fetchCase();
+    } else {
+      setLoading(false);
+    }
+  }, [fetchCase, initialData]);
 
   useEffect(() => {
     if (caseData?.id) {
@@ -352,7 +357,8 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header */}
+      {/* Header - conditional rendering based on hideHeader */}
+      {!hideHeader && (
       <div className="bg-slate-900/80 backdrop-blur-xl border-b-2 border-slate-800/60 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -426,6 +432,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
           </div>
         </div>
       </div>
+      )}
 
       {/* Tab Content */}
       <div className="max-w-7xl mx-auto p-6">
