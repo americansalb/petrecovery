@@ -5,6 +5,8 @@
  *
  * Beautiful, focused interface for managing lost pet cases
  * Inspired by Squad Hub V2 design language
+ *
+ * Version: 2.1.0 - Build 2025-12-03
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -12,6 +14,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import TaskCompletionModal from '@/components/case/TaskCompletionModal';
+import WaiverModal from '@/components/WaiverModal';
 import { normalizePhotoUrl, fetchWithRetry, formatErrorMessage, isOnline } from '@/app/lib/utils';
 import { PageLoading } from '@/components/LoadingSkeleton';
 import {
@@ -31,10 +34,14 @@ import {
   Activity as ActivityIcon,
   Settings,
   ChevronLeft,
+  ChevronDown,
+  ChevronUp,
   Eye,
   Send,
   Navigation,
   RefreshCw,
+  Sparkles,
+  Shield,
 } from 'lucide-react';
 
 // Lazy load map for better performance
@@ -64,11 +71,16 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
   const [gpsPath, setGpsPath] = useState([]);
   const [tasks, setTasks] = useState([]);
 
-  // UI state
+  // UI state - All useState hooks must be at component top level
   const [activeTab, setActiveTab] = useState('overview'); // overview | map | activity | team | manage
   const [showSightingForm, setShowSightingForm] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [selectedLocationHighlight, setSelectedLocationHighlight] = useState(null); // For highlighting locations on map
+  const [expandedCategories, setExpandedCategories] = useState(['immediate']); // Start with immediate expanded
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [isGPSTracking, setIsGPSTracking] = useState(false);
+  const [showCustomActionModal, setShowCustomActionModal] = useState(false);
+  const [showWaiverModal, setShowWaiverModal] = useState(false);
 
   // Load GPS path and tasks from localStorage on mount
   useEffect(() => {
@@ -114,6 +126,9 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
     try {
       const identifier = caseId || caseNumber;
 
+      // Debug logging to track case loading
+      console.log('[CaseCommandCenter] fetchCase called with:', { caseId, caseNumber, identifier });
+
       // Check if online before making request
       if (!isOnline()) {
         setError('You are offline. Please check your internet connection.');
@@ -121,13 +136,33 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
         return;
       }
 
-      const res = await fetchWithRetry(`/api/cases/${identifier}`);
+      const apiUrl = `/api/cases/${identifier}`;
+      console.log('[CaseCommandCenter] Fetching from:', apiUrl);
+      const res = await fetchWithRetry(apiUrl);
 
       if (!res.ok) {
         if (res.status === 404) {
           throw new Error('Case not found');
         } else if (res.status === 403) {
-          throw new Error('You do not have permission to view this case');
+          // Check if it's a waiver error
+          let errorData = null;
+          try {
+            errorData = await res.json();
+            console.log('[CaseCommandCenter] 403 error data:', errorData);
+          } catch (jsonError) {
+            console.error('[CaseCommandCenter] Failed to parse 403 response as JSON:', jsonError);
+          }
+
+          // Show waiver modal for WAIVER_NOT_ACCEPTED or if we can't parse the error (assume waiver issue)
+          if (!errorData || errorData.code === 'WAIVER_NOT_ACCEPTED' || errorData.message?.includes('waiver')) {
+            console.log('[CaseCommandCenter] Waiver not accepted - showing modal');
+            setLoading(false);
+            setShowWaiverModal(true);
+            return;
+          }
+
+          // Some other permission issue
+          throw new Error(errorData.message || 'You do not have permission to view this case');
         } else {
           throw new Error(`Failed to load case (${res.status})`);
         }
@@ -213,6 +248,41 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
     return <PageLoading message="Loading case details..." />;
   }
 
+  // Waiting for waiver acceptance
+  if (showWaiverModal && !caseData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center p-6">
+        <div className="max-w-md w-full text-center">
+          <div className="mb-6">
+            <div className="inline-block p-4 bg-cyan-500/20 rounded-full border-2 border-cyan-500/50">
+              <Shield size={48} className="text-cyan-400" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-3">
+            Liability Waiver Required
+          </h2>
+          <p className="text-slate-400 mb-6">
+            Please accept the liability waiver to view case details and join the search effort.
+          </p>
+        </div>
+
+        {/* Waiver Modal */}
+        <WaiverModal
+          isOpen={showWaiverModal}
+          onClose={() => {
+            setShowWaiverModal(false);
+            window.history.back();
+          }}
+          onAccepted={() => {
+            setShowWaiverModal(false);
+            setLoading(true);
+            fetchCase();
+          }}
+        />
+      </div>
+    );
+  }
+
   // Error state
   if (error) {
     return (
@@ -254,6 +324,20 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
             </button>
           </div>
         </div>
+
+        {/* Waiver Modal - Render even in error state */}
+        {showWaiverModal && (
+          <WaiverModal
+            isOpen={showWaiverModal}
+            onClose={() => setShowWaiverModal(false)}
+            onAccepted={() => {
+              setShowWaiverModal(false);
+              setError(null);
+              setLoading(true);
+              fetchCase();
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -956,10 +1040,6 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
     }
   }, []);
 
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [isGPSTracking, setIsGPSTracking] = useState(false);
-  const [showCustomActionModal, setShowCustomActionModal] = useState(false);
-
   // Auto-save GPS path when tab closes (people forget to click "Done Searching")
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -978,6 +1058,14 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isGPSTracking, gpsPath]);
+
+  const toggleCategory = (categoryId) => {
+    setExpandedCategories(prev =>
+      prev.includes(categoryId)
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    );
+  };
 
   const handleTaskClick = (task) => {
     // Open the detailed completion modal
@@ -1341,286 +1429,118 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
           </button>
         </div>
 
-        <p className="text-slate-400 text-sm mb-4">Common actions + anything else you've done to help</p>
-
-        {/* Immediate Actions (1-4) */}
-        <div className="mb-4">
-          <h4 className="text-xs font-bold text-emerald-400 mb-2 uppercase tracking-wide">🚨 Immediate</h4>
-          <div className="space-y-2">
-            {tasks.slice(0, 4).map(task => (
-              <button
-                key={task.id}
-                onClick={() => handleTaskClick(task)}
-                className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
-                  task.completed
-                    ? 'bg-emerald-500/10 border border-emerald-500/30'
-                    : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
-                }`}
-              >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                  task.completed
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-slate-700 border-2 border-slate-600'
-                }`}>
-                  {task.completed && '✓'}
+        {/* Suggested Next Steps */}
+        {(() => {
+          const incompleteTasks = tasks.filter(t => !t.completed);
+          const suggestedTasks = incompleteTasks.slice(0, 3);
+          if (suggestedTasks.length > 0) {
+            return (
+              <div className="mb-6 p-4 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-xl">
+                <h4 className="text-sm font-bold text-cyan-400 mb-3 flex items-center gap-2">
+                  <Sparkles size={16} />
+                  Suggested Next Steps
+                </h4>
+                <div className="space-y-2">
+                  {suggestedTasks.map(task => (
+                    <button
+                      key={task.id}
+                      onClick={() => handleTaskClick(task)}
+                      className="w-full text-left p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:bg-slate-800 transition flex items-center gap-3"
+                    >
+                      <div className="w-5 h-5 rounded-full bg-slate-700 border-2 border-slate-600 flex-shrink-0"></div>
+                      <span className="flex-1 text-sm text-white">{task.label}</span>
+                      <ChevronLeft size={16} className="text-slate-500 rotate-180" />
+                    </button>
+                  ))}
                 </div>
-                <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
-                  {task.label}
-                </span>
-                {task.completions.length > 0 && (
-                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
-                    {task.completions.length}×
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
-        {/* Shelters & Authorities (5-7) */}
-        <div className="mb-4">
-          <h4 className="text-xs font-bold text-blue-400 mb-2 uppercase tracking-wide">🏥 Shelters & Authorities</h4>
-          <div className="space-y-2">
-            {tasks.slice(4, 7).map(task => (
+        {/* Task Categories */}
+        {[
+          { id: 'immediate', name: '🚨 Immediate', color: 'emerald', range: [0, 4] },
+          { id: 'shelters', name: '🏥 Shelters & Authorities', color: 'blue', range: [4, 7] },
+          { id: 'veterinary', name: '💉 Veterinary', color: 'purple', range: [7, 9] },
+          { id: 'community', name: '👥 Community', color: 'cyan', range: [9, 13] },
+          { id: 'search', name: '🔍 Search Operations', color: 'amber', range: [13, 17] },
+          { id: 'advanced', name: '🎯 Advanced Tactics', color: 'rose', range: [17, 19] },
+          { id: 'online', name: '💻 Online & Documentation', color: 'indigo', range: [19, 22] },
+          { id: 'extended', name: '🌟 Extended Outreach', color: 'yellow', range: [22, 25] },
+        ].map(category => {
+          const categoryTasks = tasks.slice(category.range[0], category.range[1]);
+          const completed = categoryTasks.filter(t => t.completed).length;
+          const total = categoryTasks.length;
+          const isExpanded = expandedCategories.includes(category.id);
+          const progressPercent = (completed / total) * 100;
+
+          return (
+            <div key={category.id} className="mb-3">
+              {/* Category Header */}
               <button
-                key={task.id}
-                onClick={() => handleTaskClick(task)}
-                className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
-                  task.completed
-                    ? 'bg-emerald-500/10 border border-emerald-500/30'
-                    : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
-                }`}
+                onClick={() => toggleCategory(category.id)}
+                className="w-full flex items-center justify-between p-3 bg-slate-800/30 hover:bg-slate-800/50 rounded-lg transition border border-slate-700/50"
               >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                  task.completed
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-slate-700 border-2 border-slate-600'
-                }`}>
-                  {task.completed && '✓'}
+                <div className="flex items-center gap-3">
+                  {isExpanded ? <ChevronDown size={16} className="text-slate-400" /> : <ChevronLeft size={16} className="text-slate-400" />}
+                  <h4 className={`text-sm font-bold text-${category.color}-400`}>{category.name}</h4>
                 </div>
-                <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
-                  {task.label}
-                </span>
-                {task.completions.length > 0 && (
-                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
-                    {task.completions.length}×
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Veterinary (8-9) */}
-        <div className="mb-4">
-          <h4 className="text-xs font-bold text-purple-400 mb-2 uppercase tracking-wide">💉 Veterinary</h4>
-          <div className="space-y-2">
-            {tasks.slice(7, 9).map(task => (
-              <button
-                key={task.id}
-                onClick={() => handleTaskClick(task)}
-                className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
-                  task.completed
-                    ? 'bg-emerald-500/10 border border-emerald-500/30'
-                    : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
-                }`}
-              >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                  task.completed
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-slate-700 border-2 border-slate-600'
-                }`}>
-                  {task.completed && '✓'}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400">{completed}/{total}</span>
+                  <div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full bg-${category.color}-500 transition-all`}
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
                 </div>
-                <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
-                  {task.label}
-                </span>
-                {task.completions.length > 0 && (
-                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
-                    {task.completions.length}×
-                  </span>
-                )}
               </button>
-            ))}
-          </div>
-        </div>
 
-        {/* Community (10-13) */}
-        <div className="mb-4">
-          <h4 className="text-xs font-bold text-cyan-400 mb-2 uppercase tracking-wide">👥 Community</h4>
-          <div className="space-y-2">
-            {tasks.slice(9, 13).map(task => (
-              <button
-                key={task.id}
-                onClick={() => handleTaskClick(task)}
-                className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
-                  task.completed
-                    ? 'bg-emerald-500/10 border border-emerald-500/30'
-                    : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
-                }`}
-              >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                  task.completed
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-slate-700 border-2 border-slate-600'
-                }`}>
-                  {task.completed && '✓'}
+              {/* Category Tasks */}
+              {isExpanded && (
+                <div className="mt-2 space-y-2 pl-2">
+                  {categoryTasks.map(task => (
+                    <button
+                      key={task.id}
+                      onClick={() => handleTaskClick(task)}
+                      className={`w-full text-left p-3 rounded-lg transition flex items-center gap-3 ${
+                        task.completed
+                          ? 'bg-emerald-500/10 border border-emerald-500/30'
+                          : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
+                      }`}
+                    >
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        task.completed
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-slate-700 border-2 border-slate-600'
+                      }`}>
+                        {task.completed && '✓'}
+                      </div>
+                      <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
+                        {task.label}
+                      </span>
+                      {task.completions.length > 0 && (
+                        <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
+                          {task.completions.length}×
+                        </span>
+                      )}
+                    </button>
+                  ))}
                 </div>
-                <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
-                  {task.label}
-                </span>
-                {task.completions.length > 0 && (
-                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
-                    {task.completions.length}×
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
+              )}
+            </div>
+          );
+        })}
 
-        {/* Search Operations (14-17) */}
-        <div className="mb-4">
-          <h4 className="text-xs font-bold text-amber-400 mb-2 uppercase tracking-wide">🔍 Search Operations</h4>
-          <div className="space-y-2">
-            {tasks.slice(13, 17).map(task => (
-              <button
-                key={task.id}
-                onClick={() => handleTaskClick(task)}
-                className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
-                  task.completed
-                    ? 'bg-emerald-500/10 border border-emerald-500/30'
-                    : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
-                }`}
-              >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                  task.completed
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-slate-700 border-2 border-slate-600'
-                }`}>
-                  {task.completed && '✓'}
-                </div>
-                <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
-                  {task.label}
-                </span>
-                {task.completions.length > 0 && (
-                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
-                    {task.completions.length}×
-                  </span>
-                )}
-              </button>
-            ))}
+        {/* Overall Progress - Less Prominent */}
+        <div className="mt-6 p-3 bg-slate-800/30 rounded-lg border border-slate-700/50">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-slate-400 text-xs">Overall Progress</span>
+            <span className="text-slate-300 font-semibold text-sm">{tasks.filter(t => t.completed).length}/{tasks.length}</span>
           </div>
-        </div>
-
-        {/* Advanced Tactics (18-19) */}
-        <div className="mb-4">
-          <h4 className="text-xs font-bold text-rose-400 mb-2 uppercase tracking-wide">🎯 Advanced Tactics</h4>
-          <div className="space-y-2">
-            {tasks.slice(17, 19).map(task => (
-              <button
-                key={task.id}
-                onClick={() => handleTaskClick(task)}
-                className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
-                  task.completed
-                    ? 'bg-emerald-500/10 border border-emerald-500/30'
-                    : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
-                }`}
-              >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                  task.completed
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-slate-700 border-2 border-slate-600'
-                }`}>
-                  {task.completed && '✓'}
-                </div>
-                <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
-                  {task.label}
-                </span>
-                {task.completions.length > 0 && (
-                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
-                    {task.completions.length}×
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Online & Documentation (20-22) */}
-        <div className="mb-4">
-          <h4 className="text-xs font-bold text-indigo-400 mb-2 uppercase tracking-wide">💻 Online & Documentation</h4>
-          <div className="space-y-2">
-            {tasks.slice(19, 22).map(task => (
-              <button
-                key={task.id}
-                onClick={() => handleTaskClick(task)}
-                className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
-                  task.completed
-                    ? 'bg-emerald-500/10 border border-emerald-500/30'
-                    : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
-                }`}
-              >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                  task.completed
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-slate-700 border-2 border-slate-600'
-                }`}>
-                  {task.completed && '✓'}
-                </div>
-                <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
-                  {task.label}
-                </span>
-                {task.completions.length > 0 && (
-                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
-                    {task.completions.length}×
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Extended Outreach (23-25) */}
-        <div className="mb-4">
-          <h4 className="text-xs font-bold text-yellow-400 mb-2 uppercase tracking-wide">🌟 Extended Outreach</h4>
-          <div className="space-y-2">
-            {tasks.slice(22, 25).map(task => (
-              <button
-                key={task.id}
-                onClick={() => handleTaskClick(task)}
-                className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${
-                  task.completed
-                    ? 'bg-emerald-500/10 border border-emerald-500/30'
-                    : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
-                }`}
-              >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                  task.completed
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-slate-700 border-2 border-slate-600'
-                }`}>
-                  {task.completed && '✓'}
-                </div>
-                <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
-                  {task.label}
-                </span>
-                {task.completions.length > 0 && (
-                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
-                    {task.completions.length}×
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-4 p-4 bg-slate-800/50 rounded-xl border border-slate-700">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-400 text-sm">Progress</span>
-            <span className="text-white font-bold">{tasks.filter(t => t.completed).length} / {tasks.length}</span>
-          </div>
-          <div className="h-2 bg-slate-700 rounded-full overflow-hidden mt-2">
+          <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-emerald-500 to-green-500 transition-all duration-300"
               style={{ width: `${(tasks.filter(t => t.completed).length / tasks.length) * 100}%` }}
@@ -1645,6 +1565,19 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
           onComplete={(actionData) => {
             handleCustomActionComplete(actionData);
             setShowCustomActionModal(false);
+          }}
+        />
+      )}
+
+      {/* Waiver Modal - Pops up automatically when waiver hasn't been accepted */}
+      {showWaiverModal && (
+        <WaiverModal
+          isOpen={showWaiverModal}
+          onClose={() => setShowWaiverModal(false)}
+          onAccepted={() => {
+            setShowWaiverModal(false);
+            setLoading(true);
+            fetchCase(); // Retry loading the case after waiver accepted
           }}
         />
       )}

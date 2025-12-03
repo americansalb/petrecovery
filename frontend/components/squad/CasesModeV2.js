@@ -63,7 +63,10 @@ export default function CasesModeV2({
             <CaseCard
               key={caseData.id}
               caseData={caseData}
-              onClick={() => router.push(`/cases/${caseData.caseNumber}`)}
+              onClick={() => {
+                console.log('[CaseClick] Navigating to case:', caseData.caseNumber, caseData);
+                router.push(`/cases/${caseData.caseNumber}`);
+              }}
             />
           ))}
         </div>
