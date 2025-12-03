@@ -144,14 +144,24 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
           throw new Error('Case not found');
         } else if (res.status === 403) {
           // Check if it's a waiver error
-          const errorData = await res.json();
-          if (errorData.code === 'WAIVER_NOT_ACCEPTED') {
-            // Show waiver modal instead of error
+          let errorData = null;
+          try {
+            errorData = await res.json();
+            console.log('[CaseCommandCenter] 403 error data:', errorData);
+          } catch (jsonError) {
+            console.error('[CaseCommandCenter] Failed to parse 403 response as JSON:', jsonError);
+          }
+
+          // Show waiver modal for WAIVER_NOT_ACCEPTED or if we can't parse the error (assume waiver issue)
+          if (!errorData || errorData.code === 'WAIVER_NOT_ACCEPTED' || errorData.message?.includes('waiver')) {
+            console.log('[CaseCommandCenter] Waiver not accepted - showing modal');
             setLoading(false);
             setShowWaiverModal(true);
             return;
           }
-          throw new Error('You do not have permission to view this case');
+
+          // Some other permission issue
+          throw new Error(errorData.message || 'You do not have permission to view this case');
         } else {
           throw new Error(`Failed to load case (${res.status})`);
         }
@@ -278,6 +288,20 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
             </button>
           </div>
         </div>
+
+        {/* Waiver Modal - Render even in error state */}
+        {showWaiverModal && (
+          <WaiverModal
+            isOpen={showWaiverModal}
+            onClose={() => setShowWaiverModal(false)}
+            onAccepted={() => {
+              setShowWaiverModal(false);
+              setError(null);
+              setLoading(true);
+              fetchCase();
+            }}
+          />
+        )}
       </div>
     );
   }
