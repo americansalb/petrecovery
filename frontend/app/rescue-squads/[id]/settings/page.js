@@ -1,20 +1,26 @@
 'use client';
 
+/**
+ * Squad Settings Page - Updated with PetRecovery Design System
+ * Uses: Midnight Blue + Flashlight Yellow color palette
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import {
   Users, Settings, Shield, ChevronLeft, Save, Trash2,
-  MapPin, Clock, Dog, Cat, Bird, Wifi, Target, Star,
-  ChevronDown, ChevronUp, AlertCircle, CheckCircle
+  Clock, Target, Star, ChevronDown, ChevronUp, AlertCircle,
+  CheckCircle, Loader2, Crown, UserMinus
 } from 'lucide-react';
+import { Button, Card, Badge } from '@/components/ui';
 
 const ROLES = {
-  FOUNDER: { label: 'Founder', color: '#dc2626', canEdit: false },
-  LEADER: { label: 'Leader', color: '#f59e0b', canEdit: true },
-  COORDINATOR: { label: 'Coordinator', color: '#8b5cf6', canEdit: true },
-  MEMBER: { label: 'Member', color: '#3b82f6', canEdit: true },
+  FOUNDER: { label: 'Founder', color: 'text-red-600', bg: 'bg-red-100', border: 'border-red-200', canEdit: false },
+  LEADER: { label: 'Leader', color: 'text-amber-600', bg: 'bg-amber-100', border: 'border-amber-200', canEdit: true },
+  COORDINATOR: { label: 'Coordinator', color: 'text-purple-600', bg: 'bg-purple-100', border: 'border-purple-200', canEdit: true },
+  MEMBER: { label: 'Member', color: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200', canEdit: true },
 };
 
 const EDITABLE_ROLES = ['MEMBER', 'COORDINATOR', 'LEADER'];
@@ -162,7 +168,6 @@ export default function SquadSettingsPage() {
         throw new Error(data.error || 'Failed to update member');
       }
 
-      // Refresh data
       await fetchSquadData();
       setSuccess('Member role updated');
       setTimeout(() => setSuccess(null), 3000);
@@ -191,7 +196,6 @@ export default function SquadSettingsPage() {
         throw new Error(data.error || 'Failed to remove member');
       }
 
-      // Refresh data
       await fetchSquadData();
       setSuccess('Member removed from squad');
       setTimeout(() => setSuccess(null), 3000);
@@ -204,25 +208,10 @@ export default function SquadSettingsPage() {
 
   if (sessionStatus === 'loading' || loading) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#f8fafc',
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            border: '4px solid #e2e8f0',
-            borderTop: '4px solid #4f46e5',
-            borderRadius: '50%',
-            margin: '0 auto 1rem',
-            animation: 'spin 1s linear infinite',
-          }} />
-          <style jsx>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          <p style={{ color: '#64748b' }}>Loading settings...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-midnight-100 to-midnight-200">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-flash-400 animate-spin mx-auto mb-4" />
+          <p className="text-midnight-500 font-medium">Loading settings...</p>
         </div>
       </div>
     );
@@ -230,219 +219,104 @@ export default function SquadSettingsPage() {
 
   if (error && !squad) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: '#f8fafc',
-        padding: '2rem',
-      }}>
-        <div style={{
-          maxWidth: '500px',
-          margin: '4rem auto',
-          background: 'white',
-          borderRadius: '1rem',
-          padding: '2rem',
-          textAlign: 'center',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        }}>
-          <AlertCircle size={48} style={{ color: '#dc2626', marginBottom: '1rem' }} />
-          <h1 style={{ color: '#0f172a', marginBottom: '0.5rem' }}>Access Denied</h1>
-          <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>{error}</p>
-          <Link
-            href={`/rescue-squads/${squadId}`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.75rem 1.5rem',
-              background: '#4f46e5',
-              color: 'white',
-              borderRadius: '0.5rem',
-              textDecoration: 'none',
-              fontWeight: '600',
-            }}
-          >
-            <ChevronLeft size={18} /> Back to Squad
+      <div className="min-h-screen bg-gradient-to-b from-midnight-100 to-midnight-200 p-4">
+        <Card className="max-w-md mx-auto mt-16 text-center p-8">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h1 className="text-xl font-bold text-midnight-900 mb-2">Access Denied</h1>
+          <p className="text-midnight-500 mb-6">{error}</p>
+          <Link href={`/rescue-squads/${squadId}`}>
+            <Button leftIcon={ChevronLeft}>
+              Back to Squad
+            </Button>
           </Link>
-        </div>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#f8fafc',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-    }}>
+    <div className="min-h-screen bg-gradient-to-b from-midnight-100 to-midnight-200">
       {/* Header */}
-      <div style={{
-        background: 'white',
-        borderBottom: '1px solid #e2e8f0',
-        padding: '1.5rem 2rem',
-      }}>
-        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+      <div className="bg-white border-b border-midnight-200 px-4 py-6">
+        <div className="max-w-5xl mx-auto">
           <Link
             href={`/rescue-squads/${squadId}`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-              color: '#4f46e5',
-              textDecoration: 'none',
-              fontSize: '0.875rem',
-              marginBottom: '0.75rem',
-            }}
+            className="inline-flex items-center gap-1 text-flash-600 hover:text-flash-500 text-sm font-semibold mb-3 transition"
           >
-            <ChevronLeft size={16} /> Back to Squad
+            <ChevronLeft className="w-4 h-4" /> Back to Squad
           </Link>
-          <h1 style={{
-            fontSize: '1.75rem',
-            fontWeight: '800',
-            color: '#0f172a',
-            margin: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-          }}>
-            <Settings size={28} />
+          <h1 className="text-2xl font-bold text-midnight-900 flex items-center gap-3">
+            <Settings className="w-7 h-7 text-flash-500" />
             Squad Settings
           </h1>
-          <p style={{ color: '#64748b', margin: '0.25rem 0 0' }}>
-            {squad?.name}
-          </p>
+          <p className="text-midnight-500 mt-1">{squad?.name}</p>
         </div>
       </div>
 
       {/* Main Content */}
-      <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '2rem' }}>
+      <div className="max-w-5xl mx-auto p-4 md:p-6">
         {/* Notifications */}
         {success && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            padding: '1rem 1.5rem',
-            background: '#f0fdf4',
-            border: '1px solid #bbf7d0',
-            borderRadius: '0.75rem',
-            color: '#16a34a',
-            marginBottom: '1.5rem',
-          }}>
-            <CheckCircle size={20} />
+          <div className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-green-700 mb-6">
+            <CheckCircle className="w-5 h-5" />
             {success}
           </div>
         )}
 
         {error && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            padding: '1rem 1.5rem',
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '0.75rem',
-            color: '#dc2626',
-            marginBottom: '1.5rem',
-          }}>
-            <AlertCircle size={20} />
+          <div className="flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 mb-6">
+            <AlertCircle className="w-5 h-5" />
             {error}
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+        <div className="grid md:grid-cols-2 gap-6">
           {/* Left Column - Settings */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="space-y-6">
             {/* General Settings */}
-            <div style={{
-              background: 'white',
-              borderRadius: '1rem',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                padding: '1.25rem 1.5rem',
-                borderBottom: '1px solid #f1f5f9',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-              }}>
-                <Settings size={20} style={{ color: '#4f46e5' }} />
-                <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '700', color: '#0f172a' }}>
-                  General Settings
-                </h2>
+            <Card>
+              <div className="flex items-center gap-3 pb-4 mb-4 border-b border-midnight-100">
+                <Settings className="w-5 h-5 text-flash-500" />
+                <h2 className="text-lg font-bold text-midnight-900">General Settings</h2>
               </div>
-              <div style={{ padding: '1.5rem' }}>
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <label style={{
-                    display: 'block',
-                    fontSize: '0.875rem',
-                    fontWeight: '600',
-                    color: '#374151',
-                    marginBottom: '0.5rem',
-                  }}>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-midnight-700 mb-2">
                     Squad Description
                   </label>
                   <textarea
                     value={settings.description}
                     onChange={(e) => setSettings(prev => ({ ...prev, description: e.target.value }))}
                     placeholder="Describe your squad's mission and coverage area..."
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.9rem',
-                      minHeight: '100px',
-                      resize: 'vertical',
-                    }}
+                    className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400 resize-none"
+                    rows={4}
                   />
                 </div>
 
-                <div>
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    cursor: 'pointer',
-                  }}>
-                    <input
-                      type="checkbox"
-                      checked={settings.isAcceptingCases}
-                      onChange={(e) => setSettings(prev => ({ ...prev, isAcceptingCases: e.target.checked }))}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                    />
-                    <div>
-                      <span style={{ fontWeight: '600', color: '#0f172a' }}>Accepting New Cases</span>
-                      <p style={{ margin: '0.125rem 0 0', fontSize: '0.8rem', color: '#64748b' }}>
-                        Turn off when squad is at capacity
-                      </p>
-                    </div>
-                  </label>
-                </div>
+                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl hover:bg-midnight-50 transition">
+                  <input
+                    type="checkbox"
+                    checked={settings.isAcceptingCases}
+                    onChange={(e) => setSettings(prev => ({ ...prev, isAcceptingCases: e.target.checked }))}
+                    className="w-5 h-5 mt-0.5 rounded border-midnight-300 text-flash-500 focus:ring-flash-400"
+                  />
+                  <div>
+                    <span className="font-semibold text-midnight-900">Accepting New Cases</span>
+                    <p className="text-xs text-midnight-500 mt-0.5">Turn off when squad is at capacity</p>
+                  </div>
+                </label>
               </div>
-            </div>
+            </Card>
 
             {/* Specializations */}
-            <div style={{
-              background: 'white',
-              borderRadius: '1rem',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                padding: '1.25rem 1.5rem',
-                borderBottom: '1px solid #f1f5f9',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-              }}>
-                <Target size={20} style={{ color: '#4f46e5' }} />
-                <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '700', color: '#0f172a' }}>
-                  Specializations
-                </h2>
+            <Card>
+              <div className="flex items-center gap-3 pb-4 mb-4 border-b border-midnight-100">
+                <Target className="w-5 h-5 text-flash-500" />
+                <h2 className="text-lg font-bold text-midnight-900">Specializations</h2>
               </div>
-              <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+
+              <div className="grid grid-cols-2 gap-3">
                 {[
                   { key: 'specializesInDogs', label: 'Dogs', icon: '🐕' },
                   { key: 'specializesInCats', label: 'Cats', icon: '🐈' },
@@ -451,50 +325,33 @@ export default function SquadSettingsPage() {
                 ].map((item) => (
                   <label
                     key={item.key}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      padding: '0.75rem',
-                      background: settings[item.key] ? '#f0fdf4' : '#f8fafc',
-                      border: `1px solid ${settings[item.key] ? '#bbf7d0' : '#e2e8f0'}`,
-                      borderRadius: '0.5rem',
-                      cursor: 'pointer',
-                    }}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition ${
+                      settings[item.key]
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-midnight-50 border-midnight-200 hover:border-midnight-300'
+                    }`}
                   >
                     <input
                       type="checkbox"
                       checked={settings[item.key]}
                       onChange={(e) => setSettings(prev => ({ ...prev, [item.key]: e.target.checked }))}
-                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                      className="w-4 h-4 rounded border-midnight-300 text-flash-500 focus:ring-flash-400"
                     />
-                    <span style={{ fontSize: '1.25rem' }}>{item.icon}</span>
-                    <span style={{ fontWeight: '500', color: '#0f172a' }}>{item.label}</span>
+                    <span className="text-xl">{item.icon}</span>
+                    <span className="font-medium text-midnight-900">{item.label}</span>
                   </label>
                 ))}
               </div>
-            </div>
+            </Card>
 
             {/* Availability */}
-            <div style={{
-              background: 'white',
-              borderRadius: '1rem',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                padding: '1.25rem 1.5rem',
-                borderBottom: '1px solid #f1f5f9',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-              }}>
-                <Clock size={20} style={{ color: '#4f46e5' }} />
-                <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '700', color: '#0f172a' }}>
-                  Availability
-                </h2>
+            <Card>
+              <div className="flex items-center gap-3 pb-4 mb-4 border-b border-midnight-100">
+                <Clock className="w-5 h-5 text-flash-500" />
+                <h2 className="text-lg font-bold text-midnight-900">Availability</h2>
               </div>
-              <div style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+
+              <div className="grid grid-cols-2 gap-3">
                 {[
                   { key: 'availableWeekdays', label: 'Weekdays' },
                   { key: 'availableWeekends', label: 'Weekends' },
@@ -503,143 +360,89 @@ export default function SquadSettingsPage() {
                 ].map((item) => (
                   <label
                     key={item.key}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      padding: '0.75rem',
-                      background: settings[item.key] ? '#eff6ff' : '#f8fafc',
-                      border: `1px solid ${settings[item.key] ? '#bfdbfe' : '#e2e8f0'}`,
-                      borderRadius: '0.5rem',
-                      cursor: 'pointer',
-                    }}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition ${
+                      settings[item.key]
+                        ? 'bg-blue-50 border-blue-200'
+                        : 'bg-midnight-50 border-midnight-200 hover:border-midnight-300'
+                    }`}
                   >
                     <input
                       type="checkbox"
                       checked={settings[item.key]}
                       onChange={(e) => setSettings(prev => ({ ...prev, [item.key]: e.target.checked }))}
-                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                      className="w-4 h-4 rounded border-midnight-300 text-flash-500 focus:ring-flash-400"
                     />
-                    <span style={{ fontWeight: '500', color: '#0f172a' }}>{item.label}</span>
+                    <span className="font-medium text-midnight-900">{item.label}</span>
                   </label>
                 ))}
               </div>
-            </div>
+            </Card>
 
             {/* Equipment */}
-            <div style={{
-              background: 'white',
-              borderRadius: '1rem',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                padding: '1.25rem 1.5rem',
-                borderBottom: '1px solid #f1f5f9',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-              }}>
-                <Star size={20} style={{ color: '#4f46e5' }} />
-                <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '700', color: '#0f172a' }}>
-                  Special Equipment
-                </h2>
+            <Card>
+              <div className="flex items-center gap-3 pb-4 mb-4 border-b border-midnight-100">
+                <Star className="w-5 h-5 text-flash-500" />
+                <h2 className="text-lg font-bold text-midnight-900">Special Equipment</h2>
               </div>
-              <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+              <div className="space-y-3">
                 {[
                   { key: 'hasTrackingDogs', label: 'Tracking Dogs', desc: 'Trained scent tracking dogs available' },
                   { key: 'hasDrones', label: 'Drones', desc: 'Aerial surveillance capability' },
                 ].map((item) => (
                   <label
                     key={item.key}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '0.75rem',
-                      padding: '1rem',
-                      background: settings[item.key] ? '#fef3c7' : '#f8fafc',
-                      border: `1px solid ${settings[item.key] ? '#fde68a' : '#e2e8f0'}`,
-                      borderRadius: '0.5rem',
-                      cursor: 'pointer',
-                    }}
+                    className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition ${
+                      settings[item.key]
+                        ? 'bg-flash-100 border-flash-200'
+                        : 'bg-midnight-50 border-midnight-200 hover:border-midnight-300'
+                    }`}
                   >
                     <input
                       type="checkbox"
                       checked={settings[item.key]}
                       onChange={(e) => setSettings(prev => ({ ...prev, [item.key]: e.target.checked }))}
-                      style={{ width: '16px', height: '16px', marginTop: '2px', cursor: 'pointer' }}
+                      className="w-4 h-4 mt-0.5 rounded border-midnight-300 text-flash-500 focus:ring-flash-400"
                     />
                     <div>
-                      <span style={{ fontWeight: '600', color: '#0f172a' }}>{item.label}</span>
-                      <p style={{ margin: '0.125rem 0 0', fontSize: '0.8rem', color: '#64748b' }}>
-                        {item.desc}
-                      </p>
+                      <span className="font-semibold text-midnight-900">{item.label}</span>
+                      <p className="text-xs text-midnight-500 mt-0.5">{item.desc}</p>
                     </div>
                   </label>
                 ))}
               </div>
-            </div>
+            </Card>
 
             {/* Save Button */}
-            <button
+            <Button
               onClick={handleSaveSettings}
-              disabled={saving}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                width: '100%',
-                padding: '1rem',
-                background: saving ? '#94a3b8' : '#4f46e5',
-                color: 'white',
-                border: 'none',
-                borderRadius: '0.75rem',
-                fontSize: '1rem',
-                fontWeight: '600',
-                cursor: saving ? 'not-allowed' : 'pointer',
-              }}
+              loading={saving}
+              leftIcon={Save}
+              fullWidth
+              size="lg"
             >
-              <Save size={20} />
               {saving ? 'Saving...' : 'Save Settings'}
-            </button>
+            </Button>
           </div>
 
           {/* Right Column - Member Management */}
-          <div style={{
-            background: 'white',
-            borderRadius: '1rem',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            overflow: 'hidden',
-            height: 'fit-content',
-          }}>
-            <div style={{
-              padding: '1.25rem 1.5rem',
-              borderBottom: '1px solid #f1f5f9',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Users size={20} style={{ color: '#4f46e5' }} />
-                <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '700', color: '#0f172a' }}>
+          <Card className="h-fit">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-midnight-100">
+              <div className="flex items-center gap-3">
+                <Users className="w-5 h-5 text-flash-500" />
+                <h2 className="text-lg font-bold text-midnight-900">
                   Members ({members.filter(m => m.isActive).length})
                 </h2>
               </div>
             </div>
 
             {memberAction.error && (
-              <div style={{
-                padding: '0.75rem 1.5rem',
-                background: '#fef2f2',
-                color: '#dc2626',
-                fontSize: '0.875rem',
-              }}>
+              <div className="px-3 py-2 mb-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                 {memberAction.error}
               </div>
             )}
 
-            <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
+            <div className="max-h-[600px] overflow-y-auto -mx-6 px-6">
               {members.filter(m => m.isActive).map((member) => {
                 const roleConfig = ROLES[member.role] || ROLES.MEMBER;
                 const isExpanded = expandedMember === member.id;
@@ -650,76 +453,48 @@ export default function SquadSettingsPage() {
                 return (
                   <div
                     key={member.id}
-                    style={{
-                      borderBottom: '1px solid #f1f5f9',
-                    }}
+                    className="border-b border-midnight-100 last:border-b-0"
                   >
                     <div
-                      style={{
-                        padding: '1rem 1.5rem',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        cursor: canManage ? 'pointer' : 'default',
-                        background: isExpanded ? '#f8fafc' : 'white',
-                        opacity: isLoading ? 0.6 : 1,
-                      }}
+                      className={`py-3 flex justify-between items-center transition ${
+                        canManage ? 'cursor-pointer hover:bg-midnight-50' : ''
+                      } ${isExpanded ? 'bg-midnight-50' : ''} ${isLoading ? 'opacity-60' : ''}`}
                       onClick={() => canManage && setExpandedMember(isExpanded ? null : member.id)}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{
-                          width: '40px',
-                          height: '40px',
-                          background: `${roleConfig.color}20`,
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          border: `2px solid ${roleConfig.color}`,
-                        }}>
-                          <Shield size={18} style={{ color: roleConfig.color }} />
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${roleConfig.bg} border-2 ${roleConfig.border}`}>
+                          {member.role === 'FOUNDER' ? (
+                            <Crown className={`w-5 h-5 ${roleConfig.color}`} />
+                          ) : (
+                            <Shield className={`w-5 h-5 ${roleConfig.color}`} />
+                          )}
                         </div>
                         <div>
-                          <div style={{ fontWeight: '600', color: '#0f172a' }}>
+                          <div className="font-semibold text-midnight-900">
                             {member.user?.firstName} {member.user?.lastName}
                           </div>
-                          <span style={{
-                            display: 'inline-block',
-                            padding: '0.125rem 0.5rem',
-                            background: `${roleConfig.color}15`,
-                            color: roleConfig.color,
-                            borderRadius: '0.25rem',
-                            fontSize: '0.7rem',
-                            fontWeight: '600',
-                            marginTop: '0.25rem',
-                          }}>
+                          <Badge variant="default" size="sm" className={`mt-1 ${roleConfig.bg} ${roleConfig.color}`}>
                             {roleConfig.label}
-                          </span>
+                          </Badge>
                         </div>
                       </div>
                       {canManage && (
-                        isExpanded ? <ChevronUp size={18} style={{ color: '#94a3b8' }} />
-                          : <ChevronDown size={18} style={{ color: '#94a3b8' }} />
+                        isExpanded
+                          ? <ChevronUp className="w-5 h-5 text-midnight-400" />
+                          : <ChevronDown className="w-5 h-5 text-midnight-400" />
                       )}
                     </div>
 
                     {/* Expanded management options */}
                     {isExpanded && canManage && (
-                      <div style={{
-                        padding: '0 1.5rem 1rem',
-                        background: '#f8fafc',
-                      }}>
-                        <p style={{
-                          fontSize: '0.8rem',
-                          color: '#64748b',
-                          margin: '0 0 0.75rem',
-                        }}>
+                      <div className="pb-4 bg-midnight-50 px-3 rounded-b-lg -mx-3">
+                        <p className="text-xs text-midnight-500 mb-3 pt-2">
                           Change role:
                         </p>
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                        <div className="flex gap-2 flex-wrap mb-3">
                           {EDITABLE_ROLES.map((role) => {
-                            // Leaders can't promote to LEADER
                             if (role === 'LEADER' && userRole !== 'FOUNDER') return null;
+                            const config = ROLES[role];
 
                             return (
                               <button
@@ -729,19 +504,13 @@ export default function SquadSettingsPage() {
                                   handleUpdateMemberRole(member.id, role);
                                 }}
                                 disabled={member.role === role || isLoading}
-                                style={{
-                                  padding: '0.5rem 1rem',
-                                  background: member.role === role ? ROLES[role].color : 'white',
-                                  color: member.role === role ? 'white' : ROLES[role].color,
-                                  border: `1px solid ${ROLES[role].color}`,
-                                  borderRadius: '0.375rem',
-                                  fontSize: '0.8rem',
-                                  fontWeight: '600',
-                                  cursor: member.role === role || isLoading ? 'not-allowed' : 'pointer',
-                                  opacity: member.role === role ? 1 : 0.8,
-                                }}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-2 transition ${
+                                  member.role === role
+                                    ? `${config.bg} ${config.color} ${config.border}`
+                                    : `bg-white ${config.border} ${config.color} hover:${config.bg}`
+                                } ${member.role === role || isLoading ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                               >
-                                {ROLES[role].label}
+                                {config.label}
                               </button>
                             );
                           })}
@@ -752,21 +521,9 @@ export default function SquadSettingsPage() {
                             handleRemoveMember(member.id, `${member.user?.firstName} ${member.user?.lastName}`);
                           }}
                           disabled={isLoading}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            padding: '0.5rem 1rem',
-                            background: '#fef2f2',
-                            color: '#dc2626',
-                            border: '1px solid #fecaca',
-                            borderRadius: '0.375rem',
-                            fontSize: '0.8rem',
-                            fontWeight: '600',
-                            cursor: isLoading ? 'not-allowed' : 'pointer',
-                          }}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-semibold hover:bg-red-100 transition disabled:cursor-not-allowed"
                         >
-                          <Trash2 size={14} />
+                          <UserMinus className="w-3 h-3" />
                           Remove from Squad
                         </button>
                       </div>
@@ -775,7 +532,7 @@ export default function SquadSettingsPage() {
                 );
               })}
             </div>
-          </div>
+          </Card>
         </div>
       </div>
     </div>
