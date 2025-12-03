@@ -22,6 +22,10 @@ export default function CaseDetailPage() {
   const params = useParams();
   const { caseNumber } = params;
 
+  // Debug logging to track routing issues
+  console.log('[CaseDetailPage] Params received:', params);
+  console.log('[CaseDetailPage] Case number:', caseNumber);
+
   // Render the Case Command Center V2 - clean tab-based design
   // The component handles all authentication, role detection, and appropriate UI rendering
   return (

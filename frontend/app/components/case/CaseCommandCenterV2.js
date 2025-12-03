@@ -5,6 +5,8 @@
  *
  * Beautiful, focused interface for managing lost pet cases
  * Inspired by Squad Hub V2 design language
+ *
+ * Version: 2.1.0 - Build 2025-12-03
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -123,6 +125,9 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
     try {
       const identifier = caseId || caseNumber;
 
+      // Debug logging to track case loading
+      console.log('[CaseCommandCenter] fetchCase called with:', { caseId, caseNumber, identifier });
+
       // Check if online before making request
       if (!isOnline()) {
         setError('You are offline. Please check your internet connection.');
@@ -130,7 +135,9 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
         return;
       }
 
-      const res = await fetchWithRetry(`/api/cases/${identifier}`);
+      const apiUrl = `/api/cases/${identifier}`;
+      console.log('[CaseCommandCenter] Fetching from:', apiUrl);
+      const res = await fetchWithRetry(apiUrl);
 
       if (!res.ok) {
         if (res.status === 404) {
