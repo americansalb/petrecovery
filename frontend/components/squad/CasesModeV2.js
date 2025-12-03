@@ -32,7 +32,7 @@ export default function CasesModeV2({
     e.stopPropagation(); // Prevent card click
 
     if (!squadId) {
-      alert('Unable to join: Squad information missing');
+      console.error('Unable to join: Squad information missing');
       return;
     }
 
@@ -45,17 +45,15 @@ export default function CasesModeV2({
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        alert(errorData.error || 'Failed to join mission');
+        console.error('Failed to join mission:', errorData);
+        setJoiningCaseId(null);
         return;
       }
 
-      // Success!
-      onCaseUpdate?.(); // Refresh cases list
-      alert(`You've joined the rescue mission for ${caseData.petName}! 🚀`);
+      // Success - navigate to Mission Control for this mission
+      router.push(`/mission-control?mission=${caseData.caseNumber}`);
     } catch (err) {
       console.error('Error joining case:', err);
-      alert('Failed to join mission. Please try again.');
-    } finally {
       setJoiningCaseId(null);
     }
   };
