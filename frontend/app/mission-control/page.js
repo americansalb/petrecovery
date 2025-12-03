@@ -137,6 +137,32 @@ function MissionControlContent() {
     }
   };
 
+  // Handle joining mission
+  const handleJoinMission = async (missionIdToJoin) => {
+    try {
+      const res = await fetchWithRetry(`/api/cases/${missionIdToJoin}/helpers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error('Failed to join mission:', errorData);
+        alert(errorData.message || 'Failed to join mission. Please try again.');
+        return;
+      }
+
+      // Refresh mission data to show updated helper status
+      await fetchMission(missionId);
+      await fetchAvailableMissions();
+    } catch (err) {
+      console.error('Error joining mission:', err);
+      alert('Failed to join mission. Please check your connection and try again.');
+    }
+  };
+
   // Loading state
   if (loading) {
     return <PageLoading message="Initializing Mission Control..." />;
@@ -259,7 +285,11 @@ function MissionControlContent() {
           )}
 
           {/* Mission Hero - Always visible key info */}
-          <MissionHero mission={activeMission} />
+          <MissionHero
+            mission={activeMission}
+            session={session}
+            onJoinMission={handleJoinMission}
+          />
 
           {/* Mission Tabs - Main content area */}
           <MissionTabs
