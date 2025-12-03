@@ -1,13 +1,20 @@
 'use client';
 
+/**
+ * Rescue Squad Search Page - Updated with PetRecovery Design System
+ * Uses: Midnight Blue + Flashlight Yellow color palette
+ */
+
 import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { Search, MapPin, Users, ChevronDown, ChevronRight, Plus, ArrowLeft, Shield } from 'lucide-react';
+import { Button, Card, Badge } from '@/components/ui';
 
 export default function RescueSquadSearchPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState(''); // City name or ZIP code
+  const [searchTerm, setSearchTerm] = useState('');
   const [radius, setRadius] = useState(25);
   const [cities, setCities] = useState([]);
   const [searchLocation, setSearchLocation] = useState(null);
@@ -16,11 +23,10 @@ export default function RescueSquadSearchPage() {
   const [expandedSquads, setExpandedSquads] = useState(new Set());
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [inputType, setInputType] = useState(null); // 'zip' or 'city'
+  const [inputType, setInputType] = useState(null);
   const [validationError, setValidationError] = useState('');
   const [isValidInput, setIsValidInput] = useState(false);
 
-  // Debounced city suggestions via API
   const fetchSuggestions = useCallback(async (value) => {
     if (!value || value.trim().length < 2) {
       setSuggestions([]);
@@ -43,12 +49,9 @@ export default function RescueSquadSearchPage() {
   const handleInputChange = (value) => {
     setSearchTerm(value);
     setValidationError('');
-
-    // Detect input type
     const isZip = /^\d{0,5}$/.test(value);
     setInputType(isZip ? 'zip' : 'city');
 
-    // If it's a city name (not numbers) and at least 2 characters, fetch suggestions
     if (!isZip && value.trim().length >= 2) {
       fetchSuggestions(value);
     } else {
@@ -68,10 +71,8 @@ export default function RescueSquadSearchPage() {
     e.preventDefault();
     if (!searchTerm.trim()) return;
 
-    // Validate input
     const isZip = /^\d{5}$/.test(searchTerm.trim());
     if (!isZip) {
-      // Validate city name via API
       try {
         const validateRes = await fetch(`/api/cities/suggest?q=${encodeURIComponent(searchTerm.trim())}`);
         const validateData = await validateRes.json();
@@ -80,7 +81,6 @@ export default function RescueSquadSearchPage() {
           return;
         }
       } catch (error) {
-        // If validation fails, try searching anyway
         console.error('Validation error:', error);
       }
     }
@@ -100,7 +100,6 @@ export default function RescueSquadSearchPage() {
       setCities(data.cities || []);
       setSearchLocation(data.searchLocation || null);
       setSearched(true);
-      // Auto-expand squads with divisions
       const newExpanded = new Set();
       (data.cities || []).forEach((city, idx) => {
         if (city.divisions && city.divisions.length > 0) {
@@ -138,7 +137,6 @@ export default function RescueSquadSearchPage() {
       if (res.ok) {
         router.push(`/rescue-squads/${squadId}`);
       } else {
-        // Handle waiver redirect
         if (data.code === 'WAIVER_NOT_ACCEPTED' && data.redirectTo) {
           router.push(data.redirectTo);
           return;
@@ -156,22 +154,19 @@ export default function RescueSquadSearchPage() {
       return;
     }
     try {
-      // First join the squad if not already a member
       const squadRes = await fetch(`/api/rescue-squads/${squadId}/join`, { method: 'POST' });
       const squadData = await squadRes.json();
 
-      // Check for waiver requirement
       if (squadData.code === 'WAIVER_NOT_ACCEPTED' && squadData.redirectTo) {
         router.push(squadData.redirectTo);
         return;
       }
 
-      if (!squadRes.ok && squadRes.status !== 400) { // 400 might mean already a member
+      if (!squadRes.ok && squadRes.status !== 400) {
         setValidationError(squadData.error || 'Failed to join squad');
         return;
       }
 
-      // Then join the division
       const divRes = await fetch(`/api/rescue-squads/${squadId}/divisions/${divisionId}/join`, { method: 'POST' });
       const divData = await divRes.json();
       if (divRes.ok) {
@@ -190,14 +185,12 @@ export default function RescueSquadSearchPage() {
       return;
     }
 
-    // If we don't have state (city name search with no existing squad), ask for ZIP
     if (!state) {
       setValidationError(`No squad found for "${city}". Please search by ZIP code to create a new squad for your area.`);
       return;
     }
 
     try {
-      // Validate we have a valid ZIP code
       if (!zipCode || !/^\d{5}$/.test(zipCode)) {
         setValidationError('Unable to create squad: valid ZIP code required. Please search by ZIP code instead.');
         return;
@@ -212,7 +205,6 @@ export default function RescueSquadSearchPage() {
       if (res.ok) {
         router.push(`/rescue-squads/${data.squad.id}`);
       } else {
-        // Handle waiver redirect
         if (data.code === 'WAIVER_NOT_ACCEPTED' && data.redirectTo) {
           router.push(data.redirectTo);
           return;
@@ -225,126 +217,125 @@ export default function RescueSquadSearchPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-midnight-50 py-8 px-4">
       <div className="max-w-3xl mx-auto">
         {/* Back Button */}
         <button
           onClick={() => router.push('/dashboard')}
-          className="mb-6 px-4 py-2 bg-white text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
+          className="mb-6 flex items-center gap-2 text-midnight-600 hover:text-midnight-900 font-medium transition"
         >
-          ← Back to Dashboard
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
         </button>
 
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Find Rescue Squads</h1>
-          <p className="text-gray-600">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-midnight-900 rounded-2xl mb-4">
+            <Shield className="w-8 h-8 text-flash-400" />
+          </div>
+          <h1 className="text-3xl font-bold text-midnight-900 mb-2">Find Rescue Squads</h1>
+          <p className="text-midnight-500">
             Enter a city name or ZIP code to find or create a rescue squad
           </p>
         </div>
 
         {/* Search Form */}
-        <form onSubmit={handleSearch} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* City/ZIP Input */}
-            <div className="relative md:col-span-2">
-              <label className="block font-semibold mb-2 text-gray-700 text-sm">
-                City Name or ZIP Code
-              </label>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => handleInputChange(e.target.value)}
-                onFocus={() => {
-                  if (suggestions.length > 0) setShowSuggestions(true);
-                }}
-                onBlur={() => {
-                  setTimeout(() => setShowSuggestions(false), 200);
-                }}
-                placeholder="e.g., Lynwood or 60411"
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                  validationError ? 'border-red-500' : inputType === 'zip' ? 'border-blue-500' : inputType === 'city' ? 'border-green-500' : 'border-gray-300'
-                }`}
-                required
-              />
+        <Card className="mb-8">
+          <form onSubmit={handleSearch}>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* City/ZIP Input */}
+              <div className="relative md:col-span-2">
+                <label className="block font-semibold mb-2 text-midnight-700 text-sm">
+                  City Name or ZIP Code
+                </label>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  onFocus={() => {
+                    if (suggestions.length > 0) setShowSuggestions(true);
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => setShowSuggestions(false), 200);
+                  }}
+                  placeholder="e.g., Lynwood or 60411"
+                  className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition ${
+                    validationError ? 'border-red-500' : inputType === 'zip' ? 'border-midnight-400' : inputType === 'city' ? 'border-green-500' : 'border-midnight-200'
+                  }`}
+                  required
+                />
 
-              {/* Input type indicator */}
-              {inputType && searchTerm.trim() && (
-                <div className={`absolute right-3 top-10 text-xs font-semibold px-2 py-0.5 rounded ${
-                  inputType === 'zip' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
-                }`}>
-                  {inputType === 'zip' ? 'ZIP' : 'City'}
-                </div>
-              )}
+                {inputType && searchTerm.trim() && (
+                  <div className={`absolute right-3 top-10 text-xs font-semibold px-2 py-0.5 rounded ${
+                    inputType === 'zip' ? 'bg-midnight-100 text-midnight-600' : 'bg-green-100 text-green-600'
+                  }`}>
+                    {inputType === 'zip' ? 'ZIP' : 'City'}
+                  </div>
+                )}
 
-              {/* Validation error */}
-              {validationError && (
-                <div className="mt-2 text-sm text-red-600 font-semibold">
-                  {validationError}
-                </div>
-              )}
+                {validationError && (
+                  <div className="mt-2 text-sm text-red-600 font-medium">
+                    {validationError}
+                  </div>
+                )}
 
-              {/* Suggestions dropdown */}
-              {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg mt-2 max-h-48 overflow-y-auto z-50 shadow-lg">
-                  {suggestions.map((city, idx) => (
-                    <div
-                      key={`${city.city}-${city.state_id}-${idx}`}
-                      onMouseDown={() => selectSuggestion(city)}
-                      className="px-4 py-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-                    >
-                      <div className="font-semibold text-gray-900">
-                        {city.city}, {city.state_id}
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 bg-white border border-midnight-200 rounded-xl mt-2 max-h-48 overflow-y-auto z-50 shadow-lg">
+                    {suggestions.map((city, idx) => (
+                      <div
+                        key={`${city.city}-${city.state_id}-${idx}`}
+                        onMouseDown={() => selectSuggestion(city)}
+                        className="px-4 py-3 cursor-pointer hover:bg-midnight-50 border-b border-midnight-100 last:border-b-0"
+                      >
+                        <div className="font-semibold text-midnight-900">
+                          {city.city}, {city.state_id}
+                        </div>
+                        <div className="text-sm text-midnight-500">
+                          {city.state_name} {city.zips?.length > 0 ? `• ZIP ${city.zips[0]}` : ''}
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {city.state_name} • {city.zips.length > 0 ? `ZIP ${city.zips[0]}` : 'No ZIP'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-            {/* Radius */}
-            <div>
-              <label className="block font-semibold mb-2 text-gray-700 text-sm">
-                Radius
-              </label>
-              <select
-                value={radius}
-                onChange={(e) => setRadius(Number(e.target.value))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value={10}>10 miles</option>
-                <option value={25}>25 miles</option>
-                <option value={50}>50 miles</option>
-              </select>
-            </div>
+              {/* Radius */}
+              <div>
+                <label className="block font-semibold mb-2 text-midnight-700 text-sm">
+                  Radius
+                </label>
+                <select
+                  value={radius}
+                  onChange={(e) => setRadius(Number(e.target.value))}
+                  className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none"
+                >
+                  <option value={10}>10 miles</option>
+                  <option value={25}>25 miles</option>
+                  <option value={50}>50 miles</option>
+                </select>
+              </div>
 
-            {/* Search Button */}
-            <div className="flex items-end">
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Searching...' : 'Search'}
-              </button>
+              {/* Search Button */}
+              <div className="flex items-end">
+                <Button type="submit" fullWidth loading={loading} leftIcon={Search}>
+                  {loading ? 'Searching...' : 'Search'}
+                </Button>
+              </div>
             </div>
-          </div>
-        </form>
+          </form>
+        </Card>
 
         {/* Results */}
         {searched && (
           <div>
             {searchLocation && (
               <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-1">
+                <h2 className="text-xl font-semibold text-midnight-900 mb-1">
                   {searchLocation.cities && searchLocation.cities.length > 1
                     ? `Rescue Squads for ${searchLocation.cities.join(', ')}, ${searchLocation.state}`
                     : `Rescue Squads near ${searchLocation.cities?.[0] || searchLocation.city}, ${searchLocation.state}`
                   }
                 </h2>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-midnight-500">
                   Found {cities.filter(c => c.exists).length} rescue squad{cities.filter(c => c.exists).length !== 1 ? 's' : ''} within {radius} miles
                   {cities.filter(c => c.exists).length === 0 && ' - try increasing the search radius or create one for your area'}
                 </p>
@@ -352,25 +343,30 @@ export default function RescueSquadSearchPage() {
             )}
 
             {cities.length === 0 ? (
-              <p className="text-gray-500">No results found</p>
+              <Card className="text-center py-10">
+                <Search className="w-12 h-12 text-midnight-300 mx-auto mb-4" />
+                <p className="text-midnight-500">No results found</p>
+              </Card>
             ) : (
               <div className="flex flex-col gap-4">
                 {cities.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-white rounded-xl p-5 shadow-sm border border-gray-200"
-                  >
+                  <Card key={idx} hover>
                     {/* Squad Header */}
                     <div className="flex justify-between items-center flex-wrap gap-4">
                       <div className="flex-1">
-                        <h3 className="text-lg font-bold text-gray-900 mb-1">
-                          {item.city} Rescue Squad
-                        </h3>
-                        <p className="text-gray-600 text-sm">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-lg font-bold text-midnight-900">
+                            {item.city} Rescue Squad
+                          </h3>
+                          {item.exists && <Badge variant="success">Active</Badge>}
+                        </div>
+                        <p className="text-midnight-500 text-sm flex items-center gap-1">
+                          <MapPin className="w-4 h-4" />
                           {item.city}, {item.state} - {item.distance.toFixed(1)} miles away
                         </p>
                         {item.exists && item.squad && (
-                          <p className="text-gray-500 text-xs mt-1">
+                          <p className="text-midnight-400 text-xs mt-1 flex items-center gap-2">
+                            <Users className="w-3 h-3" />
                             {item.squad.memberCount} member{item.squad.memberCount !== 1 ? 's' : ''} | {item.squad.totalCasesAccepted || 0} cases
                             {item.divisions && item.divisions.length > 0 && ` | ${item.divisions.length} divisions`}
                           </p>
@@ -380,80 +376,73 @@ export default function RescueSquadSearchPage() {
                       {/* Squad Action Button */}
                       {item.exists && item.squad ? (
                         item.squad.isMember ? (
-                          <button
-                            onClick={() => router.push(`/rescue-squads/${item.squad.id}`)}
-                            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition"
-                          >
+                          <Button onClick={() => router.push(`/rescue-squads/${item.squad.id}`)}>
                             View Squad
-                          </button>
+                          </Button>
                         ) : (
-                          <button
-                            onClick={() => handleJoin(item.squad.id)}
-                            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition"
-                          >
+                          <Button variant="success" onClick={() => handleJoin(item.squad.id)}>
                             Join Squad
-                          </button>
+                          </Button>
                         )
                       ) : (
-                        <button
-                          onClick={() => handleCreate(item.city, item.state, searchLocation?.zipCode)}
-                          className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition"
-                        >
+                        <Button onClick={() => handleCreate(item.city, item.state, searchLocation?.zipCode)}>
+                          <Plus className="w-4 h-4 mr-1" />
                           Create Squad
-                        </button>
+                        </Button>
                       )}
                     </div>
 
                     {/* Divisions List */}
                     {item.exists && item.divisions && item.divisions.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="mt-4 pt-4 border-t border-midnight-100">
                         <button
                           onClick={() => toggleExpanded(idx)}
-                          className="flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700 transition"
+                          className="flex items-center gap-2 text-sm font-semibold text-midnight-700 hover:text-midnight-900 transition"
                         >
-                          <span>{expandedSquads.has(idx) ? '▼' : '▶'}</span>
+                          {expandedSquads.has(idx) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                           {item.divisions.length} Neighborhood Division{item.divisions.length !== 1 ? 's' : ''}
                         </button>
 
                         {expandedSquads.has(idx) && (
-                          <div className="flex flex-col gap-3 mt-3 ml-4">
+                          <div className="flex flex-col gap-3 mt-3 ml-6">
                             {item.divisions.map(division => (
                               <div
                                 key={division.id}
-                                className="bg-gray-50 rounded-lg px-4 py-3 flex justify-between items-center flex-wrap gap-2"
+                                className="bg-midnight-50 rounded-xl px-4 py-3 flex justify-between items-center flex-wrap gap-2"
                               >
                                 <div className="flex-1">
-                                  <div className="font-semibold text-gray-900 text-sm">
+                                  <div className="font-semibold text-midnight-900 text-sm">
                                     {division.name}
                                   </div>
-                                  <div className="text-xs text-gray-500">
+                                  <div className="text-xs text-midnight-500">
                                     {division.distance.toFixed(1)} mi • {division.totalMembers} members
                                   </div>
                                 </div>
 
-                                {/* Division Action Button */}
                                 {division.isMember ? (
-                                  <button
+                                  <Button
+                                    size="sm"
                                     onClick={() => router.push(`/rescue-squads/${item.squad.id}/divisions/${division.id}`)}
-                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition"
                                   >
                                     View Division
-                                  </button>
+                                  </Button>
                                 ) : item.squad.isMember ? (
-                                  <button
+                                  <Button
+                                    size="sm"
+                                    variant="success"
                                     onClick={() => handleJoinDivision(item.squad.id, division.id)}
-                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition"
                                   >
                                     Join Division
-                                  </button>
+                                  </Button>
                                 ) : (
-                                  <button
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
                                     disabled
                                     title="Join the rescue squad first"
-                                    className="px-4 py-2 bg-gray-300 text-gray-500 text-sm font-semibold rounded-lg cursor-not-allowed"
                                   >
                                     Join Division
-                                  </button>
+                                  </Button>
                                 )}
                               </div>
                             ))}
@@ -461,7 +450,7 @@ export default function RescueSquadSearchPage() {
                         )}
                       </div>
                     )}
-                  </div>
+                  </Card>
                 ))}
               </div>
             )}

@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Public Lost Pet Cases List Page
- * Phase 15-16: Public Lost Pet Case Portal MVP (TASK-P03)
+ * Public Lost Pet Cases List Page - Updated with PetRecovery Design System
+ * Uses: Midnight Blue + Flashlight Yellow color palette
  *
  * Route: /cases
  * Public-facing page for browsing lost pet cases
@@ -11,15 +11,18 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Search, MapPin, Calendar, Filter, X, AlertTriangle, ChevronLeft, ChevronRight, Loader2, PawPrint } from 'lucide-react';
+import { Button, Card, Badge } from '@/components/ui';
 
 // Loading fallback for Suspense boundary
 function CasesLoading() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-b from-midnight-100 to-midnight-200">
       <div className="container mx-auto px-4 max-w-6xl py-12">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading cases...</p>
+          <Loader2 className="w-12 h-12 text-flash-400 animate-spin mx-auto" />
+          <p className="mt-4 text-midnight-500 font-medium">Loading cases...</p>
         </div>
       </div>
     </div>
@@ -113,14 +116,14 @@ function CasesContent() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Status badge color
-  const getStatusColor = (status) => {
+  // Status badge variant
+  const getStatusVariant = (status) => {
     switch (status) {
-      case 'OPEN': return 'bg-blue-100 text-blue-800';
-      case 'ACTIVE_SEARCH': return 'bg-yellow-100 text-yellow-800';
-      case 'RESOLVED': return 'bg-green-100 text-green-800';
-      case 'CLOSED_OTHER': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'OPEN': return 'primary';
+      case 'ACTIVE_SEARCH': return 'warning';
+      case 'RESOLVED': return 'success';
+      case 'CLOSED_OTHER': return 'default';
+      default: return 'default';
     }
   };
 
@@ -134,50 +137,62 @@ function CasesContent() {
     }
   };
 
+  const getSpeciesEmoji = (species) => {
+    switch (species) {
+      case 'DOG': return '🐕';
+      case 'CAT': return '🐈';
+      case 'BIRD': return '🐦';
+      default: return '🐾';
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-b from-midnight-100 to-midnight-200">
       {/* Hero Section */}
-      <div className="bg-blue-600 text-white py-8">
+      <div className="bg-gradient-to-br from-midnight-900 to-midnight-800 text-white py-10">
         <div className="container mx-auto px-4 max-w-6xl">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-bold">Lost Pet Cases</h1>
-              <p className="text-blue-100 mt-1">
+              <h1 className="text-3xl md:text-4xl font-bold">Lost Pet Cases</h1>
+              <p className="text-midnight-300 mt-2">
                 Browse cases and help reunite pets with their families
               </p>
             </div>
-            <a
-              href="/report/new"
-              className="px-6 py-3 bg-white text-blue-600 rounded-lg font-bold hover:bg-blue-50 transition"
-            >
-              Report Lost Pet
-            </a>
+            <Link href="/report/new">
+              <Button size="lg" className="shadow-lg shadow-flash-400/20">
+                Report Lost Pet
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
 
       {/* Filters Section */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-white shadow-sm border-b border-midnight-200">
         <div className="container mx-auto px-4 max-w-6xl py-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Filter className="w-4 h-4 text-midnight-500" />
+            <span className="text-sm font-semibold text-midnight-700">Filter Cases</span>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <input
               type="text"
               value={city}
               onChange={(e) => setCity(e.target.value)}
               placeholder="City"
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2.5 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
             />
             <input
               type="text"
               value={state}
               onChange={(e) => setState(e.target.value)}
               placeholder="State"
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2.5 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
             />
             <select
               value={species}
               onChange={(e) => setSpecies(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2.5 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 bg-white"
             >
               <option value="">All Types</option>
               <option value="DOG">Dog</option>
@@ -188,7 +203,7 @@ function CasesContent() {
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-4 py-2.5 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 bg-white"
             >
               <option value="">All Statuses</option>
               <option value="OPEN">Open</option>
@@ -197,152 +212,147 @@ function CasesContent() {
               <option value="CLOSED_OTHER">Closed</option>
             </select>
             <div className="flex gap-2">
-              <button
-                onClick={applyFilters}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-              >
+              <Button onClick={applyFilters} leftIcon={Search} className="flex-1">
                 Search
-              </button>
-              <button
-                onClick={clearFilters}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
-              >
+              </Button>
+              <Button variant="secondary" onClick={clearFilters} leftIcon={X}>
                 Clear
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       </div>
 
       {/* Cases List */}
-      <div className="container mx-auto px-4 max-w-6xl py-6">
+      <div className="container mx-auto px-4 max-w-6xl py-8">
         {/* Loading State */}
         {loading && (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">Loading cases...</p>
+            <Loader2 className="w-12 h-12 text-flash-400 animate-spin mx-auto" />
+            <p className="mt-4 text-midnight-500 font-medium">Loading cases...</p>
           </div>
         )}
 
         {/* Error State */}
         {error && !loading && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <p className="text-red-800 font-semibold">Error loading cases</p>
+          <Card variant="danger" className="p-8 text-center">
+            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-800 font-semibold text-lg">Error loading cases</p>
             <p className="text-red-600 mt-2">{error}</p>
-            <button
-              onClick={fetchCases}
-              className="mt-4 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-            >
+            <Button variant="danger" onClick={fetchCases} className="mt-6">
               Try Again
-            </button>
-          </div>
+            </Button>
+          </Card>
         )}
 
         {/* Empty State */}
         {!loading && !error && cases.length === 0 && (
-          <div className="bg-gray-100 border border-gray-200 rounded-lg p-12 text-center">
-            <p className="text-gray-700 text-lg mb-4">No cases found matching your filters.</p>
-            <p className="text-gray-500 mb-6">Try adjusting your search criteria or clearing filters.</p>
-            <button
-              onClick={clearFilters}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
+          <Card className="p-12 text-center">
+            <PawPrint className="w-16 h-16 text-midnight-300 mx-auto mb-4" />
+            <p className="text-midnight-700 text-xl font-semibold mb-2">No cases found</p>
+            <p className="text-midnight-500 mb-6">Try adjusting your search criteria or clearing filters.</p>
+            <Button onClick={clearFilters}>
               Clear Filters
-            </button>
-          </div>
+            </Button>
+          </Card>
         )}
 
         {/* Cases Grid */}
         {!loading && !error && cases.length > 0 && (
           <>
-            <div className="mb-4 text-gray-600 text-sm">
+            <div className="mb-4 text-midnight-500 text-sm font-medium">
               Showing {cases.length} of {pagination?.totalCount || 0} cases
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {cases.map((caseItem) => (
-                <a
+                <Link
                   key={caseItem.id}
                   href={`/cases/${caseItem.caseNumber}`}
-                  className="bg-white rounded-lg shadow hover:shadow-md transition border border-gray-200 overflow-hidden group"
+                  className="block group"
                 >
-                  {/* Pet Photo */}
-                  {caseItem.petPhotoUrl ? (
-                    <div className="h-40 bg-gray-100 overflow-hidden">
-                      <img
-                        src={caseItem.petPhotoUrl}
-                        alt={caseItem.petName || 'Pet photo'}
-                        className="w-full h-full object-cover group-hover:scale-105 transition"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><span class="text-5xl">🐾</span></div>';
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="h-40 bg-gray-100 flex items-center justify-center">
-                      <span className="text-5xl">{caseItem.petSpecies === 'DOG' ? '🐕' : caseItem.petSpecies === 'CAT' ? '🐈' : '🐾'}</span>
-                    </div>
-                  )}
-                  <div className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h3 className="font-bold text-gray-900">
-                          {caseItem.petName || 'Unknown Pet'}
-                        </h3>
-                        <p className="text-xs text-gray-500">{caseItem.caseNumber}</p>
+                  <Card className="overflow-hidden hover:shadow-card-hover transition-all duration-300 h-full">
+                    {/* Pet Photo */}
+                    {caseItem.petPhotoUrl ? (
+                      <div className="h-44 bg-midnight-100 overflow-hidden">
+                        <img
+                          src={caseItem.petPhotoUrl}
+                          alt={caseItem.petName || 'Pet photo'}
+                          className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-midnight-100"><span class="text-6xl">🐾</span></div>';
+                          }}
+                        />
                       </div>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(caseItem.status)}`}>
-                        {getStatusLabel(caseItem.status)}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1 text-sm text-gray-600">
-                      <div className="flex items-center gap-2">
-                        <span>{caseItem.petSpecies}</span>
-                        {caseItem.petBreed && <span>• {caseItem.petBreed}</span>}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span>📍</span>
-                        <span>{caseItem.city}, {caseItem.state}</span>
-                      </div>
-                      {caseItem.lastSeenAt && (
-                        <div className="text-gray-500 text-xs">
-                          Missing since {new Date(caseItem.lastSeenAt).toLocaleDateString()}
-                        </div>
-                      )}
-                    </div>
-
-                    {caseItem.isUrgent && (
-                      <div className="mt-3 bg-red-50 border border-red-200 rounded px-2 py-1">
-                        <p className="text-xs text-red-700 font-semibold">URGENT</p>
+                    ) : (
+                      <div className="h-44 bg-gradient-to-br from-midnight-100 to-midnight-200 flex items-center justify-center">
+                        <span className="text-6xl">{getSpeciesEmoji(caseItem.petSpecies)}</span>
                       </div>
                     )}
+                    <div className="p-5">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-bold text-midnight-900 text-lg group-hover:text-flash-600 transition">
+                            {caseItem.petName || 'Unknown Pet'}
+                          </h3>
+                          <p className="text-xs text-midnight-400 font-mono">{caseItem.caseNumber}</p>
+                        </div>
+                        <Badge variant={getStatusVariant(caseItem.status)} size="sm">
+                          {getStatusLabel(caseItem.status)}
+                        </Badge>
+                      </div>
 
-                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-                      <span className="text-blue-600 text-sm font-medium group-hover:text-blue-700 transition">
-                        View Details →
-                      </span>
-                      {(caseItem.status === 'ACTIVE' || caseItem.status === 'IN_PROGRESS' || caseItem.status === 'SIGHTING_REPORTED') && (
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                          Active
-                        </span>
+                      <div className="space-y-2 text-sm text-midnight-600">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{getSpeciesEmoji(caseItem.petSpecies)}</span>
+                          <span className="font-medium">{caseItem.petSpecies}</span>
+                          {caseItem.petBreed && <span className="text-midnight-400">• {caseItem.petBreed}</span>}
+                        </div>
+                        <div className="flex items-center gap-2 text-midnight-500">
+                          <MapPin className="w-4 h-4" />
+                          <span>{caseItem.city}, {caseItem.state}</span>
+                        </div>
+                        {caseItem.lastSeenAt && (
+                          <div className="flex items-center gap-2 text-midnight-400 text-xs">
+                            <Calendar className="w-3 h-3" />
+                            <span>Missing since {new Date(caseItem.lastSeenAt).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {caseItem.isUrgent && (
+                        <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-red-500" />
+                          <span className="text-xs text-red-700 font-bold">URGENT</span>
+                        </div>
                       )}
+
+                      <div className="mt-4 pt-4 border-t border-midnight-100 flex items-center justify-between">
+                        <span className="text-flash-600 text-sm font-semibold group-hover:text-flash-500 transition flex items-center gap-1">
+                          View Details
+                          <ChevronRight className="w-4 h-4" />
+                        </span>
+                        {(caseItem.status === 'ACTIVE' || caseItem.status === 'IN_PROGRESS' || caseItem.status === 'SIGHTING_REPORTED') && (
+                          <Badge variant="success" size="sm">Active</Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </a>
+                  </Card>
+                </Link>
               ))}
             </div>
 
             {/* Pagination */}
             {pagination && pagination.totalPages > 1 && (
-              <div className="mt-8 flex justify-center items-center gap-2">
-                <button
+              <div className="mt-10 flex justify-center items-center gap-2">
+                <Button
+                  variant="outline"
                   onClick={() => handlePageChange(page - 1)}
                   disabled={page === 1}
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition"
+                  leftIcon={ChevronLeft}
                 >
                   Previous
-                </button>
+                </Button>
                 <div className="flex gap-1">
                   {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
                     let pageNum;
@@ -359,10 +369,10 @@ function CasesContent() {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`px-4 py-2 rounded-lg transition ${
+                        className={`w-10 h-10 rounded-xl font-semibold transition ${
                           page === pageNum
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                            ? 'bg-flash-400 text-midnight-900'
+                            : 'bg-white border-2 border-midnight-200 text-midnight-700 hover:border-flash-400 hover:text-midnight-900'
                         }`}
                       >
                         {pageNum}
@@ -370,13 +380,14 @@ function CasesContent() {
                     );
                   })}
                 </div>
-                <button
+                <Button
+                  variant="outline"
                   onClick={() => handlePageChange(page + 1)}
                   disabled={page === pagination.totalPages}
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition"
+                  rightIcon={ChevronRight}
                 >
                   Next
-                </button>
+                </Button>
               </div>
             )}
           </>

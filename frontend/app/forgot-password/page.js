@@ -1,12 +1,14 @@
 'use client';
 
 /**
- * Forgot Password Page - Phase 0.1
- * Allows users to request a password reset email.
+ * Forgot Password Page - Updated with PetRecovery Design System
+ * Uses: Midnight Blue + Flashlight Yellow color palette
  */
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { Mail, ArrowLeft, CheckCircle, Send } from 'lucide-react';
+import { Button, Card } from '@/components/ui';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -52,156 +54,109 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(to bottom, #dbeafe, #bfdbfe)',
-      padding: '1rem',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}>
-      <div style={{
-        maxWidth: '450px',
-        width: '100%',
-        backgroundColor: 'white',
-        borderRadius: '1rem',
-        padding: '2rem',
-        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h1 style={{
-            fontSize: '2rem',
-            fontWeight: 'bold',
-            color: '#1e40af',
-            marginBottom: '0.5rem',
-          }}>
-            Forgot Password?
-          </h1>
-          <p style={{ color: '#6b7280' }}>
-            Enter your email and we'll send you a reset link
-          </p>
+    <div className="min-h-screen bg-gradient-to-b from-midnight-100 to-midnight-200 flex items-center justify-center p-4">
+      <main role="main" aria-labelledby="forgot-password-heading" className="w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-flex items-center gap-2 text-midnight-900 font-bold text-2xl">
+            <img src="https://petrescue.b-cdn.net/Logos.svg" alt="Surumaa" className="h-12 w-auto" />
+            PetRecovery
+          </Link>
         </div>
 
-        {/* Success Message */}
-        {status === 'success' && (
-          <div style={{
-            backgroundColor: '#d1fae5',
-            border: '1px solid #a7f3d0',
-            color: '#065f46',
-            padding: '1rem',
-            borderRadius: '0.5rem',
-            marginBottom: '1.5rem',
-            fontSize: '0.875rem',
-          }}>
-            <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>
-              Check your email!
-            </div>
-            <p style={{ margin: 0 }}>{message}</p>
-            <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8rem', color: '#047857' }}>
-              Don't see it? Check your spam folder.
+        <Card className="shadow-xl">
+          <div className="text-center mb-6">
+            <h1 id="forgot-password-heading" className="text-2xl font-bold text-midnight-900 mb-2">
+              Forgot Password?
+            </h1>
+            <p className="text-midnight-500">
+              Enter your email and we'll send you a reset link
             </p>
           </div>
-        )}
 
-        {/* Error Message */}
-        {status === 'error' && (
-          <div style={{
-            backgroundColor: '#fee2e2',
-            border: '1px solid #fecaca',
-            color: '#991b1b',
-            padding: '0.75rem',
-            borderRadius: '0.5rem',
-            marginBottom: '1.5rem',
-            fontSize: '0.875rem',
-          }}>
-            {message}
-          </div>
-        )}
-
-        {/* Form - Hidden after success */}
-        {status !== 'success' && (
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '600',
-                color: '#1f2937',
-              }}>
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                disabled={status === 'loading'}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '0.5rem',
-                  fontSize: '1rem',
-                  boxSizing: 'border-box',
-                  opacity: status === 'loading' ? 0.6 : 1,
-                }}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={status === 'loading'}
-              style={{
-                width: '100%',
-                padding: '1rem',
-                backgroundColor: status === 'loading' ? '#9ca3af' : '#2563eb',
-                color: 'white',
-                border: 'none',
-                borderRadius: '0.5rem',
-                fontSize: '1.125rem',
-                fontWeight: '600',
-                cursor: status === 'loading' ? 'not-allowed' : 'pointer',
-                marginBottom: '1rem',
-              }}
+          {/* Success Message */}
+          {status === 'success' && (
+            <div
+              role="alert"
+              aria-live="polite"
+              className="bg-green-50 border border-green-200 text-green-700 px-4 py-4 rounded-xl mb-6"
             >
-              {status === 'loading' ? 'Sending...' : 'Send Reset Link'}
-            </button>
-          </form>
-        )}
+              <div className="flex items-center gap-2 font-semibold mb-2">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+                Check your email!
+              </div>
+              <p className="text-sm">{message}</p>
+              <p className="text-xs text-green-600 mt-2">
+                Don't see it? Check your spam folder.
+              </p>
+            </div>
+          )}
 
-        {/* Back to Login - Always visible */}
-        <div style={{
-          textAlign: 'center',
-          paddingTop: status === 'success' ? '0' : '1.5rem',
-          borderTop: status === 'success' ? 'none' : '1px solid #e5e7eb',
-        }}>
-          <Link
-            href="/login"
-            style={{
-              color: '#2563eb',
-              fontWeight: '600',
-              textDecoration: 'none',
-            }}
-          >
-            ← Back to Sign In
-          </Link>
-        </div>
+          {/* Error Message */}
+          {status === 'error' && (
+            <div
+              role="alert"
+              aria-live="polite"
+              id="forgot-password-error"
+              className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm"
+            >
+              {message}
+            </div>
+          )}
 
-        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-          <Link
-            href="/"
-            style={{
-              color: '#6b7280',
-              fontSize: '0.875rem',
-              textDecoration: 'none',
-            }}
-          >
-            Go to Home
+          {/* Form - Hidden after success */}
+          {status !== 'success' && (
+            <form onSubmit={handleSubmit} aria-describedby={status === 'error' ? 'forgot-password-error' : undefined}>
+              <div className="mb-6">
+                <label htmlFor="email" className="block mb-2 font-semibold text-midnight-700 text-sm">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400" />
+                  <input
+                    id="email"
+                    type="email"
+                    name="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                    disabled={status === 'loading'}
+                    autoComplete="email"
+                    aria-required="true"
+                    className="w-full pl-11 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                fullWidth
+                loading={status === 'loading'}
+                leftIcon={Send}
+                size="lg"
+              >
+                {status === 'loading' ? 'Sending...' : 'Send Reset Link'}
+              </Button>
+            </form>
+          )}
+
+          {/* Back to Login */}
+          <div className={`text-center ${status === 'success' ? '' : 'pt-6 mt-6 border-t border-midnight-100'}`}>
+            <Link href="/login" className="inline-flex items-center gap-2 text-midnight-900 font-semibold hover:text-flash-600 transition">
+              <ArrowLeft className="w-4 h-4" />
+              Back to Sign In
+            </Link>
+          </div>
+        </Card>
+
+        <nav aria-label="Home navigation" className="text-center mt-6">
+          <Link href="/" className="inline-flex items-center gap-2 text-midnight-500 hover:text-midnight-700 text-sm transition">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Home
           </Link>
-        </div>
-      </div>
+        </nav>
+      </main>
     </div>
   );
 }

@@ -1,5 +1,10 @@
 'use client';
 
+/**
+ * Profile Page - Updated with PetRecovery Design System
+ * Uses: Midnight Blue + Flashlight Yellow color palette
+ */
+
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -19,8 +24,16 @@ import {
   Star,
   Zap,
   Shield,
-  Crown
+  Crown,
+  ArrowLeft,
+  Phone,
+  Mail,
+  Loader2,
+  Check,
+  X,
+  Edit3
 } from 'lucide-react';
+import { Button, Card, Badge } from '@/components/ui';
 
 // Level configuration with thresholds and rewards
 const RESCUE_LEVELS = {
@@ -28,8 +41,9 @@ const RESCUE_LEVELS = {
     name: 'Pet Owner',
     level: 0,
     icon: User,
-    color: '#64748b',
-    bg: '#f1f5f9',
+    color: 'text-midnight-500',
+    bg: 'bg-midnight-100',
+    borderColor: 'border-midnight-300',
     description: 'Submitted a lost pet request',
     nextLevel: 'SCOUT',
     requirement: 'Join a rescue squad'
@@ -38,8 +52,9 @@ const RESCUE_LEVELS = {
     name: 'Scout',
     level: 1,
     icon: Target,
-    color: '#10b981',
-    bg: '#d1fae5',
+    color: 'text-green-600',
+    bg: 'bg-green-100',
+    borderColor: 'border-green-300',
     description: 'Joined a rescue squad',
     nextLevel: 'SENTRY',
     requirement: 'Participate in first case'
@@ -48,8 +63,9 @@ const RESCUE_LEVELS = {
     name: 'Sentry',
     level: 2,
     icon: Shield,
-    color: '#3b82f6',
-    bg: '#dbeafe',
+    color: 'text-blue-600',
+    bg: 'bg-blue-100',
+    borderColor: 'border-blue-300',
     description: 'Participated in first case',
     nextLevel: 'SHEPHERD',
     requirement: 'Mark 5+ areas, 15+ acres total'
@@ -58,8 +74,9 @@ const RESCUE_LEVELS = {
     name: 'Shepherd',
     level: 3,
     icon: MapPin,
-    color: '#8b5cf6',
-    bg: '#ede9fe',
+    color: 'text-purple-600',
+    bg: 'bg-purple-100',
+    borderColor: 'border-purple-300',
     description: 'Marked 5+ areas, 15+ acres total',
     nextLevel: 'PATHFINDER',
     requirement: '1+ successful reunion'
@@ -68,8 +85,9 @@ const RESCUE_LEVELS = {
     name: 'Pathfinder',
     level: 4,
     icon: Zap,
-    color: '#f59e0b',
-    bg: '#fef3c7',
+    color: 'text-flash-600',
+    bg: 'bg-flash-100',
+    borderColor: 'border-flash-300',
     description: '1+ successful reunion',
     nextLevel: 'PACK_GUARDIAN',
     requirement: '5+ successful reunions'
@@ -78,8 +96,9 @@ const RESCUE_LEVELS = {
     name: 'Pack Guardian',
     level: 5,
     icon: Star,
-    color: '#ef4444',
-    bg: '#fee2e2',
+    color: 'text-red-600',
+    bg: 'bg-red-100',
+    borderColor: 'border-red-300',
     description: '5+ successful reunions',
     nextLevel: 'PACK_LEGEND',
     requirement: '50+ successful reunions'
@@ -88,8 +107,9 @@ const RESCUE_LEVELS = {
     name: 'Pack Legend',
     level: 6,
     icon: Crown,
-    color: '#d97706',
-    bg: '#fef3c7',
+    color: 'text-amber-600',
+    bg: 'bg-amber-100',
+    borderColor: 'border-amber-300',
     description: '50+ successful reunions',
     nextLevel: null,
     requirement: 'Maximum level reached!'
@@ -173,7 +193,6 @@ export default function ProfilePage() {
     const level = getCurrentLevel();
     if (!level.nextLevel) return 100;
 
-    // Calculate progress based on next level requirements
     const { successfulReunions = 0, areasMarkedCount = 0, totalAcreageSearched = 0, squadsJoinedCount = 0 } = user || {};
 
     switch (user?.rescueLevel) {
@@ -198,25 +217,10 @@ export default function ProfilePage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            border: '4px solid #e2e8f0',
-            borderTopColor: '#4f46e5',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto 1rem'
-          }} />
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          <p style={{ color: '#64748b', fontWeight: '500' }}>Loading profile...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-midnight-100 to-midnight-200">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-flash-400 animate-spin mx-auto mb-4" />
+          <p className="text-midnight-500 font-medium">Loading profile...</p>
         </div>
       </div>
     );
@@ -229,79 +233,32 @@ export default function ProfilePage() {
   const progress = getLevelProgress();
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
-    }}>
+    <div className="min-h-screen bg-gradient-to-b from-midnight-100 to-midnight-200">
       {/* Hero Header */}
-      <div style={{
-        background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)',
-        padding: '3rem 1rem 6rem',
-        position: 'relative'
-      }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+      <div className="bg-gradient-to-br from-midnight-900 to-midnight-800 px-4 pt-6 pb-24 relative">
+        <div className="max-w-4xl mx-auto">
           <Link
             href="/dashboard"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              color: 'rgba(255,255,255,0.8)',
-              textDecoration: 'none',
-              fontWeight: '600',
-              marginBottom: '1.5rem'
-            }}
+            className="inline-flex items-center gap-2 text-midnight-300 hover:text-white font-semibold mb-6 transition"
           >
-            <ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} />
+            <ArrowLeft className="w-4 h-4" />
             Back to Dashboard
           </Link>
 
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1.5rem',
-            flexWrap: 'wrap'
-          }}>
+          <div className="flex items-center gap-6 flex-wrap">
             {/* Avatar */}
-            <div style={{
-              width: '100px',
-              height: '100px',
-              borderRadius: '24px',
-              background: 'rgba(255,255,255,0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '4px solid rgba(255,255,255,0.3)'
-            }}>
-              <User size={48} color="white" />
+            <div className="w-24 h-24 rounded-2xl bg-midnight-700 flex items-center justify-center border-4 border-midnight-600">
+              <User className="w-12 h-12 text-midnight-300" />
             </div>
 
-            <div style={{ flex: 1 }}>
-              <h1 style={{
-                fontSize: '2rem',
-                fontWeight: '800',
-                color: 'white',
-                marginBottom: '0.5rem'
-              }}>
+            <div className="flex-1 min-w-[200px]">
+              <h1 className="text-3xl font-bold text-white mb-1">
                 {user.firstName} {user.lastName}
               </h1>
-              <p style={{ color: 'rgba(255,255,255,0.8)', marginBottom: '0.75rem' }}>
-                {user.email}
-              </p>
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.5rem 1rem',
-                background: currentLevel.bg,
-                borderRadius: '9999px',
-              }}>
-                <LevelIcon size={18} color={currentLevel.color} />
-                <span style={{
-                  fontWeight: '700',
-                  color: currentLevel.color,
-                  fontSize: '0.9rem'
-                }}>
+              <p className="text-midnight-300 mb-3">{user.email}</p>
+              <div className={`inline-flex items-center gap-2 px-4 py-2 ${currentLevel.bg} rounded-full`}>
+                <LevelIcon className={`w-5 h-5 ${currentLevel.color}`} />
+                <span className={`font-bold text-sm ${currentLevel.color}`}>
                   {currentLevel.name}
                 </span>
               </div>
@@ -310,99 +267,49 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div style={{
-        maxWidth: '900px',
-        margin: '-3rem auto 2rem',
-        padding: '0 1rem'
-      }}>
+      <div className="max-w-4xl mx-auto px-4 -mt-16 pb-12">
         {/* Message */}
         {message.text && (
-          <div style={{
-            padding: '1rem',
-            background: message.type === 'success' ? '#d1fae5' : '#fee2e2',
-            border: `1px solid ${message.type === 'success' ? '#10b981' : '#ef4444'}`,
-            borderRadius: '8px',
-            marginBottom: '1.5rem',
-            color: message.type === 'success' ? '#065f46' : '#991b1b',
-            fontWeight: '600'
-          }}>
+          <div
+            role="alert"
+            className={`px-4 py-3 rounded-xl mb-6 font-semibold ${
+              message.type === 'success'
+                ? 'bg-green-50 border border-green-200 text-green-700'
+                : 'bg-red-50 border border-red-200 text-red-700'
+            }`}
+          >
             {message.text}
           </div>
         )}
 
         {/* Level Progress Card */}
-        <div style={{
-          background: 'white',
-          borderRadius: '16px',
-          padding: '2rem',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-          marginBottom: '1.5rem'
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '1.5rem'
-          }}>
-            <h2 style={{
-              fontSize: '1.25rem',
-              fontWeight: '700',
-              color: '#0f172a',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}>
-              <Award size={24} color="#4f46e5" />
+        <Card className="mb-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-midnight-900 flex items-center gap-2">
+              <Award className="w-6 h-6 text-flash-500" />
               Rescue Level Progress
             </h2>
             {user.honorsReceived > 0 && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.375rem',
-                padding: '0.375rem 0.75rem',
-                background: '#fef3c7',
-                borderRadius: '9999px',
-                color: '#92400e',
-                fontWeight: '600',
-                fontSize: '0.85rem'
-              }}>
-                <Trophy size={16} />
+              <Badge variant="warning" className="flex items-center gap-1">
+                <Trophy className="w-4 h-4" />
                 {user.honorsReceived} Honors
-              </div>
+              </Badge>
             )}
           </div>
 
           {/* Current Level Display */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1.5rem',
-            marginBottom: '1.5rem',
-            padding: '1.5rem',
-            background: currentLevel.bg,
-            borderRadius: '12px'
-          }}>
-            <div style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '16px',
-              background: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-            }}>
-              <LevelIcon size={32} color={currentLevel.color} />
+          <div className={`flex items-center gap-6 mb-6 p-6 ${currentLevel.bg} rounded-xl`}>
+            <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-md">
+              <LevelIcon className={`w-8 h-8 ${currentLevel.color}`} />
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600', marginBottom: '0.25rem' }}>
+            <div className="flex-1">
+              <div className="text-xs text-midnight-500 font-semibold mb-1">
                 LEVEL {currentLevel.level}
               </div>
-              <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.25rem' }}>
+              <div className="text-2xl font-bold text-midnight-900 mb-1">
                 {currentLevel.name}
               </div>
-              <div style={{ fontSize: '0.9rem', color: '#64748b' }}>
+              <div className="text-sm text-midnight-500">
                 {currentLevel.description}
               </div>
             </div>
@@ -411,100 +318,52 @@ export default function ProfilePage() {
           {/* Progress Bar */}
           {currentLevel.nextLevel && (
             <div>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                marginBottom: '0.5rem',
-                fontSize: '0.85rem',
-                color: '#64748b'
-              }}>
-                <span style={{ fontWeight: '600' }}>Progress to {RESCUE_LEVELS[currentLevel.nextLevel].name}</span>
-                <span style={{ fontWeight: '700', color: '#4f46e5' }}>{progress}%</span>
+              <div className="flex justify-between mb-2 text-sm text-midnight-500">
+                <span className="font-semibold">Progress to {RESCUE_LEVELS[currentLevel.nextLevel].name}</span>
+                <span className="font-bold text-flash-600">{progress}%</span>
               </div>
-              <div style={{
-                height: '12px',
-                background: '#e2e8f0',
-                borderRadius: '6px',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  height: '100%',
-                  width: `${progress}%`,
-                  background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)',
-                  borderRadius: '6px',
-                  transition: 'width 0.5s ease'
-                }} />
+              <div className="h-3 bg-midnight-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-flash-400 to-flash-500 rounded-full transition-all duration-500"
+                  style={{ width: `${progress}%` }}
+                />
               </div>
-              <p style={{
-                marginTop: '0.75rem',
-                fontSize: '0.85rem',
-                color: '#64748b'
-              }}>
+              <p className="mt-3 text-sm text-midnight-500">
                 <strong>Next:</strong> {currentLevel.requirement}
               </p>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Stats Grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1.5rem'
-        }}>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
-            { label: 'Squads Joined', value: user.squadsJoinedCount || 0, icon: Users, color: '#4f46e5' },
-            { label: 'Areas Marked', value: user.areasMarkedCount || 0, icon: MapPin, color: '#10b981' },
-            { label: 'Acreage Searched', value: `${(user.totalAcreageSearched || 0).toFixed(1)} acres`, icon: Target, color: '#f59e0b' },
-            { label: 'Successful Reunions', value: user.successfulReunions || 0, icon: Heart, color: '#ef4444' },
+            { label: 'Squads Joined', value: user.squadsJoinedCount || 0, icon: Users, color: 'text-midnight-600', bg: 'bg-midnight-100' },
+            { label: 'Areas Marked', value: user.areasMarkedCount || 0, icon: MapPin, color: 'text-green-600', bg: 'bg-green-100' },
+            { label: 'Acreage Searched', value: `${(user.totalAcreageSearched || 0).toFixed(1)}`, icon: Target, color: 'text-flash-600', bg: 'bg-flash-100' },
+            { label: 'Reunions', value: user.successfulReunions || 0, icon: Heart, color: 'text-red-600', bg: 'bg-red-100' },
           ].map((stat, i) => (
-            <div key={i} style={{
-              background: 'white',
-              borderRadius: '12px',
-              padding: '1.5rem',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-            }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: `${stat.color}15`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '1rem'
-              }}>
-                <stat.icon size={20} color={stat.color} />
+            <Card key={i} className="p-4">
+              <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center mb-3`}>
+                <stat.icon className={`w-5 h-5 ${stat.color}`} />
               </div>
-              <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600', marginBottom: '0.25rem' }}>
+              <div className="text-xs text-midnight-500 font-semibold mb-1">
                 {stat.label}
               </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a' }}>
+              <div className="text-2xl font-bold text-midnight-900">
                 {stat.value}
               </div>
-            </div>
+            </Card>
           ))}
         </div>
 
         {/* All Levels */}
-        <div style={{
-          background: 'white',
-          borderRadius: '16px',
-          padding: '2rem',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          marginBottom: '1.5rem'
-        }}>
-          <h2 style={{
-            fontSize: '1.25rem',
-            fontWeight: '700',
-            color: '#0f172a',
-            marginBottom: '1.5rem'
-          }}>
+        <Card className="mb-6">
+          <h2 className="text-xl font-bold text-midnight-900 mb-6">
             All Rescue Levels
           </h2>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div className="space-y-3">
             {Object.entries(RESCUE_LEVELS).map(([key, level]) => {
               const Icon = level.icon;
               const isCurrentLevel = user.rescueLevel === key;
@@ -514,199 +373,102 @@ export default function ProfilePage() {
               return (
                 <div
                   key={key}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '1rem',
-                    padding: '1rem',
-                    borderRadius: '10px',
-                    background: isCurrentLevel ? level.bg : isFutureLevel ? '#f8fafc' : '#fafafa',
-                    border: isCurrentLevel ? `2px solid ${level.color}` : '1px solid #e2e8f0',
-                    opacity: isFutureLevel ? 0.6 : 1
-                  }}
+                  className={`flex items-center gap-4 p-4 rounded-xl border-2 transition ${
+                    isCurrentLevel
+                      ? `${level.bg} ${level.borderColor}`
+                      : isFutureLevel
+                      ? 'bg-midnight-50 border-midnight-200 opacity-60'
+                      : 'bg-white border-midnight-100'
+                  }`}
                 >
-                  <div style={{
-                    width: '44px',
-                    height: '44px',
-                    borderRadius: '12px',
-                    background: isPastLevel || isCurrentLevel ? level.bg : '#f1f5f9',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <Icon
-                      size={22}
-                      color={isPastLevel || isCurrentLevel ? level.color : '#94a3b8'}
-                    />
+                  <div className={`w-11 h-11 rounded-xl ${isPastLevel || isCurrentLevel ? level.bg : 'bg-midnight-100'} flex items-center justify-center`}>
+                    <Icon className={`w-5 h-5 ${isPastLevel || isCurrentLevel ? level.color : 'text-midnight-400'}`} />
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      fontWeight: '700',
-                      color: isCurrentLevel ? level.color : '#0f172a',
-                      fontSize: '0.95rem'
-                    }}>
+                  <div className="flex-1">
+                    <div className={`font-bold ${isCurrentLevel ? level.color : 'text-midnight-900'} text-sm flex items-center gap-2`}>
                       Level {level.level}: {level.name}
                       {isCurrentLevel && (
-                        <span style={{
-                          marginLeft: '0.5rem',
-                          padding: '0.125rem 0.5rem',
-                          background: level.color,
-                          color: 'white',
-                          borderRadius: '4px',
-                          fontSize: '0.7rem',
-                          fontWeight: '700'
-                        }}>
+                        <span className="px-2 py-0.5 bg-flash-400 text-midnight-900 rounded text-xs font-bold">
                           CURRENT
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                    <div className="text-sm text-midnight-500">
                       {level.description}
                     </div>
                   </div>
                   {isPastLevel && (
-                    <div style={{
-                      padding: '0.25rem 0.5rem',
-                      background: '#d1fae5',
-                      color: '#065f46',
-                      borderRadius: '4px',
-                      fontSize: '0.75rem',
-                      fontWeight: '600'
-                    }}>
+                    <Badge variant="success" size="sm">
+                      <Check className="w-3 h-3 mr-1" />
                       Achieved
-                    </div>
+                    </Badge>
                   )}
                 </div>
               );
             })}
           </div>
-        </div>
+        </Card>
 
         {/* Account Settings */}
-        <div style={{
-          background: 'white',
-          borderRadius: '16px',
-          padding: '2rem',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          marginBottom: '1.5rem'
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '1.5rem'
-          }}>
-            <h2 style={{
-              fontSize: '1.25rem',
-              fontWeight: '700',
-              color: '#0f172a',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}>
-              <Settings size={24} color="#64748b" />
+        <Card className="mb-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-midnight-900 flex items-center gap-2">
+              <Settings className="w-6 h-6 text-midnight-500" />
               Account Settings
             </h2>
             {!editMode && (
-              <button
-                onClick={() => setEditMode(true)}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: '#f1f5f9',
-                  color: '#475569',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-              >
+              <Button variant="secondary" size="sm" leftIcon={Edit3} onClick={() => setEditMode(true)}>
                 Edit
-              </button>
+              </Button>
             )}
           </div>
 
           {editMode ? (
             <form onSubmit={handleSave}>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-                gap: '1rem',
-                marginBottom: '1.5rem'
-              }}>
+              <div className="grid md:grid-cols-3 gap-4 mb-6">
                 <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '0.5rem',
-                    fontWeight: '600',
-                    color: '#374151',
-                    fontSize: '0.9rem'
-                  }}>
+                  <label htmlFor="firstName" className="block mb-2 font-semibold text-midnight-700 text-sm">
                     First Name
                   </label>
                   <input
+                    id="firstName"
                     type="text"
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: '2px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '1rem'
-                    }}
+                    className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900"
                   />
                 </div>
                 <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '0.5rem',
-                    fontWeight: '600',
-                    color: '#374151',
-                    fontSize: '0.9rem'
-                  }}>
+                  <label htmlFor="lastName" className="block mb-2 font-semibold text-midnight-700 text-sm">
                     Last Name
                   </label>
                   <input
+                    id="lastName"
                     type="text"
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: '2px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '1rem'
-                    }}
+                    className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900"
                   />
                 </div>
                 <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '0.5rem',
-                    fontWeight: '600',
-                    color: '#374151',
-                    fontSize: '0.9rem'
-                  }}>
+                  <label htmlFor="phone" className="block mb-2 font-semibold text-midnight-700 text-sm">
                     Phone Number
                   </label>
                   <input
+                    id="phone"
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: '2px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '1rem'
-                    }}
+                    className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900"
                   />
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button
+              <div className="flex gap-3">
+                <Button
                   type="button"
+                  variant="secondary"
+                  leftIcon={X}
                   onClick={() => {
                     setEditMode(false);
                     setFormData({
@@ -715,147 +477,81 @@ export default function ProfilePage() {
                       phone: user.phone || '',
                     });
                   }}
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    background: '#f1f5f9',
-                    color: '#475569',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
                 >
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    background: saving ? '#94a3b8' : 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontWeight: '600',
-                    cursor: saving ? 'not-allowed' : 'pointer'
-                  }}
-                >
+                </Button>
+                <Button type="submit" loading={saving} leftIcon={Check}>
                   {saving ? 'Saving...' : 'Save Changes'}
-                </button>
+                </Button>
               </div>
             </form>
           ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-              gap: '1rem'
-            }}>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div>
-                <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600', marginBottom: '0.25rem' }}>
+                <div className="text-xs text-midnight-500 font-semibold mb-1 flex items-center gap-1">
+                  <User className="w-3 h-3" />
                   First Name
                 </div>
-                <div style={{ fontSize: '1rem', color: '#0f172a', fontWeight: '500' }}>
+                <div className="text-midnight-900 font-medium">
                   {user.firstName || '-'}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600', marginBottom: '0.25rem' }}>
+                <div className="text-xs text-midnight-500 font-semibold mb-1 flex items-center gap-1">
+                  <User className="w-3 h-3" />
                   Last Name
                 </div>
-                <div style={{ fontSize: '1rem', color: '#0f172a', fontWeight: '500' }}>
+                <div className="text-midnight-900 font-medium">
                   {user.lastName || '-'}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600', marginBottom: '0.25rem' }}>
+                <div className="text-xs text-midnight-500 font-semibold mb-1 flex items-center gap-1">
+                  <Mail className="w-3 h-3" />
                   Email
                 </div>
-                <div style={{ fontSize: '1rem', color: '#0f172a', fontWeight: '500' }}>
+                <div className="text-midnight-900 font-medium">
                   {user.email}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600', marginBottom: '0.25rem' }}>
+                <div className="text-xs text-midnight-500 font-semibold mb-1 flex items-center gap-1">
+                  <Phone className="w-3 h-3" />
                   Phone
                 </div>
-                <div style={{ fontSize: '1rem', color: '#0f172a', fontWeight: '500' }}>
+                <div className="text-midnight-900 font-medium">
                   {user.phone || '-'}
                 </div>
               </div>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Quick Links */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1.5rem'
-        }}>
-          <Link
-            href="/settings/notifications"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              padding: '1.25rem',
-              background: 'white',
-              borderRadius: '12px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              textDecoration: 'none',
-              color: '#0f172a'
-            }}
-          >
-            <div style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '12px',
-              background: '#e0e7ff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Bell size={22} color="#4f46e5" />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: '600' }}>Notification Settings</div>
-              <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Manage email preferences</div>
-            </div>
-            <ChevronRight size={20} color="#94a3b8" />
+        <div className="grid md:grid-cols-2 gap-4">
+          <Link href="/settings/notifications" className="block group">
+            <Card className="flex items-center gap-4 hover:shadow-card-hover transition">
+              <div className="w-11 h-11 rounded-xl bg-midnight-100 flex items-center justify-center group-hover:bg-flash-100 transition">
+                <Bell className="w-5 h-5 text-midnight-600 group-hover:text-flash-600 transition" />
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-midnight-900">Notification Settings</div>
+                <div className="text-sm text-midnight-500">Manage email preferences</div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-midnight-400 group-hover:text-midnight-600 transition" />
+            </Card>
           </Link>
 
-          <button
-            onClick={handleSignOut}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              padding: '1.25rem',
-              background: 'white',
-              borderRadius: '12px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              border: '2px solid #fee2e2',
-              cursor: 'pointer',
-              textAlign: 'left',
-              width: '100%'
-            }}
-          >
-            <div style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '12px',
-              background: '#fee2e2',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <LogOut size={22} color="#ef4444" />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: '600', color: '#ef4444' }}>Sign Out</div>
-              <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Log out of your account</div>
-            </div>
+          <button onClick={handleSignOut} className="w-full text-left group">
+            <Card className="flex items-center gap-4 border-2 border-red-100 hover:border-red-200 hover:shadow-card-hover transition">
+              <div className="w-11 h-11 rounded-xl bg-red-100 flex items-center justify-center">
+                <LogOut className="w-5 h-5 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-red-600">Sign Out</div>
+                <div className="text-sm text-midnight-500">Log out of your account</div>
+              </div>
+            </Card>
           </button>
         </div>
       </div>

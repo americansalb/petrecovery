@@ -1,5 +1,12 @@
 'use client';
 
+/**
+ * Dashboard Page - Redesigned with PetRecovery Design System
+ *
+ * Uses: Midnight Blue + Flashlight Yellow color palette
+ * Components: Card, Button, Badge, EmptyState from @/components/ui
+ */
+
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -7,35 +14,27 @@ import Link from 'next/link';
 import {
   Users, MapPin, Search, Clock, Award, Shield,
   ChevronRight, Plus, AlertCircle, CheckCircle2,
-  Target, TrendingUp, Star, Zap
+  Target, TrendingUp, Star, Zap, PawPrint, Bell
 } from 'lucide-react';
+import { Card, CardHeader, Button, Badge, StatusBadge, EmptyState } from '@/components/ui';
 
 // Rescue level configuration
 const RESCUE_LEVELS = {
-  PET_OWNER: { label: 'Pet Owner', color: '#64748b', icon: '🐾', next: 'SCOUT' },
-  SCOUT: { label: 'Scout', color: '#22c55e', icon: '🔍', next: 'SENTRY' },
-  SENTRY: { label: 'Sentry', color: '#3b82f6', icon: '👀', next: 'SHEPHERD' },
-  SHEPHERD: { label: 'Shepherd', color: '#8b5cf6', icon: '🧭', next: 'PATHFINDER' },
-  PATHFINDER: { label: 'Pathfinder', color: '#f59e0b', icon: '🗺️', next: 'PACK_GUARDIAN' },
-  PACK_GUARDIAN: { label: 'Pack Guardian', color: '#ec4899', icon: '🛡️', next: 'PACK_LEGEND' },
-  PACK_LEGEND: { label: 'Pack Legend', color: '#dc2626', icon: '⭐', next: null },
+  PET_OWNER: { label: 'Pet Owner', color: 'bg-midnight-500', icon: PawPrint, next: 'SCOUT' },
+  SCOUT: { label: 'Scout', color: 'bg-green-500', icon: Search, next: 'SENTRY' },
+  SENTRY: { label: 'Sentry', color: 'bg-blue-500', icon: Shield, next: 'SHEPHERD' },
+  SHEPHERD: { label: 'Shepherd', color: 'bg-purple-500', icon: Target, next: 'PATHFINDER' },
+  PATHFINDER: { label: 'Pathfinder', color: 'bg-amber-500', icon: MapPin, next: 'PACK_GUARDIAN' },
+  PACK_GUARDIAN: { label: 'Pack Guardian', color: 'bg-pink-500', icon: Shield, next: 'PACK_LEGEND' },
+  PACK_LEGEND: { label: 'Pack Legend', color: 'bg-red-500', icon: Award, next: null },
 };
 
 const SQUAD_ROLES = {
-  FOUNDER: { label: 'Founder', color: '#dc2626', icon: Crown },
-  LEADER: { label: 'Leader', color: '#f59e0b', icon: Shield },
-  COORDINATOR: { label: 'Coordinator', color: '#8b5cf6', icon: Target },
-  MEMBER: { label: 'Member', color: '#3b82f6', icon: Users },
+  FOUNDER: { label: 'Founder', color: 'text-red-600 bg-red-50', icon: Award },
+  LEADER: { label: 'Leader', color: 'text-amber-600 bg-amber-50', icon: Shield },
+  COORDINATOR: { label: 'Coordinator', color: 'text-purple-600 bg-purple-50', icon: Target },
+  MEMBER: { label: 'Member', color: 'text-blue-600 bg-blue-50', icon: Users },
 };
-
-function Crown(props) {
-  return (
-    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M2 17h20v2H2z" />
-      <path d="M12 3l3 5 5-2-2 8H6L4 6l5 2z" />
-    </svg>
-  );
-}
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -73,87 +72,35 @@ export default function DashboardPage() {
     }
   }, [session, status]);
 
+  // Loading state
   if (status === 'loading' || loading) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#f8fafc',
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            border: '4px solid #e2e8f0',
-            borderTop: '4px solid #4f46e5',
-            borderRadius: '50%',
-            margin: '0 auto 1rem',
-            animation: 'spin 1s linear infinite',
-          }} />
-          <style jsx>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          <p style={{ color: '#64748b', fontWeight: '500' }}>Loading your dashboard...</p>
+      <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-midnight-200 border-t-midnight-900 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-midnight-500 font-medium">Loading your dashboard...</p>
         </div>
       </div>
     );
   }
 
+  // Error state
   if (error) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#f8fafc',
-        padding: '2rem',
-      }}>
-        <div style={{
-          textAlign: 'center',
-          maxWidth: '500px',
-          background: 'white',
-          padding: '3rem',
-          borderRadius: '16px',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
-        }}>
-          <AlertCircle size={48} style={{ color: '#dc2626', marginBottom: '1rem' }} />
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#0f172a', marginBottom: '0.5rem' }}>
-            Dashboard Error
-          </h2>
-          <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-            {error}
-          </p>
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-            <button
-              onClick={() => window.location.reload()}
-              style={{
-                padding: '0.75rem 1.5rem',
-                background: '#4f46e5',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: '600',
-                cursor: 'pointer',
-              }}
-            >
+      <div className="min-h-screen bg-midnight-50 flex items-center justify-center p-4">
+        <Card className="max-w-md text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-midnight-900 mb-2">Dashboard Error</h2>
+          <p className="text-midnight-500 mb-6">{error}</p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={() => window.location.reload()}>
               Try Again
-            </button>
-            <Link
-              href="/"
-              style={{
-                padding: '0.75rem 1.5rem',
-                background: '#f1f5f9',
-                color: '#64748b',
-                borderRadius: '8px',
-                textDecoration: 'none',
-                fontWeight: '600',
-              }}
-            >
-              Go Home
+            </Button>
+            <Link href="/">
+              <Button variant="outline">Go Home</Button>
             </Link>
           </div>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -164,72 +111,29 @@ export default function DashboardPage() {
 
   const { user, squads = [], activeCases = [], reports = [], nearbyAlerts = [] } = userData;
   const rescueLevel = RESCUE_LEVELS[user?.rescueLevel] || RESCUE_LEVELS.PET_OWNER;
+  const LevelIcon = rescueLevel.icon;
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#f8fafc',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-    }}>
+    <div className="min-h-screen bg-midnight-50">
       {/* Hero Section */}
-      <div style={{
-        background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%)',
-        padding: '3rem 2rem 4rem',
-        color: 'white',
-      }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            flexWrap: 'wrap',
-            gap: '2rem',
-          }}>
+      <div className="bg-gradient-to-br from-midnight-900 via-midnight-800 to-midnight-900 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             {/* Welcome */}
             <div>
-              <p style={{
-                fontSize: '0.875rem',
-                color: 'rgba(255,255,255,0.7)',
-                marginBottom: '0.5rem',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}>
+              <p className="text-midnight-400 text-sm uppercase tracking-wider mb-1">
                 Welcome back
               </p>
-              <h1 style={{
-                fontSize: '2.5rem',
-                fontWeight: '800',
-                margin: 0,
-                lineHeight: 1.2,
-              }}>
+              <h1 className="text-3xl sm:text-4xl font-bold mb-3">
                 {user?.firstName || session.user?.name || 'Rescuer'}
               </h1>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                marginTop: '1rem',
-              }}>
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.5rem 1rem',
-                  background: 'rgba(255,255,255,0.15)',
-                  borderRadius: '2rem',
-                  fontSize: '0.875rem',
-                  fontWeight: '600',
-                }}>
-                  <span style={{ fontSize: '1.25rem' }}>{rescueLevel.icon}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-full text-sm font-medium">
+                  <LevelIcon className="w-4 h-4" />
                   {rescueLevel.label}
                 </span>
                 {squads.length > 0 && (
-                  <span style={{
-                    padding: '0.5rem 1rem',
-                    background: 'rgba(255,255,255,0.1)',
-                    borderRadius: '2rem',
-                    fontSize: '0.875rem',
-                  }}>
+                  <span className="px-3 py-1.5 bg-white/10 rounded-full text-sm">
                     {squads.length} Squad{squads.length !== 1 ? 's' : ''}
                   </span>
                 )}
@@ -237,21 +141,17 @@ export default function DashboardPage() {
             </div>
 
             {/* Quick Stats */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '1.5rem',
-            }}>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
               {[
                 { label: 'Cases Helped', value: activeCases.length, icon: Target },
                 { label: 'Areas Marked', value: user?.areasMarkedCount || 0, icon: MapPin },
                 { label: 'Acres Searched', value: Math.round(user?.totalAcreageSearched || 0), icon: Search },
                 { label: 'Reunions', value: user?.successfulReunions || 0, icon: Award },
               ].map((stat, i) => (
-                <div key={i} style={{ textAlign: 'center' }}>
-                  <stat.icon size={20} style={{ opacity: 0.7, marginBottom: '0.5rem' }} />
-                  <div style={{ fontSize: '1.75rem', fontWeight: '700' }}>{stat.value}</div>
-                  <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{stat.label}</div>
+                <div key={i} className="text-center">
+                  <stat.icon className="w-5 h-5 mx-auto mb-1 text-flash-400" />
+                  <div className="text-2xl font-bold">{stat.value}</div>
+                  <div className="text-xs text-midnight-400">{stat.label}</div>
                 </div>
               ))}
             </div>
@@ -260,289 +160,112 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Content */}
-      <div style={{
-        maxWidth: '1200px',
-        margin: '-2rem auto 0',
-        padding: '0 2rem 3rem',
-      }}>
-        {/* Error Message */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        {/* Error Alert */}
         {error && (
-          <div style={{
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '0.75rem',
-            padding: '1rem 1.5rem',
-            marginBottom: '1.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            color: '#dc2626',
-          }}>
-            <AlertCircle size={20} />
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-center gap-3 text-red-700">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
             {error}
           </div>
         )}
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 380px',
-          gap: '1.5rem',
-        }}>
+        <div className="grid lg:grid-cols-[1fr_380px] gap-6">
           {/* Left Column - Main Content */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="space-y-6">
             {/* Active Cases Section */}
-            <div style={{
-              background: 'white',
-              borderRadius: '1rem',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                padding: '1.25rem 1.5rem',
-                borderBottom: '1px solid #f1f5f9',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{
-                    width: '40px',
-                    height: '40px',
-                    background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
-                    borderRadius: '0.75rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                  }}>
-                    <Zap size={20} />
-                  </div>
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '700', color: '#0f172a' }}>
-                      Active Searches
-                    </h2>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
-                      Cases you're helping with
-                    </p>
-                  </div>
-                </div>
-                <Link
-                  href="/cases"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    color: '#4f46e5',
-                    fontSize: '0.875rem',
-                    fontWeight: '600',
-                    textDecoration: 'none',
-                  }}
-                >
-                  Browse Cases <ChevronRight size={16} />
-                </Link>
-              </div>
+            <Card padding="none">
+              <CardHeader
+                icon={Zap}
+                iconColor="bg-red-100 text-red-600"
+                title="Active Searches"
+                description="Cases you're helping with"
+                action={
+                  <Link href="/cases" className="flex items-center gap-1 text-midnight-900 text-sm font-semibold hover:text-flash-600 transition-colors">
+                    Browse Cases <ChevronRight className="w-4 h-4" />
+                  </Link>
+                }
+                className="px-5 py-4 border-b border-midnight-100"
+              />
 
               {activeCases.length === 0 ? (
-                <div style={{ padding: '3rem', textAlign: 'center' }}>
-                  <div style={{
-                    width: '64px',
-                    height: '64px',
-                    background: '#f1f5f9',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 1rem',
-                  }}>
-                    <Search size={28} style={{ color: '#94a3b8' }} />
-                  </div>
-                  <h3 style={{ margin: '0 0 0.5rem', color: '#0f172a', fontWeight: '600' }}>
-                    No Active Searches
-                  </h3>
-                  <p style={{ margin: '0 0 1.5rem', color: '#64748b', fontSize: '0.9rem' }}>
-                    Join a rescue squad to help find lost pets in your area
-                  </p>
-                  <Link
-                    href="/rescue-squads/search"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.75rem 1.5rem',
-                      background: '#4f46e5',
-                      color: 'white',
-                      borderRadius: '0.5rem',
-                      textDecoration: 'none',
-                      fontWeight: '600',
-                      fontSize: '0.9rem',
-                    }}
-                  >
-                    <Users size={18} /> Find a Squad
-                  </Link>
-                </div>
+                <EmptyState
+                  icon={Search}
+                  title="No Active Searches"
+                  description="Join a rescue squad to help find lost pets in your area"
+                  action={{
+                    label: 'Find a Squad',
+                    href: '/rescue-squads/search',
+                    icon: Users,
+                  }}
+                  className="py-10"
+                />
               ) : (
-                <div>
+                <div className="divide-y divide-midnight-100">
                   {activeCases.slice(0, 5).map((caseItem) => (
                     <Link
                       key={caseItem.id}
                       href={`/cases/${caseItem.caseNumber}/coordinate`}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '1rem 1.5rem',
-                        borderBottom: '1px solid #f1f5f9',
-                        textDecoration: 'none',
-                        transition: 'background 0.15s',
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                      className="flex items-center justify-between p-4 hover:bg-midnight-50 transition-colors"
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <div style={{
-                          width: '48px',
-                          height: '48px',
-                          background: '#fef2f2',
-                          borderRadius: '0.75rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '1.5rem',
-                        }}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center text-2xl">
                           {caseItem.petSpecies === 'DOG' ? '🐕' : caseItem.petSpecies === 'CAT' ? '🐈' : '🐾'}
                         </div>
                         <div>
-                          <div style={{ fontWeight: '600', color: '#0f172a' }}>
+                          <div className="font-semibold text-midnight-900 flex items-center gap-2">
                             {caseItem.petName}
-                            <span style={{
-                              marginLeft: '0.5rem',
-                              padding: '0.125rem 0.5rem',
-                              background: '#fef3c7',
-                              color: '#92400e',
-                              borderRadius: '0.25rem',
-                              fontSize: '0.7rem',
-                              fontWeight: '700',
-                            }}>
-                              ACTIVE
-                            </span>
+                            <StatusBadge status="active" />
                           </div>
-                          <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
+                          <div className="text-sm text-midnight-500 mt-0.5">
                             {caseItem.city}, {caseItem.state} • {caseItem.activeVolunteers} volunteers
                           </div>
                         </div>
                       </div>
-                      <ChevronRight size={20} style={{ color: '#94a3b8' }} />
+                      <ChevronRight className="w-5 h-5 text-midnight-400" />
                     </Link>
                   ))}
                   {activeCases.length > 5 && (
-                    <div style={{ padding: '1rem', textAlign: 'center' }}>
-                      <Link
-                        href="/cases"
-                        style={{ color: '#4f46e5', fontWeight: '600', fontSize: '0.875rem', textDecoration: 'none' }}
-                      >
+                    <div className="p-4 text-center">
+                      <Link href="/cases" className="text-midnight-900 font-semibold text-sm hover:text-flash-600">
                         View all {activeCases.length} cases
                       </Link>
                     </div>
                   )}
                 </div>
               )}
-            </div>
+            </Card>
 
             {/* My Squads Section */}
-            <div style={{
-              background: 'white',
-              borderRadius: '1rem',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                padding: '1.25rem 1.5rem',
-                borderBottom: '1px solid #f1f5f9',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{
-                    width: '40px',
-                    height: '40px',
-                    background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
-                    borderRadius: '0.75rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                  }}>
-                    <Users size={20} />
-                  </div>
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '700', color: '#0f172a' }}>
-                      My Rescue Squads
-                    </h2>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
-                      Teams you're part of
-                    </p>
-                  </div>
-                </div>
-                <Link
-                  href="/rescue-squads/search"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    padding: '0.5rem 1rem',
-                    background: '#f1f5f9',
-                    color: '#4f46e5',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
-                    fontWeight: '600',
-                    textDecoration: 'none',
-                  }}
-                >
-                  <Plus size={16} /> Join Squad
-                </Link>
-              </div>
+            <Card padding="none">
+              <CardHeader
+                icon={Users}
+                iconColor="bg-midnight-100 text-midnight-600"
+                title="My Rescue Squads"
+                description="Teams you're part of"
+                action={
+                  <Link href="/rescue-squads/search">
+                    <Button variant="outline" size="sm" leftIcon={Plus}>
+                      Join Squad
+                    </Button>
+                  </Link>
+                }
+                className="px-5 py-4 border-b border-midnight-100"
+              />
 
               {squads.length === 0 ? (
-                <div style={{ padding: '3rem', textAlign: 'center' }}>
-                  <div style={{
-                    width: '64px',
-                    height: '64px',
-                    background: '#f1f5f9',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 1rem',
-                  }}>
-                    <Users size={28} style={{ color: '#94a3b8' }} />
-                  </div>
-                  <h3 style={{ margin: '0 0 0.5rem', color: '#0f172a', fontWeight: '600' }}>
-                    Not in Any Squads Yet
-                  </h3>
-                  <p style={{ margin: '0 0 1.5rem', color: '#64748b', fontSize: '0.9rem' }}>
-                    Join a local rescue squad to coordinate searches with your community
-                  </p>
-                  <Link
-                    href="/rescue-squads/search"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.75rem 1.5rem',
-                      background: '#4f46e5',
-                      color: 'white',
-                      borderRadius: '0.5rem',
-                      textDecoration: 'none',
-                      fontWeight: '600',
-                      fontSize: '0.9rem',
-                    }}
-                  >
-                    <Search size={18} /> Find Squads Near You
-                  </Link>
-                </div>
+                <EmptyState
+                  icon={Users}
+                  title="Not in Any Squads Yet"
+                  description="Join a local rescue squad to coordinate searches with your community"
+                  action={{
+                    label: 'Find Squads Near You',
+                    href: '/rescue-squads/search',
+                    icon: Search,
+                  }}
+                  className="py-10"
+                />
               ) : (
-                <div>
+                <div className="divide-y divide-midnight-100">
                   {squads.map((squad) => {
                     const roleConfig = SQUAD_ROLES[squad.myRole] || SQUAD_ROLES.MEMBER;
                     const RoleIcon = roleConfig.icon;
@@ -550,179 +273,74 @@ export default function DashboardPage() {
                       <Link
                         key={squad.id}
                         href={`/rescue-squads/${squad.id}`}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '1rem 1.5rem',
-                          borderBottom: '1px solid #f1f5f9',
-                          textDecoration: 'none',
-                          transition: 'background 0.15s',
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                        className="flex items-center justify-between p-4 hover:bg-midnight-50 transition-colors"
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                          <div style={{
-                            width: '48px',
-                            height: '48px',
-                            background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
-                            borderRadius: '0.75rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            fontSize: '1.25rem',
-                          }}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-gradient-to-br from-midnight-800 to-midnight-900 rounded-xl flex items-center justify-center text-white text-xl">
                             🚨
                           </div>
                           <div>
-                            <div style={{ fontWeight: '600', color: '#0f172a' }}>
+                            <div className="font-semibold text-midnight-900">
                               {squad.name}
                             </div>
-                            <div style={{
-                              fontSize: '0.8rem',
-                              color: '#64748b',
-                              marginTop: '0.25rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.75rem',
-                            }}>
-                              <span>{squad.city}, {squad.state}</span>
-                              <span style={{ color: '#d1d5db' }}>•</span>
-                              <span>{squad.memberCount} members</span>
+                            <div className="text-sm text-midnight-500 mt-0.5">
+                              {squad.city}, {squad.state} • {squad.memberCount} members
                             </div>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.375rem',
-                            padding: '0.375rem 0.75rem',
-                            background: `${roleConfig.color}15`,
-                            color: roleConfig.color,
-                            borderRadius: '2rem',
-                            fontSize: '0.75rem',
-                            fontWeight: '600',
-                          }}>
-                            <RoleIcon size={14} />
+                        <div className="flex items-center gap-3">
+                          <Badge className={roleConfig.color}>
+                            <RoleIcon className="w-3 h-3" />
                             {roleConfig.label}
-                          </span>
-                          <ChevronRight size={20} style={{ color: '#94a3b8' }} />
+                          </Badge>
+                          <ChevronRight className="w-5 h-5 text-midnight-400" />
                         </div>
                       </Link>
                     );
                   })}
                 </div>
               )}
-            </div>
+            </Card>
 
-            {/* Lost Pet Reports with Mission Control Integration */}
+            {/* Lost Pet Reports */}
             {reports.length > 0 && (
-              <div style={{
-                background: 'white',
-                borderRadius: '1rem',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                overflow: 'hidden',
-              }}>
-                <div style={{
-                  padding: '1.25rem 1.5rem',
-                  borderBottom: '1px solid #f1f5f9',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{
-                      width: '40px',
-                      height: '40px',
-                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                      borderRadius: '0.75rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'white',
-                    }}>
-                      <AlertCircle size={20} />
-                    </div>
-                    <div>
-                      <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '700', color: '#0f172a' }}>
-                        Your Lost Pet Reports
-                      </h2>
-                      <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
-                        Pets you've reported missing
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div>
+              <Card padding="none">
+                <CardHeader
+                  icon={AlertCircle}
+                  iconColor="bg-amber-100 text-amber-600"
+                  title="Your Lost Pet Reports"
+                  description="Pets you've reported missing"
+                  className="px-5 py-4 border-b border-midnight-100"
+                />
+                <div className="divide-y divide-midnight-100">
                   {reports.map((report) => (
-                    <div
-                      key={report.id}
-                      style={{
-                        borderBottom: '1px solid #f1f5f9',
-                      }}
-                    >
+                    <div key={report.id} className="p-4">
                       <Link
                         href={`/cases/${report.caseNumber}`}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '1rem 1.5rem',
-                          textDecoration: 'none',
-                        }}
+                        className="flex items-center justify-between"
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div className="flex items-center gap-3">
                           {report.petPhotoUrl ? (
                             <img
                               src={report.petPhotoUrl}
                               alt={report.petName}
-                              style={{
-                                width: '48px',
-                                height: '48px',
-                                borderRadius: '0.75rem',
-                                objectFit: 'cover',
-                              }}
+                              className="w-12 h-12 rounded-xl object-cover"
                             />
                           ) : (
-                            <div style={{
-                              width: '48px',
-                              height: '48px',
-                              background: '#fef2f2',
-                              borderRadius: '0.75rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '1.5rem',
-                            }}>
+                            <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center text-2xl">
                               {report.petSpecies === 'DOG' ? '🐕' : report.petSpecies === 'CAT' ? '🐈' : '🐾'}
                             </div>
                           )}
                           <div>
-                            <div style={{ fontWeight: '600', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div className="font-semibold text-midnight-900 flex items-center gap-2">
                               {report.petName}
-                              {report.isLive && (
-                                <span style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.25rem',
-                                  padding: '0.125rem 0.5rem',
-                                  background: '#dc2626',
-                                  color: 'white',
-                                  borderRadius: '0.25rem',
-                                  fontSize: '0.65rem',
-                                  fontWeight: '700',
-                                  animation: 'pulse 2s infinite',
-                                }}>
-                                  <span style={{ fontSize: '0.5rem' }}>●</span> LIVE
-                                </span>
-                              )}
+                              {report.isLive && <StatusBadge status="live" />}
                             </div>
-                            <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
+                            <div className="text-sm text-midnight-500 mt-0.5">
                               {report.status === 'RESOLVED' ? (
-                                <span style={{ color: '#16a34a' }}>✓ Resolved</span>
+                                <span className="text-green-600 flex items-center gap-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Resolved
+                                </span>
                               ) : (
                                 <>
                                   Missing {report.hoursMissing < 24 ? `${report.hoursMissing}h` : `${Math.floor(report.hoursMissing / 24)}d`}
@@ -733,294 +351,132 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         </div>
-                        <ChevronRight size={20} style={{ color: '#94a3b8' }} />
+                        <ChevronRight className="w-5 h-5 text-midnight-400" />
                       </Link>
 
-                      {/* Mission Control Quick Actions for Active Cases */}
+                      {/* Mission Control Quick Actions */}
                       {report.status !== 'RESOLVED' && report.status !== 'CLOSED_OTHER' && (
-                        <div style={{
-                          padding: '0.75rem 1.5rem 1rem',
-                          display: 'flex',
-                          gap: '0.5rem',
-                        }}>
+                        <div className="flex gap-2 mt-3 ml-15 pl-15">
                           {report.isLive ? (
-                            <Link
-                              href={`/cases/${report.caseNumber}`}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.375rem',
-                                padding: '0.5rem 1rem',
-                                background: '#dc2626',
-                                color: 'white',
-                                borderRadius: '0.5rem',
-                                fontSize: '0.8rem',
-                                fontWeight: '600',
-                                textDecoration: 'none',
-                              }}
-                            >
-                              <Zap size={14} />
-                              Open Mission Control
+                            <Link href={`/cases/${report.caseNumber}`}>
+                              <Button variant="danger" size="sm" leftIcon={Zap}>
+                                Open Mission Control
+                              </Button>
                             </Link>
                           ) : (
-                            <Link
-                              href={`/cases/${report.caseNumber}`}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.375rem',
-                                padding: '0.5rem 1rem',
-                                background: '#4f46e5',
-                                color: 'white',
-                                borderRadius: '0.5rem',
-                                fontSize: '0.8rem',
-                                fontWeight: '600',
-                                textDecoration: 'none',
-                              }}
-                            >
-                              <Zap size={14} />
-                              Start Live Search
+                            <Link href={`/cases/${report.caseNumber}`}>
+                              <Button size="sm" leftIcon={Zap}>
+                                Start Live Search
+                              </Button>
                             </Link>
                           )}
-                          <Link
-                            href={`/cases/${report.caseNumber}/coordinate`}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.375rem',
-                              padding: '0.5rem 1rem',
-                              background: '#f1f5f9',
-                              color: '#475569',
-                              borderRadius: '0.5rem',
-                              fontSize: '0.8rem',
-                              fontWeight: '600',
-                              textDecoration: 'none',
-                            }}
-                          >
-                            <Target size={14} />
-                            Coordinate
+                          <Link href={`/cases/${report.caseNumber}/coordinate`}>
+                            <Button variant="outline" size="sm" leftIcon={Target}>
+                              Coordinate
+                            </Button>
                           </Link>
                         </div>
                       )}
                     </div>
                   ))}
                 </div>
-              </div>
+              </Card>
             )}
           </div>
 
           {/* Right Sidebar */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {/* Rescue Level Progress Card */}
-            <div style={{
-              background: 'white',
-              borderRadius: '1rem',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              padding: '1.5rem',
-            }}>
-              <h3 style={{
-                margin: '0 0 1rem',
-                fontSize: '0.875rem',
-                fontWeight: '600',
-                color: '#64748b',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}>
+          <div className="space-y-6">
+            {/* Rescue Level Progress */}
+            <Card>
+              <h3 className="text-xs font-semibold text-midnight-500 uppercase tracking-wider mb-4">
                 Your Rescue Level
               </h3>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-                marginBottom: '1rem',
-              }}>
-                <div style={{
-                  width: '56px',
-                  height: '56px',
-                  background: `linear-gradient(135deg, ${rescueLevel.color}20 0%, ${rescueLevel.color}40 100%)`,
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '2rem',
-                  border: `3px solid ${rescueLevel.color}`,
-                }}>
-                  {rescueLevel.icon}
+              <div className="flex items-center gap-4 mb-4">
+                <div className={`w-14 h-14 rounded-full ${rescueLevel.color} bg-opacity-20 flex items-center justify-center border-3 border-current`}>
+                  <LevelIcon className={`w-7 h-7 ${rescueLevel.color.replace('bg-', 'text-')}`} />
                 </div>
                 <div>
-                  <div style={{
-                    fontSize: '1.25rem',
-                    fontWeight: '700',
-                    color: rescueLevel.color
-                  }}>
+                  <div className={`text-lg font-bold ${rescueLevel.color.replace('bg-', 'text-')}`}>
                     {rescueLevel.label}
                   </div>
                   {rescueLevel.next && (
-                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                    <div className="text-sm text-midnight-500">
                       Next: {RESCUE_LEVELS[rescueLevel.next]?.label}
                     </div>
                   )}
                 </div>
               </div>
               {rescueLevel.next && (
-                <div style={{
-                  background: '#f1f5f9',
-                  borderRadius: '0.5rem',
-                  height: '8px',
-                  overflow: 'hidden',
-                }}>
-                  <div style={{
-                    background: `linear-gradient(90deg, ${rescueLevel.color} 0%, ${RESCUE_LEVELS[rescueLevel.next]?.color || rescueLevel.color} 100%)`,
-                    height: '100%',
-                    width: '35%',
-                    borderRadius: '0.5rem',
-                    transition: 'width 0.5s ease',
-                  }} />
+                <div className="h-2 bg-midnight-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${rescueLevel.color} rounded-full transition-all duration-500`}
+                    style={{ width: '35%' }}
+                  />
                 </div>
               )}
-            </div>
+            </Card>
 
             {/* Quick Actions */}
-            <div style={{
-              background: 'white',
-              borderRadius: '1rem',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              padding: '1.5rem',
-            }}>
-              <h3 style={{
-                margin: '0 0 1rem',
-                fontSize: '0.875rem',
-                fontWeight: '600',
-                color: '#64748b',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}>
+            <Card>
+              <h3 className="text-xs font-semibold text-midnight-500 uppercase tracking-wider mb-4">
                 Quick Actions
               </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <Link
-                  href="/report/new"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.875rem 1rem',
-                    background: '#fef2f2',
-                    border: '1px solid #fecaca',
-                    borderRadius: '0.75rem',
-                    textDecoration: 'none',
-                    color: '#dc2626',
-                    fontWeight: '600',
-                    fontSize: '0.9rem',
-                  }}
-                >
-                  <AlertCircle size={20} />
-                  Report Lost Pet
+              <div className="space-y-3">
+                <Link href="/report/new" className="block">
+                  <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 font-semibold hover:bg-red-100 transition-colors">
+                    <Bell className="w-5 h-5" />
+                    Report Lost Pet
+                  </div>
                 </Link>
-                <Link
-                  href="/found"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.875rem 1rem',
-                    background: '#f0fdf4',
-                    border: '1px solid #bbf7d0',
-                    borderRadius: '0.75rem',
-                    textDecoration: 'none',
-                    color: '#16a34a',
-                    fontWeight: '600',
-                    fontSize: '0.9rem',
-                  }}
-                >
-                  <CheckCircle2 size={20} />
-                  Report Found Pet
+                <Link href="/found" className="block">
+                  <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 font-semibold hover:bg-green-100 transition-colors">
+                    <CheckCircle2 className="w-5 h-5" />
+                    Report Found Pet
+                  </div>
                 </Link>
-                <Link
-                  href="/rescue-squads/search"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.875rem 1rem',
-                    background: '#f1f5f9',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '0.75rem',
-                    textDecoration: 'none',
-                    color: '#475569',
-                    fontWeight: '600',
-                    fontSize: '0.9rem',
-                  }}
-                >
-                  <Search size={20} />
-                  Find Rescue Squads
+                <Link href="/rescue-squads/search" className="block">
+                  <div className="flex items-center gap-3 p-3 bg-midnight-50 border border-midnight-200 rounded-xl text-midnight-700 font-semibold hover:bg-midnight-100 transition-colors">
+                    <Search className="w-5 h-5" />
+                    Find Rescue Squads
+                  </div>
                 </Link>
               </div>
-            </div>
+            </Card>
 
-            {/* Nearby Alerts (if patrol member) */}
+            {/* Nearby Alerts */}
             {nearbyAlerts.length > 0 && (
-              <div style={{
-                background: 'white',
-                borderRadius: '1rem',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                padding: '1.5rem',
-              }}>
-                <h3 style={{
-                  margin: '0 0 1rem',
-                  fontSize: '0.875rem',
-                  fontWeight: '600',
-                  color: '#64748b',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                }}>
+              <Card>
+                <h3 className="text-xs font-semibold text-midnight-500 uppercase tracking-wider mb-4">
                   Nearby Lost Pets
                 </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div className="space-y-2">
                   {nearbyAlerts.slice(0, 5).map((alert) => (
                     <Link
                       key={alert.id}
                       href={`/cases/${alert.id}`}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '0.75rem',
-                        background: '#fef2f2',
-                        borderRadius: '0.5rem',
-                        textDecoration: 'none',
-                      }}
+                      className="flex items-center justify-between p-3 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"
                     >
                       <div>
-                        <div style={{ fontWeight: '600', color: '#dc2626', fontSize: '0.9rem' }}>
-                          {alert.petName}
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                          {alert.distance} away
-                        </div>
+                        <div className="font-semibold text-red-700">{alert.petName}</div>
+                        <div className="text-xs text-midnight-500">{alert.distance} away</div>
                       </div>
-                      <ChevronRight size={16} style={{ color: '#dc2626' }} />
+                      <ChevronRight className="w-4 h-4 text-red-600" />
                     </Link>
                   ))}
                 </div>
-              </div>
+              </Card>
             )}
 
             {/* Tips Card */}
-            <div style={{
-              background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-              borderRadius: '1rem',
-              padding: '1.5rem',
-              border: '1px solid #f59e0b',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                <Star size={18} style={{ color: '#d97706' }} />
-                <span style={{ fontWeight: '700', color: '#92400e' }}>Pro Tip</span>
+            <Card className="bg-gradient-to-br from-flash-50 to-flash-100 border-flash-300">
+              <div className="flex items-center gap-2 mb-2">
+                <Star className="w-4 h-4 text-flash-600" />
+                <span className="font-bold text-flash-800">Pro Tip</span>
               </div>
-              <p style={{ margin: 0, fontSize: '0.875rem', color: '#78350f', lineHeight: 1.5 }}>
+              <p className="text-sm text-flash-900 leading-relaxed">
                 Join your local rescue squad to get notified about lost pets in your area and help coordinate searches with your neighbors.
               </p>
-            </div>
+            </Card>
           </div>
         </div>
       </div>

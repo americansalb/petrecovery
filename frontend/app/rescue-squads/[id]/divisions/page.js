@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * Division Management Page
+ * Division Management Page - Updated with PetRecovery Design System
+ * Uses: Midnight Blue + Flashlight Yellow color palette
  *
  * Allows squad founders/leaders to:
  * - Create new divisions
@@ -14,6 +15,11 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import {
+  Plus, ChevronLeft, MapPin, Users, Briefcase, Crown,
+  Pencil, Trash2, X, Loader2, AlertCircle, CheckCircle, Map
+} from 'lucide-react';
+import { Button, Card, Badge } from '@/components/ui';
 
 export default function DivisionsManagementPage() {
   const { data: session } = useSession();
@@ -173,117 +179,151 @@ export default function DivisionsManagementPage() {
 
   if (loading) {
     return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner} />
-        <p>Loading divisions...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-midnight-100 to-midnight-200">
+        <Loader2 className="w-10 h-10 text-flash-400 animate-spin mb-4" />
+        <p className="text-midnight-500 font-medium">Loading divisions...</p>
       </div>
     );
   }
 
   if (!canManage) {
     return (
-      <div style={styles.container}>
-        <div style={styles.errorCard}>
-          <h2>Access Denied</h2>
-          <p>Only squad founders and leaders can manage divisions.</p>
-          <Link href={`/rescue-squads/${squadId}`} style={styles.backLink}>
-            ← Back to Squad
+      <div className="min-h-screen bg-gradient-to-b from-midnight-100 to-midnight-200 p-4">
+        <Card className="max-w-md mx-auto mt-16 text-center p-8">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-midnight-900 mb-2">Access Denied</h2>
+          <p className="text-midnight-500 mb-6">Only squad founders and leaders can manage divisions.</p>
+          <Link href={`/rescue-squads/${squadId}`}>
+            <Button leftIcon={ChevronLeft}>
+              Back to Squad
+            </Button>
           </Link>
-        </div>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
+    <div className="min-h-screen bg-gradient-to-b from-midnight-100 to-midnight-200 p-4 md:p-8">
       {/* Header */}
-      <div style={styles.header}>
-        <div>
-          <Link href={`/rescue-squads/${squadId}`} style={styles.backLink}>
-            ← Back to {squad?.name}
-          </Link>
-          <h1 style={styles.title}>Division Management</h1>
-          <p style={styles.subtitle}>
-            Organize your squad into specialized neighborhood divisions
-          </p>
+      <div className="max-w-6xl mx-auto mb-8">
+        <div className="flex flex-wrap justify-between items-start gap-4">
+          <div>
+            <Link
+              href={`/rescue-squads/${squadId}`}
+              className="inline-flex items-center gap-1 text-flash-600 hover:text-flash-500 font-semibold text-sm mb-3 transition"
+            >
+              <ChevronLeft className="w-4 h-4" /> Back to {squad?.name}
+            </Link>
+            <h1 className="text-2xl md:text-3xl font-bold text-midnight-900">
+              Division Management
+            </h1>
+            <p className="text-midnight-500 mt-1">
+              Organize your squad into specialized neighborhood divisions
+            </p>
+          </div>
+          <Button onClick={() => setShowCreateModal(true)} leftIcon={Plus}>
+            Create Division
+          </Button>
         </div>
-        <button onClick={() => setShowCreateModal(true)} style={styles.createButton}>
-          + Create Division
-        </button>
       </div>
 
       {/* Messages */}
-      {error && <div style={styles.errorMessage}>{error}</div>}
-      {success && <div style={styles.successMessage}>{success}</div>}
+      {error && (
+        <div className="max-w-6xl mx-auto mb-6">
+          <div className="flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700">
+            <AlertCircle className="w-5 h-5" />
+            {error}
+          </div>
+        </div>
+      )}
+      {success && (
+        <div className="max-w-6xl mx-auto mb-6">
+          <div className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-green-700">
+            <CheckCircle className="w-5 h-5" />
+            {success}
+          </div>
+        </div>
+      )}
 
       {/* Divisions Grid */}
       {divisions.length === 0 ? (
-        <div style={styles.emptyState}>
-          <span style={styles.emptyIcon}>🗺️</span>
-          <h3>No Divisions Yet</h3>
-          <p>
+        <Card className="max-w-lg mx-auto text-center p-10">
+          <Map className="w-16 h-16 text-midnight-300 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-midnight-900 mb-2">No Divisions Yet</h3>
+          <p className="text-midnight-500 mb-6">
             Create divisions to organize your squad by neighborhood or specialization.
             This helps with targeted coordination during searches.
           </p>
-          <button onClick={() => setShowCreateModal(true)} style={styles.createButtonLarge}>
+          <Button onClick={() => setShowCreateModal(true)} leftIcon={Plus} size="lg">
             Create Your First Division
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : (
-        <div style={styles.divisionsGrid}>
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {divisions.map(division => (
-            <div key={division.id} style={styles.divisionCard}>
-              <div style={styles.divisionHeader}>
-                <h3 style={styles.divisionName}>{division.name}</h3>
-                <div style={styles.divisionActions}>
+            <Card key={division.id} className="hover:shadow-card-hover transition">
+              <div className="flex justify-between items-start mb-3">
+                <h3 className="text-lg font-bold text-midnight-900">{division.name}</h3>
+                <div className="flex gap-1">
                   <button
                     onClick={() => setEditingDivision(division)}
-                    style={styles.editButton}
+                    className="p-2 text-midnight-400 hover:text-flash-600 hover:bg-midnight-100 rounded-lg transition"
                   >
-                    ✏️
+                    <Pencil className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDeleteDivision(division.id)}
-                    style={styles.deleteButton}
+                    className="p-2 text-midnight-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
                   >
-                    🗑️
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
               {division.description && (
-                <p style={styles.divisionDesc}>{division.description}</p>
-              )}
-
-              {division.coverageArea && (
-                <p style={styles.coverageArea}>
-                  📍 {division.coverageArea}
+                <p className="text-sm text-midnight-500 mb-3 line-clamp-2">
+                  {division.description}
                 </p>
               )}
 
-              <div style={styles.divisionStats}>
-                <div style={styles.stat}>
-                  <span style={styles.statValue}>{division.memberCount || 0}</span>
-                  <span style={styles.statLabel}>Members</span>
+              {division.coverageArea && (
+                <div className="flex items-center gap-2 text-sm text-flash-600 mb-4">
+                  <MapPin className="w-4 h-4" />
+                  <span>{division.coverageArea}</span>
                 </div>
-                <div style={styles.stat}>
-                  <span style={styles.statValue}>{division.activeCases || 0}</span>
-                  <span style={styles.statLabel}>Active Cases</span>
+              )}
+
+              <div className="flex gap-6 py-4 border-t border-midnight-100">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-midnight-900">
+                    {division.memberCount || 0}
+                  </div>
+                  <div className="text-xs text-midnight-400">Members</div>
                 </div>
-                <div style={styles.stat}>
-                  <span style={styles.statValue}>{division.leaders?.length || 0}</span>
-                  <span style={styles.statLabel}>Leaders</span>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-midnight-900">
+                    {division.activeCases || 0}
+                  </div>
+                  <div className="text-xs text-midnight-400">Active Cases</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-midnight-900">
+                    {division.leaders?.length || 0}
+                  </div>
+                  <div className="text-xs text-midnight-400">Leaders</div>
                 </div>
               </div>
 
               {division.leaders && division.leaders.length > 0 && (
-                <div style={styles.leadersSection}>
-                  <span style={styles.leadersLabel}>Division Leaders:</span>
-                  <div style={styles.leadersList}>
+                <div className="mb-4">
+                  <p className="text-xs text-midnight-400 mb-2">Division Leaders:</p>
+                  <div className="flex flex-wrap gap-2">
                     {division.leaders.map(leader => (
-                      <span key={leader.id} style={styles.leaderBadge}>
+                      <Badge key={leader.id} variant="default" className="bg-purple-100 text-purple-700">
+                        <Crown className="w-3 h-3 mr-1" />
                         {leader.user?.firstName || 'Unknown'}
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 </div>
@@ -291,475 +331,183 @@ export default function DivisionsManagementPage() {
 
               <Link
                 href={`/rescue-squads/${squadId}/divisions/${division.id}`}
-                style={styles.manageLink}
+                className="block text-center py-3 bg-midnight-50 hover:bg-midnight-100 rounded-xl text-flash-600 font-semibold text-sm transition"
               >
                 Manage Division →
               </Link>
-            </div>
+            </Card>
           ))}
         </div>
       )}
 
       {/* Create Division Modal */}
       {showCreateModal && (
-        <div style={styles.modalOverlay} onClick={() => setShowCreateModal(false)}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
-            <h2 style={styles.modalTitle}>Create New Division</h2>
+        <div
+          className="fixed inset-0 bg-midnight-900/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowCreateModal(false)}
+        >
+          <Card
+            className="max-w-md w-full shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-midnight-900">Create New Division</h2>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="p-2 text-midnight-400 hover:text-midnight-600 hover:bg-midnight-100 rounded-lg transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
             <form onSubmit={handleCreateDivision}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Division Name *</label>
-                <input
-                  type="text"
-                  value={newDivision.name}
-                  onChange={e => setNewDivision(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g., Downtown District, North Side"
-                  style={styles.input}
-                  required
-                />
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                    Division Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={newDivision.name}
+                    onChange={e => setNewDivision(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g., Downtown District, North Side"
+                    className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={newDivision.description}
+                    onChange={e => setNewDivision(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="What area or specialty does this division cover?"
+                    className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400 resize-none"
+                    rows={3}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                    Coverage Area
+                  </label>
+                  <input
+                    type="text"
+                    value={newDivision.coverageArea}
+                    onChange={e => setNewDivision(prev => ({ ...prev, coverageArea: e.target.value }))}
+                    placeholder="e.g., ZIP codes 10001-10010"
+                    className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                  />
+                </div>
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Description</label>
-                <textarea
-                  value={newDivision.description}
-                  onChange={e => setNewDivision(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="What area or specialty does this division cover?"
-                  style={styles.textarea}
-                  rows={3}
-                />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Coverage Area</label>
-                <input
-                  type="text"
-                  value={newDivision.coverageArea}
-                  onChange={e => setNewDivision(prev => ({ ...prev, coverageArea: e.target.value }))}
-                  placeholder="e.g., ZIP codes 10001-10010"
-                  style={styles.input}
-                />
-              </div>
-
-              <div style={styles.modalButtons}>
-                <button
+              <div className="flex gap-3 mt-6">
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => setShowCreateModal(false)}
-                  style={styles.cancelButton}
+                  className="flex-1"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={creating || !newDivision.name.trim()}
-                  style={styles.submitButton}
+                  loading={creating}
+                  disabled={!newDivision.name.trim()}
+                  className="flex-1"
                 >
                   {creating ? 'Creating...' : 'Create Division'}
-                </button>
+                </Button>
               </div>
             </form>
-          </div>
+          </Card>
         </div>
       )}
 
       {/* Edit Division Modal */}
       {editingDivision && (
-        <div style={styles.modalOverlay} onClick={() => setEditingDivision(null)}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
-            <h2 style={styles.modalTitle}>Edit Division</h2>
+        <div
+          className="fixed inset-0 bg-midnight-900/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setEditingDivision(null)}
+        >
+          <Card
+            className="max-w-md w-full shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-midnight-900">Edit Division</h2>
+              <button
+                onClick={() => setEditingDivision(null)}
+                className="p-2 text-midnight-400 hover:text-midnight-600 hover:bg-midnight-100 rounded-lg transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
             <form onSubmit={handleUpdateDivision}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Division Name *</label>
-                <input
-                  type="text"
-                  value={editingDivision.name}
-                  onChange={e => setEditingDivision(prev => ({ ...prev, name: e.target.value }))}
-                  style={styles.input}
-                  required
-                />
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                    Division Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={editingDivision.name}
+                    onChange={e => setEditingDivision(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={editingDivision.description || ''}
+                    onChange={e => setEditingDivision(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 resize-none"
+                    rows={3}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                    Coverage Area
+                  </label>
+                  <input
+                    type="text"
+                    value={editingDivision.coverageArea || ''}
+                    onChange={e => setEditingDivision(prev => ({ ...prev, coverageArea: e.target.value }))}
+                    className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900"
+                  />
+                </div>
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Description</label>
-                <textarea
-                  value={editingDivision.description || ''}
-                  onChange={e => setEditingDivision(prev => ({ ...prev, description: e.target.value }))}
-                  style={styles.textarea}
-                  rows={3}
-                />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Coverage Area</label>
-                <input
-                  type="text"
-                  value={editingDivision.coverageArea || ''}
-                  onChange={e => setEditingDivision(prev => ({ ...prev, coverageArea: e.target.value }))}
-                  style={styles.input}
-                />
-              </div>
-
-              <div style={styles.modalButtons}>
-                <button
+              <div className="flex gap-3 mt-6">
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => setEditingDivision(null)}
-                  style={styles.cancelButton}
+                  className="flex-1"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={updating || !editingDivision.name.trim()}
-                  style={styles.submitButton}
+                  loading={updating}
+                  disabled={!editingDivision.name.trim()}
+                  className="flex-1"
                 >
                   {updating ? 'Saving...' : 'Save Changes'}
-                </button>
+                </Button>
               </div>
             </form>
-          </div>
+          </Card>
         </div>
       )}
     </div>
   );
 }
-
-const styles = {
-  container: {
-    minHeight: '100vh',
-    backgroundColor: '#f8fafc',
-    padding: '2rem',
-  },
-
-  loadingContainer: {
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f8fafc',
-    color: '#64748b',
-  },
-
-  spinner: {
-    width: '40px',
-    height: '40px',
-    border: '4px solid #e2e8f0',
-    borderTop: '4px solid #667eea',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
-    marginBottom: '1rem',
-  },
-
-  header: {
-    maxWidth: '1200px',
-    margin: '0 auto 2rem',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
-    gap: '1rem',
-  },
-
-  backLink: {
-    color: '#667eea',
-    textDecoration: 'none',
-    fontWeight: '600',
-    fontSize: '0.9rem',
-    marginBottom: '0.5rem',
-    display: 'inline-block',
-  },
-
-  title: {
-    fontSize: '2rem',
-    fontWeight: '800',
-    color: '#0f172a',
-    margin: '0 0 0.5rem 0',
-  },
-
-  subtitle: {
-    fontSize: '1rem',
-    color: '#64748b',
-    margin: 0,
-  },
-
-  createButton: {
-    padding: '0.75rem 1.5rem',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontWeight: '700',
-    cursor: 'pointer',
-    fontSize: '1rem',
-  },
-
-  errorMessage: {
-    maxWidth: '1200px',
-    margin: '0 auto 1rem',
-    padding: '1rem',
-    backgroundColor: '#fee2e2',
-    border: '1px solid #fecaca',
-    borderRadius: '8px',
-    color: '#dc2626',
-  },
-
-  successMessage: {
-    maxWidth: '1200px',
-    margin: '0 auto 1rem',
-    padding: '1rem',
-    backgroundColor: '#d1fae5',
-    border: '1px solid #a7f3d0',
-    borderRadius: '8px',
-    color: '#059669',
-  },
-
-  emptyState: {
-    maxWidth: '500px',
-    margin: '4rem auto',
-    textAlign: 'center',
-    padding: '3rem',
-    backgroundColor: 'white',
-    borderRadius: '16px',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
-  },
-
-  emptyIcon: {
-    fontSize: '4rem',
-    display: 'block',
-    marginBottom: '1rem',
-  },
-
-  createButtonLarge: {
-    marginTop: '1.5rem',
-    padding: '1rem 2rem',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontWeight: '700',
-    cursor: 'pointer',
-    fontSize: '1rem',
-  },
-
-  divisionsGrid: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-    gap: '1.5rem',
-  },
-
-  divisionCard: {
-    backgroundColor: 'white',
-    borderRadius: '16px',
-    padding: '1.5rem',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
-  },
-
-  divisionHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '0.75rem',
-  },
-
-  divisionName: {
-    fontSize: '1.25rem',
-    fontWeight: '700',
-    color: '#0f172a',
-    margin: 0,
-  },
-
-  divisionActions: {
-    display: 'flex',
-    gap: '0.5rem',
-  },
-
-  editButton: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    padding: '0.25rem',
-  },
-
-  deleteButton: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    padding: '0.25rem',
-  },
-
-  divisionDesc: {
-    fontSize: '0.9rem',
-    color: '#64748b',
-    marginBottom: '0.75rem',
-    lineHeight: 1.5,
-  },
-
-  coverageArea: {
-    fontSize: '0.85rem',
-    color: '#2196F3',
-    marginBottom: '1rem',
-  },
-
-  divisionStats: {
-    display: 'flex',
-    gap: '1.5rem',
-    marginBottom: '1rem',
-    paddingTop: '1rem',
-    borderTop: '1px solid #e2e8f0',
-  },
-
-  stat: {
-    textAlign: 'center',
-  },
-
-  statValue: {
-    display: 'block',
-    fontSize: '1.5rem',
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-
-  statLabel: {
-    fontSize: '0.75rem',
-    color: '#64748b',
-  },
-
-  leadersSection: {
-    marginBottom: '1rem',
-  },
-
-  leadersLabel: {
-    fontSize: '0.8rem',
-    color: '#64748b',
-    display: 'block',
-    marginBottom: '0.5rem',
-  },
-
-  leadersList: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '0.5rem',
-  },
-
-  leaderBadge: {
-    padding: '0.25rem 0.75rem',
-    backgroundColor: '#ede9fe',
-    color: '#7c3aed',
-    borderRadius: '12px',
-    fontSize: '0.8rem',
-    fontWeight: '600',
-  },
-
-  manageLink: {
-    display: 'block',
-    textAlign: 'center',
-    padding: '0.75rem',
-    backgroundColor: '#f8fafc',
-    borderRadius: '8px',
-    color: '#667eea',
-    textDecoration: 'none',
-    fontWeight: '600',
-    fontSize: '0.9rem',
-  },
-
-  // Modal styles
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-    padding: '1rem',
-  },
-
-  modal: {
-    backgroundColor: 'white',
-    borderRadius: '16px',
-    padding: '2rem',
-    maxWidth: '500px',
-    width: '100%',
-    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
-  },
-
-  modalTitle: {
-    fontSize: '1.5rem',
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: '1.5rem',
-  },
-
-  formGroup: {
-    marginBottom: '1rem',
-  },
-
-  label: {
-    display: 'block',
-    fontSize: '0.9rem',
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: '0.5rem',
-  },
-
-  input: {
-    width: '100%',
-    padding: '0.75rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '8px',
-    fontSize: '1rem',
-  },
-
-  textarea: {
-    width: '100%',
-    padding: '0.75rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '8px',
-    fontSize: '1rem',
-    resize: 'vertical',
-  },
-
-  modalButtons: {
-    display: 'flex',
-    gap: '1rem',
-    marginTop: '1.5rem',
-  },
-
-  cancelButton: {
-    flex: 1,
-    padding: '0.75rem',
-    backgroundColor: '#f3f4f6',
-    color: '#374151',
-    border: 'none',
-    borderRadius: '8px',
-    fontWeight: '600',
-    cursor: 'pointer',
-  },
-
-  submitButton: {
-    flex: 1,
-    padding: '0.75rem',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontWeight: '600',
-    cursor: 'pointer',
-  },
-
-  errorCard: {
-    maxWidth: '400px',
-    margin: '4rem auto',
-    textAlign: 'center',
-    padding: '2rem',
-    backgroundColor: 'white',
-    borderRadius: '16px',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
-  },
-};
