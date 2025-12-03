@@ -12,6 +12,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import TaskCompletionModal from '@/components/case/TaskCompletionModal';
+import WaiverModal from '@/components/WaiverModal';
 import { normalizePhotoUrl, fetchWithRetry, formatErrorMessage, isOnline } from '@/app/lib/utils';
 import { PageLoading } from '@/components/LoadingSkeleton';
 import {
@@ -76,6 +77,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
   const [selectedTask, setSelectedTask] = useState(null);
   const [isGPSTracking, setIsGPSTracking] = useState(false);
   const [showCustomActionModal, setShowCustomActionModal] = useState(false);
+  const [showWaiverModal, setShowWaiverModal] = useState(false);
 
   // Load GPS path and tasks from localStorage on mount
   useEffect(() => {
@@ -134,6 +136,14 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
         if (res.status === 404) {
           throw new Error('Case not found');
         } else if (res.status === 403) {
+          // Check if it's a waiver error
+          const errorData = await res.json();
+          if (errorData.code === 'WAIVER_NOT_ACCEPTED') {
+            // Show waiver modal instead of error
+            setLoading(false);
+            setShowWaiverModal(true);
+            return;
+          }
           throw new Error('You do not have permission to view this case');
         } else {
           throw new Error(`Failed to load case (${res.status})`);
@@ -1488,6 +1498,19 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, session
           onComplete={(actionData) => {
             handleCustomActionComplete(actionData);
             setShowCustomActionModal(false);
+          }}
+        />
+      )}
+
+      {/* Waiver Modal - Pops up automatically when waiver hasn't been accepted */}
+      {showWaiverModal && (
+        <WaiverModal
+          isOpen={showWaiverModal}
+          onClose={() => setShowWaiverModal(false)}
+          onAccepted={() => {
+            setShowWaiverModal(false);
+            setLoading(true);
+            fetchCase(); // Retry loading the case after waiver accepted
           }}
         />
       )}
