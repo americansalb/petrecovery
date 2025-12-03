@@ -36,20 +36,15 @@ export default function WaiverModal({ isOpen, onClose, onAccepted }) {
     setError(null);
 
     try {
-      const response = await fetch('/api/legal/accept', {
+      // Use the simplified waiver acceptance endpoint
+      const response = await fetch('/api/legal/accept-waiver', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          acceptances: [
-            { documentType: 'TERMS_OF_SERVICE', version: '1.0' },
-            { documentType: 'LIABILITY_WAIVER', version: '1.0' }
-          ]
-        })
+        headers: { 'Content-Type': 'application/json' }
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.message || 'Failed to accept agreements');
+        throw new Error(data.message || 'Failed to accept waiver');
       }
 
       // Success!
@@ -120,12 +115,24 @@ export default function WaiverModal({ isOpen, onClose, onAccepted }) {
               own risk. We're not responsible for pet recovery outcomes.
             </p>
             <label className="flex items-start gap-3 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={agreedToTerms}
-                onChange={(e) => setAgreedToTerms(e.target.checked)}
-                className="mt-0.5 w-5 h-5 rounded border-slate-600 text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-900 cursor-pointer"
-              />
+              <div className="relative flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="peer w-5 h-5 rounded cursor-pointer appearance-none border-2 border-slate-400 bg-slate-700 checked:bg-blue-500 checked:border-blue-500 transition"
+                />
+                {agreedToTerms && (
+                  <svg
+                    className="absolute top-0.5 left-0.5 w-4 h-4 text-white pointer-events-none"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </div>
               <span className="text-sm text-slate-300 group-hover:text-white transition">
                 I agree to the Terms of Service
               </span>
@@ -145,12 +152,24 @@ export default function WaiverModal({ isOpen, onClose, onAccepted }) {
               liability. You're responsible for your own safety and insurance.
             </p>
             <label className="flex items-start gap-3 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={agreedToWaiver}
-                onChange={(e) => setAgreedToWaiver(e.target.checked)}
-                className="mt-0.5 w-5 h-5 rounded border-red-600 text-red-500 focus:ring-red-500 focus:ring-offset-slate-900 cursor-pointer"
-              />
+              <div className="relative flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={agreedToWaiver}
+                  onChange={(e) => setAgreedToWaiver(e.target.checked)}
+                  className="peer w-5 h-5 rounded cursor-pointer appearance-none border-2 border-red-400 bg-slate-700 checked:bg-red-500 checked:border-red-500 transition"
+                />
+                {agreedToWaiver && (
+                  <svg
+                    className="absolute top-0.5 left-0.5 w-4 h-4 text-white pointer-events-none"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </div>
               <span className="text-sm text-slate-300 group-hover:text-white transition">
                 I understand and accept the risks, and agree to the Liability Waiver
               </span>
