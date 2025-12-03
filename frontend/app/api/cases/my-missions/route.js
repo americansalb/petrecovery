@@ -37,6 +37,14 @@ export async function GET(request) {
             },
           },
         },
+        assignments: {
+          include: {
+            rescueSquad: {
+              select: { id: true, name: true },
+            },
+          },
+          take: 1,
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -68,6 +76,14 @@ export async function GET(request) {
             },
           },
         },
+        assignments: {
+          include: {
+            rescueSquad: {
+              select: { id: true, name: true },
+            },
+          },
+          take: 1,
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -81,6 +97,9 @@ export async function GET(request) {
         const hoursMissing = caseItem.lastSeenAt
           ? Math.floor((Date.now() - new Date(caseItem.lastSeenAt).getTime()) / 3600000)
           : 0;
+
+        // Get squadId from first assignment
+        const squadId = caseItem.assignments?.[0]?.rescueSquad?.id || caseItem.assignments?.[0]?.rescueSquadId;
 
         allCasesMap.set(caseItem.id, {
           id: caseItem.id,
@@ -98,6 +117,7 @@ export async function GET(request) {
             ? `${hoursMissing}h`
             : `${Math.floor(hoursMissing / 24)}d ${hoursMissing % 24}h`,
           helperCount: 0, // TODO: Calculate actual helper count
+          rescueSquadId: squadId,  // Add squadId for join functionality
         });
       }
     });
@@ -107,8 +127,9 @@ export async function GET(request) {
     return NextResponse.json({ missions });
   } catch (error) {
     console.error('Error fetching my missions:', error);
+    console.error('Error stack:', error.stack);
     return NextResponse.json(
-      { error: 'Failed to fetch missions' },
+      { error: 'Failed to fetch missions', message: error.message },
       { status: 500 }
     );
   }

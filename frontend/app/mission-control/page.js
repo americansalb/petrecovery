@@ -140,11 +140,16 @@ function MissionControlContent() {
   // Handle joining mission
   const handleJoinMission = async (missionIdToJoin) => {
     try {
-      // Need squadId - get it from the mission data
-      const squadId = activeMission?.rescueSquadId || activeMission?.squadId;
+      // Need squadId - extract from assignments or direct field
+      const squadId =
+        activeMission?.rescueSquadId ||
+        activeMission?.squadId ||
+        activeMission?.assignments?.[0]?.rescueSquad?.id ||
+        activeMission?.assignments?.[0]?.rescueSquadId;
 
       if (!squadId) {
-        console.error('Mission missing squadId:', activeMission);
+        console.error('Mission missing squadId. Mission data:', activeMission);
+        console.error('Assignments:', activeMission?.assignments);
         return;
       }
 
