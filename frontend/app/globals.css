@@ -2,6 +2,108 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   PETRECOVERY DESIGN SYSTEM
+   Midnight Blue + Flashlight Yellow
+   ============================================ */
+
+:root {
+  /* === Primary: Midnight Blue === */
+  --midnight-950: #020617;
+  --midnight-900: #0f172a;
+  --midnight-800: #1e293b;
+  --midnight-700: #334155;
+  --midnight-600: #475569;
+  --midnight-500: #64748b;
+  --midnight-400: #94a3b8;
+  --midnight-300: #cbd5e1;
+  --midnight-200: #e2e8f0;
+  --midnight-100: #f1f5f9;
+  --midnight-50: #f8fafc;
+
+  /* === Accent: Flashlight Yellow === */
+  --flash-50: #fefce8;
+  --flash-100: #fef9c3;
+  --flash-200: #fef08a;
+  --flash-300: #fde047;
+  --flash-400: #facc15;
+  --flash-500: #eab308;
+  --flash-600: #ca8a04;
+  --flash-700: #a16207;
+  --flash-800: #854d0e;
+  --flash-900: #713f12;
+
+  /* === Semantic Colors === */
+  --color-danger: #dc2626;
+  --color-danger-light: #fef2f2;
+  --color-danger-dark: #b91c1c;
+
+  --color-success: #16a34a;
+  --color-success-light: #f0fdf4;
+  --color-success-dark: #15803d;
+
+  --color-warning: #f59e0b;
+  --color-warning-light: #fffbeb;
+  --color-warning-dark: #d97706;
+
+  --color-info: #0ea5e9;
+  --color-info-light: #f0f9ff;
+  --color-info-dark: #0284c7;
+
+  /* === Light Mode (Default) === */
+  --bg-primary: #ffffff;
+  --bg-secondary: var(--midnight-50);
+  --bg-tertiary: var(--midnight-100);
+  --bg-elevated: #ffffff;
+
+  --text-primary: var(--midnight-900);
+  --text-secondary: var(--midnight-600);
+  --text-muted: var(--midnight-400);
+  --text-inverse: #ffffff;
+
+  --border-default: var(--midnight-200);
+  --border-muted: var(--midnight-100);
+
+  /* === Shadows === */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+  /* === Border Radius === */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
+
+  /* === Transitions === */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* === Dark Mode (Squad Hub / Command Center) === */
+.dark {
+  --bg-primary: var(--midnight-950);
+  --bg-secondary: var(--midnight-900);
+  --bg-tertiary: var(--midnight-800);
+  --bg-elevated: var(--midnight-800);
+
+  --text-primary: var(--midnight-50);
+  --text-secondary: var(--midnight-300);
+  --text-muted: var(--midnight-400);
+  --text-inverse: var(--midnight-900);
+
+  --border-default: var(--midnight-700);
+  --border-muted: var(--midnight-800);
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+}
+
 /* Offline Banner Animation */
 @keyframes slide-down {
   from {
