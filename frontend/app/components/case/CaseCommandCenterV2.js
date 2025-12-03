@@ -41,6 +41,7 @@ import {
   Navigation,
   RefreshCw,
   Sparkles,
+  Shield,
 } from 'lucide-react';
 
 // Lazy load map for better performance
@@ -245,6 +246,41 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
   // Loading state
   if (loading) {
     return <PageLoading message="Loading case details..." />;
+  }
+
+  // Waiting for waiver acceptance
+  if (showWaiverModal && !caseData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center p-6">
+        <div className="max-w-md w-full text-center">
+          <div className="mb-6">
+            <div className="inline-block p-4 bg-cyan-500/20 rounded-full border-2 border-cyan-500/50">
+              <Shield size={48} className="text-cyan-400" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-3">
+            Liability Waiver Required
+          </h2>
+          <p className="text-slate-400 mb-6">
+            Please accept the liability waiver to view case details and join the search effort.
+          </p>
+        </div>
+
+        {/* Waiver Modal */}
+        <WaiverModal
+          isOpen={showWaiverModal}
+          onClose={() => {
+            setShowWaiverModal(false);
+            window.history.back();
+          }}
+          onAccepted={() => {
+            setShowWaiverModal(false);
+            setLoading(true);
+            fetchCase();
+          }}
+        />
+      </div>
+    );
   }
 
   // Error state
