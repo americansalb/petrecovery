@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * Create Rescue Squad Page
+ * Create Rescue Squad Page - Updated with PetRecovery Design System
+ * Uses: Midnight Blue + Flashlight Yellow color palette
  *
  * Multi-step form for creating a new rescue squad:
  * 1. Basic info (name, description)
@@ -13,11 +14,13 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft, ArrowRight, FileText, MapPin, Check, Crown, Loader2, Globe, Lock, CheckCircle } from 'lucide-react';
+import { Button, Card } from '@/components/ui';
 
 const STEPS = [
-  { id: 'basics', title: 'Squad Basics', icon: '📝' },
-  { id: 'location', title: 'Coverage Area', icon: '📍' },
-  { id: 'review', title: 'Review & Create', icon: '✓' },
+  { id: 'basics', title: 'Squad Basics', icon: FileText },
+  { id: 'location', title: 'Coverage Area', icon: MapPin },
+  { id: 'review', title: 'Review & Create', icon: Check },
 ];
 
 export default function CreateSquadPage() {
@@ -41,7 +44,6 @@ export default function CreateSquadPage() {
     isPublic: true,
   });
 
-  const [locationSuggestions, setLocationSuggestions] = useState([]);
   const [coordinates, setCoordinates] = useState(null);
 
   // Redirect if not logged in
@@ -157,566 +159,335 @@ export default function CreateSquadPage() {
 
   if (status === 'loading') {
     return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner} />
-        <p>Loading...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-midnight-100 to-midnight-200">
+        <Loader2 className="w-10 h-10 text-flash-400 animate-spin mb-4" />
+        <p className="text-midnight-500 font-medium">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        {/* Header */}
-        <div style={styles.header}>
-          <Link href="/rescue-squads" style={styles.backLink}>
-            ← Back to Squads
-          </Link>
-          <h1 style={styles.title}>Create a Rescue Squad</h1>
-          <p style={styles.subtitle}>
-            Start a volunteer pet rescue team in your community
-          </p>
-        </div>
-
-        {/* Progress */}
-        <div style={styles.progress}>
-          {STEPS.map((s, i) => (
-            <div
-              key={s.id}
-              style={{
-                ...styles.progressStep,
-                ...(i <= step ? styles.progressStepActive : {}),
-              }}
+    <div className="min-h-screen bg-gradient-to-b from-midnight-100 to-midnight-200 py-8 px-4">
+      <div className="max-w-xl mx-auto">
+        <Card className="shadow-xl">
+          {/* Header */}
+          <div className="mb-8">
+            <Link
+              href="/rescue-squads/search"
+              className="inline-flex items-center gap-2 text-flash-600 hover:text-flash-500 font-semibold text-sm mb-4 transition"
             >
-              <div
-                style={{
-                  ...styles.progressIcon,
-                  ...(i <= step ? styles.progressIconActive : {}),
-                }}
-              >
-                {i < step ? '✓' : s.icon}
-              </div>
-              <span style={styles.progressLabel}>{s.title}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Error */}
-        {error && <div style={styles.error}>{error}</div>}
-
-        {/* Step 1: Basics */}
-        {step === 0 && (
-          <div style={styles.stepContent}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Squad Name *</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={e => updateField('name', e.target.value)}
-                placeholder="e.g., Austin Pet Rescue Squad"
-                style={styles.input}
-                maxLength={100}
-              />
-              <p style={styles.hint}>
-                Choose a name that includes your city or neighborhood
-              </p>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Description</label>
-              <textarea
-                value={formData.description}
-                onChange={e => updateField('description', e.target.value)}
-                placeholder="Describe your squad's mission and what makes it special..."
-                style={styles.textarea}
-                rows={4}
-                maxLength={500}
-              />
-              <p style={styles.charCount}>
-                {formData.description.length}/500
-              </p>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Contact Email (Optional)</label>
-              <input
-                type="email"
-                value={formData.contactEmail}
-                onChange={e => updateField('contactEmail', e.target.value)}
-                placeholder="squad@example.com"
-                style={styles.input}
-              />
-            </div>
+              <ArrowLeft className="w-4 h-4" />
+              Back to Squads
+            </Link>
+            <h1 className="text-2xl font-bold text-midnight-900">
+              Create a Rescue Squad
+            </h1>
+            <p className="text-midnight-500 mt-1">
+              Start a volunteer pet rescue team in your community
+            </p>
           </div>
-        )}
 
-        {/* Step 2: Location */}
-        {step === 1 && (
-          <div style={styles.stepContent}>
-            <div style={styles.formRow}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>City *</label>
-                <input
-                  type="text"
-                  value={formData.city}
-                  onChange={e => updateField('city', e.target.value)}
-                  placeholder="Austin"
-                  style={styles.input}
-                />
-              </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>State *</label>
-                <input
-                  type="text"
-                  value={formData.state}
-                  onChange={e => updateField('state', e.target.value)}
-                  placeholder="TX"
-                  style={styles.input}
-                  maxLength={2}
-                />
-              </div>
-            </div>
+          {/* Progress */}
+          <div className="flex justify-between mb-8">
+            {STEPS.map((s, i) => {
+              const StepIcon = s.icon;
+              const isActive = i <= step;
+              const isComplete = i < step;
 
-            <div style={styles.formGroup}>
-              <label style={styles.label}>ZIP Code (Optional)</label>
-              <input
-                type="text"
-                value={formData.zipCode}
-                onChange={e => updateField('zipCode', e.target.value)}
-                placeholder="78701"
-                style={styles.input}
-                maxLength={10}
-              />
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Coverage Radius</label>
-              <div style={styles.radiusSelector}>
-                {[3, 5, 10, 15, 25].map(r => (
-                  <button
-                    key={r}
-                    onClick={() => updateField('radiusMiles', r)}
-                    style={{
-                      ...styles.radiusButton,
-                      ...(formData.radiusMiles === r ? styles.radiusButtonActive : {}),
-                    }}
+              return (
+                <div
+                  key={s.id}
+                  className={`flex flex-col items-center flex-1 ${isActive ? 'opacity-100' : 'opacity-40'}`}
+                >
+                  <div
+                    className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-all ${
+                      isComplete
+                        ? 'bg-green-500 text-white'
+                        : isActive
+                        ? 'bg-flash-400 text-midnight-900'
+                        : 'bg-midnight-200 text-midnight-500'
+                    }`}
                   >
-                    {r} mi
-                  </button>
-                ))}
-              </div>
-              <p style={styles.hint}>
-                This defines your squad's primary coverage area for receiving case alerts
-              </p>
+                    {isComplete ? (
+                      <Check className="w-6 h-6" />
+                    ) : (
+                      <StepIcon className="w-5 h-5" />
+                    )}
+                  </div>
+                  <span className="text-xs text-midnight-600 text-center font-medium">
+                    {s.title}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm">
+              {error}
             </div>
+          )}
 
-            {coordinates && (
-              <div style={styles.locationConfirm}>
-                <span style={styles.locationIcon}>📍</span>
-                <span>
-                  Location found: {formData.city}, {formData.state}
-                </span>
-              </div>
-            )}
-
-            <div style={styles.formGroup}>
-              <label style={styles.toggleLabel}>
+          {/* Step 1: Basics */}
+          {step === 0 && (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                  Squad Name *
+                </label>
                 <input
-                  type="checkbox"
-                  checked={formData.isPublic}
-                  onChange={e => updateField('isPublic', e.target.checked)}
-                  style={styles.checkbox}
+                  type="text"
+                  value={formData.name}
+                  onChange={e => updateField('name', e.target.value)}
+                  placeholder="e.g., Austin Pet Rescue Squad"
+                  className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                  maxLength={100}
                 />
-                <span>Public Squad</span>
-              </label>
-              <p style={styles.hint}>
-                {formData.isPublic
-                  ? 'Anyone can find and join this squad'
-                  : 'Squad is invite-only and hidden from search'}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Review */}
-        {step === 2 && (
-          <div style={styles.stepContent}>
-            <h3 style={styles.reviewTitle}>Review Your Squad</h3>
-
-            <div style={styles.reviewSection}>
-              <h4 style={styles.reviewLabel}>Squad Name</h4>
-              <p style={styles.reviewValue}>{formData.name}</p>
-            </div>
-
-            {formData.description && (
-              <div style={styles.reviewSection}>
-                <h4 style={styles.reviewLabel}>Description</h4>
-                <p style={styles.reviewValue}>{formData.description}</p>
+                <p className="text-xs text-midnight-400 mt-2">
+                  Choose a name that includes your city or neighborhood
+                </p>
               </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={e => updateField('description', e.target.value)}
+                  placeholder="Describe your squad's mission and what makes it special..."
+                  className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400 resize-none"
+                  rows={4}
+                  maxLength={500}
+                />
+                <p className="text-xs text-midnight-400 text-right mt-1">
+                  {formData.description.length}/500
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                  Contact Email (Optional)
+                </label>
+                <input
+                  type="email"
+                  value={formData.contactEmail}
+                  onChange={e => updateField('contactEmail', e.target.value)}
+                  placeholder="squad@example.com"
+                  className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Location */}
+          {step === 1 && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                    City *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={e => updateField('city', e.target.value)}
+                    placeholder="Austin"
+                    className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                    State *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.state}
+                    onChange={e => updateField('state', e.target.value.toUpperCase())}
+                    placeholder="TX"
+                    className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400 uppercase"
+                    maxLength={2}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                  ZIP Code (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={formData.zipCode}
+                  onChange={e => updateField('zipCode', e.target.value)}
+                  placeholder="78701"
+                  className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                  maxLength={10}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                  Coverage Radius
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {[3, 5, 10, 15, 25].map(r => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => updateField('radiusMiles', r)}
+                      className={`px-4 py-2 rounded-xl font-semibold transition ${
+                        formData.radiusMiles === r
+                          ? 'bg-flash-400 text-midnight-900'
+                          : 'bg-midnight-100 text-midnight-600 hover:bg-midnight-200'
+                      }`}
+                    >
+                      {r} mi
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-midnight-400 mt-2">
+                  This defines your squad's primary coverage area for receiving case alerts
+                </p>
+              </div>
+
+              {coordinates && (
+                <div className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-green-700">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span className="text-sm font-medium">
+                    Location found: {formData.city}, {formData.state}
+                  </span>
+                </div>
+              )}
+
+              <div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={formData.isPublic}
+                      onChange={e => updateField('isPublic', e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-midnight-200 rounded-full peer peer-checked:bg-flash-400 transition"></div>
+                    <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full peer-checked:translate-x-5 transition"></div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {formData.isPublic ? (
+                      <Globe className="w-4 h-4 text-flash-600" />
+                    ) : (
+                      <Lock className="w-4 h-4 text-midnight-500" />
+                    )}
+                    <span className="font-medium text-midnight-900">
+                      {formData.isPublic ? 'Public Squad' : 'Private Squad'}
+                    </span>
+                  </div>
+                </label>
+                <p className="text-xs text-midnight-400 mt-2 ml-14">
+                  {formData.isPublic
+                    ? 'Anyone can find and join this squad'
+                    : 'Squad is invite-only and hidden from search'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Review */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-midnight-900 mb-4">
+                Review Your Squad
+              </h3>
+
+              <div className="border-b border-midnight-100 pb-4">
+                <p className="text-xs font-semibold text-midnight-400 uppercase mb-1">
+                  Squad Name
+                </p>
+                <p className="text-midnight-900 font-medium">{formData.name}</p>
+              </div>
+
+              {formData.description && (
+                <div className="border-b border-midnight-100 pb-4">
+                  <p className="text-xs font-semibold text-midnight-400 uppercase mb-1">
+                    Description
+                  </p>
+                  <p className="text-midnight-700 text-sm">{formData.description}</p>
+                </div>
+              )}
+
+              <div className="border-b border-midnight-100 pb-4">
+                <p className="text-xs font-semibold text-midnight-400 uppercase mb-1">
+                  Location
+                </p>
+                <p className="text-midnight-900 font-medium">
+                  {formData.city}, {formData.state}
+                  {formData.zipCode && ` ${formData.zipCode}`}
+                </p>
+              </div>
+
+              <div className="border-b border-midnight-100 pb-4">
+                <p className="text-xs font-semibold text-midnight-400 uppercase mb-1">
+                  Coverage
+                </p>
+                <p className="text-midnight-900 font-medium">
+                  {formData.radiusMiles} mile radius
+                </p>
+              </div>
+
+              <div className="border-b border-midnight-100 pb-4">
+                <p className="text-xs font-semibold text-midnight-400 uppercase mb-1">
+                  Visibility
+                </p>
+                <p className="text-midnight-900 font-medium flex items-center gap-2">
+                  {formData.isPublic ? (
+                    <>
+                      <Globe className="w-4 h-4 text-flash-600" />
+                      Public - Anyone can join
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-4 h-4 text-midnight-500" />
+                      Private - Invite only
+                    </>
+                  )}
+                </p>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-flash-100 border border-flash-200 rounded-xl">
+                <Crown className="w-6 h-6 text-flash-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-midnight-700">
+                  As the squad founder, you'll be able to manage members, accept cases,
+                  and appoint leaders.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation */}
+          <div className="flex gap-3 pt-6 mt-6 border-t border-midnight-100">
+            {step > 0 && (
+              <Button variant="secondary" onClick={prevStep} leftIcon={ArrowLeft}>
+                Back
+              </Button>
             )}
 
-            <div style={styles.reviewSection}>
-              <h4 style={styles.reviewLabel}>Location</h4>
-              <p style={styles.reviewValue}>
-                {formData.city}, {formData.state}
-                {formData.zipCode && ` ${formData.zipCode}`}
-              </p>
-            </div>
-
-            <div style={styles.reviewSection}>
-              <h4 style={styles.reviewLabel}>Coverage</h4>
-              <p style={styles.reviewValue}>
-                {formData.radiusMiles} mile radius
-              </p>
-            </div>
-
-            <div style={styles.reviewSection}>
-              <h4 style={styles.reviewLabel}>Visibility</h4>
-              <p style={styles.reviewValue}>
-                {formData.isPublic ? 'Public - Anyone can join' : 'Private - Invite only'}
-              </p>
-            </div>
-
-            <div style={styles.founderNote}>
-              <span style={styles.noteIcon}>👑</span>
-              <p>
-                As the squad founder, you'll be able to manage members, accept cases,
-                and appoint leaders.
-              </p>
-            </div>
+            {step < STEPS.length - 1 ? (
+              <Button onClick={nextStep} rightIcon={ArrowRight} className="ml-auto">
+                Continue
+              </Button>
+            ) : (
+              <Button
+                onClick={handleCreate}
+                loading={creating}
+                variant="success"
+                className="ml-auto"
+              >
+                {creating ? 'Creating Squad...' : 'Create Squad'}
+              </Button>
+            )}
           </div>
-        )}
-
-        {/* Navigation */}
-        <div style={styles.navigation}>
-          {step > 0 && (
-            <button onClick={prevStep} style={styles.backButton}>
-              ← Back
-            </button>
-          )}
-
-          {step < STEPS.length - 1 ? (
-            <button onClick={nextStep} style={styles.nextButton}>
-              Continue →
-            </button>
-          ) : (
-            <button
-              onClick={handleCreate}
-              disabled={creating}
-              style={{
-                ...styles.createButton,
-                opacity: creating ? 0.7 : 1,
-              }}
-            >
-              {creating ? 'Creating Squad...' : 'Create Squad'}
-            </button>
-          )}
-        </div>
+        </Card>
       </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    minHeight: '100vh',
-    backgroundColor: '#f8fafc',
-    padding: '2rem',
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-
-  loadingContainer: {
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f8fafc',
-    color: '#64748b',
-  },
-
-  spinner: {
-    width: '40px',
-    height: '40px',
-    border: '4px solid #e2e8f0',
-    borderTop: '4px solid #667eea',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
-    marginBottom: '1rem',
-  },
-
-  card: {
-    maxWidth: '600px',
-    width: '100%',
-    backgroundColor: 'white',
-    borderRadius: '16px',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
-    padding: '2rem',
-    marginTop: '2rem',
-  },
-
-  header: {
-    marginBottom: '2rem',
-  },
-
-  backLink: {
-    color: '#667eea',
-    textDecoration: 'none',
-    fontWeight: '600',
-    fontSize: '0.9rem',
-    marginBottom: '1rem',
-    display: 'inline-block',
-  },
-
-  title: {
-    fontSize: '1.75rem',
-    fontWeight: '800',
-    color: '#0f172a',
-    margin: '0 0 0.5rem 0',
-  },
-
-  subtitle: {
-    fontSize: '1rem',
-    color: '#64748b',
-    margin: 0,
-  },
-
-  progress: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: '2rem',
-    padding: '0 1rem',
-  },
-
-  progressStep: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    flex: 1,
-    opacity: 0.5,
-  },
-
-  progressStepActive: {
-    opacity: 1,
-  },
-
-  progressIcon: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '50%',
-    backgroundColor: '#e2e8f0',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '1.25rem',
-    marginBottom: '0.5rem',
-  },
-
-  progressIconActive: {
-    backgroundColor: '#667eea',
-    color: 'white',
-  },
-
-  progressLabel: {
-    fontSize: '0.8rem',
-    color: '#64748b',
-    textAlign: 'center',
-  },
-
-  error: {
-    padding: '1rem',
-    backgroundColor: '#fee2e2',
-    border: '1px solid #fecaca',
-    borderRadius: '8px',
-    color: '#dc2626',
-    marginBottom: '1.5rem',
-  },
-
-  stepContent: {
-    marginBottom: '2rem',
-  },
-
-  formGroup: {
-    marginBottom: '1.5rem',
-  },
-
-  formRow: {
-    display: 'grid',
-    gridTemplateColumns: '2fr 1fr',
-    gap: '1rem',
-  },
-
-  label: {
-    display: 'block',
-    fontSize: '0.9rem',
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: '0.5rem',
-  },
-
-  input: {
-    width: '100%',
-    padding: '0.75rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '8px',
-    fontSize: '1rem',
-  },
-
-  textarea: {
-    width: '100%',
-    padding: '0.75rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '8px',
-    fontSize: '1rem',
-    resize: 'vertical',
-  },
-
-  hint: {
-    fontSize: '0.8rem',
-    color: '#64748b',
-    marginTop: '0.5rem',
-  },
-
-  charCount: {
-    fontSize: '0.75rem',
-    color: '#94a3b8',
-    textAlign: 'right',
-    marginTop: '0.25rem',
-  },
-
-  radiusSelector: {
-    display: 'flex',
-    gap: '0.5rem',
-    flexWrap: 'wrap',
-  },
-
-  radiusButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#f1f5f9',
-    border: '1px solid #e2e8f0',
-    borderRadius: '6px',
-    color: '#475569',
-    fontWeight: '600',
-    cursor: 'pointer',
-  },
-
-  radiusButtonActive: {
-    backgroundColor: '#667eea',
-    borderColor: '#667eea',
-    color: 'white',
-  },
-
-  locationConfirm: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.75rem 1rem',
-    backgroundColor: '#d1fae5',
-    borderRadius: '8px',
-    color: '#065f46',
-    marginBottom: '1.5rem',
-  },
-
-  locationIcon: {
-    fontSize: '1.25rem',
-  },
-
-  toggleLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    fontWeight: '500',
-  },
-
-  checkbox: {
-    width: '20px',
-    height: '20px',
-    cursor: 'pointer',
-  },
-
-  reviewTitle: {
-    fontSize: '1.25rem',
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: '1.5rem',
-  },
-
-  reviewSection: {
-    marginBottom: '1.25rem',
-    paddingBottom: '1.25rem',
-    borderBottom: '1px solid #e2e8f0',
-  },
-
-  reviewLabel: {
-    fontSize: '0.8rem',
-    fontWeight: '600',
-    color: '#64748b',
-    textTransform: 'uppercase',
-    margin: '0 0 0.25rem 0',
-  },
-
-  reviewValue: {
-    fontSize: '1rem',
-    color: '#0f172a',
-    margin: 0,
-  },
-
-  founderNote: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '0.75rem',
-    padding: '1rem',
-    backgroundColor: '#fef3c7',
-    borderRadius: '8px',
-  },
-
-  noteIcon: {
-    fontSize: '1.5rem',
-  },
-
-  navigation: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: '1rem',
-    paddingTop: '1rem',
-    borderTop: '1px solid #e2e8f0',
-  },
-
-  backButton: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#f1f5f9',
-    border: 'none',
-    borderRadius: '8px',
-    color: '#475569',
-    fontWeight: '600',
-    cursor: 'pointer',
-  },
-
-  nextButton: {
-    flex: 1,
-    padding: '0.75rem 1.5rem',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    border: 'none',
-    borderRadius: '8px',
-    color: 'white',
-    fontWeight: '700',
-    cursor: 'pointer',
-    marginLeft: 'auto',
-  },
-
-  createButton: {
-    flex: 1,
-    padding: '0.75rem 1.5rem',
-    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-    border: 'none',
-    borderRadius: '8px',
-    color: 'white',
-    fontWeight: '700',
-    cursor: 'pointer',
-    marginLeft: 'auto',
-  },
-};
