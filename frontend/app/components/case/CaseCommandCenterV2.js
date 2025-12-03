@@ -477,6 +477,12 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
             setGpsPath={setGpsPath}
             isGPSTracking={isGPSTracking}
             setIsGPSTracking={setIsGPSTracking}
+            expandedCategories={expandedCategories}
+            setExpandedCategories={setExpandedCategories}
+            selectedTask={selectedTask}
+            setSelectedTask={setSelectedTask}
+            showCustomActionModal={showCustomActionModal}
+            setShowCustomActionModal={setShowCustomActionModal}
             session={session}
           />
         )}
@@ -980,7 +986,7 @@ function ActivityTab({ sightings, tasks, gpsPath, onLocationClick }) {
 // ============================================================================
 // TEAM TAB - Helpers and coordination
 // ============================================================================
-function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, isGPSTracking, setIsGPSTracking, session }) {
+function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, isGPSTracking, setIsGPSTracking, expandedCategories, setExpandedCategories, selectedTask, setSelectedTask, showCustomActionModal, setShowCustomActionModal, session }) {
   const defaultTasks = [
     // Immediate critical actions
     { id: 1, label: 'Search property & immediate area thoroughly', type: 'SEARCH_PROPERTY', completed: false, completions: [] },
