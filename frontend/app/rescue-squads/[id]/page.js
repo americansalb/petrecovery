@@ -89,9 +89,9 @@ export default function SquadPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a1628] flex items-center justify-center">
+      <div className="min-h-screen bg-midnight-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-flash-400"></div>
           <p className="mt-4 text-gray-400">Loading squad hub...</p>
         </div>
       </div>
@@ -101,7 +101,7 @@ export default function SquadPage() {
   if (error) {
     const isNotFound = error === 'Squad not found';
     return (
-      <div className="min-h-screen bg-[#0a1628] flex items-center justify-center">
+      <div className="min-h-screen bg-midnight-900 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
           <div className="text-6xl mb-4">{isNotFound ? '🐾' : '⚠️'}</div>
           <h1 className="text-2xl font-bold text-white mb-2">
@@ -121,7 +121,7 @@ export default function SquadPage() {
             </button>
             <a
               href="/rescue-squads/search"
-              className="px-6 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition"
+              className="px-6 py-3 bg-flash-500 text-midnight-900 font-semibold rounded-lg hover:bg-flash-600 transition"
             >
               Find a Squad Near You
             </a>

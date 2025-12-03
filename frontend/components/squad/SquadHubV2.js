@@ -100,7 +100,7 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
       />
 
       {/* Mode Tabs */}
-      <div className="sticky top-0 z-30 bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 backdrop-blur-xl border-b-2 border-cyan-500/30 shadow-lg shadow-slate-900/50">
+      <div className="sticky top-0 z-30 bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 backdrop-blur-xl border-b-2 border-flash-500/30 shadow-lg shadow-slate-900/50">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex gap-2 py-4">
             <ModeTab
@@ -181,7 +181,7 @@ function ModeTab({ active, onClick, icon: Icon, label, count }) {
         flex items-center gap-3 px-8 py-4 rounded-xl text-base font-bold
         backdrop-blur-sm transition-all duration-300 relative
         ${active
-          ? 'bg-gradient-to-r from-cyan-500/30 to-cyan-400/30 text-cyan-300 border-2 border-cyan-500/60 shadow-lg shadow-cyan-500/30 scale-105'
+          ? 'bg-gradient-to-r from-flash-500/30 to-flash-400/30 text-flash-300 border-2 border-flash-500/60 shadow-lg shadow-flash-500/30 scale-105'
           : 'text-slate-400 border-2 border-slate-700/40 bg-slate-800/30 hover:text-slate-200 hover:bg-slate-800/50 hover:border-slate-600/50 hover:scale-102'
         }
       `}
@@ -192,7 +192,7 @@ function ModeTab({ active, onClick, icon: Icon, label, count }) {
         <span className={`
           px-2.5 py-1 rounded-full text-xs font-bold
           ${active
-            ? 'bg-gradient-to-r from-cyan-400 to-cyan-300 text-slate-900 shadow-sm'
+            ? 'bg-gradient-to-r from-flash-400 to-flash-500 text-midnight-900 shadow-sm'
             : 'bg-slate-700/70 text-slate-300'
           }
         `}>
@@ -200,7 +200,7 @@ function ModeTab({ active, onClick, icon: Icon, label, count }) {
         </span>
       )}
       {active && (
-        <div className="absolute -bottom-0.5 left-4 right-4 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent rounded-full" />
+        <div className="absolute -bottom-0.5 left-4 right-4 h-1 bg-gradient-to-r from-transparent via-flash-400 to-transparent rounded-full" />
       )}
     </button>
   );
