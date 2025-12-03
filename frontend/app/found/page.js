@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * Report Found Pet Page - Phase 1.4
+ * Report Found Pet Page - Updated with PetRecovery Design System
+ * Uses: Midnight Blue + Flashlight Yellow color palette
  *
  * Route: /found
  * Public form for reporting a found pet
@@ -10,14 +11,16 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Dog, Cat, Bird, Rabbit, PawPrint, CheckCircle, ArrowLeft, AlertCircle, MapPin } from 'lucide-react';
 import ImageUpload from '@/app/components/ImageUpload';
+import { Button, Card } from '@/components/ui';
 
 const SPECIES_OPTIONS = [
-  { value: 'DOG', label: 'Dog', emoji: '🐕' },
-  { value: 'CAT', label: 'Cat', emoji: '🐈' },
-  { value: 'BIRD', label: 'Bird', emoji: '🐦' },
-  { value: 'RABBIT', label: 'Rabbit', emoji: '🐰' },
-  { value: 'OTHER', label: 'Other', emoji: '🐾' },
+  { value: 'DOG', label: 'Dog', icon: Dog },
+  { value: 'CAT', label: 'Cat', icon: Cat },
+  { value: 'BIRD', label: 'Bird', icon: Bird },
+  { value: 'RABBIT', label: 'Rabbit', icon: Rabbit },
+  { value: 'OTHER', label: 'Other', icon: PawPrint },
 ];
 
 export default function ReportFoundPetPage() {
@@ -85,6 +88,7 @@ export default function ReportFoundPetPage() {
     setSubmitting(true);
 
     try {
+      console.log('[FOUND] Submitting found pet report:', formData);
       const res = await fetch('/api/public/found', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -94,15 +98,18 @@ export default function ReportFoundPetPage() {
         })
       });
 
+      console.log('[FOUND] Response status:', res.status);
       const data = await res.json();
+      console.log('[FOUND] Response data:', data);
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to submit report');
+        throw new Error(data.error || `Failed to submit report (${res.status})`);
       }
 
       setResult(data);
       setSubmitted(true);
     } catch (err) {
+      console.error('[FOUND] Submission error:', err);
       setSubmitError(err.message);
     } finally {
       setSubmitting(false);
@@ -112,26 +119,25 @@ export default function ReportFoundPetPage() {
   // Success state
   if (submitted && result) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12">
+      <div className="min-h-screen bg-midnight-50 flex items-center justify-center py-12">
         <div className="container mx-auto px-4 max-w-2xl">
-          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+          <Card variant="elevated" className="p-8 text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+              <CheckCircle size={32} className="text-green-600" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Thank You!</h1>
-            <p className="text-lg text-gray-600 mb-6">
+            <h1 className="text-3xl font-bold text-midnight-900 mb-4">Thank You!</h1>
+            <p className="text-lg text-midnight-600 mb-6">
               Your found pet report has been submitted.
             </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-              <p className="text-sm text-gray-600 mb-2">Reference Number:</p>
-              <p className="text-2xl font-bold text-blue-600">{result.caseNumber}</p>
+            <div className="bg-flash-50 border border-flash-200 rounded-lg p-6 mb-6">
+              <p className="text-sm text-midnight-600 mb-2">Reference Number:</p>
+              <p className="text-2xl font-bold text-flash-600">{result.caseNumber}</p>
             </div>
 
             {result.matches?.length > 0 && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6 text-left">
-                <h2 className="text-lg font-bold text-green-800 mb-3">
+                <h2 className="text-lg font-bold text-green-800 mb-3 flex items-center gap-2">
+                  <CheckCircle size={20} />
                   Potential Matches Found!
                 </h2>
                 <p className="text-sm text-green-700 mb-4">
@@ -139,14 +145,14 @@ export default function ReportFoundPetPage() {
                 </p>
                 <ul className="space-y-2">
                   {result.matches.map((match, i) => (
-                    <li key={i} className="flex items-center justify-between bg-white p-3 rounded border">
-                      <span className="font-medium text-gray-800">
+                    <li key={i} className="flex items-center justify-between bg-white p-3 rounded border border-green-100">
+                      <span className="font-medium text-midnight-800">
                         {match.petName || match.caseNumber}
                       </span>
                       <span className={`px-2 py-1 rounded text-sm font-medium ${
                         match.quality === 'good'
                           ? 'bg-green-100 text-green-800'
-                          : 'bg-yellow-100 text-yellow-800'
+                          : 'bg-amber-100 text-amber-800'
                       }`}>
                         {match.score}% Match
                       </span>
@@ -157,8 +163,8 @@ export default function ReportFoundPetPage() {
             )}
 
             {result.matches?.length === 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                <p className="text-sm text-yellow-800">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-amber-800">
                   No matching lost pet reports were found, but don&apos;t worry!
                   If someone reports a pet matching this description, they&apos;ll be notified.
                 </p>
@@ -166,49 +172,50 @@ export default function ReportFoundPetPage() {
             )}
 
             <div className="flex gap-3 justify-center">
-              <Link
-                href="/cases"
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
+              <Button
+                variant="primary"
+                onClick={() => router.push('/cases')}
               >
                 View Lost Pets
-              </Link>
-              <button
+              </Button>
+              <Button
+                variant="outline"
                 onClick={() => window.location.reload()}
-                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-semibold"
               >
                 Report Another
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
     );
   }
 
-  const inputStyle = "w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500";
-  const inputErrorStyle = "w-full px-4 py-3 border border-red-500 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-red-50";
-
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-midnight-50 py-12">
       <div className="container mx-auto px-4 max-w-3xl">
         {/* Header */}
         <div className="mb-8">
           <Link
             href="/cases"
-            className="text-green-600 hover:text-green-800 mb-4 inline-flex items-center"
+            className="text-flash-500 hover:text-flash-600 mb-4 inline-flex items-center gap-2 transition-colors"
           >
-            ← Back to Cases
+            <ArrowLeft size={18} />
+            Back to Cases
           </Link>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Report a Found Pet</h1>
-          <p className="text-lg text-gray-600">
+          <h1 className="text-4xl font-bold text-midnight-900 mb-4">Report a Found Pet</h1>
+          <p className="text-lg text-midnight-600">
             Did you find a lost pet? Fill out this form and we&apos;ll try to match it with lost pet reports.
           </p>
         </div>
 
         {/* Matching Info Banner */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-8">
-          <h2 className="font-bold text-green-800 mb-2">How Matching Works</h2>
-          <p className="text-sm text-green-700">
+        <div className="bg-flash-50 border border-flash-200 rounded-lg p-4 mb-8">
+          <h2 className="font-bold text-flash-700 mb-2 flex items-center gap-2">
+            <MapPin size={18} />
+            How Matching Works
+          </h2>
+          <p className="text-sm text-midnight-700">
             When you submit a found pet report, we automatically compare it against all active
             lost pet cases. If we find potential matches based on species, breed, color, and
             location, we&apos;ll notify the owners immediately.
@@ -217,275 +224,309 @@ export default function ReportFoundPetPage() {
 
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Pet Information */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-2xl font-bold mb-6">Pet Information</h2>
+          <Card>
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-midnight-900 mb-6">Pet Information</h2>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  What type of pet did you find? <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-5 gap-3">
-                  {SPECIES_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, petSpecies: opt.value }))}
-                      className={`p-4 rounded-lg border-2 text-center transition ${
-                        formData.petSpecies === opt.value
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <span className="text-2xl">{opt.emoji}</span>
-                      <p className="text-sm mt-1 font-medium">{opt.label}</p>
-                    </button>
-                  ))}
-                </div>
-                {errors.petSpecies && <p className="mt-1 text-sm text-red-600">{errors.petSpecies}</p>}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Breed (if known)
+                  <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                    What type of pet did you find? <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    name="petBreed"
-                    value={formData.petBreed}
+                  <div className="grid grid-cols-5 gap-3">
+                    {SPECIES_OPTIONS.map(opt => {
+                      const Icon = opt.icon;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, petSpecies: opt.value }))}
+                          className={`p-4 rounded-lg border-2 text-center transition ${
+                            formData.petSpecies === opt.value
+                              ? 'border-flash-400 bg-flash-50'
+                              : 'border-midnight-200 hover:border-midnight-300'
+                          }`}
+                        >
+                          <Icon size={24} className={`mx-auto mb-1 ${formData.petSpecies === opt.value ? 'text-flash-500' : 'text-midnight-400'}`} />
+                          <p className="text-sm font-medium text-midnight-700">{opt.label}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {errors.petSpecies && <p className="mt-1 text-sm text-red-600">{errors.petSpecies}</p>}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                      Breed (if known)
+                    </label>
+                    <input
+                      type="text"
+                      name="petBreed"
+                      value={formData.petBreed}
+                      onChange={handleChange}
+                      placeholder="e.g., Golden Retriever"
+                      className="w-full px-4 py-3 border border-midnight-200 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-flash-400 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                      Color/Markings
+                    </label>
+                    <input
+                      type="text"
+                      name="petColor"
+                      value={formData.petColor}
+                      onChange={handleChange}
+                      placeholder="e.g., Black and white"
+                      className="w-full px-4 py-3 border border-midnight-200 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-flash-400 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    name="petDescription"
+                    value={formData.petDescription}
                     onChange={handleChange}
-                    placeholder="e.g., Golden Retriever"
-                    className={inputStyle}
+                    placeholder="Describe the pet's appearance, behavior, collar, tags, etc."
+                    rows={4}
+                    className="w-full px-4 py-3 border border-midnight-200 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-flash-400 transition-all"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Color/Markings
-                  </label>
-                  <input
-                    type="text"
-                    name="petColor"
-                    value={formData.petColor}
-                    onChange={handleChange}
-                    placeholder="e.g., Black and white"
-                    className={inputStyle}
-                  />
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
-                  name="petDescription"
-                  value={formData.petDescription}
-                  onChange={handleChange}
-                  placeholder="Describe the pet's appearance, behavior, collar, tags, etc."
-                  rows={4}
-                  className={inputStyle}
+                <ImageUpload
+                  images={images}
+                  onUpload={(newImages) => setImages(prev => [...prev, ...newImages])}
+                  onRemove={(index) => setImages(prev => prev.filter((_, i) => i !== index))}
+                  maxImages={5}
+                  context="found-pet"
+                  label="Photos of the Found Pet"
+                  helpText="Photos help owners identify their pet"
                 />
               </div>
-
-              <ImageUpload
-                images={images}
-                onUpload={(newImages) => setImages(prev => [...prev, ...newImages])}
-                onRemove={(index) => setImages(prev => prev.filter((_, i) => i !== index))}
-                maxImages={5}
-                context="found-pet"
-                label="Photos of the Found Pet"
-                helpText="Photos help owners identify their pet"
-              />
             </div>
-          </div>
+          </Card>
 
           {/* Location */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-2xl font-bold mb-6">Where Did You Find the Pet?</h2>
+          <Card>
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-midnight-900 mb-6">Where Did You Find the Pet?</h2>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                      City <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="city"
+                      value={formData.city}
+                      onChange={handleChange}
+                      placeholder="e.g., Chicago"
+                      className={`w-full px-4 py-3 rounded-lg focus:ring-2 transition-all ${
+                        errors.city
+                          ? 'border-2 border-red-500 focus:ring-red-200 bg-red-50'
+                          : 'border border-midnight-200 focus:ring-flash-400 focus:border-flash-400'
+                      }`}
+                    />
+                    {errors.city && <p className="mt-1 text-sm text-red-600">{errors.city}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                      State <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="state"
+                      value={formData.state}
+                      onChange={handleChange}
+                      placeholder="e.g., IL"
+                      maxLength={2}
+                      className={`w-full px-4 py-3 rounded-lg focus:ring-2 transition-all ${
+                        errors.state
+                          ? 'border-2 border-red-500 focus:ring-red-200 bg-red-50'
+                          : 'border border-midnight-200 focus:ring-flash-400 focus:border-flash-400'
+                      }`}
+                    />
+                    {errors.state && <p className="mt-1 text-sm text-red-600">{errors.state}</p>}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                      ZIP Code
+                    </label>
+                    <input
+                      type="text"
+                      name="zipCode"
+                      value={formData.zipCode}
+                      onChange={handleChange}
+                      placeholder="e.g., 60601"
+                      className="w-full px-4 py-3 border border-midnight-200 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-flash-400 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                      When did you find the pet?
+                    </label>
+                    <input
+                      type="datetime-local"
+                      name="foundAt"
+                      value={formData.foundAt}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-midnight-200 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-flash-400 transition-all"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    City <span className="text-red-500">*</span>
+                  <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                    Specific Location / Landmark
                   </label>
                   <input
                     type="text"
-                    name="city"
-                    value={formData.city}
+                    name="lastSeenLandmark"
+                    value={formData.lastSeenLandmark}
                     onChange={handleChange}
-                    placeholder="e.g., Chicago"
-                    className={errors.city ? inputErrorStyle : inputStyle}
-                  />
-                  {errors.city && <p className="mt-1 text-sm text-red-600">{errors.city}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    State <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="state"
-                    value={formData.state}
-                    onChange={handleChange}
-                    placeholder="e.g., IL"
-                    maxLength={2}
-                    className={errors.state ? inputErrorStyle : inputStyle}
-                  />
-                  {errors.state && <p className="mt-1 text-sm text-red-600">{errors.state}</p>}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    ZIP Code
-                  </label>
-                  <input
-                    type="text"
-                    name="zipCode"
-                    value={formData.zipCode}
-                    onChange={handleChange}
-                    placeholder="e.g., 60601"
-                    className={inputStyle}
+                    placeholder="e.g., Near Lincoln Park Zoo"
+                    className="w-full px-4 py-3 border border-midnight-200 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-flash-400 transition-all"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    When did you find the pet?
-                  </label>
-                  <input
-                    type="datetime-local"
-                    name="foundAt"
-                    value={formData.foundAt}
-                    onChange={handleChange}
-                    className={inputStyle}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Specific Location / Landmark
-                </label>
-                <input
-                  type="text"
-                  name="lastSeenLandmark"
-                  value={formData.lastSeenLandmark}
-                  onChange={handleChange}
-                  placeholder="e.g., Near Lincoln Park Zoo"
-                  className={inputStyle}
-                />
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Contact */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-2xl font-bold mb-6">Your Contact Information</h2>
+          <Card>
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-midnight-900 mb-6">Your Contact Information</h2>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="text-sm text-blue-800">
-                Your contact information will be shared with potential pet owners so they can reach you.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Your Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="contactName"
-                  value={formData.contactName}
-                  onChange={handleChange}
-                  placeholder="Your full name"
-                  className={errors.contactName ? inputErrorStyle : inputStyle}
-                />
-                {errors.contactName && <p className="mt-1 text-sm text-red-600">{errors.contactName}</p>}
+              <div className="bg-flash-50 border border-flash-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-midnight-700">
+                  Your contact information will be shared with potential pet owners so they can reach you.
+                </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Phone Number
+                  <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                    Your Name <span className="text-red-500">*</span>
                   </label>
                   <input
-                    type="tel"
-                    name="contactPhone"
-                    value={formData.contactPhone}
+                    type="text"
+                    name="contactName"
+                    value={formData.contactName}
                     onChange={handleChange}
-                    placeholder="(555) 123-4567"
-                    className={inputStyle}
+                    placeholder="Your full name"
+                    className={`w-full px-4 py-3 rounded-lg focus:ring-2 transition-all ${
+                      errors.contactName
+                        ? 'border-2 border-red-500 focus:ring-red-200 bg-red-50'
+                        : 'border border-midnight-200 focus:ring-flash-400 focus:border-flash-400'
+                    }`}
                   />
+                  {errors.contactName && <p className="mt-1 text-sm text-red-600">{errors.contactName}</p>}
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    name="contactEmail"
-                    value={formData.contactEmail}
-                    onChange={handleChange}
-                    placeholder="your.email@example.com"
-                    className={errors.contactEmail ? inputErrorStyle : inputStyle}
-                  />
-                  {errors.contactEmail && <p className="mt-1 text-sm text-red-600">{errors.contactEmail}</p>}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      name="contactPhone"
+                      value={formData.contactPhone}
+                      onChange={handleChange}
+                      placeholder="(555) 123-4567"
+                      className="w-full px-4 py-3 border border-midnight-200 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-flash-400 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-midnight-700 mb-2">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      name="contactEmail"
+                      value={formData.contactEmail}
+                      onChange={handleChange}
+                      placeholder="your.email@example.com"
+                      className={`w-full px-4 py-3 rounded-lg focus:ring-2 transition-all ${
+                        errors.contactEmail
+                          ? 'border-2 border-red-500 focus:ring-red-200 bg-red-50'
+                          : 'border border-midnight-200 focus:ring-flash-400 focus:border-flash-400'
+                      }`}
+                    />
+                    {errors.contactEmail && <p className="mt-1 text-sm text-red-600">{errors.contactEmail}</p>}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Terms */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-start">
-              <input
-                type="checkbox"
-                name="agreeToTerms"
-                checked={formData.agreeToTerms}
-                onChange={handleChange}
-                className={`mt-1 h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 ${
-                  errors.agreeToTerms ? 'border-red-500' : ''
-                }`}
-              />
-              <label className="ml-3 text-sm text-gray-700">
-                <span className="font-semibold">I agree to the terms <span className="text-red-500">*</span></span>
-                <p className="mt-1 text-gray-600">
-                  By submitting this report, I confirm that I have actually found this pet and
-                  the information provided is accurate. I agree to allow PetRecovery.org to
-                  share my contact information with potential pet owners.
-                </p>
-              </label>
+          <Card>
+            <div className="p-6">
+              <div className="flex items-start">
+                <input
+                  type="checkbox"
+                  name="agreeToTerms"
+                  checked={formData.agreeToTerms}
+                  onChange={handleChange}
+                  className={`mt-1 h-5 w-5 rounded border-midnight-300 text-flash-500 focus:ring-flash-400 ${
+                    errors.agreeToTerms ? 'border-red-500' : ''
+                  }`}
+                />
+                <label className="ml-3 text-sm text-midnight-700">
+                  <span className="font-semibold">I agree to the terms <span className="text-red-500">*</span></span>
+                  <p className="mt-1 text-midnight-600">
+                    By submitting this report, I confirm that I have actually found this pet and
+                    the information provided is accurate. I agree to allow PetRecovery.org to
+                    share my contact information with potential pet owners.
+                  </p>
+                </label>
+              </div>
+              {errors.agreeToTerms && <p className="mt-2 text-sm text-red-600 ml-8">{errors.agreeToTerms}</p>}
             </div>
-            {errors.agreeToTerms && <p className="mt-2 text-sm text-red-600 ml-8">{errors.agreeToTerms}</p>}
-          </div>
+          </Card>
 
           {/* Submit Error */}
           {submitError && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-red-800 font-semibold">Error</p>
-              <p className="text-red-600 mt-1">{submitError}</p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+              <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-red-800 font-semibold">Error</p>
+                <p className="text-red-600 mt-1">{submitError}</p>
+              </div>
             </div>
           )}
 
           {/* Submit */}
           <div className="flex gap-3">
-            <button
+            <Button
               type="submit"
+              variant="success"
               disabled={submitting}
-              className="flex-1 px-8 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition font-semibold text-lg"
+              loading={submitting}
+              className="flex-1 text-lg py-4"
             >
-              {submitting ? 'Submitting...' : 'Submit Found Pet Report'}
-            </button>
-            <Link
-              href="/cases"
-              className="px-8 py-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-semibold text-lg"
+              Submit Found Pet Report
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push('/cases')}
+              className="text-lg py-4"
             >
               Cancel
-            </Link>
+            </Button>
           </div>
         </form>
       </div>
