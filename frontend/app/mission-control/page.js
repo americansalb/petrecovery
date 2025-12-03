@@ -162,6 +162,15 @@ function MissionControlContent() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
+
+        // If already helping, treat as success
+        if (res.status === 400 && errorData.error?.includes('Already helping')) {
+          console.log('User already helping on this case, refreshing data');
+          await fetchMission(missionId);
+          await fetchAvailableMissions();
+          return;
+        }
+
         console.error('Failed to join mission:', errorData);
         return;
       }

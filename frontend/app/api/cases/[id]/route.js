@@ -105,6 +105,7 @@ export async function GET(request, { params }) {
               select: {
                 id: true,
                 userId: true,
+                isActive: true,
                 user: {
                   select: {
                     id: true,
