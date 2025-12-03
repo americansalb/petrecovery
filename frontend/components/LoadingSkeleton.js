@@ -155,7 +155,7 @@ export function ButtonSpinner({ size = 16, className = '' }) {
  */
 export function PageLoading({ message = 'Loading...' }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
       <div className="text-center">
         <div className="relative w-20 h-20 mx-auto mb-6">
           <div className="absolute inset-0 border-4 border-slate-700 rounded-full" />

@@ -54,12 +54,12 @@ const MapView = dynamic(() => import('./SARMapView'), {
   )
 });
 
-export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
+export default function CaseCommandCenterV2({ caseId, caseNumber, onClose, hideHeader = false, initialData = null }) {
   const { data: session } = useSession();
   const router = useRouter();
 
   // Core state
-  const [caseData, setCaseData] = useState(null);
+  const [caseData, setCaseData] = useState(initialData);
   const [sightings, setSightings] = useState([]);
   const [timeline, setTimeline] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
@@ -218,8 +218,13 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
   }, [caseData?.id]);
 
   useEffect(() => {
-    fetchCase();
-  }, [fetchCase]);
+    // Skip fetching if initialData is provided (Mission Control mode)
+    if (!initialData) {
+      fetchCase();
+    } else {
+      setLoading(false);
+    }
+  }, [fetchCase, initialData]);
 
   useEffect(() => {
     if (caseData?.id) {
@@ -251,11 +256,11 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
   // Waiting for waiver acceptance
   if (showWaiverModal && !caseData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-6">
         <div className="max-w-md w-full text-center">
           <div className="mb-6">
-            <div className="inline-block p-4 bg-cyan-500/20 rounded-full border-2 border-cyan-500/50">
-              <Shield size={48} className="text-cyan-400" />
+            <div className="inline-block p-4 bg-flash-500/20 rounded-full border-2 border-flash-500/50">
+              <Shield size={48} className="text-flash-400" />
             </div>
           </div>
           <h2 className="text-2xl font-bold text-white mb-3">
@@ -286,7 +291,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-6">
         <div className="max-w-md w-full bg-slate-900/80 backdrop-blur-xl border-2 border-red-500/30 rounded-2xl p-8 shadow-2xl">
           {/* Error Icon */}
           <div className="flex justify-center mb-6">
@@ -311,7 +316,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
                 setLoading(true);
                 fetchCase();
               }}
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl hover:scale-105 transition shadow-lg shadow-cyan-500/30"
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-flash-500 to-blue-500 text-white font-bold rounded-xl hover:scale-105 transition shadow-lg shadow-flash-500/30"
             >
               <RefreshCw size={20} />
               Try Again
@@ -351,8 +356,9 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900">
-      {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* Header - conditional rendering based on hideHeader */}
+      {!hideHeader && (
       <div className="bg-slate-900/80 backdrop-blur-xl border-b-2 border-slate-800/60 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -370,7 +376,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
                   <img
                     src={normalizePhotoUrl(caseData.petPhotoUrl)}
                     alt={caseData.petName}
-                    className="w-12 h-12 rounded-xl object-cover border-2 border-cyan-500/30"
+                    className="w-12 h-12 rounded-xl object-cover border-2 border-flash-500/30"
                   />
                 ) : (
                   <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-2xl border-2 border-slate-700">
@@ -403,9 +409,14 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
               </div>
             )}
           </div>
+        </div>
+      </div>
+      )}
 
-          {/* Tabs */}
-          <div className="flex gap-1 mt-4 overflow-x-auto">
+      {/* Tabs - ALWAYS VISIBLE */}
+      <div className="bg-slate-900/80 backdrop-blur-xl border-b-2 border-slate-800/60 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex gap-1 overflow-x-auto">
             {tabs.map(tab => {
               const Icon = tab.icon;
               return (
@@ -414,7 +425,7 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose }) {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all whitespace-nowrap ${
                     activeTab === tab.id
-                      ? 'bg-cyan-500/20 text-cyan-400 border-2 border-cyan-500/50 shadow-lg shadow-cyan-500/20'
+                      ? 'bg-flash-500/20 text-flash-400 border-2 border-flash-500/50 shadow-lg shadow-flash-500/20'
                       : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
                   }`}
                 >
@@ -539,9 +550,9 @@ function OverviewTab({ caseData, timeMissing, isUrgent, isReunited, sightingsCou
         )}
 
         {/* Pet Info Card */}
-        <div className="bg-slate-900/50 border-2 border-cyan-500/30 rounded-2xl p-6 shadow-xl shadow-cyan-500/10">
+        <div className="bg-slate-900/50 border-2 border-flash-500/30 rounded-2xl p-6 shadow-xl shadow-flash-500/10">
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <Camera size={20} className="text-cyan-400" />
+            <Camera size={20} className="text-flash-400" />
             Pet Information
           </h3>
 
@@ -613,9 +624,9 @@ function OverviewTab({ caseData, timeMissing, isUrgent, isReunited, sightingsCou
             <div className="text-sm text-amber-200 mt-1">Sightings</div>
           </div>
 
-          <div className="bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border-2 border-cyan-500/50 rounded-2xl p-4 text-center">
-            <div className="text-3xl font-bold text-cyan-400">0</div>
-            <div className="text-sm text-cyan-200 mt-1">Helpers</div>
+          <div className="bg-gradient-to-br from-flash-500/20 to-blue-500/20 border-2 border-flash-500/50 rounded-2xl p-4 text-center">
+            <div className="text-3xl font-bold text-flash-400">0</div>
+            <div className="text-sm text-flash-200 mt-1">Helpers</div>
           </div>
 
           {caseData?.rewardAmount > 0 && (
@@ -640,7 +651,7 @@ function OverviewTab({ caseData, timeMissing, isUrgent, isReunited, sightingsCou
               Report Sighting
             </button>
 
-            <button className="w-full py-4 px-6 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/30 hover:shadow-xl hover:shadow-cyan-500/50 hover:scale-105 transition-all flex items-center justify-center gap-2">
+            <button className="w-full py-4 px-6 bg-gradient-to-r from-flash-500 to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-flash-500/30 hover:shadow-xl hover:shadow-flash-500/50 hover:scale-105 transition-all flex items-center justify-center gap-2">
               <Users size={20} />
               Join Search Team
             </button>
@@ -651,7 +662,7 @@ function OverviewTab({ caseData, timeMissing, isUrgent, isReunited, sightingsCou
         {caseData?.ownerPhone && (
           <a
             href={`tel:${caseData.ownerPhone}`}
-            className="block w-full py-4 px-6 bg-slate-800 border-2 border-slate-700 text-white font-semibold rounded-xl hover:border-cyan-500 hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
+            className="block w-full py-4 px-6 bg-slate-800 border-2 border-slate-700 text-white font-semibold rounded-xl hover:border-flash-500 hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
           >
             <Phone size={20} />
             Call Owner
@@ -659,7 +670,7 @@ function OverviewTab({ caseData, timeMissing, isUrgent, isReunited, sightingsCou
         )}
 
         {/* Share Case */}
-        <button className="w-full py-4 px-6 bg-slate-800 border-2 border-slate-700 text-white font-semibold rounded-xl hover:border-cyan-500 hover:bg-slate-700 transition-all flex items-center justify-center gap-2">
+        <button className="w-full py-4 px-6 bg-slate-800 border-2 border-slate-700 text-white font-semibold rounded-xl hover:border-flash-500 hover:bg-slate-700 transition-all flex items-center justify-center gap-2">
           <Share2 size={20} />
           Share This Case
         </button>
@@ -675,7 +686,7 @@ function MapTab({ caseData, sightings, timeMissing, gpsPath, highlightLocation, 
   return (
     <div className="relative">
       {/* Map Container */}
-      <div className="bg-slate-900 border-2 border-cyan-500/30 rounded-2xl overflow-hidden shadow-2xl shadow-cyan-500/20" style={{ height: 'calc(100vh - 250px)' }}>
+      <div className="bg-slate-900 border-2 border-flash-500/30 rounded-2xl overflow-hidden shadow-2xl shadow-flash-500/20" style={{ height: 'calc(100vh - 250px)' }}>
         <MapView
           center={caseData?.lastSeenLatitude && caseData?.lastSeenLongitude
             ? [caseData.lastSeenLatitude, caseData.lastSeenLongitude]
@@ -818,7 +829,7 @@ function ActivityTab({ sightings, tasks, gpsPath, onLocationClick }) {
                   <div className="flex items-center gap-2">
                     <span className="text-amber-400 font-bold">Sighting Reported</span>
                     {sightingLocation && (
-                      <span className="text-xs text-cyan-400">Click to view on map →</span>
+                      <span className="text-xs text-flash-400">Click to view on map →</span>
                     )}
                   </div>
                   <span className="text-slate-500 text-xs">
@@ -860,7 +871,7 @@ function ActivityTab({ sightings, tasks, gpsPath, onLocationClick }) {
                     <div className="flex items-center gap-2">
                       <span className="text-emerald-400 font-bold">{task.label}</span>
                       {taskLocation && (
-                        <span className="text-xs text-cyan-400">Click to view on map →</span>
+                        <span className="text-xs text-flash-400">Click to view on map →</span>
                       )}
                     </div>
                     {completedBy && (
@@ -905,7 +916,7 @@ function ActivityTab({ sightings, tasks, gpsPath, onLocationClick }) {
                   <div className="space-y-1 text-sm">
                     {details.platform && <p className="text-white">📱 Posted on <strong>{details.platform}</strong></p>}
                     {details.postUrl && (
-                      <a href={details.postUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 text-xs underline block">
+                      <a href={details.postUrl} target="_blank" rel="noopener noreferrer" className="text-flash-400 hover:text-flash-300 text-xs underline block">
                         View post →
                       </a>
                     )}
@@ -956,9 +967,9 @@ function ActivityTab({ sightings, tasks, gpsPath, onLocationClick }) {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="bg-slate-900/50 border-2 border-cyan-500/30 rounded-2xl p-6">
+      <div className="bg-slate-900/50 border-2 border-flash-500/30 rounded-2xl p-6">
         <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-          <ActivityIcon size={24} className="text-cyan-400" />
+          <ActivityIcon size={24} className="text-flash-400" />
           Search Activity Timeline
         </h3>
 
@@ -1371,9 +1382,9 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, isGPSTr
       </div>
 
       {/* Active Helpers */}
-      <div className="bg-slate-900/50 border-2 border-cyan-500/30 rounded-2xl p-6">
+      <div className="bg-slate-900/50 border-2 border-flash-500/30 rounded-2xl p-6">
         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <Users size={20} className="text-cyan-400" />
+          <Users size={20} className="text-flash-400" />
           Search Team ({team.length})
         </h3>
 
@@ -1386,7 +1397,7 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, isGPSTr
             />
             <p className="text-white font-semibold mb-2">Build Your Search Team</p>
             <p className="text-slate-400 text-sm mb-4">Invite friends, family, and neighbors to coordinate the search</p>
-            <button className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl hover:scale-105 transition">
+            <button className="px-6 py-3 bg-gradient-to-r from-flash-500 to-blue-500 text-white font-bold rounded-xl hover:scale-105 transition">
               + Invite Volunteers
             </button>
           </div>
@@ -1395,10 +1406,10 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, isGPSTr
             {team.map(member => (
               <div
                 key={member.id}
-                className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-xl border border-cyan-500/20 hover:border-cyan-500/40 transition"
+                className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-xl border border-flash-500/20 hover:border-flash-500/40 transition"
               >
                 {/* Avatar */}
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-flash-500 to-blue-500 flex items-center justify-center text-white font-bold">
                   {member.firstName?.[0]}{member.lastName?.[0] || ''}
                 </div>
 
@@ -1433,7 +1444,7 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, isGPSTr
           </h3>
           <button
             onClick={() => setShowCustomActionModal(true)}
-            className="px-3 py-1.5 bg-cyan-500/20 border border-cyan-500/50 text-cyan-400 text-sm font-semibold rounded-lg hover:bg-cyan-500/30 transition"
+            className="px-3 py-1.5 bg-flash-500/20 border border-flash-500/50 text-flash-400 text-sm font-semibold rounded-lg hover:bg-flash-500/30 transition"
           >
             + Log Action
           </button>
@@ -1445,8 +1456,8 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, isGPSTr
           const suggestedTasks = incompleteTasks.slice(0, 3);
           if (suggestedTasks.length > 0) {
             return (
-              <div className="mb-6 p-4 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-xl">
-                <h4 className="text-sm font-bold text-cyan-400 mb-3 flex items-center gap-2">
+              <div className="mb-6 p-4 bg-gradient-to-r from-flash-500/10 to-blue-500/10 border border-flash-500/30 rounded-xl">
+                <h4 className="text-sm font-bold text-flash-400 mb-3 flex items-center gap-2">
                   <Sparkles size={16} />
                   Suggested Next Steps
                 </h4>
@@ -1474,7 +1485,7 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, isGPSTr
           { id: 'immediate', name: '🚨 Immediate', color: 'emerald', range: [0, 4] },
           { id: 'shelters', name: '🏥 Shelters & Authorities', color: 'blue', range: [4, 7] },
           { id: 'veterinary', name: '💉 Veterinary', color: 'purple', range: [7, 9] },
-          { id: 'community', name: '👥 Community', color: 'cyan', range: [9, 13] },
+          { id: 'community', name: '👥 Community', color: 'flash', range: [9, 13] },
           { id: 'search', name: '🔍 Search Operations', color: 'amber', range: [13, 17] },
           { id: 'advanced', name: '🎯 Advanced Tactics', color: 'rose', range: [17, 19] },
           { id: 'online', name: '💻 Online & Documentation', color: 'indigo', range: [19, 22] },
@@ -1532,7 +1543,7 @@ function TeamTab({ team, caseData, tasks, setTasks, gpsPath, setGpsPath, isGPSTr
                         {task.label}
                       </span>
                       {task.completions.length > 0 && (
-                        <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded">
+                        <span className="text-xs bg-flash-500/20 text-flash-400 px-2 py-1 rounded">
                           {task.completions.length}×
                         </span>
                       )}
@@ -1614,7 +1625,7 @@ function ManageTab({ caseData, onUpdate }) {
             Mark as Reunited
           </button>
 
-          <button className="w-full py-3 px-4 bg-slate-800 border-2 border-slate-700 text-white font-semibold rounded-xl hover:border-cyan-500 transition flex items-center justify-center gap-2">
+          <button className="w-full py-3 px-4 bg-slate-800 border-2 border-slate-700 text-white font-semibold rounded-xl hover:border-flash-500 transition flex items-center justify-center gap-2">
             <Edit size={18} />
             Update Case Details
           </button>
@@ -1627,24 +1638,24 @@ function ManageTab({ caseData, onUpdate }) {
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-slate-900/50 border-2 border-cyan-500/30 rounded-2xl p-6">
+      <div className="bg-slate-900/50 border-2 border-flash-500/30 rounded-2xl p-6">
         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <Settings size={20} className="text-cyan-400" />
+          <Settings size={20} className="text-flash-400" />
           Quick Actions
         </h3>
 
         <div className="space-y-3">
-          <button className="w-full py-3 px-4 bg-slate-800 border-2 border-slate-700 text-white font-semibold rounded-xl hover:border-cyan-500 transition flex items-center justify-center gap-2">
+          <button className="w-full py-3 px-4 bg-slate-800 border-2 border-slate-700 text-white font-semibold rounded-xl hover:border-flash-500 transition flex items-center justify-center gap-2">
             <Share2 size={18} />
             Generate Flyer
           </button>
 
-          <button className="w-full py-3 px-4 bg-slate-800 border-2 border-slate-700 text-white font-semibold rounded-xl hover:border-cyan-500 transition flex items-center justify-center gap-2">
+          <button className="w-full py-3 px-4 bg-slate-800 border-2 border-slate-700 text-white font-semibold rounded-xl hover:border-flash-500 transition flex items-center justify-center gap-2">
             <Camera size={18} />
             Add Photos
           </button>
 
-          <button className="w-full py-3 px-4 bg-slate-800 border-2 border-slate-700 text-white font-semibold rounded-xl hover:border-cyan-500 transition flex items-center justify-center gap-2">
+          <button className="w-full py-3 px-4 bg-slate-800 border-2 border-slate-700 text-white font-semibold rounded-xl hover:border-flash-500 transition flex items-center justify-center gap-2">
             <Phone size={18} />
             Contact Information
           </button>
@@ -1716,7 +1727,7 @@ function SightingFormModal({ caseId, onClose, onSuccess }) {
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-cyan-500/30 rounded-2xl w-full max-w-lg shadow-2xl shadow-cyan-500/20"
+        className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-flash-500/30 rounded-2xl w-full max-w-lg shadow-2xl shadow-flash-500/20"
         onClick={e => e.stopPropagation()}
       >
         <div className="p-6 border-b-2 border-slate-700/60">
@@ -1742,7 +1753,7 @@ function SightingFormModal({ caseId, onClose, onSuccess }) {
               <button
                 onClick={getCurrentLocation}
                 disabled={gettingLocation}
-                className="w-full py-4 bg-cyan-500/20 border-2 border-cyan-500/50 text-cyan-400 font-bold rounded-xl hover:bg-cyan-500/30 transition flex items-center justify-center gap-2"
+                className="w-full py-4 bg-flash-500/20 border-2 border-flash-500/50 text-flash-400 font-bold rounded-xl hover:bg-flash-500/30 transition flex items-center justify-center gap-2"
               >
                 <MapPin size={20} />
                 {gettingLocation ? 'Getting location...' : 'Use My Current Location'}
@@ -1783,7 +1794,7 @@ function SightingFormModal({ caseId, onClose, onSuccess }) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Direction they were heading, behavior, any other details..."
-              className="w-full bg-slate-800 text-white rounded-xl p-4 border-2 border-slate-700 focus:border-cyan-500 focus:outline-none resize-none"
+              className="w-full bg-slate-800 text-white rounded-xl p-4 border-2 border-slate-700 focus:border-flash-500 focus:outline-none resize-none"
               style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               rows={4}
             />
@@ -1856,7 +1867,7 @@ function CustomActionModal({ onClose, onComplete }) {
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-cyan-500/30 rounded-2xl w-full max-w-lg shadow-2xl shadow-cyan-500/20" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-flash-500/30 rounded-2xl w-full max-w-lg shadow-2xl shadow-flash-500/20" onClick={(e) => e.stopPropagation()}>
         <div className="p-6 border-b-2 border-slate-700/60">
           <h2 className="text-2xl font-bold text-white">✨ Log Custom Action</h2>
           <p className="text-slate-300 text-sm mt-2">
@@ -1873,7 +1884,7 @@ function CustomActionModal({ onClose, onComplete }) {
               value={actionName}
               onChange={(e) => setActionName(e.target.value)}
               placeholder="e.g., Called local vet offices, Checked with mail carrier..."
-              className="w-full bg-slate-800 text-white rounded-xl p-4 border-2 border-slate-700 focus:border-cyan-500 focus:outline-none"
+              className="w-full bg-slate-800 text-white rounded-xl p-4 border-2 border-slate-700 focus:border-flash-500 focus:outline-none"
               style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               autoFocus
             />
@@ -1886,7 +1897,7 @@ function CustomActionModal({ onClose, onComplete }) {
               value={details}
               onChange={(e) => setDetails(e.target.value)}
               placeholder="Any notes about what you did, what you learned, etc..."
-              className="w-full bg-slate-800 text-white rounded-xl p-4 border-2 border-slate-700 focus:border-cyan-500 focus:outline-none resize-none"
+              className="w-full bg-slate-800 text-white rounded-xl p-4 border-2 border-slate-700 focus:border-flash-500 focus:outline-none resize-none"
               style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               rows={4}
             />
@@ -1928,7 +1939,7 @@ function CustomActionModal({ onClose, onComplete }) {
                 onChange={handlePhotoUpload}
                 className="hidden"
               />
-              <div className="w-full py-3 px-4 bg-slate-800 border-2 border-dashed border-slate-600 text-slate-400 rounded-xl hover:border-cyan-500 hover:text-cyan-400 transition cursor-pointer flex items-center justify-center gap-2 text-sm font-semibold">
+              <div className="w-full py-3 px-4 bg-slate-800 border-2 border-dashed border-slate-600 text-slate-400 rounded-xl hover:border-flash-500 hover:text-flash-400 transition cursor-pointer flex items-center justify-center gap-2 text-sm font-semibold">
                 <Camera size={18} />
                 {photos.length > 0 ? 'Add More Photos' : 'Upload Photos'}
               </div>
@@ -1951,7 +1962,7 @@ function CustomActionModal({ onClose, onComplete }) {
             disabled={!actionName.trim()}
             className={`flex-1 py-3 font-bold rounded-xl transition ${
               actionName.trim()
-                ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/30 hover:shadow-xl hover:shadow-cyan-500/50'
+                ? 'bg-gradient-to-r from-flash-500 to-blue-500 text-white shadow-lg shadow-flash-500/30 hover:shadow-xl hover:shadow-flash-500/50'
                 : 'bg-slate-800 text-slate-600 cursor-not-allowed'
             }`}
           >

@@ -1,38 +1,27 @@
 'use client';
 
 /**
- * Case Command Center Page
+ * Redirect from old case URL to Mission Control
  *
- * Per spec: This IS the Case Command Center - the full tactical page for a single lost pet.
- * The purpose is to answer "How do we find this specific pet, step by step, with everyone coordinated?"
- *
- * Route: /cases/[caseNumber]
- *
- * This page directly renders the CaseCommandCenter component. There is no separate
- * "public view" vs "command center view" toggle - this IS the case page.
- *
- * For users who are not logged in or not authorized, the CaseCommandCenter component
- * will show appropriate information based on their access level.
+ * This page provides backward compatibility by redirecting
+ * /cases/[caseNumber] → /mission-control?mission=[caseNumber]
  */
 
-import { useParams } from 'next/navigation';
-import CaseCommandCenterV2 from '@/app/components/case/CaseCommandCenterV2';
+import { useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { PageLoading } from '@/components/LoadingSkeleton';
 
-export default function CaseDetailPage() {
+export default function CaseRedirect() {
+  const router = useRouter();
   const params = useParams();
-  const { caseNumber } = params;
+  const caseNumber = params.caseNumber;
 
-  // Debug logging to track routing issues
-  console.log('[CaseDetailPage] Params received:', params);
-  console.log('[CaseDetailPage] Case number:', caseNumber);
+  useEffect(() => {
+    if (caseNumber) {
+      // Redirect to Mission Control with the case number
+      router.replace(`/mission-control?mission=${caseNumber}`);
+    }
+  }, [caseNumber, router]);
 
-  // Render the Case Command Center V2 - clean tab-based design
-  // The component handles all authentication, role detection, and appropriate UI rendering
-  return (
-    <CaseCommandCenterV2
-      caseNumber={caseNumber}
-      // No onClose - this is the main page, not an overlay
-      // Navigation back to squad hub is handled within the component
-    />
-  );
+  return <PageLoading message="Redirecting to Mission Control..." />;
 }

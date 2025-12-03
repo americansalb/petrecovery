@@ -38,8 +38,8 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
   const roleColors = {
     FOUNDER: 'text-purple-400',
     ADMIN: 'text-purple-400',
-    MODERATOR: 'text-cyan-300',
-    LEADER: 'text-cyan-300',
+    MODERATOR: 'text-flash-300',
+    LEADER: 'text-flash-300',
     COORDINATOR: 'text-blue-400',
     MEMBER: 'text-slate-400',
   };
@@ -50,7 +50,7 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
         {/* Author Info */}
         <div className="flex items-start gap-4 mb-4">
           <div className="flex-shrink-0">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-flash-500 to-flash-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
               {post.authorName?.charAt(0) || '?'}
             </div>
           </div>
@@ -63,7 +63,7 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
                 </span>
               )}
               {post.divisionName && (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-flash-500/20 text-flash-300 border border-flash-500/40">
                   📍 {post.divisionName}
                 </span>
               )}
@@ -105,14 +105,14 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
               onClick={() => handleVote(1)}
               className={`p-2 rounded-lg transition-all duration-200 ${
                 userVote === 1
-                  ? 'bg-cyan-500/30 text-cyan-400 shadow-md shadow-cyan-500/20'
-                  : 'hover:bg-slate-700/50 text-slate-400 hover:text-cyan-400'
+                  ? 'bg-flash-500/30 text-flash-400 shadow-md shadow-flash-500/20'
+                  : 'hover:bg-slate-700/50 text-slate-400 hover:text-flash-400'
               }`}
             >
               <ArrowUp size={20} strokeWidth={2.5} />
             </button>
             <span className={`font-bold text-lg min-w-[3ch] text-center ${
-              netVotes > 0 ? 'text-cyan-400' : netVotes < 0 ? 'text-red-400' : 'text-slate-400'
+              netVotes > 0 ? 'text-flash-400' : netVotes < 0 ? 'text-red-400' : 'text-slate-400'
             }`}>
               {netVotes > 0 ? '+' : ''}{netVotes}
             </span>
@@ -147,7 +147,7 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
           {/* Comment Input */}
           <div className="mb-6">
             {replyingTo && (
-              <div className="mb-2 px-3 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-sm text-cyan-300 flex items-center justify-between">
+              <div className="mb-2 px-3 py-2 bg-flash-500/10 border border-flash-500/30 rounded-lg text-sm text-flash-300 flex items-center justify-between">
                 <span>Replying to <span className="font-bold">{replyingTo.authorName}</span></span>
                 <button
                   onClick={() => setReplyingTo(null)}
@@ -164,13 +164,13 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
                 onChange={(e) => setCommentText(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleComment()}
                 placeholder="Write a comment..."
-                className="flex-1 px-4 py-3 rounded-xl bg-slate-800/50 border-2 border-slate-600/50 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/30 transition-all"
+                className="flex-1 px-4 py-3 rounded-xl bg-slate-800/50 border-2 border-slate-600/50 text-white placeholder-slate-500 focus:outline-none focus:border-flash-500/70 focus:ring-2 focus:ring-flash-500/30 transition-all"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               />
               <button
                 onClick={handleComment}
                 disabled={!commentText.trim() || submitting}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-400 text-white font-bold disabled:opacity-50 hover:shadow-lg hover:shadow-cyan-500/30 transition-all"
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-flash-500 to-flash-400 text-midnight-900 font-bold disabled:opacity-50 hover:shadow-lg hover:shadow-flash-500/30 transition-all"
               >
                 {submitting ? '...' : 'Post'}
               </button>
@@ -212,8 +212,8 @@ function CommentThread({ comment, onReply, onVote, currentUserId, depth = 0 }) {
   const roleColors = {
     FOUNDER: 'text-purple-400',
     ADMIN: 'text-purple-400',
-    MODERATOR: 'text-cyan-300',
-    LEADER: 'text-cyan-300',
+    MODERATOR: 'text-flash-300',
+    LEADER: 'text-flash-300',
     COORDINATOR: 'text-blue-400',
     MEMBER: 'text-slate-400',
   };
@@ -246,13 +246,13 @@ function CommentThread({ comment, onReply, onVote, currentUserId, depth = 0 }) {
             <button
               onClick={() => onVote(comment.id, 1, true)}
               className={`p-1 rounded transition-all ${
-                userVote === 1 ? 'text-cyan-400' : 'text-slate-500 hover:text-cyan-400'
+                userVote === 1 ? 'text-flash-400' : 'text-slate-500 hover:text-flash-400'
               }`}
             >
               <ArrowUp size={14} />
             </button>
             <span className={`text-sm font-bold ${
-              netVotes > 0 ? 'text-cyan-400' : netVotes < 0 ? 'text-red-400' : 'text-slate-400'
+              netVotes > 0 ? 'text-flash-400' : netVotes < 0 ? 'text-red-400' : 'text-slate-400'
             }`}>
               {netVotes}
             </span>
@@ -269,7 +269,7 @@ function CommentThread({ comment, onReply, onVote, currentUserId, depth = 0 }) {
           {depth < maxDepth && (
             <button
               onClick={() => onReply(comment)}
-              className="text-xs font-semibold text-slate-400 hover:text-cyan-400 transition-colors"
+              className="text-xs font-semibold text-slate-400 hover:text-flash-400 transition-colors"
             >
               Reply
             </button>

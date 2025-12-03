@@ -4,6 +4,8 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { Eye, CheckCircle, ArrowLeft, MapPin, Clock, MessageSquare, Loader2, AlertCircle } from 'lucide-react';
+import { Card, Button } from '@/components/ui';
 
 function ReportSightingForm() {
   const { data: session, status } = useSession();
@@ -26,6 +28,7 @@ function ReportSightingForm() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
+      console.log('[SIGHTING-REPORT] User not authenticated, redirecting to login');
       router.push('/login');
     }
   }, [status, router]);
@@ -43,6 +46,8 @@ function ReportSightingForm() {
     setError('');
     setLoading(true);
 
+    console.log('[SIGHTING-REPORT] Submitting sighting report:', formData);
+
     try {
       const res = await fetch('/api/sightings', {
         method: 'POST',
@@ -51,22 +56,28 @@ function ReportSightingForm() {
       });
 
       const data = await res.json();
+      console.log('[SIGHTING-REPORT] Response status:', res.status);
+      console.log('[SIGHTING-REPORT] Response data:', data);
 
       if (!res.ok) {
         throw new Error(data.error || 'Failed to submit sighting');
       }
 
+      console.log('[SIGHTING-REPORT] Sighting submitted successfully');
       setSuccess(true);
 
       // Redirect after 2 seconds
       setTimeout(() => {
         if (alertId) {
+          console.log('[SIGHTING-REPORT] Redirecting to alert:', alertId);
           router.push(`/alerts/${alertId}`);
         } else {
+          console.log('[SIGHTING-REPORT] Redirecting to dashboard');
           router.push('/dashboard');
         }
       }, 2000);
     } catch (err) {
+      console.error('[SIGHTING-REPORT] Submission error:', err);
       setError('Failed to submit sighting. Please try again.');
     } finally {
       setLoading(false);
@@ -75,14 +86,11 @@ function ReportSightingForm() {
 
   if (status === 'loading') {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#f3f4f6',
-      }}>
-        <div>Loading...</div>
+      <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-6 h-6 text-flash-500 animate-spin" />
+          <span className="text-midnight-700 font-medium">Loading...</span>
+        </div>
       </div>
     );
   }
@@ -93,133 +101,77 @@ function ReportSightingForm() {
 
   if (success) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        backgroundColor: '#f3f4f6',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        padding: '1rem',
-      }}>
-        <div style={{
-          maxWidth: '500px',
-          backgroundColor: 'white',
-          borderRadius: '1rem',
-          padding: '2rem',
-          textAlign: 'center',
-          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-        }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✅</div>
-          <h2 style={{
-            fontSize: '2rem',
-            fontWeight: 'bold',
-            color: '#10b981',
-            marginBottom: '1rem',
-          }}>
+      <div className="min-h-screen bg-midnight-50 flex items-center justify-center p-4">
+        <Card className="max-w-md p-8 text-center">
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-10 h-10 text-green-600" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold text-green-600 mb-4">
             Sighting Reported!
           </h2>
-          <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
+          <p className="text-midnight-600 mb-4">
             Thank you for helping reunite this pet with their family. The owner has been notified.
           </p>
-          <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
+          <p className="text-sm text-midnight-500">
             Redirecting...
           </p>
-        </div>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#f3f4f6',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-    }}>
+    <div className="min-h-screen bg-midnight-50">
       {/* Header */}
-      <div style={{
-        backgroundColor: '#10b981',
-        color: 'white',
-        padding: '1rem',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-      }}>
-        <div style={{
-          maxWidth: '800px',
-          margin: '0 auto',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '1rem',
-        }}>
-          <Link
-            href={alertId ? `/alerts/${alertId}` : '/dashboard'}
-            style={{
-              color: 'white',
-              textDecoration: 'none',
-              fontSize: '1.5rem',
-            }}
-          >
-            ←
-          </Link>
-          <div>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-              Report a Sighting
-            </h1>
-            <p style={{ fontSize: '0.875rem', opacity: 0.9 }}>
-              Help reunite a pet with their family
-            </p>
+      <div className="bg-midnight-900 text-white shadow-lg">
+        <div className="max-w-3xl mx-auto px-4 py-6">
+          <div className="flex items-center gap-4">
+            <Link
+              href={alertId ? `/alerts/${alertId}` : '/dashboard'}
+              className="hover:text-flash-400 transition-colors"
+            >
+              <ArrowLeft size={24} />
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold">Report a Sighting</h1>
+              <p className="text-sm text-midnight-300">
+                Help reunite a pet with their family
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      <div style={{
-        maxWidth: '800px',
-        margin: '0 auto',
-        padding: '1.5rem 1rem',
-      }}>
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '1rem',
-          padding: '2rem',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-        }}>
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <Card className="p-8">
           {/* Info Banner */}
-          <div style={{
-            backgroundColor: '#d1fae5',
-            border: '2px solid #10b981',
-            borderRadius: '0.75rem',
-            padding: '1rem',
-            marginBottom: '2rem',
-          }}>
-            <div style={{ fontWeight: '600', color: '#065f46', marginBottom: '0.5rem' }}>
-              🎯 Your Report Makes a Difference
-            </div>
-            <div style={{ fontSize: '0.875rem', color: '#047857' }}>
-              Even small details help. Report exactly what you saw, when, and where. The owner will be notified immediately.
+          <div className="bg-flash-50 border-2 border-flash-400 rounded-xl p-4 mb-8">
+            <div className="flex items-start gap-3">
+              <Eye className="w-5 h-5 text-flash-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <div className="font-semibold text-midnight-900 mb-1">
+                  Your Report Makes a Difference
+                </div>
+                <div className="text-sm text-midnight-700">
+                  Even small details help. Report exactly what you saw, when, and where. The owner will be notified immediately.
+                </div>
+              </div>
             </div>
           </div>
 
           {error && (
-            <div style={{
-              backgroundColor: '#fee2e2',
-              border: '1px solid #fecaca',
-              color: '#991b1b',
-              padding: '1rem',
-              borderRadius: '0.5rem',
-              marginBottom: '1.5rem',
-            }}>
-              {error}
+            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} className="space-y-6">
             {!alertId && (
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontWeight: '600',
-                  color: '#1f2937',
-                }}>
+              <div>
+                <label className="block text-sm font-semibold text-midnight-900 mb-2">
                   Alert ID *
                 </label>
                 <input
@@ -229,24 +181,14 @@ function ReportSightingForm() {
                   onChange={handleChange}
                   placeholder="Enter alert ID from the poster or alert page"
                   required
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '2px solid #e5e7eb',
-                    borderRadius: '0.5rem',
-                    fontSize: '1rem',
-                  }}
+                  className="w-full px-4 py-3 border-2 border-midnight-200 rounded-lg focus:border-flash-400 focus:ring-2 focus:ring-flash-400 focus:outline-none transition-colors"
                 />
               </div>
             )}
 
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '600',
-                color: '#1f2937',
-              }}>
+            <div>
+              <label className="block text-sm font-semibold text-midnight-900 mb-2">
+                <MapPin className="inline w-4 h-4 mr-1" />
                 Exact Location *
               </label>
               <input
@@ -256,30 +198,16 @@ function ReportSightingForm() {
                 onChange={handleChange}
                 placeholder="123 Main St or Main St & Oak Ave"
                 required
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '0.5rem',
-                  fontSize: '1rem',
-                }}
+                className="w-full px-4 py-3 border-2 border-midnight-200 rounded-lg focus:border-flash-400 focus:ring-2 focus:ring-flash-400 focus:outline-none transition-colors"
               />
-              <p style={{
-                fontSize: '0.875rem',
-                color: '#6b7280',
-                marginTop: '0.5rem',
-              }}>
+              <p className="text-sm text-midnight-600 mt-2">
                 Be as specific as possible - street corner, landmark, building, etc.
               </p>
             </div>
 
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '600',
-                color: '#1f2937',
-              }}>
+            <div>
+              <label className="block text-sm font-semibold text-midnight-900 mb-2">
+                <Clock className="inline w-4 h-4 mr-1" />
                 Time of Sighting *
               </label>
               <select
@@ -287,13 +215,7 @@ function ReportSightingForm() {
                 value={formData.timeOfSighting}
                 onChange={handleChange}
                 required
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '0.5rem',
-                  fontSize: '1rem',
-                }}
+                className="w-full px-4 py-3 border-2 border-midnight-200 rounded-lg focus:border-flash-400 focus:ring-2 focus:ring-flash-400 focus:outline-none transition-colors bg-white"
               >
                 <option value="">Select time...</option>
                 <option value="just_now">Just now (within 15 min)</option>
@@ -305,13 +227,9 @@ function ReportSightingForm() {
               </select>
             </div>
 
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '600',
-                color: '#1f2937',
-              }}>
+            <div>
+              <label className="block text-sm font-semibold text-midnight-900 mb-2">
+                <MessageSquare className="inline w-4 h-4 mr-1" />
                 What Did You See? *
               </label>
               <textarea
@@ -321,44 +239,22 @@ function ReportSightingForm() {
                 placeholder="Describe what you saw: appearance, behavior, anything distinctive..."
                 required
                 rows={4}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '0.5rem',
-                  fontSize: '1rem',
-                  fontFamily: 'inherit',
-                }}
+                className="w-full px-4 py-3 border-2 border-midnight-200 rounded-lg focus:border-flash-400 focus:ring-2 focus:ring-flash-400 focus:outline-none transition-colors resize-y"
               />
-              <p style={{
-                fontSize: '0.875rem',
-                color: '#6b7280',
-                marginTop: '0.5rem',
-              }}>
+              <p className="text-sm text-midnight-600 mt-2">
                 Include: What was the pet doing? Did it seem scared/friendly? Any collar/tags?
               </p>
             </div>
 
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '600',
-                color: '#1f2937',
-              }}>
+            <div>
+              <label className="block text-sm font-semibold text-midnight-900 mb-2">
                 Behavior
               </label>
               <select
                 name="behavior"
                 value={formData.behavior}
                 onChange={handleChange}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '0.5rem',
-                  fontSize: '1rem',
-                }}
+                className="w-full px-4 py-3 border-2 border-midnight-200 rounded-lg focus:border-flash-400 focus:ring-2 focus:ring-flash-400 focus:outline-none transition-colors bg-white"
               >
                 <option value="">Select behavior...</option>
                 <option value="friendly">Friendly/Approachable</option>
@@ -370,13 +266,8 @@ function ReportSightingForm() {
               </select>
             </div>
 
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '600',
-                color: '#1f2937',
-              }}>
+            <div>
+              <label className="block text-sm font-semibold text-midnight-900 mb-2">
                 Direction of Travel
               </label>
               <input
@@ -385,60 +276,37 @@ function ReportSightingForm() {
                 value={formData.direction}
                 onChange={handleChange}
                 placeholder="e.g., Heading north toward the park, went into alley behind shops..."
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '0.5rem',
-                  fontSize: '1rem',
-                }}
+                className="w-full px-4 py-3 border-2 border-midnight-200 rounded-lg focus:border-flash-400 focus:ring-2 focus:ring-flash-400 focus:outline-none transition-colors"
               />
             </div>
 
-            <div style={{ marginBottom: '2rem' }}>
-              <label style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '0.75rem',
-                cursor: 'pointer',
-              }}>
+            <div className="border-t border-midnight-200 pt-6">
+              <label className="flex items-start gap-3 cursor-pointer group">
                 <input
                   type="checkbox"
                   name="contactForFollowUp"
                   checked={formData.contactForFollowUp}
                   onChange={handleChange}
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    marginTop: '0.25rem',
-                    cursor: 'pointer',
-                  }}
+                  className="w-5 h-5 mt-0.5 border-2 border-midnight-300 rounded text-flash-500 focus:ring-2 focus:ring-flash-400 cursor-pointer"
                 />
-                <span style={{ fontSize: '0.875rem', color: '#4b5563' }}>
+                <span className="text-sm text-midnight-700 group-hover:text-midnight-900">
                   Owner can contact me for follow-up questions
                 </span>
               </label>
             </div>
 
-            <button
+            <Button
               type="submit"
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '1rem',
-                backgroundColor: loading ? '#9ca3af' : '#10b981',
-                color: 'white',
-                border: 'none',
-                borderRadius: '0.5rem',
-                fontSize: '1.125rem',
-                fontWeight: '600',
-                cursor: loading ? 'not-allowed' : 'pointer',
-              }}
+              variant="primary"
+              size="lg"
+              loading={loading}
+              className="w-full"
             >
-              {loading ? 'Submitting...' : '👁️ Submit Sighting Report'}
-            </button>
+              <Eye size={18} />
+              Submit Sighting Report
+            </Button>
           </form>
-        </div>
+        </Card>
       </div>
     </div>
   );
@@ -447,14 +315,11 @@ function ReportSightingForm() {
 export default function ReportSightingPage() {
   return (
     <Suspense fallback={
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#f3f4f6',
-      }}>
-        <div>Loading...</div>
+      <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-6 h-6 text-flash-500 animate-spin" />
+          <span className="text-midnight-700 font-medium">Loading...</span>
+        </div>
       </div>
     }>
       <ReportSightingForm />

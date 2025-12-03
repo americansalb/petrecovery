@@ -11,7 +11,17 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Dog, Cat, Bird, Rabbit, PawPrint, Plus, Edit2, AlertTriangle, Eye, Trash2, X, Loader2, Info } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
+import { Card, Button, Badge, EmptyState } from '@/components/ui';
+
+const SPECIES_ICONS = {
+  DOG: Dog,
+  CAT: Cat,
+  BIRD: Bird,
+  RABBIT: Rabbit,
+  OTHER: PawPrint,
+};
 
 export default function MyPetsPage() {
   const { data: session, status } = useSession();
@@ -26,6 +36,7 @@ export default function MyPetsPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
+      console.log('[PETS] User not authenticated, redirecting to login');
       router.push('/login?callbackUrl=/pets');
     }
   }, [status, router]);
@@ -37,12 +48,16 @@ export default function MyPetsPage() {
   }, [status]);
 
   const fetchPets = async () => {
+    console.log('[PETS] Fetching pets list');
     try {
       const res = await fetch('/api/pets');
+      console.log('[PETS] Response status:', res.status);
       if (!res.ok) throw new Error('Failed to fetch pets');
       const data = await res.json();
+      console.log('[PETS] Fetched pets:', data.pets?.length || 0);
       setPets(data.pets || []);
     } catch (err) {
+      console.error('[PETS] Fetch error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -61,32 +76,30 @@ export default function MyPetsPage() {
     setDeletingId(petId);
     setError(null);
 
+    console.log('[PETS] Deleting pet:', petId);
+
     try {
       const res = await fetch(`/api/pets/${petId}`, { method: 'DELETE' });
       const data = await res.json();
+      console.log('[PETS] Delete response:', res.status, data);
 
       if (!res.ok) {
         throw new Error(data.error || 'Failed to delete pet');
       }
 
+      console.log('[PETS] Pet deleted successfully');
       setPets(pets.filter(p => p.id !== petId));
       setSuccessMessage(`${petName}'s profile has been deleted.`);
     } catch (err) {
+      console.error('[PETS] Delete error:', err);
       setError(err.message);
     } finally {
       setDeletingId(null);
     }
   };
 
-  const getSpeciesEmoji = (species) => {
-    const emojis = {
-      DOG: '🐕',
-      CAT: '🐈',
-      BIRD: '🐦',
-      RABBIT: '🐰',
-      OTHER: '🐾',
-    };
-    return emojis[species] || '🐾';
+  const getSpeciesIcon = (species) => {
+    return SPECIES_ICONS[species] || PawPrint;
   };
 
   const getSizeLabel = (size) => {
@@ -108,17 +121,17 @@ export default function MyPetsPage() {
 
   const getCaseStatusBadge = (status) => {
     const badges = {
-      OPEN: { bg: '#fef3c7', color: '#92400e', label: 'Missing' },
-      ACTIVE_SEARCH: { bg: '#dbeafe', color: '#1e40af', label: 'Active Search' },
-      RESOLVED: { bg: '#dcfce7', color: '#166534', label: 'Found' },
-      CLOSED_OTHER: { bg: '#f3f4f6', color: '#374151', label: 'Closed' },
+      OPEN: { variant: 'warning', label: 'Missing' },
+      ACTIVE_SEARCH: { variant: 'primary', label: 'Active Search' },
+      RESOLVED: { variant: 'success', label: 'Found' },
+      CLOSED_OTHER: { variant: 'default', label: 'Closed' },
     };
     return badges[status] || null;
   };
 
   if (status === 'loading' || loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
         <LoadingSpinner text="Loading your pets..." />
       </div>
     );
@@ -129,265 +142,131 @@ export default function MyPetsPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: 'clamp(1rem, 3vw, 2rem)' }}>
+    <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-12">
       {/* Confirmation Dialog */}
       {confirmDialog && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 100,
-          padding: '1rem',
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '0.75rem',
-            padding: '1.5rem',
-            maxWidth: '400px',
-            width: '100%',
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-          }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#0f172a' }}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-midnight-900 mb-3">
               Delete Pet Profile?
             </h3>
-            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+            <p className="text-midnight-600 mb-6">
               Are you sure you want to delete <strong>{confirmDialog.petName}</strong>&apos;s profile? This cannot be undone.
             </p>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
                 onClick={() => setConfirmDialog(null)}
-                style={{
-                  flex: 1,
-                  padding: '0.75rem',
-                  backgroundColor: '#e5e7eb',
-                  color: '#374151',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                }}
+                className="flex-1"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="danger"
                 onClick={confirmDelete}
-                style={{
-                  flex: 1,
-                  padding: '0.75rem',
-                  backgroundColor: '#dc2626',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                }}
+                className="flex-1"
               >
                 Yes, Delete
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      <div className="max-w-7xl mx-auto">
         {/* Success Message */}
         {successMessage && (
-          <div style={{
-            padding: '1rem',
-            background: '#d1fae5',
-            border: '1px solid #a7f3d0',
-            borderRadius: '0.5rem',
-            color: '#065f46',
-            marginBottom: '1.5rem',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}>
+          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-6 flex items-center justify-between">
             <span>{successMessage}</span>
             <button
               onClick={() => setSuccessMessage('')}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#065f46',
-                cursor: 'pointer',
-                fontSize: '1.25rem',
-              }}
+              className="text-green-600 hover:text-green-800 transition-colors"
             >
-              ×
+              <X size={20} />
             </button>
           </div>
         )}
 
         {/* Header */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '2rem',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}>
+        <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
           <div>
-            <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#0f172a', margin: 0 }}>
+            <h1 className="text-3xl md:text-4xl font-bold text-midnight-900">
               My Pets
             </h1>
-            <p style={{ color: '#64748b', marginTop: '0.5rem' }}>
+            <p className="text-midnight-600 mt-2">
               Pre-register your pets so you can quickly report if they go missing
             </p>
           </div>
-          <Link
+          <Button
+            variant="primary"
             href="/pets/new"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.75rem 1.5rem',
-              background: '#2563eb',
-              color: 'white',
-              borderRadius: '0.5rem',
-              textDecoration: 'none',
-              fontWeight: '600',
-              fontSize: '0.95rem',
-            }}
+            size="lg"
           >
-            + Add Pet
-          </Link>
+            <Plus size={18} />
+            Add Pet
+          </Button>
         </div>
 
         {error && (
-          <div style={{
-            padding: '1rem',
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '0.5rem',
-            color: '#dc2626',
-            marginBottom: '1.5rem',
-          }}>
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
             {error}
           </div>
         )}
 
         {/* Pet Grid */}
         {pets.length === 0 ? (
-          <div style={{
-            background: 'white',
-            borderRadius: '1rem',
-            padding: '4rem 2rem',
-            textAlign: 'center',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          }}>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🐾</div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '600', color: '#0f172a', marginBottom: '0.5rem' }}>
-              No pets registered yet
-            </h2>
-            <p style={{ color: '#64748b', marginBottom: '1.5rem', maxWidth: '400px', margin: '0 auto 1.5rem' }}>
-              Add your pets now so you can quickly create a lost pet report if they ever go missing.
-            </p>
-            <Link
-              href="/pets/new"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.75rem 1.5rem',
-                background: '#2563eb',
-                color: 'white',
-                borderRadius: '0.5rem',
-                textDecoration: 'none',
-                fontWeight: '600',
-              }}
-            >
-              + Add Your First Pet
-            </Link>
-          </div>
+          <EmptyState
+            icon={PawPrint}
+            title="No pets registered yet"
+            description="Add your pets now so you can quickly create a lost pet report if they ever go missing."
+            actionLabel="Add Your First Pet"
+            actionHref="/pets/new"
+          />
         ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))',
-            gap: '1.5rem',
-          }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {pets.map((pet) => {
               const caseStatus = getCaseStatus(pet);
-              const badge = caseStatus ? getCaseStatusBadge(caseStatus) : null;
+              const badgeInfo = caseStatus ? getCaseStatusBadge(caseStatus) : null;
+              const SpeciesIcon = getSpeciesIcon(pet.species);
 
               return (
-                <div
-                  key={pet.id}
-                  style={{
-                    background: 'white',
-                    borderRadius: '1rem',
-                    overflow: 'hidden',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                  }}
-                >
+                <Card key={pet.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                   {/* Pet Photo */}
-                  <div style={{
-                    height: '200px',
-                    background: '#f1f5f9',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    position: 'relative',
-                  }}>
+                  <div className="h-48 bg-midnight-100 flex items-center justify-center relative">
                     {pet.primaryPhotoUrl ? (
                       <img
                         src={pet.primaryPhotoUrl}
                         alt={pet.name}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                        }}
+                        className="w-full h-full object-cover"
                       />
                     ) : (
-                      <span style={{ fontSize: '4rem' }}>{getSpeciesEmoji(pet.species)}</span>
+                      <SpeciesIcon className="w-16 h-16 text-midnight-400" />
                     )}
 
                     {/* Status Badge */}
-                    {badge && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '0.75rem',
-                        right: '0.75rem',
-                        padding: '0.25rem 0.75rem',
-                        borderRadius: '9999px',
-                        background: badge.bg,
-                        color: badge.color,
-                        fontSize: '0.75rem',
-                        fontWeight: '600',
-                      }}>
-                        {badge.label}
+                    {badgeInfo && (
+                      <div className="absolute top-3 right-3">
+                        <Badge variant={badgeInfo.variant}>
+                          {badgeInfo.label}
+                        </Badge>
                       </div>
                     )}
                   </div>
 
                   {/* Pet Info */}
-                  <div style={{ padding: '1.25rem' }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      marginBottom: '0.5rem',
-                    }}>
-                      <span style={{ fontSize: '1.25rem' }}>{getSpeciesEmoji(pet.species)}</span>
-                      <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#0f172a', margin: 0 }}>
+                  <div className="p-5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <SpeciesIcon className="w-5 h-5 text-flash-500" />
+                      <h3 className="text-xl font-semibold text-midnight-900">
                         {pet.name}
                       </h3>
                     </div>
 
-                    <div style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1rem' }}>
-                      <p style={{ margin: '0.25rem 0' }}>
+                    <div className="text-midnight-600 text-sm mb-4">
+                      <p className="mb-1">
                         {pet.breed || pet.species} {pet.sex && `• ${pet.sex.charAt(0) + pet.sex.slice(1).toLowerCase()}`}
                       </p>
-                      <p style={{ margin: '0.25rem 0' }}>
+                      <p>
                         {pet.color} • {getSizeLabel(pet.size).split(' ')[0]}
                         {pet.age && ` • ${pet.age} year${pet.age !== 1 ? 's' : ''} old`}
                       </p>
@@ -395,122 +274,80 @@ export default function MyPetsPage() {
 
                     {/* Microchip indicator */}
                     {pet.microchipId && (
-                      <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
-                        padding: '0.25rem 0.5rem',
-                        background: '#dcfce7',
-                        color: '#166534',
-                        borderRadius: '0.25rem',
-                        fontSize: '0.75rem',
-                        marginBottom: '1rem',
-                      }}>
-                        <span>💉</span> Microchipped
-                      </div>
+                      <Badge variant="success" className="mb-4">
+                        Microchipped
+                      </Badge>
                     )}
 
                     {/* Actions */}
-                    <div style={{
-                      display: 'flex',
-                      gap: '0.5rem',
-                      marginTop: '0.5rem',
-                      paddingTop: '1rem',
-                      borderTop: '1px solid #f1f5f9',
-                    }}>
-                      <Link
+                    <div className="flex gap-2 pt-4 border-t border-midnight-100">
+                      <Button
+                        variant="ghost"
                         href={`/pets/${pet.id}`}
-                        style={{
-                          flex: 1,
-                          padding: '0.5rem',
-                          background: '#f1f5f9',
-                          color: '#475569',
-                          borderRadius: '0.375rem',
-                          textDecoration: 'none',
-                          textAlign: 'center',
-                          fontSize: '0.875rem',
-                          fontWeight: '500',
-                        }}
+                        size="sm"
+                        className="flex-1"
                       >
+                        <Edit2 size={14} />
                         Edit
-                      </Link>
+                      </Button>
                       {!caseStatus || caseStatus === 'RESOLVED' || caseStatus === 'CLOSED_OTHER' ? (
-                        <Link
+                        <Button
+                          variant="danger"
                           href={`/report/new?petId=${pet.id}`}
-                          style={{
-                            flex: 2,
-                            padding: '0.5rem',
-                            background: '#dc2626',
-                            color: 'white',
-                            borderRadius: '0.375rem',
-                            textDecoration: 'none',
-                            textAlign: 'center',
-                            fontSize: '0.875rem',
-                            fontWeight: '500',
-                          }}
+                          size="sm"
+                          className="flex-[2]"
                         >
+                          <AlertTriangle size={14} />
                           Report Lost
-                        </Link>
+                        </Button>
                       ) : (
-                        <Link
+                        <Button
+                          variant="primary"
                           href={`/cases/${pet.cases[0].caseNumber}`}
-                          style={{
-                            flex: 2,
-                            padding: '0.5rem',
-                            background: '#2563eb',
-                            color: 'white',
-                            borderRadius: '0.375rem',
-                            textDecoration: 'none',
-                            textAlign: 'center',
-                            fontSize: '0.875rem',
-                            fontWeight: '500',
-                          }}
+                          size="sm"
+                          className="flex-[2]"
                         >
+                          <Eye size={14} />
                           View Case
-                        </Link>
+                        </Button>
                       )}
                       <button
                         onClick={() => handleDelete(pet.id, pet.name)}
                         disabled={deletingId === pet.id}
-                        style={{
-                          padding: '0.5rem 0.75rem',
-                          background: 'white',
-                          border: '1px solid #e2e8f0',
-                          color: '#64748b',
-                          borderRadius: '0.375rem',
-                          cursor: deletingId === pet.id ? 'not-allowed' : 'pointer',
-                          fontSize: '0.875rem',
-                          opacity: deletingId === pet.id ? 0.5 : 1,
-                        }}
+                        className="p-2 border border-midnight-200 text-midnight-600 rounded-lg hover:bg-midnight-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        title="Delete pet"
                       >
-                        {deletingId === pet.id ? '...' : '🗑️'}
+                        {deletingId === pet.id ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={16} />
+                        )}
                       </button>
                     </div>
                   </div>
-                </div>
+                </Card>
               );
             })}
           </div>
         )}
 
         {/* Help Text */}
-        <div style={{
-          marginTop: '2rem',
-          padding: '1.5rem',
-          background: '#eff6ff',
-          borderRadius: '0.75rem',
-          border: '1px solid #bfdbfe',
-        }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#1e40af', marginBottom: '0.5rem' }}>
-            Why register your pets?
-          </h3>
-          <ul style={{ margin: 0, paddingLeft: '1.25rem', color: '#3b82f6', fontSize: '0.9rem' }}>
-            <li>Quickly report a lost pet with all their details pre-filled</li>
-            <li>Store important info like microchip numbers and medical conditions</li>
-            <li>Keep photos ready for flyers and social media</li>
-            <li>Help rescuers identify your pet faster</li>
-          </ul>
-        </div>
+        <Card variant="primary" className="mt-8 p-6">
+          <div className="flex items-start gap-3">
+            <Info className="w-5 h-5 text-flash-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-lg font-semibold text-midnight-900 mb-2">
+                Why register your pets?
+              </h3>
+              <ul className="space-y-1 text-midnight-700 text-sm">
+                <li>• Quickly report a lost pet with all their details pre-filled</li>
+                <li>• Store important info like microchip numbers and medical conditions</li>
+                <li>• Keep photos ready for flyers and social media</li>
+                <li>• Help rescuers identify your pet faster</li>
+              </ul>
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   );

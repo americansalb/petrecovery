@@ -125,7 +125,7 @@ export default function CreatePostModal({ isOpen, onClose, onSubmit, squadId, di
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
       <div
-        className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-cyan-500/30 rounded-2xl shadow-[0_0_60px_rgba(34,211,238,0.3)] max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-slideUp"
+        className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-flash-500/30 rounded-2xl shadow-[0_0_60px_rgba(250,204,21,0.3)] max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-slideUp"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -160,7 +160,7 @@ export default function CreatePostModal({ isOpen, onClose, onSubmit, squadId, di
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Give your post a title..."
-              className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-600 text-white placeholder-slate-500 font-medium focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all"
+              className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-600 text-white placeholder-slate-500 font-medium focus:outline-none focus:border-flash-500 focus:ring-2 focus:ring-flash-500/30 transition-all"
               maxLength={200}
               style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
             />
@@ -176,7 +176,7 @@ export default function CreatePostModal({ isOpen, onClose, onSubmit, squadId, di
               onChange={(e) => setContent(e.target.value)}
               placeholder="What's on your mind?"
               rows={8}
-              className="w-full px-4 py-3 rounded-xl bg-slate-700 border-2 border-slate-600 text-white placeholder-slate-400 font-medium focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all resize-none"
+              className="w-full px-4 py-3 rounded-xl bg-slate-700 border-2 border-slate-600 text-white placeholder-slate-400 font-medium focus:outline-none focus:border-flash-500 focus:ring-2 focus:ring-flash-500/30 transition-all resize-none"
               style={{ backgroundColor: '#334155', color: '#ffffff' }}
               maxLength={5000}
             />
@@ -219,11 +219,11 @@ export default function CreatePostModal({ isOpen, onClose, onSubmit, squadId, di
             ) : (
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full py-8 px-6 rounded-xl border-2 border-dashed border-slate-600/50 hover:border-cyan-500/50 bg-slate-800/30 hover:bg-slate-800/50 transition-all group"
+                className="w-full py-8 px-6 rounded-xl border-2 border-dashed border-slate-600/50 hover:border-flash-500/50 bg-slate-800/30 hover:bg-slate-800/50 transition-all group"
               >
                 <div className="flex flex-col items-center gap-3">
-                  <div className="p-4 rounded-full bg-slate-700/50 group-hover:bg-cyan-500/20 transition-all">
-                    <ImageIcon size={32} className="text-slate-400 group-hover:text-cyan-400 transition-colors" />
+                  <div className="p-4 rounded-full bg-slate-700/50 group-hover:bg-flash-500/20 transition-all">
+                    <ImageIcon size={32} className="text-slate-400 group-hover:text-flash-400 transition-colors" />
                   </div>
                   <div>
                     <p className="text-white font-semibold mb-1">Click to upload image</p>
@@ -255,7 +255,7 @@ export default function CreatePostModal({ isOpen, onClose, onSubmit, squadId, di
           <button
             onClick={handleSubmit}
             disabled={!content.trim() || uploading}
-            className="px-8 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-400 text-white font-bold shadow-lg shadow-cyan-500/30 hover:shadow-xl hover:shadow-cyan-500/50 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2"
+            className="px-8 py-3 rounded-xl bg-gradient-to-r from-flash-500 to-flash-400 text-white font-bold shadow-lg shadow-flash-500/30 hover:shadow-xl hover:shadow-flash-500/50 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2"
           >
             {uploading ? (
               <>

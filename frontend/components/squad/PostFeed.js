@@ -109,7 +109,7 @@ export default function PostFeed({
                 className={`
                   flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm transition-all duration-200
                   ${sortBy === option.value
-                    ? 'bg-gradient-to-r from-cyan-500 to-cyan-400 text-white shadow-lg shadow-cyan-500/30 scale-105'
+                    ? 'bg-gradient-to-r from-flash-500 to-flash-400 text-white shadow-lg shadow-flash-500/30 scale-105'
                     : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-white border border-slate-700/50'
                   }
                 `}
@@ -125,7 +125,7 @@ export default function PostFeed({
         {membership?.isMember && (
           <button
             onClick={onCreatePost}
-            className="group relative px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 via-cyan-400 to-cyan-500 text-white font-bold shadow-lg shadow-cyan-500/30 hover:shadow-xl hover:shadow-cyan-500/50 hover:scale-105 transition-all duration-200"
+            className="group relative px-6 py-3 rounded-xl bg-gradient-to-r from-flash-500 via-flash-400 to-flash-500 text-white font-bold shadow-lg shadow-flash-500/30 hover:shadow-xl hover:shadow-flash-500/50 hover:scale-105 transition-all duration-200"
           >
             <div className="flex items-center gap-2">
               <Plus size={20} strokeWidth={2.5} />
@@ -165,7 +165,7 @@ export default function PostFeed({
       {/* Empty State */}
       {!loading && posts.length === 0 && (
         <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/30 to-slate-900/30 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-20 text-center">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-flash-500/5 rounded-full blur-3xl" />
           <div className="relative">
             <div className="text-7xl mb-6">📝</div>
             <h3 className="text-2xl font-bold text-white mb-3">
@@ -177,7 +177,7 @@ export default function PostFeed({
             {membership?.isMember && (
               <button
                 onClick={onCreatePost}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-400 text-white font-bold shadow-lg shadow-cyan-500/30 hover:shadow-xl hover:shadow-cyan-500/50 hover:scale-105 transition-all"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-flash-500 to-flash-400 text-white font-bold shadow-lg shadow-flash-500/30 hover:shadow-xl hover:shadow-flash-500/50 hover:scale-105 transition-all"
               >
                 <Plus size={20} />
                 <span>Create First Post</span>

@@ -21,7 +21,7 @@ const MapComponent = dynamic(() => import('./MapComponentV2'), {
   loading: () => (
     <div className="w-full h-[600px] bg-slate-800/50 rounded-xl flex items-center justify-center">
       <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mb-4"></div>
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-flash-400 mb-4"></div>
         <p className="text-slate-400">Loading map...</p>
       </div>
     </div>
@@ -75,7 +75,7 @@ export default function MapModeV2({
         <h4 className="text-sm font-bold text-white mb-4 tracking-wide uppercase">Map Legend</h4>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <LegendItem color="bg-red-500" label="Active Cases" />
-          <LegendItem color="bg-cyan-400" label="Incoming" />
+          <LegendItem color="bg-flash-400" label="Incoming" />
           <LegendItem color="bg-green-500" label="Reunited" />
           <LegendItem color="bg-cyan-500" label="Division Boundary" />
         </div>
@@ -103,7 +103,7 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
   }[species] || '🐾';
 
   const statusConfig = {
-    PENDING: { label: 'Incoming', color: 'text-cyan-300' },
+    PENDING: { label: 'Incoming', color: 'text-flash-300' },
     IN_PROGRESS: { label: 'Active', color: 'text-red-400' },
     ACTIVE: { label: 'Active', color: 'text-red-400' },
     REUNITED: { label: 'Reunited', color: 'text-green-400' },
@@ -113,11 +113,11 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
 
   return (
     <div className="absolute bottom-0 left-0 right-0 z-[100] pointer-events-auto">
-      <div className="bg-slate-900 border-t-4 border-cyan-400 rounded-t-2xl shadow-[0_-10px_40px_rgba(34,211,238,0.5)] p-4" style={{ maxHeight: '280px', overflowY: 'auto', minHeight: '200px' }}>
+      <div className="bg-slate-900 border-t-4 border-flash-400 rounded-t-2xl shadow-[0_-10px_40px_rgba(250,204,21,0.5)] p-4" style={{ maxHeight: '280px', overflowY: 'auto', minHeight: '200px' }}>
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 p-1.5 rounded-lg bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-white hover:border-cyan-500/50 transition-all duration-200"
+          className="absolute top-3 right-3 p-1.5 rounded-lg bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-white hover:border-flash-500/50 transition-all duration-200"
         >
           <X size={18} />
         </button>
@@ -160,10 +160,10 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
           onClick={onOpenCase}
           className="
             w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg
-            bg-gradient-to-r from-cyan-500 to-cyan-400
+            bg-gradient-to-r from-flash-500 to-flash-400
             text-white font-bold text-sm
-            shadow-lg shadow-cyan-500/30
-            hover:shadow-xl hover:shadow-cyan-500/40
+            shadow-lg shadow-flash-500/30
+            hover:shadow-xl hover:shadow-flash-500/40
             hover:scale-[1.02]
             transition-all duration-200
           "

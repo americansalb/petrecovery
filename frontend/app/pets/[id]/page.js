@@ -11,15 +11,17 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft, Dog, Cat, Bird, Rabbit, PawPrint, Camera, AlertCircle, AlertTriangle, Trash2 } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import ImageUpload from '@/app/components/ImageUpload';
+import { Card, Button, Badge, EmptyState } from '@/components/ui';
 
 const SPECIES_OPTIONS = [
-  { value: 'DOG', label: 'Dog', emoji: '🐕' },
-  { value: 'CAT', label: 'Cat', emoji: '🐈' },
-  { value: 'BIRD', label: 'Bird', emoji: '🐦' },
-  { value: 'RABBIT', label: 'Rabbit', emoji: '🐰' },
-  { value: 'OTHER', label: 'Other', emoji: '🐾' },
+  { value: 'DOG', label: 'Dog', icon: Dog },
+  { value: 'CAT', label: 'Cat', icon: Cat },
+  { value: 'BIRD', label: 'Bird', icon: Bird },
+  { value: 'RABBIT', label: 'Rabbit', icon: Rabbit },
+  { value: 'OTHER', label: 'Other', icon: PawPrint },
 ];
 
 const SIZE_OPTIONS = [
@@ -78,6 +80,7 @@ export default function PetDetailPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
+      console.log('[PETS-EDIT] User not authenticated, redirecting to login');
       router.push('/login?callbackUrl=/pets/' + petId);
     }
   }, [status, router, petId]);
@@ -89,8 +92,10 @@ export default function PetDetailPage() {
   }, [status, petId]);
 
   const fetchPet = async () => {
+    console.log('[PETS-EDIT] Fetching pet:', petId);
     try {
       const res = await fetch(`/api/pets/${petId}`);
+      console.log('[PETS-EDIT] Response status:', res.status);
       if (!res.ok) {
         if (res.status === 404) {
           throw new Error('Pet not found');
@@ -98,6 +103,7 @@ export default function PetDetailPage() {
         throw new Error('Failed to fetch pet');
       }
       const data = await res.json();
+      console.log('[PETS-EDIT] Pet data loaded:', data.pet.name);
       setPet(data.pet);
 
       // Populate form
@@ -123,6 +129,7 @@ export default function PetDetailPage() {
         setImages(data.pet.photos.map(url => ({ url, uploaded: true })));
       }
     } catch (err) {
+      console.error('[PETS-EDIT] Fetch error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -173,9 +180,13 @@ export default function PetDetailPage() {
     e.preventDefault();
     setSubmitError(null);
 
-    if (!validate()) return;
+    if (!validate()) {
+      console.log('[PETS-EDIT] Validation failed:', errors);
+      return;
+    }
 
     setSubmitting(true);
+    console.log('[PETS-EDIT] Updating pet:', formData);
 
     try {
       const photoUrls = images.map(img => img.url);
@@ -193,13 +204,17 @@ export default function PetDetailPage() {
       });
 
       const data = await res.json();
+      console.log('[PETS-EDIT] Response status:', res.status);
+      console.log('[PETS-EDIT] Response data:', data);
 
       if (!res.ok) {
         throw new Error(data.error || 'Failed to update pet profile');
       }
 
+      console.log('[PETS-EDIT] Pet updated successfully');
       router.push('/pets');
     } catch (err) {
+      console.error('[PETS-EDIT] Update error:', err);
       setSubmitError(err.message);
     } finally {
       setSubmitting(false);
@@ -215,16 +230,21 @@ export default function PetDetailPage() {
     setDeleting(true);
     setSubmitError(null);
 
+    console.log('[PETS-EDIT] Deleting pet:', petId);
+
     try {
       const res = await fetch(`/api/pets/${petId}`, { method: 'DELETE' });
       const data = await res.json();
+      console.log('[PETS-EDIT] Delete response:', res.status, data);
 
       if (!res.ok) {
         throw new Error(data.error || 'Failed to delete pet');
       }
 
+      console.log('[PETS-EDIT] Pet deleted successfully');
       router.push('/pets');
     } catch (err) {
+      console.error('[PETS-EDIT] Delete error:', err);
       setSubmitError(err.message);
       setDeleting(false);
     }
@@ -232,7 +252,7 @@ export default function PetDetailPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
         <LoadingSpinner text="Loading pet profile..." />
       </div>
     );
@@ -240,24 +260,15 @@ export default function PetDetailPage() {
 
   if (error) {
     return (
-      <div style={{ minHeight: '100vh', background: '#f8fafc', padding: 'clamp(1rem, 3vw, 2rem)' }}>
-        <div style={{ maxWidth: '600px', margin: '4rem auto', textAlign: 'center' }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🐾</div>
-          <h1 style={{ fontSize: '1.5rem', color: '#0f172a', marginBottom: '0.5rem' }}>Pet Not Found</h1>
-          <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>{error}</p>
-          <Link
-            href="/pets"
-            style={{
-              display: 'inline-block',
-              padding: '0.75rem 1.5rem',
-              background: '#2563eb',
-              color: 'white',
-              borderRadius: '0.5rem',
-              textDecoration: 'none',
-            }}
-          >
-            Back to My Pets
-          </Link>
+      <div className="min-h-screen bg-midnight-50 px-4 py-12">
+        <div className="max-w-md mx-auto mt-16">
+          <EmptyState
+            icon={PawPrint}
+            title="Pet Not Found"
+            description={error}
+            actionLabel="Back to My Pets"
+            actionHref="/pets"
+          />
         </div>
       </div>
     );
@@ -267,215 +278,138 @@ export default function PetDetailPage() {
     return null;
   }
 
-  const inputStyle = {
-    width: '100%',
-    padding: '0.75rem',
-    border: '1px solid #e2e8f0',
-    borderRadius: '0.5rem',
-    fontSize: '1rem',
-    outline: 'none',
-  };
-
-  const inputErrorStyle = {
-    ...inputStyle,
-    borderColor: '#dc2626',
-    background: '#fef2f2',
-  };
-
-  const labelStyle = {
-    display: 'block',
-    marginBottom: '0.5rem',
-    fontWeight: '500',
-    color: '#374151',
-  };
+  const inputClass = "w-full px-4 py-3 border-2 border-midnight-200 rounded-lg focus:border-flash-400 focus:ring-2 focus:ring-flash-400 focus:outline-none transition-colors";
+  const inputErrorClass = "w-full px-4 py-3 border-2 border-red-400 bg-red-50 rounded-lg focus:border-red-500 focus:ring-2 focus:ring-red-400 focus:outline-none transition-colors";
+  const labelClass = "block mb-2 font-medium text-midnight-700";
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: 'clamp(1rem, 3vw, 2rem)' }}>
+    <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-12">
       {/* Delete Confirmation Dialog */}
       {deleteConfirmOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 100,
-          padding: '1rem',
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '0.75rem',
-            padding: '1.5rem',
-            maxWidth: '400px',
-            width: '100%',
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-          }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#0f172a' }}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-midnight-900 mb-3">
               Delete Pet Profile?
             </h3>
-            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+            <p className="text-midnight-600 mb-6">
               Are you sure you want to delete <strong>{formData.name}</strong>&apos;s profile? This cannot be undone.
             </p>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
                 onClick={() => setDeleteConfirmOpen(false)}
-                style={{
-                  flex: 1,
-                  padding: '0.75rem',
-                  backgroundColor: '#e5e7eb',
-                  color: '#374151',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                }}
+                className="flex-1"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="danger"
                 onClick={confirmDelete}
-                style={{
-                  flex: 1,
-                  padding: '0.75rem',
-                  backgroundColor: '#dc2626',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                }}
+                className="flex-1"
               >
                 Yes, Delete
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
-      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div style={{ marginBottom: '2rem' }}>
+        <div className="mb-8">
           <Link
             href="/pets"
-            style={{ color: '#2563eb', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', marginBottom: '1rem' }}
+            className="text-flash-500 hover:text-flash-600 inline-flex items-center gap-2 mb-4 font-medium transition-colors"
           >
-            ← Back to My Pets
+            <ArrowLeft size={18} />
+            Back to My Pets
           </Link>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div className="flex justify-between items-center flex-wrap gap-4">
             <div>
-              <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#0f172a', margin: 0 }}>
+              <h1 className="text-3xl md:text-4xl font-bold text-midnight-900">
                 Edit {pet?.name || 'Pet'}
               </h1>
-              <p style={{ color: '#64748b', marginTop: '0.5rem' }}>
+              <p className="text-midnight-600 mt-2">
                 Update your pet&apos;s profile information
               </p>
             </div>
             {/* Quick Report Button */}
             {(!pet?.cases?.length || pet.cases[0]?.status === 'RESOLVED' || pet.cases[0]?.status === 'CLOSED_OTHER') && (
-              <Link
+              <Button
+                variant="danger"
                 href={`/report/new?petId=${petId}`}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: '#dc2626',
-                  color: 'white',
-                  borderRadius: '0.5rem',
-                  textDecoration: 'none',
-                  fontWeight: '600',
-                }}
+                size="lg"
               >
+                <AlertTriangle size={18} />
                 Report Lost
-              </Link>
+              </Button>
             )}
           </div>
         </div>
 
         {/* Case History */}
         {pet?.cases?.length > 0 && (
-          <div style={{
-            background: '#eff6ff',
-            borderRadius: '0.75rem',
-            padding: '1rem 1.5rem',
-            marginBottom: '1.5rem',
-            border: '1px solid #bfdbfe',
-          }}>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: '600', color: '#1e40af', marginBottom: '0.75rem' }}>
+          <Card variant="primary" className="p-6 mb-6">
+            <h3 className="text-sm font-semibold text-midnight-900 mb-3 uppercase tracking-wide">
               Case History
             </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div className="space-y-2">
               {pet.cases.map(c => (
                 <Link
                   key={c.id}
                   href={`/cases/${c.caseNumber}`}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '0.5rem 0.75rem',
-                    background: 'white',
-                    borderRadius: '0.375rem',
-                    textDecoration: 'none',
-                  }}
+                  className="flex justify-between items-center p-3 bg-white rounded-lg hover:bg-midnight-50 transition-colors"
                 >
-                  <span style={{ color: '#1e40af', fontWeight: '500' }}>{c.caseNumber}</span>
-                  <span style={{
-                    padding: '0.125rem 0.5rem',
-                    borderRadius: '9999px',
-                    fontSize: '0.75rem',
-                    background: c.status === 'RESOLVED' ? '#dcfce7' : c.status === 'ACTIVE_SEARCH' ? '#dbeafe' : '#fef3c7',
-                    color: c.status === 'RESOLVED' ? '#166534' : c.status === 'ACTIVE_SEARCH' ? '#1e40af' : '#92400e',
-                  }}>
+                  <span className="text-flash-600 font-medium">{c.caseNumber}</span>
+                  <Badge
+                    variant={
+                      c.status === 'RESOLVED' ? 'success' :
+                      c.status === 'ACTIVE_SEARCH' ? 'primary' :
+                      'warning'
+                    }
+                  >
                     {c.status.replace('_', ' ')}
-                  </span>
+                  </Badge>
                 </Link>
               ))}
             </div>
-          </div>
+          </Card>
         )}
 
         <form onSubmit={handleSubmit}>
           {/* Basic Info Section */}
-          <div style={{
-            background: 'white',
-            borderRadius: '1rem',
-            padding: '1.5rem',
-            marginBottom: '1.5rem',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#0f172a', marginBottom: '1.5rem' }}>
+          <Card className="p-6 mb-6">
+            <h2 className="text-xl font-semibold text-midnight-900 mb-6">
               Basic Information
             </h2>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Name */}
               <div>
-                <label style={labelStyle}>Pet Name *</label>
+                <label className={labelClass}>Pet Name *</label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
                   placeholder="e.g., Max"
-                  style={errors.name ? inputErrorStyle : inputStyle}
+                  className={errors.name ? inputErrorClass : inputClass}
                 />
-                {errors.name && <p style={{ color: '#dc2626', fontSize: '0.875rem', marginTop: '0.25rem' }}>{errors.name}</p>}
+                {errors.name && <p className="text-red-600 text-sm mt-1">{errors.name}</p>}
               </div>
 
               {/* Species */}
               <div>
-                <label style={labelStyle}>Species *</label>
+                <label className={labelClass}>Species *</label>
                 <select
                   name="species"
                   value={formData.species}
                   onChange={handleChange}
-                  style={errors.species ? inputErrorStyle : inputStyle}
+                  className={errors.species ? inputErrorClass : inputClass}
                 >
                   {SPECIES_OPTIONS.map(opt => (
                     <option key={opt.value} value={opt.value}>
-                      {opt.emoji} {opt.label}
+                      {opt.label}
                     </option>
                   ))}
                 </select>
@@ -483,20 +417,20 @@ export default function PetDetailPage() {
 
               {/* Breed */}
               <div>
-                <label style={labelStyle}>Breed</label>
+                <label className={labelClass}>Breed</label>
                 <input
                   type="text"
                   name="breed"
                   value={formData.breed}
                   onChange={handleChange}
                   placeholder="e.g., Golden Retriever"
-                  style={inputStyle}
+                  className={inputClass}
                 />
               </div>
 
               {/* Age */}
               <div>
-                <label style={labelStyle}>Age (years)</label>
+                <label className={labelClass}>Age (years)</label>
                 <input
                   type="number"
                   name="age"
@@ -505,19 +439,19 @@ export default function PetDetailPage() {
                   min="0"
                   max="50"
                   placeholder="e.g., 3"
-                  style={errors.age ? inputErrorStyle : inputStyle}
+                  className={errors.age ? inputErrorClass : inputClass}
                 />
-                {errors.age && <p style={{ color: '#dc2626', fontSize: '0.875rem', marginTop: '0.25rem' }}>{errors.age}</p>}
+                {errors.age && <p className="text-red-600 text-sm mt-1">{errors.age}</p>}
               </div>
 
               {/* Sex */}
               <div>
-                <label style={labelStyle}>Sex</label>
+                <label className={labelClass}>Sex</label>
                 <select
                   name="sex"
                   value={formData.sex}
                   onChange={handleChange}
-                  style={inputStyle}
+                  className={inputClass}
                 >
                   <option value="">Select...</option>
                   {SEX_OPTIONS.map(opt => (
@@ -527,57 +461,51 @@ export default function PetDetailPage() {
               </div>
 
               {/* Neutered/Spayed */}
-              <div style={{ display: 'flex', alignItems: 'center', paddingTop: '1.75rem' }}>
+              <div className="flex items-center pt-7">
                 <input
                   type="checkbox"
                   name="isNeutered"
                   checked={formData.isNeutered}
                   onChange={handleChange}
                   id="isNeutered"
-                  style={{ width: '1.25rem', height: '1.25rem', marginRight: '0.5rem' }}
+                  className="w-5 h-5 text-flash-500 border-2 border-midnight-300 rounded focus:ring-2 focus:ring-flash-400"
                 />
-                <label htmlFor="isNeutered" style={{ color: '#374151' }}>
+                <label htmlFor="isNeutered" className="ml-2 text-midnight-700">
                   Neutered/Spayed
                 </label>
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Physical Description Section */}
-          <div style={{
-            background: 'white',
-            borderRadius: '1rem',
-            padding: '1.5rem',
-            marginBottom: '1.5rem',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#0f172a', marginBottom: '1.5rem' }}>
+          <Card className="p-6 mb-6">
+            <h2 className="text-xl font-semibold text-midnight-900 mb-6">
               Physical Description
             </h2>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Color */}
               <div>
-                <label style={labelStyle}>Color/Markings *</label>
+                <label className={labelClass}>Color/Markings *</label>
                 <input
                   type="text"
                   name="color"
                   value={formData.color}
                   onChange={handleChange}
                   placeholder="e.g., Golden, Black and White"
-                  style={errors.color ? inputErrorStyle : inputStyle}
+                  className={errors.color ? inputErrorClass : inputClass}
                 />
-                {errors.color && <p style={{ color: '#dc2626', fontSize: '0.875rem', marginTop: '0.25rem' }}>{errors.color}</p>}
+                {errors.color && <p className="text-red-600 text-sm mt-1">{errors.color}</p>}
               </div>
 
               {/* Size */}
               <div>
-                <label style={labelStyle}>Size *</label>
+                <label className={labelClass}>Size *</label>
                 <select
                   name="size"
                   value={formData.size}
                   onChange={handleChange}
-                  style={errors.size ? inputErrorStyle : inputStyle}
+                  className={errors.size ? inputErrorClass : inputClass}
                 >
                   {SIZE_OPTIONS.map(opt => (
                     <option key={opt.value} value={opt.value}>
@@ -589,7 +517,7 @@ export default function PetDetailPage() {
 
               {/* Weight */}
               <div>
-                <label style={labelStyle}>Weight (lbs)</label>
+                <label className={labelClass}>Weight (lbs)</label>
                 <input
                   type="number"
                   name="weight"
@@ -598,98 +526,87 @@ export default function PetDetailPage() {
                   min="0"
                   step="0.1"
                   placeholder="e.g., 25"
-                  style={errors.weight ? inputErrorStyle : inputStyle}
+                  className={errors.weight ? inputErrorClass : inputClass}
                 />
-                {errors.weight && <p style={{ color: '#dc2626', fontSize: '0.875rem', marginTop: '0.25rem' }}>{errors.weight}</p>}
+                {errors.weight && <p className="text-red-600 text-sm mt-1">{errors.weight}</p>}
               </div>
 
               {/* Distinctive Marks */}
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={labelStyle}>Distinctive Marks</label>
+              <div className="md:col-span-2">
+                <label className={labelClass}>Distinctive Marks</label>
                 <textarea
                   name="distinctiveMarks"
                   value={formData.distinctiveMarks}
                   onChange={handleChange}
                   placeholder="e.g., White spot on chest, scar on left ear, cropped tail..."
                   rows={2}
-                  style={inputStyle}
+                  className={inputClass}
                 />
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Identification Section */}
-          <div style={{
-            background: 'white',
-            borderRadius: '1rem',
-            padding: '1.5rem',
-            marginBottom: '1.5rem',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#0f172a', marginBottom: '1.5rem' }}>
+          <Card className="p-6 mb-6">
+            <h2 className="text-xl font-semibold text-midnight-900 mb-6">
               Identification
             </h2>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Microchip */}
               <div>
-                <label style={labelStyle}>Microchip ID</label>
+                <label className={labelClass}>Microchip ID</label>
                 <input
                   type="text"
                   name="microchipId"
                   value={formData.microchipId}
                   onChange={handleChange}
                   placeholder="e.g., 900123456789012"
-                  style={inputStyle}
+                  className={inputClass}
                 />
+                <p className="text-midnight-600 text-xs mt-1">
+                  Having a microchip greatly increases chances of reunion
+                </p>
               </div>
 
               {/* Collar Info */}
               <div>
-                <label style={labelStyle}>Collar/Tag Description</label>
+                <label className={labelClass}>Collar/Tag Description</label>
                 <input
                   type="text"
                   name="collarInfo"
                   value={formData.collarInfo}
                   onChange={handleChange}
                   placeholder="e.g., Red collar with bone-shaped tag"
-                  style={inputStyle}
+                  className={inputClass}
                 />
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Behavior & Health Section */}
-          <div style={{
-            background: 'white',
-            borderRadius: '1rem',
-            padding: '1.5rem',
-            marginBottom: '1.5rem',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#0f172a', marginBottom: '1.5rem' }}>
+          <Card className="p-6 mb-6">
+            <h2 className="text-xl font-semibold text-midnight-900 mb-6">
               Behavior & Health
             </h2>
 
             {/* Personality Traits */}
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={labelStyle}>Personality Traits</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div className="mb-6">
+              <label className={labelClass}>Personality Traits</label>
+              <p className="text-midnight-600 text-sm mb-3">
+                Select all that apply - this helps rescuers approach your pet safely
+              </p>
+              <div className="flex flex-wrap gap-2">
                 {PERSONALITY_TRAITS.map(trait => (
                   <button
                     key={trait}
                     type="button"
                     onClick={() => handlePersonalityToggle(trait)}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      borderRadius: '9999px',
-                      border: formData.personality.includes(trait) ? '2px solid #2563eb' : '1px solid #e2e8f0',
-                      background: formData.personality.includes(trait) ? '#eff6ff' : 'white',
-                      color: formData.personality.includes(trait) ? '#2563eb' : '#64748b',
-                      cursor: 'pointer',
-                      fontSize: '0.875rem',
-                      fontWeight: formData.personality.includes(trait) ? '600' : '400',
-                    }}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      formData.personality.includes(trait)
+                        ? 'bg-flash-100 border-2 border-flash-400 text-flash-700'
+                        : 'bg-white border border-midnight-200 text-midnight-600 hover:border-midnight-300'
+                    }`}
                   >
                     {trait}
                   </button>
@@ -699,27 +616,25 @@ export default function PetDetailPage() {
 
             {/* Medical Conditions */}
             <div>
-              <label style={labelStyle}>Medical Conditions</label>
+              <label className={labelClass}>Medical Conditions</label>
               <textarea
                 name="medicalConditions"
                 value={formData.medicalConditions}
                 onChange={handleChange}
                 placeholder="e.g., Diabetes (needs insulin), arthritis, allergies to chicken..."
                 rows={2}
-                style={inputStyle}
+                className={inputClass}
               />
+              <p className="text-midnight-600 text-xs mt-1">
+                Important for rescuers to know about medications or special needs
+              </p>
             </div>
-          </div>
+          </Card>
 
           {/* Photos Section */}
-          <div style={{
-            background: 'white',
-            borderRadius: '1rem',
-            padding: '1.5rem',
-            marginBottom: '1.5rem',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#0f172a', marginBottom: '1.5rem' }}>
+          <Card className="p-6 mb-6">
+            <h2 className="text-xl font-semibold text-midnight-900 mb-6 flex items-center gap-2">
+              <Camera className="w-5 h-5 text-flash-500" />
               Photos
             </h2>
 
@@ -732,72 +647,45 @@ export default function PetDetailPage() {
               label="Pet Photos"
               helpText="Upload clear photos of your pet. The first photo will be the primary photo."
             />
-          </div>
+          </Card>
 
           {/* Submit Error */}
           {submitError && (
-            <div style={{
-              padding: '1rem',
-              background: '#fef2f2',
-              border: '1px solid #fecaca',
-              borderRadius: '0.5rem',
-              color: '#dc2626',
-              marginBottom: '1.5rem',
-            }}>
-              {submitError}
+            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <span>{submitError}</span>
             </div>
           )}
 
           {/* Action Buttons */}
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'space-between' }}>
-            <button
+          <div className="flex flex-col sm:flex-row gap-4 justify-between">
+            <Button
               type="button"
+              variant="outline"
               onClick={handleDelete}
-              disabled={deleting}
-              style={{
-                padding: '0.75rem 1.5rem',
-                background: 'white',
-                border: '1px solid #dc2626',
-                color: '#dc2626',
-                borderRadius: '0.5rem',
-                cursor: deleting ? 'not-allowed' : 'pointer',
-                fontWeight: '500',
-                opacity: deleting ? 0.5 : 1,
-              }}
+              loading={deleting}
+              className="border-red-300 text-red-600 hover:bg-red-50"
             >
+              <Trash2 size={18} />
               {deleting ? 'Deleting...' : 'Delete Pet'}
-            </button>
+            </Button>
 
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <Link
+            <div className="flex gap-4">
+              <Button
+                variant="outline"
                 href="/pets"
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: 'white',
-                  border: '1px solid #e2e8f0',
-                  color: '#64748b',
-                  borderRadius: '0.5rem',
-                  textDecoration: 'none',
-                  fontWeight: '500',
-                }}
+                size="lg"
               >
                 Cancel
-              </Link>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                disabled={submitting}
-                style={{
-                  padding: '0.75rem 2rem',
-                  background: submitting ? '#94a3b8' : '#2563eb',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  fontWeight: '600',
-                  cursor: submitting ? 'not-allowed' : 'pointer',
-                }}
+                variant="primary"
+                size="lg"
+                loading={submitting}
               >
-                {submitting ? 'Saving...' : 'Save Changes'}
-              </button>
+                Save Changes
+              </Button>
             </div>
           </div>
         </form>
