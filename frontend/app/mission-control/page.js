@@ -140,7 +140,16 @@ function MissionControlContent() {
   // Handle joining mission
   const handleJoinMission = async (missionIdToJoin) => {
     try {
-      const res = await fetchWithRetry(`/api/cases/${missionIdToJoin}/helpers`, {
+      // Need squadId - get it from the mission data
+      const squadId = activeMission?.rescueSquadId || activeMission?.squadId;
+
+      if (!squadId) {
+        alert('Unable to join mission: Squad information missing');
+        console.error('Mission missing squadId:', activeMission);
+        return;
+      }
+
+      const res = await fetchWithRetry(`/api/rescue-squads/${squadId}/cases/${missionIdToJoin}/help`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -150,13 +159,16 @@ function MissionControlContent() {
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         console.error('Failed to join mission:', errorData);
-        alert(errorData.message || 'Failed to join mission. Please try again.');
+        alert(errorData.error || errorData.message || 'Failed to join mission. Please try again.');
         return;
       }
 
       // Refresh mission data to show updated helper status
       await fetchMission(missionId);
       await fetchAvailableMissions();
+
+      // Success feedback
+      alert(`You've joined the rescue mission for ${activeMission.petName}! 🚀`);
     } catch (err) {
       console.error('Error joining mission:', err);
       alert('Failed to join mission. Please check your connection and try again.');

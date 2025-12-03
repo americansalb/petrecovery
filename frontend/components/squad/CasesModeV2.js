@@ -9,17 +9,56 @@
  * - Click to open case detail page
  */
 
-import { Clock, MapPin, DollarSign } from 'lucide-react';
+import { useState } from 'react';
+import { Clock, MapPin, DollarSign, Radio, Shield } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
+import { useSession } from 'next-auth/react';
+import { fetchWithRetry } from '@/app/lib/utils';
 
 export default function CasesModeV2({
   cases,
   selectedStatus,
   onStatusChange,
   cityName,
+  squadId,
+  onCaseUpdate,
 }) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const [joiningCaseId, setJoiningCaseId] = useState(null);
+
+  const handleJoinCase = async (caseData, e) => {
+    e.stopPropagation(); // Prevent card click
+
+    if (!squadId) {
+      alert('Unable to join: Squad information missing');
+      return;
+    }
+
+    setJoiningCaseId(caseData.id);
+
+    try {
+      const res = await fetchWithRetry(`/api/rescue-squads/${squadId}/cases/${caseData.id}/help`, {
+        method: 'POST',
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.error || 'Failed to join mission');
+        return;
+      }
+
+      // Success!
+      onCaseUpdate?.(); // Refresh cases list
+      alert(`You've joined the rescue mission for ${caseData.petName}! 🚀`);
+    } catch (err) {
+      console.error('Error joining case:', err);
+      alert('Failed to join mission. Please try again.');
+    } finally {
+      setJoiningCaseId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -63,6 +102,9 @@ export default function CasesModeV2({
             <CaseCard
               key={caseData.id}
               caseData={caseData}
+              session={session}
+              isJoining={joiningCaseId === caseData.id}
+              onJoin={(e) => handleJoinCase(caseData, e)}
               onClick={() => {
                 console.log('[CaseClick] Opening in Mission Control:', caseData.caseNumber, caseData);
                 router.push(`/mission-control?mission=${caseData.caseNumber}`);
@@ -93,7 +135,7 @@ function StatusButton({ active, onClick, label, count }) {
   );
 }
 
-function CaseCard({ caseData, onClick }) {
+function CaseCard({ caseData, onClick, session, isJoining, onJoin }) {
   const {
     caseNumber,
     petName,
@@ -107,7 +149,12 @@ function CaseCard({ caseData, onClick }) {
     lastSeenAddress,
     rewardAmount,
     helperCount,
+    participants,
   } = caseData;
+
+  // Check if user is already deployed
+  const isDeployed = session && participants?.some(p => p.userId === session.user.id && p.isActive);
+  const isReunited = status === 'REUNITED';
 
   // Get species emoji
   const speciesEmoji = {
@@ -227,6 +274,36 @@ function CaseCard({ caseData, onClick }) {
               </span>
             )}
           </div>
+
+          {/* Join Mission Button */}
+          {!isReunited && session && (
+            <div className="mt-4 pt-4 border-t border-slate-700/50">
+              {isDeployed ? (
+                <div className="px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center gap-2">
+                  <Shield size={16} className="text-emerald-400" />
+                  <span className="text-sm font-bold text-emerald-400">You're deployed on this mission</span>
+                </div>
+              ) : (
+                <button
+                  onClick={onJoin}
+                  disabled={isJoining}
+                  className="w-full px-4 py-2.5 rounded-lg bg-gradient-to-r from-flash-500 to-flash-400 text-midnight-900 text-sm font-bold hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isJoining ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-midnight-900 border-t-transparent rounded-full animate-spin" />
+                      <span>Joining...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Radio size={16} />
+                      <span>Join Rescue Mission</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

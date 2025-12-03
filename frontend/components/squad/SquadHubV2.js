@@ -135,6 +135,11 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
             selectedStatus={selectedStatus}
             onStatusChange={setSelectedStatus}
             cityName={squad.cityName}
+            squadId={squadId}
+            onCaseUpdate={() => {
+              // TODO: Implement proper refresh - for now just reload the page
+              window.location.reload();
+            }}
           />
         )}
 
