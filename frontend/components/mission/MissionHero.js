@@ -5,10 +5,13 @@
  * Mobile-first design - single row with essential info only
  */
 
+import { useState } from 'react';
 import { Clock, Users, Shield, Radio, Crown } from 'lucide-react';
 import { normalizePhotoUrl } from '@/app/lib/utils';
 
 export default function MissionHero({ mission, session, onJoinMission }) {
+  const [isJoining, setIsJoining] = useState(false);
+
   if (!mission) return null;
 
   // Calculate time missing
@@ -25,9 +28,24 @@ export default function MissionHero({ mission, session, onJoinMission }) {
   const isUrgent = timeMissing && timeMissing.hours < 24;
   const isReunited = mission.status === 'RESOLVED' || mission.resolution === 'REUNITED';
 
+  // Get participants from assignments
+  const participants = mission.assignments?.flatMap(a => a.participants || []) || [];
+  const activeParticipants = participants.filter(p => p.isActive !== false);
+  const helperCount = activeParticipants.length;
+
   // Check user status
-  const isDeployed = session && mission.helpers?.some(h => h.userId === session.user.id);
+  const isDeployed = session && activeParticipants.some(p => p.userId === session.user.id);
   const isOwner = session && mission.ownerId === session.user.id;
+
+  const handleJoin = async () => {
+    setIsJoining(true);
+    try {
+      await onJoinMission?.(mission.id);
+    } finally {
+      // Keep showing loading for a bit to let data refresh
+      setTimeout(() => setIsJoining(false), 500);
+    }
+  };
 
   return (
     <div className="bg-slate-900/90 backdrop-blur-xl border-b border-slate-800/60">
@@ -72,7 +90,7 @@ export default function MissionHero({ mission, session, onJoinMission }) {
             <div className="flex items-center gap-3 text-xs text-slate-400 overflow-x-auto">
               <span className="flex items-center gap-1 whitespace-nowrap">
                 <Users size={12} />
-                {mission.helperCount || 0} helpers
+                {helperCount} {helperCount === 1 ? 'helper' : 'helpers'}
               </span>
               {mission.petBreed && (
                 <span className="truncate">• {mission.petBreed}</span>
@@ -95,12 +113,23 @@ export default function MissionHero({ mission, session, onJoinMission }) {
                 </div>
               ) : (
                 <button
-                  onClick={() => onJoinMission?.(mission.id)}
-                  className="px-3 sm:px-4 py-1.5 rounded-lg bg-gradient-to-r from-flash-500 to-flash-400 text-midnight-900 text-xs sm:text-sm font-bold hover:scale-105 transition flex items-center gap-1.5"
+                  onClick={handleJoin}
+                  disabled={isJoining}
+                  className="px-3 sm:px-4 py-1.5 rounded-lg bg-gradient-to-r from-flash-500 to-flash-400 text-midnight-900 text-xs sm:text-sm font-bold hover:scale-105 transition flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Radio size={14} />
-                  <span className="hidden sm:inline">Join Mission</span>
-                  <span className="sm:hidden">Join</span>
+                  {isJoining ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-midnight-900 border-t-transparent rounded-full animate-spin" />
+                      <span className="hidden sm:inline">Joining...</span>
+                      <span className="sm:hidden">...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Radio size={14} />
+                      <span className="hidden sm:inline">Join Mission</span>
+                      <span className="sm:hidden">Join</span>
+                    </>
+                  )}
                 </button>
               )}
             </div>
