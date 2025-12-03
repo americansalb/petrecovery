@@ -409,9 +409,14 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose, hideH
               </div>
             )}
           </div>
+        </div>
+      </div>
+      )}
 
-          {/* Tabs */}
-          <div className="flex gap-1 mt-4 overflow-x-auto">
+      {/* Tabs - ALWAYS VISIBLE */}
+      <div className="bg-slate-900/80 backdrop-blur-xl border-b-2 border-slate-800/60 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex gap-1 overflow-x-auto">
             {tabs.map(tab => {
               const Icon = tab.icon;
               return (
@@ -432,7 +437,6 @@ export default function CaseCommandCenterV2({ caseId, caseNumber, onClose, hideH
           </div>
         </div>
       </div>
-      )}
 
       {/* Tab Content */}
       <div className="max-w-7xl mx-auto p-6">
