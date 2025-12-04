@@ -39,8 +39,8 @@ export default function MembersModal({ isOpen, onClose, squadId, currentUserId, 
     }
   };
 
-  // Use provided members or fetched members
-  const members = initialMembers || fetchedMembers;
+  // Use provided members or fetched members (check for length, not just truthiness)
+  const members = initialMembers?.length ? initialMembers : fetchedMembers;
 
   const filteredMembers = members.filter(member => {
     const searchLower = searchQuery.toLowerCase();

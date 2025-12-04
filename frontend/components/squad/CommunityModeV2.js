@@ -58,32 +58,6 @@ export default function CommunityModeV2({
 
   return (
     <div className="space-y-6">
-      {/* Stats Bar */}
-      {stats && (
-        <div className="flex items-center gap-6 text-sm bg-slate-900/50 backdrop-blur-sm border border-slate-800/60 rounded-xl p-4">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-white font-bold">{stats.active || 0}</span>
-            <span className="text-slate-400">Active</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-white font-bold">{stats.reunited || 0}</span>
-            <span className="text-slate-400">Reunited</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-blue-400" />
-            <span className="text-white font-bold">{stats.members || 0}</span>
-            <span className="text-slate-400">Members</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-flash-300" />
-            <span className="text-white font-bold">{stats.onDuty || 0}</span>
-            <span className="text-slate-400">On Duty</span>
-          </div>
-        </div>
-      )}
-
       {/* Featured Cases Carousel */}
       <FeaturedCasesCarousel cases={cases} />
 
@@ -108,7 +82,7 @@ export default function CommunityModeV2({
                     {isMascot ? (
                       <div className="flex-shrink-0">
                         <img
-                          src="/images/surumaa-avatar.png"
+                          src="https://petrescue.b-cdn.net/Untitled%20design%20(13).svg"
                           alt="Surumaa"
                           className="w-14 h-14 rounded-full object-cover border-2 border-purple-400/50 shadow-lg bg-gradient-to-br from-purple-500 to-purple-600"
                           onError={(e) => {

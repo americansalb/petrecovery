@@ -57,7 +57,7 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
             {post.isSystemPost ? (
               <>
                 <img
-                  src="/images/surumaa-avatar.png"
+                  src="https://petrescue.b-cdn.net/Untitled%20design%20(13).svg"
                   alt="Surumaa"
                   className="w-14 h-14 rounded-full object-cover shadow-lg ring-2 ring-purple-400/50 bg-gradient-to-br from-purple-500 to-purple-600"
                   onError={(e) => {
