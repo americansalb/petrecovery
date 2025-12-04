@@ -441,15 +441,17 @@ export async function GET(request, { params }) {
 
     const announcements = announcementActivities.map(a => {
       const details = JSON.parse(a.details || '{}');
+      const isSystemPost = details.isSystemPost || a.actor?.firstName === 'Surumaa';
       return {
         id: a.id,
         authorId: a.actorId,
-        authorName: a.actor ? `${a.actor.firstName} ${a.actor.lastName?.[0] || ''}.` : 'Unknown',
+        authorName: isSystemPost ? 'Surumaa' : (a.actor ? `${a.actor.firstName} ${a.actor.lastName?.[0] || ''}.` : 'Unknown'),
         title: details.title || 'Announcement',
         content: a.message,
         createdAt: a.createdAt.toISOString(),
         isPinned: details.isPinned || false,
         divisionId: details.divisionId || null,
+        isSystemPost,
       };
     });
 
