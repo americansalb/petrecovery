@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { Plus, Shield, Users, TrendingUp, MapPin, Camera } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import PhotoUploadModal from './PhotoUploadModal';
+import MembersModal from './MembersModal';
 
 export default function SquadHeaderV2({
   squad,
@@ -21,13 +22,10 @@ export default function SquadHeaderV2({
 }) {
   const router = useRouter();
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
   const cityName = squad.cityName || 'Unknown City';
   const state = squad.state || '';
   const currentDivision = divisions.find(d => d.id === currentDivisionId);
-
-  const handleReportCase = () => {
-    router.push('/cases/report');
-  };
 
   const handleJoinSquad = async () => {
     try {
@@ -115,57 +113,56 @@ export default function SquadHeaderV2({
           </div>
         )}
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            value={stats.active}
-            label="Active Cases"
-            icon={<div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
-            trend="urgent"
-          />
-          <StatCard
-            value={stats.reunited}
-            label="Reunited (30d)"
-            icon={<div className="w-2 h-2 rounded-full bg-green-500" />}
-            trend="positive"
-          />
-          <StatCard
-            value={stats.members}
-            label="Squad Members"
-            icon={<Users size={16} className="text-slate-400" />}
-          />
-          <StatCard
-            value={stats.onDuty}
-            label="On Duty Now"
-            icon={<div className="w-2 h-2 rounded-full bg-flash-300" />}
-            trend="active"
-          />
+        {/* Compact Stats Bar */}
+        <div className="flex items-center gap-6 mb-6 text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-white font-bold">{stats.active}</span>
+            <span className="text-slate-400">Active</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-white font-bold">{stats.reunited}</span>
+            <span className="text-slate-400">Reunited</span>
+          </div>
+          <button
+            onClick={() => setShowMembers(true)}
+            className="flex items-center gap-2 hover:bg-slate-800/50 px-3 py-1.5 rounded-lg transition-all group"
+          >
+            <Users size={14} className="text-slate-400 group-hover:text-flash-400 transition-colors" />
+            <span className="text-white font-bold">{stats.members}</span>
+            <span className="text-slate-400 group-hover:text-slate-300 transition-colors">Members</span>
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-flash-300" />
+            <span className="text-white font-bold">{stats.onDuty}</span>
+            <span className="text-slate-400">On Duty</span>
+          </div>
         </div>
 
-        {/* Division Chips & CTA */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          {/* Division Chips */}
-          <div className="flex flex-wrap gap-2">
-            {isDivisionPage ? (
-              <>
-                <button
-                  onClick={() => router.push(`/rescue-squads/${squad.id}`)}
-                  className="px-5 py-2.5 rounded-full text-sm font-medium bg-slate-800/50 text-slate-300 hover:bg-slate-700/50 border border-slate-700/50 hover:border-slate-600 transition-all duration-200"
-                >
-                  ← View Full Squad
-                </button>
-                <DivisionChip active={true} label={currentDivision?.name || 'Division'} />
-                {divisions.filter(d => d.id !== currentDivisionId).map(div => (
-                  <DivisionChip
-                    key={div.id}
-                    active={false}
-                    onClick={() => router.push(`/rescue-squads/${squad.id}/divisions/${div.id}`)}
-                    label={div.name}
-                  />
-                ))}
-              </>
-            ) : (
-              divisions.length > 0 && divisions.map(div => (
+        {/* Division Chips */}
+        <div className="flex flex-wrap gap-2">
+          {isDivisionPage ? (
+            <>
+              <button
+                onClick={() => router.push(`/rescue-squads/${squad.id}`)}
+                className="px-5 py-2.5 rounded-full text-sm font-medium bg-slate-800/50 text-slate-300 hover:bg-slate-700/50 border border-slate-700/50 hover:border-slate-600 transition-all duration-200"
+              >
+                ← View Full Squad
+              </button>
+              <DivisionChip active={true} label={currentDivision?.name || 'Division'} />
+              {divisions.filter(d => d.id !== currentDivisionId).map(div => (
+                <DivisionChip
+                  key={div.id}
+                  active={false}
+                  onClick={() => router.push(`/rescue-squads/${squad.id}/divisions/${div.id}`)}
+                  label={div.name}
+                />
+              ))}
+            </>
+          ) : (
+            <>
+              {divisions.length > 0 && divisions.map(div => (
                 <DivisionChip
                   key={div.id}
                   active={false}
@@ -173,31 +170,19 @@ export default function SquadHeaderV2({
                   label={div.name}
                   count={div.activeCaseCount}
                 />
-              ))
-            )}
-          </div>
-
-          {/* Primary CTA */}
-          {membership.isMember ? (
-            <button
-              onClick={handleReportCase}
-              className="group relative px-8 py-4 rounded-xl bg-gradient-to-r from-flash-500 via-flash-400 to-flash-400 text-white font-bold shadow-lg shadow-flash-500/30 hover:shadow-xl hover:shadow-flash-500/50 hover:scale-105 transition-all duration-200"
-            >
-              <div className="flex items-center gap-3">
-                <Plus size={22} strokeWidth={2.5} />
-                <span>Report Lost or Found Pet</span>
-              </div>
-            </button>
-          ) : (
-            <button
-              onClick={handleJoinSquad}
-              className="px-8 py-4 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold shadow-lg shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/40 hover:scale-105 transition-all duration-200"
-            >
-              <div className="flex items-center gap-3">
-                <Shield size={22} />
-                <span>Join This Squad</span>
-              </div>
-            </button>
+              ))}
+              {!membership.isMember && (
+                <button
+                  onClick={handleJoinSquad}
+                  className="px-6 py-2.5 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-bold shadow-lg shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/40 hover:scale-105 transition-all duration-200"
+                >
+                  <div className="flex items-center gap-2">
+                    <Shield size={18} />
+                    <span>Join This Squad</span>
+                  </div>
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -211,24 +196,14 @@ export default function SquadHeaderV2({
         }}
         squadId={squad.id}
       />
-    </div>
-  );
-}
 
-function StatCard({ value, label, icon, trend }) {
-  const trendColors = {
-    urgent: 'border-red-500/20 bg-red-500/5',
-    positive: 'border-green-500/20 bg-green-500/5',
-    active: 'border-flash-400/20 bg-flash-400/5',
-  };
-
-  return (
-    <div className={`p-5 rounded-2xl backdrop-blur-sm bg-slate-800/30 border ${trend ? trendColors[trend] : 'border-slate-700/30'} hover:bg-slate-800/50 transition-all duration-200`}>
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-3xl font-bold text-white">{value}</span>
-        {icon}
-      </div>
-      <p className="text-sm text-slate-400 font-medium">{label}</p>
+      {/* Members Modal */}
+      <MembersModal
+        isOpen={showMembers}
+        onClose={() => setShowMembers(false)}
+        squadId={squad.id}
+        currentUserId={membership?.userId}
+      />
     </div>
   );
 }

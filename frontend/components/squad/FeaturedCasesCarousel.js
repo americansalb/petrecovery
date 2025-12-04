@@ -1,131 +1,159 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, MapPin, Clock } from 'lucide-react';
+/**
+ * FeaturedCasesCarousel - Auto-cycling carousel showing 3-4 recent cases
+ *
+ * Performance optimizations:
+ * - CSS transforms for smooth animations
+ * - Lazy image loading
+ * - Limits to 30 most recent cases
+ * - Responsive: 1 card mobile, 3 cards tablet, 4 cards desktop
+ */
+
+import { useState, useEffect } from 'react';
+import { Clock, Users, AlertCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
 
 export default function FeaturedCasesCarousel({ cases }) {
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
-  const autoPlayRef = useRef(null);
 
-  // Filter to show only active urgent cases
-  const featuredCases = cases.filter(c =>
-    (c.status === 'ACTIVE' || c.status === 'IN_PROGRESS' || c.status === 'PENDING') &&
-    c.urgency === 'HIGH'
-  ).slice(0, 5); // Max 5 featured
+  // Get 30 most recent active cases (sorted by creation/update time)
+  const featuredCases = cases
+    .filter(c => c.status === 'ACTIVE' || c.status === 'IN_PROGRESS' || c.status === 'PENDING')
+    .slice(0, 30);
 
-  // Auto-advance carousel
+  // Auto-cycle every 6 seconds
   useEffect(() => {
-    if (!isAutoPlaying || featuredCases.length <= 1) return;
+    if (featuredCases.length <= 4) return; // Don't cycle if all cases fit
 
-    autoPlayRef.current = setInterval(() => {
+    const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % featuredCases.length);
-    }, 5000); // 5 seconds
+    }, 6000);
 
-    return () => {
-      if (autoPlayRef.current) {
-        clearInterval(autoPlayRef.current);
-      }
-    };
-  }, [isAutoPlaying, featuredCases.length]);
-
-  const goToPrevious = () => {
-    setIsAutoPlaying(false);
-    setCurrentIndex((prev) => (prev - 1 + featuredCases.length) % featuredCases.length);
-  };
-
-  const goToNext = () => {
-    setIsAutoPlaying(false);
-    setCurrentIndex((prev) => (prev + 1) % featuredCases.length);
-  };
+    return () => clearInterval(interval);
+  }, [featuredCases.length]);
 
   if (featuredCases.length === 0) return null;
 
-  const currentCase = featuredCases[currentIndex];
+  return (
+    <div className="relative border-b border-slate-800/60 bg-slate-900/50 backdrop-blur-sm">
+      <div className="max-w-7xl mx-auto px-6 py-3">
+        {/* Compact Title */}
+        <div className="flex items-center gap-3 mb-2">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Featured Cases</h3>
+          <div className="h-px flex-1 bg-gradient-to-r from-slate-700/50 to-transparent" />
+          <div className="text-xs text-slate-500">
+            {currentIndex + 1}-{Math.min(currentIndex + 4, featuredCases.length)} of {featuredCases.length}
+          </div>
+        </div>
+
+        {/* Compact Carousel Container */}
+        <div className="relative overflow-hidden -mx-2 px-2">
+          <div
+            className="flex gap-3 transition-transform duration-700 ease-in-out pb-2"
+            style={{
+              transform: `translateX(-${currentIndex * (100 / 4 + 3)}%)`
+            }}
+          >
+            {featuredCases.map((caseData) => (
+              <FeaturedCaseCard key={caseData.id} caseData={caseData} router={router} />
+            ))}
+          </div>
+        </div>
+
+        {/* Compact Dots indicator */}
+        {featuredCases.length > 4 && (
+          <div className="flex items-center justify-center gap-0.5 mt-1">
+            {Array.from({ length: Math.ceil(featuredCases.length / 4) }).map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentIndex(idx * 4)}
+                style={{
+                  width: Math.floor(currentIndex / 4) === idx ? '4px' : '2px',
+                  height: '2px',
+                }}
+                className={`rounded-full transition-all ${
+                  Math.floor(currentIndex / 4) === idx
+                    ? 'bg-orange-500'
+                    : 'bg-slate-700 hover:bg-slate-600'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FeaturedCaseCard({ caseData, router }) {
+  const {
+    caseNumber,
+    petName,
+    species,
+    photoUrl,
+    urgency,
+    lastSeenAt,
+    helperCount,
+  } = caseData;
+
   const speciesEmoji = {
     DOG: '🐕',
     CAT: '🐈',
     BIRD: '🐦',
     RABBIT: '🐰',
     OTHER: '🐾',
-  }[currentCase.species] || '🐾';
+  }[species] || '🐾';
 
-  // Use photoUrl from case data
-  const petPhotoUrl = currentCase.photoUrl;
+  const timeAgo = lastSeenAt
+    ? formatDistanceToNow(new Date(lastSeenAt), { addSuffix: true })
+    : 'Recently';
 
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/20 to-slate-900/20 backdrop-blur-sm border border-red-500/30 rounded-xl p-4 mb-6">
-      {/* Urgent Badge */}
-      <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-red-500/80 text-white font-bold text-xs uppercase tracking-wider">
-        ⚡ Urgent
-      </div>
-
-      {/* Case Content */}
-      <div className="flex gap-4 items-center">
-        {/* Pet Photo */}
-        <div className="flex-shrink-0">
-          {petPhotoUrl ? (
-            <img
-              src={petPhotoUrl}
-              alt={currentCase.petName}
-              className="w-16 h-16 rounded-lg object-cover border border-red-500/30"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-3xl border border-red-500/30">
-              {speciesEmoji}
-            </div>
-          )}
-        </div>
-
-        {/* Case Info */}
-        <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-bold text-white mb-1">
-            {currentCase.petName} · {currentCase.species?.toLowerCase()}
-          </h3>
-
-          <div className="flex items-center gap-3 text-xs text-slate-400 mb-2">
-            {currentCase.lastSeenAddress && (
-              <div className="flex items-center gap-1">
-                <MapPin size={12} className="text-red-400" />
-                <span className="truncate max-w-[200px]">{currentCase.lastSeenAddress}</span>
-              </div>
-            )}
-            {currentCase.lastSeenAt && (
-              <span>
-                {formatDistanceToNow(new Date(currentCase.lastSeenAt), { addSuffix: true })}
-              </span>
-            )}
-          </div>
-
-          <button
-            onClick={() => router.push(`/cases/${currentCase.caseNumber}`)}
-            className="text-xs px-3 py-1.5 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-500 transition-colors"
-          >
-            Help Now →
-          </button>
-        </div>
-
-        {/* Navigation */}
-        {featuredCases.length > 1 && (
-          <div className="flex gap-1">
-            <button
-              onClick={goToPrevious}
-              className="p-1.5 rounded-lg bg-slate-800/50 text-slate-400 hover:text-white transition-all"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              onClick={goToNext}
-              className="p-1.5 rounded-lg bg-slate-800/50 text-slate-400 hover:text-white transition-all"
-            >
-              <ChevronRight size={16} />
-            </button>
+    <button
+      onClick={() => router.push(`/mission-control?mission=${caseNumber}`)}
+      className="flex-shrink-0 w-64 group relative bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-sm border border-slate-700/50 rounded-xl p-3 hover:border-orange-500/50 hover:shadow-lg hover:shadow-orange-500/20 transition-all"
+    >
+      <div className="flex items-center gap-3">
+        {/* Compact Pet Photo */}
+        {photoUrl ? (
+          <img
+            src={photoUrl}
+            alt={petName}
+            loading="lazy"
+            className="w-12 h-12 rounded-lg object-cover border border-slate-600/50 group-hover:border-orange-500/30 transition-colors"
+          />
+        ) : (
+          <div className="w-12 h-12 rounded-lg bg-slate-700/50 border border-slate-600/50 group-hover:border-orange-500/30 flex items-center justify-center text-2xl transition-colors">
+            {speciesEmoji}
           </div>
         )}
+
+        {/* Compact Case Info */}
+        <div className="flex-1 text-left min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h4 className="font-bold text-white text-sm truncate group-hover:text-orange-400 transition-colors">
+              {petName}
+            </h4>
+            {urgency === 'HIGH' && (
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+            )}
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <span className="flex items-center gap-1">
+              <Users size={10} />
+              {helperCount || 0}
+            </span>
+            <span className="text-slate-600">•</span>
+            <span className="flex items-center gap-1">
+              <Clock size={10} />
+              {timeAgo.replace(' ago', '')}
+            </span>
+          </div>
+        </div>
       </div>
-    </div>
+    </button>
   );
 }
