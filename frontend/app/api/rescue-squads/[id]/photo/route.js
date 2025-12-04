@@ -7,7 +7,7 @@ import prisma from '@/app/lib/prisma';
  * POST /api/rescue-squads/[id]/photo
  *
  * Update squad photo URL
- * Requires ADMIN or MODERATOR role
+ * Requires ADMIN, MODERATOR, or FOUNDER role
  */
 export async function POST(request, { params }) {
   try {
@@ -31,19 +31,19 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Check if user is admin or moderator of this squad
-    const membership = await prisma.rescueSquadMembership.findUnique({
+    // Check if user is admin, moderator, or founder of this squad
+    const membership = await prisma.rescueSquadMember.findFirst({
       where: {
-        userId_rescueSquadId: {
-          userId: session.user.id,
-          rescueSquadId: id,
-        },
+        userId: session.user.id,
+        rescueSquadId: id,
+        isActive: true,
       },
     });
 
-    if (!membership || (membership.role !== 'ADMIN' && membership.role !== 'MODERATOR')) {
+    const allowedRoles = ['ADMIN', 'MODERATOR', 'FOUNDER'];
+    if (!membership || !allowedRoles.includes(membership.role)) {
       return NextResponse.json(
-        { error: 'Only admins and moderators can update squad photo' },
+        { error: 'Only admins, moderators, and founders can update squad photo' },
         { status: 403 }
       );
     }
@@ -61,7 +61,7 @@ export async function POST(request, { params }) {
   } catch (error) {
     console.error('[SQUAD_PHOTO] Error:', error);
     return NextResponse.json(
-      { error: 'Failed to update squad photo' },
+      { error: 'Failed to update squad photo', details: error.message },
       { status: 500 }
     );
   }
