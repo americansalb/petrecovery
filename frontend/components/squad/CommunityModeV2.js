@@ -15,7 +15,7 @@
 import { useState, useEffect } from 'react';
 import { Pin } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import FeaturedCasesCarousel from './FeaturedCasesCarousel';
+import FeaturedCases from './FeaturedCasesCarousel';
 import PostFeed from './PostFeed';
 import CreatePostModal from './CreatePostModal';
 import MembersModal from './MembersModal';
@@ -58,8 +58,8 @@ export default function CommunityModeV2({
 
   return (
     <div className="space-y-6">
-      {/* Featured Cases Carousel */}
-      <FeaturedCasesCarousel cases={cases} />
+      {/* Featured Cases */}
+      <FeaturedCases cases={cases} />
 
       {/* Pinned Announcements */}
       {announcements.length > 0 && (
