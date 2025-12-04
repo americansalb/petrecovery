@@ -68,8 +68,7 @@ export async function GET(request, { params }) {
             firstName: true,
             lastName: true,
             email: true,
-            profileImage: true,
-            bio: true
+            profileImage: true
           }
         },
         division: {
@@ -118,7 +117,6 @@ export async function GET(request, { params }) {
         firstName: member.user.firstName,
         lastName: showFullName ? member.user.lastName : (showLastInitial && member.user.lastName ? member.user.lastName.charAt(0) + '.' : null),
         profileImage: member.user.profileImage,
-        bio: (isFriend || isCurrentUser) ? member.user.bio : null,
         role: member.role,
         joinedAt: member.joinedAt,
         isFriend,

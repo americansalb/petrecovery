@@ -206,10 +206,6 @@ function MemberCard({ member, currentUserId, roleColors }) {
             </div>
           )}
 
-          {/* Friend-only info */}
-          {(isFriend || isCurrentUser) && member.bio && (
-            <p className="text-sm text-slate-300 mt-2 leading-relaxed">{member.bio}</p>
-          )}
         </div>
 
         {/* Friend Actions - Only show for non-friends and not current user */}
