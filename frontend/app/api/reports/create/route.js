@@ -286,6 +286,23 @@ export async function POST(request) {
           });
           console.log('[Report Debug] Created assignment:', { id: assignment.id, caseId: assignment.caseId, rescueSquadId: assignment.rescueSquadId });
 
+          // Create automatic mascot post about the new case
+          try {
+            await prisma.squadPost.create({
+              data: {
+                rescueSquadId: squad.id,
+                authorId: user.id, // Use reporter as author for now (TODO: create system mascot user)
+                content: `🚨 **New Case Alert!** 🚨\n\n${petName}, a ${color} ${petType}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nIf you're in the area, please keep an eye out and report any sightings. Every pair of eyes helps! 👀`,
+                isSystemPost: true, // Mark as system/mascot post
+                isPinned: false,
+              }
+            });
+            console.log('[Report Debug] Created mascot post for squad:', squad.name);
+          } catch (postError) {
+            // Non-fatal: log but continue
+            console.error('[Report Debug] Failed to create mascot post:', postError);
+          }
+
           assignedSquads.push({
             id: squad.id,
             name: squad.name,

@@ -54,19 +54,33 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
         <div className="flex items-start gap-3 mb-4">
           {/* Larger Profile Picture */}
           <div className="flex-shrink-0">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white font-bold text-xl shadow-lg ring-2 ring-slate-700/50">
-              {post.authorName?.charAt(0)?.toUpperCase() || '?'}
-            </div>
+            {post.isSystemPost ? (
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-3xl shadow-lg ring-2 ring-purple-400/50">
+                🐾
+              </div>
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white font-bold text-xl shadow-lg ring-2 ring-slate-700/50">
+                {post.authorName?.charAt(0)?.toUpperCase() || '?'}
+              </div>
+            )}
           </div>
 
           {/* Author Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="font-bold text-white text-base">{post.authorName}</span>
-              {post.authorRole && post.authorRole !== 'MEMBER' && (
-                <span className={`px-2 py-0.5 rounded-md text-xs font-semibold border ${roleStyle}`}>
-                  {post.authorRole.toLowerCase()}
+              <span className="font-bold text-white text-base">
+                {post.isSystemPost ? 'PetRecovery Bot' : post.authorName}
+              </span>
+              {post.isSystemPost ? (
+                <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  Community Guide
                 </span>
+              ) : (
+                post.authorRole && post.authorRole !== 'MEMBER' && (
+                  <span className={`px-2 py-0.5 rounded-md text-xs font-semibold border ${roleStyle}`}>
+                    {post.authorRole.toLowerCase()}
+                  </span>
+                )
               )}
             </div>
             <div className="flex items-center gap-2 text-sm text-slate-400">
