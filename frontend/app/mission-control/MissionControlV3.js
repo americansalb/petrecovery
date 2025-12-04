@@ -316,15 +316,15 @@ function MissionControlV3Content() {
   // Waiver modal (no mission loaded yet)
   if (showWaiverModal && !activeMission) {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-        <div className="max-w-sm w-full text-center">
-          <div className="mb-4">
-            <div className="inline-block p-3 bg-flash-500/20 rounded-full border border-flash-500/50">
-              <Shield size={32} className="text-flash-400" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-6">
+        <div className="max-w-md w-full text-center">
+          <div className="mb-6">
+            <div className="inline-block p-4 bg-flash-500/20 rounded-full border-2 border-flash-500/50">
+              <Shield size={48} className="text-flash-400" />
             </div>
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Liability Waiver Required</h2>
-          <p className="text-slate-400 text-sm mb-4">Please accept the liability waiver to view mission details.</p>
+          <h2 className="text-2xl font-bold text-white mb-3">Liability Waiver Required</h2>
+          <p className="text-slate-400 mb-6">Please accept the liability waiver to view mission details.</p>
         </div>
         <WaiverModal
           isOpen={showWaiverModal}
@@ -344,28 +344,28 @@ function MissionControlV3Content() {
   // Error state
   if (error) {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-        <div className="max-w-sm w-full bg-slate-900/80 border border-red-500/30 rounded-xl p-6">
-          <div className="flex justify-center mb-4">
-            <div className="p-3 bg-red-500/20 rounded-full border border-red-500/50">
-              <AlertCircle size={32} className="text-red-400" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-slate-900/80 border-2 border-red-500/30 rounded-2xl p-8">
+          <div className="flex justify-center mb-6">
+            <div className="p-4 bg-red-500/20 rounded-full border-2 border-red-500/50">
+              <AlertCircle size={48} className="text-red-400" />
             </div>
           </div>
-          <h2 className="text-xl font-bold text-white text-center mb-2">Unable to Load Mission</h2>
-          <p className="text-red-300 text-center text-sm mb-6">{error}</p>
-          <div className="flex flex-col gap-2">
+          <h2 className="text-2xl font-bold text-white text-center mb-3">Unable to Load Mission</h2>
+          <p className="text-red-300 text-center mb-8">{error}</p>
+          <div className="flex flex-col gap-3">
             <button
               onClick={() => { setError(null); setLoading(true); if (missionId) fetchMission(missionId); }}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-flash-500 text-slate-900 font-bold rounded-lg text-sm"
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-flash-500 text-slate-900 font-bold rounded-xl hover:bg-flash-400 transition"
             >
-              <RefreshCw size={16} />
+              <RefreshCw size={20} />
               Try Again
             </button>
             <button
               onClick={() => router.push('/mission-control')}
-              className="px-4 py-2.5 bg-slate-800 text-slate-300 font-semibold rounded-lg text-sm border border-slate-700"
+              className="px-6 py-3 bg-slate-800 text-slate-300 font-semibold rounded-xl border border-slate-700 hover:border-slate-600 transition"
             >
-              Back
+              Back to Mission Control
             </button>
           </div>
         </div>
@@ -398,7 +398,7 @@ function MissionControlV3Content() {
   }
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Switching overlay */}
       {switching && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50">
@@ -410,48 +410,51 @@ function MissionControlV3Content() {
       )}
 
       {/* ============================================================ */}
-      {/* TOP - ULTRA COMPACT HERO */}
+      {/* HERO SECTION - Pet Photo & Info */}
       {/* ============================================================ */}
-      <div className="flex-shrink-0 bg-slate-900/95 border-b border-flash-500/20">
-        <div className="w-full px-2 py-1.5">
-          <div className="flex items-center gap-2">
-            {/* Pet Photo - Small */}
+      <div className="bg-slate-900/95 border-b border-flash-500/30 p-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center gap-4">
+            {/* Pet Photo */}
             <div className="flex-shrink-0">
               {activeMission.petPhotoUrl ? (
                 <img
                   src={normalizePhotoUrl(activeMission.petPhotoUrl)}
                   alt={activeMission.petName}
-                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover border border-flash-500/30"
+                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover border-2 border-flash-500/50 shadow-lg shadow-flash-500/20"
                 />
               ) : (
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-slate-800 flex items-center justify-center text-lg border border-slate-700">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-4xl border-2 border-slate-600">
                   {activeMission.petSpecies === 'DOG' ? '🐕' : activeMission.petSpecies === 'CAT' ? '🐈' : '🐾'}
                 </div>
               )}
             </div>
 
-            {/* Pet Info - Ultra Compact */}
+            {/* Pet Info */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <h1 className="text-sm sm:text-base font-bold text-white truncate">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <h1 className="text-xl sm:text-2xl font-bold text-white">
                   {activeMission.petName}
                 </h1>
                 {timeMissing && !isReunited && (
-                  <span className={`px-1 py-0.5 rounded text-[10px] font-semibold ${
-                    isUrgent ? 'bg-red-500/20 text-red-400' : 'bg-flash-500/20 text-flash-400'
+                  <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
+                    isUrgent ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-flash-500/20 text-flash-400 border border-flash-500/30'
                   }`}>
                     {timeMissing.text}
                   </span>
                 )}
+                {isReunited && (
+                  <span className="px-2 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    ✓ Reunited
+                  </span>
+                )}
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                <span>{activeMission.petBreed || activeMission.petSpecies}</span>
-                <span>•</span>
-                <span className="truncate">{activeMission.lastSeenAddress?.split(',')[0] || 'Unknown'}</span>
-              </div>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-flash-400 text-[10px] font-semibold">{activeParticipants.length} helpers</span>
-                <span className="text-amber-400 text-[10px] font-semibold">{sightings.length} sightings</span>
+              <p className="text-slate-400 text-sm mb-2">
+                {activeMission.petBreed || activeMission.petSpecies} • {activeMission.lastSeenAddress?.split(',').slice(0, 2).join(',') || 'Location unknown'}
+              </p>
+              <div className="flex items-center gap-4">
+                <span className="text-flash-400 text-sm font-semibold">{activeParticipants.length} helpers</span>
+                <span className="text-amber-400 text-sm font-semibold">{sightings.length} sightings</span>
               </div>
             </div>
 
@@ -459,17 +462,17 @@ function MissionControlV3Content() {
             {!isReunited && session && (
               <div className="flex-shrink-0">
                 {isOwner ? (
-                  <div className="p-1.5 rounded bg-flash-500/10 border border-flash-500/30">
-                    <Crown size={14} className="text-flash-400" />
+                  <div className="p-3 rounded-xl bg-flash-500/10 border-2 border-flash-500/30">
+                    <Crown size={24} className="text-flash-400" />
                   </div>
                 ) : isDeployed ? (
-                  <div className="p-1.5 rounded bg-emerald-500/10 border border-emerald-500/30">
-                    <Shield size={14} className="text-emerald-400" />
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/30">
+                    <Shield size={24} className="text-emerald-400" />
                   </div>
                 ) : (
                   <button
                     onClick={handleJoinMission}
-                    className="px-2 py-1 rounded bg-flash-500 text-slate-900 font-bold text-xs"
+                    className="px-4 py-2 rounded-xl bg-flash-500 text-slate-900 font-bold text-sm hover:bg-flash-400 transition"
                   >
                     Join
                   </button>
@@ -481,10 +484,36 @@ function MissionControlV3Content() {
       </div>
 
       {/* ============================================================ */}
-      {/* MIDDLE - FUNCTIONAL CONTENT (scrollable, fills remaining space) */}
+      {/* TAB NAVIGATION - More visible */}
       {/* ============================================================ */}
-      <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="w-full px-2 py-2 sm:px-4 sm:py-3">
+      <div className="bg-slate-900/80 border-b border-slate-700/50 sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="flex items-center gap-1 overflow-x-auto py-2">
+            {tabs.map(tab => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition ${
+                    activeTab === tab.id
+                      ? 'bg-flash-500/20 text-flash-400 border border-flash-500/30'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <Icon size={18} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/* CONTENT AREA */}
+      {/* ============================================================ */}
+      <div className="max-w-4xl mx-auto px-4 py-4">
           {activeTab === 'overview' && (
             <OverviewTab
               mission={activeMission}
@@ -540,62 +569,32 @@ function MissionControlV3Content() {
               onUpdate={() => fetchMission(missionId)}
             />
           )}
-        </div>
-      </div>
 
-      {/* ============================================================ */}
-      {/* BOTTOM - ULTRA COMPACT NAVIGATION */}
-      {/* ============================================================ */}
-      <div className="flex-shrink-0 bg-slate-900/95 border-t border-flash-500/20 safe-area-bottom">
-        <div className="w-full px-1 py-1">
-          {/* Single Row: Mission Cycling + Tabs */}
-          <div className="flex items-center justify-between gap-1">
-            {/* Left: Mission Navigation */}
-            <div className="flex items-center gap-0.5 flex-shrink-0">
-              <button
-                onClick={goToPrevMission}
-                disabled={availableMissions.length <= 1}
-                className="p-1.5 rounded text-slate-400 hover:text-white disabled:opacity-30"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <button
-                onClick={() => setShowMissionsModal(true)}
-                className="px-2 py-1 rounded bg-slate-800/50 border border-slate-700/50 hover:border-flash-500/50"
-              >
-                <span className="text-white text-xs font-semibold">{currentMissionIndex + 1}/{availableMissions.length || 1}</span>
-              </button>
-              <button
-                onClick={goToNextMission}
-                disabled={availableMissions.length <= 1}
-                className="p-1.5 rounded text-slate-400 hover:text-white disabled:opacity-30"
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
-
-            {/* Right: Tab Buttons - Icon only, responsive */}
-            <div className="flex items-center gap-0.5 overflow-x-auto">
-              {tabs.map(tab => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex-shrink-0 p-2 rounded transition-all ${
-                      activeTab === tab.id
-                        ? 'bg-flash-500/20 text-flash-400'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                    title={tab.label}
-                  >
-                    <Icon size={18} />
-                  </button>
-                );
-              })}
-            </div>
+      {/* Mission Switcher - Fixed bottom */}
+      {availableMissions.length > 1 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-20">
+          <div className="flex items-center gap-2 bg-slate-900/95 backdrop-blur-lg rounded-full px-2 py-1 border border-flash-500/30 shadow-lg">
+            <button
+              onClick={goToPrevMission}
+              className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <button
+              onClick={() => setShowMissionsModal(true)}
+              className="px-3 py-1 rounded-full bg-slate-800 text-white font-semibold text-sm hover:bg-slate-700"
+            >
+              {currentMissionIndex + 1} / {availableMissions.length}
+            </button>
+            <button
+              onClick={goToNextMission}
+              className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            >
+              <ChevronRight size={20} />
+            </button>
           </div>
         </div>
+      )}
       </div>
 
       {/* ============================================================ */}
@@ -684,52 +683,52 @@ function MissionControlV3Content() {
 // ============================================================================
 function EmptyState({ missions, onSelectMission, onRefresh }) {
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-4 overflow-y-auto">
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-flash-500/20 border border-flash-500/30 mb-4">
-          <Radio size={32} className="text-flash-400" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-6">
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-flash-500/20 border-2 border-flash-500/30 mb-6">
+          <Radio size={48} className="text-flash-400" />
         </div>
-        <h1 className="text-2xl font-bold text-white mb-2">Mission Control</h1>
-        <p className="text-slate-400 text-sm">Your command center for rescue missions</p>
+        <h1 className="text-3xl font-bold text-white mb-3">Mission Control</h1>
+        <p className="text-slate-400">Your command center for rescue missions</p>
       </div>
 
       {missions && missions.length > 0 ? (
-        <div className="w-full max-w-sm">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-bold text-white">Your Missions ({missions.length})</h3>
-            <button onClick={onRefresh} className="text-slate-400 hover:text-white p-1">
-              <RefreshCw size={16} />
+        <div className="w-full max-w-md">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-white">Your Missions ({missions.length})</h3>
+            <button onClick={onRefresh} className="text-slate-400 hover:text-white p-2">
+              <RefreshCw size={20} />
             </button>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {missions.slice(0, 5).map(mission => (
               <button
                 key={mission.id}
                 onClick={() => onSelectMission(mission.id)}
-                className="w-full flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50 hover:border-flash-500/50 transition text-left"
+                className="w-full flex items-center gap-4 p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:border-flash-500/50 transition text-left"
               >
                 {mission.photoUrl ? (
-                  <img src={normalizePhotoUrl(mission.photoUrl)} alt={mission.petName} className="w-10 h-10 rounded-lg object-cover" />
+                  <img src={normalizePhotoUrl(mission.photoUrl)} alt={mission.petName} className="w-14 h-14 rounded-xl object-cover" />
                 ) : (
-                  <div className="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center text-lg">
+                  <div className="w-14 h-14 rounded-xl bg-slate-700 flex items-center justify-center text-2xl">
                     {mission.petSpecies === 'DOG' ? '🐕' : '🐈'}
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-white font-semibold text-sm truncate">{mission.petName}</h4>
-                  <p className="text-slate-400 text-xs">{mission.timeMissing} • {mission.helperCount || 0} helpers</p>
+                  <h4 className="text-white font-bold truncate">{mission.petName}</h4>
+                  <p className="text-slate-400 text-sm">{mission.timeMissing} • {mission.helperCount || 0} helpers</p>
                 </div>
-                <ChevronRight size={16} className="text-slate-500 flex-shrink-0" />
+                <ChevronRight size={20} className="text-slate-500 flex-shrink-0" />
               </button>
             ))}
           </div>
         </div>
       ) : (
         <div className="text-center">
-          <p className="text-slate-400 mb-4 text-sm">No active missions yet</p>
+          <p className="text-slate-400 mb-6">No active missions yet</p>
           <a
             href="/rescue-squads"
-            className="inline-block px-5 py-2.5 bg-flash-500 text-slate-900 font-bold rounded-lg text-sm"
+            className="inline-block px-6 py-3 bg-flash-500 text-slate-900 font-bold rounded-xl text-lg hover:bg-flash-400 transition"
           >
             Join a Rescue Squad
           </a>
@@ -810,47 +809,62 @@ function MissionsModal({ missions, activeMissionId, onSelect, onClose }) {
 // ============================================================================
 function OverviewTab({ mission, timeMissing, isUrgent, isReunited, sightingsCount, onReportSighting }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      {/* Urgency Alert */}
+      {isUrgent && !isReunited && (
+        <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={24} className="text-red-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-red-400 font-bold mb-1">Act Fast - Every Moment Matters</h3>
+              <p className="text-red-200 text-sm">
+                {mission.petName} has been missing for {timeMissing?.text}. The first 24 hours are critical.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Pet Info */}
-      <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-3">
-        <h3 className="text-white font-bold text-sm mb-2 flex items-center gap-2">
-          <Camera size={14} className="text-flash-400" />
+      <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4">
+        <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+          <Camera size={18} className="text-flash-400" />
           Pet Details
         </h3>
-        <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <span className="text-slate-500">Species</span>
-            <p className="text-white capitalize">{mission.petSpecies?.toLowerCase()}</p>
+            <span className="text-slate-500 text-sm">Species</span>
+            <p className="text-white font-semibold capitalize">{mission.petSpecies?.toLowerCase()}</p>
           </div>
           <div>
-            <span className="text-slate-500">Breed</span>
-            <p className="text-white">{mission.petBreed || 'Unknown'}</p>
+            <span className="text-slate-500 text-sm">Breed</span>
+            <p className="text-white font-semibold">{mission.petBreed || 'Unknown'}</p>
           </div>
           <div>
-            <span className="text-slate-500">Color</span>
-            <p className="text-white capitalize">{mission.petColor || 'Unknown'}</p>
+            <span className="text-slate-500 text-sm">Color</span>
+            <p className="text-white font-semibold capitalize">{mission.petColor || 'Unknown'}</p>
           </div>
           <div>
-            <span className="text-slate-500">Size</span>
-            <p className="text-white capitalize">{mission.petSize || 'Unknown'}</p>
+            <span className="text-slate-500 text-sm">Size</span>
+            <p className="text-white font-semibold capitalize">{mission.petSize || 'Unknown'}</p>
           </div>
         </div>
         {mission.petDescription && (
-          <div className="mt-2 p-2 bg-slate-900/50 rounded">
-            <p className="text-slate-300 text-xs">{mission.petDescription}</p>
+          <div className="mt-4 p-3 bg-slate-900/50 rounded-lg">
+            <p className="text-slate-300 text-sm">{mission.petDescription}</p>
           </div>
         )}
       </div>
 
       {/* Last Seen */}
-      <div className="bg-slate-800/50 border border-amber-500/30 rounded-lg p-3">
-        <h3 className="text-white font-bold text-sm mb-2 flex items-center gap-2">
-          <MapPin size={14} className="text-amber-400" />
+      <div className="bg-slate-800/50 border border-amber-500/30 rounded-xl p-4">
+        <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+          <MapPin size={18} className="text-amber-400" />
           Last Seen Location
         </h3>
-        <p className="text-white text-sm">{mission.lastSeenAddress || 'Location not provided'}</p>
+        <p className="text-white">{mission.lastSeenAddress || 'Location not provided'}</p>
         {mission.lastSeenAt && (
-          <p className="text-slate-400 text-xs mt-1">
+          <p className="text-slate-400 text-sm mt-2">
             {new Date(mission.lastSeenAt).toLocaleString()}
           </p>
         )}
@@ -858,20 +872,20 @@ function OverviewTab({ mission, timeMissing, isUrgent, isReunited, sightingsCoun
 
       {/* Actions */}
       {!isReunited && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <button
             onClick={onReportSighting}
-            className="py-2.5 px-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-lg text-sm flex items-center justify-center gap-1.5"
+            className="py-3 px-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/30 hover:scale-105 transition flex items-center justify-center gap-2"
           >
-            <Eye size={16} />
+            <Eye size={20} />
             Report Sighting
           </button>
           {mission.ownerPhone && (
             <a
               href={`tel:${mission.ownerPhone}`}
-              className="py-2.5 px-3 bg-slate-800 border border-slate-700 text-white font-semibold rounded-lg text-sm flex items-center justify-center gap-1.5"
+              className="py-3 px-4 bg-slate-800 border border-slate-700 text-white font-semibold rounded-xl hover:border-flash-500 transition flex items-center justify-center gap-2"
             >
-              <Phone size={16} />
+              <Phone size={20} />
               Call Owner
             </a>
           )}
@@ -886,8 +900,8 @@ function OverviewTab({ mission, timeMissing, isUrgent, isReunited, sightingsCoun
 // ============================================================================
 function MapTab({ mission, sightings, gpsPath, onReportSighting }) {
   return (
-    <div className="space-y-2">
-      <div className="bg-slate-900 border border-flash-500/30 rounded-lg overflow-hidden h-[45vh] sm:h-[50vh]">
+    <div className="space-y-4">
+      <div className="bg-slate-900 border border-flash-500/30 rounded-xl overflow-hidden" style={{ height: '50vh' }}>
         <MapView
           center={mission.lastSeenLatitude && mission.lastSeenLongitude
             ? [mission.lastSeenLatitude, mission.lastSeenLongitude]
@@ -906,15 +920,15 @@ function MapTab({ mission, sightings, gpsPath, onReportSighting }) {
 
       <button
         onClick={onReportSighting}
-        className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-lg text-sm flex items-center justify-center gap-2"
+        className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/30 hover:scale-105 transition flex items-center justify-center gap-2"
       >
-        <Eye size={16} />
-        Report Sighting
+        <Eye size={20} />
+        Report Sighting at My Location
       </button>
 
       {sightings.length > 0 && (
-        <div className="text-center text-amber-400 text-xs">
-          {sightings.length} sighting{sightings.length !== 1 ? 's' : ''} reported
+        <div className="text-center text-amber-400">
+          👁 {sightings.length} sighting{sightings.length !== 1 ? 's' : ''} reported
         </div>
       )}
     </div>
@@ -960,19 +974,19 @@ function ActivityTab({ sightings, tasks, gpsPath, onLocationClick }) {
   const timelineItems = buildTimeline();
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {timelineItems.length === 0 ? (
-        <div className="text-center py-8 text-slate-400">
-          <ActivityIcon size={32} className="mx-auto mb-3 opacity-50" />
-          <p className="text-white font-semibold text-sm mb-1">No Activity Yet</p>
-          <p className="text-xs">Sightings and task completions will appear here</p>
+        <div className="text-center py-12 text-slate-400">
+          <ActivityIcon size={48} className="mx-auto mb-4 opacity-50" />
+          <p className="text-white font-semibold mb-2">No Activity Yet</p>
+          <p className="text-sm">Sightings and task completions will appear here</p>
         </div>
       ) : (
-        timelineItems.slice(0, 10).map((item, index) => (
+        timelineItems.map((item, index) => (
           <div
             key={index}
             onClick={onLocationClick}
-            className={`p-2.5 rounded-lg border cursor-pointer ${
+            className={`p-4 rounded-xl border cursor-pointer hover:scale-[1.02] transition ${
               item.type === 'sighting'
                 ? 'bg-amber-500/10 border-amber-500/30'
                 : item.type === 'task'
@@ -980,28 +994,34 @@ function ActivityTab({ sightings, tasks, gpsPath, onLocationClick }) {
                 : 'bg-purple-500/10 border-purple-500/30'
             }`}
           >
-            <div className="flex items-start gap-2">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm flex-shrink-0 ${
+            <div className="flex items-start gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl flex-shrink-0 ${
                 item.type === 'sighting' ? 'bg-amber-500/20' :
                 item.type === 'task' ? 'bg-emerald-500/20' : 'bg-purple-500/20'
               }`}>
                 {item.type === 'sighting' ? '👁' : item.type === 'task' ? '✓' : '📍'}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <span className={`font-semibold text-xs truncate ${
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`font-bold ${
                     item.type === 'sighting' ? 'text-amber-400' :
                     item.type === 'task' ? 'text-emerald-400' : 'text-purple-400'
                   }`}>
-                    {item.type === 'sighting' ? 'Sighting' :
-                     item.type === 'task' ? item.data.task?.label?.slice(0, 30) : 'GPS Search'}
+                    {item.type === 'sighting' ? 'Sighting Reported' :
+                     item.type === 'task' ? item.data.task?.label : 'GPS Search'}
                   </span>
-                  <span className="text-slate-500 text-[10px] flex-shrink-0">
+                  <span className="text-slate-500 text-xs">
                     {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
-                {item.type === 'sighting' && item.data.address && (
-                  <p className="text-slate-400 text-[10px] truncate mt-0.5">{item.data.address}</p>
+                {item.type === 'sighting' && (
+                  <>
+                    <p className="text-slate-300 text-sm">{item.data.description || 'No description'}</p>
+                    <p className="text-slate-500 text-xs mt-1">📍 {item.data.address}</p>
+                  </>
+                )}
+                {item.type === 'gps_search' && (
+                  <p className="text-slate-300 text-sm">{item.data.pointCount} GPS points recorded</p>
                 )}
               </div>
             </div>
@@ -1094,53 +1114,53 @@ function TeamTab({ team, mission, tasks, setTasks, gpsPath, setGpsPath, isGPSTra
   const completedCount = tasks.filter(t => t.completed).length;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       {/* GPS Tracking */}
-      <div className="bg-slate-800/50 border border-purple-500/30 rounded-lg p-2">
-        <h3 className="text-white font-bold text-sm mb-2 flex items-center gap-2">
-          <Navigation size={14} className="text-purple-400" />
-          GPS Search
+      <div className="bg-slate-800/50 border border-purple-500/30 rounded-xl p-4">
+        <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+          <Navigation size={18} className="text-purple-400" />
+          GPS Search Tracking
         </h3>
         {!isGPSTracking ? (
           <button
             onClick={startGPSTracking}
-            className="w-full py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-lg text-sm"
+            className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-xl hover:scale-105 transition"
           >
             Start GPS Tracking
           </button>
         ) : (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-purple-400 text-xs">
-              <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-purple-400">
+              <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse" />
               Recording... {gpsPath.length} points
             </div>
             <button
               onClick={stopGPSTracking}
-              className="w-full py-2 bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 font-bold rounded-lg text-sm"
+              className="w-full py-3 bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 font-bold rounded-xl"
             >
-              Done Searching
+              ✓ Done Searching
             </button>
           </div>
         )}
       </div>
 
       {/* Team Members */}
-      <div className="bg-slate-800/50 border border-flash-500/30 rounded-lg p-2">
-        <h3 className="text-white font-bold text-sm mb-2 flex items-center gap-2">
-          <Users size={14} className="text-flash-400" />
-          Team ({team.length})
+      <div className="bg-slate-800/50 border border-flash-500/30 rounded-xl p-4">
+        <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+          <Users size={18} className="text-flash-400" />
+          Search Team ({team.length})
         </h3>
         {team.length === 0 ? (
-          <p className="text-slate-400 text-xs">No team members yet</p>
+          <p className="text-slate-400">No team members yet</p>
         ) : (
-          <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+          <div className="space-y-2 max-h-48 overflow-y-auto">
             {team.map(member => (
-              <div key={member.id} className="flex items-center gap-1.5 px-2 py-1 bg-slate-900/50 rounded text-xs">
-                <div className="w-5 h-5 rounded-full bg-flash-500/20 flex items-center justify-center text-flash-400 font-bold text-[10px]">
+              <div key={member.id} className="flex items-center gap-3 p-2 bg-slate-900/50 rounded-lg">
+                <div className="w-8 h-8 rounded-full bg-flash-500/20 flex items-center justify-center text-flash-400 font-bold">
                   {member.firstName?.[0]}
                 </div>
-                <span className="text-white">{member.firstName}</span>
-                {member.isActive && <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />}
+                <span className="text-white">{member.name}</span>
+                {member.isActive && <div className="w-2 h-2 bg-emerald-500 rounded-full" />}
               </div>
             ))}
           </div>
@@ -1148,22 +1168,22 @@ function TeamTab({ team, mission, tasks, setTasks, gpsPath, setGpsPath, isGPSTra
       </div>
 
       {/* Task Checklist Summary */}
-      <div className="bg-slate-800/50 border border-emerald-500/30 rounded-lg p-2">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-white font-bold text-sm flex items-center gap-2">
-            <CheckCircle2 size={14} className="text-emerald-400" />
+      <div className="bg-slate-800/50 border border-emerald-500/30 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-white font-bold flex items-center gap-2">
+            <CheckCircle2 size={18} className="text-emerald-400" />
             Actions ({completedCount}/{tasks.length})
           </h3>
           <button
             onClick={() => setShowCustomActionModal(true)}
-            className="text-flash-400 text-xs font-semibold"
+            className="text-flash-400 font-semibold"
           >
-            + Log
+            + Log Action
           </button>
         </div>
 
         {/* Progress Bar */}
-        <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden mb-2">
+        <div className="h-2 bg-slate-700 rounded-full overflow-hidden mb-4">
           <div
             className="h-full bg-gradient-to-r from-emerald-500 to-green-500 transition-all"
             style={{ width: `${(completedCount / tasks.length) * 100}%` }}
@@ -1171,30 +1191,30 @@ function TeamTab({ team, mission, tasks, setTasks, gpsPath, setGpsPath, isGPSTra
         </div>
 
         {/* Quick Tasks */}
-        <div className="space-y-1 max-h-40 overflow-y-auto">
-          {tasks.slice(0, 8).map(task => (
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {tasks.slice(0, 10).map(task => (
             <button
               key={task.id}
               onClick={() => setSelectedTask(task)}
-              className={`w-full text-left p-2 rounded flex items-center gap-2 transition text-xs ${
+              className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition ${
                 task.completed
                   ? 'bg-emerald-500/10 border border-emerald-500/30'
-                  : 'bg-slate-900/50 border border-slate-700'
+                  : 'bg-slate-900/50 border border-slate-700 hover:border-slate-600'
               }`}
             >
-              <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] ${
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
                 task.completed ? 'bg-emerald-500 text-white' : 'bg-slate-700 border border-slate-600'
               }`}>
                 {task.completed && '✓'}
               </div>
-              <span className={`flex-1 truncate ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
+              <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
                 {task.label}
               </span>
             </button>
           ))}
-          {tasks.length > 8 && (
-            <p className="text-slate-500 text-[10px] text-center py-1">
-              +{tasks.length - 8} more
+          {tasks.length > 10 && (
+            <p className="text-slate-500 text-sm text-center py-2">
+              +{tasks.length - 10} more tasks
             </p>
           )}
         </div>
@@ -1208,27 +1228,27 @@ function TeamTab({ team, mission, tasks, setTasks, gpsPath, setGpsPath, isGPSTra
 // ============================================================================
 function ManageTab({ mission, onUpdate }) {
   return (
-    <div className="space-y-2">
-      <div className="bg-slate-800/50 border border-purple-500/30 rounded-lg p-3">
-        <h3 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
-          <Settings size={14} className="text-purple-400" />
+    <div className="space-y-4">
+      <div className="bg-slate-800/50 border border-purple-500/30 rounded-xl p-4">
+        <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+          <Settings size={18} className="text-purple-400" />
           Case Management
         </h3>
-        <div className="space-y-2">
-          <button className="w-full py-2 px-3 bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 font-bold rounded-lg text-sm flex items-center justify-center gap-2">
-            <Heart size={14} />
+        <div className="space-y-3">
+          <button className="w-full py-3 px-4 bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 font-bold rounded-xl hover:bg-emerald-500/30 transition flex items-center justify-center gap-2">
+            <Heart size={18} />
             Mark as Reunited
           </button>
-          <button className="w-full py-2 px-3 bg-slate-900 border border-slate-700 text-white font-semibold rounded-lg text-sm flex items-center justify-center gap-2">
-            <Edit size={14} />
-            Edit Case
+          <button className="w-full py-3 px-4 bg-slate-900 border border-slate-700 text-white font-semibold rounded-xl hover:border-flash-500/50 transition flex items-center justify-center gap-2">
+            <Edit size={18} />
+            Edit Case Details
           </button>
-          <button className="w-full py-2 px-3 bg-slate-900 border border-slate-700 text-white font-semibold rounded-lg text-sm flex items-center justify-center gap-2">
-            <Share2 size={14} />
+          <button className="w-full py-3 px-4 bg-slate-900 border border-slate-700 text-white font-semibold rounded-xl hover:border-flash-500/50 transition flex items-center justify-center gap-2">
+            <Share2 size={18} />
             Generate Flyer
           </button>
-          <button className="w-full py-2 px-3 bg-slate-900 border border-slate-700 text-white font-semibold rounded-lg text-sm flex items-center justify-center gap-2">
-            <Camera size={14} />
+          <button className="w-full py-3 px-4 bg-slate-900 border border-slate-700 text-white font-semibold rounded-xl hover:border-flash-500/50 transition flex items-center justify-center gap-2">
+            <Camera size={18} />
             Add Photos
           </button>
         </div>
