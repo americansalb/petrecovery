@@ -30,7 +30,7 @@ export default function CommunityModeV2({
   divisions = [],
   cases = [],
   squadName = '',
-  mascotName = 'PetRecovery Bot',
+  mascotName = 'Surumaa',
   stats = {},
 }) {
   const [showCreatePost, setShowCreatePost] = useState(false);
@@ -107,7 +107,16 @@ export default function CommunityModeV2({
                   <div className="relative flex items-start gap-4">
                     {isMascot ? (
                       <div className="flex-shrink-0">
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-2xl border-2 border-purple-400/50 shadow-lg">
+                        <img
+                          src="/images/surumaa-avatar.png"
+                          alt="Surumaa"
+                          className="w-14 h-14 rounded-full object-cover border-2 border-purple-400/50 shadow-lg bg-gradient-to-br from-purple-500 to-purple-600"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-2xl border-2 border-purple-400/50 shadow-lg" style={{ display: 'none' }}>
                           🐾
                         </div>
                       </div>
@@ -121,7 +130,7 @@ export default function CommunityModeV2({
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="text-lg font-bold text-purple-200">{mascotName}</h3>
                           <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                            Community Guide
+                            Your Guide Home
                           </span>
                         </div>
                       )}

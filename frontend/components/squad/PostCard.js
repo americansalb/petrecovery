@@ -55,9 +55,20 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
           {/* Larger Profile Picture */}
           <div className="flex-shrink-0">
             {post.isSystemPost ? (
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-3xl shadow-lg ring-2 ring-purple-400/50">
-                🐾
-              </div>
+              <>
+                <img
+                  src="/images/surumaa-avatar.png"
+                  alt="Surumaa"
+                  className="w-14 h-14 rounded-full object-cover shadow-lg ring-2 ring-purple-400/50 bg-gradient-to-br from-purple-500 to-purple-600"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-3xl shadow-lg ring-2 ring-purple-400/50" style={{ display: 'none' }}>
+                  🐾
+                </div>
+              </>
             ) : (
               <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white font-bold text-xl shadow-lg ring-2 ring-slate-700/50">
                 {post.authorName?.charAt(0)?.toUpperCase() || '?'}
@@ -69,11 +80,11 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <span className="font-bold text-white text-base">
-                {post.isSystemPost ? 'PetRecovery Bot' : post.authorName}
+                {post.isSystemPost ? 'Surumaa' : post.authorName}
               </span>
               {post.isSystemPost ? (
                 <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                  Community Guide
+                  Your Guide Home
                 </span>
               ) : (
                 post.authorRole && post.authorRole !== 'MEMBER' && (
