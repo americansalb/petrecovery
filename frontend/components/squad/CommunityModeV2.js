@@ -16,6 +16,7 @@ import { useState, useEffect } from 'react';
 import { Pin } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import FeaturedCases from './FeaturedCasesCarousel';
+import { SURUMAA_AVATAR, SURUMAA_TAGLINE } from '@/lib/brandAssets';
 import PostFeed from './PostFeed';
 import CreatePostModal from './CreatePostModal';
 import MembersModal from './MembersModal';
@@ -70,19 +71,24 @@ export default function CommunityModeV2({
             .slice(0, 3)
             .map(announcement => {
               const isMascot = announcement.isSystemPost || announcement.authorName === mascotName;
-              const announcementColor = isMascot ? 'purple' : 'flash';
 
               return (
                 <div
                   key={announcement.id}
-                  className={`relative overflow-hidden bg-gradient-to-br from-${announcementColor}-400/10 via-${announcementColor}-400/5 to-transparent backdrop-blur-sm border border-${announcementColor}-400/40 rounded-2xl p-6 shadow-lg`}
+                  className={`relative overflow-hidden backdrop-blur-sm rounded-2xl p-6 shadow-lg ${
+                    isMascot
+                      ? 'bg-gradient-to-br from-purple-400/10 via-purple-400/5 to-transparent border border-purple-400/40'
+                      : 'bg-gradient-to-br from-orange-400/10 via-orange-400/5 to-transparent border border-orange-400/40'
+                  }`}
                 >
-                  <div className={`absolute top-0 right-0 w-32 h-32 bg-${announcementColor}-400/5 rounded-full blur-2xl`} />
+                  <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-2xl ${
+                    isMascot ? 'bg-purple-400/5' : 'bg-orange-400/5'
+                  }`} />
                   <div className="relative flex items-start gap-4">
                     {isMascot ? (
                       <div className="flex-shrink-0">
                         <img
-                          src="https://petrescue.b-cdn.net/Untitled%20design%20(13).svg"
+                          src={SURUMAA_AVATAR}
                           alt="Surumaa"
                           className="w-14 h-14 rounded-full object-cover border-2 border-purple-400/50 shadow-lg bg-gradient-to-br from-purple-500 to-purple-600"
                           onError={(e) => {
@@ -95,8 +101,8 @@ export default function CommunityModeV2({
                         </div>
                       </div>
                     ) : (
-                      <div className="p-2.5 rounded-xl bg-flash-400/20 border border-flash-400/30">
-                        <Pin className="text-flash-300 flex-shrink-0" size={20} />
+                      <div className="p-2.5 rounded-xl bg-orange-400/20 border border-orange-400/30">
+                        <Pin className="text-orange-300 flex-shrink-0" size={20} />
                       </div>
                     )}
                     <div className="flex-1">
@@ -104,11 +110,11 @@ export default function CommunityModeV2({
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="text-lg font-bold text-purple-200">{mascotName}</h3>
                           <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                            Your Guide Home
+                            {SURUMAA_TAGLINE}
                           </span>
                         </div>
                       )}
-                      <h4 className={`font-bold text-lg mb-2 ${isMascot ? 'text-slate-200' : 'text-flash-200'}`}>
+                      <h4 className={`font-bold text-lg mb-2 ${isMascot ? 'text-slate-200' : 'text-orange-200'}`}>
                         {announcement.title || 'Announcement'}
                       </h4>
                       <p className="text-slate-200 text-base leading-relaxed mb-3 whitespace-pre-wrap">{announcement.content}</p>

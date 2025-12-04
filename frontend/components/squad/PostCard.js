@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { Heart, MessageCircle, Share2, ThumbsUp, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { SURUMAA_AVATAR, SURUMAA_TAGLINE } from '@/lib/brandAssets';
 
 export default function PostCard({ post, onVote, onComment, currentUserId }) {
   const [showComments, setShowComments] = useState(false);
@@ -57,7 +58,7 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
             {post.isSystemPost ? (
               <>
                 <img
-                  src="https://petrescue.b-cdn.net/Untitled%20design%20(13).svg"
+                  src={SURUMAA_AVATAR}
                   alt="Surumaa"
                   className="w-14 h-14 rounded-full object-cover shadow-lg ring-2 ring-purple-400/50 bg-gradient-to-br from-purple-500 to-purple-600"
                   onError={(e) => {
@@ -84,7 +85,7 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
               </span>
               {post.isSystemPost ? (
                 <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                  Your Guide Home
+                  {SURUMAA_TAGLINE}
                 </span>
               ) : (
                 post.authorRole && post.authorRole !== 'MEMBER' && (
