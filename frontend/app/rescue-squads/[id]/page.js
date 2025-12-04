@@ -1,65 +1,153 @@
 'use client';
 
+/**
+ * Squad Hub Page
+ *
+ * Main page for a city's rescue squad.
+ * Displays the Squad Hub with case queue, map, and activity panels.
+ *
+ * Route: /rescue-squads/[id]
+ *
+ * Fetches real data from /api/rescue-squads/[id]/hub
+ * Falls back to mock data if the API fails (for development)
+ */
+
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { PageLoading } from '@/components/LoadingSkeleton';
-import { fetchWithRetry } from '@/app/lib/utils';
+import { useParams } from 'next/navigation';
+import SquadHubV2 from '@/components/squad/SquadHubV2';
+// V3 attempt: import SquadHubV3 from '@/components/squad/SquadHubV3';
+import { getMockSquadData } from '@/lib/mockSquadData';
 
-// Import V5 implementation
-import SquadHubV5 from '@/components/squad/SquadHubV5';
+export default function SquadPage() {
+  const params = useParams();
+  const squadId = params.id;
 
-export default function SquadHubPage({ params }) {
-  const { data: session, status } = useSession();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { id } = params;
-
-  const [data, setData] = useState(null);
+  const [squadData, setSquadData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [usingMockData, setUsingMockData] = useState(false);
 
   useEffect(() => {
-    if (status === 'loading') return;
+    async function fetchSquadData() {
+      setLoading(true);
+      setError(null);
 
-    async function fetchData() {
       try {
-        const res = await fetchWithRetry(`/api/rescue-squads/${id}/hub`);
-        if (!res.ok) {
-          if (res.status === 404) throw new Error('Squad not found');
-          throw new Error('Failed to load squad data');
+        // Try to fetch real data from the hub API
+        const res = await fetch(`/api/rescue-squads/${squadId}/hub`);
+
+        if (res.ok) {
+          const data = await res.json();
+          console.log('[SquadHub Debug] API response:', {
+            squadId: data.squad?.id,
+            squadName: data.squad?.displayName,
+            casesCount: data.cases?.length || 0,
+            cases: data.cases,
+          });
+          setSquadData(data);
+          setUsingMockData(false);
+        } else if (res.status === 404) {
+          // Squad not found - try mock data for known city slugs
+          const mockData = getMockSquadData(squadId);
+          if (mockData && mockData.squad) {
+            setSquadData(mockData);
+            setUsingMockData(true);
+          } else {
+            setError('Squad not found');
+          }
+        } else {
+          // Other error - fall back to mock data or show error
+          const errorData = await res.json().catch(() => ({}));
+          console.error('Hub API error:', errorData);
+          const mockData = getMockSquadData(squadId);
+          if (mockData && mockData.squad) {
+            setSquadData(mockData);
+            setUsingMockData(true);
+          } else {
+            // No mock data available - show the actual error
+            setError(`Failed to load squad data: ${errorData.error || 'Server error'}`);
+          }
         }
-        const json = await res.json();
-        setData(json);
       } catch (err) {
-        console.error('Error loading squad hub:', err);
-        setError(err.message);
+        console.error('Failed to fetch hub data:', err);
+        // Network error - fall back to mock data or show error
+        const mockData = getMockSquadData(squadId);
+        if (mockData && mockData.squad) {
+          setSquadData(mockData);
+          setUsingMockData(true);
+        } else {
+          setError('Failed to connect to server. Please try again.');
+        }
       } finally {
         setLoading(false);
       }
     }
 
-    fetchData();
-  }, [id, status]);
+    if (squadId) {
+      fetchSquadData();
+    }
+  }, [squadId]);
 
-  if (loading) return <PageLoading message="Loading Squad Hub..." />;
-
-  if (error) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-midnight-900 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-2">Error</h1>
-          <p className="text-red-400 mb-4">{error}</p>
-          <button
-            onClick={() => router.push('/rescue-squads')}
-            className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700"
-          >
-            Back to Squads
-          </button>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-flash-400"></div>
+          <p className="mt-4 text-gray-400">Loading squad hub...</p>
         </div>
       </div>
     );
   }
 
-  return <SquadHubV5 initialData={data} squadId={id} />;
+  if (error) {
+    const isNotFound = error === 'Squad not found';
+    return (
+      <div className="min-h-screen bg-midnight-900 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto px-4">
+          <div className="text-6xl mb-4">{isNotFound ? '🐾' : '⚠️'}</div>
+          <h1 className="text-2xl font-bold text-white mb-2">
+            {isNotFound ? 'Squad Not Found' : 'Error Loading Squad'}
+          </h1>
+          <p className="text-gray-400 mb-6">
+            {isNotFound
+              ? "We couldn't find a rescue squad with that ID. It may not exist yet or the link may be incorrect."
+              : error}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition"
+            >
+              Try Again
+            </button>
+            <a
+              href="/rescue-squads/search"
+              className="px-6 py-3 bg-flash-500 text-midnight-900 font-semibold rounded-lg hover:bg-flash-600 transition"
+            >
+              Find a Squad Near You
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!squadData) {
+    return null;
+  }
+
+  // Use the actual squad ID from the API response (not the URL slug)
+  // This ensures action APIs work correctly with the real database ID
+  const resolvedSquadId = squadData.squad?.id || squadId;
+
+  return (
+    <>
+      {usingMockData && process.env.NODE_ENV === 'development' && (
+        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 text-center text-amber-300 text-sm">
+          Using mock data (real squad not found in database)
+        </div>
+      )}
+      <SquadHubV2 initialData={squadData} squadId={resolvedSquadId} />
+    </>
+  );
 }
