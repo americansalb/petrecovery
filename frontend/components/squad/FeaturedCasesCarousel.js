@@ -38,48 +38,48 @@ export default function FeaturedCasesCarousel({ cases }) {
   if (featuredCases.length === 0) return null;
 
   return (
-    <div className="relative">
-      {/* Title */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <AlertCircle size={16} className="text-flash-400" />
-          <h3 className="text-sm font-bold text-white uppercase tracking-wide">Featured Cases</h3>
+    <div className="relative border-b border-slate-800/60 bg-slate-900/50 backdrop-blur-sm">
+      <div className="max-w-7xl mx-auto px-6 py-3">
+        {/* Compact Title */}
+        <div className="flex items-center gap-3 mb-2">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Featured Cases</h3>
+          <div className="h-px flex-1 bg-gradient-to-r from-slate-700/50 to-transparent" />
+          <div className="text-xs text-slate-500">
+            {currentIndex + 1}-{Math.min(currentIndex + 4, featuredCases.length)} of {featuredCases.length}
+          </div>
         </div>
-        <div className="text-xs text-slate-500">
-          {currentIndex + 1}-{Math.min(currentIndex + 4, featuredCases.length)} of {featuredCases.length}
-        </div>
-      </div>
 
-      {/* Carousel Container */}
-      <div className="relative overflow-hidden -mx-2 px-2">
-        <div
-          className="flex gap-4 transition-transform duration-700 ease-in-out"
-          style={{
-            transform: `translateX(-${currentIndex * (100 / 4 + 4)}%)`
-          }}
-        >
-          {featuredCases.map((caseData) => (
-            <FeaturedCaseCard key={caseData.id} caseData={caseData} router={router} />
-          ))}
+        {/* Compact Carousel Container */}
+        <div className="relative overflow-hidden -mx-2 px-2">
+          <div
+            className="flex gap-3 transition-transform duration-700 ease-in-out pb-2"
+            style={{
+              transform: `translateX(-${currentIndex * (100 / 4 + 3)}%)`
+            }}
+          >
+            {featuredCases.map((caseData) => (
+              <FeaturedCaseCard key={caseData.id} caseData={caseData} router={router} />
+            ))}
+          </div>
         </div>
-      </div>
 
-      {/* Dots indicator */}
-      {featuredCases.length > 4 && (
-        <div className="flex items-center justify-center gap-1.5 mt-4">
-          {Array.from({ length: Math.ceil(featuredCases.length / 4) }).map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentIndex(idx * 4)}
-              className={`h-1.5 rounded-full transition-all ${
-                Math.floor(currentIndex / 4) === idx
-                  ? 'w-6 bg-flash-400'
-                  : 'w-1.5 bg-slate-700 hover:bg-slate-600'
-              }`}
-            />
-          ))}
-        </div>
-      )}
+        {/* Compact Dots indicator */}
+        {featuredCases.length > 4 && (
+          <div className="flex items-center justify-center gap-1.5 mt-2">
+            {Array.from({ length: Math.ceil(featuredCases.length / 4) }).map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentIndex(idx * 4)}
+                className={`h-1 rounded-full transition-all ${
+                  Math.floor(currentIndex / 4) === idx
+                    ? 'w-4 bg-orange-500'
+                    : 'w-1 bg-slate-700 hover:bg-slate-600'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -110,52 +110,43 @@ function FeaturedCaseCard({ caseData, router }) {
   return (
     <button
       onClick={() => router.push(`/mission-control?mission=${caseNumber}`)}
-      className="flex-shrink-0 w-full sm:w-[calc(33.333%-1rem)] lg:w-[calc(25%-1rem)] group"
+      className="flex-shrink-0 w-64 group relative bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-sm border border-slate-700/50 rounded-xl p-3 hover:border-orange-500/50 hover:shadow-lg hover:shadow-orange-500/20 transition-all"
     >
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-sm border border-slate-700/50 rounded-xl hover:border-flash-500/50 hover:shadow-lg hover:shadow-flash-500/20 transition-all">
-        {/* Urgency Badge */}
-        {urgency === 'HIGH' && (
-          <div className="absolute top-2 right-2 z-10 px-2 py-0.5 rounded-md bg-red-500 text-white text-xs font-bold uppercase">
-            Urgent
+      <div className="flex items-center gap-3">
+        {/* Compact Pet Photo */}
+        {photoUrl ? (
+          <img
+            src={photoUrl}
+            alt={petName}
+            loading="lazy"
+            className="w-12 h-12 rounded-lg object-cover border border-slate-600/50 group-hover:border-orange-500/30 transition-colors"
+          />
+        ) : (
+          <div className="w-12 h-12 rounded-lg bg-slate-700/50 border border-slate-600/50 group-hover:border-orange-500/30 flex items-center justify-center text-2xl transition-colors">
+            {speciesEmoji}
           </div>
         )}
 
-        {/* Pet Photo */}
-        <div className="relative aspect-square overflow-hidden bg-slate-800">
-          {photoUrl ? (
-            <img
-              src={photoUrl}
-              alt={petName}
-              loading="lazy"
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br from-slate-800 to-slate-900">
-              {speciesEmoji}
-            </div>
-          )}
-          {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
-
-          {/* Name overlay on image */}
-          <div className="absolute bottom-0 left-0 right-0 p-3">
-            <h4 className="font-bold text-white text-lg truncate group-hover:text-flash-400 transition-colors">
+        {/* Compact Case Info */}
+        <div className="flex-1 text-left min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h4 className="font-bold text-white text-sm truncate group-hover:text-orange-400 transition-colors">
               {petName}
             </h4>
+            {urgency === 'HIGH' && (
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+            )}
           </div>
-        </div>
-
-        {/* Info */}
-        <div className="p-3 space-y-2">
-          <div className="flex items-center justify-between text-xs text-slate-400">
-            <div className="flex items-center gap-1">
-              <Clock size={12} />
-              <span>{timeAgo}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Users size={12} />
-              <span>{helperCount || 0}</span>
-            </div>
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <span className="flex items-center gap-1">
+              <Users size={10} />
+              {helperCount || 0}
+            </span>
+            <span className="text-slate-600">•</span>
+            <span className="flex items-center gap-1">
+              <Clock size={10} />
+              {timeAgo.replace(' ago', '')}
+            </span>
           </div>
         </div>
       </div>

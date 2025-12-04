@@ -100,25 +100,6 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
         currentDivisionId={currentDivisionId}
       />
 
-      {/* Active Cases Banner - Horizontal Scroll */}
-      {filteredCases.length > 0 && (
-        <div className="border-b border-slate-800/60 bg-slate-900/50 backdrop-blur-sm">
-          <div className="max-w-7xl mx-auto px-6 py-3">
-            <div className="flex items-center gap-3 mb-2">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Active Cases</h3>
-              <div className="h-px flex-1 bg-gradient-to-r from-slate-700/50 to-transparent" />
-            </div>
-            <div className="overflow-x-auto hub-scroll-hide">
-              <div className="flex gap-3 pb-2">
-                {filteredCases.slice(0, 10).map(caseData => (
-                  <CaseBannerCard key={caseData.id} caseData={caseData} squadId={squadId} />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Mode Tabs - Layered Folder Style */}
       <div className="sticky top-0 z-30 border-b-2 border-slate-700/50 bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900">
         <div className="max-w-7xl mx-auto px-6">
@@ -243,68 +224,6 @@ function ModeTab({ active, onClick, icon: Icon, label, count }) {
       {active && (
         <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-flash-400/60 to-transparent" />
       )}
-    </button>
-  );
-}
-
-function CaseBannerCard({ caseData, squadId }) {
-  const router = useRouter();
-  const {
-    caseNumber,
-    petName,
-    species,
-    photoUrl,
-    urgency,
-    helperCount,
-  } = caseData;
-
-  const speciesEmoji = {
-    DOG: '🐕',
-    CAT: '🐈',
-    BIRD: '🐦',
-    RABBIT: '🐰',
-    OTHER: '🐾',
-  }[species] || '🐾';
-
-  return (
-    <button
-      onClick={() => router.push(`/mission-control?mission=${caseNumber}`)}
-      className="flex-shrink-0 group relative w-64 bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-sm border border-slate-700/50 rounded-xl p-3 hover:border-flash-500/50 hover:shadow-lg hover:shadow-flash-500/20 transition-all"
-    >
-      <div className="flex items-center gap-3">
-        {/* Pet Photo/Icon */}
-        {photoUrl ? (
-          <img
-            src={photoUrl}
-            alt={petName}
-            className="w-12 h-12 rounded-lg object-cover border border-slate-600/50 group-hover:border-flash-500/30 transition-colors"
-          />
-        ) : (
-          <div className="w-12 h-12 rounded-lg bg-slate-700/50 border border-slate-600/50 group-hover:border-flash-500/30 flex items-center justify-center text-2xl transition-colors">
-            {speciesEmoji}
-          </div>
-        )}
-
-        {/* Case Info */}
-        <div className="flex-1 text-left min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-bold text-white text-sm truncate group-hover:text-flash-400 transition-colors">
-              {petName}
-            </h4>
-            {urgency === 'HIGH' && (
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-            )}
-          </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <span className="flex items-center gap-1">
-              <Users size={10} />
-              {helperCount || 0}
-            </span>
-            <span className="text-slate-600">•</span>
-            <span className="truncate">#{caseNumber}</span>
-          </div>
-        </div>
-      </div>
     </button>
   );
 }
