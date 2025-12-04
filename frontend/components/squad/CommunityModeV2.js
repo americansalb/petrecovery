@@ -139,7 +139,7 @@ export default function CommunityModeV2({
         onCreatePost={() => setShowCreatePost(true)}
         currentUserId={membership?.userId}
         onViewMembers={() => setShowMembersModal(true)}
-        membersCount={members.length}
+        membersCount={stats.members || members.length}
       />
 
       {/* Create Post Modal */}
@@ -158,6 +158,7 @@ export default function CommunityModeV2({
         squadId={squadId}
         currentUserId={membership?.userId}
         members={members}
+        totalCount={stats.members}
       />
     </div>
   );

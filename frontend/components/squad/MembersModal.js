@@ -12,7 +12,7 @@ import { useState, useEffect } from 'react';
 import { X, Users, Calendar, Shield, Search, UserPlus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
-export default function MembersModal({ isOpen, onClose, squadId, currentUserId, members: initialMembers }) {
+export default function MembersModal({ isOpen, onClose, squadId, currentUserId, members: initialMembers, totalCount }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [fetchedMembers, setFetchedMembers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -72,7 +72,7 @@ export default function MembersModal({ isOpen, onClose, squadId, currentUserId, 
             </div>
             <div>
               <h2 className="text-2xl font-bold text-white">Squad Members</h2>
-              <p className="text-sm text-slate-400">{members.length} total members</p>
+              <p className="text-sm text-slate-400">{totalCount || members.length} total members</p>
             </div>
           </div>
           <button
