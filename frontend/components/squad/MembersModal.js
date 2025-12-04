@@ -12,16 +12,17 @@ import { useState, useEffect } from 'react';
 import { X, Users, Calendar, Shield, Search, UserPlus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
-export default function MembersModal({ isOpen, onClose, squadId, currentUserId }) {
-  const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function MembersModal({ isOpen, onClose, squadId, currentUserId, members: initialMembers }) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [fetchedMembers, setFetchedMembers] = useState([]);
+  const [loading, setLoading] = useState(false);
 
+  // Fetch members if not provided as prop
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !initialMembers && squadId) {
       loadMembers();
     }
-  }, [isOpen, squadId]);
+  }, [isOpen, squadId, initialMembers]);
 
   const loadMembers = async () => {
     setLoading(true);
@@ -29,7 +30,7 @@ export default function MembersModal({ isOpen, onClose, squadId, currentUserId }
       const res = await fetch(`/api/rescue-squads/${squadId}/members`);
       if (res.ok) {
         const data = await res.json();
-        setMembers(data.members || []);
+        setFetchedMembers(data.members || []);
       }
     } catch (error) {
       console.error('Failed to load members:', error);
@@ -37,6 +38,9 @@ export default function MembersModal({ isOpen, onClose, squadId, currentUserId }
       setLoading(false);
     }
   };
+
+  // Use provided members or fetched members
+  const members = initialMembers || fetchedMembers;
 
   const filteredMembers = members.filter(member => {
     const searchLower = searchQuery.toLowerCase();
