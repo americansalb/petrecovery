@@ -484,25 +484,25 @@ function MissionControlV3Content() {
       </div>
 
       {/* ============================================================ */}
-      {/* TAB NAVIGATION - More visible */}
+      {/* TAB NAVIGATION - Full width mobile-optimized tabs */}
       {/* ============================================================ */}
       <div className="bg-slate-900/80 border-b border-slate-700/50 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4">
-          <div className="flex items-center gap-1 overflow-x-auto py-2">
+        <div className="max-w-4xl mx-auto px-2">
+          <div className="flex items-stretch py-1.5 gap-1">
             {tabs.map(tab => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition ${
+                  className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg font-semibold text-xs transition ${
                     activeTab === tab.id
                       ? 'bg-flash-500/20 text-flash-400 border border-flash-500/30'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                   }`}
                 >
-                  <Icon size={18} />
-                  <span>{tab.label}</span>
+                  <Icon size={20} />
+                  <span className="truncate">{tab.label}</span>
                 </button>
               );
             })}
@@ -936,107 +936,279 @@ function MapTab({ mission, sightings, gpsPath, onReportSighting }) {
 }
 
 // ============================================================================
-// ACTIVITY TAB
+// ACTIVITY TAB - Full timeline with who/what/when details
 // ============================================================================
 function ActivityTab({ sightings, tasks, gpsPath, onLocationClick }) {
+  // Build unified timeline from all activities
   const buildTimeline = () => {
     const items = [];
 
+    // Add sightings
     sightings.forEach(s => {
       items.push({
         type: 'sighting',
         timestamp: new Date(s.sightedAt || s.createdAt).getTime(),
-        data: s,
+        data: s
       });
     });
 
+    // Add task completions
     tasks.forEach(task => {
       task.completions?.forEach(completion => {
         items.push({
           type: 'task',
           timestamp: new Date(completion.completedAt).getTime(),
-          data: { ...completion, task },
+          data: { ...completion, task }
         });
       });
     });
 
-    if (gpsPath?.length > 0) {
+    // Add GPS search if exists
+    if (gpsPath && gpsPath.length > 0) {
+      const startTime = gpsPath[0].timestamp;
+      const endTime = gpsPath[gpsPath.length - 1].timestamp;
       items.push({
         type: 'gps_search',
-        timestamp: gpsPath[0].timestamp,
-        data: { pointCount: gpsPath.length, path: gpsPath },
+        timestamp: startTime,
+        data: { startTime, endTime, pointCount: gpsPath.length, path: gpsPath }
       });
     }
 
+    // Sort by timestamp (newest first)
     return items.sort((a, b) => b.timestamp - a.timestamp);
   };
 
   const timelineItems = buildTimeline();
 
-  return (
-    <div className="space-y-3">
-      {timelineItems.length === 0 ? (
-        <div className="text-center py-12 text-slate-400">
-          <ActivityIcon size={48} className="mx-auto mb-4 opacity-50" />
-          <p className="text-white font-semibold mb-2">No Activity Yet</p>
-          <p className="text-sm">Sightings and task completions will appear here</p>
-        </div>
-      ) : (
-        timelineItems.map((item, index) => (
+  // Helper to extract location from sighting
+  const getSightingLocation = (s) => {
+    if (s.latitude && s.longitude) {
+      return { lat: s.latitude, lng: s.longitude, label: 'Sighting', description: s.address };
+    }
+    return null;
+  };
+
+  // Helper to extract first location from task
+  const getTaskLocation = (details) => {
+    // Check multi-location GPS fields
+    if (details.flyerLocations?.length > 0) {
+      const loc = details.flyerLocations[0];
+      return { lat: loc.lat, lng: loc.lng, label: 'Flyer Location', description: loc.description };
+    }
+    if (details.areasGPS?.length > 0) {
+      const loc = details.areasGPS[0];
+      return { lat: loc.lat, lng: loc.lng, label: 'Search Area', description: loc.description };
+    }
+    if (details.searchGPS?.length > 0) {
+      const loc = details.searchGPS[0];
+      return { lat: loc.lat, lng: loc.lng, label: 'Search Point', description: loc.description };
+    }
+    // Check single-location GPS fields
+    if (details.stationGPS) {
+      return { lat: details.stationGPS.lat, lng: details.stationGPS.lng, label: 'Station', description: details.stationLocation };
+    }
+    if (details.trapGPS) {
+      return { lat: details.trapGPS.lat, lng: details.trapGPS.lng, label: 'Trap', description: details.trapLocation };
+    }
+    if (details.cameraGPS) {
+      return { lat: details.cameraGPS.lat, lng: details.cameraGPS.lng, label: 'Camera', description: details.cameraLocation };
+    }
+    return null;
+  };
+
+  const renderTimelineItem = (item, index) => {
+    const timestamp = new Date(item.timestamp);
+
+    switch (item.type) {
+      case 'sighting':
+        const s = item.data;
+        const sightingLocation = getSightingLocation(s);
+        return (
           <div
-            key={index}
-            onClick={onLocationClick}
-            className={`p-4 rounded-xl border cursor-pointer hover:scale-[1.02] transition ${
-              item.type === 'sighting'
-                ? 'bg-amber-500/10 border-amber-500/30'
-                : item.type === 'task'
-                ? 'bg-emerald-500/10 border-emerald-500/30'
-                : 'bg-purple-500/10 border-purple-500/30'
-            }`}
+            key={`sighting-${index}`}
+            onClick={() => sightingLocation && onLocationClick(sightingLocation)}
+            className={`bg-slate-800/50 rounded-xl p-4 border border-amber-500/30 hover:border-amber-500/50 transition ${sightingLocation ? 'cursor-pointer hover:bg-slate-800/70' : ''}`}
           >
             <div className="flex items-start gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl flex-shrink-0 ${
-                item.type === 'sighting' ? 'bg-amber-500/20' :
-                item.type === 'task' ? 'bg-emerald-500/20' : 'bg-purple-500/20'
-              }`}>
-                {item.type === 'sighting' ? '👁' : item.type === 'task' ? '✓' : '📍'}
+              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0 text-xl">
+                👁
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <span className={`font-bold ${
-                    item.type === 'sighting' ? 'text-amber-400' :
-                    item.type === 'task' ? 'text-emerald-400' : 'text-purple-400'
-                  }`}>
-                    {item.type === 'sighting' ? 'Sighting Reported' :
-                     item.type === 'task' ? item.data.task?.label : 'GPS Search'}
-                  </span>
-                  <span className="text-slate-500 text-xs">
-                    {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-amber-400 font-bold">Sighting Reported</span>
+                    {sightingLocation && (
+                      <span className="text-xs text-flash-400">Click to view on map →</span>
+                    )}
+                  </div>
+                  <span className="text-slate-500 text-xs whitespace-nowrap">
+                    {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
-                {item.type === 'sighting' && (
-                  <>
-                    <p className="text-slate-300 text-sm">{item.data.description || 'No description'}</p>
-                    <p className="text-slate-500 text-xs mt-1">📍 {item.data.address}</p>
-                  </>
-                )}
-                {item.type === 'gps_search' && (
-                  <p className="text-slate-300 text-sm">{item.data.pointCount} GPS points recorded</p>
+                <p className="text-slate-300 text-sm mb-2">{s.description || 'Sighting reported'}</p>
+                <p className="text-slate-500 text-xs mb-2">📍 {s.address}</p>
+                {s.confidence && (
+                  <span className={`inline-block text-xs px-2 py-1 rounded font-semibold ${
+                    s.confidence === 'HIGH' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' :
+                    s.confidence === 'MEDIUM' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' :
+                    'bg-slate-500/20 text-slate-400 border border-slate-500/50'
+                  }`}>
+                    {s.confidence} confidence
+                  </span>
                 )}
               </div>
             </div>
           </div>
-        ))
+        );
+
+      case 'task':
+        const { task, taskType, details, completedBy } = item.data;
+        const taskLocation = details ? getTaskLocation(details) : null;
+        return (
+          <div
+            key={`task-${index}`}
+            onClick={() => taskLocation && onLocationClick(taskLocation)}
+            className={`bg-slate-800/50 rounded-xl p-4 border border-emerald-500/30 hover:border-emerald-500/50 transition ${taskLocation ? 'cursor-pointer hover:bg-slate-800/70' : ''}`}
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 text-xl">
+                ✓
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-emerald-400 font-bold">{task?.label || 'Task Completed'}</span>
+                      {taskLocation && (
+                        <span className="text-xs text-flash-400">Click to view on map →</span>
+                      )}
+                    </div>
+                    {completedBy && (
+                      <p className="text-slate-400 text-xs mt-1">
+                        👤 {completedBy.name || completedBy.email || 'Team member'}
+                      </p>
+                    )}
+                  </div>
+                  <span className="text-slate-500 text-xs whitespace-nowrap">
+                    {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+
+                {/* Render task-specific details */}
+                {details && (taskType === 'CALL_SHELTERS' || taskType === 'VISIT_SHELTERS') && (
+                  <div className="space-y-1 text-sm">
+                    {details.shelterName && <p className="text-white">🏥 <strong>{details.shelterName}</strong></p>}
+                    {details.shelterResult && (
+                      <p className="text-slate-300">
+                        {details.shelterResult === 'POSSIBLE_MATCH' ? '🎉 They might have them!' :
+                         details.shelterResult === 'VISITED' ? '✓ Visited in person - no match yet' :
+                         details.shelterResult === 'CALLED' ? '📞 Called - no match yet' :
+                         details.shelterResult === 'LEFT_INFO' ? '📝 Left contact info' : details.shelterResult}
+                      </p>
+                    )}
+                    {details.shelterContact && <p className="text-slate-400 text-xs">Contact: {details.shelterContact}</p>}
+                    {details.notes && <p className="text-slate-400 text-xs mt-2">{details.notes}</p>}
+                  </div>
+                )}
+
+                {details && taskType === 'POST_FLYERS' && (
+                  <div className="space-y-1 text-sm">
+                    {details.flyerLocations?.length > 0 && (
+                      <div>
+                        <p className="text-white">📍 Posted at {details.flyerLocations.length} location{details.flyerLocations.length !== 1 ? 's' : ''}:</p>
+                        {details.flyerLocations.map((loc, i) => (
+                          <p key={i} className="text-slate-300 text-xs ml-4">• {loc.description || 'Flyer posted'}</p>
+                        ))}
+                      </div>
+                    )}
+                    {details.notes && <p className="text-slate-400 text-xs mt-2">{details.notes}</p>}
+                  </div>
+                )}
+
+                {details && taskType === 'POST_SOCIAL_MEDIA' && (
+                  <div className="space-y-1 text-sm">
+                    {details.platform && <p className="text-white">📱 Posted on <strong>{details.platform}</strong></p>}
+                    {details.postUrl && (
+                      <a href={details.postUrl} target="_blank" rel="noopener noreferrer" className="text-flash-400 hover:text-flash-300 text-xs underline block">
+                        View post →
+                      </a>
+                    )}
+                    {details.notes && <p className="text-slate-400 text-xs mt-2">{details.notes}</p>}
+                  </div>
+                )}
+
+                {details && taskType === 'SEARCH_PROPERTY' && (
+                  <div className="space-y-1 text-sm">
+                    {details.areasChecked && <p className="text-slate-300">🔍 {details.areasChecked}</p>}
+                    {details.notes && <p className="text-slate-400 text-xs mt-2">{details.notes}</p>}
+                  </div>
+                )}
+
+                {/* Generic notes for other task types */}
+                {details && details.notes && !['CALL_SHELTERS', 'VISIT_SHELTERS', 'POST_FLYERS', 'POST_SOCIAL_MEDIA', 'SEARCH_PROPERTY'].includes(taskType) && (
+                  <p className="text-slate-300 text-sm">{details.notes}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'gps_search':
+        const { startTime, endTime, pointCount } = item.data;
+        const duration = Math.round((endTime - startTime) / 60000); // minutes
+        return (
+          <div key={`gps-${index}`} className="bg-slate-800/50 rounded-xl p-4 border border-purple-500/30 hover:border-purple-500/50 transition">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 shrink-0 text-xl">
+                📍
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-purple-400 font-bold">Area Searched (GPS Tracked)</span>
+                  <span className="text-slate-500 text-xs">
+                    {new Date(startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <p className="text-slate-300 text-sm">
+                  Searched for {duration} minute{duration !== 1 ? 's' : ''} • {pointCount} GPS points recorded
+                </p>
+                <p className="text-slate-400 text-xs mt-1">View the purple path on the Map tab to see where they searched</p>
+              </div>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+        <ActivityIcon size={20} className="text-flash-400" />
+        Search Activity Timeline
+      </h3>
+
+      {timelineItems.length === 0 ? (
+        <div className="text-center py-12 text-slate-400 bg-slate-800/30 rounded-xl border border-slate-700/50">
+          <ActivityIcon size={48} className="mx-auto mb-4 opacity-50" />
+          <p className="text-white font-semibold mb-2">No Activity Yet</p>
+          <p className="text-sm">As people complete tasks, report sightings, and search areas,<br />everything will show up here with all the details</p>
+        </div>
+      ) : (
+        <div className="space-y-3 max-h-[600px] overflow-y-auto">
+          {timelineItems.map((item, index) => renderTimelineItem(item, index))}
+        </div>
       )}
     </div>
   );
 }
 
 // ============================================================================
-// TEAM TAB (abbreviated - full implementation in CaseCommandCenterV2)
+// TEAM TAB - Full categorized tasks with collapsible sections
 // ============================================================================
 function TeamTab({ team, mission, tasks, setTasks, gpsPath, setGpsPath, isGPSTracking, setIsGPSTracking, expandedCategories, setExpandedCategories, selectedTask, setSelectedTask, showCustomActionModal, setShowCustomActionModal, session }) {
-  // Default tasks - same as in CaseCommandCenterV2
   const defaultTasks = [
     { id: 1, label: 'Search property & immediate area thoroughly', type: 'SEARCH_PROPERTY', completed: false, completions: [] },
     { id: 2, label: 'Alert neighbors & nearby residents', type: 'ALERT_NEIGHBORS', completed: false, completions: [] },
@@ -1065,6 +1237,17 @@ function TeamTab({ team, mission, tasks, setTasks, gpsPath, setGpsPath, isGPSTra
     { id: 25, label: 'Contact breed-specific rescue groups', type: 'CONTACT_BREED_RESCUES', completed: false, completions: [] },
   ];
 
+  const categories = [
+    { id: 'immediate', name: '🚨 Immediate', range: [0, 4] },
+    { id: 'shelters', name: '🏥 Shelters & Authorities', range: [4, 7] },
+    { id: 'veterinary', name: '💉 Veterinary', range: [7, 9] },
+    { id: 'community', name: '👥 Community', range: [9, 13] },
+    { id: 'search', name: '🔍 Search Operations', range: [13, 17] },
+    { id: 'advanced', name: '🎯 Advanced Tactics', range: [17, 19] },
+    { id: 'online', name: '💻 Online & Documentation', range: [19, 22] },
+    { id: 'extended', name: '🌟 Extended Outreach', range: [22, 25] },
+  ];
+
   useEffect(() => {
     if (tasks.length === 0) {
       setTasks(defaultTasks);
@@ -1079,6 +1262,14 @@ function TeamTab({ team, mission, tasks, setTasks, gpsPath, setGpsPath, isGPSTra
       setTasks(upgradedTasks);
     }
   }, []);
+
+  const toggleCategory = (categoryId) => {
+    setExpandedCategories(prev =>
+      prev.includes(categoryId)
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    );
+  };
 
   const startGPSTracking = () => {
     if (!('geolocation' in navigator)) {
@@ -1122,12 +1313,15 @@ function TeamTab({ team, mission, tasks, setTasks, gpsPath, setGpsPath, isGPSTra
           GPS Search Tracking
         </h3>
         {!isGPSTracking ? (
-          <button
-            onClick={startGPSTracking}
-            className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-xl hover:scale-105 transition"
-          >
-            Start GPS Tracking
-          </button>
+          <div className="space-y-2">
+            <p className="text-slate-400 text-sm">📍 Going out to search? Track your path so everyone knows which areas are covered.</p>
+            <button
+              onClick={startGPSTracking}
+              className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-xl hover:scale-105 transition"
+            >
+              Start GPS Tracking
+            </button>
+          </div>
         ) : (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-purple-400">
@@ -1138,7 +1332,7 @@ function TeamTab({ team, mission, tasks, setTasks, gpsPath, setGpsPath, isGPSTra
               onClick={stopGPSTracking}
               className="w-full py-3 bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 font-bold rounded-xl"
             >
-              ✓ Done Searching
+              ✓ Done Searching - Save My Path
             </button>
           </div>
         )}
@@ -1151,15 +1345,20 @@ function TeamTab({ team, mission, tasks, setTasks, gpsPath, setGpsPath, isGPSTra
           Search Team ({team.length})
         </h3>
         {team.length === 0 ? (
-          <p className="text-slate-400">No team members yet</p>
+          <div className="text-center py-4">
+            <p className="text-slate-400 mb-2">No team members yet</p>
+            <button className="px-4 py-2 bg-flash-500/20 border border-flash-500/50 text-flash-400 font-semibold rounded-lg text-sm">
+              + Invite Volunteers
+            </button>
+          </div>
         ) : (
-          <div className="space-y-2 max-h-48 overflow-y-auto">
+          <div className="space-y-2 max-h-32 overflow-y-auto">
             {team.map(member => (
               <div key={member.id} className="flex items-center gap-3 p-2 bg-slate-900/50 rounded-lg">
-                <div className="w-8 h-8 rounded-full bg-flash-500/20 flex items-center justify-center text-flash-400 font-bold">
-                  {member.firstName?.[0]}
+                <div className="w-8 h-8 rounded-full bg-flash-500/20 flex items-center justify-center text-flash-400 font-bold text-sm">
+                  {member.firstName?.[0]}{member.lastName?.[0] || ''}
                 </div>
-                <span className="text-white">{member.name}</span>
+                <span className="text-white text-sm flex-1">{member.name}</span>
                 {member.isActive && <div className="w-2 h-2 bg-emerald-500 rounded-full" />}
               </div>
             ))}
@@ -1167,7 +1366,7 @@ function TeamTab({ team, mission, tasks, setTasks, gpsPath, setGpsPath, isGPSTra
         )}
       </div>
 
-      {/* Task Checklist Summary */}
+      {/* Actions with Categories */}
       <div className="bg-slate-800/50 border border-emerald-500/30 rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-white font-bold flex items-center gap-2">
@@ -1176,13 +1375,13 @@ function TeamTab({ team, mission, tasks, setTasks, gpsPath, setGpsPath, isGPSTra
           </h3>
           <button
             onClick={() => setShowCustomActionModal(true)}
-            className="text-flash-400 font-semibold"
+            className="px-3 py-1 bg-flash-500/20 border border-flash-500/50 text-flash-400 text-sm font-semibold rounded-lg"
           >
             + Log Action
           </button>
         </div>
 
-        {/* Progress Bar */}
+        {/* Overall Progress */}
         <div className="h-2 bg-slate-700 rounded-full overflow-hidden mb-4">
           <div
             className="h-full bg-gradient-to-r from-emerald-500 to-green-500 transition-all"
@@ -1190,33 +1389,95 @@ function TeamTab({ team, mission, tasks, setTasks, gpsPath, setGpsPath, isGPSTra
           />
         </div>
 
-        {/* Quick Tasks */}
-        <div className="space-y-2 max-h-64 overflow-y-auto">
-          {tasks.slice(0, 10).map(task => (
-            <button
-              key={task.id}
-              onClick={() => setSelectedTask(task)}
-              className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition ${
-                task.completed
-                  ? 'bg-emerald-500/10 border border-emerald-500/30'
-                  : 'bg-slate-900/50 border border-slate-700 hover:border-slate-600'
-              }`}
-            >
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                task.completed ? 'bg-emerald-500 text-white' : 'bg-slate-700 border border-slate-600'
-              }`}>
-                {task.completed && '✓'}
+        {/* Suggested Next Steps */}
+        {(() => {
+          const incompleteTasks = tasks.filter(t => !t.completed);
+          const suggestedTasks = incompleteTasks.slice(0, 3);
+          if (suggestedTasks.length > 0) {
+            return (
+              <div className="mb-4 p-3 bg-flash-500/10 border border-flash-500/30 rounded-lg">
+                <h4 className="text-sm font-bold text-flash-400 mb-2 flex items-center gap-2">
+                  <Sparkles size={14} />
+                  Suggested Next Steps
+                </h4>
+                <div className="space-y-1">
+                  {suggestedTasks.map(task => (
+                    <button
+                      key={task.id}
+                      onClick={() => setSelectedTask(task)}
+                      className="w-full text-left p-2 rounded bg-slate-800/50 border border-slate-700 hover:bg-slate-800 transition flex items-center gap-2 text-sm"
+                    >
+                      <div className="w-4 h-4 rounded-full bg-slate-700 border border-slate-600 flex-shrink-0" />
+                      <span className="flex-1 text-white truncate">{task.label}</span>
+                      <ChevronRight size={14} className="text-slate-500" />
+                    </button>
+                  ))}
+                </div>
               </div>
-              <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
-                {task.label}
-              </span>
-            </button>
-          ))}
-          {tasks.length > 10 && (
-            <p className="text-slate-500 text-sm text-center py-2">
-              +{tasks.length - 10} more tasks
-            </p>
-          )}
+            );
+          }
+          return null;
+        })()}
+
+        {/* Categorized Tasks */}
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {categories.map(category => {
+            const categoryTasks = tasks.slice(category.range[0], category.range[1]);
+            const completed = categoryTasks.filter(t => t.completed).length;
+            const total = categoryTasks.length;
+            const isExpanded = expandedCategories.includes(category.id);
+            const progressPercent = (completed / total) * 100;
+
+            return (
+              <div key={category.id}>
+                <button
+                  onClick={() => toggleCategory(category.id)}
+                  className="w-full flex items-center justify-between p-2 bg-slate-900/30 hover:bg-slate-900/50 rounded-lg transition border border-slate-700/50"
+                >
+                  <div className="flex items-center gap-2">
+                    {isExpanded ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}
+                    <span className="text-sm font-semibold text-white">{category.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">{completed}/{total}</span>
+                    <div className="w-12 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500 transition-all" style={{ width: `${progressPercent}%` }} />
+                    </div>
+                  </div>
+                </button>
+
+                {isExpanded && (
+                  <div className="mt-1 space-y-1 pl-4">
+                    {categoryTasks.map(task => (
+                      <button
+                        key={task.id}
+                        onClick={() => setSelectedTask(task)}
+                        className={`w-full text-left p-2 rounded-lg flex items-center gap-2 transition text-sm ${
+                          task.completed
+                            ? 'bg-emerald-500/10 border border-emerald-500/30'
+                            : 'bg-slate-900/50 border border-slate-700 hover:border-slate-600'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 text-xs ${
+                          task.completed ? 'bg-emerald-500 text-white' : 'bg-slate-700 border border-slate-600'
+                        }`}>
+                          {task.completed && '✓'}
+                        </div>
+                        <span className={`flex-1 ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
+                          {task.label}
+                        </span>
+                        {task.completions?.length > 0 && (
+                          <span className="text-xs bg-flash-500/20 text-flash-400 px-1.5 py-0.5 rounded">
+                            {task.completions.length}×
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
