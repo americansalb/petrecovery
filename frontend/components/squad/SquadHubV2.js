@@ -1,27 +1,34 @@
 'use client';
 
 /**
- * SquadHubV2 - Complete redesign based on new vision
+ * SquadHubV2 - Community-First Squad Interface
  *
- * Simple, tab-based interface:
+ * Tab-based interface with Home as default:
  * - Squad Header (city, divisions, stats, CTA)
- * - Mode Tabs (Cases, Map, Community)
+ * - Mode Tabs (Home, Cases, Map, Community)
  * - Mode Content Area (only one visible at a time)
  *
- * Beautiful, intuitive, mobile-first design
+ * Home tab shows community dashboard with:
+ * - Urgent cases alert
+ * - Quick stats
+ * - Map preview
+ * - Recent activity
+ * - Members on duty
  */
 
 import { useState, useMemo } from 'react';
-import { MapPin, List, MessageSquare, Plus, ChevronDown } from 'lucide-react';
+import { MapPin, List, MessageSquare, Plus, ChevronDown, Home } from 'lucide-react';
 import SquadHeaderV2 from './SquadHeaderV2';
+import SquadHome from './SquadHome';
 import CasesModeV2 from './CasesModeV2';
 import MapModeV2 from './MapModeV2';
 import CommunityModeV2 from './CommunityModeV2';
 import DivisionPreviewCard from './DivisionPreviewCard';
 
 export default function SquadHubV2({ initialData, squadId, isDivisionPage = false, currentDivisionId = null }) {
-  // Active mode: 'cases', 'map', or 'community'
-  const [activeMode, setActiveMode] = useState('cases');
+  // Active mode: 'home', 'cases', 'map', or 'community'
+  // Default to 'home' for community-first experience
+  const [activeMode, setActiveMode] = useState('home');
 
   // Preview division (for showing preview card)
   const [previewDivisionId, setPreviewDivisionId] = useState(null);
@@ -102,13 +109,19 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
       {/* Mode Tabs */}
       <div className="sticky top-0 z-30 bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 backdrop-blur-xl border-b-2 border-flash-500/30 shadow-lg shadow-slate-900/50">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex gap-2 py-4">
+          <div className="flex gap-2 py-4 overflow-x-auto">
+            <ModeTab
+              active={activeMode === 'home'}
+              onClick={() => setActiveMode('home')}
+              icon={Home}
+              label="Home"
+            />
             <ModeTab
               active={activeMode === 'cases'}
               onClick={() => setActiveMode('cases')}
               icon={List}
               label="Cases"
-              count={filteredCases.length}
+              count={stats.active}
             />
             <ModeTab
               active={activeMode === 'map'}
@@ -121,7 +134,6 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
               onClick={() => setActiveMode('community')}
               icon={MessageSquare}
               label="Community"
-              count={chatMessages.length}
             />
           </div>
         </div>
@@ -129,6 +141,20 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
 
       {/* Mode Content Area - Only one visible at a time */}
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {activeMode === 'home' && (
+          <SquadHome
+            squad={squad}
+            cases={allCases}
+            announcements={announcements}
+            chatMessages={chatMessages}
+            membership={membership}
+            stats={stats}
+            divisions={divisions}
+            squadId={squadId}
+            onNavigate={setActiveMode}
+          />
+        )}
+
         {activeMode === 'cases' && (
           <CasesModeV2
             cases={filteredCases}

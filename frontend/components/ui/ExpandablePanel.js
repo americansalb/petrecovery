@@ -11,6 +11,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { ChevronUp, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ExpandablePanel({
   icon: Icon,
@@ -24,25 +25,10 @@ export default function ExpandablePanel({
   className = '',
 }) {
   const [internalExpanded, setInternalExpanded] = useState(isExpanded);
-  const panelRef = useRef(null);
 
   // Use controlled or uncontrolled state
   const expanded = onToggle ? isExpanded : internalExpanded;
   const setExpanded = onToggle || setInternalExpanded;
-
-  // Close on escape key
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === 'Escape' && expanded) {
-        setExpanded(false);
-      }
-    };
-
-    if (expanded) {
-      document.addEventListener('keydown', handleEscape);
-      return () => document.removeEventListener('keydown', handleEscape);
-    }
-  }, [expanded, setExpanded]);
 
   // Badge color mapping
   const badgeColors = {
@@ -56,13 +42,14 @@ export default function ExpandablePanel({
   return (
     <>
       {/* Collapsed State - Summary Card */}
-      <button
+      <motion.button
+        layoutId={`panel-${title}`}
         onClick={() => setExpanded(!expanded)}
         className={`
           w-full text-left p-4 rounded-xl
           bg-slate-800/50 border border-slate-700/50
           hover:bg-slate-800/70 hover:border-flash-500/30
-          transition-all duration-200
+          transition-colors duration-200
           ${expanded ? 'ring-2 ring-flash-500/50' : ''}
           ${className}
         `}
@@ -96,53 +83,10 @@ export default function ExpandablePanel({
             className={`text-slate-500 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
           />
         </div>
-      </button>
+      </motion.button>
 
-      {/* Expanded State - Overlay Panel */}
-      {expanded && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 animate-fadeIn"
-            onClick={() => setExpanded(false)}
-          />
-
-          {/* Panel */}
-          <div
-            ref={panelRef}
-            className="fixed inset-x-0 bottom-0 z-50 animate-slideUp"
-            style={{ maxHeight: '85vh' }}
-          >
-            <div className="bg-slate-900 border-t-2 border-flash-500/30 rounded-t-2xl shadow-2xl shadow-flash-500/20 overflow-hidden flex flex-col" style={{ maxHeight: '85vh' }}>
-              {/* Panel Header */}
-              <div className="flex items-center justify-between p-4 border-b border-slate-700/50 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  {Icon && (
-                    <div className="w-10 h-10 rounded-lg bg-flash-500/20 flex items-center justify-center">
-                      <Icon size={20} className="text-flash-400" />
-                    </div>
-                  )}
-                  <div>
-                    <h3 className="font-bold text-white">{title}</h3>
-                    {summary && <p className="text-slate-400 text-sm">{summary}</p>}
-                  </div>
-                </div>
-                <button
-                  onClick={() => setExpanded(false)}
-                  className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              {/* Panel Content */}
-              <div className="flex-1 overflow-y-auto p-4">
-                {children}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+      {/* Expanded State is handled by the parent MapLayout via activePanel prop */}
+      {/* This component just acts as the trigger/summary card now */}
     </>
   );
 }
@@ -157,16 +101,16 @@ export function PanelGrid({ children, className = '' }) {
   // Clone children and inject controlled state
   const panelsWithState = Array.isArray(children)
     ? children.map((child, index) => {
-        if (!child) return null;
-        return {
-          ...child,
-          props: {
-            ...child.props,
-            isExpanded: expandedIndex === index,
-            onToggle: (expanded) => setExpandedIndex(expanded ? index : null),
-          }
-        };
-      })
+      if (!child) return null;
+      return {
+        ...child,
+        props: {
+          ...child.props,
+          isExpanded: expandedIndex === index,
+          onToggle: (expanded) => setExpandedIndex(expanded ? index : null),
+        }
+      };
+    })
     : children;
 
   return (
