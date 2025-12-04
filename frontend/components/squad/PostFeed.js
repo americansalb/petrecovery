@@ -98,8 +98,8 @@ export default function PostFeed({
     <div className="space-y-6">
       {/* Header with Sort Options */}
       <div className="flex items-center justify-between flex-wrap gap-4">
-        {/* Sort Tabs */}
-        <div className="flex gap-2">
+        {/* Compact Sort Filters */}
+        <div className="inline-flex items-center gap-1 p-1 bg-slate-800/60 rounded-lg border border-slate-700/50">
           {sortOptions.map(option => {
             const Icon = option.icon;
             return (
@@ -107,14 +107,15 @@ export default function PostFeed({
                 key={option.value}
                 onClick={() => setSortBy(option.value)}
                 className={`
-                  flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm transition-all duration-200
+                  flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold text-xs transition-all duration-200
                   ${sortBy === option.value
-                    ? 'bg-gradient-to-r from-flash-500 to-flash-400 text-white shadow-lg shadow-flash-500/30 scale-105'
-                    : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-white border border-slate-700/50'
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
                   }
                 `}
+                title={option.description}
               >
-                <Icon size={16} />
+                <Icon size={14} strokeWidth={2.5} />
                 <span>{option.label}</span>
               </button>
             );
@@ -125,10 +126,10 @@ export default function PostFeed({
         {membership?.isMember && (
           <button
             onClick={onCreatePost}
-            className="group relative px-6 py-3 rounded-xl bg-gradient-to-r from-flash-500 via-flash-400 to-flash-500 text-white font-bold shadow-lg shadow-flash-500/30 hover:shadow-xl hover:shadow-flash-500/50 hover:scale-105 transition-all duration-200"
+            className="group relative px-6 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 text-white font-bold shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/50 hover:scale-105 transition-all duration-200"
           >
             <div className="flex items-center gap-2">
-              <Plus size={20} strokeWidth={2.5} />
+              <Plus size={18} strokeWidth={2.5} />
               <span>New Post</span>
             </div>
           </button>
