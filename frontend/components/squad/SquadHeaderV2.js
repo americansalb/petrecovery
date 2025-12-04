@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { Plus, Shield, Users, TrendingUp, MapPin, Camera } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import PhotoUploadModal from './PhotoUploadModal';
+import MembersModal from './MembersModal';
 
 export default function SquadHeaderV2({
   squad,
@@ -21,6 +22,7 @@ export default function SquadHeaderV2({
 }) {
   const router = useRouter();
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
   const cityName = squad.cityName || 'Unknown City';
   const state = squad.state || '';
   const currentDivision = divisions.find(d => d.id === currentDivisionId);
@@ -123,11 +125,14 @@ export default function SquadHeaderV2({
             <span className="text-white font-bold">{stats.reunited}</span>
             <span className="text-slate-400">Reunited</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Users size={14} className="text-slate-400" />
+          <button
+            onClick={() => setShowMembers(true)}
+            className="flex items-center gap-2 hover:bg-slate-800/50 px-3 py-1.5 rounded-lg transition-all group"
+          >
+            <Users size={14} className="text-slate-400 group-hover:text-flash-400 transition-colors" />
             <span className="text-white font-bold">{stats.members}</span>
-            <span className="text-slate-400">Members</span>
-          </div>
+            <span className="text-slate-400 group-hover:text-slate-300 transition-colors">Members</span>
+          </button>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-flash-300" />
             <span className="text-white font-bold">{stats.onDuty}</span>
@@ -190,6 +195,14 @@ export default function SquadHeaderV2({
           console.log('Photo uploaded:', url);
         }}
         squadId={squad.id}
+      />
+
+      {/* Members Modal */}
+      <MembersModal
+        isOpen={showMembers}
+        onClose={() => setShowMembers(false)}
+        squadId={squad.id}
+        currentUserId={membership?.userId}
       />
     </div>
   );

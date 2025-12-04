@@ -53,7 +53,9 @@ export async function GET(request, { params }) {
             id: true,
             firstName: true,
             lastName: true,
-            email: true
+            email: true,
+            photoUrl: true,
+            bio: true
           }
         },
         division: {
@@ -69,7 +71,56 @@ export async function GET(request, { params }) {
       ]
     });
 
-    return NextResponse.json({ members });
+    // Get user's divisions to calculate common groups
+    const currentUserDivisions = await prisma.rescueSquadMember.findMany({
+      where: {
+        rescueSquadId: squadId,
+        userId: session.user.id,
+        isActive: true
+      },
+      select: {
+        divisionId: true,
+        division: {
+          select: { name: true }
+        }
+      }
+    });
+
+    const currentUserDivisionIds = currentUserDivisions
+      .filter(m => m.divisionId)
+      .map(m => m.divisionId);
+
+    // Check friendships (assuming a friendships table exists)
+    // For now, we'll just mark all as non-friends until friendship system is implemented
+    const friendIds = new Set(); // TODO: Fetch actual friend IDs from friendships table
+
+    // Format members with privacy controls
+    const formattedMembers = members.map(member => {
+      const isFriend = friendIds.has(member.user.id);
+      const isCurrentUser = member.user.id === session.user.id;
+
+      // Get common divisions
+      const memberDivisions = member.divisionId ? [member.division.name] : [];
+      const commonDivisions = memberDivisions.filter(name =>
+        currentUserDivisions.some(d => d.division?.name === name)
+      );
+
+      return {
+        id: member.id,
+        userId: member.user.id,
+        firstName: member.user.firstName,
+        lastName: member.user.lastName,
+        photoUrl: member.user.photoUrl,
+        bio: member.user.bio,
+        role: member.role,
+        joinedAt: member.joinedAt,
+        isFriend,
+        commonDivisions,
+        division: member.division
+      };
+    });
+
+    return NextResponse.json({ members: formattedMembers });
 
   } catch (error) {
     console.error('Error fetching squad members:', error);

@@ -65,15 +65,15 @@ export default function FeaturedCasesCarousel({ cases }) {
 
         {/* Compact Dots indicator */}
         {featuredCases.length > 4 && (
-          <div className="flex items-center justify-center gap-1.5 mt-2">
+          <div className="flex items-center justify-center gap-1 mt-2">
             {Array.from({ length: Math.ceil(featuredCases.length / 4) }).map((_, idx) => (
               <button
                 key={idx}
                 onClick={() => setCurrentIndex(idx * 4)}
-                className={`h-1 rounded-full transition-all ${
+                className={`h-0.5 rounded-full transition-all ${
                   Math.floor(currentIndex / 4) === idx
-                    ? 'w-4 bg-orange-500'
-                    : 'w-1 bg-slate-700 hover:bg-slate-600'
+                    ? 'w-3 bg-orange-500'
+                    : 'w-0.5 bg-slate-700 hover:bg-slate-600'
                 }`}
               />
             ))}
