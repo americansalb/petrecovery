@@ -160,7 +160,7 @@ function MemberCard({ member, currentUserId, roleColors }) {
               className="w-14 h-14 rounded-full object-cover border-2 border-slate-600/50 group-hover:border-flash-400/50 transition-colors"
             />
           ) : (
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white font-bold text-xl border-2 border-slate-600/50 group-hover:border-flash-400/50 transition-colors">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-flash-500 to-flash-400 flex items-center justify-center text-slate-900 font-bold text-xl border-2 border-slate-600/50 group-hover:border-flash-400/50 transition-colors">
               {displayName.charAt(0).toUpperCase()}
             </div>
           )}

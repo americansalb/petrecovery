@@ -71,7 +71,7 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
                 </div>
               </>
             ) : (
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white font-bold text-xl shadow-lg ring-2 ring-slate-700/50">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-flash-500 to-flash-400 flex items-center justify-center text-slate-900 font-bold text-xl shadow-lg ring-2 ring-slate-700/50">
                 {post.authorName?.charAt(0)?.toUpperCase() || '?'}
               </div>
             )}
@@ -137,7 +137,7 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
             {likeCount > 0 && (
               <div className="flex items-center gap-1">
                 <div className="flex items-center -space-x-1">
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center shadow-sm">
+                  <div className="w-5 h-5 rounded-full bg-gradient-to-r from-flash-500 to-flash-400 flex items-center justify-center shadow-sm">
                     <Heart size={10} className="text-white fill-current" />
                   </div>
                 </div>
@@ -162,7 +162,7 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
           onClick={handleLike}
           className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg transition-all duration-200 font-semibold text-sm ${
             hasLiked
-              ? 'text-orange-400 bg-orange-500/10 hover:bg-orange-500/20'
+              ? 'text-flash-400 bg-flash-500/10 hover:bg-flash-500/20'
               : 'text-slate-400 hover:bg-slate-700/40 hover:text-white'
           }`}
         >
@@ -185,7 +185,7 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
           {/* Comment Input */}
           <div className="mb-4">
             {replyingTo && (
-              <div className="mb-2 px-3 py-2 bg-orange-500/10 border border-orange-500/30 rounded-lg text-sm text-orange-300 flex items-center justify-between">
+              <div className="mb-2 px-3 py-2 bg-flash-500/10 border border-flash-500/30 rounded-lg text-sm text-flash-300 flex items-center justify-between">
                 <span>Replying to <span className="font-bold">{replyingTo.authorName}</span></span>
                 <button
                   onClick={() => setReplyingTo(null)}
@@ -207,13 +207,13 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
                   onChange={(e) => setCommentText(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleComment()}
                   placeholder="Write a comment..."
-                  className="flex-1 px-4 py-2.5 rounded-full bg-slate-800/50 border border-slate-600/50 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-orange-500/70 focus:ring-2 focus:ring-orange-500/20 transition-all"
+                  className="flex-1 px-4 py-2.5 rounded-full bg-slate-800/50 border border-slate-600/50 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-flash-500/70 focus:ring-2 focus:ring-flash-500/20 transition-all"
                 />
                 {commentText.trim() && (
                   <button
                     onClick={handleComment}
                     disabled={submitting}
-                    className="px-4 py-2.5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold text-sm disabled:opacity-50 hover:shadow-lg hover:shadow-orange-500/30 transition-all flex-shrink-0"
+                    className="px-4 py-2.5 rounded-full bg-gradient-to-r from-flash-500 to-flash-400 text-slate-900 font-semibold text-sm disabled:opacity-50 hover:shadow-lg hover:shadow-flash-500/30 transition-all flex-shrink-0"
                   >
                     {submitting ? '...' : 'Post'}
                   </button>
@@ -299,7 +299,7 @@ function CommentThread({ comment, onReply, onVote, currentUserId, depth = 0 }) {
             <button
               onClick={handleLike}
               className={`font-semibold transition-colors ${
-                hasLiked ? 'text-orange-400' : 'text-slate-500 hover:text-orange-400'
+                hasLiked ? 'text-flash-400' : 'text-slate-500 hover:text-flash-400'
               }`}
             >
               {hasLiked ? 'Liked' : 'Like'}

@@ -78,7 +78,7 @@ function FeaturedCaseCard({ caseData, router }) {
   return (
     <button
       onClick={() => router.push(`/mission-control?mission=${caseNumber}`)}
-      className="group relative bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-sm border border-slate-700/50 rounded-xl p-3 hover:border-orange-500/50 hover:shadow-lg hover:shadow-orange-500/20 transition-all text-left"
+      className="group relative bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-sm border border-slate-700/50 rounded-xl p-3 hover:border-flash-500/50 hover:shadow-lg hover:shadow-flash-500/20 transition-all text-left"
     >
       <div className="flex items-center gap-3">
         {/* Pet Photo */}
@@ -87,10 +87,10 @@ function FeaturedCaseCard({ caseData, router }) {
             src={photoUrl}
             alt={petName}
             loading="lazy"
-            className="w-12 h-12 rounded-lg object-cover border border-slate-600/50 group-hover:border-orange-500/30 transition-colors"
+            className="w-12 h-12 rounded-lg object-cover border border-slate-600/50 group-hover:border-flash-500/30 transition-colors"
           />
         ) : (
-          <div className="w-12 h-12 rounded-lg bg-slate-700/50 border border-slate-600/50 group-hover:border-orange-500/30 flex items-center justify-center text-2xl transition-colors">
+          <div className="w-12 h-12 rounded-lg bg-slate-700/50 border border-slate-600/50 group-hover:border-flash-500/30 flex items-center justify-center text-2xl transition-colors">
             {speciesEmoji}
           </div>
         )}
@@ -98,7 +98,7 @@ function FeaturedCaseCard({ caseData, router }) {
         {/* Case Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-bold text-white text-sm truncate group-hover:text-orange-400 transition-colors">
+            <h4 className="font-bold text-white text-sm truncate group-hover:text-flash-400 transition-colors">
               {petName}
             </h4>
             {urgency === 'HIGH' && (

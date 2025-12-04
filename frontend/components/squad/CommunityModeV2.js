@@ -78,11 +78,11 @@ export default function CommunityModeV2({
                   className={`relative overflow-hidden backdrop-blur-sm rounded-2xl p-6 shadow-lg ${
                     isMascot
                       ? 'bg-gradient-to-br from-purple-400/10 via-purple-400/5 to-transparent border border-purple-400/40'
-                      : 'bg-gradient-to-br from-orange-400/10 via-orange-400/5 to-transparent border border-orange-400/40'
+                      : 'bg-gradient-to-br from-flash-400/10 via-flash-400/5 to-transparent border border-flash-400/40'
                   }`}
                 >
                   <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-2xl ${
-                    isMascot ? 'bg-purple-400/5' : 'bg-orange-400/5'
+                    isMascot ? 'bg-purple-400/5' : 'bg-flash-400/5'
                   }`} />
                   <div className="relative flex items-start gap-4">
                     {isMascot ? (
@@ -101,8 +101,8 @@ export default function CommunityModeV2({
                         </div>
                       </div>
                     ) : (
-                      <div className="p-2.5 rounded-xl bg-orange-400/20 border border-orange-400/30">
-                        <Pin className="text-orange-300 flex-shrink-0" size={20} />
+                      <div className="p-2.5 rounded-xl bg-flash-400/20 border border-flash-400/30">
+                        <Pin className="text-flash-300 flex-shrink-0" size={20} />
                       </div>
                     )}
                     <div className="flex-1">
@@ -114,7 +114,7 @@ export default function CommunityModeV2({
                           </span>
                         </div>
                       )}
-                      <h4 className={`font-bold text-lg mb-2 ${isMascot ? 'text-slate-200' : 'text-orange-200'}`}>
+                      <h4 className={`font-bold text-lg mb-2 ${isMascot ? 'text-slate-200' : 'text-flash-200'}`}>
                         {announcement.title || 'Announcement'}
                       </h4>
                       <p className="text-slate-200 text-base leading-relaxed mb-3 whitespace-pre-wrap">{announcement.content}</p>

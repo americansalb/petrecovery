@@ -112,7 +112,7 @@ export default function PostFeed({
                   className={`
                     flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold text-xs transition-all duration-200
                     ${sortBy === option.value
-                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md'
+                      ? 'bg-gradient-to-r from-flash-500 to-flash-400 text-slate-900 shadow-md'
                       : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
                     }
                   `}
@@ -147,7 +147,7 @@ export default function PostFeed({
         {membership?.isMember && (
           <button
             onClick={onCreatePost}
-            className="group relative px-6 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 text-white font-bold shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/50 hover:scale-105 transition-all duration-200"
+            className="group relative px-6 py-2.5 rounded-xl bg-gradient-to-r from-flash-500 to-flash-400 text-slate-900 font-bold shadow-lg shadow-flash-500/30 hover:shadow-xl hover:shadow-flash-500/50 hover:scale-105 transition-all duration-200"
           >
             <div className="flex items-center gap-2">
               <Plus size={18} strokeWidth={2.5} />
