@@ -5,23 +5,23 @@
  *
  * Simple, tab-based interface:
  * - Squad Header (city, divisions, stats, CTA)
- * - Mode Tabs (Cases, Map, Community)
+ * - Mode Tabs (Community, Missions)
  * - Mode Content Area (only one visible at a time)
+ * - Missions tab combines map and list views with smooth toggle
  *
  * Beautiful, intuitive, mobile-first design
  */
 
 import { useState, useMemo } from 'react';
-import { MapPin, List, MessageSquare, Plus, ChevronDown, Clock, Users } from 'lucide-react';
+import { Target, MessageSquare, Plus, ChevronDown, Clock, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import SquadHeaderV2 from './SquadHeaderV2';
-import CasesModeV2 from './CasesModeV2';
-import MapModeV2 from './MapModeV2';
+import MissionsModeV2 from './MissionsModeV2';
 import CommunityModeV2 from './CommunityModeV2';
 import DivisionPreviewCard from './DivisionPreviewCard';
 
 export default function SquadHubV2({ initialData, squadId, isDivisionPage = false, currentDivisionId = null }) {
-  // Active mode: 'cases', 'map', or 'community'
+  // Active mode: 'community' or 'missions'
   const [activeMode, setActiveMode] = useState('community');
 
   // Preview division (for showing preview card)
@@ -112,17 +112,11 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
               count={chatMessages.length}
             />
             <ModeTab
-              active={activeMode === 'cases'}
-              onClick={() => setActiveMode('cases')}
-              icon={List}
-              label="Cases"
+              active={activeMode === 'missions'}
+              onClick={() => setActiveMode('missions')}
+              icon={Target}
+              label="Missions"
               count={filteredCases.length}
-            />
-            <ModeTab
-              active={activeMode === 'map'}
-              onClick={() => setActiveMode('map')}
-              icon={MapPin}
-              label="Map"
             />
           </div>
         </div>
@@ -130,9 +124,11 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
 
       {/* Mode Content Area - Only one visible at a time */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {activeMode === 'cases' && (
-          <CasesModeV2
+        {activeMode === 'missions' && (
+          <MissionsModeV2
             cases={filteredCases}
+            divisions={divisions}
+            squad={squad}
             selectedStatus={selectedStatus}
             onStatusChange={setSelectedStatus}
             cityName={squad.cityName}
@@ -141,14 +137,6 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
               // TODO: Implement proper refresh - for now just reload the page
               window.location.reload();
             }}
-          />
-        )}
-
-        {activeMode === 'map' && (
-          <MapModeV2
-            cases={filteredCases}
-            divisions={divisions}
-            squad={squad}
           />
         )}
 
