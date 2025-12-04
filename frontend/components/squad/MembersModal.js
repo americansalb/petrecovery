@@ -17,12 +17,12 @@ export default function MembersModal({ isOpen, onClose, squadId, currentUserId, 
   const [fetchedMembers, setFetchedMembers] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch members if not provided as prop
+  // Fetch members when modal opens - always fetch fresh data
   useEffect(() => {
-    if (isOpen && !initialMembers && squadId) {
+    if (isOpen && squadId) {
       loadMembers();
     }
-  }, [isOpen, squadId, initialMembers]);
+  }, [isOpen, squadId]);
 
   const loadMembers = async () => {
     setLoading(true);
@@ -39,8 +39,8 @@ export default function MembersModal({ isOpen, onClose, squadId, currentUserId, 
     }
   };
 
-  // Use provided members or fetched members (check for length, not just truthiness)
-  const members = initialMembers?.length ? initialMembers : fetchedMembers;
+  // Use fetched members (always fetch fresh) or fall back to provided members
+  const members = fetchedMembers.length > 0 ? fetchedMembers : (initialMembers || []);
 
   const filteredMembers = members.filter(member => {
     const searchLower = searchQuery.toLowerCase();
@@ -137,10 +137,8 @@ function MemberCard({ member, currentUserId, roleColors }) {
   const isFriend = member.isFriend || false;
   const isCurrentUser = member.userId === currentUserId;
 
-  // Privacy: Show first name only for non-friends
-  const displayName = isFriend || isCurrentUser
-    ? `${member.firstName || ''} ${member.lastName || ''}`.trim()
-    : member.firstName || 'Anonymous';
+  // Privacy is now handled by the API - lastName is already filtered
+  const displayName = `${member.firstName || ''}${member.lastName ? ' ' + member.lastName : ''}`.trim() || 'Anonymous';
 
   const roleStyle = roleColors[member.role] || roleColors.MEMBER;
   const joinedAgo = member.joinedAt
