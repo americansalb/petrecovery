@@ -54,7 +54,7 @@ export async function GET(request, { params }) {
             firstName: true,
             lastName: true,
             email: true,
-            photoUrl: true,
+            profileImage: true,
             bio: true
           }
         },
@@ -110,7 +110,7 @@ export async function GET(request, { params }) {
         userId: member.user.id,
         firstName: member.user.firstName,
         lastName: member.user.lastName,
-        photoUrl: member.user.photoUrl,
+        profileImage: member.user.profileImage,
         bio: member.user.bio,
         role: member.role,
         joinedAt: member.joinedAt,

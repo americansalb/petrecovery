@@ -155,9 +155,9 @@ function MemberCard({ member, currentUserId, roleColors }) {
       <div className="flex items-start gap-4">
         {/* Avatar */}
         <div className="flex-shrink-0">
-          {member.photoUrl ? (
+          {member.profileImage ? (
             <img
-              src={member.photoUrl}
+              src={member.profileImage}
               alt={displayName}
               className="w-14 h-14 rounded-full object-cover border-2 border-slate-600/50 group-hover:border-flash-400/50 transition-colors"
             />

@@ -71,8 +71,8 @@ export default function FeaturedCasesCarousel({ cases }) {
                 key={idx}
                 onClick={() => setCurrentIndex(idx * 4)}
                 style={{
-                  width: Math.floor(currentIndex / 4) === idx ? '6px' : '3px',
-                  height: '3px',
+                  width: Math.floor(currentIndex / 4) === idx ? '4px' : '2px',
+                  height: '2px',
                 }}
                 className={`rounded-full transition-all ${
                   Math.floor(currentIndex / 4) === idx
