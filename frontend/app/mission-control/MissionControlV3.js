@@ -410,75 +410,59 @@ function MissionControlV3Content() {
       )}
 
       {/* ============================================================ */}
-      {/* TOP 1/4 - STATIC HERO */}
+      {/* TOP - COMPACT HERO */}
       {/* ============================================================ */}
       <div className="flex-shrink-0 bg-slate-900/95 backdrop-blur-xl border-b border-flash-500/20">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-start gap-4">
+        <div className="max-w-4xl mx-auto px-3 py-2">
+          <div className="flex items-center gap-3">
             {/* Pet Photo */}
             <div className="flex-shrink-0">
               {activeMission.petPhotoUrl ? (
                 <img
                   src={normalizePhotoUrl(activeMission.petPhotoUrl)}
                   alt={activeMission.petName}
-                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-2 border-flash-500/30 shadow-lg shadow-flash-500/20"
+                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover border-2 border-flash-500/30"
                 />
               ) : (
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-4xl border-2 border-slate-700">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-2xl border-2 border-slate-700">
                   {activeMission.petSpecies === 'DOG' ? '🐕' : activeMission.petSpecies === 'CAT' ? '🐈' : '🐾'}
                 </div>
               )}
             </div>
 
-            {/* Pet Info */}
+            {/* Pet Info - Compact */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap mb-1">
-                <h1 className="text-2xl sm:text-3xl font-black text-white truncate">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-xl font-black text-white truncate">
                   {activeMission.petName}
                 </h1>
                 {isReunited && (
-                  <span className="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30">
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-xs font-bold">
                     ✓ Reunited
+                  </span>
+                )}
+                {timeMissing && !isReunited && (
+                  <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${
+                    isUrgent ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+                  }`}>
+                    {timeMissing.text}
                   </span>
                 )}
               </div>
 
-              <p className="text-slate-400 text-sm mb-2">
-                {activeMission.petBreed || activeMission.petSpecies} • {activeMission.petColor || 'Unknown color'}
-              </p>
-
-              {/* Time & Location */}
-              <div className="flex flex-wrap items-center gap-3 text-sm">
-                {timeMissing && !isReunited && (
-                  <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${
-                    isUrgent ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
-                  }`}>
-                    <Clock size={14} />
-                    <span className="font-semibold">{timeMissing.text}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-1.5 text-slate-400">
-                  <MapPin size={14} />
-                  <span className="truncate">{activeMission.lastSeenAddress || 'Location unknown'}</span>
-                </div>
+              <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                <span>{activeMission.petBreed || activeMission.petSpecies}</span>
+                <span>•</span>
+                <span className="truncate max-w-[150px] sm:max-w-none">{activeMission.lastSeenAddress || 'Location unknown'}</span>
               </div>
 
-              {/* Stats Row */}
-              <div className="flex items-center gap-4 mt-3">
-                <div className="flex items-center gap-1.5 text-flash-400">
-                  <Users size={14} />
-                  <span className="text-sm font-semibold">{activeParticipants.length} helpers</span>
-                </div>
+              {/* Stats Row - Inline */}
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-flash-400 text-xs font-semibold">{activeParticipants.length} helpers</span>
                 {activeMission.rewardAmount > 0 && (
-                  <div className="flex items-center gap-1.5 text-emerald-400">
-                    <Award size={14} />
-                    <span className="text-sm font-semibold">${activeMission.rewardAmount}</span>
-                  </div>
+                  <span className="text-emerald-400 text-xs font-semibold">${activeMission.rewardAmount}</span>
                 )}
-                <div className="flex items-center gap-1.5 text-amber-400">
-                  <Eye size={14} />
-                  <span className="text-sm font-semibold">{sightings.length} sightings</span>
-                </div>
+                <span className="text-amber-400 text-xs font-semibold">{sightings.length} sightings</span>
               </div>
             </div>
 
@@ -486,19 +470,18 @@ function MissionControlV3Content() {
             {!isReunited && session && (
               <div className="flex-shrink-0">
                 {isOwner ? (
-                  <div className="px-3 py-2 rounded-xl bg-flash-500/10 border border-flash-500/30">
-                    <Crown size={20} className="text-flash-400" />
+                  <div className="p-2 rounded-lg bg-flash-500/10 border border-flash-500/30">
+                    <Crown size={18} className="text-flash-400" />
                   </div>
                 ) : isDeployed ? (
-                  <div className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                    <Shield size={20} className="text-emerald-400" />
+                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                    <Shield size={18} className="text-emerald-400" />
                   </div>
                 ) : (
                   <button
                     onClick={handleJoinMission}
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-flash-500 to-flash-400 text-slate-900 font-bold text-sm hover:scale-105 transition shadow-lg shadow-flash-500/30"
+                    className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-flash-500 to-flash-400 text-slate-900 font-bold text-xs hover:scale-105 transition"
                   >
-                    <Radio size={16} className="inline mr-1" />
                     Join
                   </button>
                 )}
@@ -572,58 +555,61 @@ function MissionControlV3Content() {
       </div>
 
       {/* ============================================================ */}
-      {/* BOTTOM 1/4 - NAVIGATION */}
+      {/* BOTTOM - COMPACT NAVIGATION */}
       {/* ============================================================ */}
       <div className="flex-shrink-0 bg-slate-900/95 backdrop-blur-xl border-t border-flash-500/20">
-        <div className="max-w-4xl mx-auto px-4 py-3">
-          {/* Tab Buttons */}
-          <div className="flex justify-center gap-1 mb-3">
-            {tabs.map(tab => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-flash-500/20 text-flash-400 border border-flash-500/50'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-                  }`}
-                >
-                  <Icon size={20} />
-                  <span className="text-xs font-semibold">{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Mission Cycling */}
-          <div className="flex items-center justify-between gap-3">
+        <div className="max-w-4xl mx-auto px-2 py-2">
+          {/* Single Row: Mission Cycling + Tabs */}
+          <div className="flex items-center gap-2">
+            {/* Left: Mission Prev */}
             <button
               onClick={goToPrevMission}
               disabled={availableMissions.length <= 1}
-              className="p-3 rounded-xl bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-800 transition disabled:opacity-30 disabled:cursor-not-allowed"
+              className="p-2 rounded-lg bg-slate-800/50 text-slate-400 hover:text-white transition disabled:opacity-30"
             >
-              <ChevronLeft size={24} />
+              <ChevronLeft size={20} />
             </button>
 
+            {/* Mission Counter - Clickable */}
             <button
               onClick={() => setShowMissionsModal(true)}
-              className="flex-1 py-3 px-4 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:border-flash-500/50 transition text-center"
+              className="px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/50 hover:border-flash-500/50 transition text-center min-w-[80px]"
             >
-              <span className="text-white font-semibold">
-                {currentMissionIndex + 1} of {availableMissions.length}
-              </span>
-              <span className="text-slate-400 text-sm block">View All Missions</span>
+              <span className="text-white text-sm font-semibold">{currentMissionIndex + 1}/{availableMissions.length}</span>
             </button>
 
+            {/* Right: Mission Next */}
             <button
               onClick={goToNextMission}
               disabled={availableMissions.length <= 1}
-              className="p-3 rounded-xl bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-800 transition disabled:opacity-30 disabled:cursor-not-allowed"
+              className="p-2 rounded-lg bg-slate-800/50 text-slate-400 hover:text-white transition disabled:opacity-30"
             >
-              <ChevronRight size={24} />
+              <ChevronRight size={20} />
             </button>
+
+            {/* Divider */}
+            <div className="w-px h-8 bg-slate-700/50 mx-1" />
+
+            {/* Tab Buttons - Horizontal */}
+            <div className="flex-1 flex justify-center gap-1">
+              {tabs.map(tab => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all ${
+                      activeTab === tab.id
+                        ? 'bg-flash-500/20 text-flash-400'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <Icon size={16} />
+                    <span className="text-xs font-semibold hidden sm:inline">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
