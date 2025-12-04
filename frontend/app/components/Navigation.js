@@ -33,6 +33,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { Button, Badge, CountBadge } from '@/components/ui';
+import { SURUMAA_AVATAR, LOGO_PRIMARY } from '@/lib/brandAssets';
 
 export default function Navigation() {
   const { data: session } = useSession();
@@ -101,7 +102,7 @@ export default function Navigation() {
       <nav className="sticky top-0 z-50 bg-midnight-900 border-b border-midnight-800">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl">
-            <img src="https://petrescue.b-cdn.net/Untitled%20design%20(12).svg" alt="PetRecovery" className="h-8 w-auto" />
+            <img src={SURUMAA_AVATAR} alt="PetRecovery" className="h-8 w-8 rounded-full" />
             <span>PetRecovery</span>
           </Link>
 
@@ -135,7 +136,7 @@ export default function Navigation() {
           <div className="h-16 flex items-center justify-between gap-4">
             {/* Logo */}
             <Link href="/dashboard" className="flex items-center gap-2.5 text-white font-bold text-xl shrink-0">
-              <img src="https://petrescue.b-cdn.net/Untitled%20design%20(12).svg" alt="PetRecovery" className="h-8 w-auto" />
+              <img src={SURUMAA_AVATAR} alt="PetRecovery" className="h-8 w-8 rounded-full" />
               <span className="hidden sm:inline">PetRecovery</span>
             </Link>
 
@@ -184,26 +185,23 @@ export default function Navigation() {
                     <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
                       My Squads
                     </div>
-                    {userSquads.slice(0, 4).map(squad => (
-                      <Link
-                        key={squad.id}
-                        href={`/rescue-squads/${squad.id}`}
-                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-midnight-50 transition"
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-midnight-900 text-white flex items-center justify-center text-sm font-bold">
-                          {squad.name?.[0] || '?'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-midnight-900 truncate">{squad.name}</div>
-                          <div className="text-xs text-midnight-500">{squad.city}, {squad.state}</div>
-                        </div>
-                      </Link>
-                    ))}
-                    {userSquads.length > 4 && (
-                      <div className="px-4 py-2 text-xs text-midnight-500 text-center">
-                        +{userSquads.length - 4} more squads
-                      </div>
-                    )}
+                    <div className="max-h-64 overflow-y-auto">
+                      {userSquads.map(squad => (
+                        <Link
+                          key={squad.id}
+                          href={`/rescue-squads/${squad.id}`}
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-midnight-50 transition"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-midnight-900 text-white flex items-center justify-center text-sm font-bold">
+                            {squad.name?.[0] || '?'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-midnight-900 truncate">{squad.name}</div>
+                            <div className="text-xs text-midnight-500">{squad.city}, {squad.state}</div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
                   </>
                 )}
 

@@ -12,17 +12,17 @@ import { useState, useEffect } from 'react';
 import { X, Users, Calendar, Shield, Search, UserPlus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
-export default function MembersModal({ isOpen, onClose, squadId, currentUserId, members: initialMembers }) {
+export default function MembersModal({ isOpen, onClose, squadId, currentUserId, members: initialMembers, totalCount }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [fetchedMembers, setFetchedMembers] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch members if not provided as prop
+  // Fetch members when modal opens - always fetch fresh data
   useEffect(() => {
-    if (isOpen && !initialMembers && squadId) {
+    if (isOpen && squadId) {
       loadMembers();
     }
-  }, [isOpen, squadId, initialMembers]);
+  }, [isOpen, squadId]);
 
   const loadMembers = async () => {
     setLoading(true);
@@ -39,8 +39,8 @@ export default function MembersModal({ isOpen, onClose, squadId, currentUserId, 
     }
   };
 
-  // Use provided members or fetched members (check for length, not just truthiness)
-  const members = initialMembers?.length ? initialMembers : fetchedMembers;
+  // Use fetched members (always fetch fresh) or fall back to provided members
+  const members = fetchedMembers.length > 0 ? fetchedMembers : (initialMembers || []);
 
   const filteredMembers = members.filter(member => {
     const searchLower = searchQuery.toLowerCase();
@@ -72,7 +72,7 @@ export default function MembersModal({ isOpen, onClose, squadId, currentUserId, 
             </div>
             <div>
               <h2 className="text-2xl font-bold text-white">Squad Members</h2>
-              <p className="text-sm text-slate-400">{members.length} total members</p>
+              <p className="text-sm text-slate-400">{totalCount || members.length} total members</p>
             </div>
           </div>
           <button
@@ -137,10 +137,8 @@ function MemberCard({ member, currentUserId, roleColors }) {
   const isFriend = member.isFriend || false;
   const isCurrentUser = member.userId === currentUserId;
 
-  // Privacy: Show first name only for non-friends
-  const displayName = isFriend || isCurrentUser
-    ? `${member.firstName || ''} ${member.lastName || ''}`.trim()
-    : member.firstName || 'Anonymous';
+  // Privacy is now handled by the API - lastName is already filtered
+  const displayName = `${member.firstName || ''}${member.lastName ? ' ' + member.lastName : ''}`.trim() || 'Anonymous';
 
   const roleStyle = roleColors[member.role] || roleColors.MEMBER;
   const joinedAgo = member.joinedAt
@@ -162,7 +160,7 @@ function MemberCard({ member, currentUserId, roleColors }) {
               className="w-14 h-14 rounded-full object-cover border-2 border-slate-600/50 group-hover:border-flash-400/50 transition-colors"
             />
           ) : (
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white font-bold text-xl border-2 border-slate-600/50 group-hover:border-flash-400/50 transition-colors">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-flash-500 to-flash-400 flex items-center justify-center text-slate-900 font-bold text-xl border-2 border-slate-600/50 group-hover:border-flash-400/50 transition-colors">
               {displayName.charAt(0).toUpperCase()}
             </div>
           )}
@@ -208,10 +206,6 @@ function MemberCard({ member, currentUserId, roleColors }) {
             </div>
           )}
 
-          {/* Friend-only info */}
-          {(isFriend || isCurrentUser) && member.bio && (
-            <p className="text-sm text-slate-300 mt-2 leading-relaxed">{member.bio}</p>
-          )}
         </div>
 
         {/* Friend Actions - Only show for non-friends and not current user */}

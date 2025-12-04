@@ -37,7 +37,7 @@ export default function MissionsModeV2({
             className={`
               flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-sm transition-all duration-200
               ${viewMode === 'map'
-                ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md'
+                ? 'bg-gradient-to-r from-flash-500 to-flash-400 text-slate-900 shadow-md'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
               }
             `}
@@ -50,7 +50,7 @@ export default function MissionsModeV2({
             className={`
               flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-sm transition-all duration-200
               ${viewMode === 'list'
-                ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md'
+                ? 'bg-gradient-to-r from-flash-500 to-flash-400 text-slate-900 shadow-md'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
               }
             `}

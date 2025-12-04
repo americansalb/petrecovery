@@ -439,17 +439,77 @@ export async function GET(request, { params }) {
       take: 10,
     });
 
+    // Auto-create welcome announcement if none exists
+    if (announcementActivities.length === 0) {
+      try {
+        // Find or create Surumaa system user
+        let systemUser = await prisma.user.findFirst({
+          where: { email: 'surumaa@petrecovery.app' },
+        });
+
+        if (!systemUser) {
+          systemUser = await prisma.user.create({
+            data: {
+              email: 'surumaa@petrecovery.app',
+              firstName: 'Surumaa',
+              lastName: '',
+              role: 'ADMIN',
+            },
+          });
+        }
+
+        // Create welcome announcement
+        const welcomeMessage = `Welcome to your local Rescue Squad!
+
+We're a community of caring neighbors who work together to help lost pets find their way home.
+
+Here's how you can help:
+• Keep an eye out for lost pet alerts in your area
+• Share sightings and updates with fellow members
+• Join search parties when pets go missing nearby
+• Post encouraging messages to support pet owners
+
+Every share, every search, every kind word makes a difference. Together, we bring pets home!`;
+
+        const welcomeAnnouncement = await prisma.squadActivity.create({
+          data: {
+            rescueSquadId: squadId,
+            actorId: systemUser.id,
+            type: 'ANNOUNCEMENT',
+            message: welcomeMessage,
+            details: JSON.stringify({
+              title: 'Welcome to Your Rescue Squad!',
+              isPinned: true,
+              isSystemPost: true,
+            }),
+          },
+          include: {
+            actor: {
+              select: { firstName: true, lastName: true },
+            },
+          },
+        });
+
+        announcementActivities.push(welcomeAnnouncement);
+      } catch (seedError) {
+        console.error('Failed to auto-seed welcome announcement:', seedError);
+        // Don't fail the request, just continue without the announcement
+      }
+    }
+
     const announcements = announcementActivities.map(a => {
       const details = JSON.parse(a.details || '{}');
+      const isSystemPost = details.isSystemPost || a.actor?.firstName === 'Surumaa';
       return {
         id: a.id,
         authorId: a.actorId,
-        authorName: a.actor ? `${a.actor.firstName} ${a.actor.lastName?.[0] || ''}.` : 'Unknown',
+        authorName: isSystemPost ? 'Surumaa' : (a.actor ? `${a.actor.firstName} ${a.actor.lastName?.[0] || ''}.` : 'Unknown'),
         title: details.title || 'Announcement',
         content: a.message,
         createdAt: a.createdAt.toISOString(),
         isPinned: details.isPinned || false,
         divisionId: details.divisionId || null,
+        isSystemPost,
       };
     });
 
@@ -515,6 +575,10 @@ export async function GET(request, { params }) {
         cityName: squad.city || 'Unknown City',
         state: squad.state || '',
         displayName: squad.name,
+        description: squad.description,
+        photoUrl: squad.photoUrl,
+        slogan: squad.slogan,
+        zipCode: squad.zipCode,
         memberCount: squad._count.members,
         onDutyCount,
         centerLat: squad.centerLatitude,

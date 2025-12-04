@@ -6,26 +6,39 @@ import prisma from '@/app/lib/prisma';
 export async function GET(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const squadId = params.id;
     const { searchParams } = new URL(request.url);
     const available = searchParams.get('available') === 'true';
     const excludeDivisionId = searchParams.get('divisionId');
 
-    // Verify user is a member of this squad
-    const userMembership = await prisma.rescueSquadMember.findFirst({
-      where: {
-        rescueSquadId: squadId,
-        userId: session.user.id,
-        isActive: true
-      }
-    });
+    // Check if user is a member (for enhanced access)
+    let userMembership = null;
+    let currentUserDivisions = [];
 
-    if (!userMembership) {
-      return NextResponse.json({ error: 'Not a squad member' }, { status: 403 });
+    if (session?.user?.id) {
+      userMembership = await prisma.rescueSquadMember.findFirst({
+        where: {
+          rescueSquadId: squadId,
+          userId: session.user.id,
+          isActive: true
+        }
+      });
+
+      if (userMembership) {
+        currentUserDivisions = await prisma.rescueSquadMember.findMany({
+          where: {
+            rescueSquadId: squadId,
+            userId: session.user.id,
+            isActive: true
+          },
+          select: {
+            divisionId: true,
+            division: {
+              select: { name: true }
+            }
+          }
+        });
+      }
     }
 
     // Build the query based on filters
@@ -35,12 +48,13 @@ export async function GET(request, { params }) {
     };
 
     // If looking for available members (not in the specified division)
-    if (available && excludeDivisionId) {
+    // This is a member-only feature
+    if (userMembership && available && excludeDivisionId) {
       whereClause.OR = [
         { divisionId: null },
         { divisionId: { not: excludeDivisionId } }
       ];
-    } else if (available) {
+    } else if (userMembership && available) {
       whereClause.divisionId = null;
     }
 
@@ -54,8 +68,7 @@ export async function GET(request, { params }) {
             firstName: true,
             lastName: true,
             email: true,
-            profileImage: true,
-            bio: true
+            profileImage: true
           }
         },
         division: {
@@ -71,56 +84,51 @@ export async function GET(request, { params }) {
       ]
     });
 
-    // Get user's divisions to calculate common groups
-    const currentUserDivisions = await prisma.rescueSquadMember.findMany({
-      where: {
-        rescueSquadId: squadId,
-        userId: session.user.id,
-        isActive: true
-      },
-      select: {
-        divisionId: true,
-        division: {
-          select: { name: true }
-        }
-      }
-    });
-
-    const currentUserDivisionIds = currentUserDivisions
-      .filter(m => m.divisionId)
-      .map(m => m.divisionId);
-
     // Check friendships (assuming a friendships table exists)
     // For now, we'll just mark all as non-friends until friendship system is implemented
     const friendIds = new Set(); // TODO: Fetch actual friend IDs from friendships table
 
-    // Format members with privacy controls
+    // Format members with privacy controls based on access level
     const formattedMembers = members.map(member => {
       const isFriend = friendIds.has(member.user.id);
-      const isCurrentUser = member.user.id === session.user.id;
+      const isCurrentUser = session?.user?.id === member.user.id;
+      const isMember = !!userMembership;
 
-      // Get common divisions
-      const memberDivisions = member.divisionId ? [member.division.name] : [];
-      const commonDivisions = memberDivisions.filter(name =>
-        currentUserDivisions.some(d => d.division?.name === name)
-      );
+      // Get common divisions (only for members)
+      let commonDivisions = [];
+      if (isMember && member.divisionId) {
+        const memberDivisions = [member.division.name];
+        commonDivisions = memberDivisions.filter(name =>
+          currentUserDivisions.some(d => d.division?.name === name)
+        );
+      }
+
+      // Privacy controls:
+      // - Non-logged-in users: first name only
+      // - Logged-in non-members: first name only
+      // - Members: first name + last initial (unless friend/self)
+      // - Friends/self: full info
+      const showFullName = isFriend || isCurrentUser;
+      const showLastInitial = isMember && !showFullName;
 
       return {
         id: member.id,
         userId: member.user.id,
         firstName: member.user.firstName,
-        lastName: member.user.lastName,
+        lastName: showFullName ? member.user.lastName : (showLastInitial && member.user.lastName ? member.user.lastName.charAt(0) + '.' : null),
         profileImage: member.user.profileImage,
-        bio: member.user.bio,
         role: member.role,
         joinedAt: member.joinedAt,
         isFriend,
         commonDivisions,
-        division: member.division
+        division: isMember ? member.division : null
       };
     });
 
-    return NextResponse.json({ members: formattedMembers });
+    return NextResponse.json({
+      members: formattedMembers,
+      isMember: !!userMembership
+    });
 
   } catch (error) {
     console.error('Error fetching squad members:', error);

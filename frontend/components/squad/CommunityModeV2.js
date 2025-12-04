@@ -15,7 +15,8 @@
 import { useState, useEffect } from 'react';
 import { Pin } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import FeaturedCasesCarousel from './FeaturedCasesCarousel';
+import FeaturedCases from './FeaturedCasesCarousel';
+import { SURUMAA_AVATAR, SURUMAA_TAGLINE } from '@/lib/brandAssets';
 import PostFeed from './PostFeed';
 import CreatePostModal from './CreatePostModal';
 import MembersModal from './MembersModal';
@@ -58,8 +59,8 @@ export default function CommunityModeV2({
 
   return (
     <div className="space-y-6">
-      {/* Featured Cases Carousel */}
-      <FeaturedCasesCarousel cases={cases} />
+      {/* Featured Cases */}
+      <FeaturedCases cases={cases} />
 
       {/* Pinned Announcements */}
       {announcements.length > 0 && (
@@ -70,19 +71,24 @@ export default function CommunityModeV2({
             .slice(0, 3)
             .map(announcement => {
               const isMascot = announcement.isSystemPost || announcement.authorName === mascotName;
-              const announcementColor = isMascot ? 'purple' : 'flash';
 
               return (
                 <div
                   key={announcement.id}
-                  className={`relative overflow-hidden bg-gradient-to-br from-${announcementColor}-400/10 via-${announcementColor}-400/5 to-transparent backdrop-blur-sm border border-${announcementColor}-400/40 rounded-2xl p-6 shadow-lg`}
+                  className={`relative overflow-hidden backdrop-blur-sm rounded-2xl p-6 shadow-lg ${
+                    isMascot
+                      ? 'bg-gradient-to-br from-purple-400/10 via-purple-400/5 to-transparent border border-purple-400/40'
+                      : 'bg-gradient-to-br from-flash-400/10 via-flash-400/5 to-transparent border border-flash-400/40'
+                  }`}
                 >
-                  <div className={`absolute top-0 right-0 w-32 h-32 bg-${announcementColor}-400/5 rounded-full blur-2xl`} />
+                  <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-2xl ${
+                    isMascot ? 'bg-purple-400/5' : 'bg-flash-400/5'
+                  }`} />
                   <div className="relative flex items-start gap-4">
                     {isMascot ? (
                       <div className="flex-shrink-0">
                         <img
-                          src="https://petrescue.b-cdn.net/Untitled%20design%20(13).svg"
+                          src={SURUMAA_AVATAR}
                           alt="Surumaa"
                           className="w-14 h-14 rounded-full object-cover border-2 border-purple-400/50 shadow-lg bg-gradient-to-br from-purple-500 to-purple-600"
                           onError={(e) => {
@@ -104,7 +110,7 @@ export default function CommunityModeV2({
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="text-lg font-bold text-purple-200">{mascotName}</h3>
                           <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                            Your Guide Home
+                            {SURUMAA_TAGLINE}
                           </span>
                         </div>
                       )}
@@ -133,7 +139,7 @@ export default function CommunityModeV2({
         onCreatePost={() => setShowCreatePost(true)}
         currentUserId={membership?.userId}
         onViewMembers={() => setShowMembersModal(true)}
-        membersCount={members.length}
+        membersCount={stats.members || members.length}
       />
 
       {/* Create Post Modal */}
@@ -152,6 +158,7 @@ export default function CommunityModeV2({
         squadId={squadId}
         currentUserId={membership?.userId}
         members={members}
+        totalCount={stats.members}
       />
     </div>
   );

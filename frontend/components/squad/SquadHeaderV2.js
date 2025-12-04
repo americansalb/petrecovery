@@ -2,11 +2,11 @@
 
 /**
  * SquadHeaderV2 - Modern, polished squad header
- * Midnight blue + orange theme with glassmorphism
+ * Yellow, white, midnight blue color scheme
  */
 
 import { useState } from 'react';
-import { Plus, Shield, Users, TrendingUp, MapPin, Camera } from 'lucide-react';
+import { Shield, Users, MapPin, Camera, Target, Heart, Radio } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import PhotoUploadModal from './PhotoUploadModal';
 import MembersModal from './MembersModal';
@@ -44,21 +44,21 @@ export default function SquadHeaderV2({
   const squadDescription = squad.description || `A dedicated community of volunteers protecting lost and found pets in ${cityName}.`;
   const zipCode = squad.zipCode || '';
   const customSlogan = squad.slogan || (state && zipCode ? `${cityName}, ${state} ${zipCode}` : `${cityName}${state ? ', ' + state : ''}`);
-  const isAdmin = membership.role === 'ADMIN' || membership.role === 'MODERATOR';
+  const isAdmin = membership.role === 'ADMIN' || membership.role === 'MODERATOR' || membership.role === 'FOUNDER';
 
   return (
     <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Ambient glow effects */}
+      {/* Ambient glow effects - yellow theme */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-flash-500/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-flash-400/5 rounded-full blur-3xl" />
 
-      <div className="relative max-w-7xl mx-auto px-6 py-12">
+      <div className="relative max-w-7xl mx-auto px-6 py-10">
         {/* Squad Profile Section */}
         {!isDivisionPage && (
-          <div className="mb-8 flex items-start gap-6">
+          <div className="mb-6 flex items-start gap-6">
             {/* Squad Photo */}
             <div className="relative group flex-shrink-0">
-              <div className="w-32 h-32 rounded-2xl overflow-hidden bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-2 border-slate-700/50 backdrop-blur-sm">
+              <div className="w-28 h-28 rounded-2xl overflow-hidden bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-2 border-flash-500/30 backdrop-blur-sm">
                 {squadPhoto ? (
                   <img
                     src={squadPhoto}
@@ -66,8 +66,8 @@ export default function SquadHeaderV2({
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Shield size={48} className="text-slate-600" />
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-flash-500/20 to-flash-400/10">
+                    <Shield size={40} className="text-flash-400" />
                   </div>
                 )}
               </div>
@@ -83,14 +83,14 @@ export default function SquadHeaderV2({
 
             {/* Squad Info */}
             <div className="flex-1">
-              <h1 className="text-5xl font-bold tracking-tight mb-3">
+              <h1 className="text-4xl sm:text-5xl font-black tracking-tight mb-2">
                 <span className="text-white">{cityName}</span>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-flash-300 to-flash-400"> Rescue Squad</span>
+                <span className="text-flash-400"> Rescue Squad</span>
               </h1>
-              <p className="text-lg text-slate-400 mb-3">
+              <p className="text-base text-slate-400 mb-2">
                 {customSlogan}
               </p>
-              <p className="text-base text-slate-500 leading-relaxed max-w-2xl">
+              <p className="text-sm text-slate-500 leading-relaxed max-w-2xl">
                 {squadDescription}
               </p>
             </div>
@@ -99,45 +99,57 @@ export default function SquadHeaderV2({
 
         {/* Division Header (if on division page) */}
         {isDivisionPage && (
-          <div className="mb-8 space-y-3">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-flash-500/10 border border-cyan-500/20">
-              <MapPin size={16} className="text-flash-400" />
-              <span className="text-sm font-semibold text-flash-400">Division</span>
+          <div className="mb-6 space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-flash-500/10 border border-flash-500/20">
+              <MapPin size={14} className="text-flash-400" />
+              <span className="text-xs font-semibold text-flash-400">Division</span>
             </div>
-            <h1 className="text-5xl font-bold text-white tracking-tight">
+            <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight">
               {currentDivision?.name || 'Division'}
             </h1>
-            <p className="text-lg text-slate-400">
+            <p className="text-base text-slate-400">
               Part of {cityName} Rescue Squad
             </p>
           </div>
         )}
 
-        {/* Compact Stats Bar */}
-        <div className="flex items-center gap-6 mb-6 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-white font-bold">{stats.active}</span>
-            <span className="text-slate-400">Active</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-white font-bold">{stats.reunited}</span>
-            <span className="text-slate-400">Reunited</span>
-          </div>
+        {/* Stats Bar with Icons */}
+        <div className="flex items-center gap-4 sm:gap-6 mb-5 flex-wrap">
+          <StatBadge
+            icon={Target}
+            value={stats.active}
+            label="Active"
+            color="text-red-400"
+            bgColor="bg-red-500/10"
+            pulse
+          />
+          <StatBadge
+            icon={Heart}
+            value={stats.reunited}
+            label="Reunited"
+            color="text-green-400"
+            bgColor="bg-green-500/10"
+          />
           <button
             onClick={() => setShowMembers(true)}
-            className="flex items-center gap-2 hover:bg-slate-800/50 px-3 py-1.5 rounded-lg transition-all group"
+            className="group"
           >
-            <Users size={14} className="text-slate-400 group-hover:text-flash-400 transition-colors" />
-            <span className="text-white font-bold">{stats.members}</span>
-            <span className="text-slate-400 group-hover:text-slate-300 transition-colors">Members</span>
+            <StatBadge
+              icon={Users}
+              value={stats.members}
+              label="Members"
+              color="text-flash-400"
+              bgColor="bg-flash-500/10"
+              hoverable
+            />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-flash-300" />
-            <span className="text-white font-bold">{stats.onDuty}</span>
-            <span className="text-slate-400">On Duty</span>
-          </div>
+          <StatBadge
+            icon={Radio}
+            value={stats.onDuty}
+            label="On Duty"
+            color="text-flash-300"
+            bgColor="bg-flash-400/10"
+          />
         </div>
 
         {/* Division Chips */}
@@ -146,7 +158,7 @@ export default function SquadHeaderV2({
             <>
               <button
                 onClick={() => router.push(`/rescue-squads/${squad.id}`)}
-                className="px-5 py-2.5 rounded-full text-sm font-medium bg-slate-800/50 text-slate-300 hover:bg-slate-700/50 border border-slate-700/50 hover:border-slate-600 transition-all duration-200"
+                className="px-4 py-2 rounded-full text-sm font-medium bg-slate-800/50 text-slate-300 hover:bg-slate-700/50 border border-slate-700/50 hover:border-slate-600 transition-all duration-200"
               >
                 ← View Full Squad
               </button>
@@ -174,10 +186,10 @@ export default function SquadHeaderV2({
               {!membership.isMember && (
                 <button
                   onClick={handleJoinSquad}
-                  className="px-6 py-2.5 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-bold shadow-lg shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/40 hover:scale-105 transition-all duration-200"
+                  className="px-5 py-2 rounded-full bg-gradient-to-r from-flash-500 to-flash-400 text-slate-900 text-sm font-bold shadow-lg shadow-flash-500/25 hover:shadow-xl hover:shadow-flash-500/40 hover:scale-105 transition-all duration-200"
                 >
                   <div className="flex items-center gap-2">
-                    <Shield size={18} />
+                    <Shield size={16} />
                     <span>Join This Squad</span>
                   </div>
                 </button>
@@ -208,21 +220,31 @@ export default function SquadHeaderV2({
   );
 }
 
+function StatBadge({ icon: Icon, value, label, color, bgColor, pulse, hoverable }) {
+  return (
+    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${bgColor} border border-slate-700/30 ${hoverable ? 'group-hover:border-flash-500/50 transition-colors' : ''}`}>
+      <Icon size={14} className={`${color} ${pulse ? 'animate-pulse' : ''}`} />
+      <span className="text-white font-bold text-sm">{value}</span>
+      <span className={`text-slate-400 text-sm ${hoverable ? 'group-hover:text-slate-300' : ''}`}>{label}</span>
+    </div>
+  );
+}
+
 function DivisionChip({ active, onClick, label, count }) {
   return (
     <button
       onClick={onClick}
       className={`
-        px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-200
+        px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200
         ${active
-          ? 'bg-gradient-to-r from-flash-500 to-flash-400 text-midnight-900 shadow-lg shadow-cyan-500/25'
+          ? 'bg-gradient-to-r from-flash-500 to-flash-400 text-slate-900 shadow-lg shadow-flash-500/25'
           : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50 border border-slate-700/50 hover:border-flash-500/50'
         }
       `}
     >
       {label}
       {count > 0 && (
-        <span className={`ml-2 ${active ? 'text-midnight-900/80' : 'text-flash-400'}`}>
+        <span className={`ml-2 ${active ? 'text-slate-900/70' : 'text-flash-400'}`}>
           ({count})
         </span>
       )}

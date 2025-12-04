@@ -19,26 +19,27 @@ export async function GET(request) {
 
     const userId = session.user.id;
 
-    // Get cases where user is owner
+    // Get cases where user is the reporter (owner)
+    // Uses denormalized pet fields on Case for performance
     const ownedCases = await prisma.case.findMany({
       where: {
-        ownerId: userId,
+        reporterId: userId,
         status: { not: 'CLOSED' },
       },
-      include: {
-        pet: {
-          select: {
-            name: true,
-            species: true,
-            breed: true,
-            photos: {
-              select: { url: true },
-              take: 1,
-            },
-          },
-        },
+      select: {
+        id: true,
+        caseNumber: true,
+        petName: true,
+        petSpecies: true,
+        petBreed: true,
+        petPhotoUrl: true,
+        status: true,
+        resolution: true,
+        lastSeenAt: true,
+        lastSeenAddress: true,
         assignments: {
-          include: {
+          select: {
+            rescueSquadId: true,
             rescueSquad: {
               select: { id: true, name: true },
             },
@@ -64,20 +65,20 @@ export async function GET(request) {
         },
         status: { not: 'CLOSED' },
       },
-      include: {
-        pet: {
-          select: {
-            name: true,
-            species: true,
-            breed: true,
-            photos: {
-              select: { url: true },
-              take: 1,
-            },
-          },
-        },
+      select: {
+        id: true,
+        caseNumber: true,
+        petName: true,
+        petSpecies: true,
+        petBreed: true,
+        petPhotoUrl: true,
+        status: true,
+        resolution: true,
+        lastSeenAt: true,
+        lastSeenAddress: true,
         assignments: {
-          include: {
+          select: {
+            rescueSquadId: true,
             rescueSquad: {
               select: { id: true, name: true },
             },
@@ -104,10 +105,10 @@ export async function GET(request) {
         allCasesMap.set(caseItem.id, {
           id: caseItem.id,
           caseNumber: caseItem.caseNumber,
-          petName: caseItem.pet?.name || 'Unknown',
-          petSpecies: caseItem.pet?.species || 'OTHER',
-          petBreed: caseItem.pet?.breed,
-          photoUrl: caseItem.pet?.photos?.[0]?.url || null,
+          petName: caseItem.petName || 'Unknown',
+          petSpecies: caseItem.petSpecies || 'OTHER',
+          petBreed: caseItem.petBreed,
+          photoUrl: caseItem.petPhotoUrl || null,
           status: caseItem.status,
           resolution: caseItem.resolution,
           lastSeenAt: caseItem.lastSeenAt,
