@@ -51,11 +51,11 @@ export default function PhotoUploadModal({ isOpen, onClose, onUpload, squadId })
         body: formData,
       });
 
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload image');
-      }
-
       const uploadData = await uploadResponse.json();
+
+      if (!uploadResponse.ok) {
+        throw new Error(uploadData.error || 'Failed to upload image');
+      }
 
       // Then, update squad with new photo URL
       const updateResponse = await fetch(`/api/rescue-squads/${squadId}/photo`, {
@@ -68,8 +68,10 @@ export default function PhotoUploadModal({ isOpen, onClose, onUpload, squadId })
         }),
       });
 
+      const updateData = await updateResponse.json();
+
       if (!updateResponse.ok) {
-        throw new Error('Failed to update squad photo');
+        throw new Error(updateData.error || updateData.details || 'Failed to update squad photo');
       }
 
       // Callback to parent
@@ -82,7 +84,7 @@ export default function PhotoUploadModal({ isOpen, onClose, onUpload, squadId })
       window.location.reload();
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Failed to upload photo. Please try again.');
+      alert(`Upload failed: ${error.message}`);
     } finally {
       setUploading(false);
     }
