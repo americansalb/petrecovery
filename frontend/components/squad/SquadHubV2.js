@@ -119,10 +119,10 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
         </div>
       )}
 
-      {/* Mode Tabs */}
-      <div className="sticky top-0 z-30 bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 backdrop-blur-xl border-b-2 border-flash-500/30 shadow-lg shadow-slate-900/50">
+      {/* Mode Tabs - Layered Folder Style */}
+      <div className="sticky top-0 z-30 border-b-2 border-slate-700/50 bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex gap-2 py-4">
+          <div className="flex gap-1 pt-2">
             <ModeTab
               active={activeMode === 'community'}
               onClick={() => setActiveMode('community')}
@@ -203,29 +203,45 @@ function ModeTab({ active, onClick, icon: Icon, label, count }) {
     <button
       onClick={onClick}
       className={`
-        flex items-center gap-3 px-8 py-4 rounded-xl text-base font-bold
-        backdrop-blur-sm transition-all duration-300 relative
+        group relative flex items-center gap-3 px-6 py-3.5
+        rounded-t-xl transition-all duration-300
         ${active
-          ? 'bg-gradient-to-r from-flash-500/30 to-flash-400/30 text-flash-300 border-2 border-flash-500/60 shadow-lg shadow-flash-500/30 scale-105'
-          : 'text-slate-400 border-2 border-slate-700/40 bg-slate-800/30 hover:text-slate-200 hover:bg-slate-800/50 hover:border-slate-600/50 hover:scale-102'
+          ? 'bg-gradient-to-br from-slate-800 to-slate-900 text-white z-10 translate-y-0.5 shadow-xl'
+          : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 hover:bg-slate-900/80 -translate-y-0 shadow-md'
         }
       `}
+      style={{
+        marginBottom: active ? '0' : '2px',
+        borderBottom: active ? 'none' : '2px solid rgba(51, 65, 85, 0.3)',
+      }}
     >
-      <Icon size={20} strokeWidth={2.5} />
-      <span>{label}</span>
-      {count !== undefined && count > 0 && (
-        <span className={`
-          px-2.5 py-1 rounded-full text-xs font-bold
-          ${active
-            ? 'bg-gradient-to-r from-flash-400 to-flash-500 text-midnight-900 shadow-sm'
-            : 'bg-slate-700/70 text-slate-300'
-          }
-        `}>
-          {count}
-        </span>
-      )}
+      {/* Tab border sides */}
+      <div className={`absolute inset-0 rounded-t-xl border-2 transition-colors ${
+        active
+          ? 'border-flash-500/40 border-b-transparent'
+          : 'border-slate-700/30 border-b-slate-700/50'
+      }`} />
+
+      {/* Content */}
+      <div className="relative flex items-center gap-3">
+        <Icon size={18} strokeWidth={2.5} className={active ? 'text-flash-400' : ''} />
+        <span className="font-bold text-sm">{label}</span>
+        {count !== undefined && count > 0 && (
+          <span className={`
+            px-2 py-0.5 rounded-full text-xs font-bold transition-colors
+            ${active
+              ? 'bg-flash-400/20 text-flash-300 border border-flash-400/30'
+              : 'bg-slate-700/50 text-slate-400 border border-slate-700'
+            }
+          `}>
+            {count}
+          </span>
+        )}
+      </div>
+
+      {/* Active tab glow */}
       {active && (
-        <div className="absolute -bottom-0.5 left-4 right-4 h-1 bg-gradient-to-r from-transparent via-flash-400 to-transparent rounded-full" />
+        <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-flash-400/60 to-transparent" />
       )}
     </button>
   );
