@@ -7,7 +7,99 @@
  * - Task status (not done yet, in progress, recently completed)
  * - User proximity (nearby tasks ranked higher)
  * - Pet type and phase-specific bonuses
+ * - SIGHTING BOOST: Recent sightings massively boost nearby tasks
+ * - PET-SPECIFIC: Indoor/outdoor, size, health urgency
+ * - DIMINISHING RETURNS: Repeat tasks penalized
  */
+
+// =============================================================================
+// PET BEHAVIOR PROFILES
+// =============================================================================
+
+export const PET_PROFILES = {
+  CAT: {
+    INDOOR: {
+      typicalRange: 0.25, // miles - indoor cats usually within 3-5 houses
+      searchRadius: 0.5,
+      hideBehavior: 'HIDE_CLOSE', // Hides very close, scared
+      returnLikelihood: 0.7, // 70% return on their own if given time
+    },
+    OUTDOOR: {
+      typicalRange: 1.0, // miles
+      searchRadius: 2.0,
+      hideBehavior: 'TERRITORIAL', // Has a territory, may be displaced
+      returnLikelihood: 0.5,
+    },
+  },
+  DOG: {
+    SMALL: {
+      typicalRange: 1.0, // miles
+      searchRadius: 3.0,
+      behavior: 'STAY_CLOSE', // Usually doesn't go far
+      dangerLevel: 'HIGH', // More vulnerable
+    },
+    MEDIUM: {
+      typicalRange: 3.0,
+      searchRadius: 5.0,
+      behavior: 'ROAM',
+      dangerLevel: 'MEDIUM',
+    },
+    LARGE: {
+      typicalRange: 5.0,
+      searchRadius: 10.0,
+      behavior: 'RUN_FAR',
+      dangerLevel: 'LOW',
+    },
+  },
+};
+
+// Health urgency multipliers
+export const HEALTH_URGENCY = {
+  NONE: 1.0,
+  MEDICATION_DAILY: 1.5,    // Needs daily meds
+  MEDICATION_CRITICAL: 2.5, // Needs meds multiple times/day (insulin, etc)
+  SENIOR: 1.3,              // Old pet, less resilient
+  PUPPY_KITTEN: 1.4,        // Young, vulnerable
+  MEDICAL_CONDITION: 1.8,   // Heart condition, epilepsy, etc.
+};
+
+// =============================================================================
+// SIGHTING BOOST CONFIGURATION
+// =============================================================================
+
+export const SIGHTING_BOOST = {
+  // Time decay - how much sightings lose value over time
+  WITHIN_1_HOUR: 150,    // Super hot lead
+  WITHIN_6_HOURS: 100,   // Fresh lead
+  WITHIN_24_HOURS: 60,   // Good lead
+  WITHIN_72_HOURS: 30,   // Stale but useful
+  OLDER: 10,             // Minimal boost
+
+  // Distance bonus - how close task is to sighting
+  WITHIN_QUARTER_MILE: 50,  // Task right where pet was seen
+  WITHIN_HALF_MILE: 30,
+  WITHIN_1_MILE: 15,
+  WITHIN_2_MILES: 5,
+};
+
+// =============================================================================
+// DIMINISHING RETURNS CONFIGURATION
+// =============================================================================
+
+export const DIMINISHING_RETURNS = {
+  // How much to penalize repeat tasks
+  SAME_TASK_COMPLETED_ONCE: -20,
+  SAME_TASK_COMPLETED_TWICE: -50,
+  SAME_TASK_COMPLETED_3PLUS: -100,
+
+  // Time window for counting repetitions (in hours)
+  REPEAT_WINDOW_HOURS: 48,
+
+  // Similar task categories - completing one reduces value of others
+  SEARCH_TASKS: ['search_area', 'dawn_search', 'dusk_search', 'night_flashlight', 'check_hiding'],
+  OUTREACH_TASKS: ['post_flyers', 'knock_doors', 'alert_delivery'],
+  SHELTER_TASKS: ['call_shelter', 'call_vet'],
+};
 
 // =============================================================================
 // ACTION DEFINITIONS
@@ -208,7 +300,7 @@ export const ACTION_TYPES = {
  *
  * @param {Object} task - The task object
  * @param {Object} caseData - The case data (pet info, time missing, etc.)
- * @param {Object} context - Context (current time, user location, user role)
+ * @param {Object} context - Context (current time, user location, user role, sightings, completedTasks)
  * @returns {number} - Priority score (higher = more urgent)
  */
 export function calculatePriorityScore(task, caseData, context = {}) {
@@ -318,6 +410,36 @@ export function calculatePriorityScore(task, caseData, context = {}) {
   // ==========================================================================
   if (task.needsHelp) {
     score += 40; // Someone requested backup
+  }
+
+  // ==========================================================================
+  // SIGHTING BOOST - Recent sightings massively boost nearby tasks
+  // ==========================================================================
+  if (context.sightings?.length > 0 && task.latitude && task.longitude) {
+    score += calculateSightingBoost(task, context.sightings, now);
+  }
+
+  // ==========================================================================
+  // PET-SPECIFIC MODIFIERS - Indoor/outdoor cats, dog sizes
+  // ==========================================================================
+  score += calculatePetSpecificBonus(task, caseData, actionDef);
+
+  // ==========================================================================
+  // HEALTH URGENCY MULTIPLIER - Critical health needs increase all scores
+  // ==========================================================================
+  const healthMultiplier = getHealthMultiplier(caseData);
+  if (healthMultiplier > 1.0) {
+    // Apply multiplier to positive scores only (don't make penalties worse)
+    if (score > 0) {
+      score = Math.round(score * healthMultiplier);
+    }
+  }
+
+  // ==========================================================================
+  // DIMINISHING RETURNS - Repeat tasks get penalized
+  // ==========================================================================
+  if (context.completedTasks?.length > 0) {
+    score += calculateDiminishingReturns(task, context.completedTasks, now);
   }
 
   return Math.max(0, score);
@@ -529,9 +651,75 @@ export function calculatePriorityScoreWithBreakdown(task, caseData, context = {}
     });
   }
 
+  // ==========================================================================
+  // SIGHTING BOOST
+  // ==========================================================================
+  let sightingBoost = 0;
+  if (context.sightings?.length > 0 && task.latitude && task.longitude) {
+    const sightingResult = calculateSightingBoostWithDetails(task, context.sightings, now);
+    sightingBoost = sightingResult.boost;
+    if (sightingBoost > 0) {
+      breakdown.push({
+        label: 'Sighting boost',
+        value: sightingBoost,
+        description: sightingResult.description,
+      });
+    }
+  }
+
+  // ==========================================================================
+  // PET-SPECIFIC MODIFIERS
+  // ==========================================================================
+  const petSpecificResult = calculatePetSpecificBonusWithDetails(task, caseData, actionDef);
+  let petSpecificBonus = petSpecificResult.bonus;
+  if (petSpecificBonus !== 0) {
+    breakdown.push({
+      label: 'Pet behavior',
+      value: petSpecificBonus,
+      description: petSpecificResult.description,
+    });
+  }
+
+  // ==========================================================================
+  // HEALTH URGENCY
+  // ==========================================================================
+  const healthMultiplier = getHealthMultiplier(caseData);
+  let healthBonus = 0;
+  if (healthMultiplier > 1.0) {
+    // Calculate what the multiplier adds
+    const baseTotal = basePriority + timeUrgencyBonus + timeOfDayBonus + shelterBonus +
+      statusPenalty + proximityBonus + phaseBonus + petTypePenalty + needsHelpBonus +
+      sightingBoost + petSpecificBonus;
+    if (baseTotal > 0) {
+      healthBonus = Math.round(baseTotal * (healthMultiplier - 1));
+      breakdown.push({
+        label: 'Health urgency',
+        value: healthBonus,
+        description: `${healthMultiplier}x multiplier (${caseData.healthCondition || 'medical need'})`,
+      });
+    }
+  }
+
+  // ==========================================================================
+  // DIMINISHING RETURNS
+  // ==========================================================================
+  let diminishingPenalty = 0;
+  if (context.completedTasks?.length > 0) {
+    const diminishingResult = calculateDiminishingReturnsWithDetails(task, context.completedTasks, now);
+    diminishingPenalty = diminishingResult.penalty;
+    if (diminishingPenalty !== 0) {
+      breakdown.push({
+        label: 'Repeat penalty',
+        value: diminishingPenalty,
+        description: diminishingResult.description,
+      });
+    }
+  }
+
   // Calculate total
   const total = basePriority + timeUrgencyBonus + timeOfDayBonus + shelterBonus +
-    statusPenalty + proximityBonus + phaseBonus + petTypePenalty + needsHelpBonus;
+    statusPenalty + proximityBonus + phaseBonus + petTypePenalty + needsHelpBonus +
+    sightingBoost + petSpecificBonus + healthBonus + diminishingPenalty;
 
   return {
     score: Math.max(0, total),
@@ -727,6 +915,321 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// =============================================================================
+// SIGHTING BOOST HELPERS
+// =============================================================================
+
+/**
+ * Calculate boost from recent sightings
+ * @param {Object} task - Task with lat/lng
+ * @param {Array} sightings - Array of sighting objects with {latitude, longitude, reportedAt}
+ * @param {Date} now - Current time
+ * @returns {number} - Boost amount
+ */
+function calculateSightingBoost(task, sightings, now) {
+  return calculateSightingBoostWithDetails(task, sightings, now).boost;
+}
+
+/**
+ * Calculate boost from recent sightings with explanation
+ */
+function calculateSightingBoostWithDetails(task, sightings, now) {
+  if (!sightings || sightings.length === 0) {
+    return { boost: 0, description: 'No sightings' };
+  }
+
+  let maxBoost = 0;
+  let bestSighting = null;
+  let bestDistance = Infinity;
+  let bestHoursAgo = Infinity;
+
+  for (const sighting of sightings) {
+    if (!sighting.latitude || !sighting.longitude) continue;
+
+    const distance = calculateDistance(
+      task.latitude,
+      task.longitude,
+      sighting.latitude,
+      sighting.longitude
+    );
+
+    const hoursAgo = getHoursSince(sighting.reportedAt, now);
+
+    // Calculate time-based boost
+    let timeBoost = 0;
+    if (hoursAgo <= 1) {
+      timeBoost = SIGHTING_BOOST.WITHIN_1_HOUR;
+    } else if (hoursAgo <= 6) {
+      timeBoost = SIGHTING_BOOST.WITHIN_6_HOURS;
+    } else if (hoursAgo <= 24) {
+      timeBoost = SIGHTING_BOOST.WITHIN_24_HOURS;
+    } else if (hoursAgo <= 72) {
+      timeBoost = SIGHTING_BOOST.WITHIN_72_HOURS;
+    } else {
+      timeBoost = SIGHTING_BOOST.OLDER;
+    }
+
+    // Calculate distance-based boost
+    let distanceBoost = 0;
+    if (distance <= 0.25) {
+      distanceBoost = SIGHTING_BOOST.WITHIN_QUARTER_MILE;
+    } else if (distance <= 0.5) {
+      distanceBoost = SIGHTING_BOOST.WITHIN_HALF_MILE;
+    } else if (distance <= 1) {
+      distanceBoost = SIGHTING_BOOST.WITHIN_1_MILE;
+    } else if (distance <= 2) {
+      distanceBoost = SIGHTING_BOOST.WITHIN_2_MILES;
+    }
+
+    const totalBoost = timeBoost + distanceBoost;
+
+    if (totalBoost > maxBoost) {
+      maxBoost = totalBoost;
+      bestSighting = sighting;
+      bestDistance = distance;
+      bestHoursAgo = hoursAgo;
+    }
+  }
+
+  if (maxBoost === 0) {
+    return { boost: 0, description: 'No nearby sightings' };
+  }
+
+  const timeDesc = bestHoursAgo < 1 ? 'just now' :
+    bestHoursAgo < 24 ? `${Math.round(bestHoursAgo)}h ago` :
+    `${Math.round(bestHoursAgo / 24)}d ago`;
+
+  return {
+    boost: maxBoost,
+    description: `Sighting ${bestDistance.toFixed(1)}mi away, ${timeDesc}`,
+    sighting: bestSighting,
+  };
+}
+
+// =============================================================================
+// PET-SPECIFIC MODIFIER HELPERS
+// =============================================================================
+
+/**
+ * Calculate bonus based on pet profile and task type
+ */
+function calculatePetSpecificBonus(task, caseData, actionDef) {
+  return calculatePetSpecificBonusWithDetails(task, caseData, actionDef).bonus;
+}
+
+/**
+ * Calculate pet-specific bonus with explanation
+ */
+function calculatePetSpecificBonusWithDetails(task, caseData, actionDef) {
+  let bonus = 0;
+  let reasons = [];
+
+  const petType = caseData.petType || 'CAT';
+  const isIndoor = caseData.isIndoor ?? true; // Default to indoor
+  const petSize = caseData.petSize || 'MEDIUM';
+
+  if (petType === 'CAT') {
+    const profile = isIndoor ? PET_PROFILES.CAT.INDOOR : PET_PROFILES.CAT.OUTDOOR;
+
+    // Indoor cats: boost close-range search tasks
+    if (isIndoor) {
+      if (task.actionId === 'check_hiding' || task.actionId === 'search_inside') {
+        bonus += 40;
+        reasons.push('Indoor cat hides close');
+      }
+      if (task.actionId === 'night_flashlight' || task.actionId === 'litter_outside') {
+        bonus += 30;
+        reasons.push('High return likelihood');
+      }
+      // Penalize wide-area tasks for indoor cats
+      if (task.actionId === 'post_flyers' || task.actionId === 'knock_doors') {
+        bonus -= 15;
+        reasons.push('Indoor cat unlikely far');
+      }
+    } else {
+      // Outdoor cats: boost wider area coverage
+      if (task.actionId === 'search_area' || task.actionId === 'knock_doors') {
+        bonus += 25;
+        reasons.push('Outdoor cat roams');
+      }
+      if (task.actionId === 'call_shelter') {
+        bonus += 20;
+        reasons.push('May be picked up');
+      }
+    }
+
+    // All cats: boost dusk/dawn searches
+    if (task.actionId === 'dawn_search' || task.actionId === 'dusk_search') {
+      bonus += 20;
+      reasons.push('Cats active dusk/dawn');
+    }
+
+  } else if (petType === 'DOG') {
+    const profile = PET_PROFILES.DOG[petSize] || PET_PROFILES.DOG.MEDIUM;
+
+    // Small dogs: more vulnerable, urgent searches
+    if (petSize === 'SMALL') {
+      if (task.actionId === 'search_area' || task.actionId === 'call_shelter') {
+        bonus += 35;
+        reasons.push('Small dog vulnerable');
+      }
+      // Small dogs don't go far
+      if (task.actionId === 'post_flyers') {
+        bonus -= 10;
+        reasons.push('Small dog stays close');
+      }
+    }
+
+    // Large dogs: can travel far, widen search
+    if (petSize === 'LARGE') {
+      if (task.actionId === 'post_flyers' || task.actionId === 'call_shelter') {
+        bonus += 25;
+        reasons.push('Large dog travels far');
+      }
+      if (task.actionId === 'knock_doors') {
+        bonus += 20;
+        reasons.push('May be taken in');
+      }
+    }
+
+    // All dogs: boost active search tasks
+    if (task.actionId === 'dawn_search' || task.actionId === 'dusk_search') {
+      bonus += 15;
+      reasons.push('Dogs active search times');
+    }
+  }
+
+  // Skittish pet modifier
+  if (caseData.temperament === 'SKITTISH') {
+    if (task.actionId === 'humane_trap' || task.actionId === 'night_flashlight') {
+      bonus += 30;
+      reasons.push('Skittish - indirect methods');
+    }
+    if (task.actionId === 'knock_doors' || task.actionId === 'search_area') {
+      bonus -= 10;
+      reasons.push('Skittish - avoid direct approach');
+    }
+  }
+
+  return {
+    bonus,
+    description: reasons.length > 0 ? reasons.join(', ') : 'Standard',
+  };
+}
+
+/**
+ * Get health urgency multiplier from case data
+ */
+function getHealthMultiplier(caseData) {
+  const condition = caseData.healthCondition || caseData.healthUrgency;
+  if (!condition) return HEALTH_URGENCY.NONE;
+
+  // Map condition strings to multipliers
+  const conditionMap = {
+    'none': HEALTH_URGENCY.NONE,
+    'medication_daily': HEALTH_URGENCY.MEDICATION_DAILY,
+    'medication_critical': HEALTH_URGENCY.MEDICATION_CRITICAL,
+    'senior': HEALTH_URGENCY.SENIOR,
+    'puppy': HEALTH_URGENCY.PUPPY_KITTEN,
+    'kitten': HEALTH_URGENCY.PUPPY_KITTEN,
+    'medical': HEALTH_URGENCY.MEDICAL_CONDITION,
+  };
+
+  const normalized = condition.toLowerCase().replace(/[_\s]/g, '_');
+
+  // Check for matches
+  for (const [key, value] of Object.entries(conditionMap)) {
+    if (normalized.includes(key)) {
+      return value;
+    }
+  }
+
+  // Direct lookup
+  return HEALTH_URGENCY[condition] || HEALTH_URGENCY.NONE;
+}
+
+// =============================================================================
+// DIMINISHING RETURNS HELPERS
+// =============================================================================
+
+/**
+ * Calculate penalty for repeat tasks
+ */
+function calculateDiminishingReturns(task, completedTasks, now) {
+  return calculateDiminishingReturnsWithDetails(task, completedTasks, now).penalty;
+}
+
+/**
+ * Calculate diminishing returns with explanation
+ */
+function calculateDiminishingReturnsWithDetails(task, completedTasks, now) {
+  if (!completedTasks || completedTasks.length === 0) {
+    return { penalty: 0, description: 'No history' };
+  }
+
+  const windowHours = DIMINISHING_RETURNS.REPEAT_WINDOW_HOURS;
+  const taskActionId = task.actionId;
+
+  // Count same-task completions within window
+  const sameTaskCount = completedTasks.filter(ct => {
+    if (ct.actionId !== taskActionId) return false;
+    const hoursAgo = getHoursSince(ct.completedAt, now);
+    return hoursAgo <= windowHours;
+  }).length;
+
+  // Count similar category completions
+  let categoryCount = 0;
+  const taskCategory = getTaskCategory(taskActionId);
+  if (taskCategory) {
+    categoryCount = completedTasks.filter(ct => {
+      if (ct.actionId === taskActionId) return false; // Already counted above
+      const ctCategory = getTaskCategory(ct.actionId);
+      if (ctCategory !== taskCategory) return false;
+      const hoursAgo = getHoursSince(ct.completedAt, now);
+      return hoursAgo <= windowHours;
+    }).length;
+  }
+
+  // Calculate penalty
+  let penalty = 0;
+  let reasons = [];
+
+  if (sameTaskCount >= 3) {
+    penalty += DIMINISHING_RETURNS.SAME_TASK_COMPLETED_3PLUS;
+    reasons.push(`Done ${sameTaskCount}x`);
+  } else if (sameTaskCount === 2) {
+    penalty += DIMINISHING_RETURNS.SAME_TASK_COMPLETED_TWICE;
+    reasons.push('Done twice');
+  } else if (sameTaskCount === 1) {
+    penalty += DIMINISHING_RETURNS.SAME_TASK_COMPLETED_ONCE;
+    reasons.push('Done once');
+  }
+
+  // Smaller penalty for similar category tasks
+  if (categoryCount > 0) {
+    const categoryPenalty = Math.min(categoryCount * -5, -25);
+    penalty += categoryPenalty;
+    reasons.push(`${categoryCount} similar`);
+  }
+
+  return {
+    penalty,
+    description: reasons.length > 0 ? reasons.join(', ') : 'Fresh task',
+  };
+}
+
+/**
+ * Get task category for diminishing returns
+ */
+function getTaskCategory(actionId) {
+  for (const [category, actions] of Object.entries(DIMINISHING_RETURNS)) {
+    if (Array.isArray(actions) && actions.includes(actionId)) {
+      return category;
+    }
+  }
+  return null;
+}
+
 /**
  * Generate "Why this is #1" explanation for a task
  */
@@ -807,6 +1310,10 @@ export function generateCallScript(task, caseData) {
 
 export default {
   ACTION_TYPES,
+  PET_PROFILES,
+  HEALTH_URGENCY,
+  SIGHTING_BOOST,
+  DIMINISHING_RETURNS,
   calculatePriorityScore,
   calculatePriorityScoreWithBreakdown,
   generateTasksForCase,

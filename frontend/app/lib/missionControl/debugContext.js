@@ -18,48 +18,59 @@ const DebugContext = createContext(null);
 export const DEBUG_PRESETS = {
   'phase1_cat_dawn': {
     name: 'Phase 1 Cat - Dawn',
-    description: 'Cat missing 1 hour, 6am, owner nearby',
+    description: 'Indoor cat missing 1 hour, 6am, owner nearby',
     hoursMissing: 1,
     simulatedHour: 6,
     petType: 'CAT',
+    isIndoor: true,
     role: 'OWNER',
     proximityMiles: 0.5,
+    healthCondition: 'NONE',
   },
   'phase2_dog_midday': {
     name: 'Phase 2 Dog - Midday',
-    description: 'Dog missing 8 hours, 2pm, squad member',
+    description: 'Medium dog missing 8 hours, 2pm, squad member',
     hoursMissing: 8,
     simulatedHour: 14,
     petType: 'DOG',
+    petSize: 'MEDIUM',
     role: 'SQUAD',
     proximityMiles: 2,
+    healthCondition: 'NONE',
   },
   'phase2_cat_dusk': {
     name: 'Phase 2 Cat - Dusk',
-    description: 'Cat missing 18 hours, 6pm, owner',
+    description: 'Outdoor cat missing 18 hours, 6pm, owner',
     hoursMissing: 18,
     simulatedHour: 18,
     petType: 'CAT',
+    isIndoor: false,
     role: 'OWNER',
     proximityMiles: 1,
+    healthCondition: 'NONE',
   },
   'phase3_cat_night': {
     name: 'Phase 3 Cat - Night',
-    description: 'Cat missing 2 days, 10pm, flashlight search',
+    description: 'Skittish cat missing 2 days, 10pm, flashlight search',
     hoursMissing: 48,
     simulatedHour: 22,
     petType: 'CAT',
+    isIndoor: true,
+    temperament: 'SKITTISH',
     role: 'BOTH',
     proximityMiles: 0.3,
+    healthCondition: 'NONE',
   },
   'phase4_dog': {
     name: 'Phase 4 Dog - Long term',
-    description: 'Dog missing 5 days, persistence phase',
+    description: 'Large dog missing 5 days, persistence phase',
     hoursMissing: 120,
     simulatedHour: 10,
     petType: 'DOG',
+    petSize: 'LARGE',
     role: 'OWNER',
     proximityMiles: 5,
+    healthCondition: 'NONE',
   },
   'shelter_open': {
     name: 'Shelter Hours - Open',
@@ -69,6 +80,7 @@ export const DEBUG_PRESETS = {
     petType: 'BOTH',
     role: 'SQUAD',
     proximityMiles: 2.5,
+    healthCondition: 'NONE',
   },
   'shelter_closed': {
     name: 'Shelter Hours - Closed',
@@ -78,6 +90,42 @@ export const DEBUG_PRESETS = {
     petType: 'BOTH',
     role: 'SQUAD',
     proximityMiles: 2.5,
+    healthCondition: 'NONE',
+  },
+  'sighting_hot': {
+    name: 'Hot Sighting',
+    description: 'Sighting 30 min ago, 0.2mi away',
+    hoursMissing: 6,
+    simulatedHour: 14,
+    petType: 'CAT',
+    isIndoor: false,
+    role: 'BOTH',
+    proximityMiles: 0.3,
+    sightingHoursAgo: 0.5,
+    sightingMilesAway: 0.2,
+    healthCondition: 'NONE',
+  },
+  'medical_urgent': {
+    name: 'Medical Emergency',
+    description: 'Cat needs insulin, missing 8 hours',
+    hoursMissing: 8,
+    simulatedHour: 10,
+    petType: 'CAT',
+    isIndoor: true,
+    role: 'OWNER',
+    proximityMiles: 1,
+    healthCondition: 'MEDICATION_CRITICAL',
+  },
+  'small_dog_lost': {
+    name: 'Small Dog - High Risk',
+    description: 'Small vulnerable dog, missing 4 hours',
+    hoursMissing: 4,
+    simulatedHour: 15,
+    petType: 'DOG',
+    petSize: 'SMALL',
+    role: 'BOTH',
+    proximityMiles: 0.5,
+    healthCondition: 'NONE',
   },
 };
 
@@ -106,6 +154,24 @@ export function DebugProvider({ children, isAdmin = false }) {
     // Pet type override
     useRealPetType: true,
     petType: 'CAT',
+
+    // Pet profile overrides (NEW)
+    useRealPetProfile: true,
+    isIndoor: true, // For cats: indoor vs outdoor
+    petSize: 'MEDIUM', // For dogs: SMALL, MEDIUM, LARGE
+
+    // Health urgency override (NEW)
+    useRealHealth: true,
+    healthCondition: 'NONE', // NONE, MEDICATION_DAILY, MEDICATION_CRITICAL, SENIOR, PUPPY_KITTEN, MEDICAL_CONDITION
+
+    // Sighting override (NEW)
+    useRealSightings: true,
+    sightingHoursAgo: 2, // Hours since last sighting
+    sightingMilesAway: 0.5, // Distance from task to sighting
+
+    // Task history override for diminishing returns (NEW)
+    useRealHistory: true,
+    repeatTaskCount: 0, // How many times this task type was completed
 
     // Microchip override
     useRealMicrochip: true,
@@ -142,6 +208,20 @@ export function DebugProvider({ children, isAdmin = false }) {
       proximityMiles: preset.proximityMiles,
       useRealPetType: false,
       petType: preset.petType,
+      // New pet profile overrides
+      useRealPetProfile: false,
+      isIndoor: preset.isIndoor ?? true,
+      petSize: preset.petSize || 'MEDIUM',
+      // New health override
+      useRealHealth: false,
+      healthCondition: preset.healthCondition || 'NONE',
+      // New temperament from preset
+      useRealTemperament: false,
+      temperament: preset.temperament || 'FRIENDLY',
+      // Sighting override if present
+      useRealSightings: preset.sightingHoursAgo === undefined,
+      sightingHoursAgo: preset.sightingHoursAgo ?? 2,
+      sightingMilesAway: preset.sightingMilesAway ?? 0.5,
     }));
   }, []);
 
@@ -153,6 +233,10 @@ export function DebugProvider({ children, isAdmin = false }) {
       useRealRole: true,
       useRealLocation: true,
       useRealPetType: true,
+      useRealPetProfile: true,
+      useRealHealth: true,
+      useRealSightings: true,
+      useRealHistory: true,
       useRealMicrochip: true,
       useRealTemperament: true,
     }));
@@ -185,6 +269,39 @@ export function DebugProvider({ children, isAdmin = false }) {
       effective.simulatedProximity = overrides.proximityMiles;
     }
 
+    // Sighting override - create simulated sighting
+    if (!overrides.useRealSightings) {
+      const sightingTime = new Date();
+      sightingTime.setHours(sightingTime.getHours() - overrides.sightingHoursAgo);
+
+      // Create a simulated sighting at the specified distance
+      // We'll use task location + offset for simulation
+      effective.sightings = [{
+        id: 'simulated',
+        reportedAt: sightingTime,
+        // Latitude/longitude will be calculated relative to task in the algorithm
+        // For simulation, we pass the distance directly
+        simulatedDistance: overrides.sightingMilesAway,
+        latitude: realContext.userLocation?.latitude || 0,
+        longitude: realContext.userLocation?.longitude || 0,
+      }];
+      effective.simulatedSightingDistance = overrides.sightingMilesAway;
+    }
+
+    // Task history override for diminishing returns
+    if (!overrides.useRealHistory && overrides.repeatTaskCount > 0) {
+      const completedTasks = [];
+      const now = new Date();
+      for (let i = 0; i < overrides.repeatTaskCount; i++) {
+        completedTasks.push({
+          actionId: '__current__', // Placeholder, will be matched in algorithm
+          completedAt: new Date(now - (i + 1) * 4 * 60 * 60 * 1000), // 4 hours apart
+        });
+      }
+      effective.completedTasks = completedTasks;
+      effective.simulatedRepeatCount = overrides.repeatTaskCount;
+    }
+
     return effective;
   }, [isEnabled, overrides]);
 
@@ -207,6 +324,18 @@ export function DebugProvider({ children, isAdmin = false }) {
     // Pet type override
     if (!overrides.useRealPetType) {
       effective.petType = overrides.petType;
+    }
+
+    // Pet profile overrides (indoor/outdoor, size)
+    if (!overrides.useRealPetProfile) {
+      effective.isIndoor = overrides.isIndoor;
+      effective.petSize = overrides.petSize;
+    }
+
+    // Health urgency override
+    if (!overrides.useRealHealth) {
+      effective.healthCondition = overrides.healthCondition;
+      effective.healthUrgency = overrides.healthCondition;
     }
 
     // Microchip override

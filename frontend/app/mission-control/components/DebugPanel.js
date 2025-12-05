@@ -21,6 +21,12 @@ import {
   RotateCcw,
   Eye,
   EyeOff,
+  Home,
+  Trees,
+  Heart,
+  Crosshair,
+  History,
+  AlertTriangle,
 } from 'lucide-react';
 import { useDebug, DEBUG_PRESETS } from '@/app/lib/missionControl/debugContext';
 import { ACTION_TYPES } from '@/app/lib/missionControl/taskPriority';
@@ -310,6 +316,220 @@ export default function DebugPanel({ selectedTask, scoreBreakdown }) {
           )}
         </Section>
 
+        {/* Pet Profile Override (Indoor/Outdoor, Size) */}
+        <Section
+          title="Pet Profile"
+          icon={overrides.isIndoor ? <Home size={16} /> : <Trees size={16} />}
+          isOpen={activeSection === 'profile'}
+          onToggle={() => setActiveSection(activeSection === 'profile' ? '' : 'profile')}
+        >
+          <ToggleRow
+            label="Use real profile"
+            checked={overrides.useRealPetProfile}
+            onChange={(v) => updateOverride('useRealPetProfile', v)}
+          />
+          {!overrides.useRealPetProfile && (
+            <div className="mt-2 space-y-3">
+              {/* Cat: Indoor/Outdoor */}
+              {overrides.petType === 'CAT' && (
+                <div>
+                  <label className="text-xs text-gray-400">Cat Environment</label>
+                  <div className="flex gap-2 mt-1">
+                    <button
+                      onClick={() => updateOverride('isIndoor', true)}
+                      className={`flex-1 p-2 rounded text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                        overrides.isIndoor
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                      }`}
+                    >
+                      <Home size={14} /> Indoor
+                    </button>
+                    <button
+                      onClick={() => updateOverride('isIndoor', false)}
+                      className={`flex-1 p-2 rounded text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                        !overrides.isIndoor
+                          ? 'bg-green-600 text-white'
+                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                      }`}
+                    >
+                      <Trees size={14} /> Outdoor
+                    </button>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {overrides.isIndoor
+                      ? 'Indoor cats hide close (0.25mi range)'
+                      : 'Outdoor cats roam (1mi range)'}
+                  </div>
+                </div>
+              )}
+              {/* Dog: Size */}
+              {overrides.petType === 'DOG' && (
+                <div>
+                  <label className="text-xs text-gray-400">Dog Size</label>
+                  <div className="flex gap-2 mt-1">
+                    {['SMALL', 'MEDIUM', 'LARGE'].map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => updateOverride('petSize', size)}
+                        className={`flex-1 p-2 rounded text-sm font-medium transition-colors ${
+                          overrides.petSize === size
+                            ? 'bg-orange-600 text-white'
+                            : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        }`}
+                      >
+                        {size.charAt(0) + size.slice(1).toLowerCase()}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {getDogSizeDesc(overrides.petSize)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </Section>
+
+        {/* Health Urgency Override */}
+        <Section
+          title="Health Urgency"
+          icon={<Heart size={16} />}
+          isOpen={activeSection === 'health'}
+          onToggle={() => setActiveSection(activeSection === 'health' ? '' : 'health')}
+        >
+          <ToggleRow
+            label="Use real health"
+            checked={overrides.useRealHealth}
+            onChange={(v) => updateOverride('useRealHealth', v)}
+          />
+          {!overrides.useRealHealth && (
+            <div className="mt-2">
+              <label className="text-xs text-gray-400">Health Condition</label>
+              <select
+                value={overrides.healthCondition}
+                onChange={(e) => updateOverride('healthCondition', e.target.value)}
+                className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
+              >
+                <option value="NONE">None (1.0x)</option>
+                <option value="SENIOR">Senior pet (1.3x)</option>
+                <option value="PUPPY_KITTEN">Puppy/Kitten (1.4x)</option>
+                <option value="MEDICATION_DAILY">Daily medication (1.5x)</option>
+                <option value="MEDICAL_CONDITION">Medical condition (1.8x)</option>
+                <option value="MEDICATION_CRITICAL">Critical meds - insulin, etc (2.5x)</option>
+              </select>
+              <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                {overrides.healthCondition !== 'NONE' && (
+                  <>
+                    <AlertTriangle size={12} className="text-yellow-500" />
+                    Multiplies all positive scores
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </Section>
+
+        {/* Sighting Override */}
+        <Section
+          title="Sighting"
+          icon={<Crosshair size={16} />}
+          isOpen={activeSection === 'sighting'}
+          onToggle={() => setActiveSection(activeSection === 'sighting' ? '' : 'sighting')}
+        >
+          <ToggleRow
+            label="Use real sightings"
+            checked={overrides.useRealSightings}
+            onChange={(v) => updateOverride('useRealSightings', v)}
+          />
+          {!overrides.useRealSightings && (
+            <div className="mt-2 space-y-3">
+              <div>
+                <label className="text-xs text-gray-400">Hours since sighting</label>
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    type="range"
+                    min="0"
+                    max="72"
+                    step="0.5"
+                    value={overrides.sightingHoursAgo}
+                    onChange={(e) => updateOverride('sightingHoursAgo', parseFloat(e.target.value))}
+                    className="flex-1"
+                  />
+                  <span className="text-white w-12 text-right">
+                    {overrides.sightingHoursAgo < 1 ? `${Math.round(overrides.sightingHoursAgo * 60)}m` : `${overrides.sightingHoursAgo}h`}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Time boost: {getSightingTimeBoost(overrides.sightingHoursAgo)}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-400">Distance to sighting (miles)</label>
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={overrides.sightingMilesAway}
+                    onChange={(e) => updateOverride('sightingMilesAway', parseFloat(e.target.value))}
+                    className="flex-1"
+                  />
+                  <span className="text-white w-12 text-right">
+                    {overrides.sightingMilesAway} mi
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Distance boost: {getSightingDistanceBoost(overrides.sightingMilesAway)}
+                </div>
+              </div>
+              <div className="p-2 bg-gray-800 rounded text-xs">
+                <span className="text-yellow-400 font-medium">Total sighting boost: </span>
+                <span className="text-white">
+                  +{parseInt(getSightingTimeBoost(overrides.sightingHoursAgo)) + parseInt(getSightingDistanceBoost(overrides.sightingMilesAway))}
+                </span>
+              </div>
+            </div>
+          )}
+        </Section>
+
+        {/* Task History / Diminishing Returns Override */}
+        <Section
+          title="Task History"
+          icon={<History size={16} />}
+          isOpen={activeSection === 'history'}
+          onToggle={() => setActiveSection(activeSection === 'history' ? '' : 'history')}
+        >
+          <ToggleRow
+            label="Use real history"
+            checked={overrides.useRealHistory}
+            onChange={(v) => updateOverride('useRealHistory', v)}
+          />
+          {!overrides.useRealHistory && (
+            <div className="mt-2">
+              <label className="text-xs text-gray-400">Times this task was completed (48h)</label>
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="range"
+                  min="0"
+                  max="5"
+                  step="1"
+                  value={overrides.repeatTaskCount}
+                  onChange={(e) => updateOverride('repeatTaskCount', parseInt(e.target.value))}
+                  className="flex-1"
+                />
+                <span className="text-white w-12 text-right">
+                  {overrides.repeatTaskCount}x
+                </span>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Penalty: {getRepeatPenalty(overrides.repeatTaskCount)}
+              </div>
+            </div>
+          )}
+        </Section>
+
         {/* Score Breakdown */}
         {selectedTask && scoreBreakdown && (
           <Section
@@ -421,5 +641,41 @@ function getProximityBonus(miles) {
   if (miles < 0.5) return '+30';
   if (miles < 2) return '+20';
   if (miles < 5) return '+10';
+  return '+0';
+}
+
+function getDogSizeDesc(size) {
+  switch (size) {
+    case 'SMALL':
+      return 'Small dogs stay close (1mi), vulnerable, high priority';
+    case 'MEDIUM':
+      return 'Medium dogs roam (3mi), moderate danger';
+    case 'LARGE':
+      return 'Large dogs run far (5mi), can handle themselves';
+    default:
+      return '';
+  }
+}
+
+function getSightingTimeBoost(hoursAgo) {
+  if (hoursAgo <= 1) return '+150';
+  if (hoursAgo <= 6) return '+100';
+  if (hoursAgo <= 24) return '+60';
+  if (hoursAgo <= 72) return '+30';
+  return '+10';
+}
+
+function getSightingDistanceBoost(miles) {
+  if (miles <= 0.25) return '+50';
+  if (miles <= 0.5) return '+30';
+  if (miles <= 1) return '+15';
+  if (miles <= 2) return '+5';
+  return '+0';
+}
+
+function getRepeatPenalty(count) {
+  if (count >= 3) return '-100';
+  if (count === 2) return '-50';
+  if (count === 1) return '-20';
   return '+0';
 }
