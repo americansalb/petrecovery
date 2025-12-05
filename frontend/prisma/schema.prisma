@@ -1590,6 +1590,11 @@ model Shelter {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // External IDs (for deduplication)
+  appleMapKitId   String?  @unique  // Apple MapKit place ID
+  googlePlaceId   String?  @unique  // Google Places ID
+  petfinderId     String?  @unique  // PetFinder organization ID
+
   // Basic info
   name        String
   type        String   @default("SHELTER") // SHELTER, RESCUE, VET, ANIMAL_CONTROL
@@ -1606,7 +1611,18 @@ model Shelter {
   email       String?
   website     String?
 
-  // API Integration
+  // Hours of operation (JSON: {"mon": "9-5", "tue": "9-5", ...})
+  hours       String?  // JSON
+
+  // Shelter details
+  acceptsStrays Boolean?
+  isNoKill      Boolean?
+
+  // Data source tracking
+  source      String   @default("MANUAL") // APPLE_MAPKIT, GOOGLE_PLACES, PETFINDER, CROWDSOURCE, MANUAL
+  fetchedAt   DateTime?
+
+  // API Integration (for shelters we sync intake data from)
   apiEndpoint String?
   apiKey      String?  // Encrypted
   lastSyncAt  DateTime?
@@ -1620,8 +1636,10 @@ model Shelter {
   intakes     ShelterIntake[]
 
   @@index([city, state])
+  @@index([latitude, longitude])
   @@index([isActive])
   @@index([type])
+  @@index([source])
 }
 
 model ShelterIntake {
