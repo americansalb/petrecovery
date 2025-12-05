@@ -211,7 +211,7 @@ function MissionControlV3Content() {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: AlertCircle },
     { id: 'map', label: 'Map', icon: MapPin },
-    { id: 'team', label: 'Team', icon: Users },
+    { id: 'team', label: 'Actions', icon: CheckCircle },
     { id: 'activity', label: 'Activity', icon: ActivityIcon },
   ];
 
@@ -380,12 +380,7 @@ function MissionControlV3Content() {
 
         {activeTab === 'team' && (
           <TeamTab
-            team={team}
             mission={activeMission}
-            gpsPath={gpsPath}
-            setGpsPath={setGpsPath}
-            isGPSTracking={isGPSTracking}
-            setIsGPSTracking={setIsGPSTracking}
             showNotification={showNotification}
             session={session}
           />

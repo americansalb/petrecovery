@@ -1,177 +1,182 @@
 'use client';
 
 /**
- * TeamTab - Search & Rescue Coordination
+ * ActionsTab (formerly TeamTab) - One-Tap Action Logger
  *
- * CORE PURPOSE: Help volunteers coordinate ground searches
- * - See where has been searched
- * - Track your own search
- * - See who's actively searching
+ * CORE PURPOSE: Quick action logging for team visibility
+ * - Tap an action = logged immediately
+ * - Everyone sees what's been done
+ * - No forms, no friction
  */
 
 import { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
-import { Navigation, Users, Check, MapPin } from 'lucide-react';
+import {
+  Phone,
+  Share2,
+  FileText,
+  Search,
+  Eye,
+  MessageCircle,
+  MapPin,
+  Check,
+  Clock,
+  User,
+} from 'lucide-react';
 
-// Lazy load map
-const MapView = dynamic(() => import('@/app/components/case/SARMapView'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full bg-slate-800 flex items-center justify-center">
-      <div className="animate-pulse text-slate-500">Loading map...</div>
-    </div>
-  )
-});
+// Quick action definitions
+const QUICK_ACTIONS = [
+  { id: 'shelter', label: 'Called Shelter', icon: Phone, color: 'emerald' },
+  { id: 'nextdoor', label: 'Posted Nextdoor', icon: MessageCircle, color: 'amber' },
+  { id: 'facebook', label: 'Shared Facebook', icon: Share2, color: 'blue' },
+  { id: 'flyers', label: 'Put Up Flyers', icon: FileText, color: 'purple' },
+  { id: 'searched', label: 'Searched Area', icon: Search, color: 'pink' },
+  { id: 'craigslist', label: 'Checked Craigslist', icon: Eye, color: 'orange' },
+  { id: 'doors', label: 'Knocked Doors', icon: MapPin, color: 'cyan' },
+  { id: 'vet', label: 'Called Vet', icon: Phone, color: 'teal' },
+];
+
+const colorMap = {
+  emerald: { bg: 'bg-emerald-500/20', border: 'border-emerald-500/50', text: 'text-emerald-400', activeBg: 'bg-emerald-500' },
+  amber: { bg: 'bg-amber-500/20', border: 'border-amber-500/50', text: 'text-amber-400', activeBg: 'bg-amber-500' },
+  blue: { bg: 'bg-blue-500/20', border: 'border-blue-500/50', text: 'text-blue-400', activeBg: 'bg-blue-500' },
+  purple: { bg: 'bg-purple-500/20', border: 'border-purple-500/50', text: 'text-purple-400', activeBg: 'bg-purple-500' },
+  pink: { bg: 'bg-pink-500/20', border: 'border-pink-500/50', text: 'text-pink-400', activeBg: 'bg-pink-500' },
+  orange: { bg: 'bg-orange-500/20', border: 'border-orange-500/50', text: 'text-orange-400', activeBg: 'bg-orange-500' },
+  cyan: { bg: 'bg-cyan-500/20', border: 'border-cyan-500/50', text: 'text-cyan-400', activeBg: 'bg-cyan-500' },
+  teal: { bg: 'bg-teal-500/20', border: 'border-teal-500/50', text: 'text-teal-400', activeBg: 'bg-teal-500' },
+};
 
 export default function TeamTab({
-  team = [],
   mission,
-  gpsPath = [],
-  setGpsPath,
-  isGPSTracking,
-  setIsGPSTracking,
   showNotification,
+  session,
 }) {
-  const [searchStats, setSearchStats] = useState({ distance: 0, duration: 0 });
+  const [actions, setActions] = useState([]);
+  const [justLogged, setJustLogged] = useState(null);
 
-  // Calculate distance/duration
+  // Load actions from localStorage
   useEffect(() => {
-    if (gpsPath.length < 2) return;
-
-    let totalDistance = 0;
-    for (let i = 1; i < gpsPath.length; i++) {
-      const R = 3959; // miles
-      const dLat = (gpsPath[i].lat - gpsPath[i-1].lat) * Math.PI / 180;
-      const dLon = (gpsPath[i].lng - gpsPath[i-1].lng) * Math.PI / 180;
-      const a = Math.sin(dLat/2) ** 2 + Math.cos(gpsPath[i-1].lat * Math.PI / 180) * Math.cos(gpsPath[i].lat * Math.PI / 180) * Math.sin(dLon/2) ** 2;
-      totalDistance += R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    if (!mission?.id) return;
+    const storageKey = `case_${mission.id}_actions`;
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try { setActions(JSON.parse(saved)); } catch (e) {}
     }
-    const duration = Math.round((gpsPath[gpsPath.length-1].timestamp - gpsPath[0].timestamp) / 60000);
-    setSearchStats({ distance: totalDistance.toFixed(2), duration });
-  }, [gpsPath]);
+  }, [mission?.id]);
 
-  const startSearch = () => {
-    if (!('geolocation' in navigator)) {
-      showNotification?.('error', 'GPS not available');
-      return;
-    }
-    setIsGPSTracking(true);
-    setGpsPath([]);
-    showNotification?.('info', 'Tracking your search path');
+  // Save actions to localStorage
+  useEffect(() => {
+    if (!mission?.id || actions.length === 0) return;
+    localStorage.setItem(`case_${mission.id}_actions`, JSON.stringify(actions));
+  }, [actions, mission?.id]);
 
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => setGpsPath(prev => [...prev, { lat: pos.coords.latitude, lng: pos.coords.longitude, timestamp: Date.now() }]),
-      () => { setIsGPSTracking(false); showNotification?.('error', 'GPS access denied'); },
-      { enableHighAccuracy: true, maximumAge: 5000 }
-    );
-    window._gpsWatchId = watchId;
+  // One-tap action logging
+  const logAction = (action) => {
+    const newEntry = {
+      id: Date.now(),
+      actionId: action.id,
+      label: action.label,
+      timestamp: new Date().toISOString(),
+      user: session?.user ? {
+        id: session.user.id,
+        name: session.user.name || session.user.email?.split('@')[0] || 'You',
+      } : { name: 'You' },
+    };
+
+    setActions(prev => [newEntry, ...prev]);
+    setJustLogged(action.id);
+    showNotification?.('success', `${action.label} - logged!`);
+
+    // Clear the "just logged" indicator after animation
+    setTimeout(() => setJustLogged(null), 1500);
   };
 
-  const stopSearch = () => {
-    if (window._gpsWatchId) {
-      navigator.geolocation.clearWatch(window._gpsWatchId);
-      window._gpsWatchId = null;
-    }
-    setIsGPSTracking(false);
-    if (gpsPath.length > 0) {
-      showNotification?.('success', `Search saved - ${searchStats.distance} mi covered`);
-    }
+  // Format relative time
+  const formatTime = (timestamp) => {
+    const diff = Date.now() - new Date(timestamp).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
   };
-
-  const mapCenter = mission?.lastSeenLatitude
-    ? [mission.lastSeenLatitude, mission.lastSeenLongitude]
-    : [41.8781, -87.6298];
-
-  const activeSearchers = team.filter(m => m.isActive);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-200px)] min-h-[500px]">
-
-      {/* MAP - Takes most of the space */}
-      <div className="flex-1 rounded-xl overflow-hidden border border-slate-700 relative">
-        <MapView
-          center={mapCenter}
-          lastSeen={mission?.lastSeenLatitude ? {
-            lat: mission.lastSeenLatitude,
-            lng: mission.lastSeenLongitude,
-            address: mission.lastSeenAddress,
-          } : null}
-          gpsPath={gpsPath}
-          petSpecies={mission?.petSpecies}
-          showControls={true}
-          showLegend={true}
-          interactive={true}
-        />
-
-        {/* Active searchers overlay */}
-        {activeSearchers.length > 0 && (
-          <div className="absolute top-4 left-4 bg-slate-900/90 backdrop-blur rounded-lg px-3 py-2 flex items-center gap-2 z-[400]">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-emerald-400 text-sm font-medium">
-              {activeSearchers.length} searching now
-            </span>
-          </div>
-        )}
-
-        {/* Live stats while searching */}
-        {isGPSTracking && (
-          <div className="absolute bottom-4 left-4 right-4 bg-purple-600 rounded-xl p-3 z-[400] flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-              <span className="text-white font-medium">Tracking</span>
-            </div>
-            <span className="text-white/80 text-sm">{searchStats.distance} mi • {searchStats.duration} min</span>
-          </div>
-        )}
+    <div className="space-y-6 pb-20">
+      {/* Header */}
+      <div className="text-center">
+        <h2 className="text-lg font-bold text-white mb-1">Log Your Actions</h2>
+        <p className="text-slate-400 text-sm">Tap to log - everyone sees what's been done</p>
       </div>
 
-      {/* BOTTOM CONTROLS - Compact */}
-      <div className="mt-3 space-y-3">
+      {/* Quick Action Grid - 2x4 */}
+      <div className="grid grid-cols-2 gap-3">
+        {QUICK_ACTIONS.map((action) => {
+          const Icon = action.icon;
+          const colors = colorMap[action.color];
+          const wasJustLogged = justLogged === action.id;
 
-        {/* Search Button */}
-        {!isGPSTracking ? (
-          <button
-            onClick={startSearch}
-            className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition shadow-lg shadow-purple-500/30"
-          >
-            <Navigation size={24} />
-            Start Searching
-          </button>
-        ) : (
-          <button
-            onClick={stopSearch}
-            className="w-full py-4 bg-emerald-500 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-3 hover:bg-emerald-400 transition"
-          >
-            <Check size={24} />
-            Done - Save Search
-          </button>
-        )}
-
-        {/* Team row - compact */}
-        {team.length > 0 && (
-          <div className="flex items-center justify-between bg-slate-800/50 rounded-xl px-4 py-3">
-            <div className="flex items-center gap-2">
-              <Users size={18} className="text-slate-400" />
-              <span className="text-slate-300 text-sm">{team.length} helpers</span>
-            </div>
-            <div className="flex -space-x-2">
-              {team.slice(0, 5).map(m => (
-                <div
-                  key={m.id}
-                  className={`w-8 h-8 rounded-full border-2 border-slate-800 flex items-center justify-center text-xs font-bold ${
-                    m.isActive ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-400'
-                  }`}
-                  title={m.name}
-                >
-                  {m.firstName?.[0]}{m.lastName?.[0] || ''}
-                </div>
-              ))}
-              {team.length > 5 && (
-                <div className="w-8 h-8 rounded-full bg-slate-700 border-2 border-slate-800 flex items-center justify-center text-slate-400 text-xs">
-                  +{team.length - 5}
+          return (
+            <button
+              key={action.id}
+              onClick={() => logAction(action)}
+              className={`relative flex items-center gap-3 p-4 rounded-xl border transition-all duration-200 ${
+                wasJustLogged
+                  ? `${colors.activeBg} border-transparent text-white scale-95`
+                  : `${colors.bg} ${colors.border} ${colors.text} hover:scale-[1.02] active:scale-95`
+              }`}
+            >
+              <Icon size={24} className={wasJustLogged ? 'text-white' : ''} />
+              <span className="font-semibold text-sm">{action.label}</span>
+              {wasJustLogged && (
+                <div className="absolute right-3">
+                  <Check size={20} className="text-white" />
                 </div>
               )}
-            </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Action Feed */}
+      <div className="space-y-2">
+        <h3 className="text-slate-400 text-sm font-semibold uppercase tracking-wide flex items-center gap-2">
+          <Clock size={14} />
+          Recent Actions
+        </h3>
+
+        {actions.length === 0 ? (
+          <div className="text-center py-8 text-slate-500">
+            <p>No actions logged yet</p>
+            <p className="text-sm mt-1">Tap a button above to get started</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {actions.slice(0, 20).map((entry) => {
+              const actionDef = QUICK_ACTIONS.find(a => a.id === entry.actionId);
+              const colors = actionDef ? colorMap[actionDef.color] : colorMap.emerald;
+              const Icon = actionDef?.icon || Check;
+
+              return (
+                <div
+                  key={entry.id}
+                  className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50"
+                >
+                  <div className={`p-2 rounded-lg ${colors.bg}`}>
+                    <Icon size={16} className={colors.text} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-medium text-sm">{entry.label}</p>
+                    <p className="text-slate-500 text-xs flex items-center gap-1">
+                      <User size={10} />
+                      {entry.user?.name || 'Someone'} • {formatTime(entry.timestamp)}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
