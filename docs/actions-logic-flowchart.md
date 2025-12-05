@@ -4,6 +4,113 @@ Paste the mermaid blocks into https://mermaid.live to visualize.
 
 ---
 
+## UI Design: Shared Mission Board
+
+### Main View (List)
+```
+┌─────────────────────────────────────────────────┐
+│  ACTIONS                          [+ Add Task]  │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  OWNER TASKS (only owner can do these)          │
+│  sorted by algorithm priority ↓                 │
+│  ┌─────────────────────────────────────────┐   │
+│  │ 1. ⚪ Put litter box outside            │   │
+│  │ 2. 🟡 Search inside     [Sarah - 5m]    │   │
+│  │ 3. ⚪ Set up camera trap                │   │
+│  │ 4. ✅ Called HomeAgain  [Sarah - 1h]    │   │
+│  └─────────────────────────────────────────┘   │
+│                                                 │
+│  SQUAD TASKS (anyone can help)                  │
+│  sorted by algorithm priority ↓                 │
+│  ┌─────────────────────────────────────────┐   │
+│  │ 1. ⚪ Call Austin Animal Shelter        │   │  ← Highest priority
+│  │ 2. ⚪ Call Town Lake Animal Center      │   │
+│  │ 3. 🟡 Search Oak Park    [Mike - 10m]   │   │  ← Someone's on it
+│  │ 4. ⚪ Search Zilker area                │   │
+│  │ 5. ⚪ Post flyers - Main St             │   │
+│  │ 6. ✅ Called Emancipet   [Jen - 2h]     │   │  ← Done
+│  └─────────────────────────────────────────┘   │
+│                                                 │
+│  Legend: ⚪ Available  🟡 In Progress  ✅ Done  │
+└─────────────────────────────────────────────────┘
+```
+
+### Full-Screen Task View (tap to expand)
+```
+┌─────────────────────────────────────────────────┐
+│  ← Back                              Priority 1 │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  📞 Call Austin Animal Shelter                  │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                 │
+│  WHY THIS IS #1 RIGHT NOW                       │
+│  ┌─────────────────────────────────────────┐   │
+│  │ • It's been 6 hours - shelters are key  │   │
+│  │ • This shelter is closest (2.3 mi)      │   │
+│  │ • They're open now (closes 7pm)         │   │
+│  │ • No one has called them yet            │   │
+│  └─────────────────────────────────────────┘   │
+│                                                 │
+│  WHAT TO SAY                                    │
+│  ┌─────────────────────────────────────────┐   │
+│  │ "Hi, I'm looking for a lost cat.        │   │
+│  │  Orange tabby, male, about 2 years old, │   │
+│  │  no collar. Lost near 45th & Duval      │   │
+│  │  around 2pm today. Have you had any     │   │
+│  │  cats brought in today?"                │   │
+│  └─────────────────────────────────────────┘   │
+│                                                 │
+│  CONTACT                                        │
+│  📞 (512) 978-0500                              │
+│  📍 7201 Levander Loop, Austin TX               │
+│  🕐 Open 11am-7pm (Open now)                    │
+│  ℹ️  Data last updated: Dec 1, 2025             │
+│                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                 │
+│  ┌─────────────────────────────────────────┐   │
+│  │         📞 TAP TO CALL                   │   │
+│  └─────────────────────────────────────────┘   │
+│                                                 │
+│  ┌─────────────────────────────────────────┐   │
+│  │     🟡 I'M CALLING NOW                   │   │
+│  │     (others will see you're on it)      │   │
+│  └─────────────────────────────────────────┘   │
+│                                                 │
+│  ┌─────────────────────────────────────────┐   │
+│  │     ✅ DONE - NO MATCH                   │   │
+│  └─────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────┐   │
+│  │     ✅ DONE - POSSIBLE MATCH!            │   │
+│  │     (alert owner immediately)           │   │
+│  └─────────────────────────────────────────┘   │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+### Task States
+```
+⚪ AVAILABLE    → Anyone can claim it
+🟡 IN_PROGRESS  → Someone's working on it (shows who + duration)
+✅ COMPLETED    → Done (shows who + when + result)
+🔴 BLOCKED      → Can't do yet (e.g., shelter closed, waiting on owner)
+```
+
+### Priority Algorithm (simplified)
+```
+score = base_priority
+      + time_urgency_bonus      (first 24hrs = +100)
+      + time_of_day_bonus       (shelter open now = +50)
+      + not_done_yet_bonus      (never called = +30)
+      + proximity_bonus         (user is nearby = +20)
+      - already_in_progress     (someone on it = -1000)
+      - recently_completed      (done <4hrs ago = -500)
+```
+
+---
+
 ## Role-Based Split (CRITICAL)
 
 ```mermaid
