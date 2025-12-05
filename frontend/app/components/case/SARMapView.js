@@ -29,7 +29,9 @@ export default function SARMapView({
   hoursElapsed = 24,
   showControls = false,
   gpsPath = [], // NEW: GPS tracking path
-  showProbabilityCircles = false // NEW: Make circles optional
+  showProbabilityCircles = false, // NEW: Make circles optional
+  showLegend = true, // NEW: Option to hide legend for compact views
+  interactive = true // NEW: Disable interactions for preview maps
 }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
@@ -64,7 +66,13 @@ export default function SARMapView({
       center,
       zoom: 15,
       zoomControl: showControls,
-      attributionControl: false
+      attributionControl: false,
+      dragging: interactive,
+      touchZoom: interactive,
+      scrollWheelZoom: interactive,
+      doubleClickZoom: interactive,
+      boxZoom: interactive,
+      keyboard: interactive
     });
 
     // Create base layers
@@ -436,71 +444,69 @@ export default function SARMapView({
     <div className="w-full h-full relative">
       <div ref={mapRef} className="w-full h-full" />
 
-      {/* Layer Toggle Button */}
-      <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2">
-        <button
-          onClick={() => setMapLayer(mapLayer === 'satellite' ? 'street' : 'satellite')}
-          className="bg-slate-900/90 backdrop-blur border border-slate-700 rounded-xl px-4 py-2.5 text-white font-semibold text-sm hover:bg-slate-800 transition flex items-center gap-2 shadow-lg"
-        >
-          {mapLayer === 'satellite' ? (
-            <>
-              <span>🗺️</span>
-              <span>Street View</span>
-            </>
-          ) : (
-            <>
-              <span>🛰️</span>
-              <span>Satellite</span>
-            </>
-          )}
-        </button>
-
-        {/* Heatmap Toggle Button - Only show if there's GPS data */}
-        {gpsPath && gpsPath.length > 0 && (
+      {/* Layer Toggle Button - Only show for interactive maps */}
+      {interactive && (
+        <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2">
           <button
-            onClick={() => setShowHeatmap(!showHeatmap)}
-            className={`backdrop-blur border rounded-xl px-4 py-2.5 font-semibold text-sm transition flex items-center gap-2 shadow-lg ${
-              showHeatmap
-                ? 'bg-blue-600/90 border-blue-500 text-white hover:bg-blue-700'
-                : 'bg-slate-900/90 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white'
-            }`}
+            onClick={() => setMapLayer(mapLayer === 'satellite' ? 'street' : 'satellite')}
+            className="bg-slate-900/90 backdrop-blur border border-slate-700 rounded-xl px-4 py-2.5 text-white font-semibold text-sm hover:bg-slate-800 transition flex items-center gap-2 shadow-lg"
           >
-            <span>{showHeatmap ? '🔵' : '⚫'}</span>
-            <span>Coverage {showHeatmap ? 'ON' : 'OFF'}</span>
+            {mapLayer === 'satellite' ? (
+              <>
+                <span>🗺️</span>
+                <span>Street View</span>
+              </>
+            ) : (
+              <>
+                <span>🛰️</span>
+                <span>Satellite</span>
+              </>
+            )}
           </button>
-        )}
-      </div>
 
-      {/* Legend */}
-      <div className="absolute bottom-4 left-4 bg-slate-900/90 backdrop-blur rounded-xl p-3 text-xs z-[400] border border-slate-700">
-        <div className="text-slate-400 font-semibold mb-2 text-[10px] uppercase tracking-wide">Map Legend</div>
-        <div className="flex items-center gap-2 mb-1.5">
-          <div className="w-4 h-4 rounded-full bg-red-500 border border-white flex items-center justify-center text-[10px]">📍</div>
-          <span className="text-slate-200 font-medium">Ran away from home</span>
+          {/* Heatmap Toggle Button - Only show if there's GPS data */}
+          {gpsPath && gpsPath.length > 0 && (
+            <button
+              onClick={() => setShowHeatmap(!showHeatmap)}
+              className={`backdrop-blur border rounded-xl px-4 py-2.5 font-semibold text-sm transition flex items-center gap-2 shadow-lg ${
+                showHeatmap
+                  ? 'bg-blue-600/90 border-blue-500 text-white hover:bg-blue-700'
+                  : 'bg-slate-900/90 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <span>{showHeatmap ? '🔵' : '⚫'}</span>
+              <span>Coverage {showHeatmap ? 'ON' : 'OFF'}</span>
+            </button>
+          )}
         </div>
-        <div className="flex items-center gap-2 mb-1.5">
-          <div className="w-4 h-4 rounded-full bg-amber-500 border border-white flex items-center justify-center text-[10px]">👁</div>
-          <span className="text-slate-200 font-medium">Reported sighting</span>
-        </div>
-        {gpsPath && gpsPath.length > 0 && (
-          <>
+      )}
+
+      {/* Legend - Only show if showLegend is true */}
+      {showLegend && (
+        <div className="absolute bottom-4 left-4 bg-slate-900/90 backdrop-blur rounded-xl p-3 text-xs z-[400] border border-slate-700">
+          <div className="text-slate-400 font-semibold mb-2 text-[10px] uppercase tracking-wide">Map Legend</div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="w-4 h-4 rounded-full bg-red-500 border border-white flex items-center justify-center text-[10px]">📍</div>
+            <span className="text-slate-200 font-medium">Last known location</span>
+          </div>
+          {sightings.length > 0 && (
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-4 h-4 rounded-full bg-amber-500 border border-white flex items-center justify-center text-[10px]">👁</div>
+              <span className="text-slate-200 font-medium">Reported sighting</span>
+            </div>
+          )}
+          {gpsPath && gpsPath.length > 0 && (
             <div className="flex items-center gap-2 mb-1.5">
               <div className="w-8 h-3 bg-purple-500/30 rounded border border-purple-500" />
-              <span className="text-slate-200 font-medium">GPS tracked search area (click for details)</span>
+              <span className="text-slate-200 font-medium">Search path</span>
             </div>
-            {showHeatmap && (
-              <div className="flex items-center gap-2 mb-1.5">
-                <div className="w-4 h-4 rounded-full bg-blue-500/20 border border-blue-500" />
-                <span className="text-slate-200 font-medium">Search coverage (~30m visibility)</span>
-              </div>
-            )}
-          </>
-        )}
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-blue-500 border border-white" />
-          <span className="text-slate-200 font-medium">Your location</span>
+          )}
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-blue-500 border border-white" />
+            <span className="text-slate-200 font-medium">You</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Zoom Controls (if enabled) */}
       {showControls && (

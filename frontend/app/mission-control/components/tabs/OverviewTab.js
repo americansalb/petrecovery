@@ -19,7 +19,7 @@ import {
   Eye,
   MapPin,
   Navigation,
-  Phone,
+  MessageCircle,
   AlertCircle,
   Clock,
   Camera,
@@ -88,14 +88,17 @@ export default function OverviewTab({
       pulse: isGPSTracking,
     },
     {
-      id: 'contact',
-      label: 'Owner Contact',
-      icon: Phone,
-      onClick: mission.ownerPhone ? () => window.location.href = `tel:${mission.ownerPhone}` : null,
+      id: 'message',
+      label: 'Message Group',
+      icon: MessageCircle,
+      onClick: () => {
+        // Navigate to team/activity tab or open chat
+        onMarkAreasSearched(); // Reuse this to go to Team tab where group coordination happens
+      },
       gradient: 'from-blue-500 to-cyan-500',
       shadowColor: 'shadow-blue-500/30',
-      description: mission.ownerPhone ? 'Call now' : 'Not available',
-      disabled: !mission.ownerPhone,
+      description: 'Coordinate with team',
+      disabled: false,
     },
   ];
 
@@ -198,47 +201,88 @@ export default function OverviewTab({
         })}
       </div>
 
-      {/* MAP PREVIEW */}
-      <div className="mt-6">
-        <button
-          onClick={onNavigateToMap}
-          className="w-full group"
-        >
-          <div className="relative overflow-hidden rounded-xl border-2 border-slate-700/50 hover:border-flash-500/50 transition-colors">
-            <div className="h-40 sm:h-48">
-              <MapView
-                center={mission.lastSeenLatitude && mission.lastSeenLongitude
-                  ? [mission.lastSeenLatitude, mission.lastSeenLongitude]
-                  : [41.8781, -87.6298]}
-                zoom={14}
-                lastSeen={mission.lastSeenLatitude ? {
-                  lat: mission.lastSeenLatitude,
-                  lng: mission.lastSeenLongitude,
-                  address: mission.lastSeenAddress,
-                } : null}
-                sightings={sightings}
-                gpsPath={gpsPath}
-                petSpecies={mission.petSpecies}
-                showControls={false}
-                interactive={false}
-              />
-            </div>
+      {/* MAP PREVIEW - Shows last known location (latest sighting or original location) */}
+      {(() => {
+        // Compute last known location: use latest sighting if available, otherwise original lastSeen
+        const latestSighting = sightings.length > 0
+          ? sightings.reduce((latest, s) => {
+              const sDate = new Date(s.sightedAt || s.createdAt);
+              const lDate = new Date(latest.sightedAt || latest.createdAt);
+              return sDate > lDate ? s : latest;
+            })
+          : null;
 
-            {/* Overlay with click prompt */}
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-transparent to-transparent flex items-end justify-center pb-4">
-              <div className="flex items-center gap-2 px-4 py-2 bg-flash-500/20 backdrop-blur-sm rounded-full border border-flash-500/50 text-flash-400 font-semibold text-sm group-hover:bg-flash-500/30 transition">
-                <MapPin size={16} />
-                Tap for full map
-                {sightings.length > 0 && (
-                  <span className="ml-1 px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full text-xs">
-                    {sightings.length} sighting{sightings.length !== 1 ? 's' : ''}
-                  </span>
-                )}
+        const lastKnownLocation = latestSighting
+          ? {
+              lat: latestSighting.latitude,
+              lng: latestSighting.longitude,
+              address: latestSighting.address || 'Recent sighting',
+              isLatestSighting: true,
+            }
+          : mission.lastSeenLatitude
+            ? {
+                lat: mission.lastSeenLatitude,
+                lng: mission.lastSeenLongitude,
+                address: mission.lastSeenAddress,
+                isLatestSighting: false,
+              }
+            : null;
+
+        const mapCenter = lastKnownLocation
+          ? [lastKnownLocation.lat, lastKnownLocation.lng]
+          : [41.8781, -87.6298];
+
+        return (
+          <div className="mt-6">
+            <button
+              onClick={onNavigateToMap}
+              className="w-full group"
+            >
+              <div className="relative overflow-hidden rounded-xl border-2 border-slate-700/50 hover:border-flash-500/50 transition-colors">
+                <div className="h-40 sm:h-48">
+                  <MapView
+                    center={mapCenter}
+                    zoom={15}
+                    lastSeen={lastKnownLocation}
+                    sightings={[]} // Don't show sighting markers on preview - just the last known location
+                    gpsPath={[]} // Don't show GPS path on preview - keep it clean
+                    petSpecies={mission.petSpecies}
+                    showControls={false}
+                    showLegend={false}
+                    interactive={false}
+                  />
+                </div>
+
+                {/* Overlay with location info and click prompt */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/20 to-transparent flex flex-col items-center justify-end pb-3">
+                  {/* Last known location label */}
+                  {lastKnownLocation && (
+                    <div className="mb-2 px-3 py-1 bg-slate-900/80 backdrop-blur-sm rounded-lg text-xs">
+                      <span className={lastKnownLocation.isLatestSighting ? 'text-amber-400' : 'text-red-400'}>
+                        {lastKnownLocation.isLatestSighting ? '👁 Latest Sighting' : '📍 Last Seen'}
+                      </span>
+                      <span className="text-slate-400 ml-2 truncate max-w-[200px] inline-block align-bottom">
+                        {lastKnownLocation.address?.split(',').slice(0, 2).join(',') || 'Unknown'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Tap prompt */}
+                  <div className="flex items-center gap-2 px-4 py-2 bg-flash-500/20 backdrop-blur-sm rounded-full border border-flash-500/50 text-flash-400 font-semibold text-sm group-hover:bg-flash-500/30 transition">
+                    <MapPin size={16} />
+                    Tap for full map
+                    {sightings.length > 0 && (
+                      <span className="ml-1 px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full text-xs">
+                        {sightings.length} sighting{sightings.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            </button>
           </div>
-        </button>
-      </div>
+        );
+      })()}
 
       {/* PET DETAILS - Expandable on mobile */}
       <div className="mt-4">
