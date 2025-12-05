@@ -323,6 +323,222 @@ export function calculatePriorityScore(task, caseData, context = {}) {
   return Math.max(0, score);
 }
 
+/**
+ * Calculate priority score WITH detailed breakdown for debugging
+ *
+ * @param {Object} task - The task object
+ * @param {Object} caseData - The case data (pet info, time missing, etc.)
+ * @param {Object} context - Context (current time, user location, user role)
+ * @returns {Object} - { score: number, breakdown: Array<{label, value, description}> }
+ */
+export function calculatePriorityScoreWithBreakdown(task, caseData, context = {}) {
+  const actionDef = ACTION_TYPES[task.actionId] || {};
+  const breakdown = [];
+
+  const now = context.currentTime || new Date();
+  const hoursMissing = getHoursMissing(caseData.missingAt, now);
+  const currentHour = now.getHours();
+
+  // Base priority
+  const basePriority = actionDef.basePriority || 50;
+  breakdown.push({
+    label: 'Base priority',
+    value: basePriority,
+    description: `Action type: ${task.actionId}`,
+  });
+
+  // Time urgency bonus
+  let timeUrgencyBonus = 0;
+  let timeUrgencyDesc = '';
+  if (hoursMissing <= 2) {
+    timeUrgencyBonus = 100;
+    timeUrgencyDesc = `${hoursMissing.toFixed(1)}h (0-2h: critical)`;
+  } else if (hoursMissing <= 6) {
+    timeUrgencyBonus = 80;
+    timeUrgencyDesc = `${hoursMissing.toFixed(1)}h (2-6h: urgent)`;
+  } else if (hoursMissing <= 12) {
+    timeUrgencyBonus = 60;
+    timeUrgencyDesc = `${hoursMissing.toFixed(1)}h (6-12h)`;
+  } else if (hoursMissing <= 24) {
+    timeUrgencyBonus = 40;
+    timeUrgencyDesc = `${hoursMissing.toFixed(1)}h (12-24h)`;
+  } else if (hoursMissing <= 72) {
+    timeUrgencyBonus = 20;
+    timeUrgencyDesc = `${hoursMissing.toFixed(1)}h (24-72h)`;
+  } else {
+    timeUrgencyDesc = `${hoursMissing.toFixed(1)}h (>72h: no bonus)`;
+  }
+  breakdown.push({
+    label: 'Time urgency',
+    value: timeUrgencyBonus,
+    description: timeUrgencyDesc,
+  });
+
+  // Time of day bonus
+  let timeOfDayBonus = 0;
+  let timeOfDayDesc = `Current: ${currentHour}:00`;
+  if (actionDef.timeWindow) {
+    const { start, end } = actionDef.timeWindow;
+    if (isInTimeWindow(currentHour, start, end)) {
+      timeOfDayBonus = 50;
+      timeOfDayDesc = `In window ${start}-${end} (perfect!)`;
+    } else if (isWithinHours(currentHour, start, 2) || isWithinHours(currentHour, end, 2)) {
+      timeOfDayBonus = 25;
+      timeOfDayDesc = `Near window ${start}-${end}`;
+    } else {
+      timeOfDayDesc = `Outside window ${start}-${end}`;
+    }
+  }
+  breakdown.push({
+    label: 'Time of day',
+    value: timeOfDayBonus,
+    description: timeOfDayDesc,
+  });
+
+  // Shelter open/closed
+  let shelterBonus = 0;
+  if (task.actionId === 'call_shelter' && task.shelter?.hours) {
+    if (isShelterOpenNow(task.shelter.hours, now)) {
+      shelterBonus = 50;
+      breakdown.push({
+        label: 'Shelter open',
+        value: shelterBonus,
+        description: 'Open now!',
+      });
+    } else {
+      shelterBonus = -100;
+      breakdown.push({
+        label: 'Shelter closed',
+        value: shelterBonus,
+        description: 'Currently closed',
+      });
+    }
+  }
+
+  // Status penalties
+  let statusPenalty = 0;
+  if (task.status === 'IN_PROGRESS') {
+    statusPenalty = -1000;
+    breakdown.push({
+      label: 'In progress',
+      value: statusPenalty,
+      description: 'Someone working on it',
+    });
+  } else if (task.status === 'COMPLETED') {
+    const hoursSinceCompletion = getHoursSince(task.completedAt, now);
+    if (hoursSinceCompletion < 4) {
+      statusPenalty = -500;
+      breakdown.push({
+        label: 'Recently done',
+        value: statusPenalty,
+        description: `${hoursSinceCompletion.toFixed(1)}h ago`,
+      });
+    } else if (hoursSinceCompletion < 24) {
+      statusPenalty = -200;
+      breakdown.push({
+        label: 'Done today',
+        value: statusPenalty,
+        description: `${hoursSinceCompletion.toFixed(1)}h ago`,
+      });
+    }
+  } else if (task.status === 'BLOCKED') {
+    statusPenalty = -800;
+    breakdown.push({
+      label: 'Blocked',
+      value: statusPenalty,
+      description: task.blockedReason || 'Cannot proceed',
+    });
+  }
+
+  // Proximity bonus
+  let proximityBonus = 0;
+  let proximityDesc = 'No location data';
+  if (context.userLocation && task.latitude && task.longitude) {
+    const distance = calculateDistance(
+      context.userLocation.latitude,
+      context.userLocation.longitude,
+      task.latitude,
+      task.longitude
+    );
+    proximityDesc = `${distance.toFixed(1)} mi away`;
+
+    if (distance < 0.5) {
+      proximityBonus = 30;
+      proximityDesc += ' (very close!)';
+    } else if (distance < 2) {
+      proximityBonus = 20;
+      proximityDesc += ' (nearby)';
+    } else if (distance < 5) {
+      proximityBonus = 10;
+      proximityDesc += ' (in area)';
+    }
+  } else if (context.simulatedProximity !== undefined) {
+    // Debug mode with simulated proximity
+    const distance = context.simulatedProximity;
+    proximityDesc = `${distance.toFixed(1)} mi (simulated)`;
+    if (distance < 0.5) {
+      proximityBonus = 30;
+    } else if (distance < 2) {
+      proximityBonus = 20;
+    } else if (distance < 5) {
+      proximityBonus = 10;
+    }
+  }
+  breakdown.push({
+    label: 'Proximity',
+    value: proximityBonus,
+    description: proximityDesc,
+  });
+
+  // Phase matching
+  const currentPhase = getPhase(hoursMissing);
+  let phaseBonus = 0;
+  let phaseDesc = `Action: P${actionDef.phase}, Current: P${currentPhase}`;
+  if (actionDef.phase === currentPhase) {
+    phaseBonus = 20;
+    phaseDesc += ' (match!)';
+  } else if (actionDef.phase < currentPhase) {
+    phaseBonus = -10;
+    phaseDesc += ' (overdue)';
+  }
+  breakdown.push({
+    label: 'Phase match',
+    value: phaseBonus,
+    description: phaseDesc,
+  });
+
+  // Pet type penalty
+  let petTypePenalty = 0;
+  if (actionDef.petType !== 'BOTH' && actionDef.petType !== caseData.petType) {
+    petTypePenalty = -1000;
+    breakdown.push({
+      label: 'Wrong pet type',
+      value: petTypePenalty,
+      description: `Action for ${actionDef.petType}, pet is ${caseData.petType}`,
+    });
+  }
+
+  // Needs help bonus
+  let needsHelpBonus = 0;
+  if (task.needsHelp) {
+    needsHelpBonus = 40;
+    breakdown.push({
+      label: 'Needs help',
+      value: needsHelpBonus,
+      description: 'Someone requested backup',
+    });
+  }
+
+  // Calculate total
+  const total = basePriority + timeUrgencyBonus + timeOfDayBonus + shelterBonus +
+    statusPenalty + proximityBonus + phaseBonus + petTypePenalty + needsHelpBonus;
+
+  return {
+    score: Math.max(0, total),
+    breakdown,
+  };
+}
+
 // =============================================================================
 // TASK GENERATION
 // =============================================================================
@@ -592,6 +808,7 @@ export function generateCallScript(task, caseData) {
 export default {
   ACTION_TYPES,
   calculatePriorityScore,
+  calculatePriorityScoreWithBreakdown,
   generateTasksForCase,
   sortTasksByPriority,
   filterTasksByRole,
