@@ -127,6 +127,42 @@ export const DEBUG_PRESETS = {
     proximityMiles: 0.5,
     healthCondition: 'NONE',
   },
+  'rainy_day': {
+    name: 'Rainy Day',
+    description: 'Focus on indoor tasks, pets seek shelter',
+    hoursMissing: 12,
+    simulatedHour: 14,
+    petType: 'CAT',
+    isIndoor: false,
+    role: 'BOTH',
+    proximityMiles: 1,
+    weather: 'RAIN',
+    healthCondition: 'NONE',
+  },
+  'snow_tracking': {
+    name: 'Snow - Track Prints',
+    description: 'Fresh snow allows tracking!',
+    hoursMissing: 6,
+    simulatedHour: 8,
+    petType: 'DOG',
+    petSize: 'MEDIUM',
+    role: 'BOTH',
+    proximityMiles: 0.5,
+    weather: 'SNOW',
+    healthCondition: 'NONE',
+  },
+  'extreme_cold': {
+    name: 'Extreme Cold Emergency',
+    description: 'Dangerous weather, high urgency',
+    hoursMissing: 4,
+    simulatedHour: 10,
+    petType: 'CAT',
+    isIndoor: true,
+    role: 'OWNER',
+    proximityMiles: 0.3,
+    weather: 'EXTREME_COLD',
+    healthCondition: 'NONE',
+  },
 };
 
 export function DebugProvider({ children, isAdmin = false }) {
@@ -172,6 +208,10 @@ export function DebugProvider({ children, isAdmin = false }) {
     // Task history override for diminishing returns (NEW)
     useRealHistory: true,
     repeatTaskCount: 0, // How many times this task type was completed
+
+    // Weather override (NEW)
+    useRealWeather: true,
+    weather: 'CLEAR', // CLEAR, CLOUDY, RAIN, HEAVY_RAIN, SNOW, EXTREME_COLD, EXTREME_HEAT, WINDY
 
     // Microchip override
     useRealMicrochip: true,
@@ -222,6 +262,9 @@ export function DebugProvider({ children, isAdmin = false }) {
       useRealSightings: preset.sightingHoursAgo === undefined,
       sightingHoursAgo: preset.sightingHoursAgo ?? 2,
       sightingMilesAway: preset.sightingMilesAway ?? 0.5,
+      // Weather override if present
+      useRealWeather: preset.weather === undefined,
+      weather: preset.weather || 'CLEAR',
     }));
   }, []);
 
@@ -237,6 +280,7 @@ export function DebugProvider({ children, isAdmin = false }) {
       useRealHealth: true,
       useRealSightings: true,
       useRealHistory: true,
+      useRealWeather: true,
       useRealMicrochip: true,
       useRealTemperament: true,
     }));
@@ -300,6 +344,11 @@ export function DebugProvider({ children, isAdmin = false }) {
       }
       effective.completedTasks = completedTasks;
       effective.simulatedRepeatCount = overrides.repeatTaskCount;
+    }
+
+    // Weather override
+    if (!overrides.useRealWeather) {
+      effective.weather = overrides.weather;
     }
 
     return effective;

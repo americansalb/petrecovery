@@ -102,6 +102,104 @@ export const DIMINISHING_RETURNS = {
 };
 
 // =============================================================================
+// WEATHER CONFIGURATION
+// =============================================================================
+
+export const WEATHER_EFFECTS = {
+  // Weather conditions and their impact on tasks
+  CLEAR: {
+    searchBonus: 20,      // Good visibility, boost searches
+    outdoorBonus: 10,
+    description: 'Clear weather - ideal for searching',
+  },
+  CLOUDY: {
+    searchBonus: 10,
+    outdoorBonus: 5,
+    description: 'Cloudy - good for searching',
+  },
+  RAIN: {
+    searchBonus: -30,     // Poor visibility, wet conditions
+    outdoorBonus: -40,
+    indoorBonus: 20,      // Push indoor/phone tasks
+    shelterBonus: 30,     // Pets seek shelter in rain
+    description: 'Rain - focus on indoor tasks, pets may seek shelter',
+  },
+  HEAVY_RAIN: {
+    searchBonus: -60,
+    outdoorBonus: -80,
+    indoorBonus: 40,
+    shelterBonus: 50,
+    description: 'Heavy rain - stay inside, call shelters',
+  },
+  SNOW: {
+    searchBonus: -40,
+    outdoorBonus: -50,
+    trackingBonus: 40,    // Can see tracks in snow!
+    urgencyMultiplier: 1.3, // More dangerous for pets
+    description: 'Snow - tracking possible, increased urgency',
+  },
+  EXTREME_COLD: {
+    searchBonus: -20,
+    outdoorBonus: -30,
+    urgencyMultiplier: 1.5, // Very dangerous
+    shelterBonus: 40,
+    description: 'Extreme cold - high urgency, check warm spots',
+  },
+  EXTREME_HEAT: {
+    searchBonus: -20,
+    outdoorBonus: -30,
+    urgencyMultiplier: 1.4,
+    earlyMorningBonus: 30, // Search early before heat
+    description: 'Extreme heat - search early morning/evening',
+  },
+  WINDY: {
+    searchBonus: -10,
+    scentBonus: -20,       // Wind disperses scent trails
+    description: 'Windy - scent-based methods less effective',
+  },
+};
+
+// Tasks affected by weather
+export const WEATHER_TASK_CATEGORIES = {
+  OUTDOOR_SEARCH: ['search_area', 'dawn_search', 'dusk_search', 'knock_doors', 'post_flyers'],
+  INDOOR_TASKS: ['search_inside', 'call_shelter', 'call_vet', 'notify_microchip', 'share_case'],
+  NIGHT_TASKS: ['night_flashlight', 'setup_camera'],
+  SCENT_BASED: ['litter_outside', 'scent_clothes'],
+  SHELTER_RELATED: ['call_shelter', 'call_vet', 'check_hiding', 'humane_trap'],
+};
+
+// =============================================================================
+// TASK DEPENDENCIES
+// =============================================================================
+
+export const TASK_DEPENDENCIES = {
+  // Task ID -> array of tasks that should be done first
+  humane_trap: ['search_inside', 'check_hiding'], // Try finding first before trapping
+  post_flyers: ['search_area'],                   // Search before posting flyers
+  call_shelter: ['notify_microchip'],             // Register microchip first
+  knock_doors: ['search_area'],                   // Search yourself first
+  share_case: ['scent_clothes', 'litter_outside'], // Set up scent items before going wide
+};
+
+// Bonus for completing prerequisite tasks
+export const DEPENDENCY_BONUS = {
+  ALL_COMPLETE: 30,    // All prerequisites done
+  SOME_COMPLETE: 15,   // Some prerequisites done
+  NONE_COMPLETE: -20,  // Should do prerequisites first
+};
+
+// =============================================================================
+// GEOGRAPHIC CLUSTERING
+// =============================================================================
+
+export const CLUSTERING_CONFIG = {
+  // If user is within this distance of multiple tasks, boost them together
+  CLUSTER_RADIUS_MILES: 0.5,
+  CLUSTER_BONUS_PER_NEARBY: 10,  // +10 for each nearby task
+  MAX_CLUSTER_BONUS: 40,
+};
+
+// =============================================================================
 // ACTION DEFINITIONS
 // =============================================================================
 
@@ -442,6 +540,27 @@ export function calculatePriorityScore(task, caseData, context = {}) {
     score += calculateDiminishingReturns(task, context.completedTasks, now);
   }
 
+  // ==========================================================================
+  // WEATHER AWARENESS - Adjust based on current conditions
+  // ==========================================================================
+  if (context.weather) {
+    score += calculateWeatherBonus(task, context.weather, currentHour);
+  }
+
+  // ==========================================================================
+  // TASK DEPENDENCIES - Boost tasks whose prerequisites are complete
+  // ==========================================================================
+  if (context.completedTasks?.length > 0) {
+    score += calculateDependencyBonus(task, context.completedTasks);
+  }
+
+  // ==========================================================================
+  // GEOGRAPHIC CLUSTERING - Boost tasks near other pending tasks
+  // ==========================================================================
+  if (context.allTasks?.length > 0 && task.latitude && task.longitude) {
+    score += calculateClusterBonus(task, context.allTasks);
+  }
+
   return Math.max(0, score);
 }
 
@@ -716,10 +835,59 @@ export function calculatePriorityScoreWithBreakdown(task, caseData, context = {}
     }
   }
 
+  // ==========================================================================
+  // WEATHER AWARENESS
+  // ==========================================================================
+  let weatherBonus = 0;
+  if (context.weather) {
+    const weatherResult = calculateWeatherBonusWithDetails(task, context.weather, currentHour);
+    weatherBonus = weatherResult.bonus;
+    if (weatherBonus !== 0) {
+      breakdown.push({
+        label: 'Weather',
+        value: weatherBonus,
+        description: weatherResult.description,
+      });
+    }
+  }
+
+  // ==========================================================================
+  // TASK DEPENDENCIES
+  // ==========================================================================
+  let dependencyBonus = 0;
+  if (context.completedTasks?.length > 0) {
+    const depResult = calculateDependencyBonusWithDetails(task, context.completedTasks);
+    dependencyBonus = depResult.bonus;
+    if (dependencyBonus !== 0) {
+      breakdown.push({
+        label: 'Prerequisites',
+        value: dependencyBonus,
+        description: depResult.description,
+      });
+    }
+  }
+
+  // ==========================================================================
+  // GEOGRAPHIC CLUSTERING
+  // ==========================================================================
+  let clusterBonus = 0;
+  if (context.allTasks?.length > 0 && task.latitude && task.longitude) {
+    const clusterResult = calculateClusterBonusWithDetails(task, context.allTasks);
+    clusterBonus = clusterResult.bonus;
+    if (clusterBonus > 0) {
+      breakdown.push({
+        label: 'Nearby tasks',
+        value: clusterBonus,
+        description: clusterResult.description,
+      });
+    }
+  }
+
   // Calculate total
   const total = basePriority + timeUrgencyBonus + timeOfDayBonus + shelterBonus +
     statusPenalty + proximityBonus + phaseBonus + petTypePenalty + needsHelpBonus +
-    sightingBoost + petSpecificBonus + healthBonus + diminishingPenalty;
+    sightingBoost + petSpecificBonus + healthBonus + diminishingPenalty +
+    weatherBonus + dependencyBonus + clusterBonus;
 
   return {
     score: Math.max(0, total),
@@ -1230,6 +1398,189 @@ function getTaskCategory(actionId) {
   return null;
 }
 
+// =============================================================================
+// WEATHER HELPERS
+// =============================================================================
+
+/**
+ * Calculate weather-based bonus for a task
+ */
+function calculateWeatherBonus(task, weather, currentHour) {
+  return calculateWeatherBonusWithDetails(task, weather, currentHour).bonus;
+}
+
+/**
+ * Calculate weather bonus with explanation
+ */
+function calculateWeatherBonusWithDetails(task, weather, currentHour) {
+  if (!weather) return { bonus: 0, description: 'No weather data' };
+
+  const weatherConfig = WEATHER_EFFECTS[weather] || WEATHER_EFFECTS.CLEAR;
+  let bonus = 0;
+  let reasons = [];
+  const taskId = task.actionId;
+
+  // Check if task is in specific categories
+  const isOutdoorSearch = WEATHER_TASK_CATEGORIES.OUTDOOR_SEARCH.includes(taskId);
+  const isIndoorTask = WEATHER_TASK_CATEGORIES.INDOOR_TASKS.includes(taskId);
+  const isScentBased = WEATHER_TASK_CATEGORIES.SCENT_BASED.includes(taskId);
+  const isShelterRelated = WEATHER_TASK_CATEGORIES.SHELTER_RELATED.includes(taskId);
+  const isNightTask = WEATHER_TASK_CATEGORIES.NIGHT_TASKS.includes(taskId);
+
+  // Apply outdoor search bonus/penalty
+  if (isOutdoorSearch && weatherConfig.searchBonus) {
+    bonus += weatherConfig.searchBonus;
+    if (weatherConfig.searchBonus > 0) {
+      reasons.push('Good search weather');
+    } else {
+      reasons.push('Poor search conditions');
+    }
+  }
+
+  // Apply outdoor bonus/penalty
+  if (isOutdoorSearch && weatherConfig.outdoorBonus) {
+    bonus += weatherConfig.outdoorBonus;
+  }
+
+  // Apply indoor bonus
+  if (isIndoorTask && weatherConfig.indoorBonus) {
+    bonus += weatherConfig.indoorBonus;
+    reasons.push('Focus on indoor tasks');
+  }
+
+  // Apply shelter bonus (pets seek shelter in bad weather)
+  if (isShelterRelated && weatherConfig.shelterBonus) {
+    bonus += weatherConfig.shelterBonus;
+    reasons.push('Pets seek shelter');
+  }
+
+  // Apply scent penalty in wind
+  if (isScentBased && weatherConfig.scentBonus) {
+    bonus += weatherConfig.scentBonus;
+    reasons.push('Wind affects scent');
+  }
+
+  // Snow tracking bonus
+  if (weather === 'SNOW' && (taskId === 'search_area' || taskId === 'dawn_search')) {
+    bonus += weatherConfig.trackingBonus || 0;
+    reasons.push('Can track in snow!');
+  }
+
+  // Early morning bonus in extreme heat
+  if (weather === 'EXTREME_HEAT' && currentHour >= 5 && currentHour <= 8) {
+    if (isOutdoorSearch) {
+      bonus += weatherConfig.earlyMorningBonus || 0;
+      reasons.push('Early - before heat');
+    }
+  }
+
+  return {
+    bonus,
+    description: reasons.length > 0 ? reasons.join(', ') : weatherConfig.description,
+  };
+}
+
+// =============================================================================
+// TASK DEPENDENCY HELPERS
+// =============================================================================
+
+/**
+ * Calculate dependency bonus
+ */
+function calculateDependencyBonus(task, completedTasks) {
+  return calculateDependencyBonusWithDetails(task, completedTasks).bonus;
+}
+
+/**
+ * Calculate dependency bonus with explanation
+ */
+function calculateDependencyBonusWithDetails(task, completedTasks) {
+  const dependencies = TASK_DEPENDENCIES[task.actionId];
+
+  // No dependencies for this task
+  if (!dependencies || dependencies.length === 0) {
+    return { bonus: 0, description: 'No prerequisites' };
+  }
+
+  // Check which dependencies are complete
+  const completedActionIds = new Set(completedTasks.map(t => t.actionId));
+  const completedDeps = dependencies.filter(dep => completedActionIds.has(dep));
+
+  if (completedDeps.length === dependencies.length) {
+    return {
+      bonus: DEPENDENCY_BONUS.ALL_COMPLETE,
+      description: `All ${dependencies.length} prerequisites done`,
+    };
+  } else if (completedDeps.length > 0) {
+    return {
+      bonus: DEPENDENCY_BONUS.SOME_COMPLETE,
+      description: `${completedDeps.length}/${dependencies.length} prerequisites done`,
+    };
+  } else {
+    return {
+      bonus: DEPENDENCY_BONUS.NONE_COMPLETE,
+      description: `Do ${dependencies.join(', ')} first`,
+    };
+  }
+}
+
+// =============================================================================
+// GEOGRAPHIC CLUSTERING HELPERS
+// =============================================================================
+
+/**
+ * Calculate cluster bonus
+ */
+function calculateClusterBonus(task, allTasks) {
+  return calculateClusterBonusWithDetails(task, allTasks).bonus;
+}
+
+/**
+ * Calculate cluster bonus with explanation
+ */
+function calculateClusterBonusWithDetails(task, allTasks) {
+  if (!task.latitude || !task.longitude || !allTasks || allTasks.length === 0) {
+    return { bonus: 0, description: 'No location data' };
+  }
+
+  // Count nearby pending tasks (not completed, not this task)
+  let nearbyCount = 0;
+  const nearbyTasks = [];
+
+  for (const otherTask of allTasks) {
+    // Skip self and completed tasks
+    if (otherTask.id === task.id) continue;
+    if (otherTask.status === 'COMPLETED' || otherTask.status === 'IN_PROGRESS') continue;
+    if (!otherTask.latitude || !otherTask.longitude) continue;
+
+    const distance = calculateDistance(
+      task.latitude,
+      task.longitude,
+      otherTask.latitude,
+      otherTask.longitude
+    );
+
+    if (distance <= CLUSTERING_CONFIG.CLUSTER_RADIUS_MILES) {
+      nearbyCount++;
+      nearbyTasks.push(otherTask.actionId);
+    }
+  }
+
+  if (nearbyCount === 0) {
+    return { bonus: 0, description: 'No nearby tasks' };
+  }
+
+  const bonus = Math.min(
+    nearbyCount * CLUSTERING_CONFIG.CLUSTER_BONUS_PER_NEARBY,
+    CLUSTERING_CONFIG.MAX_CLUSTER_BONUS
+  );
+
+  return {
+    bonus,
+    description: `${nearbyCount} task${nearbyCount > 1 ? 's' : ''} within ${CLUSTERING_CONFIG.CLUSTER_RADIUS_MILES}mi`,
+  };
+}
+
 /**
  * Generate "Why this is #1" explanation for a task
  */
@@ -1314,6 +1665,11 @@ export default {
   HEALTH_URGENCY,
   SIGHTING_BOOST,
   DIMINISHING_RETURNS,
+  WEATHER_EFFECTS,
+  WEATHER_TASK_CATEGORIES,
+  TASK_DEPENDENCIES,
+  DEPENDENCY_BONUS,
+  CLUSTERING_CONFIG,
   calculatePriorityScore,
   calculatePriorityScoreWithBreakdown,
   generateTasksForCase,

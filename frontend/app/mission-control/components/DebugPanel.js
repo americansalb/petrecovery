@@ -27,6 +27,12 @@ import {
   Crosshair,
   History,
   AlertTriangle,
+  Cloud,
+  CloudRain,
+  CloudSnow,
+  Sun,
+  Wind,
+  Thermometer,
 } from 'lucide-react';
 import { useDebug, DEBUG_PRESETS } from '@/app/lib/missionControl/debugContext';
 import { ACTION_TYPES } from '@/app/lib/missionControl/taskPriority';
@@ -530,6 +536,52 @@ export default function DebugPanel({ selectedTask, scoreBreakdown }) {
           )}
         </Section>
 
+        {/* Weather Override */}
+        <Section
+          title="Weather"
+          icon={getWeatherIcon(overrides.weather)}
+          isOpen={activeSection === 'weather'}
+          onToggle={() => setActiveSection(activeSection === 'weather' ? '' : 'weather')}
+        >
+          <ToggleRow
+            label="Use real weather"
+            checked={overrides.useRealWeather}
+            onChange={(v) => updateOverride('useRealWeather', v)}
+          />
+          {!overrides.useRealWeather && (
+            <div className="mt-2">
+              <label className="text-xs text-gray-400">Weather Condition</label>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {[
+                  { id: 'CLEAR', label: 'Clear', icon: <Sun size={14} /> },
+                  { id: 'CLOUDY', label: 'Cloudy', icon: <Cloud size={14} /> },
+                  { id: 'RAIN', label: 'Rain', icon: <CloudRain size={14} /> },
+                  { id: 'HEAVY_RAIN', label: 'Heavy Rain', icon: <CloudRain size={14} /> },
+                  { id: 'SNOW', label: 'Snow', icon: <CloudSnow size={14} /> },
+                  { id: 'WINDY', label: 'Windy', icon: <Wind size={14} /> },
+                  { id: 'EXTREME_COLD', label: 'Extreme Cold', icon: <Thermometer size={14} /> },
+                  { id: 'EXTREME_HEAT', label: 'Extreme Heat', icon: <Thermometer size={14} /> },
+                ].map(w => (
+                  <button
+                    key={w.id}
+                    onClick={() => updateOverride('weather', w.id)}
+                    className={`p-2 rounded text-xs font-medium flex items-center gap-1 transition-colors ${
+                      overrides.weather === w.id
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    {w.icon} {w.label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 p-2 bg-gray-800 rounded text-xs text-gray-300">
+                {getWeatherDescription(overrides.weather)}
+              </div>
+            </div>
+          )}
+        </Section>
+
         {/* Score Breakdown */}
         {selectedTask && scoreBreakdown && (
           <Section
@@ -678,4 +730,32 @@ function getRepeatPenalty(count) {
   if (count === 2) return '-50';
   if (count === 1) return '-20';
   return '+0';
+}
+
+function getWeatherIcon(weather) {
+  switch (weather) {
+    case 'CLEAR': return <Sun size={16} />;
+    case 'CLOUDY': return <Cloud size={16} />;
+    case 'RAIN':
+    case 'HEAVY_RAIN': return <CloudRain size={16} />;
+    case 'SNOW': return <CloudSnow size={16} />;
+    case 'WINDY': return <Wind size={16} />;
+    case 'EXTREME_COLD':
+    case 'EXTREME_HEAT': return <Thermometer size={16} />;
+    default: return <Sun size={16} />;
+  }
+}
+
+function getWeatherDescription(weather) {
+  const descriptions = {
+    CLEAR: 'Clear weather - ideal for searching (+20 outdoor)',
+    CLOUDY: 'Cloudy - good for searching (+10 outdoor)',
+    RAIN: 'Rain - focus on calls & indoor tasks (-30 outdoor, +20 indoor)',
+    HEAVY_RAIN: 'Heavy rain - stay inside, call shelters (-60 outdoor, +40 indoor)',
+    SNOW: 'Snow - can track footprints! (+40 tracking, -40 outdoor)',
+    WINDY: 'Windy - scent-based methods less effective (-20 scent)',
+    EXTREME_COLD: 'Extreme cold - high urgency, check warm spots (1.5x urgency)',
+    EXTREME_HEAT: 'Extreme heat - search early morning/evening (1.4x urgency)',
+  };
+  return descriptions[weather] || 'Select weather condition';
 }
