@@ -1,0 +1,392 @@
+'use client';
+
+/**
+ * useMissionControl - Central state management hook
+ *
+ * Consolidates all mission control state and logic:
+ * - Mission fetching and switching
+ * - Sightings management
+ * - GPS tracking
+ * - Tasks management
+ * - Team data
+ * - UI state (modals, tabs, etc.)
+ *
+ * All features preserved from MissionControlV3.
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { fetchWithRetry, formatErrorMessage, isOnline } from '@/app/lib/utils';
+
+export default function useMissionControl(session) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const missionId = searchParams.get('mission');
+
+  // ============================================================
+  // MISSION STATE
+  // ============================================================
+  const [activeMission, setActiveMission] = useState(null);
+  const [availableMissions, setAvailableMissions] = useState([]);
+  const [currentMissionIndex, setCurrentMissionIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [switching, setSwitching] = useState(false);
+  const [error, setError] = useState(null);
+
+  // ============================================================
+  // UI STATE
+  // ============================================================
+  const [activeTab, setActiveTab] = useState('overview');
+  const [showMissionsModal, setShowMissionsModal] = useState(false);
+  const [showWaiverModal, setShowWaiverModal] = useState(false);
+  const [showSightingForm, setShowSightingForm] = useState(false);
+  const [showCustomActionModal, setShowCustomActionModal] = useState(false);
+
+  // ============================================================
+  // DATA STATE
+  // ============================================================
+  const [sightings, setSightings] = useState([]);
+  const [team, setTeam] = useState([]);
+  const [gpsPath, setGpsPath] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [isGPSTracking, setIsGPSTracking] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [expandedCategories, setExpandedCategories] = useState(['immediate']);
+
+  // ============================================================
+  // FETCH FUNCTIONS
+  // ============================================================
+
+  // Fetch available missions for current user
+  const fetchAvailableMissions = useCallback(async () => {
+    try {
+      if (!session?.user) return;
+      const res = await fetchWithRetry('/api/cases/my-missions');
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableMissions(data.missions || []);
+      }
+    } catch (err) {
+      console.error('Error fetching available missions:', err);
+    }
+  }, [session]);
+
+  // Fetch specific mission by ID
+  const fetchMission = useCallback(async (id) => {
+    if (!id) return;
+    setSwitching(true);
+    setError(null);
+
+    try {
+      if (!isOnline()) {
+        setError('You are offline. Please check your internet connection.');
+        setSwitching(false);
+        setLoading(false);
+        return;
+      }
+
+      const res = await fetchWithRetry(`/api/cases/${id}`);
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          throw new Error('Mission not found');
+        } else if (res.status === 403) {
+          let errorData = null;
+          try {
+            errorData = await res.json();
+          } catch (e) {}
+          if (!errorData || errorData.code === 'WAIVER_NOT_ACCEPTED' || errorData.message?.includes('waiver')) {
+            setShowWaiverModal(true);
+            setSwitching(false);
+            setLoading(false);
+            return;
+          }
+          throw new Error(errorData?.message || 'Permission denied');
+        }
+        throw new Error(`Failed to load mission (${res.status})`);
+      }
+
+      const data = await res.json();
+      setActiveMission(data);
+
+      // Extract team from assignments
+      if (data.assignments?.length > 0) {
+        const allParticipants = data.assignments.flatMap(a =>
+          a.participants?.map(p => ({
+            id: p.id,
+            odp: p.userId,
+            name: `${p.user.firstName} ${p.user.lastName || ''}`.trim(),
+            firstName: p.user.firstName,
+            lastName: p.user.lastName,
+            isActive: p.isActive !== false,
+          })) || []
+        );
+        const unique = Array.from(new Map(allParticipants.map(p => [p.userId, p])).values());
+        setTeam(unique);
+      } else {
+        setTeam([]);
+      }
+
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching mission:', err);
+      setError(formatErrorMessage(err));
+    } finally {
+      setSwitching(false);
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch sightings for active mission
+  const fetchSightings = useCallback(async () => {
+    if (!activeMission?.id) return;
+    try {
+      const res = await fetch(`/api/cases/${activeMission.id}/sightings`);
+      if (res.ok) {
+        const data = await res.json();
+        setSightings(data.sightings || []);
+      }
+    } catch (err) {
+      console.error('Error fetching sightings:', err);
+    }
+  }, [activeMission?.id]);
+
+  // ============================================================
+  // LOCAL STORAGE - GPS and Tasks
+  // ============================================================
+
+  // Load GPS path and tasks from localStorage
+  useEffect(() => {
+    if (!activeMission?.id) return;
+    const storageKey = `case_${activeMission.id}_gps`;
+    const tasksKey = `case_${activeMission.id}_tasks`;
+
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try { setGpsPath(JSON.parse(saved)); } catch (e) {}
+    }
+
+    const savedTasks = localStorage.getItem(tasksKey);
+    if (savedTasks) {
+      try { setTasks(JSON.parse(savedTasks)); } catch (e) {}
+    }
+  }, [activeMission?.id]);
+
+  // Save GPS path to localStorage
+  useEffect(() => {
+    if (!activeMission?.id || gpsPath.length === 0) return;
+    localStorage.setItem(`case_${activeMission.id}_gps`, JSON.stringify(gpsPath));
+  }, [gpsPath, activeMission?.id]);
+
+  // Save tasks to localStorage
+  useEffect(() => {
+    if (!activeMission?.id || tasks.length === 0) return;
+    localStorage.setItem(`case_${activeMission.id}_tasks`, JSON.stringify(tasks));
+  }, [tasks, activeMission?.id]);
+
+  // ============================================================
+  // INITIAL LOAD EFFECTS
+  // ============================================================
+
+  // Fetch available missions on mount
+  useEffect(() => {
+    fetchAvailableMissions();
+  }, [fetchAvailableMissions]);
+
+  // Load mission when URL changes
+  useEffect(() => {
+    if (missionId) {
+      fetchMission(missionId);
+    } else {
+      setLoading(false);
+      setActiveMission(null);
+    }
+  }, [missionId, fetchMission]);
+
+  // Fetch sightings when mission changes (with polling)
+  useEffect(() => {
+    if (activeMission?.id) {
+      fetchSightings();
+      const interval = setInterval(fetchSightings, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [activeMission?.id, fetchSightings]);
+
+  // Update current mission index when missions or active mission changes
+  useEffect(() => {
+    if (availableMissions.length > 0 && activeMission) {
+      const idx = availableMissions.findIndex(m => m.id === activeMission.id);
+      if (idx >= 0) setCurrentMissionIndex(idx);
+    }
+  }, [availableMissions, activeMission]);
+
+  // ============================================================
+  // NAVIGATION FUNCTIONS
+  // ============================================================
+
+  const goToPrevMission = useCallback(() => {
+    if (availableMissions.length === 0) return;
+    const newIndex = (currentMissionIndex - 1 + availableMissions.length) % availableMissions.length;
+    const newMission = availableMissions[newIndex];
+    router.push(`/mission-control?mission=${newMission.id}`, { scroll: false });
+  }, [availableMissions, currentMissionIndex, router]);
+
+  const goToNextMission = useCallback(() => {
+    if (availableMissions.length === 0) return;
+    const newIndex = (currentMissionIndex + 1) % availableMissions.length;
+    const newMission = availableMissions[newIndex];
+    router.push(`/mission-control?mission=${newMission.id}`, { scroll: false });
+  }, [availableMissions, currentMissionIndex, router]);
+
+  const selectMission = useCallback((selectedMissionId) => {
+    setShowMissionsModal(false);
+    router.push(`/mission-control?mission=${selectedMissionId}`, { scroll: false });
+  }, [router]);
+
+  // ============================================================
+  // ACTION FUNCTIONS
+  // ============================================================
+
+  const handleJoinMission = useCallback(async () => {
+    if (!activeMission) return;
+    try {
+      const squadId = activeMission.rescueSquadId || activeMission.squadId || activeMission.assignments?.[0]?.rescueSquadId;
+      if (!squadId) return;
+
+      const res = await fetchWithRetry(`/api/rescue-squads/${squadId}/cases/${activeMission.id}/help`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (res.ok || (res.status === 400)) {
+        await fetchMission(missionId);
+        await fetchAvailableMissions();
+      }
+    } catch (err) {
+      console.error('Error joining mission:', err);
+    }
+  }, [activeMission, missionId, fetchMission, fetchAvailableMissions]);
+
+  // GPS Tracking
+  const startGPSTracking = useCallback(() => {
+    if (!('geolocation' in navigator)) {
+      alert('GPS not available on this device');
+      return;
+    }
+    setIsGPSTracking(true);
+    setGpsPath([]);
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setGpsPath(prev => [...prev, {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          timestamp: Date.now(),
+        }]);
+      },
+      (error) => {
+        console.error('GPS error:', error);
+        setIsGPSTracking(false);
+        alert('Unable to access GPS. Please check your location permissions.');
+      },
+      { enableHighAccuracy: true, maximumAge: 5000 }
+    );
+    window._gpsWatchId = watchId;
+  }, []);
+
+  const stopGPSTracking = useCallback(() => {
+    if (window._gpsWatchId) {
+      navigator.geolocation.clearWatch(window._gpsWatchId);
+      window._gpsWatchId = null;
+    }
+    setIsGPSTracking(false);
+    if (gpsPath.length > 0) {
+      alert(`Recorded ${gpsPath.length} GPS points. View your search path on the Map tab.`);
+    }
+  }, [gpsPath.length]);
+
+  // ============================================================
+  // COMPUTED VALUES
+  // ============================================================
+
+  const getTimeMissing = useCallback(() => {
+    if (!activeMission?.lastSeenAt) return null;
+    const hours = Math.floor((Date.now() - new Date(activeMission.lastSeenAt).getTime()) / 3600000);
+    if (hours < 1) return { text: 'Less than 1 hour', hours: 0 };
+    if (hours < 24) return { text: `${hours} hour${hours !== 1 ? 's' : ''}`, hours };
+    const days = Math.floor(hours / 24);
+    return { text: `${days} day${days !== 1 ? 's' : ''} ${hours % 24}h`, hours };
+  }, [activeMission?.lastSeenAt]);
+
+  const timeMissing = getTimeMissing();
+  const isUrgent = timeMissing && timeMissing.hours < 24;
+  const isReunited = activeMission?.status === 'RESOLVED' || activeMission?.resolution === 'REUNITED';
+
+  // Check user status
+  const participants = activeMission?.assignments?.flatMap(a => a.participants || []) || [];
+  const activeParticipants = participants.filter(p => p.isActive !== false);
+  const isDeployed = session && activeParticipants.some(p => p.userId === session.user.id);
+  const isOwner = session && activeMission?.ownerId === session.user.id;
+
+  // ============================================================
+  // RETURN HOOK API
+  // ============================================================
+
+  return {
+    // Mission state
+    activeMission,
+    availableMissions,
+    currentMissionIndex,
+    loading,
+    switching,
+    error,
+    missionId,
+
+    // UI state
+    activeTab,
+    setActiveTab,
+    showMissionsModal,
+    setShowMissionsModal,
+    showWaiverModal,
+    setShowWaiverModal,
+    showSightingForm,
+    setShowSightingForm,
+    showCustomActionModal,
+    setShowCustomActionModal,
+
+    // Data state
+    sightings,
+    team,
+    gpsPath,
+    setGpsPath,
+    tasks,
+    setTasks,
+    isGPSTracking,
+    setIsGPSTracking,
+    selectedTask,
+    setSelectedTask,
+    expandedCategories,
+    setExpandedCategories,
+
+    // Computed values
+    timeMissing,
+    isUrgent,
+    isReunited,
+    isDeployed,
+    isOwner,
+    activeParticipants,
+
+    // Actions
+    fetchMission,
+    fetchAvailableMissions,
+    fetchSightings,
+    goToPrevMission,
+    goToNextMission,
+    selectMission,
+    handleJoinMission,
+    startGPSTracking,
+    stopGPSTracking,
+
+    // Router
+    router,
+  };
+}
