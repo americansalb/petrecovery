@@ -65,6 +65,7 @@ export async function POST(request) {
 
 /**
  * Fetch shelters from PetFinder and save to database
+ * IMPORTANT: Never overwrites Apple MapKit data - only adds missing fields
  */
 async function fetchSheltersFromPetFinder(city, state) {
   const location = `${city}, ${state}`;
@@ -80,6 +81,7 @@ async function fetchSheltersFromPetFinder(city, state) {
     created: 0,
     updated: 0,
     skipped: 0,
+    protected: 0, // Apple MapKit records we didn't touch
     total: organizations.length,
     city,
     state,
@@ -110,18 +112,33 @@ async function fetchSheltersFromPetFinder(city, state) {
       });
 
       if (existing) {
+        // NEVER overwrite Apple MapKit sourced shelters
+        if (existing.source === 'APPLE_MAPKIT') {
+          // Only add petfinderId if missing (for cross-reference)
+          if (!existing.petfinderId) {
+            await prisma.shelter.update({
+              where: { id: existing.id },
+              data: { petfinderId: org.externalId },
+            });
+          }
+          results.protected++;
+          continue;
+        }
+
+        // For non-Apple records, only fill in MISSING fields (never overwrite)
         await prisma.shelter.update({
           where: { id: existing.id },
           data: {
-            petfinderId: org.externalId,
-            phone: org.phone || existing.phone,
-            email: org.email || existing.email,
-            website: org.website || existing.website,
+            petfinderId: existing.petfinderId || org.externalId,
+            phone: existing.phone || org.phone,
+            email: existing.email || org.email,
+            website: existing.website || org.website,
             fetchedAt: new Date(),
           },
         });
         results.updated++;
       } else {
+        // Create new shelter (only if no Apple record exists)
         await prisma.shelter.create({
           data: {
             petfinderId: org.externalId,
