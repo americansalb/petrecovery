@@ -92,11 +92,40 @@ Paste the mermaid blocks into https://mermaid.live to visualize.
 
 ### Task States
 ```
-⚪ AVAILABLE    → Anyone can claim it
-🟡 IN_PROGRESS  → Someone's working on it (shows who + duration)
-✅ COMPLETED    → Done (shows who + when + result)
-🔴 BLOCKED      → Can't do yet (e.g., shelter closed, waiting on owner)
+⚪ AVAILABLE      → Anyone can start it
+🟡 IN_PROGRESS    → Someone's working on it (shows who + duration)
+🟡 NEEDS_HELP     → Someone's on it but wants backup
+✅ COMPLETED      → Done (shows who + when + result)
+🔴 BLOCKED        → Can't do yet (e.g., shelter closed)
 ```
+
+### Task Collaboration
+```
+┌─────────────────────────────────────────────────┐
+│  🟡 Search Oak Park area                        │
+│                                                 │
+│  Currently working on this:                     │
+│  • Mike (started 10m ago)                       │
+│  • Sarah (joined 5m ago)                        │
+│                                                 │
+│  ┌─────────────────────────────────────────┐   │
+│  │     👋 JOIN THIS TASK                    │   │
+│  │     (help them search)                  │   │
+│  └─────────────────────────────────────────┘   │
+│                                                 │
+│  ┌─────────────────────────────────────────┐   │
+│  │     🆘 I NEED HELP                       │   │
+│  │     (alert others you want backup)      │   │
+│  └─────────────────────────────────────────┘   │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+Key rules:
+- Multiple people CAN work on same task
+- "I need help" flag alerts others
+- Shows who's currently working + how long
+- Still prevents truly duplicate work (e.g., calling same shelter twice)
 
 ### Priority Algorithm (simplified)
 ```
@@ -107,6 +136,116 @@ score = base_priority
       + proximity_bonus         (user is nearby = +20)
       - already_in_progress     (someone on it = -1000)
       - recently_completed      (done <4hrs ago = -500)
+```
+
+---
+
+## Google Places API Strategy - Shelter Data
+
+### When to Fetch
+```
+IF (city has NO shelter data) OR (shelter data > 1 year old):
+    → Fetch from Google Places API
+    → Store in our database
+    → Show "Last updated: [date]" to users
+ELSE:
+    → Use cached data from our database
+```
+
+### What to Fetch
+For each lost pet case location:
+1. Get the city the pet was lost in
+2. Get ALL cities within 1 mile of that city's borders
+3. Fetch all animal shelters in those cities
+
+### API Call Breakdown
+```
+┌────────────────────────────────────────────────────────────┐
+│  GOOGLE PLACES API - NEARBY SEARCH                         │
+├────────────────────────────────────────────────────────────┤
+│  1 call = up to 20 results (paginated)                     │
+│  Max radius = 50km per search                              │
+│  Cost = $32 per 1,000 requests                             │
+│                                                            │
+│  For large city (e.g., Chicago):                           │
+│  • ~10-20 search calls to cover metro grid                 │
+│  • Returns ~200-500 shelter results                        │
+└────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────┐
+│  GOOGLE PLACES API - PLACE DETAILS                         │
+├────────────────────────────────────────────────────────────┤
+│  1 call per place = phone, hours, website, reviews         │
+│  Cost = $17 per 1,000 requests                             │
+│                                                            │
+│  For large city (e.g., Chicago):                           │
+│  • ~200-500 detail calls (one per shelter found)           │
+└────────────────────────────────────────────────────────────┘
+```
+
+### Cost Estimate
+```
+Single large metro (Chicago/LA/NYC):
+  Search calls:    ~20      = $0.64
+  Detail calls:    ~500     = $8.50
+  Total:           ~$10-15 per major metro
+
+Entire United States (one-time scrape):
+  Estimated shelters:  50,000 - 100,000
+  Search calls:        ~5,000
+  Detail calls:        ~100,000
+  Total:               ~$2,000 - $5,000
+
+Annual refresh:        ~$2,000 - $5,000/year
+
+VERDICT: Very affordable for nationwide coverage
+```
+
+### Data to Store (per shelter)
+```sql
+CREATE TABLE shelters (
+  id              UUID PRIMARY KEY,
+  google_place_id VARCHAR(255) UNIQUE,
+  name            VARCHAR(255) NOT NULL,
+  phone           VARCHAR(50),
+  email           VARCHAR(255),
+  website         VARCHAR(500),
+  address         TEXT,
+  city            VARCHAR(100),
+  state           VARCHAR(50),
+  zip             VARCHAR(20),
+  latitude        DECIMAL(10, 8),
+  longitude       DECIMAL(11, 8),
+  hours           JSONB,           -- {"monday": "9am-5pm", ...}
+  types           VARCHAR[],       -- ["animal_shelter", "veterinary_care"]
+  rating          DECIMAL(2, 1),
+  accepts_strays  BOOLEAN,
+  fetched_at      TIMESTAMP NOT NULL,
+  verified_at     TIMESTAMP,       -- manual verification date
+
+  -- Indexes for fast lookup
+  INDEX idx_city (city, state),
+  INDEX idx_location (latitude, longitude)
+);
+```
+
+### Fetch Strategy
+```
+1. User creates case in Austin, TX
+2. System checks: Do we have Austin shelter data < 1 year old?
+
+   NO → Trigger background job:
+        a. Get Austin city boundaries
+        b. Get neighboring cities within 1 mile
+        c. For each city, search "animal shelter" + "animal rescue"
+        d. For each result, get Place Details
+        e. Store in database
+        f. Mark as fetched_at = NOW()
+
+   YES → Use cached data
+
+3. Show shelters sorted by distance from pet's last seen location
+4. Display "Data last updated: March 2025" on each shelter
 ```
 
 ---
