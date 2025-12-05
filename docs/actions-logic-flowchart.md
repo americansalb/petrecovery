@@ -4,6 +4,117 @@ Paste the mermaid blocks into https://mermaid.live to visualize.
 
 ---
 
+## Role-Based Split (CRITICAL)
+
+```mermaid
+flowchart TD
+    START([User Opens Actions Tab]) --> ROLE{User Role?}
+
+    ROLE -->|Owner| OWNER_PATH[Owner Actions Path]
+    ROLE -->|Squad Member| SQUAD_PATH[Squad Actions Path]
+
+    OWNER_PATH --> OWNER_DESC[Owner has:<br/>- Access to home<br/>- Pet's belongings<br/>- Microchip info<br/>- Knowledge of pet's habits<br/>- Decision-making authority]
+
+    SQUAD_PATH --> SQUAD_DESC[Squad can:<br/>- Search assigned areas<br/>- Distribute flyers<br/>- Call shelters on behalf<br/>- Knock on doors<br/>- Report sightings]
+
+    OWNER_DESC --> OWNER_PHASE{Check Phase}
+    SQUAD_DESC --> SQUAD_PHASE{Check Phase}
+```
+
+---
+
+## Owner vs Squad - Action Ownership
+
+| Action | Owner | Squad | Notes |
+|--------|:-----:|:-----:|-------|
+| Search inside home | ✅ | ❌ | Only owner has access |
+| Put litter box outside | ✅ | ❌ | Owner has the litter box |
+| Leave scent items outside | ✅ | ❌ | Owner's scent matters |
+| Set up camera at home | ✅ | ❌ | Owner's property |
+| Notify microchip company | ✅ | ❌ | Owner has the info |
+| Set humane trap at home | ✅ | ❌ | Owner's property |
+| Call shelters | ✅ | ✅ | Squad can help call |
+| Call vet clinics | ✅ | ✅ | Squad can help call |
+| Physical search | ✅ | ✅ | Coordinate areas |
+| Post flyers | ✅ | ✅ | Owner prints, squad distributes |
+| Knock on doors | ✅ | ✅ | Squad can cover more ground |
+| Alert delivery people | ✅ | ✅ | Anyone can do |
+| Check hiding spots | ✅ | ✅ | Squad checks other areas |
+| Report sighting | ✅ | ✅ | Anyone can report |
+| Share on social media | ✅ | ✅ | More shares = better |
+
+---
+
+## Owner-Specific Flow
+
+```mermaid
+flowchart TD
+    OWNER([Owner Actions]) --> O_CRITICAL{Critical First?}
+
+    O_CRITICAL -->|Health condition| O_URGENT[🚨 Your pet needs medication<br/>Time is critical - expand search NOW]
+    O_CRITICAL -->|New sighting| O_SIGHTING[🏃 Go to sighting location<br/>Bring treats, favorite toy]
+    O_CRITICAL -->|No| O_PHASE{Phase?}
+
+    O_PHASE -->|0-2 hrs| O_P1[Phase 1: YOU must do these]
+    O_PHASE -->|2-24 hrs| O_P2[Phase 2: Home setup + coordination]
+    O_PHASE -->|1+ days| O_P3[Phase 3: Persistence + delegation]
+
+    O_P1 --> O_P1_ACTIONS[1. Search inside thoroughly<br/>2. Search immediate yard<br/>3. Put litter box outside 🐱<br/>4. Leave your worn clothes out<br/>5. Tell immediate neighbors]
+
+    O_P2 --> O_P2_ACTIONS[1. Set up food station + camera<br/>2. Call YOUR microchip company<br/>3. Print flyers from our generator<br/>4. Assign search areas to squad<br/>5. Review squad activity]
+
+    O_P3 --> O_P3_ACTIONS[1. Consider humane trap 🐱<br/>2. Check squad coverage gaps<br/>3. Expand flyer radius<br/>4. Daily shelter follow-up<br/>5. Keep scent items fresh]
+```
+
+---
+
+## Squad Member Flow
+
+```mermaid
+flowchart TD
+    SQUAD([Squad Member Actions]) --> S_CRITICAL{Critical Alert?}
+
+    S_CRITICAL -->|New sighting nearby| S_SIGHTING[🏃 You're closest!<br/>Go check the sighting area]
+    S_CRITICAL -->|Area unassigned| S_ASSIGN[📍 Claim this search area<br/>No one has covered it yet]
+    S_CRITICAL -->|No| S_PHASE{What can you do?}
+
+    S_PHASE --> S_AVAILABLE{Your availability?}
+
+    S_AVAILABLE -->|Can search now| S_SEARCH[🔍 Search Actions]
+    S_AVAILABLE -->|Can make calls| S_CALLS[📞 Call Actions]
+    S_AVAILABLE -->|Can distribute| S_FLYERS[📄 Flyer Actions]
+
+    S_SEARCH --> S_SEARCH_ACTIONS[1. Claim an uncovered area<br/>2. Search systematically<br/>3. Check hiding spots<br/>4. Talk to people you see<br/>5. Log your search when done]
+
+    S_CALLS --> S_CALL_ACTIONS[1. Call assigned shelters<br/>2. Call assigned vet clinics<br/>3. Log results for team<br/>4. Note: Already called today?]
+
+    S_FLYERS --> S_FLYER_ACTIONS[1. Get flyers from owner<br/>2. Claim distribution zone<br/>3. Post in high-traffic spots<br/>4. Log locations posted]
+```
+
+---
+
+## Squad: "What Can I Do Right Now?"
+
+```mermaid
+flowchart TD
+    SQUAD_NOW([Squad: What should I do?]) --> LOCATION{Where are you?}
+
+    LOCATION -->|Near search area| NEAR_SEARCH{Area searched today?}
+    LOCATION -->|Near shelters| NEAR_SHELTER{Shelter called today?}
+    LOCATION -->|At home| AT_HOME[Make calls or share online]
+
+    NEAR_SEARCH -->|No| DO_SEARCH[🔍 SEARCH THIS AREA<br/>You're already here!<br/>Log start → Search → Log end]
+    NEAR_SEARCH -->|Yes, <4hrs ago| MOVE_ON[Move to adjacent uncovered area]
+    NEAR_SEARCH -->|Yes, >4hrs ago| RE_SEARCH[Worth re-checking<br/>Pets move around]
+
+    NEAR_SHELTER -->|No| DO_CALL[📞 CALL THIS SHELTER<br/>Ask about new intakes<br/>Describe the pet<br/>Log the result]
+    NEAR_SHELTER -->|Yes| NEXT_SHELTER[Try next nearest shelter]
+
+    AT_HOME --> SHARE[📱 Share the case<br/>Every share helps]
+```
+
+---
+
 ## Master Flow
 
 ```mermaid
@@ -151,33 +262,6 @@ flowchart TD
 
 ---
 
-## Variables Reference
-
-```mermaid
-flowchart LR
-    subgraph INPUTS[Input Variables]
-        PET_TYPE[Pet Type<br/>Cat / Dog]
-        TIME_MISSING[Time Missing<br/>hours/days]
-        CURRENT_TIME[Current Time<br/>hour of day]
-        INDOOR_OUTDOOR[Indoor/Outdoor<br/>pet lifestyle]
-        TEMPERAMENT[Temperament<br/>Friendly / Skittish]
-        HEALTH[Health Conditions<br/>Needs medication?]
-        MICROCHIP[Microchipped<br/>Yes / No]
-        SIGHTING[Recent Sighting<br/>Location + time]
-        LOCATION[Location Type<br/>Urban/Suburban/Rural]
-        WEATHER[Weather<br/>Affects urgency]
-    end
-
-    subgraph OUTPUTS[Output]
-        NEXT_ACTION[Next Best Action<br/>+ Why<br/>+ How to do it<br/>+ Specific details]
-    end
-
-    INPUTS --> ALGORITHM((Algorithm))
-    ALGORITHM --> OUTPUTS
-```
-
----
-
 ## Backend Data Model
 
 ```mermaid
@@ -237,22 +321,57 @@ erDiagram
 
 ## Action Types Master List
 
-| ID | Action | Pet | Phase | Requires |
-|----|--------|-----|-------|----------|
-| `search_inside` | Search inside home thoroughly | Cat | 1 | - |
-| `search_yard` | Search yard + 3-house radius | Both | 1 | - |
-| `litter_outside` | Put litter box outside | Cat | 1 | - |
-| `scent_clothes` | Leave worn clothes outside | Both | 1 | - |
-| `call_shelters` | Call nearby shelters | Both | 2 | Shelter data |
-| `call_vets` | Call local vet clinics | Both | 2 | Vet data |
-| `notify_microchip` | Notify microchip company | Both | 2 | isMicrochipped |
-| `post_flyers` | Print and post flyers | Both | 2 | Flyer generator |
-| `dawn_search` | Physical search at dawn | Both | 2+ | Time = 5-7am |
-| `dusk_search` | Physical search at dusk | Both | 2+ | Time = 5-8pm |
-| `night_flashlight` | Flashlight search for eye reflection | Cat | 2+ | Time = night |
-| `setup_camera` | Food station with camera | Both | 2 | - |
-| `check_hiding` | Check sheds, garages, under decks | Cat | 2 | - |
-| `alert_delivery` | Alert mail/delivery people | Both | 2 | - |
-| `humane_trap` | Set up humane trap | Cat | 3 | Skittish cat |
-| `expand_flyers` | Expand flyer radius | Both | 3 | - |
-| `check_online` | Check shelter sites, Craigslist | Both | 3+ | - |
+| ID | Action | Pet | Phase | Role | Requires |
+|----|--------|-----|-------|------|----------|
+| `search_inside` | Search inside home thoroughly | Cat | 1 | Owner | - |
+| `search_yard` | Search yard + 3-house radius | Both | 1 | Owner | - |
+| `search_area` | Search assigned area | Both | 1+ | Squad | Claimed area |
+| `litter_outside` | Put litter box outside | Cat | 1 | Owner | - |
+| `scent_clothes` | Leave worn clothes outside | Both | 1 | Owner | - |
+| `call_shelter` | Call specific shelter | Both | 2 | Both | Shelter data |
+| `call_vet` | Call specific vet clinic | Both | 2 | Both | Vet data |
+| `notify_microchip` | Notify microchip company | Both | 2 | Owner | isMicrochipped |
+| `print_flyers` | Print flyers | Both | 2 | Owner | Flyer generator |
+| `post_flyers` | Distribute flyers in zone | Both | 2 | Squad | Flyers from owner |
+| `dawn_search` | Physical search at dawn | Both | 2+ | Both | Time = 5-7am |
+| `dusk_search` | Physical search at dusk | Both | 2+ | Both | Time = 5-8pm |
+| `night_flashlight` | Flashlight search | Cat | 2+ | Both | Time = night |
+| `setup_camera` | Food station with camera | Both | 2 | Owner | At home |
+| `check_hiding` | Check sheds, garages, decks | Cat | 2 | Both | - |
+| `alert_delivery` | Alert mail/delivery people | Both | 2 | Both | - |
+| `knock_doors` | Knock on doors in area | Both | 2 | Squad | Assigned zone |
+| `humane_trap` | Set up humane trap | Cat | 3 | Owner | Skittish cat |
+| `expand_flyers` | Expand flyer radius | Both | 3 | Both | - |
+| `check_online` | Check shelter sites daily | Both | 3+ | Both | - |
+| `review_coverage` | Review squad search coverage | Both | 2+ | Owner | Has squad |
+| `claim_area` | Claim uncovered search area | Both | 1+ | Squad | GPS |
+| `report_sighting` | Report a sighting | Both | Any | Both | - |
+| `share_case` | Share case on social media | Both | Any | Both | - |
+
+---
+
+## Variables Reference (Updated)
+
+```mermaid
+flowchart LR
+    subgraph INPUTS[Input Variables]
+        USER_ROLE[User Role<br/>Owner / Squad]
+        PET_TYPE[Pet Type<br/>Cat / Dog]
+        TIME_MISSING[Time Missing<br/>hours/days]
+        CURRENT_TIME[Current Time<br/>hour of day]
+        INDOOR_OUTDOOR[Indoor/Outdoor<br/>pet lifestyle]
+        TEMPERAMENT[Temperament<br/>Friendly / Skittish]
+        HEALTH[Health Conditions<br/>Needs medication?]
+        MICROCHIP[Microchipped<br/>Yes / No]
+        SIGHTING[Recent Sighting<br/>Location + time]
+        USER_LOCATION[User Location<br/>GPS coordinates]
+        SQUAD_ACTIVITY[Squad Activity<br/>What's been done]
+    end
+
+    subgraph OUTPUTS[Output]
+        NEXT_ACTION[Next Best Action<br/>+ Why this matters<br/>+ Specific instructions<br/>+ Required resources]
+    end
+
+    INPUTS --> ALGORITHM((Role-Based<br/>Algorithm))
+    ALGORITHM --> OUTPUTS
+```
