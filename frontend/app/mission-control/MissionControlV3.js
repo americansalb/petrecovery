@@ -382,18 +382,10 @@ function MissionControlV3Content() {
           <TeamTab
             team={team}
             mission={activeMission}
-            tasks={tasks}
-            setTasks={setTasks}
             gpsPath={gpsPath}
             setGpsPath={setGpsPath}
             isGPSTracking={isGPSTracking}
             setIsGPSTracking={setIsGPSTracking}
-            expandedCategories={expandedCategories}
-            setExpandedCategories={setExpandedCategories}
-            selectedTask={selectedTask}
-            setSelectedTask={setSelectedTask}
-            showCustomActionModal={showCustomActionModal}
-            setShowCustomActionModal={setShowCustomActionModal}
             showNotification={showNotification}
             session={session}
           />
