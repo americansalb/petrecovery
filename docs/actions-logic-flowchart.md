@@ -140,112 +140,197 @@ score = base_priority
 
 ---
 
-## Google Places API Strategy - Shelter Data
+## Shelter Data Strategy
+
+### Data Sources (Priority Order)
+
+```
+TIER 1: PRIMARY SOURCE - Apple MapKit (FREE)
+────────────────────────────────────────────
+• 250,000 free API calls/day
+• Direct business listings (same quality as Google)
+• Search: "animal shelter", "animal rescue", "animal control"
+• Returns: name, address, phone, hours, coordinates
+• Cost: $0
+
+TIER 2: ENRICHMENT - PetFinder API (FREE)
+────────────────────────────────────────────
+• Match shelters by name/address
+• Adds: accepts_strays, no_kill, adoption_url
+• 11,000+ shelters with pet-specific metadata
+• Cost: $0
+
+TIER 3: CROWDSOURCE - User Reports (FREE)
+────────────────────────────────────────────
+• "This phone number is wrong"
+• "This shelter closed"
+• "Add a shelter we missed"
+• Cost: $0
+
+TIER 4: FALLBACK - Google Places (PAID)
+────────────────────────────────────────────
+• Only for specific gaps Apple misses
+• Verify user-submitted shelters
+• Cost: ~$0.02 per lookup (minimal use)
+```
 
 ### When to Fetch
+
 ```
-IF (city has NO shelter data) OR (shelter data > 1 year old):
-    → Fetch from Google Places API
-    → Store in our database
-    → Show "Last updated: [date]" to users
-ELSE:
-    → Use cached data from our database
-```
+ON CASE CREATION:
 
-### What to Fetch
-For each lost pet case location:
-1. Get the city the pet was lost in
-2. Get ALL cities within 1 mile of that city's borders
-3. Fetch all animal shelters in those cities
+1. Get case location (city, state, coordinates)
+2. Check: shelter data for this area < 1 year old?
 
-### API Call Breakdown
-```
-┌────────────────────────────────────────────────────────────┐
-│  GOOGLE PLACES API - NEARBY SEARCH                         │
-├────────────────────────────────────────────────────────────┤
-│  1 call = up to 20 results (paginated)                     │
-│  Max radius = 50km per search                              │
-│  Cost = $32 per 1,000 requests                             │
-│                                                            │
-│  For large city (e.g., Chicago):                           │
-│  • ~10-20 search calls to cover metro grid                 │
-│  • Returns ~200-500 shelter results                        │
-└────────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────────────────┐
-│  GOOGLE PLACES API - PLACE DETAILS                         │
-├────────────────────────────────────────────────────────────┤
-│  1 call per place = phone, hours, website, reviews         │
-│  Cost = $17 per 1,000 requests                             │
-│                                                            │
-│  For large city (e.g., Chicago):                           │
-│  • ~200-500 detail calls (one per shelter found)           │
-└────────────────────────────────────────────────────────────┘
-```
-
-### Cost Estimate
-```
-Single large metro (Chicago/LA/NYC):
-  Search calls:    ~20      = $0.64
-  Detail calls:    ~500     = $8.50
-  Total:           ~$10-15 per major metro
-
-Entire United States (one-time scrape):
-  Estimated shelters:  50,000 - 100,000
-  Search calls:        ~5,000
-  Detail calls:        ~100,000
-  Total:               ~$2,000 - $5,000
-
-Annual refresh:        ~$2,000 - $5,000/year
-
-VERDICT: Very affordable for nationwide coverage
-```
-
-### Data to Store (per shelter)
-```sql
-CREATE TABLE shelters (
-  id              UUID PRIMARY KEY,
-  google_place_id VARCHAR(255) UNIQUE,
-  name            VARCHAR(255) NOT NULL,
-  phone           VARCHAR(50),
-  email           VARCHAR(255),
-  website         VARCHAR(500),
-  address         TEXT,
-  city            VARCHAR(100),
-  state           VARCHAR(50),
-  zip             VARCHAR(20),
-  latitude        DECIMAL(10, 8),
-  longitude       DECIMAL(11, 8),
-  hours           JSONB,           -- {"monday": "9am-5pm", ...}
-  types           VARCHAR[],       -- ["animal_shelter", "veterinary_care"]
-  rating          DECIMAL(2, 1),
-  accepts_strays  BOOLEAN,
-  fetched_at      TIMESTAMP NOT NULL,
-  verified_at     TIMESTAMP,       -- manual verification date
-
-  -- Indexes for fast lookup
-  INDEX idx_city (city, state),
-  INDEX idx_location (latitude, longitude)
-);
-```
-
-### Fetch Strategy
-```
-1. User creates case in Austin, TX
-2. System checks: Do we have Austin shelter data < 1 year old?
-
-   NO → Trigger background job:
-        a. Get Austin city boundaries
-        b. Get neighboring cities within 1 mile
-        c. For each city, search "animal shelter" + "animal rescue"
-        d. For each result, get Place Details
-        e. Store in database
-        f. Mark as fetched_at = NOW()
+   NO → Background job:
+        a. Apple MapKit search (25-mile radius)
+        b. Search: "animal shelter", "animal rescue",
+           "animal control", "humane society"
+        c. Store results in database
+        d. Match with PetFinder for enrichment
+        e. Mark fetched_at = NOW()
 
    YES → Use cached data
 
-3. Show shelters sorted by distance from pet's last seen location
-4. Display "Data last updated: March 2025" on each shelter
+3. Return shelters sorted by distance
+4. Show "Data last updated: [date]" on each
+```
+
+### Database Schema
+
+```sql
+-- Main shelter table
+CREATE TABLE shelters (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Identity (deduplication)
+  apple_place_id      VARCHAR(255) UNIQUE,
+  google_place_id     VARCHAR(255),
+  petfinder_id        VARCHAR(255),
+
+  -- Basic Info (from Apple MapKit)
+  name                VARCHAR(255) NOT NULL,
+  phone               VARCHAR(50),
+  email               VARCHAR(255),
+  website             VARCHAR(500),
+
+  -- Location
+  address_line1       VARCHAR(255),
+  address_line2       VARCHAR(255),
+  city                VARCHAR(100) NOT NULL,
+  state               VARCHAR(50) NOT NULL,
+  zip                 VARCHAR(20),
+  country             VARCHAR(50) DEFAULT 'US',
+  latitude            DECIMAL(10, 8) NOT NULL,
+  longitude           DECIMAL(11, 8) NOT NULL,
+
+  -- Hours (from Apple)
+  hours               JSONB,  -- {"mon": {"open":"09:00","close":"17:00"}}
+
+  -- Categories
+  shelter_type        VARCHAR(50),  -- "municipal", "private", "rescue"
+  types               VARCHAR[],    -- ["animal_shelter", "veterinary"]
+
+  -- Enrichment (from PetFinder)
+  accepts_strays      BOOLEAN,
+  is_no_kill          BOOLEAN,
+  adoption_url        VARCHAR(500),
+  petfinder_url       VARCHAR(500),
+
+  -- Data quality tracking
+  source              VARCHAR(50) NOT NULL,  -- "apple", "petfinder", "user"
+  fetched_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+  verified_at         TIMESTAMP,
+  verification_source VARCHAR(50),
+
+  -- User corrections
+  reported_closed     BOOLEAN DEFAULT FALSE,
+  reported_issues     INTEGER DEFAULT 0,
+  last_user_report    TIMESTAMP,
+
+  created_at          TIMESTAMP DEFAULT NOW(),
+  updated_at          TIMESTAMP DEFAULT NOW()
+);
+
+-- Spatial index for distance queries
+CREATE INDEX idx_shelters_geo ON shelters
+  USING GIST (ST_SetSRID(ST_MakePoint(longitude, latitude), 4326));
+CREATE INDEX idx_shelters_city ON shelters (city, state);
+CREATE INDEX idx_shelters_fetched ON shelters (fetched_at);
+
+-- Track fetched areas (avoid re-fetching)
+CREATE TABLE shelter_fetch_log (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  center_lat      DECIMAL(10, 8),
+  center_lng      DECIMAL(11, 8),
+  radius_miles    INTEGER,
+  city            VARCHAR(100),
+  state           VARCHAR(50),
+  source          VARCHAR(50),
+  results_count   INTEGER,
+  fetched_at      TIMESTAMP DEFAULT NOW()
+);
+
+-- User corrections
+CREATE TABLE shelter_reports (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shelter_id      UUID REFERENCES shelters(id),
+  user_id         UUID,
+  report_type     VARCHAR(50),  -- "wrong_phone", "closed", "new_shelter"
+  details         TEXT,
+  status          VARCHAR(50) DEFAULT 'pending',
+  created_at      TIMESTAMP DEFAULT NOW()
+);
+```
+
+### Apple MapKit → Database Mapping
+
+```javascript
+// Apple MapKit response
+{
+  id: "I_ABCD1234",
+  name: "Austin Animal Center",
+  coordinate: { latitude: 30.2345, longitude: -97.7890 },
+  formattedAddress: "7201 Levander Loop, Austin, TX 78702",
+  phoneNumber: "+1 (512) 978-0500",
+  url: "https://austintexas.gov/animal-services"
+}
+
+// → Our database
+{
+  apple_place_id: "I_ABCD1234",
+  name: "Austin Animal Center",
+  phone: "+1 (512) 978-0500",
+  website: "https://austintexas.gov/animal-services",
+  address_line1: "7201 Levander Loop",
+  city: "Austin",
+  state: "TX",
+  zip: "78702",
+  latitude: 30.2345,
+  longitude: -97.7890,
+  source: "apple",
+  fetched_at: NOW()
+}
+```
+
+### Cost Summary
+
+```
+ANNUAL COST COMPARISON:
+
+Google-only approach:
+  - Nationwide scrape: $2,000 - $5,000
+  - Annual refresh:    $2,000 - $5,000/year
+
+Apple-first hybrid approach:
+  - Apple MapKit:      $0 (250K free/day)
+  - PetFinder:         $0 (free API)
+  - User corrections:  $0
+  - Google fallback:   ~$20/year (edge cases)
+  ─────────────────────────────
+  TOTAL:               ~$20/year
+
+SAVINGS: 99%+
 ```
 
 ---
