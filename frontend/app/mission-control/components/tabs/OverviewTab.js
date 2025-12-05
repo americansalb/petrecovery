@@ -10,7 +10,7 @@
  * 4. Map preview (clickable to go to Map tab)
  * 5. Pet details card (expandable on mobile)
  *
- * All features preserved from original OverviewTab.
+ * Action buttons take DIRECT ACTION - no navigation to other tabs
  */
 
 import { useState } from 'react';
@@ -18,14 +18,14 @@ import dynamic from 'next/dynamic';
 import {
   Eye,
   MapPin,
-  Navigation,
+  Share2,
   MessageCircle,
   AlertCircle,
   Clock,
   Camera,
   ChevronDown,
   ChevronUp,
-  CheckCircle2,
+  ClipboardList,
 } from 'lucide-react';
 import { normalizePhotoUrl } from '@/app/lib/utils';
 
@@ -46,18 +46,53 @@ export default function OverviewTab({
   isReunited,
   sightings = [],
   onReportSighting,
-  onMarkAreasSearched,
-  onStartGPSTracking,
-  onStopGPSTracking,
-  isGPSTracking,
-  gpsPath = [],
+  onLogActivity,
+  onMessageGroup,
   onNavigateToMap,
 }) {
   const [showDetails, setShowDetails] = useState(false);
+  const [shareStatus, setShareStatus] = useState(null); // 'copied' | 'shared' | 'error'
 
   if (!mission) return null;
 
-  // Action buttons config
+  // Handle share action
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/cases/${mission.caseNumber || mission.id}`;
+    const shareText = `Help find ${mission.petName}! ${mission.petBreed || mission.petSpecies} missing near ${mission.lastSeenAddress?.split(',').slice(0, 2).join(',') || 'unknown location'}.`;
+
+    // Try native share first (mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Missing: ${mission.petName}`,
+          text: shareText,
+          url: shareUrl,
+        });
+        setShareStatus('shared');
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          // Fall back to clipboard
+          await copyToClipboard(shareUrl);
+        }
+      }
+    } else {
+      // Desktop - copy to clipboard
+      await copyToClipboard(shareUrl);
+    }
+  };
+
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareStatus('copied');
+      setTimeout(() => setShareStatus(null), 2000);
+    } catch (err) {
+      setShareStatus('error');
+      setTimeout(() => setShareStatus(null), 2000);
+    }
+  };
+
+  // Action buttons config - all take DIRECT ACTION
   const actionButtons = [
     {
       id: 'sighting',
@@ -69,36 +104,31 @@ export default function OverviewTab({
       description: 'Spotted them?',
     },
     {
-      id: 'areas',
-      label: 'Mark Areas Searched',
-      icon: CheckCircle2,
-      onClick: onMarkAreasSearched,
+      id: 'activity',
+      label: 'Log Activity',
+      icon: ClipboardList,
+      onClick: onLogActivity,
       gradient: 'from-emerald-500 to-teal-500',
       shadowColor: 'shadow-emerald-500/30',
-      description: 'Log your search',
-    },
-    {
-      id: 'gps',
-      label: isGPSTracking ? 'Stop Tracking' : 'Begin Searching',
-      icon: Navigation,
-      onClick: isGPSTracking ? onStopGPSTracking : onStartGPSTracking,
-      gradient: isGPSTracking ? 'from-red-500 to-pink-500' : 'from-purple-500 to-indigo-500',
-      shadowColor: isGPSTracking ? 'shadow-red-500/30' : 'shadow-purple-500/30',
-      description: isGPSTracking ? `${gpsPath.length} points` : 'Track your path',
-      pulse: isGPSTracking,
+      description: 'Record your help',
     },
     {
       id: 'message',
       label: 'Message Group',
       icon: MessageCircle,
-      onClick: () => {
-        // Navigate to team/activity tab or open chat
-        onMarkAreasSearched(); // Reuse this to go to Team tab where group coordination happens
-      },
+      onClick: onMessageGroup,
       gradient: 'from-blue-500 to-cyan-500',
       shadowColor: 'shadow-blue-500/30',
-      description: 'Coordinate with team',
-      disabled: false,
+      description: 'Coordinate team',
+    },
+    {
+      id: 'share',
+      label: shareStatus === 'copied' ? 'Link Copied!' : shareStatus === 'shared' ? 'Shared!' : 'Share Case',
+      icon: Share2,
+      onClick: handleShare,
+      gradient: shareStatus ? 'from-emerald-500 to-green-500' : 'from-purple-500 to-pink-500',
+      shadowColor: shareStatus ? 'shadow-emerald-500/30' : 'shadow-purple-500/30',
+      description: 'Spread the word',
     },
   ];
 
@@ -171,7 +201,7 @@ export default function OverviewTab({
         </div>
       </div>
 
-      {/* 4 ACTION BUTTONS GRID */}
+      {/* 4 ACTION BUTTONS GRID - All take DIRECT action */}
       <div className="grid grid-cols-2 gap-3 mt-6">
         {actionButtons.map((action) => {
           const Icon = action.icon;
@@ -184,18 +214,13 @@ export default function OverviewTab({
                 action.disabled || isReunited
                   ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
                   : `bg-gradient-to-br ${action.gradient} text-white shadow-lg ${action.shadowColor} hover:scale-105 active:scale-95`
-              } ${action.pulse ? 'animate-pulse' : ''}`}
+              }`}
             >
               <Icon size={28} className="mb-2" />
               <span className="text-sm sm:text-base leading-tight text-center">{action.label}</span>
               <span className={`text-xs mt-1 ${action.disabled || isReunited ? 'text-slate-600' : 'text-white/70'}`}>
                 {action.description}
               </span>
-
-              {/* GPS tracking indicator */}
-              {action.id === 'gps' && isGPSTracking && (
-                <div className="absolute top-2 right-2 w-3 h-3 bg-white rounded-full animate-ping" />
-              )}
             </button>
           );
         })}

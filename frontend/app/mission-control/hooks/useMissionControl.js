@@ -41,6 +41,13 @@ export default function useMissionControl(session) {
   const [showWaiverModal, setShowWaiverModal] = useState(false);
   const [showSightingForm, setShowSightingForm] = useState(false);
   const [showCustomActionModal, setShowCustomActionModal] = useState(false);
+  const [notification, setNotification] = useState(null); // { type: 'success' | 'error' | 'info', message: string }
+
+  // Helper to show notification (auto-dismisses after 4s)
+  const showNotification = useCallback((type, message) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 4000);
+  }, []);
 
   // ============================================================
   // DATA STATE
@@ -270,11 +277,12 @@ export default function useMissionControl(session) {
   // GPS Tracking
   const startGPSTracking = useCallback(() => {
     if (!('geolocation' in navigator)) {
-      alert('GPS not available on this device');
+      showNotification('error', 'GPS not available on this device');
       return;
     }
     setIsGPSTracking(true);
     setGpsPath([]);
+    showNotification('info', 'GPS tracking started. Your search path is being recorded.');
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
         setGpsPath(prev => [...prev, {
@@ -286,12 +294,12 @@ export default function useMissionControl(session) {
       (error) => {
         console.error('GPS error:', error);
         setIsGPSTracking(false);
-        alert('Unable to access GPS. Please check your location permissions.');
+        showNotification('error', 'Unable to access GPS. Please check your location permissions.');
       },
       { enableHighAccuracy: true, maximumAge: 5000 }
     );
     window._gpsWatchId = watchId;
-  }, []);
+  }, [showNotification]);
 
   const stopGPSTracking = useCallback(() => {
     if (window._gpsWatchId) {
@@ -300,9 +308,9 @@ export default function useMissionControl(session) {
     }
     setIsGPSTracking(false);
     if (gpsPath.length > 0) {
-      alert(`Recorded ${gpsPath.length} GPS points. View your search path on the Map tab.`);
+      showNotification('success', `Recorded ${gpsPath.length} GPS points. View your search path on the Map tab.`);
     }
-  }, [gpsPath.length]);
+  }, [gpsPath.length, showNotification]);
 
   // ============================================================
   // COMPUTED VALUES
@@ -352,6 +360,8 @@ export default function useMissionControl(session) {
     setShowSightingForm,
     showCustomActionModal,
     setShowCustomActionModal,
+    notification,
+    showNotification,
 
     // Data state
     sightings,

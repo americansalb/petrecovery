@@ -78,6 +78,7 @@ export default function TeamTab({
   setSelectedTask,
   showCustomActionModal,
   setShowCustomActionModal,
+  showNotification,
   session,
 }) {
   // Initialize tasks if empty
@@ -107,11 +108,12 @@ export default function TeamTab({
 
   const startGPSTracking = () => {
     if (!('geolocation' in navigator)) {
-      alert('GPS not available on this device');
+      showNotification?.('error', 'GPS not available on this device');
       return;
     }
     setIsGPSTracking(true);
     setGpsPath([]);
+    showNotification?.('info', 'GPS tracking started. Your search path is being recorded.');
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
         setGpsPath(prev => [...prev, {
@@ -123,7 +125,7 @@ export default function TeamTab({
       (error) => {
         console.error('GPS error:', error);
         setIsGPSTracking(false);
-        alert('Unable to access GPS. Please check your location permissions.');
+        showNotification?.('error', 'Unable to access GPS. Please check your location permissions.');
       },
       { enableHighAccuracy: true, maximumAge: 5000 }
     );
@@ -137,7 +139,7 @@ export default function TeamTab({
     }
     setIsGPSTracking(false);
     if (gpsPath.length > 0) {
-      alert(`Recorded ${gpsPath.length} GPS points. View your search path on the Map tab.`);
+      showNotification?.('success', `Recorded ${gpsPath.length} GPS points. View your search path on the Map tab.`);
     }
   };
 

@@ -167,32 +167,51 @@ export default function SARMapView({
     markersRef.current = [];
     circlesRef.current = [];
 
-    // Add last seen marker
+    // Add last seen marker with label
     if (lastSeen) {
+      // Determine if this is a sighting or original last seen
+      const isLatestSighting = lastSeen.isLatestSighting;
+      const markerColor = isLatestSighting ? '#f59e0b' : '#ef4444'; // amber for sighting, red for last seen
+      const emoji = isLatestSighting ? '👁' : '📍';
+      const labelText = isLatestSighting ? 'Latest Sighting' : 'Last Seen';
+
       const lastSeenIcon = L.divIcon({
         className: 'last-seen-marker',
         html: `
-          <div style="
-            width: 32px;
-            height: 32px;
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            border: 3px solid white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
-            font-size: 16px;
-          ">📍</div>
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="
+              width: 36px;
+              height: 36px;
+              background: linear-gradient(135deg, ${markerColor}, ${markerColor}dd);
+              border: 3px solid white;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              box-shadow: 0 0 20px ${markerColor}80;
+              font-size: 18px;
+            ">${emoji}</div>
+            <div style="
+              margin-top: 4px;
+              padding: 2px 8px;
+              background: rgba(15, 23, 42, 0.9);
+              border-radius: 4px;
+              font-size: 10px;
+              font-weight: 600;
+              color: white;
+              white-space: nowrap;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            ">${labelText}</div>
+          </div>
         `,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16]
+        iconSize: [80, 60],
+        iconAnchor: [40, 20]
       });
 
       const lastSeenMarker = L.marker([lastSeen.lat, lastSeen.lng], { icon: lastSeenIcon })
         .bindPopup(`
           <div style="text-align: center; min-width: 150px;">
-            <strong style="color: #ef4444;">Ran Away From Home</strong>
+            <strong style="color: ${markerColor};">${labelText}</strong>
             <br/>
             <span style="font-size: 12px; color: #666;">${lastSeen.address || 'Unknown address'}</span>
           </div>
