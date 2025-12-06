@@ -200,6 +200,94 @@ export const CLUSTERING_CONFIG = {
 };
 
 // =============================================================================
+// TASK CATEGORIES - For UI organization
+// =============================================================================
+
+export const TASK_CATEGORIES = {
+  SEARCH: {
+    id: 'SEARCH',
+    label: 'Search',
+    icon: '🔍',
+    description: 'Actively look for your pet',
+    tasks: ['search_inside', 'search_area', 'dawn_search', 'dusk_search', 'night_flashlight', 'check_hiding'],
+  },
+  SPREAD_THE_WORD: {
+    id: 'SPREAD_THE_WORD',
+    label: 'Spread the Word',
+    icon: '📢',
+    description: 'Get others to help look',
+    tasks: ['call_shelter', 'call_vet', 'notify_microchip', 'post_flyers', 'knock_doors', 'alert_delivery', 'share_case'],
+  },
+  ATTRACT_HOME: {
+    id: 'ATTRACT_HOME',
+    label: 'Attract Home',
+    icon: '🏠',
+    description: 'Lure your pet back',
+    tasks: ['litter_outside', 'scent_clothes', 'setup_camera', 'humane_trap'],
+  },
+};
+
+/**
+ * Get category for a task
+ * @param {string} actionId - The action ID
+ * @returns {Object|null} - Category object or null
+ */
+export function getTaskCategory(actionId) {
+  for (const category of Object.values(TASK_CATEGORIES)) {
+    if (category.tasks.includes(actionId)) {
+      return category;
+    }
+  }
+  return null;
+}
+
+/**
+ * Group tasks by category
+ * @param {Array} tasks - Array of task objects
+ * @returns {Object} - Tasks grouped by category ID
+ */
+export function groupTasksByCategory(tasks) {
+  const groups = {
+    SEARCH: [],
+    SPREAD_THE_WORD: [],
+    ATTRACT_HOME: [],
+  };
+
+  for (const task of tasks) {
+    const category = getTaskCategory(task.actionId);
+    if (category) {
+      groups[category.id].push(task);
+    }
+  }
+
+  return groups;
+}
+
+/**
+ * Get top priority task from each category
+ * @param {Array} tasks - Already sorted tasks (highest priority first)
+ * @returns {Object} - Top task for each category
+ */
+export function getTopTaskPerCategory(tasks) {
+  const top = {
+    SEARCH: null,
+    SPREAD_THE_WORD: null,
+    ATTRACT_HOME: null,
+  };
+
+  for (const task of tasks) {
+    const category = getTaskCategory(task.actionId);
+    if (category && !top[category.id] && task.status !== 'COMPLETED') {
+      top[category.id] = task;
+    }
+    // Stop when all categories have a top task
+    if (top.SEARCH && top.SPREAD_THE_WORD && top.ATTRACT_HOME) break;
+  }
+
+  return top;
+}
+
+// =============================================================================
 // ACTION DEFINITIONS
 // =============================================================================
 
@@ -1347,11 +1435,11 @@ function calculateDiminishingReturnsWithDetails(task, completedTasks, now) {
 
   // Count similar category completions
   let categoryCount = 0;
-  const taskCategory = getTaskCategory(taskActionId);
+  const taskCategory = getDiminishingReturnsCategory(taskActionId);
   if (taskCategory) {
     categoryCount = completedTasks.filter(ct => {
       if (ct.actionId === taskActionId) return false; // Already counted above
-      const ctCategory = getTaskCategory(ct.actionId);
+      const ctCategory = getDiminishingReturnsCategory(ct.actionId);
       if (ctCategory !== taskCategory) return false;
       const hoursAgo = getHoursSince(ct.completedAt, now);
       return hoursAgo <= windowHours;
@@ -1387,9 +1475,9 @@ function calculateDiminishingReturnsWithDetails(task, completedTasks, now) {
 }
 
 /**
- * Get task category for diminishing returns
+ * Get task category for diminishing returns (internal helper)
  */
-function getTaskCategory(actionId) {
+function getDiminishingReturnsCategory(actionId) {
   for (const [category, actions] of Object.entries(DIMINISHING_RETURNS)) {
     if (Array.isArray(actions) && actions.includes(actionId)) {
       return category;
@@ -1670,6 +1758,7 @@ export default {
   TASK_DEPENDENCIES,
   DEPENDENCY_BONUS,
   CLUSTERING_CONFIG,
+  TASK_CATEGORIES,
   calculatePriorityScore,
   calculatePriorityScoreWithBreakdown,
   generateTasksForCase,
@@ -1677,4 +1766,7 @@ export default {
   filterTasksByRole,
   generateWhyExplanation,
   generateCallScript,
+  getTaskCategory,
+  groupTasksByCategory,
+  getTopTaskPerCategory,
 };

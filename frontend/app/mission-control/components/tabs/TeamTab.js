@@ -6,9 +6,8 @@
  * Uses priority algorithm to show most important tasks first.
  *
  * Layout:
- * - DO FIRST: Top 3 priority tasks regardless of role (with role badges)
- * - Your Tasks: Remaining owner-only tasks
- * - Squad Can Help: Tasks anyone can do
+ * - DO FIRST: Top priority task from each category (Search, Spread the Word, Attract Home)
+ * - Other: Expandable category sections with remaining tasks
  * - Completed: Done tasks at the bottom
  *
  * Integrates with debug panel for algorithm testing.
@@ -21,6 +20,7 @@ import {
   MapPin,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Check,
   Clock,
   AlertTriangle,
@@ -35,11 +35,15 @@ import { DebugProvider, useDebug } from '@/app/lib/missionControl/debugContext';
 import DebugPanel from '../DebugPanel';
 import {
   ACTION_TYPES,
+  TASK_CATEGORIES,
   calculatePriorityScoreWithBreakdown,
   generateTasksForCase,
   filterTasksByRole,
   generateWhyExplanation,
   generateCallScript,
+  getTaskCategory,
+  groupTasksByCategory,
+  getTopTaskPerCategory,
 } from '@/app/lib/missionControl/taskPriority';
 
 // Status icons and colors
@@ -212,37 +216,45 @@ function ActionsContent({ mission, showNotification, session, isOwner, isAdmin }
     ? (new Date() - new Date(caseData.missingAt)) / (1000 * 60 * 60)
     : 0;
 
-  // Get top 3 priority tasks (regardless of role) for "DO FIRST" section
-  const doFirstTasks = useMemo(() => {
-    return tasks
-      .filter(t => t.status === 'AVAILABLE' || t.status === 'NEEDS_HELP')
-      .slice(0, 3);
+  // Get top priority task from each category for "DO FIRST" section
+  const topTaskPerCategory = useMemo(() => {
+    return getTopTaskPerCategory(tasks);
   }, [tasks]);
 
-  // Get remaining owner-only tasks (not in DO FIRST)
-  const remainingOwnerTasks = useMemo(() => {
-    const doFirstIds = new Set(doFirstTasks.map(t => t.id));
-    return tasks.filter(t =>
-      t.role === 'OWNER' &&
-      !doFirstIds.has(t.id) &&
-      t.status !== 'COMPLETED'
-    );
-  }, [tasks, doFirstTasks]);
+  // Group all tasks by category
+  const tasksByCategory = useMemo(() => {
+    return groupTasksByCategory(tasks);
+  }, [tasks]);
 
-  // Get remaining squad/shared tasks (not in DO FIRST, not OWNER-only)
-  const remainingSquadTasks = useMemo(() => {
-    const doFirstIds = new Set(doFirstTasks.map(t => t.id));
-    return tasks.filter(t =>
-      (t.role === 'BOTH' || t.role === 'SQUAD') &&
-      !doFirstIds.has(t.id) &&
-      t.status !== 'COMPLETED'
-    );
-  }, [tasks, doFirstTasks]);
+  // Get remaining tasks per category (excluding top task and completed)
+  const remainingByCategory = useMemo(() => {
+    const remaining = {};
+    for (const [catId, catTasks] of Object.entries(tasksByCategory)) {
+      const topTask = topTaskPerCategory[catId];
+      remaining[catId] = catTasks.filter(t =>
+        t.id !== topTask?.id && t.status !== 'COMPLETED'
+      );
+    }
+    return remaining;
+  }, [tasksByCategory, topTaskPerCategory]);
 
   // Completed tasks
   const completedTasks = useMemo(() => {
     return tasks.filter(t => t.status === 'COMPLETED');
   }, [tasks]);
+
+  // Track which category sections are expanded
+  const [expandedCategories, setExpandedCategories] = useState({});
+
+  const toggleCategory = (categoryId) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [categoryId]: !prev[categoryId]
+    }));
+  };
+
+  // Check if any DO FIRST tasks exist
+  const hasDoFirstTasks = Object.values(topTaskPerCategory).some(t => t !== null);
 
   return (
     <div className="space-y-6 pb-20">
@@ -276,8 +288,8 @@ function ActionsContent({ mission, showNotification, session, isOwner, isAdmin }
         </div>
       </div>
 
-      {/* DO FIRST - Top 3 Priority Tasks */}
-      {doFirstTasks.length > 0 && (
+      {/* DO FIRST - Top task from each category */}
+      {hasDoFirstTasks && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <div className="flex items-center justify-center w-6 h-6 rounded bg-red-500/20">
@@ -285,51 +297,52 @@ function ActionsContent({ mission, showNotification, session, isOwner, isAdmin }
             </div>
             <div>
               <h3 className="text-white font-bold">DO FIRST</h3>
-              <p className="text-red-400/70 text-xs">Most important right now</p>
+              <p className="text-red-400/70 text-xs">Top priority in each category</p>
             </div>
           </div>
 
           <div className="space-y-2">
-            {doFirstTasks.map((task, index) => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                rank={index + 1}
-                onSelect={() => handleSelectTask(task)}
-                showScore={debug.isEnabled}
-                isTopPriority={index === 0}
-                showRoleBadge={true}
-              />
-            ))}
+            {Object.entries(TASK_CATEGORIES).map(([catId, category]) => {
+              const topTask = topTaskPerCategory[catId];
+              if (!topTask) return null;
+
+              return (
+                <DoFirstCategoryRow
+                  key={catId}
+                  category={category}
+                  task={topTask}
+                  onSelect={() => handleSelectTask(topTask)}
+                  showScore={debug.isEnabled}
+                />
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Remaining Owner Tasks */}
-      {remainingOwnerTasks.length > 0 && (
-        <TaskSection
-          title="Your Tasks"
-          subtitle={`${remainingOwnerTasks.length} remaining`}
-          icon={<User size={16} />}
-          tasks={remainingOwnerTasks}
-          onSelect={handleSelectTask}
-          showScore={debug.isEnabled}
-          startRank={doFirstTasks.length + 1}
-        />
-      )}
+      {/* Other - Expandable category sections */}
+      <div className="space-y-2">
+        <h3 className="text-slate-400 text-sm font-medium">Other</h3>
 
-      {/* Squad Can Help */}
-      {remainingSquadTasks.length > 0 && (
-        <TaskSection
-          title="Squad Can Help"
-          subtitle="Share these with your team"
-          icon={<Users size={16} />}
-          tasks={remainingSquadTasks}
-          onSelect={handleSelectTask}
-          showScore={debug.isEnabled}
-          startRank={doFirstTasks.length + remainingOwnerTasks.length + 1}
-        />
-      )}
+        {Object.entries(TASK_CATEGORIES).map(([catId, category]) => {
+          const remaining = remainingByCategory[catId] || [];
+          if (remaining.length === 0) return null;
+
+          const isExpanded = expandedCategories[catId];
+
+          return (
+            <CategorySection
+              key={catId}
+              category={category}
+              tasks={remaining}
+              isExpanded={isExpanded}
+              onToggle={() => toggleCategory(catId)}
+              onSelectTask={handleSelectTask}
+              showScore={debug.isEnabled}
+            />
+          );
+        })}
+      </div>
 
       {/* Completed Tasks */}
       {completedTasks.length > 0 && (
@@ -366,54 +379,83 @@ function ActionsContent({ mission, showNotification, session, isOwner, isAdmin }
   );
 }
 
-// Task section component
-function TaskSection({ title, subtitle, icon, tasks, onSelect, showScore, startRank = 1 }) {
-  const availableTasks = tasks.filter(t => t.status === 'AVAILABLE' || t.status === 'NEEDS_HELP');
-  const inProgressTasks = tasks.filter(t => t.status === 'IN_PROGRESS');
-
-  if (availableTasks.length === 0 && inProgressTasks.length === 0) {
-    return null;
-  }
+// DO FIRST category row - shows category icon + top task
+function DoFirstCategoryRow({ category, task, onSelect, showScore }) {
+  const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.AVAILABLE;
+  const StatusIcon = statusConfig.icon;
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <span className="text-slate-400">{icon}</span>
-        <div>
-          <h3 className="text-white font-semibold">{title}</h3>
-          <p className="text-slate-500 text-xs">{subtitle}</p>
+    <button
+      onClick={onSelect}
+      className="w-full flex items-center gap-3 p-4 rounded-xl text-left transition-all bg-gradient-to-r from-slate-800/80 to-slate-800/40 border border-slate-700/50 hover:border-slate-600"
+    >
+      {/* Category icon */}
+      <div className="w-10 h-10 rounded-lg bg-slate-700/50 flex items-center justify-center text-xl flex-shrink-0">
+        {category.icon}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-slate-400 text-xs font-medium uppercase tracking-wide">
+            {category.label}
+          </span>
+          {StatusIcon && (
+            <StatusIcon size={12} className="text-yellow-400" />
+          )}
         </div>
+        <p className="text-white font-medium truncate">
+          {task.title}
+        </p>
       </div>
 
-      <div className="space-y-2">
-        {/* In progress first */}
-        {inProgressTasks.map(task => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            onSelect={() => onSelect(task)}
-            showScore={showScore}
-          />
-        ))}
+      {/* Score (debug mode) */}
+      {showScore && (
+        <div className="text-xs font-mono text-slate-500">
+          {task.priorityScore}
+        </div>
+      )}
 
-        {/* Available tasks - show first 5 */}
-        {availableTasks.slice(0, 5).map((task, index) => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            rank={startRank + index}
-            onSelect={() => onSelect(task)}
-            showScore={showScore}
-          />
-        ))}
+      <ChevronRight size={18} className="text-slate-500 flex-shrink-0" />
+    </button>
+  );
+}
 
-        {/* Show more available */}
-        {availableTasks.length > 5 && (
-          <div className="text-center py-2 text-slate-500 text-sm">
-            +{availableTasks.length - 5} more tasks
-          </div>
-        )}
-      </div>
+// Expandable category section for "Other" tasks
+function CategorySection({ category, tasks, isExpanded, onToggle, onSelectTask, showScore }) {
+  const availableCount = tasks.filter(t => t.status !== 'COMPLETED').length;
+
+  return (
+    <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+      {/* Header - clickable to expand */}
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-3 p-3 bg-slate-800/30 hover:bg-slate-800/50 transition-colors"
+      >
+        <span className="text-lg">{category.icon}</span>
+        <span className="text-white font-medium flex-1 text-left">{category.label}</span>
+        <span className="text-slate-500 text-sm">{availableCount}</span>
+        <ChevronDown
+          size={18}
+          className={`text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {/* Expanded task list */}
+      {isExpanded && (
+        <div className="p-2 space-y-1 bg-slate-900/50">
+          {tasks.map((task, index) => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              rank={index + 1}
+              onSelect={() => onSelectTask(task)}
+              showScore={showScore}
+              compact={true}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -426,11 +468,54 @@ const ROLE_BADGE = {
 };
 
 // Individual task row
-function TaskRow({ task, rank, onSelect, showScore, isTopPriority, showRoleBadge }) {
+function TaskRow({ task, rank, onSelect, showScore, isTopPriority, showRoleBadge, compact }) {
   const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.AVAILABLE;
   const StatusIcon = statusConfig.icon;
   const roleBadge = ROLE_BADGE[task.role] || ROLE_BADGE.BOTH;
 
+  if (compact) {
+    // Compact version for expanded category lists
+    return (
+      <button
+        onClick={onSelect}
+        className={`w-full flex items-center gap-2 p-2 rounded-lg text-left transition-all ${
+          task.status === 'NEEDS_HELP'
+            ? 'bg-orange-500/10 hover:bg-orange-500/20'
+            : task.status === 'IN_PROGRESS'
+              ? 'bg-yellow-500/10 hover:bg-yellow-500/20'
+              : 'hover:bg-slate-800/50'
+        }`}
+      >
+        {/* Small rank circle */}
+        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+          task.status === 'IN_PROGRESS'
+            ? 'bg-yellow-500/20 text-yellow-400'
+            : task.status === 'NEEDS_HELP'
+              ? 'bg-orange-500/20 text-orange-400'
+              : 'bg-slate-700/50 text-slate-500'
+        }`}>
+          {StatusIcon ? <StatusIcon size={12} /> : rank}
+        </div>
+
+        {/* Title only */}
+        <p className="flex-1 text-sm text-white truncate">{task.title}</p>
+
+        {/* Role badge (small) */}
+        <span className={`px-1.5 py-0.5 rounded text-xs ${roleBadge.color}`}>
+          {roleBadge.icon}
+        </span>
+
+        {/* Score */}
+        {showScore && (
+          <span className="text-xs font-mono text-slate-600">{task.priorityScore}</span>
+        )}
+
+        <ChevronRight size={14} className="text-slate-600" />
+      </button>
+    );
+  }
+
+  // Full version
   return (
     <button
       onClick={onSelect}
