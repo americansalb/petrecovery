@@ -4,8 +4,14 @@
  * ActionsTab - Smart SAR Task Management
  *
  * Uses priority algorithm to show most important tasks first.
- * Shows Owner vs Squad tasks separately.
- * Integrates with debug panel for testing.
+ *
+ * Layout:
+ * - DO FIRST: Top 3 priority tasks regardless of role (with role badges)
+ * - Your Tasks: Remaining owner-only tasks
+ * - Squad Can Help: Tasks anyone can do
+ * - Completed: Done tasks at the bottom
+ *
+ * Integrates with debug panel for algorithm testing.
  */
 
 import { useState, useEffect, useMemo } from 'react';
@@ -206,6 +212,38 @@ function ActionsContent({ mission, showNotification, session, isOwner, isAdmin }
     ? (new Date() - new Date(caseData.missingAt)) / (1000 * 60 * 60)
     : 0;
 
+  // Get top 3 priority tasks (regardless of role) for "DO FIRST" section
+  const doFirstTasks = useMemo(() => {
+    return tasks
+      .filter(t => t.status === 'AVAILABLE' || t.status === 'NEEDS_HELP')
+      .slice(0, 3);
+  }, [tasks]);
+
+  // Get remaining owner-only tasks (not in DO FIRST)
+  const remainingOwnerTasks = useMemo(() => {
+    const doFirstIds = new Set(doFirstTasks.map(t => t.id));
+    return tasks.filter(t =>
+      t.role === 'OWNER' &&
+      !doFirstIds.has(t.id) &&
+      t.status !== 'COMPLETED'
+    );
+  }, [tasks, doFirstTasks]);
+
+  // Get remaining squad/shared tasks (not in DO FIRST, not OWNER-only)
+  const remainingSquadTasks = useMemo(() => {
+    const doFirstIds = new Set(doFirstTasks.map(t => t.id));
+    return tasks.filter(t =>
+      (t.role === 'BOTH' || t.role === 'SQUAD') &&
+      !doFirstIds.has(t.id) &&
+      t.status !== 'COMPLETED'
+    );
+  }, [tasks, doFirstTasks]);
+
+  // Completed tasks
+  const completedTasks = useMemo(() => {
+    return tasks.filter(t => t.status === 'COMPLETED');
+  }, [tasks]);
+
   return (
     <div className="space-y-6 pb-20">
       {/* Debug indicator */}
@@ -232,34 +270,91 @@ function ActionsContent({ mission, showNotification, session, isOwner, isAdmin }
         </div>
         <div className="text-right">
           <div className="text-2xl font-bold text-white">
-            {tasks.filter(t => t.status === 'COMPLETED').length}/{tasks.length}
+            {completedTasks.length}/{tasks.length}
           </div>
           <div className="text-xs text-slate-400">completed</div>
         </div>
       </div>
 
-      {/* Owner Tasks */}
-      {ownerTasks.length > 0 && (
+      {/* DO FIRST - Top 3 Priority Tasks */}
+      {doFirstTasks.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-6 h-6 rounded bg-red-500/20">
+              <AlertTriangle size={14} className="text-red-400" />
+            </div>
+            <div>
+              <h3 className="text-white font-bold">DO FIRST</h3>
+              <p className="text-red-400/70 text-xs">Most important right now</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {doFirstTasks.map((task, index) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                rank={index + 1}
+                onSelect={() => handleSelectTask(task)}
+                showScore={debug.isEnabled}
+                isTopPriority={index === 0}
+                showRoleBadge={true}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Remaining Owner Tasks */}
+      {remainingOwnerTasks.length > 0 && (
         <TaskSection
-          title="Owner Tasks"
-          subtitle="Only you can do these"
+          title="Your Tasks"
+          subtitle={`${remainingOwnerTasks.length} remaining`}
           icon={<User size={16} />}
-          tasks={ownerTasks.filter(t => t.role === 'OWNER')}
+          tasks={remainingOwnerTasks}
           onSelect={handleSelectTask}
           showScore={debug.isEnabled}
+          startRank={doFirstTasks.length + 1}
         />
       )}
 
-      {/* Squad Tasks */}
-      {squadTasks.length > 0 && (
+      {/* Squad Can Help */}
+      {remainingSquadTasks.length > 0 && (
         <TaskSection
-          title="Squad Tasks"
-          subtitle="Anyone can help with these"
+          title="Squad Can Help"
+          subtitle="Share these with your team"
           icon={<Users size={16} />}
-          tasks={squadTasks}
+          tasks={remainingSquadTasks}
           onSelect={handleSelectTask}
           showScore={debug.isEnabled}
+          startRank={doFirstTasks.length + remainingOwnerTasks.length + 1}
         />
+      )}
+
+      {/* Completed Tasks */}
+      {completedTasks.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-slate-700/50">
+          <div className="flex items-center gap-2 mb-3">
+            <Check size={16} className="text-emerald-400" />
+            <span className="text-slate-400 text-sm">{completedTasks.length} completed</span>
+          </div>
+          <div className="space-y-1">
+            {completedTasks.slice(0, 3).map(task => (
+              <div
+                key={task.id}
+                className="flex items-center gap-2 py-1.5 text-slate-500 text-sm"
+              >
+                <Check size={14} className="text-emerald-500" />
+                <span className="line-through">{task.title}</span>
+              </div>
+            ))}
+            {completedTasks.length > 3 && (
+              <div className="text-slate-600 text-xs pl-6">
+                +{completedTasks.length - 3} more
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Debug Panel */}
@@ -272,10 +367,13 @@ function ActionsContent({ mission, showNotification, session, isOwner, isAdmin }
 }
 
 // Task section component
-function TaskSection({ title, subtitle, icon, tasks, onSelect, showScore }) {
+function TaskSection({ title, subtitle, icon, tasks, onSelect, showScore, startRank = 1 }) {
   const availableTasks = tasks.filter(t => t.status === 'AVAILABLE' || t.status === 'NEEDS_HELP');
   const inProgressTasks = tasks.filter(t => t.status === 'IN_PROGRESS');
-  const completedTasks = tasks.filter(t => t.status === 'COMPLETED');
+
+  if (availableTasks.length === 0 && inProgressTasks.length === 0) {
+    return null;
+  }
 
   return (
     <div className="space-y-3">
@@ -288,26 +386,7 @@ function TaskSection({ title, subtitle, icon, tasks, onSelect, showScore }) {
       </div>
 
       <div className="space-y-2">
-        {/* Available tasks - show first 5 */}
-        {availableTasks.slice(0, 5).map((task, index) => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            rank={index + 1}
-            onSelect={() => onSelect(task)}
-            showScore={showScore}
-            isTopPriority={index === 0}
-          />
-        ))}
-
-        {/* Show more available */}
-        {availableTasks.length > 5 && (
-          <div className="text-center py-2 text-slate-500 text-sm">
-            +{availableTasks.length - 5} more tasks
-          </div>
-        )}
-
-        {/* In progress */}
+        {/* In progress first */}
         {inProgressTasks.map(task => (
           <TaskRow
             key={task.id}
@@ -317,22 +396,21 @@ function TaskSection({ title, subtitle, icon, tasks, onSelect, showScore }) {
           />
         ))}
 
-        {/* Completed - collapsed */}
-        {completedTasks.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-slate-700/50">
-            <div className="text-slate-500 text-xs mb-2 flex items-center gap-1">
-              <Check size={12} />
-              {completedTasks.length} completed
-            </div>
-            {completedTasks.slice(0, 3).map(task => (
-              <div
-                key={task.id}
-                className="flex items-center gap-2 py-1.5 text-slate-500 text-sm"
-              >
-                <Check size={14} className="text-emerald-500" />
-                <span className="line-through">{task.title}</span>
-              </div>
-            ))}
+        {/* Available tasks - show first 5 */}
+        {availableTasks.slice(0, 5).map((task, index) => (
+          <TaskRow
+            key={task.id}
+            task={task}
+            rank={startRank + index}
+            onSelect={() => onSelect(task)}
+            showScore={showScore}
+          />
+        ))}
+
+        {/* Show more available */}
+        {availableTasks.length > 5 && (
+          <div className="text-center py-2 text-slate-500 text-sm">
+            +{availableTasks.length - 5} more tasks
           </div>
         )}
       </div>
@@ -340,10 +418,18 @@ function TaskSection({ title, subtitle, icon, tasks, onSelect, showScore }) {
   );
 }
 
+// Role badge config
+const ROLE_BADGE = {
+  OWNER: { label: 'Owner only', icon: '🏠', color: 'text-amber-400 bg-amber-500/10' },
+  BOTH: { label: 'Anyone', icon: '👥', color: 'text-emerald-400 bg-emerald-500/10' },
+  SQUAD: { label: 'Squad', icon: '👥', color: 'text-blue-400 bg-blue-500/10' },
+};
+
 // Individual task row
-function TaskRow({ task, rank, onSelect, showScore, isTopPriority }) {
+function TaskRow({ task, rank, onSelect, showScore, isTopPriority, showRoleBadge }) {
   const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.AVAILABLE;
   const StatusIcon = statusConfig.icon;
+  const roleBadge = ROLE_BADGE[task.role] || ROLE_BADGE.BOTH;
 
   return (
     <button
@@ -375,11 +461,19 @@ function TaskRow({ task, rank, onSelect, showScore, isTopPriority }) {
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className={`font-medium truncate ${
-          task.status === 'COMPLETED' ? 'text-slate-500 line-through' : 'text-white'
-        }`}>
-          {task.title}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className={`font-medium truncate ${
+            task.status === 'COMPLETED' ? 'text-slate-500 line-through' : 'text-white'
+          }`}>
+            {task.title}
+          </p>
+          {/* Role badge */}
+          {showRoleBadge && (
+            <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${roleBadge.color}`}>
+              {roleBadge.icon} {roleBadge.label}
+            </span>
+          )}
+        </div>
         <p className="text-slate-400 text-sm truncate">
           {task.description}
         </p>
