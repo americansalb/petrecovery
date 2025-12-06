@@ -75,6 +75,7 @@ model User {
   squadPostComments      SquadPostComment[]
   squadPostVotes         SquadPostVote[]
   squadCommentVotes      SquadCommentVote[]
+  taskParticipations     TaskParticipant[]
 
   // Division Relations
   divisionRequests       DivisionRequest[]
@@ -917,22 +918,42 @@ model SquadTask {
   rescueSquadId   String
   rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
 
-  // Related case (optional)
+  // Related case
   caseId          String?
+
+  // Action system (links to master action types)
+  actionId        String?  // e.g., "call_shelter", "search_area", "litter_outside"
 
   // Task details
   title           String
   description     String?
   type            String   // SEARCH_AREA, POSTER_DISTRIBUTION, SHELTER_CHECK, FOLLOWUP, OTHER
   priority        String   // LOW, MEDIUM, HIGH, URGENT
-  status          String   @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED, CANCELLED
+  status          String   @default("AVAILABLE") // AVAILABLE, IN_PROGRESS, NEEDS_HELP, COMPLETED, BLOCKED
+
+  // Role-based filtering
+  role            String   @default("SQUAD") // OWNER, SQUAD, BOTH
+  phase           Int?     // 1, 2, 3, 4, 5 (which phase this task applies to)
+  petType         String?  // CAT, DOG, BOTH
+
+  // Priority algorithm score (calculated)
+  priorityScore   Int      @default(0) // Higher = more urgent
 
   // Location (optional)
   latitude        Float?
   longitude       Float?
   address         String?
 
-  // Assignment
+  // Shelter reference (for shelter call tasks)
+  shelterId       String?
+  shelter         Shelter? @relation(fields: [shelterId], references: [id])
+
+  // Collaboration (multiple people can work on same task)
+  needsHelp       Boolean  @default(false)
+  blockedReason   String?  // Why task is blocked (e.g., "Shelter closed")
+  participants    TaskParticipant[]
+
+  // Legacy assignment (keeping for backwards compatibility)
   assignedToId    String?
   assignedTo      User?    @relation("TaskAssignee", fields: [assignedToId], references: [id])
   createdById     String
@@ -943,6 +964,7 @@ model SquadTask {
   completedBy     User?    @relation("TaskCompleter", fields: [completedById], references: [id])
   completedAt     DateTime?
   completionNotes String?
+  completionResult String? // NO_MATCH, POSSIBLE_MATCH, SUCCESS, FAILED
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -950,8 +972,26 @@ model SquadTask {
   @@index([rescueSquadId])
   @@index([caseId])
   @@index([status])
-  @@index([assignedToId])
-  @@index([priority])
+  @@index([role])
+  @@index([priorityScore])
+  @@index([shelterId])
+}
+
+// Task collaboration - multiple users can work on same task
+model TaskParticipant {
+  id          String   @id @default(cuid())
+  taskId      String
+  task        SquadTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+
+  joinedAt    DateTime @default(now())
+  leftAt      DateTime?
+  status      String   @default("ACTIVE") // ACTIVE, LEFT, COMPLETED
+
+  @@unique([taskId, userId])
+  @@index([taskId])
+  @@index([userId])
 }
 
 // ============================================================================
@@ -1590,6 +1630,11 @@ model Shelter {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // External IDs (for deduplication)
+  appleMapKitId   String?  @unique  // Apple MapKit place ID
+  googlePlaceId   String?  @unique  // Google Places ID
+  petfinderId     String?  @unique  // PetFinder organization ID
+
   // Basic info
   name        String
   type        String   @default("SHELTER") // SHELTER, RESCUE, VET, ANIMAL_CONTROL
@@ -1606,7 +1651,18 @@ model Shelter {
   email       String?
   website     String?
 
-  // API Integration
+  // Hours of operation (JSON: {"mon": "9-5", "tue": "9-5", ...})
+  hours       String?  // JSON
+
+  // Shelter details
+  acceptsStrays Boolean?
+  isNoKill      Boolean?
+
+  // Data source tracking
+  source      String   @default("MANUAL") // APPLE_MAPKIT, GOOGLE_PLACES, PETFINDER, CROWDSOURCE, MANUAL
+  fetchedAt   DateTime?
+
+  // API Integration (for shelters we sync intake data from)
   apiEndpoint String?
   apiKey      String?  // Encrypted
   lastSyncAt  DateTime?
@@ -1618,10 +1674,13 @@ model Shelter {
 
   // Relations
   intakes     ShelterIntake[]
+  tasks       SquadTask[]
 
   @@index([city, state])
+  @@index([latitude, longitude])
   @@index([isActive])
   @@index([type])
+  @@index([source])
 }
 
 model ShelterIntake {

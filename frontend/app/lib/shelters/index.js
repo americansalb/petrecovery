@@ -1,11 +1,15 @@
 /**
  * Unified Shelter API
  *
- * Aggregates data from multiple shelter APIs (PetFinder, RescueGroups)
+ * Aggregates data from multiple shelter APIs:
+ * - Apple MapKit (Primary - 250K free calls/day)
+ * - PetFinder (Enrichment - FREE)
+ * - RescueGroups (Backup)
  */
 
 import * as petfinder from './petfinder';
 import * as rescuegroups from './rescuegroups';
+import * as appleMapKit from './appleMapKit';
 import prisma from '@/app/lib/prisma';
 
 /**
@@ -335,4 +339,59 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export { petfinder, rescuegroups };
+/**
+ * Search and save shelters for a city using Apple MapKit
+ */
+export async function fetchAndSaveSheltersForCity(city, state) {
+  if (!appleMapKit.isConfigured()) {
+    throw new Error('Apple MapKit not configured. Set APPLE_MAPKIT_TEAM_ID, APPLE_MAPKIT_KEY_ID, and APPLE_MAPKIT_PRIVATE_KEY.');
+  }
+
+  // Fetch shelters from Apple MapKit
+  const shelters = await appleMapKit.searchSheltersInCity(city, state);
+
+  // Save to database
+  const results = await appleMapKit.saveSheltersToDatabase(shelters);
+
+  return {
+    ...results,
+    total: shelters.length,
+    city,
+    state,
+  };
+}
+
+/**
+ * Get shelters near a location from database
+ */
+export async function getSheltersNearLocation(latitude, longitude, radiusMiles = 25) {
+  // Simple bounding box query (more efficient than Haversine in SQL)
+  const latDelta = radiusMiles / 69;
+  const lngDelta = radiusMiles / (69 * Math.cos(latitude * Math.PI / 180));
+
+  const shelters = await prisma.shelter.findMany({
+    where: {
+      isActive: true,
+      latitude: {
+        gte: latitude - latDelta,
+        lte: latitude + latDelta,
+      },
+      longitude: {
+        gte: longitude - lngDelta,
+        lte: longitude + lngDelta,
+      },
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  // Calculate actual distances and filter
+  return shelters
+    .map(s => ({
+      ...s,
+      distance: calculateDistance(latitude, longitude, s.latitude, s.longitude),
+    }))
+    .filter(s => s.distance <= radiusMiles)
+    .sort((a, b) => a.distance - b.distance);
+}
+
+export { petfinder, rescuegroups, appleMapKit };

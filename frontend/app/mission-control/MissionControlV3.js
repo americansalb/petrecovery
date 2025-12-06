@@ -59,6 +59,9 @@ import {
   Crown,
   Activity as ActivityIcon,
   Settings,
+  CheckCircle,
+  Info,
+  X,
 } from 'lucide-react';
 
 function MissionControlV3Content() {
@@ -86,6 +89,8 @@ function MissionControlV3Content() {
     setShowSightingForm,
     showCustomActionModal,
     setShowCustomActionModal,
+    notification,
+    showNotification,
 
     // Data state
     sightings,
@@ -206,7 +211,7 @@ function MissionControlV3Content() {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: AlertCircle },
     { id: 'map', label: 'Map', icon: MapPin },
-    { id: 'team', label: 'Team', icon: Users },
+    { id: 'team', label: 'Actions', icon: CheckCircle },
     { id: 'activity', label: 'Activity', icon: ActivityIcon },
   ];
 
@@ -224,6 +229,20 @@ function MissionControlV3Content() {
             <div className="w-12 h-12 border-4 border-flash-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
             <p className="text-white font-semibold">Loading...</p>
           </div>
+        </div>
+      )}
+
+      {/* Toast Notification Banner */}
+      {notification && (
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-full mx-4 px-4 py-3 rounded-xl shadow-lg backdrop-blur-sm flex items-center gap-3 animate-in slide-in-from-top-2 ${
+          notification.type === 'success' ? 'bg-emerald-500/90 text-white' :
+          notification.type === 'error' ? 'bg-red-500/90 text-white' :
+          'bg-blue-500/90 text-white'
+        }`}>
+          {notification.type === 'success' && <CheckCircle size={20} />}
+          {notification.type === 'error' && <AlertCircle size={20} />}
+          {notification.type === 'info' && <Info size={20} />}
+          <span className="flex-1 font-medium text-sm">{notification.message}</span>
         </div>
       )}
 
@@ -341,11 +360,8 @@ function MissionControlV3Content() {
             isReunited={isReunited}
             sightings={sightings}
             onReportSighting={() => setShowSightingForm(true)}
-            onMarkAreasSearched={() => setActiveTab('team')}
-            onStartGPSTracking={startGPSTracking}
-            onStopGPSTracking={stopGPSTracking}
-            isGPSTracking={isGPSTracking}
-            gpsPath={gpsPath}
+            onLogActivity={() => setShowCustomActionModal(true)}
+            onMessageGroup={() => setActiveTab('team')} // TODO: Open chat modal when implemented
             onNavigateToMap={() => setActiveTab('map')}
           />
         )}
@@ -364,20 +380,8 @@ function MissionControlV3Content() {
 
         {activeTab === 'team' && (
           <TeamTab
-            team={team}
             mission={activeMission}
-            tasks={tasks}
-            setTasks={setTasks}
-            gpsPath={gpsPath}
-            setGpsPath={setGpsPath}
-            isGPSTracking={isGPSTracking}
-            setIsGPSTracking={setIsGPSTracking}
-            expandedCategories={expandedCategories}
-            setExpandedCategories={setExpandedCategories}
-            selectedTask={selectedTask}
-            setSelectedTask={setSelectedTask}
-            showCustomActionModal={showCustomActionModal}
-            setShowCustomActionModal={setShowCustomActionModal}
+            showNotification={showNotification}
             session={session}
           />
         )}

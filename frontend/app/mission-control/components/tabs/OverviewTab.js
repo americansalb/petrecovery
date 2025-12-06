@@ -10,7 +10,7 @@
  * 4. Map preview (clickable to go to Map tab)
  * 5. Pet details card (expandable on mobile)
  *
- * All features preserved from original OverviewTab.
+ * Action buttons take DIRECT ACTION - no navigation to other tabs
  */
 
 import { useState } from 'react';
@@ -18,14 +18,14 @@ import dynamic from 'next/dynamic';
 import {
   Eye,
   MapPin,
-  Navigation,
-  Phone,
+  Share2,
+  MessageCircle,
   AlertCircle,
   Clock,
   Camera,
   ChevronDown,
   ChevronUp,
-  CheckCircle2,
+  ClipboardList,
 } from 'lucide-react';
 import { normalizePhotoUrl } from '@/app/lib/utils';
 
@@ -46,18 +46,53 @@ export default function OverviewTab({
   isReunited,
   sightings = [],
   onReportSighting,
-  onMarkAreasSearched,
-  onStartGPSTracking,
-  onStopGPSTracking,
-  isGPSTracking,
-  gpsPath = [],
+  onLogActivity,
+  onMessageGroup,
   onNavigateToMap,
 }) {
   const [showDetails, setShowDetails] = useState(false);
+  const [shareStatus, setShareStatus] = useState(null); // 'copied' | 'shared' | 'error'
 
   if (!mission) return null;
 
-  // Action buttons config
+  // Handle share action
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/cases/${mission.caseNumber || mission.id}`;
+    const shareText = `Help find ${mission.petName}! ${mission.petBreed || mission.petSpecies} missing near ${mission.lastSeenAddress?.split(',').slice(0, 2).join(',') || 'unknown location'}.`;
+
+    // Try native share first (mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Missing: ${mission.petName}`,
+          text: shareText,
+          url: shareUrl,
+        });
+        setShareStatus('shared');
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          // Fall back to clipboard
+          await copyToClipboard(shareUrl);
+        }
+      }
+    } else {
+      // Desktop - copy to clipboard
+      await copyToClipboard(shareUrl);
+    }
+  };
+
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareStatus('copied');
+      setTimeout(() => setShareStatus(null), 2000);
+    } catch (err) {
+      setShareStatus('error');
+      setTimeout(() => setShareStatus(null), 2000);
+    }
+  };
+
+  // Action buttons config - all take DIRECT ACTION
   const actionButtons = [
     {
       id: 'sighting',
@@ -69,33 +104,31 @@ export default function OverviewTab({
       description: 'Spotted them?',
     },
     {
-      id: 'areas',
-      label: 'Mark Areas Searched',
-      icon: CheckCircle2,
-      onClick: onMarkAreasSearched,
+      id: 'activity',
+      label: 'Log Activity',
+      icon: ClipboardList,
+      onClick: onLogActivity,
       gradient: 'from-emerald-500 to-teal-500',
       shadowColor: 'shadow-emerald-500/30',
-      description: 'Log your search',
+      description: 'Record your help',
     },
     {
-      id: 'gps',
-      label: isGPSTracking ? 'Stop Tracking' : 'Begin Searching',
-      icon: Navigation,
-      onClick: isGPSTracking ? onStopGPSTracking : onStartGPSTracking,
-      gradient: isGPSTracking ? 'from-red-500 to-pink-500' : 'from-purple-500 to-indigo-500',
-      shadowColor: isGPSTracking ? 'shadow-red-500/30' : 'shadow-purple-500/30',
-      description: isGPSTracking ? `${gpsPath.length} points` : 'Track your path',
-      pulse: isGPSTracking,
-    },
-    {
-      id: 'contact',
-      label: 'Owner Contact',
-      icon: Phone,
-      onClick: mission.ownerPhone ? () => window.location.href = `tel:${mission.ownerPhone}` : null,
+      id: 'message',
+      label: 'Message Group',
+      icon: MessageCircle,
+      onClick: onMessageGroup,
       gradient: 'from-blue-500 to-cyan-500',
       shadowColor: 'shadow-blue-500/30',
-      description: mission.ownerPhone ? 'Call now' : 'Not available',
-      disabled: !mission.ownerPhone,
+      description: 'Coordinate team',
+    },
+    {
+      id: 'share',
+      label: shareStatus === 'copied' ? 'Link Copied!' : shareStatus === 'shared' ? 'Shared!' : 'Share Case',
+      icon: Share2,
+      onClick: handleShare,
+      gradient: shareStatus ? 'from-emerald-500 to-green-500' : 'from-purple-500 to-pink-500',
+      shadowColor: shareStatus ? 'shadow-emerald-500/30' : 'shadow-purple-500/30',
+      description: 'Spread the word',
     },
   ];
 
@@ -168,7 +201,7 @@ export default function OverviewTab({
         </div>
       </div>
 
-      {/* 4 ACTION BUTTONS GRID */}
+      {/* 4 ACTION BUTTONS GRID - All take DIRECT action */}
       <div className="grid grid-cols-2 gap-3 mt-6">
         {actionButtons.map((action) => {
           const Icon = action.icon;
@@ -181,64 +214,100 @@ export default function OverviewTab({
                 action.disabled || isReunited
                   ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
                   : `bg-gradient-to-br ${action.gradient} text-white shadow-lg ${action.shadowColor} hover:scale-105 active:scale-95`
-              } ${action.pulse ? 'animate-pulse' : ''}`}
+              }`}
             >
               <Icon size={28} className="mb-2" />
               <span className="text-sm sm:text-base leading-tight text-center">{action.label}</span>
               <span className={`text-xs mt-1 ${action.disabled || isReunited ? 'text-slate-600' : 'text-white/70'}`}>
                 {action.description}
               </span>
-
-              {/* GPS tracking indicator */}
-              {action.id === 'gps' && isGPSTracking && (
-                <div className="absolute top-2 right-2 w-3 h-3 bg-white rounded-full animate-ping" />
-              )}
             </button>
           );
         })}
       </div>
 
-      {/* MAP PREVIEW */}
-      <div className="mt-6">
-        <button
-          onClick={onNavigateToMap}
-          className="w-full group"
-        >
-          <div className="relative overflow-hidden rounded-xl border-2 border-slate-700/50 hover:border-flash-500/50 transition-colors">
-            <div className="h-40 sm:h-48">
-              <MapView
-                center={mission.lastSeenLatitude && mission.lastSeenLongitude
-                  ? [mission.lastSeenLatitude, mission.lastSeenLongitude]
-                  : [41.8781, -87.6298]}
-                zoom={14}
-                lastSeen={mission.lastSeenLatitude ? {
-                  lat: mission.lastSeenLatitude,
-                  lng: mission.lastSeenLongitude,
-                  address: mission.lastSeenAddress,
-                } : null}
-                sightings={sightings}
-                gpsPath={gpsPath}
-                petSpecies={mission.petSpecies}
-                showControls={false}
-                interactive={false}
-              />
-            </div>
+      {/* MAP PREVIEW - Shows last known location (latest sighting or original location) */}
+      {(() => {
+        // Compute last known location: use latest sighting if available, otherwise original lastSeen
+        const latestSighting = sightings.length > 0
+          ? sightings.reduce((latest, s) => {
+              const sDate = new Date(s.sightedAt || s.createdAt);
+              const lDate = new Date(latest.sightedAt || latest.createdAt);
+              return sDate > lDate ? s : latest;
+            })
+          : null;
 
-            {/* Overlay with click prompt */}
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-transparent to-transparent flex items-end justify-center pb-4">
-              <div className="flex items-center gap-2 px-4 py-2 bg-flash-500/20 backdrop-blur-sm rounded-full border border-flash-500/50 text-flash-400 font-semibold text-sm group-hover:bg-flash-500/30 transition">
-                <MapPin size={16} />
-                Tap for full map
-                {sightings.length > 0 && (
-                  <span className="ml-1 px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full text-xs">
-                    {sightings.length} sighting{sightings.length !== 1 ? 's' : ''}
-                  </span>
-                )}
+        const lastKnownLocation = latestSighting
+          ? {
+              lat: latestSighting.latitude,
+              lng: latestSighting.longitude,
+              address: latestSighting.address || 'Recent sighting',
+              isLatestSighting: true,
+            }
+          : mission.lastSeenLatitude
+            ? {
+                lat: mission.lastSeenLatitude,
+                lng: mission.lastSeenLongitude,
+                address: mission.lastSeenAddress,
+                isLatestSighting: false,
+              }
+            : null;
+
+        const mapCenter = lastKnownLocation
+          ? [lastKnownLocation.lat, lastKnownLocation.lng]
+          : [41.8781, -87.6298];
+
+        return (
+          <div className="mt-6">
+            <button
+              onClick={onNavigateToMap}
+              className="w-full group"
+            >
+              <div className="relative overflow-hidden rounded-xl border-2 border-slate-700/50 hover:border-flash-500/50 transition-colors">
+                <div className="h-40 sm:h-48">
+                  <MapView
+                    center={mapCenter}
+                    zoom={15}
+                    lastSeen={lastKnownLocation}
+                    sightings={[]} // Don't show sighting markers on preview - just the last known location
+                    gpsPath={[]} // Don't show GPS path on preview - keep it clean
+                    petSpecies={mission.petSpecies}
+                    showControls={false}
+                    showLegend={false}
+                    interactive={false}
+                  />
+                </div>
+
+                {/* Overlay with location info and click prompt */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/20 to-transparent flex flex-col items-center justify-end pb-3">
+                  {/* Last known location label */}
+                  {lastKnownLocation && (
+                    <div className="mb-2 px-3 py-1 bg-slate-900/80 backdrop-blur-sm rounded-lg text-xs">
+                      <span className={lastKnownLocation.isLatestSighting ? 'text-amber-400' : 'text-red-400'}>
+                        {lastKnownLocation.isLatestSighting ? '👁 Latest Sighting' : '📍 Last Seen'}
+                      </span>
+                      <span className="text-slate-400 ml-2 truncate max-w-[200px] inline-block align-bottom">
+                        {lastKnownLocation.address?.split(',').slice(0, 2).join(',') || 'Unknown'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Tap prompt */}
+                  <div className="flex items-center gap-2 px-4 py-2 bg-flash-500/20 backdrop-blur-sm rounded-full border border-flash-500/50 text-flash-400 font-semibold text-sm group-hover:bg-flash-500/30 transition">
+                    <MapPin size={16} />
+                    Tap for full map
+                    {sightings.length > 0 && (
+                      <span className="ml-1 px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full text-xs">
+                        {sightings.length} sighting{sightings.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            </button>
           </div>
-        </button>
-      </div>
+        );
+      })()}
 
       {/* PET DETAILS - Expandable on mobile */}
       <div className="mt-4">
