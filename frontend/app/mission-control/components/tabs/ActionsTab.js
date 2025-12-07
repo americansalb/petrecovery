@@ -783,17 +783,41 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
     setSelectedTask(task);
   };
 
+  // Helper function to upload photo to CDN
+  const uploadPhoto = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('context', 'general'); // Task photos are general context
+
+    const uploadRes = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!uploadRes.ok) {
+      const errorData = await uploadRes.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to upload photo');
+    }
+
+    const uploadData = await uploadRes.json();
+    return uploadData.url;
+  };
+
   // Handle task completion
   const handleCompleteTask = async ({ notes, photo }) => {
     if (!selectedTask) return;
 
     setCompleting(selectedTask.id);
     try {
-      // TODO: If photo, upload to storage first
+      // Upload photo to CDN if provided
       let photoUrl = null;
       if (photo) {
-        // For now, we'll skip actual upload - just note that photo was provided
-        console.log('Photo provided:', photo.name);
+        try {
+          photoUrl = await uploadPhoto(photo);
+        } catch (uploadErr) {
+          console.error('Photo upload failed:', uploadErr);
+          // Continue without photo - don't block task completion
+        }
       }
 
       const res = await fetch('/api/tasks/log', {
@@ -876,6 +900,17 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
 
     setSubmittingOther(true);
     try {
+      // Upload photo if provided (for context only, not verification)
+      let photoUrl = null;
+      if (photo) {
+        try {
+          photoUrl = await uploadPhoto(photo);
+        } catch (uploadErr) {
+          console.error('Photo upload failed:', uploadErr);
+          // Continue without photo
+        }
+      }
+
       const res = await fetch('/api/tasks/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -884,6 +919,7 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
           taskId: 'other',
           actionType: 'other',
           notes: description,
+          photoUrl,
           metadata: {
             location: location || null,
             timeSpentMinutes: timeSpent || null,

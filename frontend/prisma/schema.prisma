@@ -2880,8 +2880,10 @@ model SearchSession {
   updatedAt       DateTime @updatedAt
 
   // Participation
-  participantId   String
-  participant     CaseParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  // NOTE: participantId is optional to support direct search sessions without formal RescueSquad membership
+  // Points attribution uses userId directly; participantId is for squad coordination features
+  participantId   String?
+  participant     CaseParticipant? @relation(fields: [participantId], references: [id], onDelete: Cascade)
   caseId          String
   divisionId      String?
 

@@ -108,10 +108,12 @@ async function handleSearchStart(userId, caseId, body) {
   }
 
   // Create search session
+  // NOTE: caseId and userId are scalar fields (not relations), so we assign directly
+  // participantId is optional - only set if user is formally part of a RescueSquad assignment
   const searchSession = await prisma.searchSession.create({
     data: {
-      case: { connect: { id: caseId } },
-      user: { connect: { id: userId } },
+      caseId,
+      userId,
       status: 'ACTIVE',
       startedAt: new Date(),
       startLocation: JSON.stringify({ lat: latitude, lng: longitude }),
@@ -122,6 +124,7 @@ async function handleSearchStart(userId, caseId, body) {
         heading: null,
       }),
       lastLocationUpdate: new Date(),
+      isVerified: true, // GPS-tracked sessions are verified
     },
   });
 

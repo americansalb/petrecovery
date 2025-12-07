@@ -26,16 +26,17 @@ const TYPE_ICONS = {
   SIGHTING: '\u{1F6A8}',  // Alert
 };
 
-// Tip type colors
+// Tip type colors - DARK MODE compatible
+// Using semi-transparent backgrounds with lighter text for dark UI
 const TYPE_COLORS = {
-  TIME: { bg: '#FEF3C7', border: '#FCD34D', text: '#92400E' },
-  WEATHER: { bg: '#DBEAFE', border: '#60A5FA', text: '#1E40AF' },
-  PROGRESS: { bg: '#D1FAE5', border: '#34D399', text: '#065F46' },
-  LOCATION: { bg: '#E0E7FF', border: '#818CF8', text: '#3730A3' },
-  COLD_SPOT: { bg: '#FEE2E2', border: '#F87171', text: '#991B1B' },
-  STRATEGY: { bg: '#FEF9C3', border: '#FACC15', text: '#713F12' },
-  ENCOURAGE: { bg: '#DCFCE7', border: '#4ADE80', text: '#166534' },
-  SIGHTING: { bg: '#FEE2E2', border: '#EF4444', text: '#7F1D1D' },
+  TIME: { bg: 'rgba(251, 191, 36, 0.15)', border: '#F59E0B', text: '#FCD34D' },      // Amber/yellow
+  WEATHER: { bg: 'rgba(59, 130, 246, 0.15)', border: '#3B82F6', text: '#93C5FD' },   // Blue
+  PROGRESS: { bg: 'rgba(16, 185, 129, 0.15)', border: '#10B981', text: '#6EE7B7' },  // Emerald
+  LOCATION: { bg: 'rgba(139, 92, 246, 0.15)', border: '#8B5CF6', text: '#C4B5FD' },  // Purple
+  COLD_SPOT: { bg: 'rgba(239, 68, 68, 0.15)', border: '#EF4444', text: '#FCA5A5' },  // Red
+  STRATEGY: { bg: 'rgba(234, 179, 8, 0.15)', border: '#EAB308', text: '#FDE047' },   // Yellow
+  ENCOURAGE: { bg: 'rgba(34, 197, 94, 0.15)', border: '#22C55E', text: '#86EFAC' },  // Green
+  SIGHTING: { bg: 'rgba(249, 115, 22, 0.15)', border: '#F97316', text: '#FDBA74' },  // Orange (urgent)
 };
 
 export default function ScoutTipBanner({
@@ -266,6 +267,7 @@ function formatTime(dateStr) {
 // STYLES
 // ==========================================================================
 
+// DARK MODE STYLES - Updated for dark UI backgrounds
 const styles = {
   // Default banner
   container: {
@@ -290,12 +292,12 @@ const styles = {
   },
   scoutLabel: {
     fontWeight: '700',
-    color: '#374151',
+    color: '#E5E7EB', // Light gray for dark mode
   },
   dismissButton: {
     background: 'none',
     border: 'none',
-    color: '#6B7280',
+    color: '#9CA3AF', // Brighter for dark mode
     fontWeight: '600',
     fontSize: '0.8rem',
     cursor: 'pointer',
@@ -327,7 +329,7 @@ const styles = {
     marginLeft: '2rem',
   },
   actionButton: {
-    background: 'transparent',
+    background: 'rgba(255, 255, 255, 0.1)',
     border: '1px solid',
     borderRadius: '6px',
     padding: '0.5rem 1rem',
@@ -336,7 +338,7 @@ const styles = {
     fontSize: '0.85rem',
   },
   shareButton: {
-    background: '#4F46E5',
+    background: '#6366F1', // Indigo for dark mode
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -368,7 +370,7 @@ const styles = {
   compactDismiss: {
     background: 'none',
     border: 'none',
-    color: '#6B7280',
+    color: '#9CA3AF',
     fontSize: '1.25rem',
     cursor: 'pointer',
     padding: '0 0.25rem',
@@ -390,7 +392,7 @@ const styles = {
   },
   chatName: {
     fontWeight: '700',
-    color: '#374151',
+    color: '#E5E7EB', // Light for dark mode
   },
   chatTime: {
     fontSize: '0.75rem',
@@ -415,14 +417,14 @@ const styles = {
   chatMessage: {
     margin: 0,
     lineHeight: 1.5,
-    color: '#374151',
+    color: '#D1D5DB', // Light gray for dark mode
   },
   chatAction: {
     display: 'inline-block',
     marginTop: '0.5rem',
     background: 'none',
     border: 'none',
-    color: '#667EEA',
+    color: '#818CF8', // Brighter indigo for dark mode
     fontWeight: '600',
     cursor: 'pointer',
     padding: 0,
@@ -443,7 +445,7 @@ const styles = {
   navButton: {
     background: 'none',
     border: 'none',
-    color: '#6B7280',
+    color: '#9CA3AF',
     fontSize: '1.25rem',
     cursor: 'pointer',
     padding: '0.25rem 0.5rem',
