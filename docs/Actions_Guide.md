@@ -278,14 +278,21 @@ This is the authoritative reference for all point values. Use this as the "law" 
 
 **Photo Verification Behavior:**
 
-When an action completion includes required or optional photo proof, that completion is treated as verified:
-- We create a `VerifiedAction` with `verificationMethod = 'PHOTO'`
-- Both the base points and the +3pt photo bonus count as `verifiedPoints` (not subject to the 100pt self-reported cap)
-- If the same action is completed without photo, it is self-reported only and counts against the daily cap
+Photo uploads can verify an action **only if** that task's `verificationMethod` is `'PHOTO'` in `TASK_DEFINITIONS`.
 
-Examples:
-- **AT_HOME tasks** (litter_outside, food_station, etc.) have `verificationMethod: 'PHOTO'` → completing with required photo = verified, uncapped
-- **Any task with optional photo attached** → completing with photo upgrades that completion to verified
+| Task verificationMethod | Photo attached? | Creates VerifiedAction? | Points bucket |
+|-------------------------|-----------------|-------------------------|---------------|
+| `'PHOTO'` | Yes | Yes (`PHOTO`) | verifiedPoints (uncapped) |
+| `'PHOTO'` | No | No | selfReportedPoints (capped) |
+| `'GPS'` or `'PLATFORM_EMAIL'` | Yes | Yes (primary method, photo in metadata) | verifiedPoints (uncapped) |
+| `'SELF_REPORT'` or `null` | Yes | **No** — photo is context only | selfReportedPoints (capped) |
+| `'SELF_REPORT'` or `null` | No | No | selfReportedPoints (capped) |
+
+**Key rules:**
+- Tasks with `verificationMethod: 'PHOTO'` (AT_HOME tasks) → photo **required** for verification
+- Tasks with `verificationMethod: 'SELF_REPORT'` or `null` → photos are for context only, do NOT create `VerifiedAction`
+- "Other / custom" activities **never** create `VerifiedAction`, even with photo (they're for misc tracking, not algorithm training)
+- The +3pt photo bonus is still awarded regardless, but goes to the appropriate bucket based on verification status
 
 #### Self-Reported Actions (100 pts/day shared cap)
 
@@ -315,9 +322,15 @@ This table shows exactly which tables are written for each user action:
 | GPS flyer posting | `FlyerPosting`, `VerifiedAction`, `DailyPointsLog` | Yes (`GPS`) | verifiedPoints |
 | AT_HOME task with photo | `VerifiedAction`, `DailyPointsLog` | Yes (`PHOTO`) | verifiedPoints |
 | AT_HOME task self-report (no photo) | `DailyPointsLog` | No | selfReportedPoints |
-| "Other" activity log | `DailyPointsLog` | No | selfReportedPoints |
+| "Other" activity log | `DailyPointsLog`, `SquadActivity` | No | selfReportedPoints |
 
 > **Note:** "Other" activities never create `VerifiedAction` rows, even with photo. They're for misc tracking, not algorithm training.
+
+> **"Other" persistence:** For v1, "Other" activities create:
+> 1. `DailyPointsLog` entry (for points tracking)
+> 2. `SquadActivity` feed entry (for team visibility) with the user's description/notes
+>
+> No dedicated `OtherActivity` table is needed. The activity description is stored in `SquadActivity.message` or similar. If you need to query "what 'other' things did users do?", filter `SquadActivity` by `type = 'OTHER_ACTIVITY'`.
 
 ### Time/Context Bonuses
 
@@ -1231,6 +1244,23 @@ Algorithm identifies areas that need flyers.
    - Default cell size: 100m × 100m (configurable)
    - Each cell has a unique `cellId` (e.g., "A1", "B3", etc.)
 
+   **cellId derivation formula:**
+   ```typescript
+   // Given case.lastSeenLocation as origin (0,0)
+   // ~0.0009 degrees ≈ 100m at mid-latitudes
+   const CELL_SIZE_DEG = 0.0009;
+
+   function getCellId(lat: number, lng: number, origin: GeoPoint): string {
+     const xOffset = Math.floor((lng - origin.lng) / CELL_SIZE_DEG);
+     const yOffset = Math.floor((lat - origin.lat) / CELL_SIZE_DEG);
+     // Convert to letter + number: A=0, B=1, etc.
+     const col = String.fromCharCode(65 + (xOffset + 26) % 26); // A-Z
+     const row = yOffset + 26; // offset to avoid negatives
+     return `${col}${row}`;
+   }
+   ```
+   > Note: This is a simplified approach. For production, consider using a proper geohash or H3 library.
+
 3. A grid cell is a **cold spot** if:
    - It lies inside the search radius, AND
    - There are **zero** `FlyerPosting` records with coordinates in that cell
@@ -1984,7 +2014,7 @@ model VerifiedAction {
   userId          String
   user            User     @relation(fields: [userId], references: [id])
 
-  actionType      String   // 'search_area', 'contact_shelter', etc.
+  actionType      String   // See VerifiedActionType below - use enum values only!
   hoursAfterLost  Float    // When action was taken
 
   verificationMethod VerificationMethod
@@ -2006,6 +2036,29 @@ enum VerificationMethod {
   PHOTO
   CALL_DETECT
 }
+
+// ⚠️ ACTION TYPE SAFETY:
+// VerifiedAction.actionType is stored as String for Prisma flexibility, but
+// you MUST use only these values. Typos will silently corrupt analytics.
+//
+// Centralize this in your codebase as a TypeScript union:
+//
+// type VerifiedActionType =
+//   | 'search_area'
+//   | 'contact_shelters'
+//   | 'contact_vets'
+//   | 'contact_animal_control'
+//   | 'post_flyers'
+//   | 'knock_doors'
+//   | 'litter_outside'
+//   | 'scent_items'
+//   | 'food_station'
+//   | 'camera_setup'
+//   | 'humane_trap'
+//   | 'garage_open';
+//
+// Import this type everywhere you create VerifiedAction rows.
+// Consider adding a Prisma enum in Phase 5+ once action types stabilize.
 
 // MULTI-PROOF CLARIFICATION:
 // For actions with multiple proofs (e.g., GPS search + photo), `verificationMethod`
@@ -2155,15 +2208,39 @@ model DailyPointsLog {
 // DAILY POINTS LOG BEHAVIOR
 // ============================================
 
+// ⚠️ SOURCE OF TRUTH FOR POINTS:
+// DailyPointsLog is the AUTHORITATIVE source of truth for user point totals.
+// Other models (SearchSession.pointsEarned, FlyerPosting.pointsEarned,
+// ShelterContactAttempt.pointsEarned, VerifiedAction.pointsEarned) are
+// DENORMALIZED for debugging and display only.
+//
+// If these values ever drift, DailyPointsLog wins.
+
 // One row per (user, date).
 
 // Fields:
 // - verifiedPoints: Unlimited, for reporting/display only
 // - selfReportedPoints: Must not exceed 100
 
+// ⚠️ CONCURRENCY RULE:
+// Awarding points MUST be done in a single DB transaction that locks the
+// DailyPointsLog row. Do NOT read-then-write separately, or race conditions
+// will cause the 100pt cap to be exceeded.
+//
+// Example with Prisma:
+//   await prisma.$transaction(async (tx) => {
+//     const log = await tx.dailyPointsLog.upsert({
+//       where: { userId_date: { userId, date: today } },
+//       create: { userId, date: today, verifiedPoints: 0, selfReportedPoints: 0 },
+//       update: {},
+//     });
+//     // ... compute and update atomically ...
+//   });
+
 // Award Points Logic:
 //
 // function awardPoints(userId, points, isVerified) {
+//   // MUST run inside a transaction with row lock (see above)
 //   const today = getDateOnly(new Date());
 //   let log = findOrCreate(DailyPointsLog, { userId, date: today });
 //
@@ -2191,7 +2268,12 @@ model SquadTask {
   ownerRequested        Boolean   @default(false)
   ownerRequestMessage   String?
   ownerRequestedAt      DateTime?
-  ownerRequestedBy      String?   // Should always be owner, but track anyway
+  ownerRequestedBy      String?   // User ID who requested (should be owner)
+
+  // NOTE: For v1, ownerRequestedBy is just a String. If you need to display
+  // requester name/avatar, you'll do a manual User lookup.
+  // Consider adding a proper relation in v2:
+  //   ownerRequester    User?     @relation("TaskRequester", fields: [ownerRequestedBy], references: [id])
 }
 ```
 
@@ -2578,6 +2660,21 @@ Full list of all possible tasks with metadata:
 // Only actions with GPS/PLATFORM_EMAIL/PHOTO actually create VerifiedAction rows.
 // Self-reported actions affect DailyPointsLog.selfReportedPoints only.
 
+// ⚠️ BASE POINTS TYPE:
+// basePoints can be either:
+//   - number: single point value for the task (e.g., basePoints: 8)
+//   - object: { default: number, call?: number, email?: number } for tasks with multiple actions
+//
+// TypeScript type:
+// type BasePoints = number | { default: number; call?: number; email?: number };
+//
+// Consumer logic:
+//   const pts = typeof task.basePoints === 'number'
+//     ? task.basePoints
+//     : task.basePoints[actionSubtype] ?? task.basePoints.default;
+//
+// For shelter/vet/animal-control tasks: basePoints.call = self-reported, basePoints.email = verified
+
 const TASK_DEFINITIONS = {
   // SEARCH
   search_area: {
@@ -2632,7 +2729,7 @@ const TASK_DEFINITIONS = {
     role: 'BOTH',
     petType: 'BOTH',
     basePriority: 85,
-    basePoints: { call: 8, email: 15 },  // call = self-reported, email = verified
+    basePoints: { default: 8, call: 8, email: 15 },  // call = self-reported, email = verified
     verificationMethod: 'PLATFORM_EMAIL', // For emails only; calls are self-reported
     hasSubtasks: true, // One per shelter
     tips: [
@@ -2651,7 +2748,7 @@ const TASK_DEFINITIONS = {
     role: 'BOTH',
     petType: 'BOTH',
     basePriority: 80,
-    basePoints: { call: 8, email: 15 },
+    basePoints: { default: 8, call: 8, email: 15 },
     verificationMethod: 'PLATFORM_EMAIL',
     hasSubtasks: true,
     tips: [
@@ -2669,7 +2766,7 @@ const TASK_DEFINITIONS = {
     role: 'BOTH',
     petType: 'BOTH',
     basePriority: 82,
-    basePoints: { call: 8, email: 15 },
+    basePoints: { default: 8, call: 8, email: 15 },
     verificationMethod: 'PLATFORM_EMAIL',
     hasSubtasks: true,
     tips: [
@@ -3088,4 +3185,4 @@ The `VerifiedAction` and `CaseOutcome` tables are the primary sources for traini
 ---
 
 *Last updated: December 2024*
-*Version: 2.4*
+*Version: 2.5*
