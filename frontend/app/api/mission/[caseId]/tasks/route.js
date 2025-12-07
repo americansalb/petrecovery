@@ -40,9 +40,9 @@ interface TaskProgress {
  * - category: Filter by category (SEARCH, OUTREACH, AT_HOME, OTHER)
  */
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ caseId: string }> }
-): Promise<NextResponse> {
+  request,
+  { params }
+) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -70,7 +70,7 @@ export async function GET(
         id: true,
         reporterId: true,
         pet: {
-          select: { type: true },
+          select: { species: true },
         },
       },
     });
