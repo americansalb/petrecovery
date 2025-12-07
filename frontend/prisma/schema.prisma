@@ -951,6 +951,15 @@ model SquadTask {
   // Priority algorithm score (calculated)
   priorityScore   Int      @default(0) // Higher = more urgent
 
+  // Task type for linking to action definitions (e.g., "search_area", "contact_shelters")
+  taskType        String?  // Links to TASK_DEFINITIONS[taskType]
+
+  // Owner-requested task (gets +25% point bonus when completed)
+  ownerRequested        Boolean  @default(false)  // For point bonus calculation
+  ownerRequestedHelp    Boolean  @default(false)  // Owner explicitly requested help on this task
+  ownerRequestedAt      DateTime?
+  ownerRequestedMessage String?  // Why owner wants help with this task
+
   // Location (optional)
   latitude        Float?
   longitude       Float?
@@ -987,6 +996,8 @@ model SquadTask {
   @@index([role])
   @@index([priorityScore])
   @@index([shelterId])
+  @@index([ownerRequested])
+  @@index([taskType])
 }
 
 // Task collaboration - multiple users can work on same task

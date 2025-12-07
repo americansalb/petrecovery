@@ -217,6 +217,7 @@ export async function GET(
         tips: taskDef.tips,
         progress,
         // Squad task overrides
+        ownerRequested: squadTask?.ownerRequested || false,  // For +25% point bonus
         ownerRequestedHelp: squadTask?.ownerRequestedHelp || false,
         ownerRequestedAt: squadTask?.ownerRequestedAt,
         ownerRequestedMessage: squadTask?.ownerRequestedMessage,

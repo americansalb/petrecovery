@@ -341,12 +341,13 @@ export class VerificationService {
     notes?: string;
     caseCreatedAt?: Date;
     timezone?: string;
+    ownerRequested?: boolean;  // +25% bonus if owner requested this task
   }): Promise<{
     pointsEarned: number;
     isVerified: boolean;
     verifiedActionId: string;
   }> {
-    const { userId, caseId, actionType, photoUrl, notes, caseCreatedAt, timezone } = params;
+    const { userId, caseId, actionType, photoUrl, notes, caseCreatedAt, timezone, ownerRequested } = params;
 
     // Verify this action type supports photo verification
     const taskDef = TASK_DEFINITIONS[actionType];
@@ -366,6 +367,7 @@ export class VerificationService {
       metadata: { notes },
       caseCreatedAt,
       timezone,
+      ownerRequested,
     });
 
     return {

@@ -341,6 +341,13 @@ async function handleComplete(
   const { outcome, notes, photoUrl } = body;
   const taskDef = TASK_DEFINITIONS[taskId];
 
+  // Check if this task was owner-requested for bonus points
+  const squadTask = await prisma.squadTask.findFirst({
+    where: { caseId, taskType: taskId },
+    select: { ownerRequested: true },
+  });
+  const ownerRequested = squadTask?.ownerRequested || false;
+
   // Check verification method
   const verificationMethod = taskDef.verificationMethod;
 
@@ -362,6 +369,7 @@ async function handleComplete(
       photoUrl,
       notes,
       caseCreatedAt,
+      ownerRequested,
     });
 
     return NextResponse.json({
