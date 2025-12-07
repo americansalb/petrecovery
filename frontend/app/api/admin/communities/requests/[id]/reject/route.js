@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../../../auth/[...nextauth]/route';
+import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 
 // POST /api/admin/communities/requests/:id/reject - Reject community request
