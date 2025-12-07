@@ -262,11 +262,14 @@ Points serve two purposes:
 
 This is the authoritative reference for all point values. Use this as the "law" for implementation.
 
+> **GPS Search Rate (canonical):** 100 points per mile (equivalently: 10 pts per 0.1 mi).
+> All examples and calculations should use this rate. Formula: `pointsEarned = distanceMiles × 100`
+
 #### Verified Actions (No Daily Cap)
 
 | Action | Points | Verification Method |
 |--------|--------|---------------------|
-| GPS-tracked search | 10 pts per 0.1 mi | Continuous GPS tracking |
+| GPS-tracked search | 100 pts per mile (10 pts per 0.1 mi) | Continuous GPS tracking |
 | Platform-sent email | 15 pts per email | Platform sends via Resend |
 | Flyer with GPS mark | 8 pts per flyer | GPS location stamped |
 | Photo proof attached | +3 pts bonus | On top of base for any action |
@@ -344,6 +347,8 @@ We track self-reported points per user per day in `DailyPointsLog.selfReportedPo
 
 2. The cap resets at midnight UTC. (In v2, we may migrate to per-user local time based on profile/device timezone.)
 
+> **UX note:** Users may notice their cap doesn't reset at their local midnight (e.g., a US Pacific user's cap resets at 4/5pm local). This is intentional for v1 simplicity. If we get complaints, we can add per-user timezone support later.
+
 **UI copy before cap:**
 
 ```
@@ -412,6 +417,16 @@ Verified actions would still earn unlimited on top.
 
 ## Verification Methods
 
+> **Rule: Primary vs Secondary Proofs**
+>
+> `VerifiedAction.verificationMethod` is always the **primary** proof (usually `GPS` or `PLATFORM_EMAIL`).
+> Secondary proofs like photos are stored in `metadata`:
+> - `metadata.hasPhotoProof = true`
+> - `metadata.photoUrl = "..."`
+>
+> **Never** overwrite `verificationMethod = 'PHOTO'` when GPS is available—that would lose the location signal for algorithm training.
+> The +3pt photo bonus is still awarded; just store the photo in metadata.
+
 ### GPS Tracking
 
 **What:** Continuous location recording during search sessions.
@@ -448,6 +463,20 @@ Verified actions would still earn unlimited on top.
 ```
 
 **Privacy note:** Location data is only used for this case and algorithm improvement. Not sold or shared.
+
+**Search session lifecycle (`/search/end`):**
+
+When the client calls `/search/end`, the server performs these steps atomically:
+1. Finalize `SearchSession` row: set `endedAt`, compute `distanceMiles` from path
+2. Compute points: `basePoints = distanceMiles × 100`, apply time/context multipliers
+3. Award points via `DailyPointsLog` (verified bucket, no cap)
+4. Create `VerifiedAction` row with:
+   - `actionType = 'search_area'`
+   - `verificationMethod = 'GPS'`
+   - `metadata = { distanceMiles, gridCellsCovered, searchSessionId }`
+5. Return `{ distanceMiles, pointsEarned, bonusesApplied }` to client
+
+> This keeps `SearchSession` as the source of truth for the raw data, while `VerifiedAction` is the algorithm-training record. Link them via `metadata.searchSessionId`.
 
 ### Platform Email
 
@@ -1127,11 +1156,14 @@ GPS search sessions always create a `VerifiedAction` with:
 - `metadata.path` - Array of coordinates (or reference to stored path)
 - `hoursAfterLost` - Hours from case's `lostAt` to search end time
 
-**Manual area marking (contrast):**
-- Earns 5 self-reported points per area
+**Manual search logging (v1):**
+- User taps "I searched this area" (no polygon drawing)
+- Earns 5 self-reported points per log
 - Does NOT create a `VerifiedAction` row
-- Still shows on team activity feed and map
+- Shows on team activity feed as "Searched near [location]"
 - Counts toward daily self-reported cap
+
+> **Phase 5+:** Full polygon drawing on map with area coverage metrics. v1 is just a simple "I searched" button with optional location note.
 
 ---
 
@@ -1335,13 +1367,16 @@ Scout is the friendly mascot that provides contextual tips and encouragement. Ti
 ### Tip Generation Logic
 
 ```typescript
+// ⚠️ PHASE 5+ - This dynamic tip generation is NOT v1.
+// v1 Scout uses static, hard-coded tips only.
+
 function generateTips(caseData: Case): Tip[] {
   const tips: Tip[] = [];
   const now = new Date();
   const hour = now.getHours();
 
-  // Time-based tips
-  if (hour >= 4 && hour <= 6) {
+  // Time-based tips (Dawn = 5-7am, Dusk = 5-8pm / 17-20)
+  if (hour >= 5 && hour <= 7) {
     tips.push({
       type: 'TIME',
       priority: 80,
@@ -1350,7 +1385,7 @@ function generateTips(caseData: Case): Tip[] {
     });
   }
 
-  if (hour >= 16 && hour <= 18) {
+  if (hour >= 17 && hour <= 20) {
     tips.push({
       type: 'TIME',
       priority: 80,
@@ -1869,8 +1904,10 @@ model FlyerPosting {
 }
 
 // ============================================
-// MASCOT TIPS
+// MASCOT TIPS (Phase 5+ - not v1)
 // ============================================
+// v1 Scout uses static, hard-coded tips only.
+// This model and the generateTips logic below are for Phase 5+.
 
 model MascotTip {
   id          String   @id @default(cuid())
@@ -2249,10 +2286,12 @@ POST   /api/mission/[caseId]/search/end
        → Body: { sessionId }
        → Returns: { distanceMiles, pointsEarned }
 
-POST   /api/mission/[caseId]/search/mark-area
-       → Manual area marking
-       → Body: { polygon: GeoPoint[] }
+POST   /api/mission/[caseId]/search/log
+       → Manual search log ("I searched this area")
+       → Body: { note?: string, approximateLocation?: { lat, lng } }
        → Returns: { pointsEarned }
+       → NOTE: v1 is just a log entry. Phase 5+ adds polygon drawing via
+         /search/mark-area with { polygon: GeoPoint[] }
 ```
 
 ### Flyers
@@ -2463,8 +2502,8 @@ For each event with a known `emailId`:
 - [ ] Implement 100 pts/day cap for self-reported
 - [ ] Create `VerifiedAction` model
 - [ ] Add points display in UI
-- [ ] GPS search session tracking
-- [ ] Manual area marking alternative
+- [ ] GPS search session tracking (`SearchSession` model)
+- [ ] Manual search logging ("I searched this area" - no polygon)
 
 ### Phase 3: Shelter Contacts (Week 3-4)
 
@@ -2721,6 +2760,10 @@ const TASK_DEFINITIONS = {
     basePriority: 60,
     basePoints: 5,
     verificationMethod: null,  // Self-reported only; no VerifiedAction created
+    // NOTE: Users can optionally submit a link to their post. For v1, we store
+    // this in the activity log (no VerifiedAction). If we later want to treat
+    // links as semi-verified for analytics, we can add metadata.linkUrl to the
+    // DailyPointsLog entry or create a separate ShareLink model.
     tips: [
       'Post in local community groups',
       'Use relevant hashtags',
@@ -3045,4 +3088,4 @@ The `VerifiedAction` and `CaseOutcome` tables are the primary sources for traini
 ---
 
 *Last updated: December 2024*
-*Version: 2.3*
+*Version: 2.4*
