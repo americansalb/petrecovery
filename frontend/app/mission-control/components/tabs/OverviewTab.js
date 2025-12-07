@@ -28,6 +28,8 @@ import {
   ClipboardList,
 } from 'lucide-react';
 import { normalizePhotoUrl } from '@/app/lib/utils';
+import useScoutTips from '@/app/mission-control/hooks/useScoutTips';
+import ScoutTipBanner, { ScoutTipCarousel } from '@/app/components/missionControl/ScoutTipBanner';
 
 // Lazy load map for performance
 const MapView = dynamic(() => import('@/app/components/case/SARMapView'), {
@@ -52,6 +54,19 @@ export default function OverviewTab({
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const [shareStatus, setShareStatus] = useState(null); // 'copied' | 'shared' | 'error'
+  const [tipIndex, setTipIndex] = useState(0);
+
+  // Scout tips for contextual guidance
+  const {
+    tips,
+    loading: tipsLoading,
+    dismissing,
+    dismissTip,
+  } = useScoutTips(mission?.id);
+
+  // Carousel navigation
+  const handleNextTip = () => setTipIndex((i) => (i + 1) % tips.length);
+  const handlePrevTip = () => setTipIndex((i) => (i - 1 + tips.length) % tips.length);
 
   if (!mission) return null;
 
@@ -156,6 +171,27 @@ export default function OverviewTab({
           <h3 className="text-emerald-400 font-bold text-lg">Reunited!</h3>
           <p className="text-emerald-200 text-sm">{mission.petName} has been found and returned home safely.</p>
         </div>
+      )}
+
+      {/* Scout Tips - Contextual guidance from Scout mascot */}
+      {!isReunited && tips.length > 0 && (
+        tips.length === 1 ? (
+          <ScoutTipBanner
+            tip={tips[0]}
+            onDismiss={dismissTip}
+            variant="compact"
+            dismissing={dismissing === tips[0].id}
+          />
+        ) : (
+          <ScoutTipCarousel
+            tips={tips}
+            currentIndex={tipIndex}
+            onDismiss={dismissTip}
+            onNext={handleNextTip}
+            onPrev={handlePrevTip}
+            dismissing={dismissing}
+          />
+        )
       )}
 
       {/* LARGE PET PHOTO - Central focus */}

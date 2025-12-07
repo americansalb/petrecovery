@@ -47,6 +47,14 @@ export {
   type EmailResult,
 } from './emailService';
 
+// Tip Service (Phase 5: Scout Intelligence)
+export {
+  TipService,
+  getTipService,
+  type TipContext,
+  type GeneratedTip,
+} from './tipService';
+
 // Task Definitions (re-export from parent)
 export {
   TASK_DEFINITIONS,

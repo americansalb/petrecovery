@@ -462,6 +462,9 @@ model Case {
   // Mission Control
   missionControl    MissionControl?
 
+  // Phase 5: Scout Tips
+  mascotTips        MascotTip[]
+
   @@index([status])
   @@index([caseNumber])
   @@index([lastSeenLatitude, lastSeenLongitude])
@@ -3760,5 +3763,61 @@ model FlyerPosting {
 
   @@index([caseId])
   @@index([userId])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// PHASE 5: MASCOT TIPS (SCOUT INTELLIGENCE)
+// ============================================================================
+
+/**
+ * TipType - Types of Scout tips
+ * Per Actions_Guide.md specification
+ */
+enum TipType {
+  TIME        // Time-based tips (dawn, dusk)
+  WEATHER     // Weather-related tips
+  PROGRESS    // Milestone/progress tips
+  LOCATION    // Unsearched area tips
+  COLD_SPOT   // Flyer coverage tips
+  STRATEGY    // General search strategy tips
+  ENCOURAGE   // Morale boost tips
+  SIGHTING    // New sighting alerts
+}
+
+/**
+ * MascotTip - Scout's contextual tips and encouragement
+ *
+ * Tips appear as banners in the UI and as messages in mission chat.
+ * Generated based on time, weather, progress, and location context.
+ */
+model MascotTip {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+
+  caseId      String
+  case        Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  // Tip content
+  tipType     TipType
+  message     String
+  title       String?   // Optional headline (e.g., "Dusk Alert!")
+  priority    Int       @default(50)  // 0-100, higher = more important
+
+  // Action button (optional)
+  actionLabel String?   // e.g., "Start Search"
+  actionType  String?   // e.g., "navigate:search", "navigate:flyers"
+
+  // Tip lifecycle
+  expiresAt   DateTime?
+  dismissedBy String[]  @default([])  // User IDs who dismissed this tip
+  postedToChat Boolean  @default(false)
+  postedToChatAt DateTime?
+
+  // Context metadata (for debugging/analytics)
+  context     Json?     // e.g., { hour: 17, weather: "rain", sheltersContacted: 5 }
+
+  @@index([caseId])
+  @@index([tipType])
   @@index([createdAt])
 }
