@@ -34,6 +34,7 @@ import {
   ActivityTab,
   ManageTab,
   FlyersTab,
+  ActionsTab,
 } from './components/tabs';
 
 // Extracted Modal Components
@@ -63,6 +64,8 @@ import {
   CheckCircle,
   Info,
   X,
+  Star,
+  FileText,
 } from 'lucide-react';
 
 function MissionControlV3Content() {
@@ -212,8 +215,9 @@ function MissionControlV3Content() {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: AlertCircle },
     { id: 'map', label: 'Map', icon: MapPin },
-    { id: 'flyers', label: 'Flyers', icon: MapPin }, // Using MapPin as placeholder
-    { id: 'team', label: 'Actions', icon: CheckCircle },
+    { id: 'actions', label: 'Actions', icon: Star },
+    { id: 'flyers', label: 'Flyers', icon: FileText },
+    { id: 'team', label: 'Team', icon: Users },
     { id: 'activity', label: 'Activity', icon: ActivityIcon },
   ];
 
@@ -377,6 +381,19 @@ function MissionControlV3Content() {
             onStartGPSTracking={startGPSTracking}
             onStopGPSTracking={stopGPSTracking}
             isGPSTracking={isGPSTracking}
+          />
+        )}
+
+        {activeTab === 'actions' && (
+          <ActionsTab
+            mission={activeMission}
+            userId={session?.user?.id}
+            onTaskComplete={(task, result) => {
+              showNotification({
+                type: 'success',
+                message: `+${result.pointsEarned || 0} points for ${task.displayName}!`,
+              });
+            }}
           />
         )}
 
