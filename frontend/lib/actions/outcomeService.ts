@@ -259,7 +259,7 @@ export class OutcomeService {
     // Action effectiveness: which actions correlate with faster reunions
     const actionStats = new Map<string, { totalHours: number; count: number }>();
     for (const o of outcomes) {
-      const summary = o.verifiedActionsSummary as ActionSummary[];
+      const summary = o.verifiedActionsSummary as unknown as ActionSummary[];
       if (Array.isArray(summary)) {
         for (const action of summary) {
           const existing = actionStats.get(action.actionType) || { totalHours: 0, count: 0 };
@@ -309,7 +309,7 @@ export class OutcomeService {
     // Early action correlation (actions done within first 6 hours)
     const earlyActionStats = new Map<string, { totalReunionHours: number; count: number }>();
     for (const o of outcomes) {
-      const summary = o.verifiedActionsSummary as ActionSummary[];
+      const summary = o.verifiedActionsSummary as unknown as ActionSummary[];
       if (Array.isArray(summary)) {
         for (const action of summary) {
           if (action.avgHoursAfterLost < 6) {
