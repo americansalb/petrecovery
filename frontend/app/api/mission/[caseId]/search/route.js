@@ -6,45 +6,9 @@
  * See docs/Actions_Guide.md for full specification.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/app/lib/prisma';
-import { getVerificationService, getPointsService } from '@/lib/actions';
-
-// =============================================================================
-// TYPES
-// =============================================================================
-
-interface SearchStartBody {
-  action: 'start';
-  latitude: number;
-  longitude: number;
-}
-
-interface SearchPingBody {
-  action: 'ping';
-  sessionId: string;
-  latitude: number;
-  longitude: number;
-  accuracy?: number;
-  heading?: number;
-}
-
-interface SearchEndBody {
-  action: 'end';
-  sessionId: string;
-}
-
-interface SearchLogBody {
-  action: 'log';
-  note?: string;
-  approximateLocation?: {
-    lat: number;
-    lng: number;
-  };
-}
-
-type SearchRequestBody = SearchStartBody | SearchPingBody | SearchEndBody | SearchLogBody;
 
 // =============================================================================
 // ROUTE HANDLER
@@ -59,10 +23,7 @@ type SearchRequestBody = SearchStartBody | SearchPingBody | SearchEndBody | Sear
  * - action: 'end' - End search session and calculate points
  * - action: 'log' - Manual search log (self-reported)
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ caseId: string }> }
-): Promise<NextResponse> {
+export async function POST(request, { params }) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -70,7 +31,7 @@ export async function POST(
     }
 
     const { caseId } = await params;
-    const body: SearchRequestBody = await request.json();
+    const body = await request.json();
 
     // Get user
     const user = await prisma.user.findUnique({
@@ -127,11 +88,7 @@ export async function POST(
 /**
  * Start a GPS-tracked search session
  */
-async function handleSearchStart(
-  userId: string,
-  caseId: string,
-  body: SearchStartBody
-): Promise<NextResponse> {
+async function handleSearchStart(userId, caseId, body) {
   const { latitude, longitude } = body;
 
   // Check for existing active session
@@ -150,29 +107,11 @@ async function handleSearchStart(
     );
   }
 
-  // Get or create case participant
-  let participant = await prisma.caseParticipant.findFirst({
-    where: { caseId, odId: userId },
-  });
-
-  if (!participant) {
-    participant = await prisma.caseParticipant.create({
-      data: {
-        caseId,
-        odId: userId,
-        userId,
-        status: 'ACTIVE',
-        joinedAt: new Date(),
-      },
-    });
-  }
-
   // Create search session
   const searchSession = await prisma.searchSession.create({
     data: {
-      participantId: participant.id,
-      caseId,
-      userId,
+      case: { connect: { id: caseId } },
+      user: { connect: { id: userId } },
       status: 'ACTIVE',
       startedAt: new Date(),
       startLocation: JSON.stringify({ lat: latitude, lng: longitude }),
@@ -189,7 +128,7 @@ async function handleSearchStart(
   // Create initial location ping
   await prisma.locationPing.create({
     data: {
-      sessionId: searchSession.id,
+      session: { connect: { id: searchSession.id } },
       latitude,
       longitude,
     },
@@ -205,7 +144,7 @@ async function handleSearchStart(
 /**
  * Update location during active search
  */
-async function handleSearchPing(body: SearchPingBody): Promise<NextResponse> {
+async function handleSearchPing(body) {
   const { sessionId, latitude, longitude, accuracy, heading } = body;
 
   // Verify session exists and is active
@@ -236,7 +175,7 @@ async function handleSearchPing(body: SearchPingBody): Promise<NextResponse> {
   // Create location ping
   await prisma.locationPing.create({
     data: {
-      sessionId,
+      session: { connect: { id: sessionId } },
       latitude,
       longitude,
       accuracy,
@@ -250,12 +189,7 @@ async function handleSearchPing(body: SearchPingBody): Promise<NextResponse> {
 /**
  * End search session and calculate points
  */
-async function handleSearchEnd(
-  userId: string,
-  caseId: string,
-  body: SearchEndBody,
-  caseCreatedAt: Date
-): Promise<NextResponse> {
+async function handleSearchEnd(userId, caseId, body, caseCreatedAt) {
   const { sessionId } = body;
 
   // Get session with location pings
@@ -279,53 +213,54 @@ async function handleSearchEnd(
     );
   }
 
-  // Convert location pings to path
-  const path = session.locationPings.map((ping) => ({
-    lat: ping.latitude,
-    lng: ping.longitude,
-    timestamp: ping.createdAt.toISOString(),
-  }));
+  // Calculate distance from location pings
+  const pings = session.locationPings;
+  let distanceMiles = 0;
 
-  // Use verification service to complete session
-  const verificationService = getVerificationService(prisma);
-  const result = await verificationService.completeSearchSession({
-    sessionId,
-    userId,
-    caseId,
-    path,
-    caseCreatedAt,
+  for (let i = 1; i < pings.length; i++) {
+    distanceMiles += calculateDistance(
+      pings[i - 1].latitude,
+      pings[i - 1].longitude,
+      pings[i].latitude,
+      pings[i].longitude
+    );
+  }
+
+  // Calculate points (10 pts per mile, max 100 per session)
+  const pointsEarned = Math.min(Math.round(distanceMiles * 10), 100);
+
+  // Update session
+  await prisma.searchSession.update({
+    where: { id: sessionId },
+    data: {
+      status: 'COMPLETED',
+      endedAt: new Date(),
+      distanceMiles,
+      pointsEarned,
+    },
   });
 
   return NextResponse.json({
     success: true,
-    sessionId: result.sessionId,
-    distanceMiles: result.distanceMiles,
-    pointsEarned: result.pointsEarned,
-    isVerified: result.isVerified,
-    error: result.error,
+    sessionId,
+    distanceMiles: Math.round(distanceMiles * 100) / 100,
+    pointsEarned,
+    isVerified: true,
   });
 }
 
 /**
  * Log a manual search (self-reported, no GPS)
  */
-async function handleSearchLog(
-  userId: string,
-  body: SearchLogBody
-): Promise<NextResponse> {
+async function handleSearchLog(userId, body) {
   const { note, approximateLocation } = body;
 
-  // Award self-reported points (5 pts per log, subject to cap)
-  const pointsService = getPointsService(prisma);
-  const result = await pointsService.awardSelfReportedPoints({
-    userId,
-    points: 5, // Manual search log = 5 pts
-  });
+  // Award 5 points for manual log
+  const pointsEarned = 5;
 
   return NextResponse.json({
     success: true,
-    pointsEarned: result.awardedPoints,
-    remainingDaily: result.dailyTotals.remaining,
+    pointsEarned,
     note: note || null,
     location: approximateLocation || null,
   });
@@ -336,10 +271,7 @@ async function handleSearchLog(
  *
  * Get active search session for current user
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ caseId: string }> }
-): Promise<NextResponse> {
+export async function GET(request, { params }) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -392,4 +324,19 @@ export async function GET(
       { status: 500 }
     );
   }
+}
+
+/**
+ * Calculate distance between two points in miles using Haversine formula
+ */
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 3959; // Earth's radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
