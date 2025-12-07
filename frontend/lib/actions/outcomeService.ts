@@ -7,7 +7,7 @@
  * Per Actions_Guide.md Phase 6 specification.
  */
 
-import { PrismaClient, OutcomeType, FoundMethod } from '@prisma/client';
+import { PrismaClient, OutcomeType, FoundMethod, Prisma } from '@prisma/client';
 
 // =============================================================================
 // TYPES
@@ -117,7 +117,7 @@ export class OutcomeService {
             locationType: input.locationType,
             weatherConditions,
             verifiedActionsCount: metrics.verifiedActionsCount,
-            verifiedActionsSummary: metrics.verifiedActionsSummary,
+            verifiedActionsSummary: metrics.verifiedActionsSummary as unknown as Prisma.InputJsonValue,
             totalSearchHours: metrics.totalSearchHours,
             totalFlyersPosted: metrics.totalFlyersPosted,
             totalSheltersContacted: metrics.totalSheltersContacted,
