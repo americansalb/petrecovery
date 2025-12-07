@@ -204,12 +204,14 @@ export class OutcomeService {
     // Get sightings count
     const sightingsCount = await this.prisma.caseSighting.count({ where: { caseId } });
 
-    // Get unique team members (from case participants or mission control)
+    // Get unique team members (from case participants via assignments)
     const participants = await this.prisma.caseParticipant.findMany({
-      where: { caseId },
-      select: { rescuerId: true },
+      where: {
+        assignment: { caseId }
+      },
+      select: { userId: true },
     });
-    const teamMembersCount = new Set(participants.map((p) => p.rescuerId)).size;
+    const teamMembersCount = new Set(participants.map((p) => p.userId)).size;
 
     // Calculate time to reunion
     const timeToReunionHours = (Date.now() - caseCreatedAt.getTime()) / (1000 * 60 * 60);
