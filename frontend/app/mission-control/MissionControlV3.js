@@ -33,6 +33,7 @@ import {
   TeamTab,
   ActivityTab,
   ManageTab,
+  FlyersTab,
 } from './components/tabs';
 
 // Extracted Modal Components
@@ -211,6 +212,7 @@ function MissionControlV3Content() {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: AlertCircle },
     { id: 'map', label: 'Map', icon: MapPin },
+    { id: 'flyers', label: 'Flyers', icon: MapPin }, // Using MapPin as placeholder
     { id: 'team', label: 'Actions', icon: CheckCircle },
     { id: 'activity', label: 'Activity', icon: ActivityIcon },
   ];
@@ -375,6 +377,13 @@ function MissionControlV3Content() {
             onStartGPSTracking={startGPSTracking}
             onStopGPSTracking={stopGPSTracking}
             isGPSTracking={isGPSTracking}
+          />
+        )}
+
+        {activeTab === 'flyers' && (
+          <FlyersTab
+            mission={activeMission}
+            session={session}
           />
         )}
 

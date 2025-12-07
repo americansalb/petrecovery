@@ -201,15 +201,26 @@ export async function POST(
 // =============================================================================
 
 /**
+ * Cold spot type matching spec
+ */
+interface ColdSpot {
+  center: { lat: number; lng: number };
+  cellId: string;
+  distanceFromLastSeen: number;
+  priority: number;
+}
+
+/**
  * Calculate cold spots (100m grid cells without flyers)
+ * Per Actions_Guide.md spec: returns center, cellId, distanceFromLastSeen
  */
 function calculateColdSpots(
   flyerLocations: Array<{ lat: number; lng: number }>,
   centerLat: number,
   centerLng: number,
   radiusMiles: number
-): Array<{ lat: number; lng: number; priority: number }> {
-  const coldSpots: Array<{ lat: number; lng: number; priority: number }> = [];
+): ColdSpot[] {
+  const coldSpots: ColdSpot[] = [];
 
   // Convert radius to degrees (rough approximation)
   const latRadius = radiusMiles / 69; // ~69 miles per degree latitude
@@ -217,8 +228,11 @@ function calculateColdSpots(
 
   // Create set of covered cells
   const coveredCells = new Set<string>();
+  const originLat = centerLat - latRadius;
+  const originLng = centerLng - lngRadius;
+
   for (const loc of flyerLocations) {
-    const cellId = getCellId(loc.lat, loc.lng, centerLat - latRadius, centerLng - lngRadius);
+    const cellId = getCellId(loc.lat, loc.lng, originLat, originLng);
     coveredCells.add(cellId);
   }
 
@@ -228,22 +242,32 @@ function calculateColdSpots(
 
   for (let row = 0; row < gridRows; row++) {
     for (let col = 0; col < gridCols; col++) {
-      const cellId = `${row}_${col}`;
-      if (!coveredCells.has(cellId)) {
+      // Generate cellId per spec: letter + number format
+      const colLetter = String.fromCharCode(65 + (col % 26)); // A-Z
+      const rowNum = row + 1;
+      const cellId = `${colLetter}${rowNum}`;
+      const internalCellId = `${row}_${col}`;
+
+      if (!coveredCells.has(internalCellId)) {
         const lat = centerLat - latRadius + (row + 0.5) * LAT_CELL_SIZE;
         const lng = centerLng - lngRadius + (col + 0.5) * LNG_CELL_SIZE;
 
-        // Calculate priority based on distance from center
-        const distFromCenter = Math.sqrt(
-          Math.pow((lat - centerLat) / latRadius, 2) +
-          Math.pow((lng - centerLng) / lngRadius, 2)
-        );
+        // Calculate distance from center in miles using Haversine formula
+        const distanceFromLastSeen = haversineDistance(centerLat, centerLng, lat, lng);
 
-        // Higher priority for cells closer to center
-        const priority = Math.round((1 - distFromCenter) * 100);
+        // Only include cells within the radius
+        if (distanceFromLastSeen <= radiusMiles) {
+          // Higher priority for cells closer to center
+          const priority = Math.round((1 - (distanceFromLastSeen / radiusMiles)) * 100);
 
-        if (priority > 0) {
-          coldSpots.push({ lat, lng, priority });
+          if (priority > 0) {
+            coldSpots.push({
+              center: { lat, lng },
+              cellId,
+              distanceFromLastSeen: Math.round(distanceFromLastSeen * 100) / 100,
+              priority,
+            });
+          }
         }
       }
     }
@@ -253,6 +277,21 @@ function calculateColdSpots(
   return coldSpots
     .sort((a, b) => b.priority - a.priority)
     .slice(0, 10);
+}
+
+/**
+ * Calculate distance between two points in miles using Haversine formula
+ */
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 3959; // Earth's radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
 /**
