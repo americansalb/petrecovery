@@ -593,31 +593,10 @@ export class TipService {
   /**
    * Calculate which cardinal directions haven't been searched
    */
-  private calculateUnsearchedDirections(
-    centerLat: number | null,
-    centerLng: number | null,
-    searchSessions: Array<{ startLatitude: number | null; startLongitude: number | null }>
-  ): string[] {
-    if (!centerLat || !centerLng || searchSessions.length === 0) {
-      return ['north', 'south', 'east', 'west'];
-    }
-
-    const directions = new Set(['north', 'south', 'east', 'west']);
-
-    for (const session of searchSessions) {
-      if (!session.startLatitude || !session.startLongitude) continue;
-
-      const latDiff = session.startLatitude - centerLat;
-      const lngDiff = session.startLongitude - centerLng;
-
-      // Determine which quadrant(s) this search covers
-      if (latDiff > 0.001) directions.delete('north');
-      if (latDiff < -0.001) directions.delete('south');
-      if (lngDiff > 0.001) directions.delete('east');
-      if (lngDiff < -0.001) directions.delete('west');
-    }
-
-    return Array.from(directions);
+  // Note: SearchSession doesn't have location fields, so direction calculation is disabled
+  // Returns all directions as "unsearched" since we can't determine which were searched
+  private calculateUnsearchedDirections(): string[] {
+    return ['north', 'south', 'east', 'west'];
   }
 
   /**
