@@ -465,6 +465,9 @@ model Case {
   // Phase 5: Scout Tips
   mascotTips        MascotTip[]
 
+  // Phase 6: Case Outcome (for ML training)
+  caseOutcome       CaseOutcome?
+
   @@index([status])
   @@index([caseNumber])
   @@index([lastSeenLatitude, lastSeenLongitude])
@@ -3819,5 +3822,88 @@ model MascotTip {
 
   @@index([caseId])
   @@index([tipType])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// PHASE 6: ALGORITHM TRAINING - CASE OUTCOMES
+// ============================================================================
+
+/**
+ * OutcomeType - How the case was resolved
+ * Per Actions_Guide.md Phase 6 specification
+ */
+enum OutcomeType {
+  REUNITED      // Pet found and returned to owner
+  NOT_FOUND     // Search ended without finding pet
+  DECEASED      // Pet found deceased
+  CLOSED_OTHER  // Closed for other reasons
+}
+
+/**
+ * FoundMethod - How the pet was found (for REUNITED cases)
+ * This data helps train the algorithm to recommend effective actions
+ */
+enum FoundMethod {
+  CAME_HOME       // Pet returned on their own
+  SHELTER_INTAKE  // Found at a shelter
+  NEIGHBOR_FOUND  // Neighbor/community member found them
+  SIGHTING_LED_TO // A reported sighting led to recovery
+  TRAP_CAUGHT     // Caught in a humane trap
+  FLYER_RESPONSE  // Someone saw a flyer and called
+  SOCIAL_MEDIA    // Found through social media post
+  OTHER           // Other method
+}
+
+/**
+ * CaseOutcome - Detailed case resolution data for ML training
+ *
+ * This model captures everything needed to train the recommendation
+ * algorithm: what actions were taken, how long it took, and what worked.
+ *
+ * OWNERSHIP & LIFECYCLE:
+ * - Created when the owner or moderator closes a case
+ * - Only admins/moderators can edit after creation
+ * - ML training can tolerate some missing outcomes initially
+ */
+model CaseOutcome {
+  id                    String      @id @default(cuid())
+  caseId                String      @unique
+  case                  Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  // Resolution details
+  outcome               OutcomeType
+  timeToReunionHours    Float?      // Hours from case creation to resolution
+  foundMethod           FoundMethod?
+  foundMethodDetails    String?     // Free-form details about how pet was found
+
+  // Context snapshot for ML (denormalized from Case at time of closure)
+  petType               String      // 'CAT' | 'DOG'
+  petBehavior           String?     // 'INDOOR' | 'OUTDOOR' | 'SKITTISH' | 'FRIENDLY'
+  petSize               String?     // 'SMALL' | 'MEDIUM' | 'LARGE'
+  locationType          String?     // 'URBAN' | 'SUBURBAN' | 'RURAL'
+  weatherConditions     String?     // Weather at time of reunion (JSON or simple string)
+
+  // Actions summary (denormalized for fast analytics queries)
+  verifiedActionsCount  Int         @default(0)
+  verifiedActionsSummary Json       @default("[]")  // Array of { actionType, count, avgHoursAfterLost }
+
+  // Additional metrics
+  totalSearchHours      Float?      // Total hours of GPS-tracked searches
+  totalFlyersPosted     Int         @default(0)
+  totalSheltersContacted Int        @default(0)
+  sightingsCount        Int         @default(0)
+  teamMembersCount      Int         @default(0)
+
+  // User feedback
+  ownerFeedback         String?     // Optional owner feedback about what helped
+  helpfulActions        String[]    @default([])  // Actions owner marked as helpful
+
+  createdAt             DateTime    @default(now())
+  createdBy             String?     // User ID who recorded the outcome
+
+  @@index([outcome])
+  @@index([petType])
+  @@index([foundMethod])
   @@index([createdAt])
 }

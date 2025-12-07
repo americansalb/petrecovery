@@ -55,6 +55,16 @@ export {
   type GeneratedTip,
 } from './tipService';
 
+// Outcome Service (Phase 6: Algorithm Training)
+export {
+  OutcomeService,
+  getOutcomeService,
+  type CloseCase,
+  type ActionSummary,
+  type CaseMetrics,
+  type AnalyticsInsight,
+} from './outcomeService';
+
 // Task Definitions (re-export from parent)
 export {
   TASK_DEFINITIONS,
