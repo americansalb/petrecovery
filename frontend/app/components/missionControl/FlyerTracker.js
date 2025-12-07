@@ -14,8 +14,29 @@
  * Per Actions_Guide.md Phase 4 specification.
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import useFlyerTracking from '@/app/mission-control/hooks/useFlyerTracking';
+
+// Lazy load map for performance
+const FlyerMapView = dynamic(() => import('./FlyerMapView'), {
+  ssr: false,
+  loading: () => (
+    <div style={{
+      height: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
+      color: 'white',
+    }}>
+      <div style={{ textAlign: 'center' }}>
+        <div className="map-spinner" />
+        <p>Loading map...</p>
+      </div>
+    </div>
+  ),
+});
 
 // Points per spec
 const FLYER_BASE_POINTS = 8;
@@ -116,49 +137,16 @@ export default function FlyerTracker({ caseId, lastSeenLocation, petName, onClos
         </div>
       </div>
 
-      {/* Map Placeholder */}
+      {/* Interactive Map with Flyers and Cold Spots */}
       <div style={styles.mapContainer}>
-        <div style={styles.mapPlaceholder}>
-          <div style={styles.mapLegend}>
-            <div style={styles.legendItem}>
-              <span style={styles.legendIcon}>{"0x1F4CD"}</span> Your location
-            </div>
-            <div style={styles.legendItem}>
-              <span style={styles.legendIcon}>{"0x1F4CC"}</span> Flyers posted ({teamStats.totalFlyers})
-            </div>
-            <div style={styles.legendItem}>
-              <span style={{ ...styles.legendIcon, color: '#EF4444' }}>{"0x1F534"}</span> Cold spots ({coldSpots.length})
-            </div>
-          </div>
-
-          {/* Map visualization would go here */}
-          <div style={styles.mapContent}>
-            {userLocation ? (
-              <div style={styles.mapInfo}>
-                <p>Your location: {userLocation.lat.toFixed(5)}, {userLocation.lng.toFixed(5)}</p>
-                <p style={styles.accuracyText}>
-                  Accuracy: {Math.round(userLocation.accuracy || 0)}m
-                </p>
-              </div>
-            ) : (
-              <div style={styles.mapInfo}>
-                <p style={styles.noLocationText}>{locationError || 'Getting your location...'}</p>
-              </div>
-            )}
-
-            {/* Flyer pins */}
-            {flyers.length > 0 && (
-              <div style={styles.flyerList}>
-                <p style={styles.flyerListTitle}>Recent flyers:</p>
-                {flyers.slice(0, 5).map((flyer, idx) => (
-                  <div key={flyer.id || idx} style={styles.flyerItem}>
-                    <span>{"0x1F4CC"}</span> {flyer.postedBy?.firstName || 'Someone'} - {formatTime(flyer.createdAt)}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <FlyerMapView
+          lastSeenLocation={lastSeenLocation}
+          userLocation={userLocation}
+          flyers={flyers}
+          coldSpots={coldSpots}
+          showLegend={true}
+          interactive={true}
+        />
       </div>
 
       {/* Mark Flyer Button */}

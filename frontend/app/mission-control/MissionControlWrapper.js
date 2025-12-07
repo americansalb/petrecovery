@@ -16,6 +16,7 @@ import { Suspense } from 'react';
 import { ToastProvider } from '@/app/components/ui/Toast';
 import ErrorBoundary from '@/app/components/ui/ErrorBoundary';
 import OfflineIndicator from '@/app/components/ui/OfflineIndicator';
+import FeedbackWidget from '@/app/components/ui/FeedbackWidget';
 import { SkeletonPage } from '@/app/components/ui/Skeleton';
 import MissionControlV3 from './MissionControlV3';
 
@@ -38,7 +39,7 @@ export default function MissionControlWrapper(props) {
 }
 
 /**
- * Mission Control with offline indicator
+ * Mission Control with offline indicator and feedback widget
  */
 function MissionControlContent(props) {
   return (
@@ -48,6 +49,13 @@ function MissionControlContent(props) {
 
       {/* Main Mission Control */}
       <MissionControlV3 {...props} />
+
+      {/* Feedback Widget - floating button in corner */}
+      <FeedbackWidget
+        feature="mission-control"
+        caseId={props.caseId}
+        variant="floating"
+      />
     </div>
   );
 }

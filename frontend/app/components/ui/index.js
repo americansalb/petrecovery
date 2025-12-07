@@ -25,3 +25,6 @@ export { default as ErrorBoundary } from './ErrorBoundary';
 
 // Offline support
 export { default as OfflineIndicator } from './OfflineIndicator';
+
+// User feedback
+export { default as FeedbackWidget, useFeedback, QuickFeedbackButton } from './FeedbackWidget';

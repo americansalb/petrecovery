@@ -42,11 +42,20 @@ export default function ScoutTipBanner({
   tip,
   onDismiss,
   onAction,
+  onShare,  // NEW: Share tip to team chat
   variant = 'default', // 'default' | 'compact' | 'chat'
   showScoutLabel = true,
   dismissing = false,
+  sharing = false,  // NEW: Sharing state
 }) {
   const [isHovered, setIsHovered] = useState(false);
+
+  // Handle share button click
+  const handleShare = useCallback(() => {
+    if (onShare) {
+      onShare(tip);
+    }
+  }, [onShare, tip]);
 
   if (!tip) return null;
 
@@ -165,19 +174,35 @@ export default function ScoutTipBanner({
         </p>
       </div>
 
-      {/* Action button */}
-      {tip.actionLabel && onAction && (
-        <button
-          onClick={handleAction}
-          style={{
-            ...styles.actionButton,
-            color: colors.text,
-            borderColor: colors.border,
-          }}
-        >
-          {tip.actionLabel} &rarr;
-        </button>
-      )}
+      {/* Action buttons */}
+      <div style={styles.buttonRow}>
+        {tip.actionLabel && onAction && (
+          <button
+            onClick={handleAction}
+            style={{
+              ...styles.actionButton,
+              color: colors.text,
+              borderColor: colors.border,
+            }}
+          >
+            {tip.actionLabel} &rarr;
+          </button>
+        )}
+
+        {/* Share to Team button */}
+        {onShare && (
+          <button
+            onClick={handleShare}
+            disabled={sharing}
+            style={{
+              ...styles.shareButton,
+              opacity: sharing ? 0.5 : 1,
+            }}
+          >
+            {sharing ? 'Sharing...' : 'Share to Team'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -293,10 +318,15 @@ const styles = {
     fontStyle: 'italic',
     lineHeight: 1.5,
   },
-  actionButton: {
-    display: 'block',
-    marginLeft: 'auto',
+  buttonRow: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: '0.5rem',
     marginTop: '0.75rem',
+    marginLeft: '2rem',
+  },
+  actionButton: {
     background: 'transparent',
     border: '1px solid',
     borderRadius: '6px',
@@ -304,6 +334,19 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer',
     fontSize: '0.85rem',
+  },
+  shareButton: {
+    background: '#4F46E5',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '0.5rem 1rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.375rem',
   },
 
   // Compact variant
