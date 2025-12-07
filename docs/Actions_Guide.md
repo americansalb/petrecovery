@@ -4,6 +4,8 @@
 
 > **Single Source of Truth:** If existing behavior in the app disagrees with this document, this document wins unless explicitly overridden by a subsequent decision. When in doubt, refer here.
 
+> **🔒 Frozen Document:** This specification is locked and must not be modified directly. If changes are needed, create a copy (e.g., `Actions_Guide_v3.md`) and modify the duplicate. This preserves the original as a historical reference and ensures traceability of spec evolution.
+
 ---
 
 ## Engineer Quick-Start (v1 Scope)
