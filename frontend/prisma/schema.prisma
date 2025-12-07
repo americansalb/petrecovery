@@ -3560,7 +3560,7 @@ enum VerificationMethod {
 }
 
 /// Valid action types for verified actions
-/// ⚠️ IMPORTANT: Use ONLY these values. Typos corrupt analytics.
+/// IMPORTANT: Use ONLY these values. Typos corrupt analytics.
 enum ActionType {
   search_area
   check_hiding
