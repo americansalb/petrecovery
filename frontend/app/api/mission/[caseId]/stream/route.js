@@ -12,9 +12,7 @@
 
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
-
-// Store active connections by mission ID
-const connections = new Map();
+import { connections } from '@/app/lib/sse/missionStream';
 
 // Cleanup interval (remove stale connections)
 const CLEANUP_INTERVAL = 30000; // 30 seconds
@@ -111,43 +109,3 @@ export async function GET(request, { params }) {
     },
   });
 }
-
-// Broadcast to all connections for a mission
-export function broadcast(caseId, event) {
-  const missionConnections = connections.get(caseId);
-  if (!missionConnections || missionConnections.size === 0) {
-    return;
-  }
-
-  const encoder = new TextEncoder();
-  const data = JSON.stringify({
-    ...event,
-    timestamp: new Date().toISOString(),
-  });
-
-  const toRemove = [];
-
-  missionConnections.forEach((conn, id) => {
-    try {
-      conn.controller.enqueue(encoder.encode(`data: ${data}\n\n`));
-    } catch (err) {
-      // Connection dead, mark for removal
-      toRemove.push(id);
-    }
-  });
-
-  // Remove dead connections
-  toRemove.forEach(id => missionConnections.delete(id));
-}
-
-// Event types for Mission Control:
-// - VOLUNTEER_JOINED: New volunteer joined
-// - VOLUNTEER_LEFT: Volunteer checked out
-// - VOLUNTEER_MOVED: Volunteer location updated
-// - ZONE_UPDATED: Zone status changed
-// - SIGHTING_REPORTED: New sighting
-// - SIGHTING_VERIFIED: Sighting confirmed
-// - MODE_CHANGED: Mission mode changed (containment, etc.)
-// - BROADCAST: Command center broadcast
-// - CONTAINMENT_ACTIVATED: Perimeter being formed
-// - CALL_MODE_TRIGGERED: Owner's voice playing

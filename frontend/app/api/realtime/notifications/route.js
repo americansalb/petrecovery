@@ -1,9 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
-
-// Store active connections
-const connections = new Map();
+import { connections } from '@/app/lib/sse/notifications';
 
 // SSE endpoint for real-time notifications
 export async function GET(request) {
@@ -64,27 +62,3 @@ export async function GET(request) {
     },
   });
 }
-
-// Helper function to broadcast to a user (exported for use by other modules)
-export function broadcastToUser(userId, data) {
-  const userConnections = connections.get(userId);
-  if (userConnections) {
-    const encoder = new TextEncoder();
-    const message = encoder.encode(`data: ${JSON.stringify(data)}\n\n`);
-    userConnections.forEach((controller) => {
-      try {
-        controller.enqueue(message);
-      } catch (e) {
-        // Connection closed, will be cleaned up
-      }
-    });
-  }
-}
-
-// Helper to broadcast to multiple users
-export function broadcastToUsers(userIds, data) {
-  userIds.forEach((userId) => broadcastToUser(userId, data));
-}
-
-// Export connections map for external access
-export { connections };
