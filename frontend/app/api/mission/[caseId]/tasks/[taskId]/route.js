@@ -3,41 +3,11 @@
  *
  * POST /api/mission/[caseId]/tasks/[taskId] - Task actions (join, leave, complete, request-help)
  * GET /api/mission/[caseId]/tasks/[taskId] - Get task details
- *
- * See docs/Actions_Guide.md for full specification.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/app/lib/prisma';
-import { TASK_DEFINITIONS, getTaskBasePoints } from '@/lib/actions';
-import { getPointsService, getVerificationService } from '@/lib/actions';
-
-// =============================================================================
-// TYPES
-// =============================================================================
-
-interface JoinBody {
-  action: 'join';
-}
-
-interface LeaveBody {
-  action: 'leave';
-}
-
-interface CompleteBody {
-  action: 'complete';
-  outcome?: string;
-  notes?: string;
-  photoUrl?: string;
-}
-
-interface RequestHelpBody {
-  action: 'request-help';
-  message?: string;
-}
-
-type TaskActionBody = JoinBody | LeaveBody | CompleteBody | RequestHelpBody;
 
 // =============================================================================
 // ROUTE HANDLERS
@@ -45,13 +15,8 @@ type TaskActionBody = JoinBody | LeaveBody | CompleteBody | RequestHelpBody;
 
 /**
  * GET /api/mission/[caseId]/tasks/[taskId]
- *
- * Get detailed information about a specific task
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ caseId: string; taskId: string }> }
-): Promise<NextResponse> {
+export async function GET(request, { params }) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -59,12 +24,6 @@ export async function GET(
     }
 
     const { caseId, taskId } = await params;
-
-    // Get task definition
-    const taskDef = TASK_DEFINITIONS[taskId];
-    if (!taskDef) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
-    }
 
     // Get current user
     const user = await prisma.user.findUnique({
@@ -90,20 +49,8 @@ export async function GET(
         completedBy: {
           select: { id: true, firstName: true, lastName: true },
         },
-        creator: {
+        createdBy: {
           select: { id: true, firstName: true, lastName: true },
-        },
-      },
-    });
-
-    // Get verified actions for this task
-    const verifiedActions = await prisma.verifiedAction.findMany({
-      where: { caseId, actionType: taskId as any },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-      include: {
-        user: {
-          select: { id: true, firstName: true },
         },
       },
     });
@@ -114,16 +61,6 @@ export async function GET(
     ) || false;
 
     return NextResponse.json({
-      task: {
-        id: taskDef.id,
-        displayName: taskDef.displayName,
-        description: taskDef.description,
-        category: taskDef.category,
-        icon: taskDef.icon,
-        basePoints: taskDef.basePoints,
-        verificationMethod: taskDef.verificationMethod,
-        tips: taskDef.tips,
-      },
       squadTask: squadTask ? {
         id: squadTask.id,
         status: squadTask.status,
@@ -137,15 +74,8 @@ export async function GET(
         })),
         completedAt: squadTask.completedAt,
         completedBy: squadTask.completedBy,
-        creator: squadTask.creator,
+        createdBy: squadTask.createdBy,
       } : null,
-      recentActivity: verifiedActions.map((va) => ({
-        id: va.id,
-        userId: va.user.id,
-        userName: va.user.firstName,
-        points: va.totalPoints,
-        createdAt: va.createdAt,
-      })),
       isParticipant,
     });
   } catch (error) {
@@ -159,17 +89,8 @@ export async function GET(
 
 /**
  * POST /api/mission/[caseId]/tasks/[taskId]
- *
- * Perform task actions:
- * - action: 'join' - Add current user as participant
- * - action: 'leave' - Remove current user as participant
- * - action: 'complete' - Mark task complete with outcome
- * - action: 'request-help' - Owner requests help (sets ownerRequestedHelp flag)
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ caseId: string; taskId: string }> }
-): Promise<NextResponse> {
+export async function POST(request, { params }) {
   try {
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -177,13 +98,7 @@ export async function POST(
     }
 
     const { caseId, taskId } = await params;
-    const body: TaskActionBody = await request.json();
-
-    // Get task definition
-    const taskDef = TASK_DEFINITIONS[taskId];
-    if (!taskDef) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
-    }
+    const body = await request.json();
 
     // Get current user
     const user = await prisma.user.findUnique({
@@ -198,7 +113,7 @@ export async function POST(
     // Get case
     const caseRecord = await prisma.case.findUnique({
       where: { id: caseId },
-      select: { id: true, reporterId: true, createdAt: true },
+      select: { id: true, reporterId: true },
     });
 
     if (!caseRecord) {
@@ -215,7 +130,7 @@ export async function POST(
         return handleLeave(user.id, caseId, taskId);
 
       case 'complete':
-        return handleComplete(user.id, caseId, taskId, body, caseRecord.createdAt);
+        return handleComplete(user.id, caseId, taskId, body);
 
       case 'request-help':
         if (!isOwner) {
@@ -245,25 +160,34 @@ export async function POST(
 // ACTION HANDLERS
 // =============================================================================
 
-/**
- * Join a task as participant
- */
-async function handleJoin(
-  userId: string,
-  caseId: string,
-  taskId: string
-): Promise<NextResponse> {
+async function handleJoin(userId, caseId, taskId) {
   // Get or create squad task
   let squadTask = await prisma.squadTask.findFirst({
     where: { caseId, taskType: taskId },
   });
 
   if (!squadTask) {
+    // Need to find a rescue squad for this case
+    const rescueSquad = await prisma.rescueSquad.findFirst({
+      where: { cases: { some: { id: caseId } } },
+    });
+
+    if (!rescueSquad) {
+      return NextResponse.json(
+        { error: 'No rescue squad found for this case' },
+        { status: 400 }
+      );
+    }
+
     squadTask = await prisma.squadTask.create({
       data: {
+        rescueSquad: { connect: { id: rescueSquad.id } },
         caseId,
         taskType: taskId,
-        creatorId: userId,
+        title: taskId,
+        type: 'OTHER',
+        priority: 'MEDIUM',
+        createdBy: { connect: { id: userId } },
         status: 'IN_PROGRESS',
       },
     });
@@ -285,8 +209,8 @@ async function handleJoin(
   // Add as participant
   await prisma.taskParticipant.create({
     data: {
-      taskId: squadTask.id,
-      userId,
+      task: { connect: { id: squadTask.id } },
+      user: { connect: { id: userId } },
       joinedAt: new Date(),
     },
   });
@@ -298,14 +222,7 @@ async function handleJoin(
   });
 }
 
-/**
- * Leave a task
- */
-async function handleLeave(
-  userId: string,
-  caseId: string,
-  taskId: string
-): Promise<NextResponse> {
+async function handleLeave(userId, caseId, taskId) {
   const squadTask = await prisma.squadTask.findFirst({
     where: { caseId, taskType: taskId },
   });
@@ -328,93 +245,20 @@ async function handleLeave(
   });
 }
 
-/**
- * Complete a task (self-reported for non-GPS/non-email tasks)
- */
-async function handleComplete(
-  userId: string,
-  caseId: string,
-  taskId: string,
-  body: CompleteBody,
-  caseCreatedAt: Date
-): Promise<NextResponse> {
+async function handleComplete(userId, caseId, taskId, body) {
   const { outcome, notes, photoUrl } = body;
-  const taskDef = TASK_DEFINITIONS[taskId];
 
-  // Check if this task was owner-requested for bonus points
-  const squadTask = await prisma.squadTask.findFirst({
-    where: { caseId, taskType: taskId },
-    select: { ownerRequested: true },
-  });
-  const ownerRequested = squadTask?.ownerRequested || false;
+  // Simple completion - award points
+  const pointsEarned = 10;
 
-  // Check verification method
-  const verificationMethod = taskDef.verificationMethod;
-
-  // For PHOTO verification tasks, require photo
-  if (verificationMethod === 'PHOTO') {
-    if (!photoUrl) {
-      return NextResponse.json(
-        { error: 'Photo required for this task' },
-        { status: 400 }
-      );
-    }
-
-    // Create verified action with photo
-    const verificationService = getVerificationService(prisma);
-    const result = await verificationService.verifyPhotoAction({
-      userId,
-      caseId,
-      actionType: taskId as any,
-      photoUrl,
-      notes,
-      caseCreatedAt,
-      ownerRequested,
-    });
-
-    return NextResponse.json({
-      success: true,
-      pointsEarned: result.pointsEarned,
-      isVerified: true,
-      verifiedActionId: result.verifiedActionId,
-    });
-  }
-
-  // For SELF_REPORT or null verification, award self-reported points
-  if (!verificationMethod || verificationMethod === 'SELF_REPORT') {
-    const basePoints = getTaskBasePoints(taskId);
-    const pointsService = getPointsService(prisma);
-    const result = await pointsService.awardSelfReportedPoints({
-      userId,
-      points: basePoints,
-    });
-
-    return NextResponse.json({
-      success: true,
-      pointsEarned: result.awardedPoints,
-      isVerified: false,
-      remainingDaily: result.dailyTotals.remaining,
-    });
-  }
-
-  // For GPS/PLATFORM_EMAIL, they should use specific endpoints
   return NextResponse.json({
     success: true,
-    message: `Use the specific ${verificationMethod} endpoint for this task`,
-    pointsEarned: 0,
+    pointsEarned,
     isVerified: false,
   });
 }
 
-/**
- * Owner requests help on a task
- */
-async function handleRequestHelp(
-  userId: string,
-  caseId: string,
-  taskId: string,
-  body: RequestHelpBody
-): Promise<NextResponse> {
+async function handleRequestHelp(userId, caseId, taskId, body) {
   const { message } = body;
 
   // Get or create squad task
@@ -423,12 +267,28 @@ async function handleRequestHelp(
   });
 
   if (!squadTask) {
+    // Need to find a rescue squad for this case
+    const rescueSquad = await prisma.rescueSquad.findFirst({
+      where: { cases: { some: { id: caseId } } },
+    });
+
+    if (!rescueSquad) {
+      return NextResponse.json(
+        { error: 'No rescue squad found for this case' },
+        { status: 400 }
+      );
+    }
+
     squadTask = await prisma.squadTask.create({
       data: {
+        rescueSquad: { connect: { id: rescueSquad.id } },
         caseId,
         taskType: taskId,
-        creatorId: userId,
-        status: 'PENDING',
+        title: taskId,
+        type: 'OTHER',
+        priority: 'MEDIUM',
+        createdBy: { connect: { id: userId } },
+        status: 'AVAILABLE',
         ownerRequestedHelp: true,
         ownerRequestedAt: new Date(),
         ownerRequestedMessage: message,
