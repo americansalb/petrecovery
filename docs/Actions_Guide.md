@@ -2,6 +2,8 @@
 
 > **Purpose:** This document defines the complete vision for the pet recovery action/task system. It serves as the authoritative reference for all implementation decisions.
 
+> **Single Source of Truth:** If existing behavior in the app disagrees with this document, this document wins unless explicitly overridden by a subsequent decision. When in doubt, refer here.
+
 ---
 
 ## Table of Contents
@@ -283,7 +285,7 @@ We track self-reported points per user per day in `DailyPointsLog.selfReportedPo
    - Additional self-reported actions log normally but earn **0 extra points**
    - Verified actions (GPS, platform emails, GPS flyers, photos) **always** earn full value with no cap
 
-2. The cap resets at midnight (user's local time or UTC - TBD)
+2. The cap resets at midnight UTC. (In v2, we may migrate to per-user local time based on profile/device timezone.)
 
 **UI copy before cap:**
 
@@ -364,6 +366,10 @@ Verified actions would still earn unlimited on top.
 4. Path drawn on map in real-time
 5. Distance calculated from path
 6. Session ends when user stops or app goes to background for 5+ minutes
+
+**Session End Rules (Client + Server):**
+- **Client:** Auto-end the session after 5 minutes in background
+- **Server:** Treat a session as ended if no `/search/ping` is received for 10 minutes (prevents zombie sessions)
 
 **Data stored:**
 ```typescript
@@ -957,7 +963,7 @@ Paid tier ($7.50 minimum):
 │                                         │
 │  🏆 Points Earned                       │
 │  ┌─────────────────────────────────────┐│
-│  │ Base (0.82 mi × 10):    82 pts     ││
+│  │ Base (0.82 mi × 100):   82 pts     ││
 │  │ Dusk bonus (+10%):       8 pts     ││
 │  │ ─────────────────────────────      ││
 │  │ Total:                  90 pts     ││
@@ -1932,6 +1938,20 @@ model CaseOutcome {
 // the time of reunion/closure, so we can later analyze whether weather
 // correlates with action effectiveness.
 
+// NOTE: petType, petBehavior, petSize, and locationType are stored as
+// strings for flexibility, but should only use these values:
+//   petType: 'CAT' | 'DOG'
+//   petBehavior: 'INDOOR' | 'OUTDOOR' | 'SKITTISH' | 'FRIENDLY'
+//   petSize: 'SMALL' | 'MEDIUM' | 'LARGE'
+//   locationType: 'URBAN' | 'SUBURBAN' | 'RURAL'
+// Consider migrating to proper enums in a future schema update.
+
+// OWNERSHIP & LIFECYCLE:
+// - Created when the owner or moderator closes a case
+// - Only admins/moderators can edit after creation (prevent accidental changes)
+// - For v1, can be set manually via internal tool or owner close-case flow
+// - ML training can tolerate some missing outcomes initially
+
 enum OutcomeType {
   REUNITED
   NOT_FOUND
@@ -2145,8 +2165,10 @@ POST   /api/mission/[caseId]/tips/[tipId]/dismiss
 
 ```
 GET    /api/mission/[caseId]/points
-       → Get leaderboard for this case
+       → Get leaderboard for this case (per-mission points only)
        → Returns: { users: { id, name, points }[] }
+       → NOTE: This is case-specific. Global/all-time leaderboards use
+         /api/users/me/points and separate analytics queries.
 
 GET    /api/users/me/points
        → Get current user's points
@@ -2196,6 +2218,13 @@ For each event with a known `emailId`:
 ---
 
 ## UI Specifications
+
+> **Implementation Note:** Unless otherwise marked as "future" or "Phase 5+", UI examples in this doc represent intended v1 behavior. However, exact layout and wording can differ as long as:
+> - The same data is captured
+> - The same points and verification rules apply
+> - The same states (statuses, caps, etc.) are represented
+>
+> Don't feel locked into every pixel of the ASCII mockups.
 
 ### Main Task View
 
@@ -2401,15 +2430,21 @@ const TASK_DEFINITIONS = {
     petType: 'BOTH',
     basePriority: 70,
     basePoints: 8,
-    verificationMethod: 'GPS_PHOTO',
+    verificationMethod: 'GPS',  // GPS required; photo recommended but not required for verification
     tips: [
       'Use a flashlight even during the day',
       'Check high places for cats',
       'Look inside garages and sheds',
+      'Take photos of hiding spots you check',
     ],
   },
 
   // OUTREACH
+  // NOTE: For shelter/vet/animal-control tasks with both call + email:
+  //   - Calls are SELF-REPORTED (8 pts, counts toward daily cap, no VerifiedAction)
+  //   - Platform emails are VERIFIED (15 pts, uncapped, creates VerifiedAction)
+  // The verificationMethod below refers to email only.
+
   contact_shelters: {
     id: 'contact_shelters',
     category: 'OUTREACH',
@@ -2419,8 +2454,8 @@ const TASK_DEFINITIONS = {
     role: 'BOTH',
     petType: 'BOTH',
     basePriority: 85,
-    basePoints: { call: 8, email: 15 },
-    verificationMethod: 'PLATFORM_EMAIL',
+    basePoints: { call: 8, email: 15 },  // call = self-reported, email = verified
+    verificationMethod: 'PLATFORM_EMAIL', // For emails only; calls are self-reported
     hasSubtasks: true, // One per shelter
     tips: [
       'Call during business hours for best results',
@@ -2546,7 +2581,7 @@ const TASK_DEFINITIONS = {
     petType: 'BOTH',
     basePriority: 60,
     basePoints: 5,
-    verificationMethod: 'LINK',
+    verificationMethod: null,  // Self-reported only; no VerifiedAction created
     tips: [
       'Post in local community groups',
       'Use relevant hashtags',
@@ -2554,7 +2589,7 @@ const TASK_DEFINITIONS = {
     ],
   },
 
-  // ATTRACT HOME
+  // AT_HOME
   litter_outside: {
     id: 'litter_outside',
     category: 'AT_HOME',
