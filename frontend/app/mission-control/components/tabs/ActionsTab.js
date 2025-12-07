@@ -522,6 +522,273 @@ function GPSSearchTracker({ caseId, onPointsEarned }) {
   );
 }
 
+// Compact GPS Search Button - opens modal with full tracker
+function GPSSearchButton({ caseId, onPointsEarned }) {
+  const [showModal, setShowModal] = useState(false);
+  const [hasActiveSession, setHasActiveSession] = useState(false);
+
+  // Check for active session on mount
+  useEffect(() => {
+    if (!caseId) return;
+    const checkSession = async () => {
+      try {
+        const res = await fetch(`/api/mission/${caseId}/search`);
+        if (res.ok) {
+          const data = await res.json();
+          setHasActiveSession(!!data.activeSession);
+        }
+      } catch (err) {
+        // Ignore
+      }
+    };
+    checkSession();
+  }, [caseId]);
+
+  return (
+    <>
+      <button
+        onClick={() => setShowModal(true)}
+        className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl transition-all relative ${
+          hasActiveSession
+            ? 'bg-blue-500/20 border border-blue-500/50'
+            : 'bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50'
+        }`}
+      >
+        <Navigation className={hasActiveSession ? 'text-blue-400' : 'text-blue-400'} size={18} />
+        <span className="text-xs text-slate-300 font-medium">GPS</span>
+        {hasActiveSession && (
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse"></span>
+        )}
+      </button>
+
+      {showModal && (
+        <GPSSearchModal
+          caseId={caseId}
+          onClose={() => setShowModal(false)}
+          onPointsEarned={(pts, dist) => {
+            setHasActiveSession(false);
+            if (onPointsEarned) onPointsEarned(pts, dist);
+          }}
+          onSessionStart={() => setHasActiveSession(true)}
+        />
+      )}
+    </>
+  );
+}
+
+// GPS Search Modal - Full tracking interface
+function GPSSearchModal({ caseId, onClose, onPointsEarned, onSessionStart }) {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [starting, setStarting] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const [error, setError] = useState(null);
+  const [duration, setDuration] = useState(0);
+  const [distance, setDistance] = useState(0);
+  const pingIntervalRef = useRef(null);
+  const durationIntervalRef = useRef(null);
+
+  // Fetch active session on mount
+  useEffect(() => {
+    if (!caseId) return;
+    const fetchSession = async () => {
+      try {
+        const res = await fetch(`/api/mission/${caseId}/search`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.activeSession) {
+            setSession(data.activeSession);
+            const elapsed = Math.floor((Date.now() - new Date(data.activeSession.startedAt).getTime()) / 1000);
+            setDuration(elapsed);
+            setDistance(data.activeSession.distanceMiles || 0);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching search session:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSession();
+  }, [caseId]);
+
+  // Duration timer
+  useEffect(() => {
+    if (session?.status === 'ACTIVE') {
+      durationIntervalRef.current = setInterval(() => setDuration(d => d + 1), 1000);
+    }
+    return () => clearInterval(durationIntervalRef.current);
+  }, [session?.status]);
+
+  // Location ping
+  useEffect(() => {
+    if (session?.status === 'ACTIVE' && session?.id) {
+      const pingLocation = async () => {
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
+          });
+          await fetch(`/api/mission/${caseId}/search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'ping',
+              sessionId: session.id,
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+            }),
+          });
+        } catch (err) {
+          console.error('Location ping failed:', err);
+        }
+      };
+      pingIntervalRef.current = setInterval(pingLocation, 30000);
+      pingLocation();
+    }
+    return () => clearInterval(pingIntervalRef.current);
+  }, [session?.status, session?.id, caseId]);
+
+  const handleStart = async () => {
+    setStarting(true);
+    setError(null);
+    try {
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
+      });
+      const res = await fetch(`/api/mission/${caseId}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'start',
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSession({ id: data.sessionId, status: 'ACTIVE', startedAt: data.startedAt });
+        setDuration(0);
+        setDistance(0);
+        if (onSessionStart) onSessionStart();
+      } else {
+        const errData = await res.json();
+        setError(errData.error || 'Failed to start');
+      }
+    } catch (err) {
+      setError(err.message === 'User denied Geolocation' ? 'Enable location access to track your search' : 'Failed to get location');
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  const handleEnd = async () => {
+    if (!session?.id) return;
+    setEnding(true);
+    try {
+      const res = await fetch(`/api/mission/${caseId}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'end', sessionId: session.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSession(null);
+        clearInterval(pingIntervalRef.current);
+        clearInterval(durationIntervalRef.current);
+        if (onPointsEarned && data.pointsEarned > 0) {
+          onPointsEarned(data.pointsEarned, data.distanceMiles);
+        }
+        onClose();
+      }
+    } catch (err) {
+      console.error('Error ending search:', err);
+    } finally {
+      setEnding(false);
+    }
+  };
+
+  const formatDuration = (s) => {
+    const hrs = Math.floor(s / 3600);
+    const mins = Math.floor((s % 3600) / 60);
+    const secs = s % 60;
+    return hrs > 0
+      ? `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+      : `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const isActive = session?.status === 'ACTIVE';
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-900 rounded-2xl max-w-sm w-full border border-slate-700 shadow-xl">
+        <div className="flex items-center justify-between p-4 border-b border-slate-700">
+          <div className="flex items-center gap-3">
+            <Navigation className="text-blue-400" size={24} />
+            <div>
+              <h3 className="text-white font-semibold">GPS Search Tracker</h3>
+              <p className="text-xs text-slate-400">Earn 10 pts per mile walked</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg">
+            <X className="text-slate-400" size={20} />
+          </button>
+        </div>
+
+        <div className="p-4">
+          {loading ? (
+            <div className="h-32 bg-slate-800/50 rounded-lg animate-pulse"></div>
+          ) : error ? (
+            <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-sm mb-4">
+              {error}
+            </div>
+          ) : isActive ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 text-center">
+                  <Timer size={18} className="text-blue-400 mx-auto mb-1" />
+                  <div className="text-2xl font-bold text-white font-mono">{formatDuration(duration)}</div>
+                  <div className="text-xs text-slate-400">Duration</div>
+                </div>
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 text-center">
+                  <Route size={18} className="text-blue-400 mx-auto mb-1" />
+                  <div className="text-2xl font-bold text-white">{distance.toFixed(2)}</div>
+                  <div className="text-xs text-slate-400">Miles</div>
+                </div>
+              </div>
+              <button
+                onClick={handleEnd}
+                disabled={ending}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-500 disabled:bg-slate-600 text-white font-semibold rounded-lg"
+              >
+                {ending ? <Loader2 size={18} className="animate-spin" /> : <Square size={18} />}
+                {ending ? 'Ending...' : 'End Search'}
+              </button>
+              <p className="text-xs text-slate-400 text-center">Points calculated when you end</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-slate-800/50 rounded-lg p-4 text-center">
+                <Navigation size={32} className="text-blue-400 mx-auto mb-2" />
+                <p className="text-slate-300 text-sm">Start a GPS-tracked search walk</p>
+                <p className="text-xs text-slate-500 mt-1">Earn verified points based on distance</p>
+              </div>
+              <button
+                onClick={handleStart}
+                disabled={starting}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white font-semibold rounded-lg"
+              >
+                {starting ? <Loader2 size={18} className="animate-spin" /> : <Play size={18} />}
+                {starting ? 'Starting...' : 'Start GPS Search'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Shelter Contact Section - for contacting shelters/vets
 function ShelterContactSection({ caseId, mission, onPointsEarned }) {
   const [shelters, setShelters] = useState([]);
@@ -812,9 +1079,14 @@ function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace 
 
       if (res.ok) {
         const data = await res.json();
-        // Add placeType to each result for tracking
-        const resultsWithType = (data.results || []).map(place => ({
-          ...place,
+        // Transform API response to expected format
+        const resultsWithType = (data.places || []).map(place => ({
+          place_id: place.placeId,
+          name: place.name,
+          vicinity: place.address,
+          geometry: { location: { lat: place.location.lat, lng: place.location.lng } },
+          rating: place.rating,
+          user_ratings_total: place.userRatingsTotal,
           placeType: searchType === 'shelter' ? 'SHELTER' : searchType === 'vet' ? 'VET' : 'ANIMAL_CONTROL',
         }));
         setResults(resultsWithType);
@@ -999,9 +1271,9 @@ function FlyerGenerationCard({ caseId }) {
     <>
       <button
         onClick={() => setShowModal(true)}
-        className="flex flex-col items-center justify-center gap-1.5 p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl transition-all"
+        className="flex flex-col items-center justify-center gap-1 p-2.5 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl transition-all"
       >
-        <FileText className="text-purple-400" size={20} />
+        <FileText className="text-purple-400" size={18} />
         <span className="text-xs text-slate-300 font-medium">Flyer</span>
       </button>
 
@@ -1158,21 +1430,21 @@ function VolunteerCheckInCard({ caseId }) {
     <button
       onClick={handleToggle}
       disabled={loading}
-      className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl transition-all ${
+      className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl transition-all ${
         checkedIn
           ? 'bg-green-500/20 border border-green-500/50'
           : 'bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50'
       }`}
     >
       {loading ? (
-        <Loader2 className="text-green-400 animate-spin" size={20} />
+        <Loader2 className="text-green-400 animate-spin" size={18} />
       ) : checkedIn ? (
-        <CheckCircle className="text-green-400" size={20} />
+        <CheckCircle className="text-green-400" size={18} />
       ) : (
-        <Users className="text-green-400" size={20} />
+        <Users className="text-green-400" size={18} />
       )}
       <span className="text-xs text-slate-300 font-medium">
-        {checkedIn ? 'Active' : 'Check In'}
+        {checkedIn ? 'Active' : 'Join'}
       </span>
     </button>
   );
@@ -1247,12 +1519,12 @@ function ShelterSearchButton({ caseId, mission, onPointsEarned }) {
     <>
       <button
         onClick={openModal}
-        className="flex flex-col items-center justify-center gap-1.5 p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl transition-all relative"
+        className="flex flex-col items-center justify-center gap-1 p-2.5 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl transition-all relative"
       >
-        <Building2 className="text-orange-400" size={20} />
+        <Building2 className="text-orange-400" size={18} />
         <span className="text-xs text-slate-300 font-medium">Shelters</span>
         {notContacted > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 text-white text-xs rounded-full flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 text-white text-[10px] rounded-full flex items-center justify-center">
             {notContacted}
           </span>
         )}
@@ -1298,8 +1570,13 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
       );
       if (res.ok) {
         const data = await res.json();
-        setSearchResults((data.results || []).map(place => ({
-          ...place,
+        setSearchResults((data.places || []).map(place => ({
+          place_id: place.placeId,
+          name: place.name,
+          vicinity: place.address,
+          geometry: { location: { lat: place.location.lat, lng: place.location.lng } },
+          rating: place.rating,
+          user_ratings_total: place.userRatingsTotal,
           placeType: searchType === 'shelter' ? 'SHELTER' : searchType === 'vet' ? 'VET' : 'ANIMAL_CONTROL',
         })));
       }
@@ -2684,8 +2961,8 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
   }, []);
 
   return (
-    <div className="space-y-4 pb-20">
-      {/* Scout Tip Banner - shown when tips are available */}
+    <div className="space-y-3 pb-20">
+      {/* Scout Tip - Compact */}
       {currentTip && (
         <ScoutTipBanner
           tip={currentTip}
@@ -2695,52 +2972,49 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
         />
       )}
 
-      {/* Compact Stats Header */}
-      <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="text-center">
-              <div className="text-xl font-bold text-flash-400">{points?.caseTotal || 0}</div>
-              <div className="text-xs text-slate-400">Total Pts</div>
+      {/* =================================================================== */}
+      {/* SECTION 1: Points & Quick Actions Header                            */}
+      {/* =================================================================== */}
+      <div className="bg-gradient-to-r from-slate-800/80 to-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden">
+        {/* Points Row */}
+        <div className="p-3 flex items-center justify-between border-b border-slate-700/30">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <Star className="text-flash-400" size={18} />
+              <span className="text-xl font-bold text-flash-400">{points?.caseTotal || 0}</span>
+              <span className="text-xs text-slate-400">pts</span>
             </div>
-            <div className="h-8 w-px bg-slate-700"></div>
-            <div className="text-center">
-              <div className="text-lg font-bold text-green-400">{points?.today?.verified || 0}</div>
-              <div className="text-xs text-slate-400">Verified</div>
+            <div className="text-xs text-slate-500">|</div>
+            <div className="flex items-center gap-1">
+              <span className="text-sm font-medium text-green-400">{points?.today?.verified || 0}</span>
+              <span className="text-xs text-slate-500">verified</span>
             </div>
-            <div className="text-center">
-              <div className="text-lg font-bold text-yellow-400">{points?.today?.selfReported || 0}</div>
-              <div className="text-xs text-slate-400">Logged</div>
+            <div className="flex items-center gap-1">
+              <span className="text-sm font-medium text-yellow-400">{points?.today?.selfReported || 0}</span>
+              <span className="text-xs text-slate-500">logged</span>
             </div>
           </div>
-          <div className="text-center px-3 py-1 bg-slate-700/50 rounded-lg">
-            <div className="text-lg font-bold text-orange-400">
-              #{leaderboard.find((e) => e.userId === userId)?.rank || '–'}
-            </div>
-            <div className="text-xs text-slate-400">Rank</div>
+          <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-700/50 rounded-lg">
+            <Trophy size={14} className="text-yellow-400" />
+            <span className="text-sm font-bold text-white">#{leaderboard.find((e) => e.userId === userId)?.rank || '–'}</span>
           </div>
+        </div>
+
+        {/* Quick Actions Row */}
+        <div className="p-2 grid grid-cols-4 gap-2">
+          <GPSSearchButton caseId={mission?.id} onPointsEarned={handleExternalPointsEarned} />
+          <ShelterSearchButton caseId={mission?.id} mission={mission} onPointsEarned={handleExternalPointsEarned} />
+          <FlyerGenerationCard caseId={mission?.id} />
+          <VolunteerCheckInCard caseId={mission?.id} />
         </div>
       </div>
 
-      {/* GPS Search - Compact when inactive */}
-      <GPSSearchTracker
-        caseId={mission?.id}
-        onPointsEarned={handleExternalPointsEarned}
-      />
-
-      {/* Quick Actions - 3 column grid */}
-      <div className="grid grid-cols-3 gap-2">
-        <FlyerGenerationCard caseId={mission?.id} />
-        <VolunteerCheckInCard caseId={mission?.id} />
-        <ShelterSearchButton
-          caseId={mission?.id}
-          mission={mission}
-          onPointsEarned={handleExternalPointsEarned}
-        />
-      </div>
-
-      {/* Task Categories - Collapsible */}
+      {/* =================================================================== */}
+      {/* SECTION 2: Task Categories                                          */}
+      {/* =================================================================== */}
       <div className="space-y-2">
+        <h3 className="text-sm font-medium text-slate-400 px-1">Actions & Tasks</h3>
+
         {loading ? (
           <div className="space-y-2">
             {[1, 2, 3].map((i) => (
@@ -2762,15 +3036,13 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
               />
             ))}
 
-            {/* Log Other Activity - Simple button */}
+            {/* Log Other Activity */}
             <button
               onClick={() => setShowOtherActivityModal(true)}
               className="w-full flex items-center justify-between p-3 bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 rounded-xl transition-colors"
             >
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-slate-500/20">
-                  <Edit3 className="text-slate-400" size={18} />
-                </div>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">✏️</span>
                 <span className="text-slate-300 font-medium">Log Other Activity</span>
               </div>
               <span className="text-xs text-slate-500">+3 pts</span>
@@ -2779,12 +3051,15 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
         )}
       </div>
 
-      {/* Leaderboard - Collapsible */}
+      {/* =================================================================== */}
+      {/* SECTION 3: Leaderboard (Collapsed by default)                       */}
+      {/* =================================================================== */}
       <details className="group">
         <summary className="flex items-center justify-between p-3 bg-slate-800/30 border border-slate-700/50 rounded-xl cursor-pointer list-none">
           <div className="flex items-center gap-2">
             <Trophy size={18} className="text-yellow-400" />
             <span className="text-white font-medium">Leaderboard</span>
+            <span className="text-xs text-slate-500">({leaderboard.length} helpers)</span>
           </div>
           <ChevronDown size={18} className="text-slate-400 group-open:rotate-180 transition-transform" />
         </summary>
