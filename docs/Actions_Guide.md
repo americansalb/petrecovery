@@ -6,6 +6,30 @@
 
 ---
 
+## Engineer Quick-Start (v1 Scope)
+
+**High-level:** This doc is the single source of truth for the new Mission Control / Actions system.
+
+**v1 = Phases 1–4 only:**
+
+| Phase | Focus | Key Deliverables |
+|-------|-------|------------------|
+| **1 – Foundation** | Task structure | Task categories (SEARCH, OUTREACH, AT_HOME, OTHER), `ownerRequested*` fields, Scout tip banner, task card UI |
+| **2 – Points & Verification** | Tracking | `DailyPointsLog` with 100pt/day cap, `VerifiedAction` model, point calculations + bonuses, after-action points UI |
+| **3 – Shelter Contacts** | Outreach | `ShelterContact` + `ShelterContactAttempt` models, Apple Maps proxy, call logging, platform email via Resend + webhooks |
+| **4 – Flyers** | Distribution | `FlyerPosting` model, one-tap GPS posting, cold-spot detection (100m grid), flyer PDF generation |
+
+**Out of scope for v1:** Full Scout intelligence, real-time websockets, push notifications, offline queueing, advanced accessibility, analytics dashboards, ML-based dynamic priorities (use `BASE_PRIORITIES` + modifiers as described).
+
+**For implementation details, see:**
+- [Points System](#points-system) – canonical points + cap rules
+- [Verification Methods](#verification-methods) – what counts as verified and creates `VerifiedAction`
+- [Shelter Contact Flow](#shelter-contact-flow) / [Email System](#email-system) – full UX + API behavior
+- [Search Tracking](#search-tracking) / [Flyer Tracking](#flyer-tracking) – GPS vs manual, coverage, cold spots
+- [Appendix A](#a-task-definitions-reference) – canonical `TASK_DEFINITIONS`
+
+---
+
 ## Table of Contents
 
 1. [Philosophy](#philosophy)
@@ -249,6 +273,17 @@ This is the authoritative reference for all point values. Use this as the "law" 
 | Door-knocking with GPS | 5 pts per door/cluster | GPS tracking or per exact address |
 | Call with technical detection (future) | 12 pts per call | Call duration > N seconds |
 
+**Photo Verification Behavior:**
+
+When an action completion includes required or optional photo proof, that completion is treated as verified:
+- We create a `VerifiedAction` with `verificationMethod = 'PHOTO'`
+- Both the base points and the +3pt photo bonus count as `verifiedPoints` (not subject to the 100pt self-reported cap)
+- If the same action is completed without photo, it is self-reported only and counts against the daily cap
+
+Examples:
+- **AT_HOME tasks** (litter_outside, food_station, etc.) have `verificationMethod: 'PHOTO'` → completing with required photo = verified, uncapped
+- **Any task with optional photo attached** → completing with photo upgrades that completion to verified
+
 #### Self-Reported Actions (100 pts/day shared cap)
 
 | Action | Points | Notes |
@@ -340,7 +375,7 @@ Verified actions would still earn unlimited on top.
 ┌─────────────────────────────────────────┐
 │ ✓ Search completed                      │
 │                                         │
-│   Base points:           10 pts         │
+│   Base points (0.1 mi):  10 pts         │
 │   Dawn bonus (+10%):     +1 pt          │
 │   Near sighting (+15%):  +2 pts         │
 │   ─────────────────────────────         │
@@ -1559,11 +1594,11 @@ When case resolves:
 interface CaseOutcome {
   caseId: string;
 
-  outcome: 'REUNITED' | 'NOT_FOUND' | 'DECEASED' | 'CLOSED';
+  outcome: 'REUNITED' | 'NOT_FOUND' | 'DECEASED' | 'CLOSED_OTHER';
   timeToReunionHours?: number;
 
-  // How was pet found?
-  foundMethod?: 'CAME_HOME' | 'SHELTER' | 'NEIGHBOR' | 'SIGHTING' | 'TRAP' | 'FLYER' | 'SOCIAL' | 'OTHER';
+  // How was pet found? (matches FoundMethod enum)
+  foundMethod?: 'CAME_HOME' | 'SHELTER_INTAKE' | 'NEIGHBOR_FOUND' | 'SIGHTING_LED_TO' | 'TRAP_CAUGHT' | 'FLYER_RESPONSE' | 'SOCIAL_MEDIA' | 'OTHER';
   foundMethodDetails?: string;
 
   // Case context for ML
@@ -1633,8 +1668,9 @@ Based on data, we adjust base priorities:
 
 ```typescript
 // Current static values
+// NOTE: Keys here must match the task `id` in TASK_DEFINITIONS (canonical keys).
 const BASE_PRIORITIES = {
-  contact_shelter: 85,
+  contact_shelters: 85,
   search_area: 75,
   post_flyers: 65,
   // ...
@@ -2400,6 +2436,18 @@ For each event with a known `emailId`:
 Full list of all possible tasks with metadata:
 
 ```typescript
+// NOTE: `verificationMethod` here is a UI/points hint, not the DB enum.
+// Values:
+//
+//   'GPS'            → can create VerifiedAction with verificationMethod = 'GPS'
+//   'PLATFORM_EMAIL' → can create VerifiedAction with verificationMethod = 'PLATFORM_EMAIL'
+//   'PHOTO'          → can create VerifiedAction with verificationMethod = 'PHOTO'
+//   'SELF_REPORT'    → self-reported only, no VerifiedAction
+//   null             → self-reported only, no VerifiedAction
+//
+// Only actions with GPS/PLATFORM_EMAIL/PHOTO actually create VerifiedAction rows.
+// Self-reported actions affect DailyPointsLog.selfReportedPoints only.
+
 const TASK_DEFINITIONS = {
   // SEARCH
   search_area: {
@@ -2906,4 +2954,4 @@ The `VerifiedAction` and `CaseOutcome` tables are the primary sources for traini
 ---
 
 *Last updated: December 2024*
-*Version: 2.0*
+*Version: 2.2*
