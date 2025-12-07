@@ -514,7 +514,7 @@ export class TipService {
         id: true,
         petName: true,
         petSpecies: true,
-        lostAt: true,
+        lastSeenAt: true,
         lastSeenLatitude: true,
         lastSeenLongitude: true,
       },
@@ -544,8 +544,8 @@ export class TipService {
     ]);
 
     // Calculate hours lost
-    const lostAt = caseData.lostAt || new Date();
-    const hoursLost = (Date.now() - lostAt.getTime()) / (1000 * 60 * 60);
+    const lastSeenAt = caseData.lastSeenAt || new Date();
+    const hoursLost = (Date.now() - lastSeenAt.getTime()) / (1000 * 60 * 60);
 
     // Determine pet type
     let petType: 'DOG' | 'CAT' | 'OTHER' = 'OTHER';
