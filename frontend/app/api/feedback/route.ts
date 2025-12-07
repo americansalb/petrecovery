@@ -69,8 +69,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       data: {
         type: 'USER_FEEDBACK',
         message: message || `${rating} feedback for ${feature || 'general'}`,
-        actorId: userId,
-        caseId: caseId || null,
+        ...(userId && { actor: { connect: { id: userId } } }),
+        ...(caseId && { case: { connect: { id: caseId } } }),
         details: JSON.stringify({
           rating,
           category: category || 'general',
