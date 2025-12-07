@@ -28,7 +28,7 @@ export async function GET(request, { params }) {
             lastName: true,
           },
         },
-        creator: {
+        createdBy: {
           select: {
             id: true,
             firstName: true,
