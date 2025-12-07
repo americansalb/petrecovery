@@ -7,7 +7,7 @@
  * Per Actions_Guide.md Phase 6 specification.
  */
 
-import { PrismaClient, OutcomeType, FoundMethod, Prisma } from '@prisma/client';
+import { PrismaClient, OutcomeType, FoundMethod, Prisma, CaseResolution } from '@prisma/client';
 
 // =============================================================================
 // TYPES
@@ -398,14 +398,14 @@ export class OutcomeService {
   private mapOutcomeToResolution(
     outcome: OutcomeType,
     foundMethod?: FoundMethod
-  ): string {
+  ): CaseResolution {
     if (outcome === 'REUNITED') {
-      if (foundMethod === 'CAME_HOME') return 'CAME_HOME';
-      if (foundMethod === 'SHELTER_INTAKE') return 'FOUND_AT_SHELTER';
-      return 'REUNITED';
+      if (foundMethod === 'CAME_HOME') return CaseResolution.CAME_HOME;
+      if (foundMethod === 'SHELTER_INTAKE') return CaseResolution.FOUND_AT_SHELTER;
+      return CaseResolution.REUNITED;
     }
-    if (outcome === 'DECEASED') return 'DECEASED';
-    return 'SEARCH_CEASED';
+    if (outcome === 'DECEASED') return CaseResolution.DECEASED;
+    return CaseResolution.SEARCH_CEASED;
   }
 }
 
