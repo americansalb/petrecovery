@@ -185,12 +185,15 @@ export class OutcomeService {
     // Get search sessions for total hours
     const searchSessions = await this.prisma.searchSession.findMany({
       where: { caseId },
-      select: { durationMinutes: true },
+      select: { startedAt: true, endedAt: true },
     });
-    const totalSearchHours = searchSessions.reduce(
-      (sum, s) => sum + (s.durationMinutes || 0) / 60,
-      0
-    );
+    const totalSearchHours = searchSessions.reduce((sum, s) => {
+      if (s.startedAt && s.endedAt) {
+        const durationMs = new Date(s.endedAt).getTime() - new Date(s.startedAt).getTime();
+        return sum + durationMs / (1000 * 60 * 60);
+      }
+      return sum;
+    }, 0);
 
     // Get flyer count
     const totalFlyersPosted = await this.prisma.flyerPosting.count({ where: { caseId } });
