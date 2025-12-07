@@ -21,6 +21,7 @@
 13. [API Endpoints](#api-endpoints)
 14. [UI Specifications](#ui-specifications)
 15. [Implementation Phases](#implementation-phases)
+16. [Future Enhancements](#future-enhancements)
 
 ---
 
@@ -48,20 +49,54 @@
 - Overwhelming users with options
 - Gamification that distracts from the mission
 
+### Data Flywheel and Verification
+
+The Actions system doesn't exist just to gamify behavior. Its main job is to collect clean, verified data that can improve recommendations and increase reunion rates over time.
+
+**Verified actions** (GPS-tracked searches, platform-sent emails, GPS flyer marks, photo proof) are treated as trustworthy signals. These populate a `VerifiedAction` table and are used directly in analytics and ML.
+
+**Self-reported actions** ("I searched here", "I called them") are still valuable for engagement and coordination, but they are capped daily and do not feed into the algorithm training.
+
+**The Flywheel:**
+
+```
+More verified actions
+        ↓
+Better outcome data (which actions worked, when, where)
+        ↓
+Smarter task priorities & tips
+        ↓
+Higher reunion rates and user trust
+        ↓
+More users willing to enable GPS and use platform email
+        ↓
+(cycle repeats)
+```
+
+This is why the spec differentiates carefully between verified and self-reported actions and rewards them differently.
+
 ---
 
 ## Task Categories
 
 ### Overview
 
-Four categories, each with a distinct purpose:
+Four categories, each with a distinct purpose.
 
-| Category | Icon | Purpose |
-|----------|------|---------|
-| **Search** | 🔍 | Physical searching for the pet |
-| **Spread the Word** | 📢 | Contacting organizations and people |
-| **Attract Home** | 🏠 | Things to bring the pet back |
-| **Other** | ✏️ | Custom activity logging |
+**Internal category enum (in code/DB):**
+
+```typescript
+type TaskCategory = 'SEARCH' | 'OUTREACH' | 'AT_HOME' | 'OTHER';
+```
+
+**UI labels & icons:**
+
+| Category Key | UI Label | Icon | Purpose |
+|--------------|----------|------|---------|
+| `SEARCH` | SEARCH | 🔍 | Physical searching for the pet |
+| `OUTREACH` | OUTREACH | 📢 | Contacting orgs & people / spreading the word |
+| `AT_HOME` | AT HOME | 🏠 | Actions done at or near home to attract pet back |
+| `OTHER` | OTHER | ✏️ | Custom activity logging |
 
 ### Category 1: Search 🔍
 
@@ -97,7 +132,7 @@ These boosts affect internal priority scoring. Users see simplified task names.
 
 ---
 
-### Category 2: Spread the Word 📢
+### Category 2: Outreach 📢
 
 Contacting shelters, vets, neighbors, and spreading awareness.
 
@@ -137,7 +172,7 @@ See [Shelter Contact Flow](#shelter-contact-flow) for complete specification.
 
 ---
 
-### Category 3: Attract Home 🏠
+### Category 3: At Home 🏠
 
 Actions the owner does at/near home to attract the pet back.
 
@@ -197,31 +232,91 @@ Points serve two purposes:
 1. **Gamification** - Reward and recognize volunteer effort
 2. **Data Quality Signal** - Verified actions earn more, incentivizing verification
 
-### Point Values
+### Canonical Points Table
+
+This is the authoritative reference for all point values. Use this as the "law" for implementation.
 
 #### Verified Actions (No Daily Cap)
 
 | Action | Points | Verification Method |
 |--------|--------|---------------------|
 | GPS-tracked search | 10 pts per 0.1 mi | Continuous GPS tracking |
-| Email sent via platform | 15 pts | Platform sends email |
-| Flyer posted with GPS mark | 8 pts | Location stamped |
-| Photo uploaded as proof | +3 pts bonus | Any action with photo |
-| Call logged after phone dial | 12 pts | We detect call was placed |
+| Platform-sent email | 15 pts per email | Platform sends via Resend |
+| Flyer with GPS mark | 8 pts per flyer | GPS location stamped |
+| Photo proof attached | +3 pts bonus | On top of base for any action |
+| Door-knocking with GPS | 5 pts per door/cluster | GPS tracking or per exact address |
+| Call with technical detection (future) | 12 pts per call | Call duration > N seconds |
 
-#### Self-Reported Actions (100 pts/day cap total)
+#### Self-Reported Actions (100 pts/day shared cap)
 
 | Action | Points | Notes |
 |--------|--------|-------|
-| "I searched this area" (manual mark) | 5 pts | Draw polygon on map |
-| "I called, here's what happened" | 8 pts | Select outcome |
-| "I posted a flyer" (no GPS) | 4 pts | Claim without location |
-| "I knocked on doors" | 5 pts | Estimate doors visited |
-| "I did something else" (Other) | 3 pts | Custom activity |
+| Manual search area marked on map | 5 pts per area | Draw polygon |
+| Call logged with outcome | 8 pts per call | User self-report |
+| Flyer posted (no GPS mark) | 4 pts per flyer | Claim without location |
+| Door-knocking self-report (no GPS) | 5 pts per area/cluster | Estimate |
+| "Other / custom" activity log | 3 pts per entry | Free-form |
 
-#### Daily Cap Breakdown
+### Time/Context Bonuses
 
-The 100 pts/day cap for self-reported actions prevents gaming while still allowing meaningful contribution:
+Applied as **multipliers** to base points:
+
+| Condition | Bonus | Applies To |
+|-----------|-------|------------|
+| Dawn search (5-7am) | +10% | Search task points |
+| Dusk search (5-8pm) | +10% | Search task points |
+| Business hours (9am-5pm) | +10% | Shelter/vet/animal-control contact tasks |
+| Within 0.5mi of recent sighting | +15% | Search task points |
+| First 6 hours after pet marked missing | +20% | All tasks |
+| 6-24 hours after missing time | +10% | All tasks |
+| Task explicitly marked as "Owner requested help" | +25% | That task's points |
+
+**Calculation rule:** Compute base points, then apply all applicable percentage bonuses multiplicatively, then round to nearest integer.
+
+### Daily Self-Reported Cap Behavior
+
+We track self-reported points per user per day in `DailyPointsLog.selfReportedPoints`.
+
+**Rules:**
+
+1. Once a user reaches 100 self-reported points for that date:
+   - Additional self-reported actions log normally but earn **0 extra points**
+   - Verified actions (GPS, platform emails, GPS flyers, photos) **always** earn full value with no cap
+
+2. The cap resets at midnight (user's local time or UTC - TBD)
+
+**UI copy before cap:**
+
+```
+┌─────────────────────────────────────────┐
+│ ✓ Area marked as searched (+5 pts)      │
+│                                         │
+│ 💡 You've earned 85/100 manual points   │
+│    today. Enable GPS tracking for       │
+│    unlimited points!                    │
+│                                         │
+│    [Enable GPS]     [Maybe Later]       │
+└─────────────────────────────────────────┘
+```
+
+**UI copy after cap reached:**
+
+```
+┌─────────────────────────────────────────┐
+│ ✓ Area marked as searched (+0 pts)      │
+│                                         │
+│ ⚠️ You've reached your 100 manual       │
+│    points for today.                    │
+│                                         │
+│    Verified actions like GPS searches   │
+│    and platform emails still earn       │
+│    unlimited points.                    │
+│                                         │
+│    [Enable GPS]     [Got It]            │
+└─────────────────────────────────────────┘
+```
+
+### Points Calculation Example
 
 ```
 Example day for user without GPS:
@@ -237,20 +332,7 @@ If they claimed more, stops at 100 pts for the day.
 Verified actions would still earn unlimited on top.
 ```
 
-### Time-Based Bonuses
-
-Applied to the base points:
-
-| Condition | Bonus | Applies To |
-|-----------|-------|------------|
-| Dawn search (5-7am) | +10% | Search actions |
-| Dusk search (5-8pm) | +10% | Search actions |
-| Business hours (9am-5pm) | +10% | Shelter/vet contacts |
-| Within 0.5mi of sighting | +15% | Search actions |
-| First 6 hours after lost | +20% | All actions |
-| Owner-requested task | +25% | The specific task |
-
-### Points Display
+### Points Display (After Action)
 
 ```
 ┌─────────────────────────────────────────┐
@@ -363,7 +445,7 @@ See [Email System](#email-system) for complete specification.
 
 ### Entry Point
 
-User taps "Contact Shelters" (or Vets, or Animal Control) in Spread the Word section.
+User taps "Contact Shelters" (or Vets, or Animal Control) in the Outreach section.
 
 ### Shelter Lookup View
 
@@ -422,14 +504,29 @@ User taps "Contact Shelters" (or Vets, or Animal Control) in Spread the Word sec
 
 ### Contact Status Per Shelter
 
-| Status | Icon | Meaning |
-|--------|------|---------|
-| `NOT_CONTACTED` | ○ | No one has reached out |
-| `CONTACTED` | ◐ | Contact made, details pending |
-| `AWAITING_RESPONSE` | ⏳ | Waiting for shelter reply |
-| `NO_MATCH` | ✗ | Confirmed no matching animals |
-| `POSSIBLE_MATCH` | ❓ | They may have a match, needs verification |
-| `MATCH_FOUND` | ✓ | Pet is there! |
+**Enum definition:**
+
+```typescript
+enum ShelterContactStatus {
+  NOT_CONTACTED,
+  CONTACTED,
+  AWAITING_RESPONSE,
+  NO_MATCH,
+  POSSIBLE_MATCH,
+  MATCH_FOUND
+}
+```
+
+**Display rules:**
+
+| Status | Label Text | Icon | Color | Meaning |
+|--------|------------|------|-------|---------|
+| `NOT_CONTACTED` | Not contacted yet | ○ | Gray | No contact attempts logged |
+| `CONTACTED` | Contact in progress | ◐ | Yellow | Contact attempts exist (call/email) |
+| `AWAITING_RESPONSE` | Awaiting response | ⏳ | Blue | Contact made, waiting on shelter reply |
+| `NO_MATCH` | No matching animals | ✗ | Light gray | Shelter explicitly said no match |
+| `POSSIBLE_MATCH` | Possible match | ⚠️ | Orange | Shelter thinks there might be a match |
+| `MATCH_FOUND` | Pet is here! | ✓ | Green | Confirmed that the pet is at this shelter |
 
 ### Call Flow
 
@@ -497,6 +594,34 @@ User taps "Contact Shelters" (or Vets, or Animal Control) in Spread the Word sec
 
 5. Contact status updates based on outcome
 6. Visible to entire team
+
+### Call Logging Behavior
+
+**When user selects "Didn't call (skip)":**
+- Do NOT create a `ShelterContactAttempt` row
+- Do NOT change `ShelterContact.status`
+- Do NOT award points
+- Simply dismiss the modal
+
+**When user selects any other outcome:**
+
+1. Create `ShelterContactAttempt` with:
+   - `method = CALL`
+   - `callOutcome` matching the choice
+   - `pointsEarned = 8` (self-reported call)
+   - `isVerified = false` (unless we implement call detection)
+
+2. Update `ShelterContact.status` based on outcome:
+
+| Call Outcome | Staff Response | New Status |
+|--------------|----------------|------------|
+| `NO_ANSWER` | - | `CONTACTED` |
+| `LEFT_VOICEMAIL` | - | `CONTACTED` |
+| `WRONG_NUMBER` | - | `CONTACTED` |
+| `SPOKE_WITH_STAFF` | No matching animals | `NO_MATCH` |
+| `SPOKE_WITH_STAFF` | Possible match | `POSSIBLE_MATCH` |
+| `SPOKE_WITH_STAFF` | Confirmed match | `MATCH_FOUND` |
+| `SPOKE_WITH_STAFF` | Will check / call back | `AWAITING_RESPONSE` |
 
 ---
 
@@ -583,6 +708,37 @@ Sent via PetRecovery.com - Helping reunite lost pets
 2. **Ensures quality** - Professional, complete information every time
 3. **Speed** - One tap to send, no composing required
 4. **Legal protection** - We control the content
+
+### Platform Email Behavior
+
+**Email configuration:**
+- Sent from: `rescue-[caseId]@mail.petrecovery.com`
+- Reply-To header: Owner's email address
+- Body: Fixed template (not editable from UI)
+
+**"Send" flow:**
+
+1. User sees preview screen with:
+   - To: [shelter email]
+   - Subject: "Lost [Cat/Dog] - [Pet Name] - [City]"
+   - Non-editable body (includes description, photo, case link, owner contact)
+   - Notice: "Template cannot be edited to prevent spam and ensure quality"
+
+2. User presses "Send":
+   - Backend calls Resend API to send email
+   - Creates `ShelterContactAttempt` with:
+     - `method = EMAIL`
+     - `emailId = provider's message ID`
+     - `isVerified = true`
+     - `pointsEarned = 15`
+   - Sets `ShelterContact.status`:
+     - `CONTACTED` if first contact
+     - `AWAITING_RESPONSE` if no response yet
+
+3. After success, app shows:
+   - "✅ Email Sent!" message
+   - Points earned (+15)
+   - Brief explanation: "Shelter will reply to YOUR email. We'll update the status when they open or reply."
 
 ### Email Preview UI
 
@@ -862,6 +1018,57 @@ Map overlay showing search coverage:
 | ⚪ Gray | Not searched |
 | 🔴 Red pulse | High priority (near sighting, unsearched) |
 
+### End-of-Search Summary Specification
+
+When a GPS-tracked search session ends, show a summary modal:
+
+```
+┌─────────────────────────────────────────┐
+│         Search Complete                 │
+├─────────────────────────────────────────┤
+│                                         │
+│  ┌─────────────────────────────────────┐│
+│  │     [MAP with completed path]      ││
+│  │     showing the route walked       ││
+│  └─────────────────────────────────────┘│
+│                                         │
+│  📊 Summary                             │
+│  ┌─────────────────────────────────────┐│
+│  │ Distance:        0.82 miles        ││
+│  │ Duration:        34 minutes        ││
+│  │ Grid cells:      6 cells covered   ││
+│  └─────────────────────────────────────┘│
+│                                         │
+│  🏆 Points Breakdown                    │
+│  ┌─────────────────────────────────────┐│
+│  │ Base (0.82 mi × 100):   82 pts     ││
+│  │ Dusk bonus (+10%):       8 pts     ││
+│  │ Near sighting (+15%):   12 pts     ││
+│  │ ─────────────────────────────      ││
+│  │ Total:                 102 pts     ││
+│  └─────────────────────────────────────┘│
+│                                         │
+│  [Search Again]       [Back to Tasks]   │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+**Data created:**
+
+GPS search sessions always create a `VerifiedAction` with:
+- `actionType = 'search_area'`
+- `verificationMethod = 'GPS'`
+- `metadata.distanceMiles` - Total distance covered
+- `metadata.gridCellsCovered` - Number of discrete map cells traversed
+- `metadata.path` - Array of coordinates (or reference to stored path)
+- `hoursAfterLost` - Hours from case's `lostAt` to search end time
+
+**Manual area marking (contrast):**
+- Earns 5 self-reported points per area
+- Does NOT create a `VerifiedAction` row
+- Still shows on team activity feed and map
+- Counts toward daily self-reported cap
+
 ---
 
 ## Flyer Tracking
@@ -918,16 +1125,51 @@ One-tap location marking while posting flyers:
 
 ### Cold Spot Detection
 
-Algorithm identifies areas that need flyers:
+Algorithm identifies areas that need flyers.
 
-**Simple Version (MVP):**
-- Areas within search radius with no flyers marked
-- Grid-based: divide area into cells, highlight empty cells
+#### Cold Spot Definition (v1)
 
-**Future Version:**
-- High foot traffic areas (POI data)
-- Intersections and bus stops
-- Businesses (pet stores, coffee shops, grocery stores)
+1. Define a **mission search radius** around the last-seen location (e.g., 1 mile radius)
+
+2. Within that radius, lay down a simple grid:
+   - Default cell size: 100m × 100m (configurable)
+   - Each cell has a unique `cellId` (e.g., "A1", "B3", etc.)
+
+3. A grid cell is a **cold spot** if:
+   - It lies inside the search radius, AND
+   - There are **zero** `FlyerPosting` records with coordinates in that cell
+
+#### API Response
+
+The `GET /api/mission/[caseId]/flyers` endpoint returns:
+
+```typescript
+{
+  flyers: FlyerPosting[],        // All posted flyers
+  coldSpots: {
+    center: GeoPoint,           // Center of the cold spot cell
+    cellId: string,             // e.g., "B4"
+    distanceFromLastSeen: number // miles
+  }[]
+}
+```
+
+#### Client Rendering
+
+- **Flyer pins (📌):** Where flyers have been posted
+- **Cold spot indicators (🔴):** Red overlay or pins for cells with no flyers
+- Optionally show cell grid lines at high zoom levels
+
+#### Future Enhancement (not v1)
+
+Incorporate points-of-interest data to classify some cold spots as "high-traffic":
+- Bus stops, train stations
+- Grocery stores, coffee shops
+- Pet stores, vet offices
+- Schools, community centers
+
+High-traffic cold spots get prioritized in Scout tips:
+> "The grocery store on Oak St has high foot traffic - no flyer there yet!"
 
 ### Flyer Generation
 
@@ -1119,7 +1361,7 @@ Multiple people can work on the same task:
 ├─────────────────────────────────────────┤
 │                                         │
 │  Priority: HIGH                         │
-│  Category: Spread the Word              │
+│  Category: OUTREACH                     │
 │  18 shelters within 25 miles            │
 │                                         │
 │  👥 Currently helping:                  │
@@ -1175,7 +1417,39 @@ Owner can request help on any task:
 └─────────────────────────────────────────┘
 ```
 
-**What happens:**
+### Owner Request Behavior
+
+**When an owner taps "Request Help" on a task:**
+
+**1. Data changes:**
+
+The task is updated with:
+- `ownerRequested = true`
+- `ownerRequestMessage = optional owner text`
+- `ownerRequestedAt = timestamp`
+- `ownerRequestedBy = owner's userId`
+
+**2. Priority algorithm:**
+
+That task's priority score gets a **+25% boost** compared to its base score and other modifiers.
+
+**3. UI changes:**
+
+- The task card shows a 👑 **Owner requested** badge
+- In category sections, tasks with `ownerRequested = true` bubble to the **top** within their category
+
+**4. Messaging/notifications (future phases):**
+
+- A mission chat message is posted summarizing the request
+- Volunteers subscribed to that case receive a notification: "Owner requested help on Contact Shelters"
+
+**5. Clearing the request:**
+
+`ownerRequested` is set back to `false` when:
+- Task is marked complete, OR
+- Owner explicitly clicks "Cancel request" (optional for v1)
+
+**What the user sees:**
 1. Task gets +25% priority boost
 2. Shows 👑 badge on task
 3. Notification sent to all volunteers
@@ -1591,6 +1865,41 @@ enum VerificationMethod {
 }
 
 // ============================================
+// VERIFIED ACTION USAGE EXAMPLES
+// ============================================
+
+// When to create VerifiedAction rows:
+
+// 1. After a GPS search session:
+//    actionType = 'search_area'
+//    verificationMethod = 'GPS'
+//    hoursAfterLost = hours from case's lostAt to search end time
+//    metadata = {
+//      distanceMiles: 0.82,
+//      gridCellsCovered: 6,
+//      path: [...] or pathId reference
+//    }
+
+// 2. After sending a platform email to a shelter:
+//    actionType = 'contact_shelter'
+//    verificationMethod = 'PLATFORM_EMAIL'
+//    hoursAfterLost = hours from lostAt to email send time
+//    metadata = {
+//      shelterId: "shelter_123",
+//      shelterName: "Chicago Animal Care"
+//    }
+
+// 3. After a GPS flyer post:
+//    actionType = 'post_flyer'
+//    verificationMethod = 'GPS'
+//    metadata = {
+//      location: { latitude: 41.8781, longitude: -87.6298 }
+//    }
+
+// IMPORTANT: Self-reported actions NEVER create VerifiedAction rows.
+// They only affect DailyPointsLog.selfReportedPoints.
+
+// ============================================
 // CASE OUTCOMES (for algorithm training)
 // ============================================
 
@@ -1610,6 +1919,7 @@ model CaseOutcome {
   petBehavior           String?
   petSize               String?
   locationType          String?
+  weatherConditions     String?  // e.g., "clear", "rain", "snow", or JSON
 
   // Actions summary (denormalized for fast queries)
   verifiedActionsCount  Int      @default(0)
@@ -1617,6 +1927,10 @@ model CaseOutcome {
 
   createdAt             DateTime @default(now())
 }
+
+// NOTE: weatherConditions is an optional snapshot of weather at or around
+// the time of reunion/closure, so we can later analyze whether weather
+// correlates with action effectiveness.
 
 enum OutcomeType {
   REUNITED
@@ -1656,6 +1970,35 @@ model DailyPointsLog {
   @@unique([userId, date])
   @@index([userId])
 }
+
+// ============================================
+// DAILY POINTS LOG BEHAVIOR
+// ============================================
+
+// One row per (user, date).
+
+// Fields:
+// - verifiedPoints: Unlimited, for reporting/display only
+// - selfReportedPoints: Must not exceed 100
+
+// Award Points Logic:
+//
+// function awardPoints(userId, points, isVerified) {
+//   const today = getDateOnly(new Date());
+//   let log = findOrCreate(DailyPointsLog, { userId, date: today });
+//
+//   if (isVerified) {
+//     // Verified: always award full points, no cap
+//     log.verifiedPoints += points;
+//     return points;
+//   } else {
+//     // Self-reported: check against cap
+//     const remaining = Math.max(0, 100 - log.selfReportedPoints);
+//     const awarded = Math.min(remaining, points);
+//     log.selfReportedPoints += awarded;
+//     return awarded; // May be 0 if cap reached
+//   }
+// }
 
 // ============================================
 // MODIFICATIONS TO EXISTING MODELS
@@ -1817,10 +2160,38 @@ GET    /api/users/me/points/history
 ### Email Webhooks
 
 ```
-POST   /api/webhooks/resend
-       → Resend webhook for email events
+POST   /api/webhooks/email
+       → Receives webhook events from email provider (Resend/SendGrid)
        → Handles: delivered, opened, clicked, bounced, complained
 ```
+
+**Webhook Handler Behavior:**
+
+This endpoint receives webhook events from the email provider.
+
+For each event with a known `emailId`:
+
+1. Find the corresponding `ShelterContactAttempt` row by `emailId`
+
+2. Update based on event type:
+
+| Event Type | Action |
+|------------|--------|
+| `delivered` | Log delivery timestamp |
+| `opened` | Set `emailOpened = true`, `emailOpenedAt = timestamp` |
+| `clicked` | Log click (user clicked link in email) |
+| `bounced` | Mark email as bounced, flag shelter email as potentially invalid |
+| `complained` | Mark as spam complaint, flag for review |
+
+3. Optionally update `ShelterContact.status`:
+   - If email opened but no reply yet → keep `AWAITING_RESPONSE`
+   - If reply detected (via separate mechanism) → may update to appropriate status
+
+4. Append info to `VerifiedAction.metadata` for analytics:
+   - `emailOpened: true`
+   - `emailOpenedAt: timestamp`
+
+**Security:** Verify webhook signature from provider to prevent spoofing.
 
 ---
 
@@ -1852,7 +2223,7 @@ POST   /api/webhooks/resend
 │ │   [START SEARCH]                    │ │
 │ └─────────────────────────────────────┘ │
 │                                         │
-│ 📢 SPREAD THE WORD              [5/12] │
+│ 📢 OUTREACH                     [5/12] │
 │ ┌─────────────────────────────────────┐ │
 │ │ ▸ Contact Shelters  👑      +15pts │ │
 │ │   ⚠️ Owner needs help!              │ │
@@ -1864,7 +2235,7 @@ POST   /api/webhooks/resend
 │ │ [VIEW ALL →]                        │ │
 │ └─────────────────────────────────────┘ │
 │                                         │
-│ 🏠 ATTRACT HOME                 [3/5]  │
+│ 🏠 AT HOME                      [3/5]  │
 │ ┌─────────────────────────────────────┐ │
 │ │ ▸ Litter Box Outside        ✓ Done │ │
 │ │ ▸ Scent Items               ✓ Done │ │
@@ -1884,10 +2255,10 @@ POST   /api/webhooks/resend
 
 | Element | Color | Hex |
 |---------|-------|-----|
-| Search category | Blue | #3B82F6 |
-| Spread the Word | Orange | #F97316 |
-| Attract Home | Green | #22C55E |
-| Other | Gray | #6B7280 |
+| SEARCH category | Blue | #3B82F6 |
+| OUTREACH category | Orange | #F97316 |
+| AT_HOME category | Green | #22C55E |
+| OTHER category | Gray | #6B7280 |
 | Verified badge | Gold | #EAB308 |
 | Owner request | Purple | #8B5CF6 |
 | Cold spot alert | Red | #EF4444 |
@@ -1897,10 +2268,10 @@ POST   /api/webhooks/resend
 
 | Meaning | Icon |
 |---------|------|
-| Search | 🔍 |
-| Spread the Word | 📢 |
-| Attract Home | 🏠 |
-| Other | ✏️ |
+| SEARCH | 🔍 |
+| OUTREACH | 📢 |
+| AT_HOME | 🏠 |
+| OTHER | ✏️ |
 | Owner requested | 👑 |
 | Needs help | 🆘 |
 | Verified | ✓ (gold) |
@@ -2038,10 +2409,10 @@ const TASK_DEFINITIONS = {
     ],
   },
 
-  // SPREAD THE WORD
+  // OUTREACH
   contact_shelters: {
     id: 'contact_shelters',
-    category: 'SPREAD_THE_WORD',
+    category: 'OUTREACH',
     displayName: 'Contact Shelters',
     description: 'Call or email local animal shelters',
     icon: '🏥',
@@ -2060,7 +2431,7 @@ const TASK_DEFINITIONS = {
 
   contact_vets: {
     id: 'contact_vets',
-    category: 'SPREAD_THE_WORD',
+    category: 'OUTREACH',
     displayName: 'Contact Vet Clinics',
     description: 'Call or email local veterinarians',
     icon: '🩺',
@@ -2078,7 +2449,7 @@ const TASK_DEFINITIONS = {
 
   contact_animal_control: {
     id: 'contact_animal_control',
-    category: 'SPREAD_THE_WORD',
+    category: 'OUTREACH',
     displayName: 'Contact Animal Control',
     description: 'Reach out to local animal control offices',
     icon: '🚔',
@@ -2096,7 +2467,7 @@ const TASK_DEFINITIONS = {
 
   notify_microchip: {
     id: 'notify_microchip',
-    category: 'SPREAD_THE_WORD',
+    category: 'OUTREACH',
     displayName: 'Notify Microchip Company',
     description: 'Report your pet as lost with the microchip registry',
     icon: '📟',
@@ -2114,7 +2485,7 @@ const TASK_DEFINITIONS = {
 
   post_flyers: {
     id: 'post_flyers',
-    category: 'SPREAD_THE_WORD',
+    category: 'OUTREACH',
     displayName: 'Post Flyers',
     description: 'Put up flyers in the neighborhood',
     icon: '📌',
@@ -2132,7 +2503,7 @@ const TASK_DEFINITIONS = {
 
   knock_doors: {
     id: 'knock_doors',
-    category: 'SPREAD_THE_WORD',
+    category: 'OUTREACH',
     displayName: 'Talk to Neighbors',
     description: 'Go door-to-door asking if anyone has seen your pet',
     icon: '🚪',
@@ -2150,7 +2521,7 @@ const TASK_DEFINITIONS = {
 
   alert_delivery: {
     id: 'alert_delivery',
-    category: 'SPREAD_THE_WORD',
+    category: 'OUTREACH',
     displayName: 'Alert Delivery Workers',
     description: 'Tell mail carriers, Amazon drivers, and other delivery people',
     icon: '📦',
@@ -2167,7 +2538,7 @@ const TASK_DEFINITIONS = {
 
   share_online: {
     id: 'share_online',
-    category: 'SPREAD_THE_WORD',
+    category: 'OUTREACH',
     displayName: 'Share Online',
     description: 'Post on social media, Nextdoor, and lost pet sites',
     icon: '📱',
@@ -2186,7 +2557,7 @@ const TASK_DEFINITIONS = {
   // ATTRACT HOME
   litter_outside: {
     id: 'litter_outside',
-    category: 'ATTRACT_HOME',
+    category: 'AT_HOME',
     displayName: 'Put Litter Box Outside',
     description: 'Place used litter box near entry points',
     icon: '🚽',
@@ -2204,7 +2575,7 @@ const TASK_DEFINITIONS = {
 
   scent_items: {
     id: 'scent_items',
-    category: 'ATTRACT_HOME',
+    category: 'AT_HOME',
     displayName: 'Leave Scent Items',
     description: 'Put worn clothing outside for your pet to smell',
     icon: '👕',
@@ -2221,7 +2592,7 @@ const TASK_DEFINITIONS = {
 
   food_station: {
     id: 'food_station',
-    category: 'ATTRACT_HOME',
+    category: 'AT_HOME',
     displayName: 'Set Up Food Station',
     description: 'Leave food and water outside',
     icon: '🍽️',
@@ -2239,7 +2610,7 @@ const TASK_DEFINITIONS = {
 
   camera_setup: {
     id: 'camera_setup',
-    category: 'ATTRACT_HOME',
+    category: 'AT_HOME',
     displayName: 'Set Up Camera',
     description: 'Monitor your food station with a camera',
     icon: '📹',
@@ -2257,7 +2628,7 @@ const TASK_DEFINITIONS = {
 
   humane_trap: {
     id: 'humane_trap',
-    category: 'ATTRACT_HOME',
+    category: 'AT_HOME',
     displayName: 'Set Humane Trap',
     description: 'For skittish pets that won\'t approach',
     icon: '🪤',
@@ -2276,7 +2647,7 @@ const TASK_DEFINITIONS = {
 
   garage_open: {
     id: 'garage_open',
-    category: 'ATTRACT_HOME',
+    category: 'AT_HOME',
     displayName: 'Leave Garage Cracked',
     description: 'Leave garage or shed slightly open overnight',
     icon: '🏠',
@@ -2328,5 +2699,176 @@ See `taskPriority.js` for full implementation.
 
 ---
 
+## Future Enhancements
+
+> **Note:** These features are important but should not block v1 of the Actions system. They are documented here for planning purposes. Mark as "Phase 5+" or "Not required for initial Actions release."
+
+### Notifications (Phase 5+)
+
+Push notifications to keep volunteers and owners informed.
+
+**Notification Types:**
+
+| Trigger | Title | Body | Priority |
+|---------|-------|------|----------|
+| New case nearby | "🚨 Lost pet near you" | "{Name} went missing 0.3mi away" | High |
+| Owner requests help | "👑 Help requested!" | "Owner needs backup on {task}" | High |
+| Sighting reported | "👁 New sighting!" | "{Name} spotted at {location}" | High |
+| Optimal search time | "🌅 Great time to search" | "Dawn is the best time to find cats" | Medium |
+| Task needs help | "🆘 Volunteer needs backup" | "{User} needs help with {task}" | Medium |
+| Case update | "📢 Case update" | "{Name}: {update summary}" | Medium |
+| Points milestone | "🎉 Achievement!" | "You earned {badge}!" | Low |
+| Weekly summary | "📊 Your impact" | "You helped on {n} cases this week" | Low |
+
+**Implementation Notes:**
+- Push notification service (Firebase, OneSignal, or native)
+- User notification preferences (opt-in/out per type)
+- Subscription management per case
+
+### Real-Time Updates (Phase 5+)
+
+WebSocket or SSE for live collaboration.
+
+**MissionEvent Types:**
+
+```typescript
+type MissionEvent =
+  | { type: 'TASK_JOINED'; taskId: string; userId: string; userName: string }
+  | { type: 'TASK_LEFT'; taskId: string; userId: string }
+  | { type: 'TASK_COMPLETED'; taskId: string; completedBy: string }
+  | { type: 'TASK_PROGRESS'; taskId: string; progress: number; total: number }
+  | { type: 'OWNER_REQUEST'; taskId: string; message?: string }
+  | { type: 'SEARCH_STARTED'; userId: string; userName: string }
+  | { type: 'SEARCH_ENDED'; userId: string; areaCovered: number }
+  | { type: 'FLYER_POSTED'; location: GeoPoint; userId: string }
+  | { type: 'SHELTER_CONTACTED'; shelterId: string; status: ContactStatus }
+  | { type: 'TIP_GENERATED'; tip: MascotTip }
+  | { type: 'SIGHTING_REPORTED'; sighting: Sighting }
+  | { type: 'CASE_UPDATE'; update: CaseUpdate }
+  | { type: 'PET_FOUND'; resolution: Resolution };
+```
+
+**Implementation Notes:**
+- Clients subscribe to `mission_events` for a specific caseId
+- Server broadcasts events to all subscribed clients
+- Consider Redis pub/sub for multi-instance support
+- Existing SSE infrastructure at `/api/mission/[caseId]/stream` can be extended
+
+### Offline Support (Phase 6+)
+
+Allow users to continue working when offline.
+
+**Actions Queued When Offline:**
+- Flyer postings (location marked)
+- Manual search area marks
+- Call logs with outcomes
+- "Other" activity logs
+
+**UI Indicator:**
+
+```
+┌─────────────────────────────────────────┐
+│ ⚠️ You're offline                       │
+│ Actions will sync when you reconnect    │
+│ ████████████░░░░░░ 3 pending            │
+└─────────────────────────────────────────┘
+```
+
+**Implementation Notes:**
+- IndexedDB or AsyncStorage for local queue
+- Background sync when connection restored
+- Conflict resolution for overlapping edits
+
+### Accessibility (Phase 5+)
+
+Ensure the Actions UI is usable by everyone.
+
+**Requirements:**
+
+| Requirement | Details |
+|-------------|---------|
+| ARIA labels | All interactive elements (buttons, links, form fields) |
+| Touch targets | Minimum 44×44 points |
+| Color contrast | 4.5:1 minimum for text |
+| Motion | Respect `prefers-reduced-motion` |
+| Font scaling | Support up to 200% text size |
+
+**Screen Reader Announcements:**
+- "New sighting reported 5 minutes ago at Oak Street"
+- "Task: Contact Shelters. 5 of 18 completed. Owner requested help."
+- "Search area marked. You earned 10 points."
+- "Email sent to Chicago Animal Shelter. Awaiting response."
+
+### Error Handling (Phase 5+)
+
+Graceful error states throughout the app.
+
+**Network Failures:**
+
+```
+┌─────────────────────────────────────────┐
+│         📡 Connection Lost              │
+│                                         │
+│  Don't worry - your actions are saved   │
+│  locally and will sync automatically.   │
+│                                         │
+│         [Try Again]  [Work Offline]     │
+└─────────────────────────────────────────┘
+```
+
+**Email Send Failure:**
+
+```
+┌─────────────────────────────────────────┐
+│         ❌ Email Failed                 │
+│                                         │
+│  Couldn't send to this shelter.         │
+│  The email address may be invalid.      │
+│                                         │
+│  [Try Again]  [Call Instead]  [Skip]    │
+└─────────────────────────────────────────┘
+```
+
+**GPS Permission Denied:**
+
+```
+┌─────────────────────────────────────────┐
+│         📍 Location Needed              │
+│                                         │
+│  GPS tracking earns full points and     │
+│  helps coordinate the search team.      │
+│                                         │
+│  [Enable Location]  [Mark Manually]     │
+│                                         │
+│  ℹ️ Manual marking earns 5 pts          │
+│     (GPS earns 10 pts per 0.1 mi)       │
+└─────────────────────────────────────────┘
+```
+
+### Analytics & Data Collection (Phase 6+)
+
+Track events for algorithm improvement and business metrics.
+
+**Event Categories:**
+
+| Category | Events |
+|----------|--------|
+| User Behavior | Task views, joins, completions; search sessions; flyer posts; call/email actions |
+| Algorithm Data | VerifiedAction creation; CaseOutcome recording |
+| Business Metrics | Cases created, active volunteers per case, time to reunion, reunion rate, verified vs self-reported ratio |
+
+**Data Pipeline:**
+
+```
+User Action → Event Logged → Analytics DB →
+  → ML Model Training → Algorithm Update → Better Recommendations
+```
+
+**Key Insight:**
+
+The `VerifiedAction` and `CaseOutcome` tables are the primary sources for training or tuning any recommendation logic. Self-reported actions are logged (and can be included as separate features) but must NOT be treated as ground truth.
+
+---
+
 *Last updated: December 2024*
-*Version: 1.0*
+*Version: 2.0*
