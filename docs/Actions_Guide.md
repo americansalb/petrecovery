@@ -288,11 +288,33 @@ Examples:
 
 | Action | Points | Notes |
 |--------|--------|-------|
-| Manual search area marked on map | 5 pts per area | Draw polygon |
+| Manual search logged ("I searched this area") | 5 pts per log | Simple self-report, no polygon (v1) |
 | Call logged with outcome | 8 pts per call | User self-report |
-| Flyer posted (no GPS mark) | 4 pts per flyer | Claim without location |
 | Door-knocking self-report (no GPS) | 5 pts per area/cluster | Estimate |
 | "Other / custom" activity log | 3 pts per entry | Free-form |
+
+**Phase 5+ (not v1):**
+| Action | Points | Notes |
+|--------|--------|-------|
+| Manual search area polygon on map | 5 pts per area | Draw polygon on map (Phase 5+) |
+| Flyer posted (no GPS mark) | 4 pts per flyer | Claim without location (Phase 5+) |
+
+### Action → Tables Matrix
+
+This table shows exactly which tables are written for each user action:
+
+| User Action | Tables Written | VerifiedAction? | Points Bucket |
+|-------------|---------------|-----------------|---------------|
+| GPS search session end | `SearchSession`, `VerifiedAction`, `DailyPointsLog` | Yes (`GPS`) | verifiedPoints |
+| Manual search log ("I searched") | `DailyPointsLog` | No | selfReportedPoints |
+| Platform shelter email | `ShelterContact`, `ShelterContactAttempt`, `VerifiedAction`, `DailyPointsLog` | Yes (`PLATFORM_EMAIL`) | verifiedPoints |
+| Shelter call log | `ShelterContactAttempt`, `DailyPointsLog` | No | selfReportedPoints |
+| GPS flyer posting | `FlyerPosting`, `VerifiedAction`, `DailyPointsLog` | Yes (`GPS`) | verifiedPoints |
+| AT_HOME task with photo | `VerifiedAction`, `DailyPointsLog` | Yes (`PHOTO`) | verifiedPoints |
+| AT_HOME task self-report (no photo) | `DailyPointsLog` | No | selfReportedPoints |
+| "Other" activity log | `DailyPointsLog` | No | selfReportedPoints |
+
+> **Note:** "Other" activities never create `VerifiedAction` rows, even with photo. They're for misc tracking, not algorithm training.
 
 ### Time/Context Bonuses
 
@@ -406,9 +428,10 @@ Verified actions would still earn unlimited on top.
 - **Client:** Auto-end the session after 5 minutes in background
 - **Server:** Treat a session as ended if no `/search/ping` is received for 10 minutes (prevents zombie sessions)
 
-**Data stored:**
+**Data stored:** (See `model SearchSession` in Data Models - this is a real Prisma table)
 ```typescript
-interface SearchSession {
+// SearchSession persisted to DB for debugging, replays, and algorithm training
+{
   id: string;
   userId: string;
   caseId: string;
@@ -416,11 +439,11 @@ interface SearchSession {
   startedAt: Date;
   endedAt: Date;
 
-  path: GeoPoint[];  // Array of {lat, lng, timestamp}
+  path: GeoPoint[];  // JSON: [{lat, lng, timestamp}, ...]
   distanceMiles: number;
 
   pointsEarned: number;
-  wasVerified: true;
+  isVerified: true;  // GPS sessions are always verified
 }
 ```
 
@@ -1669,6 +1692,8 @@ Based on data, we adjust base priorities:
 ```typescript
 // Current static values
 // NOTE: Keys here must match the task `id` in TASK_DEFINITIONS (canonical keys).
+// IMPORTANT: This object is intentionally partial (just showing high-priority overrides).
+// Any actionType not listed falls back to basePriority from TASK_DEFINITIONS[id].
 const BASE_PRIORITIES = {
   contact_shelters: 85,
   search_area: 75,
@@ -1817,6 +1842,10 @@ enum StaffResponse {
 // FLYER TRACKING
 // ============================================
 
+// NOTE: FlyerPosting is ONLY created for GPS-verified flyer postings.
+// Non-GPS "I posted a flyer" claims (Phase 5+) would use a separate
+// FlyerClaim model or just DailyPointsLog with no location data.
+
 model FlyerPosting {
   id        String   @id @default(cuid())
   caseId    String
@@ -1824,14 +1853,14 @@ model FlyerPosting {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
 
-  latitude  Float
-  longitude Float
+  latitude  Float    // Required - GPS-verified only
+  longitude Float    // Required - GPS-verified only
 
   photoUrl  String?
   notes     String?
 
   pointsEarned Int   @default(8)
-  isVerified   Boolean @default(true)  // GPS-marked = verified
+  isVerified   Boolean @default(true)  // Always true - only GPS flyers stored here
 
   createdAt DateTime @default(now())
 
@@ -1873,6 +1902,41 @@ enum TipType {
 }
 
 // ============================================
+// SEARCH SESSIONS (GPS tracking)
+// ============================================
+
+model SearchSession {
+  id        String   @id @default(cuid())
+  caseId    String
+  case      LostPetCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+
+  // Path stored as JSON array: [{lat, lng, timestamp}, ...]
+  // For v1, JSON is fine. Phase 5+ may compress or externalize.
+  path      Json     @default("[]")
+
+  distanceMiles Float  @default(0)
+  pointsEarned  Int    @default(0)
+  isVerified    Boolean @default(true)  // GPS sessions are always verified
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([caseId])
+  @@index([userId])
+}
+
+// WHY PERSIST SEARCH SESSIONS:
+// - Debugging: "Why did I get these points?"
+// - Map replays: Show team where searches happened
+// - Search history: Per-case activity timeline
+// - Algorithm training: Correlate search patterns with outcomes
+
+// ============================================
 // VERIFIED ACTIONS (for algorithm training)
 // ============================================
 
@@ -1905,6 +1969,20 @@ enum VerificationMethod {
   PHOTO
   CALL_DETECT
 }
+
+// MULTI-PROOF CLARIFICATION:
+// For actions with multiple proofs (e.g., GPS search + photo), `verificationMethod`
+// is the PRIMARY proof type (usually GPS or PLATFORM_EMAIL).
+//
+// Photo proof is stored in metadata as:
+//   metadata.hasPhotoProof = true
+//   metadata.photoUrl = "..."
+//
+// The +3pt photo bonus is STILL awarded (added to pointsEarned).
+// This preserves the GPS signal for algorithm training while still rewarding photos.
+//
+// DO NOT overwrite verificationMethod='PHOTO' when GPS is available - that would
+// lose the location data signal.
 
 // ============================================
 // VERIFIED ACTION USAGE EXAMPLES
@@ -2015,7 +2093,7 @@ model DailyPointsLog {
   userId        String
   user          User     @relation(fields: [userId], references: [id])
 
-  date          DateTime @db.Date  // Just the date, no time
+  date          DateTime @db.Date  // Just the date portion, in UTC
 
   verifiedPoints    Int  @default(0)  // Unlimited
   selfReportedPoints Int @default(0)  // Capped at 100
@@ -2026,6 +2104,15 @@ model DailyPointsLog {
   @@unique([userId, date])
   @@index([userId])
 }
+
+// TIMESTAMP & TIMEZONE RULES:
+// - All internal timestamps stored as UTC
+// - DailyPointsLog.date = date portion of UTC time (midnight UTC boundary)
+// - hoursAfterLost = (action.createdAt_utc - case.lostAt_utc) / 1 hour
+// - Cap resets at midnight UTC
+// - Display times in user's local timezone (from device/profile), but all
+//   caps & analytics calculations use UTC.
+// - v2 may introduce per-user local timezone caps if needed.
 
 // ============================================
 // DAILY POINTS LOG BEHAVIOR
@@ -2202,9 +2289,11 @@ POST   /api/mission/[caseId]/tips/[tipId]/dismiss
 ```
 GET    /api/mission/[caseId]/points
        → Get leaderboard for this case (per-mission points only)
-       → Returns: { users: { id, name, points }[] }
+       → Returns: { users: { id, name, points, verifiedPoints?, selfReportedPoints? }[] }
        → NOTE: This is case-specific. Global/all-time leaderboards use
          /api/users/me/points and separate analytics queries.
+       → LEADERBOARD SEMANTICS (v1): points = verifiedPoints + selfReportedPoints
+         for that case. Future: may add "verified %" badge or filter toggle.
 
 GET    /api/users/me/points
        → Get current user's points
@@ -2360,9 +2449,11 @@ For each event with a known `emailId`:
 - [ ] Add "Other" category for custom activities
 - [ ] Hide time-specific task names in UI (keep algorithm)
 - [ ] Add `ownerRequested` fields to SquadTask
-- [ ] Create Scout tip banner component
+- [ ] Create Scout tip banner component (static/hard-coded tips only - no `MascotTip` model yet)
 - [ ] Update task card UI to new design
 - [ ] Add task progress indicators
+
+> **Scout v1 note:** Phase 1 Scout uses a static ruleset or hard-coded tips (e.g., "dusk is a good search time"). The `MascotTip` model, dynamic tip generation via weather + cold spots, and ML-driven tips arrive in Phase 5.
 
 ### Phase 2: Points & Verification (Week 2-3)
 
@@ -2954,4 +3045,4 @@ The `VerifiedAction` and `CaseOutcome` tables are the primary sources for traini
 ---
 
 *Last updated: December 2024*
-*Version: 2.2*
+*Version: 2.3*
