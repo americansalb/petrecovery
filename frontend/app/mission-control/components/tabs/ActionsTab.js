@@ -43,6 +43,14 @@ import {
   Crown,
   Edit3,
   Plus,
+  Building2,
+  PhoneCall,
+  Send,
+  ExternalLink,
+  Play,
+  Square,
+  Timer,
+  Route,
 } from 'lucide-react';
 import ScoutTipBanner from '@/app/components/missionControl/ScoutTipBanner';
 
@@ -243,6 +251,830 @@ function OtherActivityModal({ isOpen, onClose, onSubmit, submitting }) {
                 Log Activity
               </>
             )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// GPS Search Tracker Component - tracks search sessions with location
+function GPSSearchTracker({ caseId, onPointsEarned }) {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [starting, setStarting] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const [error, setError] = useState(null);
+  const [duration, setDuration] = useState(0);
+  const [distance, setDistance] = useState(0);
+  const pingIntervalRef = useRef(null);
+  const durationIntervalRef = useRef(null);
+
+  // Fetch active session on mount
+  useEffect(() => {
+    if (!caseId) return;
+
+    const fetchSession = async () => {
+      try {
+        const res = await fetch(`/api/mission/${caseId}/search`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.activeSession) {
+            setSession(data.activeSession);
+            // Calculate elapsed time
+            const elapsed = Math.floor((Date.now() - new Date(data.activeSession.startedAt).getTime()) / 1000);
+            setDuration(elapsed);
+            setDistance(data.activeSession.distanceMiles || 0);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching search session:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSession();
+  }, [caseId]);
+
+  // Duration timer
+  useEffect(() => {
+    if (session?.status === 'ACTIVE') {
+      durationIntervalRef.current = setInterval(() => {
+        setDuration(d => d + 1);
+      }, 1000);
+    }
+    return () => clearInterval(durationIntervalRef.current);
+  }, [session?.status]);
+
+  // Location ping interval
+  useEffect(() => {
+    if (session?.status === 'ACTIVE' && session?.id) {
+      const pingLocation = async () => {
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 10000,
+            });
+          });
+
+          await fetch(`/api/mission/${caseId}/search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'ping',
+              sessionId: session.id,
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+              heading: position.coords.heading,
+            }),
+          });
+        } catch (err) {
+          console.error('Location ping failed:', err);
+        }
+      };
+
+      // Ping every 30 seconds
+      pingIntervalRef.current = setInterval(pingLocation, 30000);
+      pingLocation(); // Initial ping
+    }
+
+    return () => clearInterval(pingIntervalRef.current);
+  }, [session?.status, session?.id, caseId]);
+
+  const handleStartSearch = async () => {
+    setStarting(true);
+    setError(null);
+
+    try {
+      // Get current position
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+        });
+      });
+
+      const res = await fetch(`/api/mission/${caseId}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'start',
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setSession({ id: data.sessionId, status: 'ACTIVE', startedAt: data.startedAt });
+        setDuration(0);
+        setDistance(0);
+      } else {
+        const errData = await res.json();
+        setError(errData.error || 'Failed to start search');
+      }
+    } catch (err) {
+      setError(err.message === 'User denied Geolocation'
+        ? 'Please enable location access to track your search'
+        : 'Failed to get your location');
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  const handleEndSearch = async () => {
+    if (!session?.id) return;
+    setEnding(true);
+
+    try {
+      const res = await fetch(`/api/mission/${caseId}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'end',
+          sessionId: session.id,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setSession(null);
+        setDuration(0);
+        clearInterval(pingIntervalRef.current);
+        clearInterval(durationIntervalRef.current);
+
+        if (onPointsEarned && data.pointsEarned > 0) {
+          onPointsEarned(data.pointsEarned, data.distanceMiles);
+        }
+      }
+    } catch (err) {
+      console.error('Error ending search:', err);
+    } finally {
+      setEnding(false);
+    }
+  };
+
+  const formatDuration = (seconds) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hrs > 0) return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 animate-pulse">
+        <div className="h-16 bg-blue-500/20 rounded"></div>
+      </div>
+    );
+  }
+
+  const isActive = session?.status === 'ACTIVE';
+
+  return (
+    <div className={`rounded-xl p-4 border transition-all ${
+      isActive
+        ? 'bg-blue-500/20 border-blue-500/50'
+        : 'bg-slate-800/50 border-slate-700/50'
+    }`}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Navigation className={isActive ? 'text-blue-400' : 'text-slate-400'} size={20} />
+          <span className="text-white font-semibold">GPS Search Tracker</span>
+          {isActive && (
+            <span className="px-2 py-0.5 bg-blue-500/30 text-blue-300 text-xs rounded-full animate-pulse">
+              ACTIVE
+            </span>
+          )}
+        </div>
+        <span className="text-xs text-slate-400">10 pts/mile (verified)</span>
+      </div>
+
+      {error && (
+        <div className="mb-3 p-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-sm flex items-center gap-2">
+          <AlertCircle size={16} />
+          {error}
+        </div>
+      )}
+
+      {isActive ? (
+        <div className="space-y-3">
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-900/50 rounded-lg p-3 text-center">
+              <div className="flex items-center justify-center gap-1 text-blue-400 mb-1">
+                <Timer size={14} />
+                <span className="text-xs">Duration</span>
+              </div>
+              <div className="text-xl font-bold text-white font-mono">{formatDuration(duration)}</div>
+            </div>
+            <div className="bg-slate-900/50 rounded-lg p-3 text-center">
+              <div className="flex items-center justify-center gap-1 text-blue-400 mb-1">
+                <Route size={14} />
+                <span className="text-xs">Distance</span>
+              </div>
+              <div className="text-xl font-bold text-white">{distance.toFixed(2)} mi</div>
+            </div>
+          </div>
+
+          {/* End button */}
+          <button
+            onClick={handleEndSearch}
+            disabled={ending}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-500 disabled:bg-slate-600 text-white font-semibold rounded-lg transition-colors"
+          >
+            {ending ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Square size={18} />
+            )}
+            {ending ? 'Ending...' : 'End Search'}
+          </button>
+
+          <p className="text-xs text-slate-400 text-center">
+            Points will be calculated when you end the search
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-sm text-slate-400">
+            Start a GPS-tracked search to earn verified points based on distance covered.
+          </p>
+          <button
+            onClick={handleStartSearch}
+            disabled={starting}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white font-semibold rounded-lg transition-colors"
+          >
+            {starting ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Play size={18} />
+            )}
+            {starting ? 'Starting...' : 'Start GPS Search'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Shelter Contact Section - for contacting shelters/vets
+function ShelterContactSection({ caseId, mission, onPointsEarned }) {
+  const [shelters, setShelters] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const [selectedShelter, setSelectedShelter] = useState(null);
+  const [showCallModal, setShowCallModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!caseId) return;
+
+    const fetchShelters = async () => {
+      try {
+        const res = await fetch(`/api/mission/${caseId}/shelters`);
+        if (res.ok) {
+          const data = await res.json();
+          setShelters(data.shelters || []);
+        }
+      } catch (err) {
+        console.error('Error fetching shelters:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchShelters();
+  }, [caseId]);
+
+  const handleLogCall = async (shelterId, outcome, staffResponse, notes) => {
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/mission/${caseId}/shelters/${shelterId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'call',
+          outcome,
+          staffResponse,
+          notes,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Update shelter status in list
+        setShelters(prev => prev.map(s =>
+          s.id === shelterId
+            ? { ...s, status: 'CONTACTED', lastContactMethod: 'CALL', lastContactedAt: new Date().toISOString() }
+            : s
+        ));
+        setShowCallModal(false);
+        setSelectedShelter(null);
+        if (onPointsEarned) onPointsEarned(data.pointsEarned);
+      }
+    } catch (err) {
+      console.error('Error logging call:', err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSendEmail = async (shelterId, emailData) => {
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/mission/${caseId}/shelters/${shelterId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'email',
+          ...emailData,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setShelters(prev => prev.map(s =>
+          s.id === shelterId
+            ? { ...s, status: 'CONTACTED', lastContactMethod: 'EMAIL', lastContactedAt: new Date().toISOString() }
+            : s
+        ));
+        setShowEmailModal(false);
+        setSelectedShelter(null);
+        if (onPointsEarned) onPointsEarned(data.pointsEarned);
+      }
+    } catch (err) {
+      console.error('Error sending email:', err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const notContacted = shelters.filter(s => s.status === 'NOT_CONTACTED');
+  const contacted = shelters.filter(s => s.status !== 'NOT_CONTACTED');
+
+  if (loading) {
+    return (
+      <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4 animate-pulse">
+        <div className="h-20 bg-orange-500/20 rounded"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border border-orange-500/30 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className={`w-full flex items-center justify-between p-4 transition-colors ${
+          expanded ? 'bg-orange-500/20' : 'bg-slate-800/30 hover:bg-slate-800/50'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
+            <Building2 className="text-orange-400" size={20} />
+          </div>
+          <div className="text-left">
+            <div className="text-white font-semibold flex items-center gap-2">
+              Contact Shelters & Vets
+              {notContacted.length > 0 && (
+                <span className="text-xs bg-orange-500/30 text-orange-300 px-1.5 py-0.5 rounded">
+                  {notContacted.length} pending
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-slate-400">Call: 8 pts • Email: 15 pts (verified)</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-orange-400">{shelters.length}</span>
+          {expanded ? (
+            <ChevronUp className="text-orange-400" size={20} />
+          ) : (
+            <ChevronDown className="text-slate-400" size={20} />
+          )}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="p-3 bg-slate-900/50 border-t border-slate-700/30 space-y-2">
+          {shelters.length === 0 ? (
+            <div className="text-center py-6 text-slate-400">
+              <Building2 size={32} className="mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No shelters tracked yet</p>
+              <p className="text-xs text-slate-500 mt-1">Shelters near the lost location will appear here</p>
+            </div>
+          ) : (
+            <>
+              {/* Not contacted */}
+              {notContacted.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-400 uppercase tracking-wider px-1">Not Contacted</p>
+                  {notContacted.map(shelter => (
+                    <ShelterCard
+                      key={shelter.id}
+                      shelter={shelter}
+                      onCall={() => { setSelectedShelter(shelter); setShowCallModal(true); }}
+                      onEmail={() => { setSelectedShelter(shelter); setShowEmailModal(true); }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Contacted */}
+              {contacted.length > 0 && (
+                <div className="space-y-2 mt-4">
+                  <p className="text-xs text-slate-400 uppercase tracking-wider px-1">Already Contacted</p>
+                  {contacted.map(shelter => (
+                    <ShelterCard
+                      key={shelter.id}
+                      shelter={shelter}
+                      onCall={() => { setSelectedShelter(shelter); setShowCallModal(true); }}
+                      onEmail={() => { setSelectedShelter(shelter); setShowEmailModal(true); }}
+                      contacted
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Call Log Modal */}
+      {showCallModal && selectedShelter && (
+        <CallLogModal
+          shelter={selectedShelter}
+          onClose={() => { setShowCallModal(false); setSelectedShelter(null); }}
+          onSubmit={(outcome, staffResponse, notes) => handleLogCall(selectedShelter.id, outcome, staffResponse, notes)}
+          submitting={submitting}
+        />
+      )}
+
+      {/* Email Modal */}
+      {showEmailModal && selectedShelter && (
+        <ShelterEmailModal
+          shelter={selectedShelter}
+          mission={mission}
+          onClose={() => { setShowEmailModal(false); setSelectedShelter(null); }}
+          onSubmit={(data) => handleSendEmail(selectedShelter.id, data)}
+          submitting={submitting}
+        />
+      )}
+    </div>
+  );
+}
+
+// Individual shelter card
+function ShelterCard({ shelter, onCall, onEmail, contacted }) {
+  const typeColors = {
+    SHELTER: { bg: 'bg-purple-500/20', text: 'text-purple-400', label: 'Shelter' },
+    VET: { bg: 'bg-green-500/20', text: 'text-green-400', label: 'Vet' },
+    ANIMAL_CONTROL: { bg: 'bg-red-500/20', text: 'text-red-400', label: 'Animal Control' },
+  };
+  const typeStyle = typeColors[shelter.type] || typeColors.SHELTER;
+
+  return (
+    <div className={`bg-slate-800/50 rounded-lg p-3 border transition-all ${
+      contacted ? 'border-green-500/30 bg-green-500/5' : 'border-slate-700/50 hover:border-orange-500/50'
+    }`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="text-white font-medium truncate">{shelter.name}</span>
+            <span className={`text-xs px-1.5 py-0.5 rounded ${typeStyle.bg} ${typeStyle.text}`}>
+              {typeStyle.label}
+            </span>
+            {contacted && <CheckCircle size={14} className="text-green-400 shrink-0" />}
+          </div>
+          <p className="text-xs text-slate-400 truncate">{shelter.address}</p>
+          {shelter.lastContactedAt && (
+            <p className="text-xs text-slate-500 mt-1">
+              Last: {shelter.lastContactMethod?.toLowerCase()} • {new Date(shelter.lastContactedAt).toLocaleDateString()}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {shelter.phone && (
+            <button
+              onClick={onCall}
+              className="p-2 bg-slate-700 hover:bg-orange-500/30 rounded-lg transition-colors group"
+              title="Log a call"
+            >
+              <Phone size={16} className="text-slate-400 group-hover:text-orange-400" />
+            </button>
+          )}
+          {shelter.email && (
+            <button
+              onClick={onEmail}
+              className="p-2 bg-slate-700 hover:bg-green-500/30 rounded-lg transition-colors group"
+              title="Send email"
+            >
+              <Mail size={16} className="text-slate-400 group-hover:text-green-400" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Call Log Modal
+function CallLogModal({ shelter, onClose, onSubmit, submitting }) {
+  const [outcome, setOutcome] = useState('');
+  const [staffResponse, setStaffResponse] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const outcomes = [
+    { value: 'SPOKE_WITH_STAFF', label: 'Spoke with staff' },
+    { value: 'LEFT_VOICEMAIL', label: 'Left voicemail' },
+    { value: 'NO_ANSWER', label: 'No answer' },
+    { value: 'BUSY', label: 'Line busy' },
+    { value: 'WRONG_NUMBER', label: 'Wrong number' },
+  ];
+
+  const responses = [
+    { value: 'NO_MATCHING_ANIMALS', label: 'No matching animals' },
+    { value: 'POSSIBLE_MATCH', label: 'Possible match!' },
+    { value: 'CONFIRMED_MATCH', label: 'Confirmed match!' },
+    { value: 'WILL_CHECK_AND_CALL_BACK', label: 'Will check and call back' },
+    { value: 'OTHER', label: 'Other' },
+  ];
+
+  const handleSubmit = () => {
+    if (!outcome) return;
+    onSubmit(outcome, staffResponse || null, notes || null);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-900 rounded-2xl max-w-md w-full border border-slate-700 shadow-xl">
+        <div className="flex items-center justify-between p-4 border-b border-slate-700">
+          <div className="flex items-center gap-3">
+            <PhoneCall className="text-orange-400" size={24} />
+            <div>
+              <h3 className="text-white font-semibold">Log Call</h3>
+              <p className="text-xs text-slate-400">{shelter.name}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg">
+            <X className="text-slate-400" size={20} />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Quick dial */}
+          {shelter.phone && (
+            <a
+              href={`tel:${shelter.phone}`}
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg transition-colors"
+            >
+              <Phone size={18} />
+              Call {shelter.phone}
+            </a>
+          )}
+
+          {/* Outcome */}
+          <div>
+            <label className="block text-sm text-slate-300 mb-2">
+              What happened? <span className="text-flash-400">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {outcomes.map(o => (
+                <button
+                  key={o.value}
+                  onClick={() => setOutcome(o.value)}
+                  className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                    outcome === o.value
+                      ? 'bg-orange-500/20 border-orange-500 text-orange-300'
+                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-600'
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Staff response (only if spoke with staff) */}
+          {outcome === 'SPOKE_WITH_STAFF' && (
+            <div>
+              <label className="block text-sm text-slate-300 mb-2">Staff Response</label>
+              <div className="space-y-2">
+                {responses.map(r => (
+                  <button
+                    key={r.value}
+                    onClick={() => setStaffResponse(r.value)}
+                    className={`w-full px-3 py-2 text-sm rounded-lg border text-left transition-colors ${
+                      staffResponse === r.value
+                        ? r.value.includes('MATCH')
+                          ? 'bg-green-500/20 border-green-500 text-green-300'
+                          : 'bg-orange-500/20 border-orange-500 text-orange-300'
+                        : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-600'
+                    }`}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Notes */}
+          <div>
+            <label className="block text-sm text-slate-300 mb-2">Notes (optional)</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Any additional details..."
+              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 text-sm resize-none focus:outline-none focus:border-orange-500"
+              rows={2}
+            />
+          </div>
+
+          <div className="text-xs text-slate-500 text-center">
+            +8 pts (self-reported, counts toward daily cap)
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-slate-700 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-medium hover:bg-slate-700 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting || !outcome}
+            className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-500 disabled:bg-slate-700 disabled:text-slate-500 transition-colors flex items-center justify-center gap-2"
+          >
+            {submitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+            {submitting ? 'Logging...' : 'Log Call'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Shelter Email Modal
+function ShelterEmailModal({ shelter, mission, onClose, onSubmit, submitting }) {
+  // Pre-fill from mission data
+  const [petName, setPetName] = useState(mission?.petName || '');
+  const [petType, setPetType] = useState(mission?.petType || 'DOG');
+  const [petBreed, setPetBreed] = useState(mission?.breed || '');
+  const [petColor, setPetColor] = useState(mission?.color || '');
+  const [lastSeenLocation, setLastSeenLocation] = useState(mission?.lastSeenLocation || '');
+  const [lastSeenDate, setLastSeenDate] = useState(mission?.lastSeenDate || new Date().toISOString().split('T')[0]);
+  const [ownerName, setOwnerName] = useState(mission?.ownerName || '');
+  const [ownerPhone, setOwnerPhone] = useState(mission?.ownerPhone || '');
+  const [ownerEmail, setOwnerEmail] = useState(mission?.ownerEmail || '');
+
+  const handleSubmit = () => {
+    if (!petName || !lastSeenLocation || !ownerName || !ownerPhone || !ownerEmail) return;
+    onSubmit({
+      petName,
+      petType,
+      petBreed,
+      petColor,
+      lastSeenLocation,
+      lastSeenDate,
+      ownerName,
+      ownerPhone,
+      ownerEmail,
+      petPhotoUrl: mission?.photoUrl,
+      caseUrl: typeof window !== 'undefined' ? window.location.href : '',
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-slate-900 rounded-2xl max-w-lg w-full border border-slate-700 shadow-xl my-4">
+        <div className="flex items-center justify-between p-4 border-b border-slate-700">
+          <div className="flex items-center gap-3">
+            <Mail className="text-green-400" size={24} />
+            <div>
+              <h3 className="text-white font-semibold">Send Email</h3>
+              <p className="text-xs text-slate-400">{shelter.name}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg">
+            <X className="text-slate-400" size={20} />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-3 max-h-96 overflow-y-auto">
+          <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-sm text-green-300">
+            <p className="font-medium">✓ Verified Action (+15 pts)</p>
+            <p className="text-xs text-green-400/70 mt-1">Email sent via platform - no daily cap</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Pet Name *</label>
+              <input
+                value={petName}
+                onChange={(e) => setPetName(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Pet Type</label>
+              <select
+                value={petType}
+                onChange={(e) => setPetType(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+              >
+                <option value="DOG">Dog</option>
+                <option value="CAT">Cat</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Breed</label>
+              <input
+                value={petBreed}
+                onChange={(e) => setPetBreed(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Color</label>
+              <input
+                value={petColor}
+                onChange={(e) => setPetColor(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Last Seen Location *</label>
+            <input
+              value={lastSeenLocation}
+              onChange={(e) => setLastSeenLocation(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Last Seen Date *</label>
+            <input
+              type="date"
+              value={lastSeenDate}
+              onChange={(e) => setLastSeenDate(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+            />
+          </div>
+
+          <div className="border-t border-slate-700 pt-3 mt-3">
+            <p className="text-xs text-slate-400 mb-2">Your Contact Info</p>
+            <div className="space-y-2">
+              <input
+                value={ownerName}
+                onChange={(e) => setOwnerName(e.target.value)}
+                placeholder="Your name *"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+              />
+              <input
+                value={ownerPhone}
+                onChange={(e) => setOwnerPhone(e.target.value)}
+                placeholder="Your phone *"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+              />
+              <input
+                value={ownerEmail}
+                onChange={(e) => setOwnerEmail(e.target.value)}
+                placeholder="Your email *"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-green-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-slate-700 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-medium hover:bg-slate-700 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting || !petName || !lastSeenLocation || !ownerName || !ownerPhone || !ownerEmail}
+            className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500 transition-colors flex items-center justify-center gap-2"
+          >
+            {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+            {submitting ? 'Sending...' : 'Send Email'}
           </button>
         </div>
       </div>
@@ -971,6 +1803,19 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
   // Get the current tip to display
   const currentTip = tips[currentTipIndex];
 
+  // Handler for points earned from GPS or shelter actions
+  const handleExternalPointsEarned = useCallback((pointsEarned, distanceMiles = null) => {
+    setPoints((prev) => ({
+      ...prev,
+      today: {
+        ...prev?.today,
+        verified: (prev?.today?.verified || 0) + pointsEarned,
+        total: (prev?.today?.total || 0) + pointsEarned,
+      },
+      caseTotal: (prev?.caseTotal || 0) + pointsEarned,
+    }));
+  }, []);
+
   return (
     <div className="space-y-4 pb-20">
       {/* Scout Tip Banner - shown when tips are available */}
@@ -988,6 +1833,12 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
         points={points}
         loading={loading}
         recentActions={points?.recentActions}
+      />
+
+      {/* GPS Search Tracker - prominent placement for search missions */}
+      <GPSSearchTracker
+        caseId={mission?.id}
+        onPointsEarned={handleExternalPointsEarned}
       />
 
       {/* Team Progress Bar */}
@@ -1045,6 +1896,13 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
                 completedTasks={completedTasks}
               />
             ))}
+
+            {/* Shelter Contact Section - Outreach category key feature */}
+            <ShelterContactSection
+              caseId={mission?.id}
+              mission={mission}
+              onPointsEarned={handleExternalPointsEarned}
+            />
 
             {/* OTHER category - special "Log Activity" button per spec */}
             <div className="border border-slate-700/50 rounded-xl overflow-hidden">
