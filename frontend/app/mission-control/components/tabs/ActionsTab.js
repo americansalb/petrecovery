@@ -953,7 +953,7 @@ function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace 
   );
 }
 
-// Flyer Generation Card
+// Flyer Generation Card (Compact)
 function FlyerGenerationCard({ caseId }) {
   const [showModal, setShowModal] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -999,15 +999,10 @@ function FlyerGenerationCard({ caseId }) {
     <>
       <button
         onClick={() => setShowModal(true)}
-        className="flex flex-col items-center justify-center gap-2 p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-purple-500/50 rounded-xl transition-all group"
+        className="flex flex-col items-center justify-center gap-1.5 p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl transition-all"
       >
-        <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center group-hover:bg-purple-500/30 transition-colors">
-          <FileText className="text-purple-400" size={20} />
-        </div>
-        <div className="text-center">
-          <div className="text-white font-medium text-sm">Generate Flyer</div>
-          <div className="text-xs text-slate-400">Print & post</div>
-        </div>
+        <FileText className="text-purple-400" size={20} />
+        <span className="text-xs text-slate-300 font-medium">Flyer</span>
       </button>
 
       {showModal && (
@@ -1130,11 +1125,10 @@ function FlyerGenerationCard({ caseId }) {
   );
 }
 
-// Volunteer Check-in Card
+// Volunteer Check-in Card (Compact)
 function VolunteerCheckInCard({ caseId }) {
   const [checkedIn, setCheckedIn] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [checkInTime, setCheckInTime] = useState(null);
 
   const handleToggle = async () => {
     if (!caseId) return;
@@ -1146,18 +1140,12 @@ function VolunteerCheckInCard({ caseId }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: checkedIn ? 'CHECK_OUT' : 'CHECK_IN',
-          estimatedMinutes: 60, // Default 1 hour
+          estimatedMinutes: 60,
         }),
       });
 
       if (res.ok) {
-        if (!checkedIn) {
-          setCheckedIn(true);
-          setCheckInTime(new Date());
-        } else {
-          setCheckedIn(false);
-          setCheckInTime(null);
-        }
+        setCheckedIn(!checkedIn);
       }
     } catch (err) {
       console.error('Error toggling check-in:', err);
@@ -1170,32 +1158,441 @@ function VolunteerCheckInCard({ caseId }) {
     <button
       onClick={handleToggle}
       disabled={loading}
-      className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl transition-all ${
+      className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl transition-all ${
         checkedIn
           ? 'bg-green-500/20 border border-green-500/50'
-          : 'bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-green-500/50'
+          : 'bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50'
       }`}
     >
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
-        checkedIn ? 'bg-green-500/30' : 'bg-green-500/20'
-      }`}>
-        {loading ? (
-          <Loader2 className="text-green-400 animate-spin" size={20} />
-        ) : checkedIn ? (
-          <CheckCircle className="text-green-400" size={20} />
-        ) : (
-          <Users className="text-green-400" size={20} />
+      {loading ? (
+        <Loader2 className="text-green-400 animate-spin" size={20} />
+      ) : checkedIn ? (
+        <CheckCircle className="text-green-400" size={20} />
+      ) : (
+        <Users className="text-green-400" size={20} />
+      )}
+      <span className="text-xs text-slate-300 font-medium">
+        {checkedIn ? 'Active' : 'Check In'}
+      </span>
+    </button>
+  );
+}
+
+// Shelter Search Button (Compact - opens full modal)
+function ShelterSearchButton({ caseId, mission, onPointsEarned }) {
+  const [showModal, setShowModal] = useState(false);
+  const [shelters, setShelters] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch shelters when modal opens
+  const openModal = async () => {
+    setShowModal(true);
+    if (shelters.length === 0) {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/mission/${caseId}/shelters`);
+        if (res.ok) {
+          const data = await res.json();
+          setShelters(data.shelters || []);
+        }
+      } catch (err) {
+        console.error('Error fetching shelters:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleAddShelter = async (place) => {
+    try {
+      const res = await fetch(`/api/mission/${caseId}/shelters`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          placeId: place.place_id,
+          name: place.name,
+          address: place.vicinity || place.formatted_address,
+          phone: place.formatted_phone_number,
+          email: null,
+          type: place.placeType || 'SHELTER',
+          latitude: place.geometry.location.lat,
+          longitude: place.geometry.location.lng,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.alreadyExists) {
+          setShelters(prev => [...prev, {
+            id: data.shelter.id,
+            placeId: data.shelter.placeId,
+            name: data.shelter.shelterName,
+            address: data.shelter.shelterAddress,
+            phone: data.shelter.shelterPhone,
+            type: data.shelter.shelterType,
+            status: 'NOT_CONTACTED',
+          }]);
+        }
+        return { success: true, alreadyExists: data.alreadyExists };
+      }
+      return { success: false };
+    } catch (err) {
+      return { success: false };
+    }
+  };
+
+  const notContacted = shelters.filter(s => s.status === 'NOT_CONTACTED').length;
+
+  return (
+    <>
+      <button
+        onClick={openModal}
+        className="flex flex-col items-center justify-center gap-1.5 p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl transition-all relative"
+      >
+        <Building2 className="text-orange-400" size={20} />
+        <span className="text-xs text-slate-300 font-medium">Shelters</span>
+        {notContacted > 0 && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 text-white text-xs rounded-full flex items-center justify-center">
+            {notContacted}
+          </span>
+        )}
+      </button>
+
+      {showModal && (
+        <ShelterContactModal
+          caseId={caseId}
+          mission={mission}
+          shelters={shelters}
+          setShelters={setShelters}
+          loading={loading}
+          onClose={() => setShowModal(false)}
+          onAddShelter={handleAddShelter}
+          onPointsEarned={onPointsEarned}
+        />
+      )}
+    </>
+  );
+}
+
+// Full Shelter Contact Modal (combines search + contact list)
+function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, onClose, onAddShelter, onPointsEarned }) {
+  const [activeTab, setActiveTab] = useState('contacts'); // 'contacts' | 'search'
+  const [selectedShelter, setSelectedShelter] = useState(null);
+  const [showCallModal, setShowCallModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Search state
+  const [searchType, setSearchType] = useState('shelter');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [adding, setAdding] = useState({});
+
+  const searchPlaces = async () => {
+    if (!mission?.lastSeenLatitude || !mission?.lastSeenLongitude) return;
+    setSearching(true);
+
+    try {
+      const res = await fetch(
+        `/api/places/search?lat=${mission.lastSeenLatitude}&lng=${mission.lastSeenLongitude}&type=${searchType}&radius=25`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults((data.results || []).map(place => ({
+          ...place,
+          placeType: searchType === 'shelter' ? 'SHELTER' : searchType === 'vet' ? 'VET' : 'ANIMAL_CONTROL',
+        })));
+      }
+    } catch (err) {
+      console.error('Search failed:', err);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'search') searchPlaces();
+  }, [activeTab, searchType]);
+
+  const handleAdd = async (place) => {
+    setAdding(prev => ({ ...prev, [place.place_id]: true }));
+    const result = await onAddShelter(place);
+    setAdding(prev => ({ ...prev, [place.place_id]: false }));
+    if (result.success && !result.alreadyExists) {
+      setSearchResults(prev => prev.filter(p => p.place_id !== place.place_id));
+    }
+  };
+
+  const handleLogCall = async (shelterId, outcome, staffResponse, notes) => {
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/mission/${caseId}/shelters/${shelterId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'call', outcome, staffResponse, notes }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setShelters(prev => prev.map(s =>
+          s.id === shelterId ? { ...s, status: 'CONTACTED', lastContactMethod: 'CALL' } : s
+        ));
+        setShowCallModal(false);
+        setSelectedShelter(null);
+        if (onPointsEarned) onPointsEarned(data.pointsEarned);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSendEmail = async (shelterId, emailData) => {
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/mission/${caseId}/shelters/${shelterId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'email', ...emailData }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setShelters(prev => prev.map(s =>
+          s.id === shelterId ? { ...s, status: 'CONTACTED', lastContactMethod: 'EMAIL' } : s
+        ));
+        setShowEmailModal(false);
+        setSelectedShelter(null);
+        if (onPointsEarned) onPointsEarned(data.pointsEarned);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const notContacted = shelters.filter(s => s.status === 'NOT_CONTACTED');
+  const contacted = shelters.filter(s => s.status !== 'NOT_CONTACTED');
+  const existingPlaceIds = shelters.map(s => s.placeId);
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-900 rounded-2xl max-w-lg w-full border border-slate-700 shadow-xl max-h-[85vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-slate-700">
+          <div className="flex items-center gap-3">
+            <Building2 className="text-orange-400" size={24} />
+            <div>
+              <h3 className="text-white font-semibold">Shelters & Vets</h3>
+              <p className="text-xs text-slate-400">Call: 8 pts • Email: 15 pts</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg">
+            <X className="text-slate-400" size={20} />
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-slate-700">
+          <button
+            onClick={() => setActiveTab('contacts')}
+            className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === 'contacts'
+                ? 'text-orange-400 border-b-2 border-orange-400'
+                : 'text-slate-400 hover:text-slate-300'
+            }`}
+          >
+            My List ({shelters.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('search')}
+            className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === 'search'
+                ? 'text-orange-400 border-b-2 border-orange-400'
+                : 'text-slate-400 hover:text-slate-300'
+            }`}
+          >
+            Find Nearby
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          {activeTab === 'contacts' ? (
+            <div className="p-3 space-y-2">
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="text-orange-400 animate-spin" size={24} />
+                </div>
+              ) : shelters.length === 0 ? (
+                <div className="text-center py-8 text-slate-400">
+                  <Building2 size={32} className="mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No shelters added yet</p>
+                  <button
+                    onClick={() => setActiveTab('search')}
+                    className="mt-2 text-orange-400 text-sm hover:underline"
+                  >
+                    Find nearby shelters →
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {notContacted.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-slate-500 uppercase px-1">To Contact ({notContacted.length})</p>
+                      {notContacted.map(shelter => (
+                        <ShelterListItem
+                          key={shelter.id}
+                          shelter={shelter}
+                          onCall={() => { setSelectedShelter(shelter); setShowCallModal(true); }}
+                          onEmail={() => { setSelectedShelter(shelter); setShowEmailModal(true); }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {contacted.length > 0 && (
+                    <div className="space-y-1.5 mt-3">
+                      <p className="text-xs text-slate-500 uppercase px-1">Contacted ({contacted.length})</p>
+                      {contacted.map(shelter => (
+                        <ShelterListItem
+                          key={shelter.id}
+                          shelter={shelter}
+                          onCall={() => { setSelectedShelter(shelter); setShowCallModal(true); }}
+                          onEmail={() => { setSelectedShelter(shelter); setShowEmailModal(true); }}
+                          contacted
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="p-3 space-y-3">
+              {/* Type filter */}
+              <div className="flex gap-2">
+                {[
+                  { value: 'shelter', label: 'Shelters' },
+                  { value: 'vet', label: 'Vets' },
+                  { value: 'animal_control', label: 'Animal Ctrl' },
+                ].map(btn => (
+                  <button
+                    key={btn.value}
+                    onClick={() => setSearchType(btn.value)}
+                    className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                      searchType === btn.value
+                        ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50'
+                        : 'bg-slate-800 text-slate-400 border border-slate-700'
+                    }`}
+                  >
+                    {btn.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Results */}
+              {searching ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="text-orange-400 animate-spin" size={24} />
+                </div>
+              ) : searchResults.length === 0 ? (
+                <div className="text-center py-8 text-slate-400">
+                  <p className="text-sm">No places found nearby</p>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {searchResults.map(place => {
+                    const isAdded = existingPlaceIds.includes(place.place_id);
+                    return (
+                      <div
+                        key={place.place_id}
+                        className={`flex items-center justify-between p-2.5 rounded-lg border ${
+                          isAdded ? 'bg-green-500/10 border-green-500/30' : 'bg-slate-800/50 border-slate-700/50'
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0 mr-2">
+                          <p className="text-sm text-white font-medium truncate">{place.name}</p>
+                          <p className="text-xs text-slate-400 truncate">{place.vicinity}</p>
+                        </div>
+                        <button
+                          onClick={() => handleAdd(place)}
+                          disabled={isAdded || adding[place.place_id]}
+                          className={`px-2.5 py-1 text-xs font-medium rounded-lg shrink-0 ${
+                            isAdded
+                              ? 'bg-green-500/20 text-green-300'
+                              : 'bg-orange-500 hover:bg-orange-400 text-white'
+                          }`}
+                        >
+                          {adding[place.place_id] ? '...' : isAdded ? '✓' : 'Add'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-3 border-t border-slate-700">
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 bg-slate-800 text-slate-300 rounded-lg font-medium hover:bg-slate-700"
+          >
+            Done
+          </button>
+        </div>
+
+        {/* Sub-modals */}
+        {showCallModal && selectedShelter && (
+          <CallLogModal
+            shelter={selectedShelter}
+            onClose={() => { setShowCallModal(false); setSelectedShelter(null); }}
+            onSubmit={(outcome, staffResponse, notes) => handleLogCall(selectedShelter.id, outcome, staffResponse, notes)}
+            submitting={submitting}
+          />
+        )}
+        {showEmailModal && selectedShelter && (
+          <ShelterEmailModal
+            shelter={selectedShelter}
+            mission={mission}
+            onClose={() => { setShowEmailModal(false); setSelectedShelter(null); }}
+            onSubmit={(data) => handleSendEmail(selectedShelter.id, data)}
+            submitting={submitting}
+          />
         )}
       </div>
-      <div className="text-center">
-        <div className="text-white font-medium text-sm">
-          {checkedIn ? 'Checked In' : 'Check In'}
+    </div>
+  );
+}
+
+// Compact shelter list item
+function ShelterListItem({ shelter, onCall, onEmail, contacted }) {
+  return (
+    <div className={`flex items-center justify-between p-2.5 rounded-lg border ${
+      contacted ? 'bg-green-500/5 border-green-500/30' : 'bg-slate-800/50 border-slate-700/50'
+    }`}>
+      <div className="flex-1 min-w-0 mr-2">
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm text-white font-medium truncate">{shelter.name}</span>
+          {contacted && <CheckCircle size={12} className="text-green-400 shrink-0" />}
         </div>
-        <div className="text-xs text-slate-400">
-          {checkedIn ? 'Active volunteer' : 'Join the search'}
-        </div>
+        <p className="text-xs text-slate-400 truncate">{shelter.address}</p>
       </div>
-    </button>
+      <div className="flex gap-1.5 shrink-0">
+        {shelter.phone && (
+          <button
+            onClick={onCall}
+            className="p-1.5 bg-slate-700 hover:bg-orange-500/30 rounded-lg transition-colors"
+          >
+            <Phone size={14} className="text-slate-400 hover:text-orange-400" />
+          </button>
+        )}
+        <button
+          onClick={onEmail}
+          className="p-1.5 bg-slate-700 hover:bg-green-500/30 rounded-lg transition-colors"
+        >
+          <Mail size={14} className="text-slate-400 hover:text-green-400" />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -2298,68 +2695,60 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
         />
       )}
 
-      {/* Points Summary */}
-      <PointsSummary
-        points={points}
-        loading={loading}
-        recentActions={points?.recentActions}
-      />
+      {/* Compact Stats Header */}
+      <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700/50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="text-center">
+              <div className="text-xl font-bold text-flash-400">{points?.caseTotal || 0}</div>
+              <div className="text-xs text-slate-400">Total Pts</div>
+            </div>
+            <div className="h-8 w-px bg-slate-700"></div>
+            <div className="text-center">
+              <div className="text-lg font-bold text-green-400">{points?.today?.verified || 0}</div>
+              <div className="text-xs text-slate-400">Verified</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-bold text-yellow-400">{points?.today?.selfReported || 0}</div>
+              <div className="text-xs text-slate-400">Logged</div>
+            </div>
+          </div>
+          <div className="text-center px-3 py-1 bg-slate-700/50 rounded-lg">
+            <div className="text-lg font-bold text-orange-400">
+              #{leaderboard.find((e) => e.userId === userId)?.rank || '–'}
+            </div>
+            <div className="text-xs text-slate-400">Rank</div>
+          </div>
+        </div>
+      </div>
 
-      {/* GPS Search Tracker - prominent placement for search missions */}
+      {/* GPS Search - Compact when inactive */}
       <GPSSearchTracker
         caseId={mission?.id}
         onPointsEarned={handleExternalPointsEarned}
       />
 
-      {/* Quick Actions Row - Generate Flyer */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Quick Actions - 3 column grid */}
+      <div className="grid grid-cols-3 gap-2">
         <FlyerGenerationCard caseId={mission?.id} />
         <VolunteerCheckInCard caseId={mission?.id} />
+        <ShelterSearchButton
+          caseId={mission?.id}
+          mission={mission}
+          onPointsEarned={handleExternalPointsEarned}
+        />
       </div>
 
-      {/* Team Progress Bar */}
-      <TeamProgressBar
-        completed={teamProgress.completed + completedTasks.length}
-        total={teamProgress.total}
-        loading={loading}
-      />
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-slate-800/30 rounded-xl p-3 border border-slate-700/50 text-center">
-          <div className="text-lg font-bold text-green-400">
-            {points?.today?.verified || 0}
-          </div>
-          <div className="text-xs text-slate-400">Verified Today</div>
-        </div>
-        <div className="bg-slate-800/30 rounded-xl p-3 border border-slate-700/50 text-center">
-          <div className="text-lg font-bold text-orange-400">
-            {leaderboard.find((e) => e.userId === userId)?.rank || '–'}
-          </div>
-          <div className="text-xs text-slate-400">Your Rank</div>
-        </div>
-      </div>
-
-      {/* Task Categories */}
-      <div className="space-y-3">
-        <h3 className="text-white font-semibold flex items-center gap-2">
-          <Target size={18} className="text-flash-400" />
-          Available Actions
-        </h3>
+      {/* Task Categories - Collapsible */}
+      <div className="space-y-2">
         {loading ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 bg-slate-800/30 rounded-xl animate-pulse"></div>
+              <div key={i} className="h-14 bg-slate-800/30 rounded-xl animate-pulse"></div>
             ))}
-          </div>
-        ) : categories.length === 0 ? (
-          <div className="text-center py-8 text-slate-400">
-            <Target size={32} className="mx-auto mb-2 opacity-50" />
-            <p>No actions available</p>
           </div>
         ) : (
           <>
-            {/* Regular categories: SEARCH, OUTREACH, AT_HOME */}
             {categories.filter((c) => c !== 'OTHER').map((category) => (
               <CategorySection
                 key={category}
@@ -2373,46 +2762,36 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
               />
             ))}
 
-            {/* Shelter Contact Section - Outreach category key feature */}
-            <ShelterContactSection
-              caseId={mission?.id}
-              mission={mission}
-              onPointsEarned={handleExternalPointsEarned}
-            />
-
-            {/* OTHER category - special "Log Activity" button per spec */}
-            <div className="border border-slate-700/50 rounded-xl overflow-hidden">
-              <div className="p-4 bg-slate-800/30">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 rounded-lg bg-slate-500/20">
-                    <Edit3 className="text-slate-400" size={20} />
-                  </div>
-                  <div>
-                    <div className="text-white font-medium">Other</div>
-                    <div className="text-xs text-slate-400">Log any other helpful activity</div>
-                  </div>
+            {/* Log Other Activity - Simple button */}
+            <button
+              onClick={() => setShowOtherActivityModal(true)}
+              className="w-full flex items-center justify-between p-3 bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/50 rounded-xl transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-slate-500/20">
+                  <Edit3 className="text-slate-400" size={18} />
                 </div>
-                <button
-                  onClick={() => setShowOtherActivityModal(true)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-300 font-medium transition-colors"
-                >
-                  <Plus size={18} />
-                  <span>Log Activity (+3 pts)</span>
-                </button>
+                <span className="text-slate-300 font-medium">Log Other Activity</span>
               </div>
-            </div>
+              <span className="text-xs text-slate-500">+3 pts</span>
+            </button>
           </>
         )}
       </div>
 
-      {/* Leaderboard */}
-      <div className="space-y-3">
-        <h3 className="text-white font-semibold flex items-center gap-2">
-          <Trophy size={18} className="text-flash-400" />
-          Leaderboard
-        </h3>
-        <Leaderboard entries={leaderboard} userId={userId} loading={loading} />
-      </div>
+      {/* Leaderboard - Collapsible */}
+      <details className="group">
+        <summary className="flex items-center justify-between p-3 bg-slate-800/30 border border-slate-700/50 rounded-xl cursor-pointer list-none">
+          <div className="flex items-center gap-2">
+            <Trophy size={18} className="text-yellow-400" />
+            <span className="text-white font-medium">Leaderboard</span>
+          </div>
+          <ChevronDown size={18} className="text-slate-400 group-open:rotate-180 transition-transform" />
+        </summary>
+        <div className="mt-2">
+          <Leaderboard entries={leaderboard} userId={userId} loading={loading} />
+        </div>
+      </details>
 
       {/* Task Completion Modal */}
       <TaskCompletionModal
