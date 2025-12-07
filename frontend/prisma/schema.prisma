@@ -113,6 +113,12 @@ model User {
   // Mission Control
   missionVolunteers MissionVolunteer[]
 
+  // Actions v1: Points & Verification
+  verifiedActions      VerifiedAction[]
+  dailyPointsLogs      DailyPointsLog[]
+  shelterContactAttempts ShelterContactAttempt[]
+  flyerPostings        FlyerPosting[]
+
   // Engagement stats
   currentStreak     Int      @default(0)
   longestStreak     Int      @default(0)
@@ -455,6 +461,12 @@ model Case {
 
   // Mission Control
   missionControl    MissionControl?
+
+  // Phase 5: Scout Tips
+  mascotTips        MascotTip[]
+
+  // Phase 6: Case Outcome (for ML training)
+  caseOutcome       CaseOutcome?
 
   @@index([status])
   @@index([caseNumber])
@@ -939,6 +951,15 @@ model SquadTask {
   // Priority algorithm score (calculated)
   priorityScore   Int      @default(0) // Higher = more urgent
 
+  // Task type for linking to action definitions (e.g., "search_area", "contact_shelters")
+  taskType        String?  // Links to TASK_DEFINITIONS[taskType]
+
+  // Owner-requested task (gets +25% point bonus when completed)
+  ownerRequested        Boolean  @default(false)  // For point bonus calculation
+  ownerRequestedHelp    Boolean  @default(false)  // Owner explicitly requested help on this task
+  ownerRequestedAt      DateTime?
+  ownerRequestedMessage String?  // Why owner wants help with this task
+
   // Location (optional)
   latitude        Float?
   longitude       Float?
@@ -975,6 +996,8 @@ model SquadTask {
   @@index([role])
   @@index([priorityScore])
   @@index([shelterId])
+  @@index([ownerRequested])
+  @@index([taskType])
 }
 
 // Task collaboration - multiple users can work on same task
@@ -2882,12 +2905,20 @@ model SearchSession {
   // Stats
   totalMinutes    Int      @default(0)
 
+  // Actions v1: Points tracking
+  distanceMiles   Float    @default(0)  // Calculated from LocationPings
+  pointsEarned    Int      @default(0)  // Points awarded for this session
+  isVerified      Boolean  @default(false)  // True if GPS-verified
+  userId          String?  // Direct user link for points attribution
+  verifiedActionId String? @unique  // Link to VerifiedAction record
+
   // Location History
   locationPings   LocationPing[]
 
   @@index([participantId])
   @@index([caseId])
   @@index([status])
+  @@index([userId])
 }
 
 model LocationPing {
@@ -3513,4 +3544,377 @@ model VolunteerSignal {
 
   @@index([missionId])
   @@index([signalType])
+}
+
+// ============================================================================
+// ACTIONS V1 - Points & Verification System
+// See docs/Actions_Guide.md for full specification
+// ============================================================================
+
+/// Verification methods for verified actions
+enum VerificationMethod {
+  GPS             // Location-tracked (search, flyer posting, knocking)
+  PLATFORM_EMAIL  // Emails sent via Resend
+  PHOTO           // Photo proof attached
+  CALL_DETECT     // Future: technical call detection
+}
+
+/// Valid action types for verified actions
+/// ⚠️ IMPORTANT: Use ONLY these values. Typos corrupt analytics.
+enum ActionType {
+  search_area
+  check_hiding
+  contact_shelters
+  contact_vets
+  contact_animal_control
+  post_flyers
+  knock_doors
+  litter_outside
+  scent_items
+  food_station
+  camera_setup
+  humane_trap
+  garage_open
+}
+
+/// Verified action record - creates when action is GPS/EMAIL/PHOTO verified
+model VerifiedAction {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  // Core references
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  caseId          String
+
+  // Action details
+  actionType      ActionType
+  verificationMethod VerificationMethod
+  hoursAfterLost  Float?   // Hours from case.lostAt to action time (for analytics)
+
+  // Points
+  basePoints      Int
+  bonusPoints     Int      @default(0)
+  totalPoints     Int      // basePoints + bonusPoints
+  multipliers     String?  // JSON: [{type, value, label}]
+
+  // Metadata (varies by action type)
+  metadata        String?  // JSON: {distanceMiles, shelterName, flyerLocation, etc.}
+
+  // Location (for GPS-verified actions)
+  latitude        Float?
+  longitude       Float?
+
+  // Photo (for PHOTO-verified actions)
+  photoUrl        String?
+
+  // Email tracking (for PLATFORM_EMAIL actions)
+  emailId         String?  // Resend email ID
+  emailOpened     Boolean  @default(false)
+  emailOpenedAt   DateTime?
+  emailReplied    Boolean  @default(false)
+  emailRepliedAt  DateTime?
+
+  @@index([userId])
+  @@index([caseId])
+  @@index([actionType])
+  @@index([createdAt])
+  @@index([userId, caseId])
+}
+
+/// Daily points log - SOURCE OF TRUTH for daily points
+/// One row per user per UTC date
+model DailyPointsLog {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // UTC date (YYYY-MM-DD format stored as string for easy querying)
+  date            String   // e.g., "2025-12-07"
+
+  // Points breakdown
+  verifiedPoints     Int   @default(0)  // Unlimited, from VerifiedAction
+  selfReportedPoints Int   @default(0)  // Capped at 100/day
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+}
+
+/// Shelter/Vet/Animal Control contact status
+enum ShelterContactStatus {
+  NOT_CONTACTED
+  CONTACTED
+  AWAITING_RESPONSE
+  NO_MATCH
+  POSSIBLE_MATCH
+  MATCH_FOUND
+}
+
+/// Contact method for shelter attempts
+enum ContactMethodType {
+  CALL
+  EMAIL
+  IN_PERSON
+}
+
+/// Call outcome options
+enum CallOutcome {
+  NO_ANSWER
+  LEFT_VOICEMAIL
+  SPOKE_WITH_STAFF
+  WRONG_NUMBER
+  BUSY
+}
+
+/// Staff response options
+enum StaffResponse {
+  NO_MATCHING_ANIMALS
+  POSSIBLE_MATCH
+  CONFIRMED_MATCH
+  WILL_CHECK_AND_CALL_BACK
+  OTHER
+}
+
+/// Shelter contact record - tracks contact with shelters/vets/animal control
+model ShelterContact {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  caseId          String
+
+  // External place reference (Google Places API)
+  placeId         String   // Google Places ID
+  shelterName     String
+  shelterAddress  String
+  shelterPhone    String?
+  shelterEmail    String?
+  shelterType     String   @default("SHELTER") // SHELTER, VET, ANIMAL_CONTROL
+
+  // Location
+  latitude        Float
+  longitude       Float
+
+  // Status
+  status          ShelterContactStatus @default(NOT_CONTACTED)
+  lastContactedAt DateTime?
+  lastContactMethod ContactMethodType?
+  notes           String?
+
+  // Contact attempts
+  attempts        ShelterContactAttempt[]
+
+  @@unique([caseId, placeId])
+  @@index([caseId])
+  @@index([status])
+}
+
+/// Individual contact attempt with a shelter
+model ShelterContactAttempt {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  shelterContactId String
+  shelterContact  ShelterContact @relation(fields: [shelterContactId], references: [id], onDelete: Cascade)
+
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Contact method
+  method          ContactMethodType
+
+  // Call-specific fields
+  callOutcome     CallOutcome?
+  staffResponse   StaffResponse?
+
+  // Email-specific fields (for platform emails via Resend)
+  emailId         String?  // Resend email ID
+  emailOpened     Boolean  @default(false)
+  emailOpenedAt   DateTime?
+  emailReplied    Boolean  @default(false)
+  emailRepliedAt  DateTime?
+
+  // Notes
+  notes           String?
+
+  // Points tracking
+  pointsEarned    Int      @default(0)
+  isVerified      Boolean  @default(false)  // True for platform emails
+  verifiedActionId String? @unique  // Link to VerifiedAction if verified
+
+  @@index([shelterContactId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+/// GPS-verified flyer posting
+model FlyerPosting {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+
+  caseId          String
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Location (GPS-verified)
+  latitude        Float
+  longitude       Float
+
+  // Optional photo
+  photoUrl        String?
+
+  // Notes
+  notes           String?
+
+  // Points tracking
+  pointsEarned    Int      @default(0)
+  isVerified      Boolean  @default(true)  // GPS-verified by default
+  verifiedActionId String? @unique  // Link to VerifiedAction
+
+  @@index([caseId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// PHASE 5: MASCOT TIPS (SCOUT INTELLIGENCE)
+// ============================================================================
+
+/**
+ * TipType - Types of Scout tips
+ * Per Actions_Guide.md specification
+ */
+enum TipType {
+  TIME        // Time-based tips (dawn, dusk)
+  WEATHER     // Weather-related tips
+  PROGRESS    // Milestone/progress tips
+  LOCATION    // Unsearched area tips
+  COLD_SPOT   // Flyer coverage tips
+  STRATEGY    // General search strategy tips
+  ENCOURAGE   // Morale boost tips
+  SIGHTING    // New sighting alerts
+}
+
+/**
+ * MascotTip - Scout's contextual tips and encouragement
+ *
+ * Tips appear as banners in the UI and as messages in mission chat.
+ * Generated based on time, weather, progress, and location context.
+ */
+model MascotTip {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+
+  caseId      String
+  case        Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  // Tip content
+  tipType     TipType
+  message     String
+  title       String?   // Optional headline (e.g., "Dusk Alert!")
+  priority    Int       @default(50)  // 0-100, higher = more important
+
+  // Action button (optional)
+  actionLabel String?   // e.g., "Start Search"
+  actionType  String?   // e.g., "navigate:search", "navigate:flyers"
+
+  // Tip lifecycle
+  expiresAt   DateTime?
+  dismissedBy String[]  @default([])  // User IDs who dismissed this tip
+  postedToChat Boolean  @default(false)
+  postedToChatAt DateTime?
+
+  // Context metadata (for debugging/analytics)
+  context     Json?     // e.g., { hour: 17, weather: "rain", sheltersContacted: 5 }
+
+  @@index([caseId])
+  @@index([tipType])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// PHASE 6: ALGORITHM TRAINING - CASE OUTCOMES
+// ============================================================================
+
+/**
+ * OutcomeType - How the case was resolved
+ * Per Actions_Guide.md Phase 6 specification
+ */
+enum OutcomeType {
+  REUNITED      // Pet found and returned to owner
+  NOT_FOUND     // Search ended without finding pet
+  DECEASED      // Pet found deceased
+  CLOSED_OTHER  // Closed for other reasons
+}
+
+/**
+ * FoundMethod - How the pet was found (for REUNITED cases)
+ * This data helps train the algorithm to recommend effective actions
+ */
+enum FoundMethod {
+  CAME_HOME       // Pet returned on their own
+  SHELTER_INTAKE  // Found at a shelter
+  NEIGHBOR_FOUND  // Neighbor/community member found them
+  SIGHTING_LED_TO // A reported sighting led to recovery
+  TRAP_CAUGHT     // Caught in a humane trap
+  FLYER_RESPONSE  // Someone saw a flyer and called
+  SOCIAL_MEDIA    // Found through social media post
+  OTHER           // Other method
+}
+
+/**
+ * CaseOutcome - Detailed case resolution data for ML training
+ *
+ * This model captures everything needed to train the recommendation
+ * algorithm: what actions were taken, how long it took, and what worked.
+ *
+ * OWNERSHIP & LIFECYCLE:
+ * - Created when the owner or moderator closes a case
+ * - Only admins/moderators can edit after creation
+ * - ML training can tolerate some missing outcomes initially
+ */
+model CaseOutcome {
+  id                    String      @id @default(cuid())
+  caseId                String      @unique
+  case                  Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  // Resolution details
+  outcome               OutcomeType
+  timeToReunionHours    Float?      // Hours from case creation to resolution
+  foundMethod           FoundMethod?
+  foundMethodDetails    String?     // Free-form details about how pet was found
+
+  // Context snapshot for ML (denormalized from Case at time of closure)
+  petType               String      // 'CAT' | 'DOG'
+  petBehavior           String?     // 'INDOOR' | 'OUTDOOR' | 'SKITTISH' | 'FRIENDLY'
+  petSize               String?     // 'SMALL' | 'MEDIUM' | 'LARGE'
+  locationType          String?     // 'URBAN' | 'SUBURBAN' | 'RURAL'
+  weatherConditions     String?     // Weather at time of reunion (JSON or simple string)
+
+  // Actions summary (denormalized for fast analytics queries)
+  verifiedActionsCount  Int         @default(0)
+  verifiedActionsSummary Json       @default("[]")  // Array of { actionType, count, avgHoursAfterLost }
+
+  // Additional metrics
+  totalSearchHours      Float?      // Total hours of GPS-tracked searches
+  totalFlyersPosted     Int         @default(0)
+  totalSheltersContacted Int        @default(0)
+  sightingsCount        Int         @default(0)
+  teamMembersCount      Int         @default(0)
+
+  // User feedback
+  ownerFeedback         String?     // Optional owner feedback about what helped
+  helpfulActions        String[]    @default([])  // Actions owner marked as helpful
+
+  createdAt             DateTime    @default(now())
+  createdBy             String?     // User ID who recorded the outcome
+
+  @@index([outcome])
+  @@index([petType])
+  @@index([foundMethod])
+  @@index([createdAt])
 }
