@@ -27,6 +27,16 @@ export interface TipContext {
     reportedAt: Date;
   };
   coldSpotsCount: number;
+  // For LOCATION tips - unsearched areas
+  unsearchedDirections?: string[]; // e.g., ['north', 'east']
+  lastSearchHoursAgo?: number;
+  // For WEATHER tips
+  weather?: {
+    temperature: number; // Fahrenheit
+    weatherCode: number; // WMO weather code
+    isRaining: boolean;
+    windSpeed: number; // mph
+  };
 }
 
 export interface GeneratedTip {
@@ -245,6 +255,131 @@ function generateColdSpotTips(context: TipContext): GeneratedTip[] {
 }
 
 /**
+ * Generate location tips (unsearched areas)
+ */
+function generateLocationTips(context: TipContext): GeneratedTip[] {
+  const tips: GeneratedTip[] = [];
+
+  // Suggest unsearched directions
+  if (context.unsearchedDirections && context.unsearchedDirections.length > 0) {
+    const directions = context.unsearchedDirections.slice(0, 2).join(' and ');
+    tips.push({
+      tipType: 'LOCATION',
+      title: 'Unsearched Area',
+      message: `The ${directions} area${context.unsearchedDirections.length > 1 ? 's have' : ' has'}n't been searched yet. ${context.petName} could be hiding there.`,
+      priority: 65,
+      actionLabel: 'View Map',
+      actionType: 'navigate:map',
+      context: { unsearchedDirections: context.unsearchedDirections },
+    });
+  }
+
+  // Suggest re-searching if it's been a while
+  if (context.lastSearchHoursAgo && context.lastSearchHoursAgo > 24) {
+    tips.push({
+      tipType: 'LOCATION',
+      message: `It's been ${Math.round(context.lastSearchHoursAgo)} hours since the last search. Pets can move - consider re-checking previous areas.`,
+      priority: 55,
+      actionLabel: 'Start Search',
+      actionType: 'navigate:search',
+      context: { lastSearchHoursAgo: context.lastSearchHoursAgo },
+    });
+  }
+
+  // If no searches at all yet
+  if (context.searchesCompleted === 0 && context.hoursLost < 48) {
+    const radiusTip = context.petType === 'CAT'
+      ? 'Start searching within 3-5 houses of where they were last seen.'
+      : 'Start by searching the immediate area, then expand outward.';
+    tips.push({
+      tipType: 'LOCATION',
+      title: 'Start Searching',
+      message: radiusTip,
+      priority: 75,
+      actionLabel: 'Start Search',
+      actionType: 'navigate:search',
+    });
+  }
+
+  return tips;
+}
+
+/**
+ * Generate weather-based tips
+ * Uses Open-Meteo weather codes: https://open-meteo.com/en/docs
+ */
+function generateWeatherTips(context: TipContext): GeneratedTip[] {
+  const tips: GeneratedTip[] = [];
+
+  if (!context.weather) return tips;
+
+  const { temperature, weatherCode, isRaining, windSpeed } = context.weather;
+
+  // Rain tips (WMO codes 51-67, 80-82 are rain/drizzle)
+  if (isRaining) {
+    tips.push({
+      tipType: 'WEATHER',
+      title: 'Rainy Conditions',
+      message: context.petType === 'CAT'
+        ? `It's raining - ${context.petName} is likely hiding somewhere dry. Check garages, sheds, and covered porches.`
+        : `Rain may keep ${context.petName} sheltered. They might seek cover under structures or dense bushes.`,
+      priority: 75,
+      expiresAt: new Date(Date.now() + 4 * 60 * 60 * 1000), // 4 hours
+      context: { weatherCode, isRaining: true },
+    });
+  }
+
+  // Cold weather tips (below 40°F)
+  if (temperature < 40) {
+    tips.push({
+      tipType: 'WEATHER',
+      title: 'Cold Weather Alert',
+      message: `It's ${Math.round(temperature)}°F outside. ${context.petName} may be seeking warmth - check near buildings, vents, and car engines.`,
+      priority: 70,
+      expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
+      context: { temperature },
+    });
+  }
+
+  // Hot weather tips (above 85°F)
+  if (temperature > 85) {
+    tips.push({
+      tipType: 'WEATHER',
+      title: 'Hot Weather',
+      message: `It's ${Math.round(temperature)}°F - ${context.petName} will seek shade and water. Check near ponds, streams, or shaded areas.`,
+      priority: 70,
+      expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
+      context: { temperature },
+    });
+  }
+
+  // High wind tips (above 20 mph)
+  if (windSpeed > 20) {
+    tips.push({
+      tipType: 'WEATHER',
+      message: `Windy conditions (${Math.round(windSpeed)} mph) may make it harder for ${context.petName} to hear you calling. Get closer before calling their name.`,
+      priority: 50,
+      expiresAt: new Date(Date.now() + 3 * 60 * 60 * 1000),
+      context: { windSpeed },
+    });
+  }
+
+  // Good search weather (clear, mild)
+  if (!isRaining && temperature >= 50 && temperature <= 75 && windSpeed < 15) {
+    tips.push({
+      tipType: 'WEATHER',
+      title: 'Great Search Weather!',
+      message: 'Conditions are ideal for searching. Pets are more likely to be active and visible.',
+      priority: 45,
+      expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+      context: { temperature, windSpeed, ideal: true },
+    });
+  }
+
+  return tips;
+}
+
+/**
  * Generate sighting-related tips
  */
 function generateSightingTips(context: TipContext): GeneratedTip[] {
@@ -355,7 +490,9 @@ export class TipService {
 
     // Generate tips from each source
     allTips.push(...generateTimeTips(context));
+    allTips.push(...generateWeatherTips(context));
     allTips.push(...generateProgressTips(context));
+    allTips.push(...generateLocationTips(context));
     allTips.push(...generateColdSpotTips(context));
     allTips.push(...generateSightingTips(context));
     allTips.push(...generateStrategyTips(context));
@@ -385,11 +522,20 @@ export class TipService {
 
     if (!caseData) return null;
 
-    // Get stats
-    const [shelterCount, flyerCount, searchCount, latestSighting] = await Promise.all([
+    // Get stats and search sessions
+    const [shelterCount, flyerCount, searchSessions, latestSighting] = await Promise.all([
       this.prisma.shelterContact.count({ where: { caseId } }),
       this.prisma.flyerPosting.count({ where: { caseId } }),
-      this.prisma.searchSession.count({ where: { caseId } }),
+      this.prisma.searchSession.findMany({
+        where: { caseId },
+        select: {
+          startLatitude: true,
+          startLongitude: true,
+          endedAt: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
       this.prisma.caseSighting.findFirst({
         where: { caseId },
         orderBy: { createdAt: 'desc' },
@@ -406,6 +552,27 @@ export class TipService {
     if (caseData.petSpecies === 'DOG') petType = 'DOG';
     else if (caseData.petSpecies === 'CAT') petType = 'CAT';
 
+    // Calculate unsearched directions based on search sessions
+    const unsearchedDirections = this.calculateUnsearchedDirections(
+      caseData.lastSeenLatitude,
+      caseData.lastSeenLongitude,
+      searchSessions
+    );
+
+    // Calculate hours since last search
+    let lastSearchHoursAgo: number | undefined;
+    if (searchSessions.length > 0) {
+      const lastSearch = searchSessions[0];
+      const lastSearchTime = lastSearch.endedAt || lastSearch.createdAt;
+      lastSearchHoursAgo = (Date.now() - lastSearchTime.getTime()) / (1000 * 60 * 60);
+    }
+
+    // Fetch weather data if we have coordinates
+    let weather: TipContext['weather'] | undefined;
+    if (caseData.lastSeenLatitude && caseData.lastSeenLongitude) {
+      weather = await this.fetchWeather(caseData.lastSeenLatitude, caseData.lastSeenLongitude);
+    }
+
     return {
       caseId,
       petName: caseData.petName,
@@ -415,14 +582,82 @@ export class TipService {
       lastSeenLng: caseData.lastSeenLongitude || undefined,
       sheltersContacted: shelterCount,
       flyersPosted: flyerCount,
-      searchesCompleted: searchCount,
+      searchesCompleted: searchSessions.length,
       recentSighting: latestSighting ? {
         lat: latestSighting.latitude,
         lng: latestSighting.longitude,
         reportedAt: latestSighting.createdAt,
       } : undefined,
       coldSpotsCount: 0, // Will be calculated by flyer service
+      unsearchedDirections,
+      lastSearchHoursAgo,
+      weather,
     };
+  }
+
+  /**
+   * Calculate which cardinal directions haven't been searched
+   */
+  private calculateUnsearchedDirections(
+    centerLat: number | null,
+    centerLng: number | null,
+    searchSessions: Array<{ startLatitude: number | null; startLongitude: number | null }>
+  ): string[] {
+    if (!centerLat || !centerLng || searchSessions.length === 0) {
+      return ['north', 'south', 'east', 'west'];
+    }
+
+    const directions = new Set(['north', 'south', 'east', 'west']);
+
+    for (const session of searchSessions) {
+      if (!session.startLatitude || !session.startLongitude) continue;
+
+      const latDiff = session.startLatitude - centerLat;
+      const lngDiff = session.startLongitude - centerLng;
+
+      // Determine which quadrant(s) this search covers
+      if (latDiff > 0.001) directions.delete('north');
+      if (latDiff < -0.001) directions.delete('south');
+      if (lngDiff > 0.001) directions.delete('east');
+      if (lngDiff < -0.001) directions.delete('west');
+    }
+
+    return Array.from(directions);
+  }
+
+  /**
+   * Fetch current weather from Open-Meteo API (free, no API key required)
+   */
+  private async fetchWeather(lat: number, lng: number): Promise<TipContext['weather'] | undefined> {
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,wind_speed_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto`;
+
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(5000), // 5 second timeout
+      });
+
+      if (!response.ok) return undefined;
+
+      const data = await response.json();
+      const current = data.current;
+
+      if (!current) return undefined;
+
+      // WMO weather codes: 51-67, 80-82 indicate rain/drizzle
+      const weatherCode = current.weather_code;
+      const isRaining = (weatherCode >= 51 && weatherCode <= 67) || (weatherCode >= 80 && weatherCode <= 82);
+
+      return {
+        temperature: current.temperature_2m,
+        weatherCode,
+        isRaining,
+        windSpeed: current.wind_speed_10m,
+      };
+    } catch (error) {
+      // Silently fail - weather tips are optional
+      console.warn('Failed to fetch weather:', error);
+      return undefined;
+    }
   }
 
   /**
