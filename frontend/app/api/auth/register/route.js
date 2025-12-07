@@ -3,7 +3,7 @@ import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import { logEvent } from '@/lib/logging';
-import { sendVerificationEmail } from '@/app/api/auth/verify-email/route';
+import { sendVerificationEmail } from '@/app/lib/email';
 import crypto from 'crypto';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';

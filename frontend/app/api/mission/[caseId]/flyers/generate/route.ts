@@ -89,11 +89,11 @@ export async function POST(
         pet: {
           select: {
             name: true,
-            type: true,
+            species: true,
             breed: true,
             color: true,
-            description: true,
-            photoUrl: true,
+            distinctiveMarks: true,
+            primaryPhotoUrl: true,
           },
         },
         reporter: {
@@ -119,8 +119,8 @@ export async function POST(
       : '';
 
     // Format last seen date
-    const lastSeenDate = caseRecord.lostAt
-      ? new Date(caseRecord.lostAt).toLocaleDateString('en-US', {
+    const lastSeenDate = caseRecord.lastSeenAt
+      ? new Date(caseRecord.lastSeenAt).toLocaleDateString('en-US', {
           month: 'long',
           day: 'numeric',
           year: 'numeric',
@@ -130,16 +130,16 @@ export async function POST(
     // Build flyer data
     const flyerData: FlyerData = {
       petName: caseRecord.pet?.name || 'Unknown',
-      petType: caseRecord.pet?.type || 'Pet',
+      petType: caseRecord.pet?.species || 'Pet',
       breed: caseRecord.pet?.breed || '',
       color: caseRecord.pet?.color || '',
-      description: caseRecord.pet?.description || '',
-      photoUrl: caseRecord.pet?.photoUrl || null,
+      description: caseRecord.pet?.distinctiveMarks || '',
+      photoUrl: caseRecord.pet?.primaryPhotoUrl || null,
       lastSeenLocation: caseRecord.lastSeenAddress || 'Unknown location',
       lastSeenDate,
       contactPhone: caseRecord.reporter?.phone || null,
       contactEmail: caseRecord.reporter?.email || null,
-      rewardOffered: caseRecord.rewardOffered || false,
+      rewardOffered: caseRecord.hasReward || false,
       rewardAmount: caseRecord.rewardAmount || null,
       caseUrl,
       qrCodeUrl,

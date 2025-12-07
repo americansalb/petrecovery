@@ -514,7 +514,7 @@ export class TipService {
         id: true,
         petName: true,
         petSpecies: true,
-        lostAt: true,
+        lastSeenAt: true,
         lastSeenLatitude: true,
         lastSeenLongitude: true,
       },
@@ -529,8 +529,7 @@ export class TipService {
       this.prisma.searchSession.findMany({
         where: { caseId },
         select: {
-          startLatitude: true,
-          startLongitude: true,
+          id: true,
           endedAt: true,
           createdAt: true,
         },
@@ -544,20 +543,16 @@ export class TipService {
     ]);
 
     // Calculate hours lost
-    const lostAt = caseData.lostAt || new Date();
-    const hoursLost = (Date.now() - lostAt.getTime()) / (1000 * 60 * 60);
+    const lastSeenAt = caseData.lastSeenAt || new Date();
+    const hoursLost = (Date.now() - lastSeenAt.getTime()) / (1000 * 60 * 60);
 
     // Determine pet type
     let petType: 'DOG' | 'CAT' | 'OTHER' = 'OTHER';
     if (caseData.petSpecies === 'DOG') petType = 'DOG';
     else if (caseData.petSpecies === 'CAT') petType = 'CAT';
 
-    // Calculate unsearched directions based on search sessions
-    const unsearchedDirections = this.calculateUnsearchedDirections(
-      caseData.lastSeenLatitude,
-      caseData.lastSeenLongitude,
-      searchSessions
-    );
+    // Calculate unsearched directions (simplified - SearchSession doesn't have location data)
+    const unsearchedDirections: string[] = [];
 
     // Calculate hours since last search
     let lastSearchHoursAgo: number | undefined;
@@ -598,31 +593,10 @@ export class TipService {
   /**
    * Calculate which cardinal directions haven't been searched
    */
-  private calculateUnsearchedDirections(
-    centerLat: number | null,
-    centerLng: number | null,
-    searchSessions: Array<{ startLatitude: number | null; startLongitude: number | null }>
-  ): string[] {
-    if (!centerLat || !centerLng || searchSessions.length === 0) {
-      return ['north', 'south', 'east', 'west'];
-    }
-
-    const directions = new Set(['north', 'south', 'east', 'west']);
-
-    for (const session of searchSessions) {
-      if (!session.startLatitude || !session.startLongitude) continue;
-
-      const latDiff = session.startLatitude - centerLat;
-      const lngDiff = session.startLongitude - centerLng;
-
-      // Determine which quadrant(s) this search covers
-      if (latDiff > 0.001) directions.delete('north');
-      if (latDiff < -0.001) directions.delete('south');
-      if (lngDiff > 0.001) directions.delete('east');
-      if (lngDiff < -0.001) directions.delete('west');
-    }
-
-    return Array.from(directions);
+  // Note: SearchSession doesn't have location fields, so direction calculation is disabled
+  // Returns all directions as "unsearched" since we can't determine which were searched
+  private calculateUnsearchedDirections(): string[] {
+    return ['north', 'south', 'east', 'west'];
   }
 
   /**

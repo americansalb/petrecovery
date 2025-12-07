@@ -3560,7 +3560,7 @@ enum VerificationMethod {
 }
 
 /// Valid action types for verified actions
-/// ⚠️ IMPORTANT: Use ONLY these values. Typos corrupt analytics.
+/// IMPORTANT: Use ONLY these values. Typos corrupt analytics.
 enum ActionType {
   search_area
   check_hiding
@@ -3784,10 +3784,8 @@ model FlyerPosting {
 // PHASE 5: MASCOT TIPS (SCOUT INTELLIGENCE)
 // ============================================================================
 
-/**
- * TipType - Types of Scout tips
- * Per Actions_Guide.md specification
- */
+// TipType - Types of Scout tips
+// Per Actions_Guide.md specification
 enum TipType {
   TIME        // Time-based tips (dawn, dusk)
   WEATHER     // Weather-related tips
@@ -3799,12 +3797,9 @@ enum TipType {
   SIGHTING    // New sighting alerts
 }
 
-/**
- * MascotTip - Scout's contextual tips and encouragement
- *
- * Tips appear as banners in the UI and as messages in mission chat.
- * Generated based on time, weather, progress, and location context.
- */
+// MascotTip - Scout's contextual tips and encouragement
+// Tips appear as banners in the UI and as messages in mission chat.
+// Generated based on time, weather, progress, and location context.
 model MascotTip {
   id          String    @id @default(cuid())
   createdAt   DateTime  @default(now())
@@ -3840,10 +3835,8 @@ model MascotTip {
 // PHASE 6: ALGORITHM TRAINING - CASE OUTCOMES
 // ============================================================================
 
-/**
- * OutcomeType - How the case was resolved
- * Per Actions_Guide.md Phase 6 specification
- */
+// OutcomeType - How the case was resolved
+// Per Actions_Guide.md Phase 6 specification
 enum OutcomeType {
   REUNITED      // Pet found and returned to owner
   NOT_FOUND     // Search ended without finding pet
@@ -3851,10 +3844,8 @@ enum OutcomeType {
   CLOSED_OTHER  // Closed for other reasons
 }
 
-/**
- * FoundMethod - How the pet was found (for REUNITED cases)
- * This data helps train the algorithm to recommend effective actions
- */
+// FoundMethod - How the pet was found (for REUNITED cases)
+// This data helps train the algorithm to recommend effective actions
 enum FoundMethod {
   CAME_HOME       // Pet returned on their own
   SHELTER_INTAKE  // Found at a shelter
@@ -3866,17 +3857,13 @@ enum FoundMethod {
   OTHER           // Other method
 }
 
-/**
- * CaseOutcome - Detailed case resolution data for ML training
- *
- * This model captures everything needed to train the recommendation
- * algorithm: what actions were taken, how long it took, and what worked.
- *
- * OWNERSHIP & LIFECYCLE:
- * - Created when the owner or moderator closes a case
- * - Only admins/moderators can edit after creation
- * - ML training can tolerate some missing outcomes initially
- */
+// CaseOutcome - Detailed case resolution data for ML training
+// This model captures everything needed to train the recommendation
+// algorithm: what actions were taken, how long it took, and what worked.
+// OWNERSHIP & LIFECYCLE:
+// - Created when the owner or moderator closes a case
+// - Only admins/moderators can edit after creation
+// - ML training can tolerate some missing outcomes initially
 model CaseOutcome {
   id                    String      @id @default(cuid())
   caseId                String      @unique

@@ -85,7 +85,7 @@ export async function GET(
     }));
 
     // Calculate cold spots (areas without flyers)
-    let coldSpots: Array<{ lat: number; lng: number; priority: number }> = [];
+    let coldSpots: ColdSpot[] = [];
 
     if (caseRecord.lastSeenLatitude && caseRecord.lastSeenLongitude) {
       coldSpots = calculateColdSpots(

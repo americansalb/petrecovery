@@ -25,6 +25,8 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
     "@prisma/client": "^5.10.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
     "autoprefixer": "^10.4.20",
     "bcryptjs": "^3.0.3",
     "date-fns": "^3.0.0",
@@ -40,8 +42,10 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "redis": "^4.7.0",
+    "resend": "^2.0.0",
     "tailwindcss": "^3.4.14",
     "twilio": "^5.10.6",
+    "typescript": "^5.0.0",
     "uuid": "^13.0.0",
     "web-push": "^3.6.7",
     "zod": "^4.1.12"

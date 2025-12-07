@@ -7,7 +7,7 @@
  * Per Actions_Guide.md Phase 6 specification.
  */
 
-import { PrismaClient, OutcomeType, FoundMethod } from '@prisma/client';
+import { PrismaClient, OutcomeType, FoundMethod, Prisma, CaseResolution } from '@prisma/client';
 
 // =============================================================================
 // TYPES
@@ -117,7 +117,7 @@ export class OutcomeService {
             locationType: input.locationType,
             weatherConditions,
             verifiedActionsCount: metrics.verifiedActionsCount,
-            verifiedActionsSummary: metrics.verifiedActionsSummary,
+            verifiedActionsSummary: metrics.verifiedActionsSummary as unknown as Prisma.InputJsonValue,
             totalSearchHours: metrics.totalSearchHours,
             totalFlyersPosted: metrics.totalFlyersPosted,
             totalSheltersContacted: metrics.totalSheltersContacted,
@@ -185,12 +185,15 @@ export class OutcomeService {
     // Get search sessions for total hours
     const searchSessions = await this.prisma.searchSession.findMany({
       where: { caseId },
-      select: { durationMinutes: true },
+      select: { startedAt: true, endedAt: true },
     });
-    const totalSearchHours = searchSessions.reduce(
-      (sum, s) => sum + (s.durationMinutes || 0) / 60,
-      0
-    );
+    const totalSearchHours = searchSessions.reduce((sum, s) => {
+      if (s.startedAt && s.endedAt) {
+        const durationMs = new Date(s.endedAt).getTime() - new Date(s.startedAt).getTime();
+        return sum + durationMs / (1000 * 60 * 60);
+      }
+      return sum;
+    }, 0);
 
     // Get flyer count
     const totalFlyersPosted = await this.prisma.flyerPosting.count({ where: { caseId } });
@@ -201,12 +204,14 @@ export class OutcomeService {
     // Get sightings count
     const sightingsCount = await this.prisma.caseSighting.count({ where: { caseId } });
 
-    // Get unique team members (from case participants or mission control)
+    // Get unique team members (from case participants via assignments)
     const participants = await this.prisma.caseParticipant.findMany({
-      where: { caseId },
-      select: { rescuerId: true },
+      where: {
+        assignment: { caseId }
+      },
+      select: { userId: true },
     });
-    const teamMembersCount = new Set(participants.map((p) => p.rescuerId)).size;
+    const teamMembersCount = new Set(participants.map((p) => p.userId)).size;
 
     // Calculate time to reunion
     const timeToReunionHours = (Date.now() - caseCreatedAt.getTime()) / (1000 * 60 * 60);
@@ -254,7 +259,7 @@ export class OutcomeService {
     // Action effectiveness: which actions correlate with faster reunions
     const actionStats = new Map<string, { totalHours: number; count: number }>();
     for (const o of outcomes) {
-      const summary = o.verifiedActionsSummary as ActionSummary[];
+      const summary = o.verifiedActionsSummary as unknown as ActionSummary[];
       if (Array.isArray(summary)) {
         for (const action of summary) {
           const existing = actionStats.get(action.actionType) || { totalHours: 0, count: 0 };
@@ -304,7 +309,7 @@ export class OutcomeService {
     // Early action correlation (actions done within first 6 hours)
     const earlyActionStats = new Map<string, { totalReunionHours: number; count: number }>();
     for (const o of outcomes) {
-      const summary = o.verifiedActionsSummary as ActionSummary[];
+      const summary = o.verifiedActionsSummary as unknown as ActionSummary[];
       if (Array.isArray(summary)) {
         for (const action of summary) {
           if (action.avgHoursAfterLost < 6) {
@@ -398,14 +403,14 @@ export class OutcomeService {
   private mapOutcomeToResolution(
     outcome: OutcomeType,
     foundMethod?: FoundMethod
-  ): string {
+  ): CaseResolution {
     if (outcome === 'REUNITED') {
-      if (foundMethod === 'CAME_HOME') return 'CAME_HOME';
-      if (foundMethod === 'SHELTER_INTAKE') return 'FOUND_AT_SHELTER';
-      return 'REUNITED';
+      if (foundMethod === 'CAME_HOME') return CaseResolution.CAME_HOME;
+      if (foundMethod === 'SHELTER_INTAKE') return CaseResolution.FOUND_AT_SHELTER;
+      return CaseResolution.REUNITED;
     }
-    if (outcome === 'DECEASED') return 'DECEASED';
-    return 'SEARCH_CEASED';
+    if (outcome === 'DECEASED') return CaseResolution.DECEASED;
+    return CaseResolution.SEARCH_CEASED;
   }
 }
 

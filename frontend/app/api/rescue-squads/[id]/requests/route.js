@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 
 /**
@@ -49,7 +49,7 @@ export async function POST(request, { params }) {
         caseId: caseId || null,
       },
       include: {
-        creator: {
+        createdBy: {
           select: { id: true, firstName: true, lastName: true },
         },
         case: {
@@ -58,7 +58,7 @@ export async function POST(request, { params }) {
       },
     });
 
-    const lastName = task.creator.lastName || '';
+    const lastName = task.createdBy.lastName || '';
     const lastInitial = lastName.charAt(0) || '';
 
     return NextResponse.json({
@@ -70,7 +70,7 @@ export async function POST(request, { params }) {
         caseId: task.caseId,
         caseCode: task.case?.caseNumber || null,
         authorId: task.creatorId,
-        authorName: `${task.creator.firstName} ${lastInitial}.`,
+        authorName: `${task.createdBy.firstName} ${lastInitial}.`,
         createdAt: task.createdAt.toISOString(),
         helpersCount: 0,
         helpers: [],
