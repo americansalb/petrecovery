@@ -529,8 +529,7 @@ export class TipService {
       this.prisma.searchSession.findMany({
         where: { caseId },
         select: {
-          startLatitude: true,
-          startLongitude: true,
+          id: true,
           endedAt: true,
           createdAt: true,
         },
@@ -552,12 +551,8 @@ export class TipService {
     if (caseData.petSpecies === 'DOG') petType = 'DOG';
     else if (caseData.petSpecies === 'CAT') petType = 'CAT';
 
-    // Calculate unsearched directions based on search sessions
-    const unsearchedDirections = this.calculateUnsearchedDirections(
-      caseData.lastSeenLatitude,
-      caseData.lastSeenLongitude,
-      searchSessions
-    );
+    // Calculate unsearched directions (simplified - SearchSession doesn't have location data)
+    const unsearchedDirections: string[] = [];
 
     // Calculate hours since last search
     let lastSearchHoursAgo: number | undefined;
