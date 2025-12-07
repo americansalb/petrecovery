@@ -33,6 +33,7 @@ export type VerificationMethod = 'GPS' | 'PLATFORM_EMAIL' | 'PHOTO' | 'CALL_DETE
  */
 export type VerifiedActionType =
   | 'search_area'
+  | 'check_hiding'
   | 'contact_shelters'
   | 'contact_vets'
   | 'contact_animal_control'
@@ -50,6 +51,7 @@ export type VerifiedActionType =
  */
 export const VERIFIED_ACTION_TYPES: VerifiedActionType[] = [
   'search_area',
+  'check_hiding',
   'contact_shelters',
   'contact_vets',
   'contact_animal_control',
@@ -104,8 +106,8 @@ export function getBasePointsValue(
  * Points multiplier for time/context bonuses
  */
 export type PointsMultiplier = {
-  type: 'DAWN' | 'DUSK' | 'BUSINESS_HOURS' | 'NEAR_SIGHTING' | 'FIRST_6H' | 'FIRST_24H' | 'OWNER_REQUESTED';
-  value: number; // e.g., 1.10 for +10%, 1.25 for +25%
+  type: 'DAWN' | 'DUSK' | 'BUSINESS_HOURS' | 'NEAR_SIGHTING' | 'FIRST_6H' | 'FIRST_24H' | 'OWNER_REQUESTED' | 'PHOTO_BONUS';
+  value: number; // e.g., 1.10 for +10%, 1.25 for +25% (PHOTO_BONUS uses 1.0 since it's flat +3pts)
   label: string; // For UI display
 };
 

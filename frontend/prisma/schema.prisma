@@ -3557,6 +3557,7 @@ enum ActionType {
   food_station
   camera_setup
   humane_trap
+  garage_open
 }
 
 /// Verified action record - creates when action is GPS/EMAIL/PHOTO verified
@@ -3572,6 +3573,7 @@ model VerifiedAction {
   // Action details
   actionType      ActionType
   verificationMethod VerificationMethod
+  hoursAfterLost  Float?   // Hours from case.lostAt to action time (for analytics)
 
   // Points
   basePoints      Int

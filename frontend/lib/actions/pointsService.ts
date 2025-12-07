@@ -34,13 +34,29 @@ export const MIN_SEARCH_DISTANCE = 0.05;
 export const TIME_BONUSES = {
   DAWN: { startHour: 5, endHour: 7, multiplier: 1.1, label: 'Dawn bonus (+10%)' },
   DUSK: { startHour: 17, endHour: 20, multiplier: 1.1, label: 'Dusk bonus (+10%)' },
-  BUSINESS_HOURS: { startHour: 9, endHour: 17, multiplier: 1.0, label: 'Business hours' },
+  BUSINESS_HOURS: { startHour: 9, endHour: 17, multiplier: 1.1, label: 'Business hours (+10%)' },
 } as const;
 
 /** Urgency bonuses based on case age */
 export const URGENCY_BONUSES = {
-  FIRST_6H: { maxHours: 6, multiplier: 1.25, label: 'Critical window (+25%)' },
+  FIRST_6H: { maxHours: 6, multiplier: 1.2, label: 'Critical window (+20%)' },
   FIRST_24H: { maxHours: 24, multiplier: 1.1, label: 'First 24h (+10%)' },
+} as const;
+
+/** Photo bonus (added on top of base points for any verified action with photo) */
+export const PHOTO_BONUS_POINTS = 3;
+
+/** Near sighting bonus */
+export const NEAR_SIGHTING_BONUS = {
+  distanceMiles: 0.5,
+  multiplier: 1.15,
+  label: 'Near sighting (+15%)',
+} as const;
+
+/** Owner requested task bonus */
+export const OWNER_REQUESTED_BONUS = {
+  multiplier: 1.25,
+  label: 'Owner requested (+25%)',
 } as const;
 
 // =============================================================================
@@ -106,8 +122,11 @@ export function getTimeMultipliers(
   const contactActions = ['contact_shelters', 'contact_vets', 'contact_animal_control'];
   if (contactActions.includes(actionType)) {
     if (hour >= TIME_BONUSES.BUSINESS_HOURS.startHour && hour < TIME_BONUSES.BUSINESS_HOURS.endHour) {
-      // Business hours is baseline, no bonus (multiplier = 1.0)
-      // Could add a bonus here if desired
+      multipliers.push({
+        type: 'BUSINESS_HOURS',
+        value: TIME_BONUSES.BUSINESS_HOURS.multiplier,
+        label: TIME_BONUSES.BUSINESS_HOURS.label,
+      });
     }
   }
 
@@ -185,7 +204,10 @@ export class PointsService {
     photoUrl?: string;
     emailId?: string;
     caseCreatedAt?: Date;
+    caseLostAt?: Date;
     timezone?: string;
+    ownerRequested?: boolean;
+    nearSightingDistance?: number; // Miles from recent sighting
   }): Promise<PointsAwardResult> {
     const {
       userId,
@@ -199,7 +221,10 @@ export class PointsService {
       photoUrl,
       emailId,
       caseCreatedAt,
+      caseLostAt,
       timezone,
+      ownerRequested,
+      nearSightingDistance,
     } = params;
 
     // Calculate multipliers
@@ -209,10 +234,44 @@ export class PointsService {
       : [];
     const allMultipliers = [...timeMultipliers, ...urgencyMultipliers];
 
-    // Calculate final points
+    // Add near sighting bonus if within range
+    if (nearSightingDistance !== undefined && nearSightingDistance <= NEAR_SIGHTING_BONUS.distanceMiles) {
+      allMultipliers.push({
+        type: 'NEAR_SIGHTING',
+        value: NEAR_SIGHTING_BONUS.multiplier,
+        label: NEAR_SIGHTING_BONUS.label,
+      });
+    }
+
+    // Add owner requested bonus
+    if (ownerRequested) {
+      allMultipliers.push({
+        type: 'OWNER_REQUESTED',
+        value: OWNER_REQUESTED_BONUS.multiplier,
+        label: OWNER_REQUESTED_BONUS.label,
+      });
+    }
+
+    // Calculate final points with multipliers
     const totalMultiplier = calculateTotalMultiplier(allMultipliers);
-    const bonusPoints = Math.round(basePoints * (totalMultiplier - 1));
+    let bonusPoints = Math.round(basePoints * (totalMultiplier - 1));
+
+    // Add photo bonus if photo attached
+    if (photoUrl) {
+      bonusPoints += PHOTO_BONUS_POINTS;
+      allMultipliers.push({
+        type: 'PHOTO_BONUS' as any,
+        value: 1.0, // Flat bonus, not a multiplier
+        label: `Photo proof (+${PHOTO_BONUS_POINTS} pts)`,
+      });
+    }
+
     const totalPoints = basePoints + bonusPoints;
+
+    // Calculate hoursAfterLost for analytics
+    const hoursAfterLost = caseLostAt
+      ? (Date.now() - caseLostAt.getTime()) / (1000 * 60 * 60)
+      : null;
 
     const dateString = getUTCDateString();
 
@@ -225,6 +284,7 @@ export class PointsService {
           caseId,
           actionType,
           verificationMethod,
+          hoursAfterLost,
           basePoints,
           bonusPoints,
           totalPoints,
