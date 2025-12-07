@@ -530,6 +530,7 @@ function ShelterContactSection({ caseId, mission, onPointsEarned }) {
   const [selectedShelter, setSelectedShelter] = useState(null);
   const [showCallModal, setShowCallModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -551,6 +552,46 @@ function ShelterContactSection({ caseId, mission, onPointsEarned }) {
 
     fetchShelters();
   }, [caseId]);
+
+  const handleAddShelter = async (place) => {
+    try {
+      const res = await fetch(`/api/mission/${caseId}/shelters`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          placeId: place.place_id,
+          name: place.name,
+          address: place.vicinity || place.formatted_address,
+          phone: place.formatted_phone_number,
+          email: null, // Google Places doesn't provide email
+          type: place.placeType || 'SHELTER',
+          latitude: place.geometry.location.lat,
+          longitude: place.geometry.location.lng,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.alreadyExists) {
+          setShelters(prev => [...prev, {
+            id: data.shelter.id,
+            placeId: data.shelter.placeId,
+            name: data.shelter.shelterName,
+            address: data.shelter.shelterAddress,
+            phone: data.shelter.shelterPhone,
+            email: data.shelter.shelterEmail,
+            type: data.shelter.shelterType,
+            status: 'NOT_CONTACTED',
+          }]);
+        }
+        return { success: true, alreadyExists: data.alreadyExists };
+      }
+      return { success: false };
+    } catch (err) {
+      console.error('Error adding shelter:', err);
+      return { success: false };
+    }
+  };
 
   const handleLogCall = async (shelterId, outcome, staffResponse, notes) => {
     setSubmitting(true);
@@ -662,11 +703,19 @@ function ShelterContactSection({ caseId, mission, onPointsEarned }) {
 
       {expanded && (
         <div className="p-3 bg-slate-900/50 border-t border-slate-700/30 space-y-2">
+          {/* Find Nearby Button - always visible when expanded */}
+          <button
+            onClick={() => setShowSearchModal(true)}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 rounded-lg text-orange-300 font-medium text-sm transition-colors"
+          >
+            <Search size={16} />
+            Find Nearby Shelters & Vets
+          </button>
+
           {shelters.length === 0 ? (
-            <div className="text-center py-6 text-slate-400">
-              <Building2 size={32} className="mx-auto mb-2 opacity-50" />
+            <div className="text-center py-4 text-slate-400">
               <p className="text-sm">No shelters tracked yet</p>
-              <p className="text-xs text-slate-500 mt-1">Shelters near the lost location will appear here</p>
+              <p className="text-xs text-slate-500 mt-1">Search to find shelters near the lost location</p>
             </div>
           ) : (
             <>
@@ -725,7 +774,428 @@ function ShelterContactSection({ caseId, mission, onPointsEarned }) {
           submitting={submitting}
         />
       )}
+
+      {/* Place Search Modal */}
+      {showSearchModal && (
+        <PlaceSearchModal
+          mission={mission}
+          existingPlaceIds={shelters.map(s => s.placeId)}
+          onClose={() => setShowSearchModal(false)}
+          onAddPlace={handleAddShelter}
+        />
+      )}
     </div>
+  );
+}
+
+// Place Search Modal - search Google Places for shelters/vets
+function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace }) {
+  const [searchType, setSearchType] = useState('shelter');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [adding, setAdding] = useState({});
+
+  const searchPlaces = async () => {
+    if (!mission?.lastSeenLatitude || !mission?.lastSeenLongitude) {
+      setError('Case location not available');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch(
+        `/api/places/search?lat=${mission.lastSeenLatitude}&lng=${mission.lastSeenLongitude}&type=${searchType}&radius=25`
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        // Add placeType to each result for tracking
+        const resultsWithType = (data.results || []).map(place => ({
+          ...place,
+          placeType: searchType === 'shelter' ? 'SHELTER' : searchType === 'vet' ? 'VET' : 'ANIMAL_CONTROL',
+        }));
+        setResults(resultsWithType);
+      } else {
+        const errData = await res.json();
+        setError(errData.error || 'Search failed');
+      }
+    } catch (err) {
+      setError('Failed to search');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    searchPlaces();
+  }, [searchType]);
+
+  const handleAdd = async (place) => {
+    setAdding(prev => ({ ...prev, [place.place_id]: true }));
+    const result = await onAddPlace(place);
+    setAdding(prev => ({ ...prev, [place.place_id]: false }));
+
+    if (result.success && !result.alreadyExists) {
+      setResults(prev => prev.filter(p => p.place_id !== place.place_id));
+    }
+  };
+
+  const typeButtons = [
+    { value: 'shelter', label: 'Shelters', icon: Building2 },
+    { value: 'vet', label: 'Vets', icon: Building2 },
+    { value: 'animal_control', label: 'Animal Control', icon: Building2 },
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-900 rounded-2xl max-w-lg w-full border border-slate-700 shadow-xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b border-slate-700">
+          <div className="flex items-center gap-3">
+            <Search className="text-orange-400" size={24} />
+            <div>
+              <h3 className="text-white font-semibold">Find Nearby Places</h3>
+              <p className="text-xs text-slate-400">Add shelters & vets to contact</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg">
+            <X className="text-slate-400" size={20} />
+          </button>
+        </div>
+
+        <div className="p-4 border-b border-slate-700">
+          {/* Type tabs */}
+          <div className="flex gap-2">
+            {typeButtons.map(btn => (
+              <button
+                key={btn.value}
+                onClick={() => setSearchType(btn.value)}
+                className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  searchType === btn.value
+                    ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50'
+                    : 'bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-600'
+                }`}
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {error && (
+            <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-sm">
+              {error}
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="text-orange-400 animate-spin" size={32} />
+            </div>
+          ) : results.length === 0 ? (
+            <div className="text-center py-8 text-slate-400">
+              <Building2 size={32} className="mx-auto mb-2 opacity-50" />
+              <p>No {searchType === 'shelter' ? 'shelters' : searchType === 'vet' ? 'vet clinics' : 'animal control'} found nearby</p>
+            </div>
+          ) : (
+            results.map(place => {
+              const isAdded = existingPlaceIds.includes(place.place_id);
+              const isAdding = adding[place.place_id];
+
+              return (
+                <div
+                  key={place.place_id}
+                  className={`p-3 rounded-lg border ${
+                    isAdded ? 'bg-green-500/10 border-green-500/30' : 'bg-slate-800/50 border-slate-700/50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-medium">{place.name}</p>
+                      <p className="text-xs text-slate-400 truncate">{place.vicinity || place.formatted_address}</p>
+                      {place.rating && (
+                        <p className="text-xs text-yellow-400 mt-1">
+                          ★ {place.rating} ({place.user_ratings_total} reviews)
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleAdd(place)}
+                      disabled={isAdded || isAdding}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                        isAdded
+                          ? 'bg-green-500/20 text-green-300'
+                          : 'bg-orange-500 hover:bg-orange-400 text-white disabled:bg-slate-700'
+                      }`}
+                    >
+                      {isAdding ? <Loader2 size={14} className="animate-spin" /> : isAdded ? 'Added' : 'Add'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="p-4 border-t border-slate-700">
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-medium hover:bg-slate-700 transition-colors"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Flyer Generation Card
+function FlyerGenerationCard({ caseId }) {
+  const [showModal, setShowModal] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [flyerHtml, setFlyerHtml] = useState(null);
+  const [options, setOptions] = useState({
+    size: 'half',
+    template: 'classic',
+    includeQrCode: true,
+    customMessage: '',
+  });
+
+  const handleGenerate = async () => {
+    if (!caseId) return;
+    setGenerating(true);
+
+    try {
+      const res = await fetch(`/api/mission/${caseId}/flyers/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(options),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setFlyerHtml(data.html);
+      }
+    } catch (err) {
+      console.error('Error generating flyer:', err);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handlePrint = () => {
+    if (!flyerHtml) return;
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(flyerHtml);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  return (
+    <>
+      <button
+        onClick={() => setShowModal(true)}
+        className="flex flex-col items-center justify-center gap-2 p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-purple-500/50 rounded-xl transition-all group"
+      >
+        <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center group-hover:bg-purple-500/30 transition-colors">
+          <FileText className="text-purple-400" size={20} />
+        </div>
+        <div className="text-center">
+          <div className="text-white font-medium text-sm">Generate Flyer</div>
+          <div className="text-xs text-slate-400">Print & post</div>
+        </div>
+      </button>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 rounded-2xl max-w-md w-full border border-slate-700 shadow-xl">
+            <div className="flex items-center justify-between p-4 border-b border-slate-700">
+              <div className="flex items-center gap-3">
+                <FileText className="text-purple-400" size={24} />
+                <h3 className="text-white font-semibold">Generate Flyer</h3>
+              </div>
+              <button onClick={() => { setShowModal(false); setFlyerHtml(null); }} className="p-2 hover:bg-slate-800 rounded-lg">
+                <X className="text-slate-400" size={20} />
+              </button>
+            </div>
+
+            {!flyerHtml ? (
+              <div className="p-4 space-y-4">
+                {/* Size */}
+                <div>
+                  <label className="block text-sm text-slate-300 mb-2">Size</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['full', 'half', 'quarter'].map(size => (
+                      <button
+                        key={size}
+                        onClick={() => setOptions(prev => ({ ...prev, size }))}
+                        className={`px-3 py-2 text-sm rounded-lg border capitalize ${
+                          options.size === size
+                            ? 'bg-purple-500/20 border-purple-500 text-purple-300'
+                            : 'bg-slate-800 border-slate-700 text-slate-300'
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Template */}
+                <div>
+                  <label className="block text-sm text-slate-300 mb-2">Template</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['classic', 'modern', 'minimal'].map(template => (
+                      <button
+                        key={template}
+                        onClick={() => setOptions(prev => ({ ...prev, template }))}
+                        className={`px-3 py-2 text-sm rounded-lg border capitalize ${
+                          options.template === template
+                            ? 'bg-purple-500/20 border-purple-500 text-purple-300'
+                            : 'bg-slate-800 border-slate-700 text-slate-300'
+                        }`}
+                      >
+                        {template}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* QR Code */}
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={options.includeQrCode}
+                    onChange={(e) => setOptions(prev => ({ ...prev, includeQrCode: e.target.checked }))}
+                    className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-purple-500 focus:ring-purple-500"
+                  />
+                  <span className="text-slate-300 text-sm">Include QR code to case page</span>
+                </label>
+
+                {/* Custom Message */}
+                <div>
+                  <label className="block text-sm text-slate-300 mb-2">Custom Message (optional)</label>
+                  <textarea
+                    value={options.customMessage}
+                    onChange={(e) => setOptions(prev => ({ ...prev, customMessage: e.target.value }))}
+                    placeholder="Any additional message..."
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 resize-none focus:outline-none focus:border-purple-500"
+                    rows={2}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="p-4">
+                <div className="bg-white rounded-lg p-4 text-center text-gray-900 mb-4">
+                  <p className="font-medium">Flyer generated!</p>
+                  <p className="text-sm text-gray-600">Click Print to open in a new window</p>
+                </div>
+              </div>
+            )}
+
+            <div className="p-4 border-t border-slate-700 flex gap-3">
+              <button
+                onClick={() => { setShowModal(false); setFlyerHtml(null); }}
+                className="flex-1 px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-medium"
+              >
+                Cancel
+              </button>
+              {!flyerHtml ? (
+                <button
+                  onClick={handleGenerate}
+                  disabled={generating}
+                  className="flex-1 px-4 py-2.5 bg-purple-600 text-white rounded-lg font-medium flex items-center justify-center gap-2"
+                >
+                  {generating ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                  {generating ? 'Generating...' : 'Generate'}
+                </button>
+              ) : (
+                <button
+                  onClick={handlePrint}
+                  className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium flex items-center justify-center gap-2"
+                >
+                  <ExternalLink size={16} />
+                  Print Flyer
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// Volunteer Check-in Card
+function VolunteerCheckInCard({ caseId }) {
+  const [checkedIn, setCheckedIn] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [checkInTime, setCheckInTime] = useState(null);
+
+  const handleToggle = async () => {
+    if (!caseId) return;
+    setLoading(true);
+
+    try {
+      const res = await fetch(`/api/mission/${caseId}/volunteer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: checkedIn ? 'CHECK_OUT' : 'CHECK_IN',
+          estimatedMinutes: 60, // Default 1 hour
+        }),
+      });
+
+      if (res.ok) {
+        if (!checkedIn) {
+          setCheckedIn(true);
+          setCheckInTime(new Date());
+        } else {
+          setCheckedIn(false);
+          setCheckInTime(null);
+        }
+      }
+    } catch (err) {
+      console.error('Error toggling check-in:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleToggle}
+      disabled={loading}
+      className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl transition-all ${
+        checkedIn
+          ? 'bg-green-500/20 border border-green-500/50'
+          : 'bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-green-500/50'
+      }`}
+    >
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+        checkedIn ? 'bg-green-500/30' : 'bg-green-500/20'
+      }`}>
+        {loading ? (
+          <Loader2 className="text-green-400 animate-spin" size={20} />
+        ) : checkedIn ? (
+          <CheckCircle className="text-green-400" size={20} />
+        ) : (
+          <Users className="text-green-400" size={20} />
+        )}
+      </div>
+      <div className="text-center">
+        <div className="text-white font-medium text-sm">
+          {checkedIn ? 'Checked In' : 'Check In'}
+        </div>
+        <div className="text-xs text-slate-400">
+          {checkedIn ? 'Active volunteer' : 'Join the search'}
+        </div>
+      </div>
+    </button>
   );
 }
 
@@ -1840,6 +2310,12 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
         caseId={mission?.id}
         onPointsEarned={handleExternalPointsEarned}
       />
+
+      {/* Quick Actions Row - Generate Flyer */}
+      <div className="grid grid-cols-2 gap-3">
+        <FlyerGenerationCard caseId={mission?.id} />
+        <VolunteerCheckInCard caseId={mission?.id} />
+      </div>
 
       {/* Team Progress Bar */}
       <TeamProgressBar
