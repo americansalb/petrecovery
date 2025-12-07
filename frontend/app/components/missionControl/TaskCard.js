@@ -33,7 +33,8 @@ import {
 // CONSTANTS
 // =============================================================================
 
-// Category colors
+// Category colors - per Actions_Guide.md spec
+// SEARCH = Blue (#3B82F6), OUTREACH = Orange (#F97316), AT_HOME = Green (#22C55E), OTHER = Gray (#6B7280)
 const CATEGORY_COLORS = {
   SEARCH: {
     bg: 'bg-blue-500/20',
@@ -42,16 +43,16 @@ const CATEGORY_COLORS = {
     icon: 'text-blue-400',
   },
   OUTREACH: {
-    bg: 'bg-purple-500/20',
-    border: 'border-purple-500/50',
-    text: 'text-purple-400',
-    icon: 'text-purple-400',
+    bg: 'bg-orange-500/20',
+    border: 'border-orange-500/50',
+    text: 'text-orange-400',
+    icon: 'text-orange-400',
   },
   AT_HOME: {
-    bg: 'bg-emerald-500/20',
-    border: 'border-emerald-500/50',
-    text: 'text-emerald-400',
-    icon: 'text-emerald-400',
+    bg: 'bg-green-500/20',
+    border: 'border-green-500/50',
+    text: 'text-green-400',
+    icon: 'text-green-400',
   },
   OTHER: {
     bg: 'bg-slate-500/20',
