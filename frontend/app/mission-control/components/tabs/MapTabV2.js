@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 
 // Dynamically import map to avoid SSR issues
-const MapView = dynamic(() => import('@/components/map/MapView'), {
+const MapView = dynamic(() => import('@/app/components/case/SARMapView'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full bg-slate-800 flex items-center justify-center">
@@ -370,46 +370,43 @@ export default function MapTabV2({
   };
 
   // Prepare map data
-  const mapCenter = mission?.lastSeenLatitude && mission?.lastSeenLongitude
-    ? { lat: mission.lastSeenLatitude, lng: mission.lastSeenLongitude }
+  const hasLocation = mission?.lastSeenLatitude && mission?.lastSeenLongitude;
+  const mapCenter = hasLocation
+    ? [mission.lastSeenLatitude, mission.lastSeenLongitude]
+    : [41.8781, -87.6298]; // Default to Chicago
+
+  const lastSeen = hasLocation
+    ? {
+        lat: mission.lastSeenLatitude,
+        lng: mission.lastSeenLongitude,
+        address: mission.lastSeenAddress,
+      }
     : null;
 
-  const markers = [];
-
-  // Last seen marker
-  if (mapCenter) {
-    markers.push({
-      id: 'lastSeen',
-      type: 'lastSeen',
-      position: mapCenter,
-      address: mission.lastSeenAddress,
-    });
-  }
-
-  // Sighting markers
-  (sightings || []).forEach(s => {
-    if (s.latitude && s.longitude) {
-      markers.push({
-        id: `sighting-${s.id}`,
-        type: 'sighting',
-        position: { lat: s.latitude, lng: s.longitude },
-        address: s.address,
-        confidence: s.confidence,
-      });
-    }
-  });
+  // Format sightings for SARMapView
+  const formattedSightings = (sightings || [])
+    .filter(s => s.latitude && s.longitude)
+    .map(s => ({
+      lat: s.latitude,
+      lng: s.longitude,
+      address: s.address,
+      confidence: s.confidence,
+      createdAt: s.createdAt,
+    }));
 
   return (
     <div className="h-full relative">
       {/* Map */}
-      {mapCenter ? (
+      {hasLocation ? (
         <MapView
           center={mapCenter}
-          zoom={15}
-          markers={markers}
-          path={gpsPath}
-          onMarkerClick={setSelectedMarker}
-          className="w-full h-full"
+          lastSeen={lastSeen}
+          sightings={formattedSightings}
+          gpsPath={gpsPath || []}
+          petSpecies={mission?.petSpecies || 'DOG'}
+          showProbabilityCircles={false}
+          showLegend={false}
+          interactive={true}
         />
       ) : (
         <div className="w-full h-full bg-slate-800 flex flex-col items-center justify-center p-6">
