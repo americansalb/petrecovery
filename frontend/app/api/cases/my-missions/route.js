@@ -24,7 +24,7 @@ export async function GET(request) {
     const ownedCases = await prisma.case.findMany({
       where: {
         reporterId: userId,
-        status: { not: 'CLOSED' },
+        status: { notIn: ['REUNITED', 'CLOSED_OTHER'] },
       },
       select: {
         id: true,
@@ -33,10 +33,13 @@ export async function GET(request) {
         petSpecies: true,
         petBreed: true,
         petPhotoUrl: true,
+        petColor: true,
         status: true,
         resolution: true,
         lastSeenAt: true,
         lastSeenAddress: true,
+        lastSeenLatitude: true,
+        lastSeenLongitude: true,
         assignments: {
           select: {
             rescueSquadId: true,
@@ -45,6 +48,14 @@ export async function GET(request) {
             },
           },
           take: 1,
+        },
+        reporter: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -63,7 +74,7 @@ export async function GET(request) {
             },
           },
         },
-        status: { not: 'CLOSED' },
+        status: { notIn: ['REUNITED', 'CLOSED_OTHER'] },
       },
       select: {
         id: true,
@@ -72,10 +83,13 @@ export async function GET(request) {
         petSpecies: true,
         petBreed: true,
         petPhotoUrl: true,
+        petColor: true,
         status: true,
         resolution: true,
         lastSeenAt: true,
         lastSeenAddress: true,
+        lastSeenLatitude: true,
+        lastSeenLongitude: true,
         assignments: {
           select: {
             rescueSquadId: true,
@@ -84,6 +98,14 @@ export async function GET(request) {
             },
           },
           take: 1,
+        },
+        reporter: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -107,18 +129,31 @@ export async function GET(request) {
           caseNumber: caseItem.caseNumber,
           petName: caseItem.petName || 'Unknown',
           petSpecies: caseItem.petSpecies || 'OTHER',
+          petType: caseItem.petSpecies || 'OTHER', // Alias for compatibility
           petBreed: caseItem.petBreed,
+          breed: caseItem.petBreed, // Alias for compatibility
+          petColor: caseItem.petColor,
+          color: caseItem.petColor, // Alias for compatibility
           photoUrl: caseItem.petPhotoUrl || null,
           status: caseItem.status,
           resolution: caseItem.resolution,
           lastSeenAt: caseItem.lastSeenAt,
           lastSeenAddress: caseItem.lastSeenAddress,
+          lastSeenLocation: caseItem.lastSeenAddress, // Alias for compatibility
+          lastSeenLatitude: caseItem.lastSeenLatitude,
+          lastSeenLongitude: caseItem.lastSeenLongitude,
           hoursMissing,
           timeMissing: hoursMissing < 24
             ? `${hoursMissing}h`
             : `${Math.floor(hoursMissing / 24)}d ${hoursMissing % 24}h`,
           helperCount: 0, // TODO: Calculate actual helper count
-          rescueSquadId: squadId,  // Add squadId for join functionality
+          rescueSquadId: squadId,
+          // Owner contact info (for email forms)
+          ownerName: caseItem.reporter
+            ? `${caseItem.reporter.firstName || ''} ${caseItem.reporter.lastName || ''}`.trim()
+            : null,
+          ownerPhone: caseItem.reporter?.phone || null,
+          ownerEmail: caseItem.reporter?.email || null,
         });
       }
     });

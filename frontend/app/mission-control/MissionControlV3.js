@@ -17,7 +17,7 @@
  * All features from original V3 preserved.
  */
 
-import { Suspense } from 'react';
+import { Suspense, useState, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 
 // Components
@@ -30,10 +30,7 @@ import { normalizePhotoUrl } from '@/app/lib/utils';
 import {
   OverviewTab,
   MapTab,
-  TeamTab,
-  ActivityTab,
   ManageTab,
-  FlyersTab,
   ActionsTab,
 } from './components/tabs';
 
@@ -45,27 +42,27 @@ import {
   EmptyState,
 } from './components/modals';
 
-// State Management Hook
+// Active Search Screen
+import ActiveSearchScreen from './components/ActiveSearchScreen';
+
+// State Management Hooks
 import useMissionControl from './hooks/useMissionControl';
+import useSearchSession from './hooks/useSearchSession';
 
 // Icons
 import {
   MapPin,
   Clock,
-  Users,
   AlertCircle,
   RefreshCw,
   Shield,
   ChevronLeft,
   ChevronRight,
   Crown,
-  Activity as ActivityIcon,
   Settings,
   CheckCircle,
   Info,
-  X,
   Star,
-  FileText,
 } from 'lucide-react';
 
 function MissionControlV3Content() {
@@ -132,6 +129,45 @@ function MissionControlV3Content() {
     // Router
     router,
   } = useMissionControl(session);
+
+  // GPS Search session state
+  const [showActiveSearchScreen, setShowActiveSearchScreen] = useState(false);
+
+  // Last seen location for search validation
+  const lastSeenLocation = useMemo(() => {
+    if (activeMission?.lastSeenLatitude && activeMission?.lastSeenLongitude) {
+      return {
+        lat: activeMission.lastSeenLatitude,
+        lng: activeMission.lastSeenLongitude,
+      };
+    }
+    return null;
+  }, [activeMission?.lastSeenLatitude, activeMission?.lastSeenLongitude]);
+
+  // GPS Search session hook
+  const searchSession = useSearchSession(activeMission?.id, lastSeenLocation);
+
+  // Handle starting a search
+  const handleStartSearch = async () => {
+    const result = await searchSession.startSearch();
+    if (result.success) {
+      setShowActiveSearchScreen(true);
+    } else {
+      showNotification({
+        type: 'error',
+        message: result.error || 'Failed to start search',
+      });
+    }
+  };
+
+  // Handle ending search from the active search screen
+  const handleSearchEnded = () => {
+    setShowActiveSearchScreen(false);
+    showNotification({
+      type: 'success',
+      message: `Search complete! You earned ${searchSession.stats.estimatedPoints} points!`,
+    });
+  };
 
   // Loading state
   if (loading) {
@@ -211,14 +247,11 @@ function MissionControlV3Content() {
     );
   }
 
-  // Define tabs
+  // Define tabs - simplified to 3 main views
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: AlertCircle },
+    { id: 'overview', label: 'Home', icon: AlertCircle },
     { id: 'map', label: 'Map', icon: MapPin },
     { id: 'actions', label: 'Actions', icon: Star },
-    { id: 'flyers', label: 'Flyers', icon: FileText },
-    { id: 'team', label: 'Team', icon: Users },
-    { id: 'activity', label: 'Activity', icon: ActivityIcon },
   ];
 
   // Add manage tab for owners
@@ -369,6 +402,9 @@ function MissionControlV3Content() {
             onLogActivity={() => setShowCustomActionModal(true)}
             onMessageGroup={() => setActiveTab('team')} // TODO: Open chat modal when implemented
             onNavigateToMap={() => setActiveTab('map')}
+            onStartSearch={handleStartSearch}
+            isSearchActive={searchSession.isActive}
+            isStartingSearch={searchSession.isStarting}
           />
         )}
 
@@ -376,11 +412,15 @@ function MissionControlV3Content() {
           <MapTab
             mission={activeMission}
             sightings={sightings}
-            gpsPath={gpsPath}
+            searchPath={searchSession.path}
+            searchStats={searchSession.stats}
+            searchValidation={searchSession.validation}
+            isSearchActive={searchSession.isActive}
+            isStartingSearch={searchSession.isStarting}
             onReportSighting={() => setShowSightingForm(true)}
-            onStartGPSTracking={startGPSTracking}
-            onStopGPSTracking={stopGPSTracking}
-            isGPSTracking={isGPSTracking}
+            onStartSearch={handleStartSearch}
+            onEndSearch={() => setShowActiveSearchScreen(true)}
+            onViewActiveSearch={() => setShowActiveSearchScreen(true)}
           />
         )}
 
@@ -394,30 +434,6 @@ function MissionControlV3Content() {
                 message: `+${result.pointsEarned || 0} points for ${task.displayName}!`,
               });
             }}
-          />
-        )}
-
-        {activeTab === 'flyers' && (
-          <FlyersTab
-            mission={activeMission}
-            session={session}
-          />
-        )}
-
-        {activeTab === 'team' && (
-          <TeamTab
-            mission={activeMission}
-            showNotification={showNotification}
-            session={session}
-          />
-        )}
-
-        {activeTab === 'activity' && (
-          <ActivityTab
-            sightings={sightings}
-            tasks={tasks}
-            gpsPath={gpsPath}
-            onLocationClick={() => setActiveTab('map')}
           />
         )}
 
@@ -547,6 +563,20 @@ function MissionControlV3Content() {
           onAccepted={() => {
             setShowWaiverModal(false);
             if (missionId) fetchMission(missionId);
+          }}
+        />
+      )}
+
+      {/* Active Search Screen - Full screen GPS search experience */}
+      {showActiveSearchScreen && searchSession.isActive && (
+        <ActiveSearchScreen
+          mission={activeMission}
+          searchSession={searchSession}
+          onEnd={handleSearchEnded}
+          onCancel={() => setShowActiveSearchScreen(false)}
+          onReportSighting={() => {
+            setShowActiveSearchScreen(false);
+            setShowSightingForm(true);
           }}
         />
       )}
