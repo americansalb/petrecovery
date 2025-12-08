@@ -1,9 +1,10 @@
 /**
  * Search Session API Routes
  *
- * POST /api/mission/[caseId]/search - Start, ping, end, or log search
+ * POST /api/mission/[caseId]/search - Start, ping, end, cancel, or log search
+ * GET /api/mission/[caseId]/search - Get active session
  *
- * See docs/Actions_Guide.md for full specification.
+ * See docs/GPS_Search_Feature_Spec.md for full specification.
  */
 
 import { NextResponse } from 'next/server';
@@ -11,17 +12,91 @@ import { getServerSession } from 'next-auth';
 import prisma from '@/app/lib/prisma';
 
 // =============================================================================
-// ROUTE HANDLER
+// CONFIGURATION
+// =============================================================================
+
+const CONFIG = {
+  POINTS_PER_MILE: 100,
+  POINTS_PER_GRID_CELL: 5,
+  POINTS_PER_15_MIN: 10,
+  MAX_TIME_BONUS: 40,
+  MAX_SPEED_MPH: 5, // Above this = driving
+  SEARCH_RADIUS_MILES: 2,
+  MIN_SESSION_MINUTES: 5,
+  MIN_SESSION_MILES: 0.1,
+  FIRST_24H_MULTIPLIER: 1.5,
+  DAWN_DUSK_MULTIPLIER: 1.25,
+};
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+/**
+ * Calculate distance between two points in miles using Haversine formula
+ */
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 3959; // Earth's radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+/**
+ * Check if a time is during dawn (6-8 AM) or dusk (5-7 PM)
+ */
+function isDawnOrDusk(date) {
+  const hour = date.getHours();
+  return (hour >= 6 && hour <= 8) || (hour >= 17 && hour <= 19);
+}
+
+/**
+ * Calculate points with multipliers
+ */
+function calculatePoints(stats, caseCreatedAt) {
+  // Base points
+  const distancePoints = stats.validatedDistanceMiles * CONFIG.POINTS_PER_MILE;
+  const gridPoints = stats.gridCellsCovered * CONFIG.POINTS_PER_GRID_CELL;
+  const timePoints = Math.min(
+    Math.floor(stats.durationMinutes / 15) * CONFIG.POINTS_PER_15_MIN,
+    CONFIG.MAX_TIME_BONUS
+  );
+
+  let subtotal = distancePoints + gridPoints + timePoints;
+
+  // Multipliers
+  let multiplier = 1.0;
+  const now = new Date();
+  const hoursAfterLost = (now - new Date(caseCreatedAt)) / 3600000;
+
+  if (hoursAfterLost < 24) {
+    multiplier *= CONFIG.FIRST_24H_MULTIPLIER;
+  }
+
+  if (isDawnOrDusk(now)) {
+    multiplier *= CONFIG.DAWN_DUSK_MULTIPLIER;
+  }
+
+  return {
+    distance: Math.round(distancePoints),
+    gridBonus: Math.round(gridPoints),
+    timeBonus: Math.round(timePoints),
+    multiplier,
+    total: Math.round(subtotal * multiplier),
+  };
+}
+
+// =============================================================================
+// ROUTE HANDLERS
 // =============================================================================
 
 /**
  * POST /api/mission/[caseId]/search
- *
- * Unified search endpoint with action-based routing:
- * - action: 'start' - Start GPS-tracked session
- * - action: 'ping' - Update location during search
- * - action: 'end' - End search session and calculate points
- * - action: 'log' - Manual search log (self-reported)
  */
 export async function POST(request, { params }) {
   try {
@@ -43,10 +118,15 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Verify case exists
+    // Verify case exists and get last seen location
     const caseRecord = await prisma.case.findUnique({
       where: { id: caseId },
-      select: { id: true, createdAt: true },
+      select: {
+        id: true,
+        createdAt: true,
+        lastSeenLatitude: true,
+        lastSeenLongitude: true,
+      },
     });
 
     if (!caseRecord) {
@@ -55,20 +135,23 @@ export async function POST(request, { params }) {
 
     switch (body.action) {
       case 'start':
-        return handleSearchStart(user.id, caseId, body);
+        return handleSearchStart(user.id, caseId, body, caseRecord);
 
       case 'ping':
-        return handleSearchPing(body);
+        return handleSearchPing(body, caseRecord);
 
       case 'end':
-        return handleSearchEnd(user.id, caseId, body, caseRecord.createdAt);
+        return handleSearchEnd(user.id, caseId, body, caseRecord);
+
+      case 'cancel':
+        return handleSearchCancel(body);
 
       case 'log':
-        return handleSearchLog(user.id, body);
+        return handleSearchLog(user.id, caseId, body);
 
       default:
         return NextResponse.json(
-          { error: 'Invalid action. Use: start, ping, end, or log' },
+          { error: 'Invalid action. Use: start, ping, end, cancel, or log' },
           { status: 400 }
         );
     }
@@ -88,8 +171,8 @@ export async function POST(request, { params }) {
 /**
  * Start a GPS-tracked search session
  */
-async function handleSearchStart(userId, caseId, body) {
-  const { latitude, longitude } = body;
+async function handleSearchStart(userId, caseId, body, caseRecord) {
+  const { latitude, longitude, lastSeenLat, lastSeenLng } = body;
 
   // Check for existing active session
   const existingSession = await prisma.searchSession.findFirst({
@@ -107,9 +190,19 @@ async function handleSearchStart(userId, caseId, body) {
     );
   }
 
-  // Create search session
-  // NOTE: caseId and userId are scalar fields (not relations), so we assign directly
-  // participantId is optional - only set if user is formally part of a RescueSquad assignment
+  // Calculate distance from last seen
+  const lastSeenLatitude = lastSeenLat || caseRecord.lastSeenLatitude;
+  const lastSeenLongitude = lastSeenLng || caseRecord.lastSeenLongitude;
+
+  let distanceFromLastSeen = null;
+  if (lastSeenLatitude && lastSeenLongitude) {
+    distanceFromLastSeen = calculateDistance(
+      latitude, longitude,
+      lastSeenLatitude, lastSeenLongitude
+    );
+  }
+
+  // Create search session with new fields
   const searchSession = await prisma.searchSession.create({
     data: {
       caseId,
@@ -124,7 +217,13 @@ async function handleSearchStart(userId, caseId, body) {
         heading: null,
       }),
       lastLocationUpdate: new Date(),
-      isVerified: true, // GPS-tracked sessions are verified
+      isVerified: true,
+      // New fields for validation
+      totalDistanceMiles: 0,
+      validatedDistanceMiles: 0,
+      gridCellsCovered: 1, // Start with current cell
+      lastSeenLat: lastSeenLatitude,
+      lastSeenLng: lastSeenLongitude,
     },
   });
 
@@ -134,6 +233,7 @@ async function handleSearchStart(userId, caseId, body) {
       session: { connect: { id: searchSession.id } },
       latitude,
       longitude,
+      isValid: distanceFromLastSeen ? distanceFromLastSeen <= CONFIG.SEARCH_RADIUS_MILES : true,
     },
   });
 
@@ -141,18 +241,36 @@ async function handleSearchStart(userId, caseId, body) {
     success: true,
     sessionId: searchSession.id,
     startedAt: searchSession.startedAt,
+    distanceFromLastSeen: distanceFromLastSeen ? Math.round(distanceFromLastSeen * 100) / 100 : null,
+    inSearchZone: distanceFromLastSeen ? distanceFromLastSeen <= CONFIG.SEARCH_RADIUS_MILES : true,
   });
 }
 
 /**
  * Update location during active search
  */
-async function handleSearchPing(body) {
-  const { sessionId, latitude, longitude, accuracy, heading } = body;
+async function handleSearchPing(body, caseRecord) {
+  const {
+    sessionId,
+    latitude,
+    longitude,
+    accuracy,
+    heading,
+    speed,
+    isValid,
+    invalidReason,
+    gridCellId,
+  } = body;
 
   // Verify session exists and is active
   const session = await prisma.searchSession.findUnique({
     where: { id: sessionId },
+    include: {
+      locationPings: {
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      },
+    },
   });
 
   if (!session) {
@@ -166,16 +284,60 @@ async function handleSearchPing(body) {
     );
   }
 
-  // Update session location
+  // Calculate distance from previous ping
+  let distanceFromPrev = 0;
+  if (session.locationPings.length > 0) {
+    const prevPing = session.locationPings[0];
+    distanceFromPrev = calculateDistance(
+      prevPing.latitude, prevPing.longitude,
+      latitude, longitude
+    );
+  }
+
+  // Check if within search zone
+  let inSearchZone = true;
+  if (session.lastSeenLat && session.lastSeenLng) {
+    const distanceFromLastSeen = calculateDistance(
+      latitude, longitude,
+      session.lastSeenLat, session.lastSeenLng
+    );
+    inSearchZone = distanceFromLastSeen <= CONFIG.SEARCH_RADIUS_MILES;
+  }
+
+  // Validate speed (if speed provided in m/s, convert to mph)
+  const speedMph = speed ? speed * 2.237 : null;
+  const validSpeed = !speedMph || speedMph <= CONFIG.MAX_SPEED_MPH;
+
+  // Determine if this ping counts
+  const pingIsValid = isValid !== false && inSearchZone && validSpeed;
+
+  // Update session with new totals
+  const updateData = {
+    currentLocation: JSON.stringify({ lat: latitude, lng: longitude, accuracy, heading }),
+    lastLocationUpdate: new Date(),
+    totalDistanceMiles: { increment: distanceFromPrev },
+  };
+
+  // Only add to validated distance if valid
+  if (pingIsValid) {
+    updateData.validatedDistanceMiles = { increment: distanceFromPrev };
+  }
+
+  // Update grid cells if new cell
+  if (gridCellId && inSearchZone) {
+    // Check if this is a new grid cell (simplified - in production use a Set stored in session)
+    // For now, just increment if the ping is valid
+    if (pingIsValid && distanceFromPrev > 0.01) { // Only if actually moved
+      updateData.gridCellsCovered = { increment: 1 };
+    }
+  }
+
   await prisma.searchSession.update({
     where: { id: sessionId },
-    data: {
-      currentLocation: JSON.stringify({ lat: latitude, lng: longitude, accuracy, heading }),
-      lastLocationUpdate: new Date(),
-    },
+    data: updateData,
   });
 
-  // Create location ping
+  // Create location ping record
   await prisma.locationPing.create({
     data: {
       session: { connect: { id: sessionId } },
@@ -183,19 +345,29 @@ async function handleSearchPing(body) {
       longitude,
       accuracy,
       heading,
+      speed: speedMph,
+      isValid: pingIsValid,
+      invalidReason: !pingIsValid ? (invalidReason || (!inSearchZone ? 'OUTSIDE_ZONE' : !validSpeed ? 'DRIVING' : null)) : null,
+      gridCellId,
     },
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({
+    success: true,
+    distanceAdded: pingIsValid ? distanceFromPrev : 0,
+    inSearchZone,
+    validSpeed,
+    isValid: pingIsValid,
+  });
 }
 
 /**
  * End search session and calculate points
  */
-async function handleSearchEnd(userId, caseId, body, caseCreatedAt) {
+async function handleSearchEnd(userId, caseId, body, caseRecord) {
   const { sessionId } = body;
 
-  // Get session with location pings
+  // Get session with all data
   const session = await prisma.searchSession.findUnique({
     where: { id: sessionId },
     include: {
@@ -216,21 +388,26 @@ async function handleSearchEnd(userId, caseId, body, caseCreatedAt) {
     );
   }
 
-  // Calculate distance from location pings
-  const pings = session.locationPings;
-  let distanceMiles = 0;
+  // Calculate final stats
+  const durationMinutes = (Date.now() - new Date(session.startedAt).getTime()) / 60000;
 
-  for (let i = 1; i < pings.length; i++) {
-    distanceMiles += calculateDistance(
-      pings[i - 1].latitude,
-      pings[i - 1].longitude,
-      pings[i].latitude,
-      pings[i].longitude
-    );
-  }
+  const stats = {
+    durationMinutes: Math.round(durationMinutes),
+    totalDistanceMiles: session.totalDistanceMiles || 0,
+    validatedDistanceMiles: session.validatedDistanceMiles || 0,
+    gridCellsCovered: session.gridCellsCovered || 0,
+    totalPings: session.locationPings.length,
+    validPings: session.locationPings.filter(p => p.isValid).length,
+  };
 
-  // Calculate points (10 pts per mile, max 100 per session)
-  const pointsEarned = Math.min(Math.round(distanceMiles * 10), 100);
+  // Check minimum requirements
+  const meetsMinimum = durationMinutes >= CONFIG.MIN_SESSION_MINUTES &&
+    stats.validatedDistanceMiles >= CONFIG.MIN_SESSION_MILES;
+
+  // Calculate points
+  const points = meetsMinimum
+    ? calculatePoints(stats, caseRecord.createdAt)
+    : { distance: 0, gridBonus: 0, timeBonus: 0, multiplier: 1, total: 0 };
 
   // Update session
   await prisma.searchSession.update({
@@ -238,36 +415,112 @@ async function handleSearchEnd(userId, caseId, body, caseCreatedAt) {
     data: {
       status: 'COMPLETED',
       endedAt: new Date(),
-      distanceMiles,
-      pointsEarned,
+      distanceMiles: stats.validatedDistanceMiles,
+      pointsEarned: points.total,
     },
   });
+
+  // Create verified action record if points earned
+  if (points.total > 0) {
+    try {
+      await prisma.verifiedAction.create({
+        data: {
+          caseId,
+          userId,
+          actionType: 'search_area',
+          verificationMethod: 'GPS',
+          pointsAwarded: points.total,
+          metadata: JSON.stringify({
+            searchSessionId: sessionId,
+            distanceMiles: stats.validatedDistanceMiles,
+            gridCellsCovered: stats.gridCellsCovered,
+            durationMinutes: stats.durationMinutes,
+            multiplier: points.multiplier,
+          }),
+        },
+      });
+    } catch (err) {
+      // VerifiedAction table may not exist yet - continue without it
+      console.log('VerifiedAction not created:', err.message);
+    }
+  }
 
   return NextResponse.json({
     success: true,
     sessionId,
-    distanceMiles: Math.round(distanceMiles * 100) / 100,
-    pointsEarned,
+    meetsMinimum,
+    stats: {
+      durationMinutes: stats.durationMinutes,
+      totalDistanceMiles: Math.round(stats.totalDistanceMiles * 100) / 100,
+      validatedDistanceMiles: Math.round(stats.validatedDistanceMiles * 100) / 100,
+      gridCellsCovered: stats.gridCellsCovered,
+    },
+    points,
     isVerified: true,
   });
 }
 
 /**
+ * Cancel a search session (no points awarded)
+ */
+async function handleSearchCancel(body) {
+  const { sessionId } = body;
+
+  const session = await prisma.searchSession.findUnique({
+    where: { id: sessionId },
+  });
+
+  if (!session) {
+    return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+  }
+
+  await prisma.searchSession.update({
+    where: { id: sessionId },
+    data: {
+      status: 'CANCELLED',
+      endedAt: new Date(),
+      pointsEarned: 0,
+    },
+  });
+
+  return NextResponse.json({ success: true, cancelled: true });
+}
+
+/**
  * Log a manual search (self-reported, no GPS)
  */
-async function handleSearchLog(userId, body) {
-  const { note, approximateLocation } = body;
+async function handleSearchLog(userId, caseId, body) {
+  const { note, location, durationMinutes } = body;
 
-  // Award 5 points for manual log
+  // Award 5 points for manual log (self-reported, capped)
   const pointsEarned = 5;
+
+  // Create a completed session record for manual log
+  await prisma.searchSession.create({
+    data: {
+      caseId,
+      userId,
+      status: 'COMPLETED',
+      startedAt: new Date(),
+      endedAt: new Date(),
+      isVerified: false,
+      pointsEarned,
+      notes: note,
+      startLocation: location ? JSON.stringify(location) : null,
+    },
+  });
 
   return NextResponse.json({
     success: true,
     pointsEarned,
+    isVerified: false,
     note: note || null,
-    location: approximateLocation || null,
   });
 }
+
+// =============================================================================
+// GET HANDLER
+// =============================================================================
 
 /**
  * GET /api/mission/[caseId]/search
@@ -292,7 +545,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get active session
+    // Get active session with recent pings
     const activeSession = await prisma.searchSession.findFirst({
       where: {
         caseId,
@@ -301,8 +554,13 @@ export async function GET(request, { params }) {
       },
       include: {
         locationPings: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
+          orderBy: { createdAt: 'asc' },
+          select: {
+            latitude: true,
+            longitude: true,
+            isValid: true,
+            createdAt: true,
+          },
         },
       },
     });
@@ -311,13 +569,22 @@ export async function GET(request, { params }) {
       return NextResponse.json({ activeSession: null });
     }
 
+    // Build path from pings
+    const path = activeSession.locationPings.map(ping => ({
+      lat: ping.latitude,
+      lng: ping.longitude,
+      valid: ping.isValid,
+    }));
+
     return NextResponse.json({
       activeSession: {
         id: activeSession.id,
         status: activeSession.status,
         startedAt: activeSession.startedAt,
-        lastLocation: activeSession.locationPings[0] || null,
-        distanceMiles: activeSession.distanceMiles,
+        totalDistanceMiles: activeSession.totalDistanceMiles || 0,
+        validatedDistanceMiles: activeSession.validatedDistanceMiles || 0,
+        gridCellsCovered: activeSession.gridCellsCovered || 0,
+        path,
       },
     });
   } catch (error) {
@@ -327,19 +594,4 @@ export async function GET(request, { params }) {
       { status: 500 }
     );
   }
-}
-
-/**
- * Calculate distance between two points in miles using Haversine formula
- */
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 3959; // Earth's radius in miles
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
 }

@@ -26,6 +26,8 @@ import {
   ChevronDown,
   ChevronUp,
   ClipboardList,
+  Navigation,
+  Loader2,
 } from 'lucide-react';
 import { normalizePhotoUrl } from '@/app/lib/utils';
 import useScoutTips from '@/app/mission-control/hooks/useScoutTips';
@@ -51,6 +53,9 @@ export default function OverviewTab({
   onLogActivity,
   onMessageGroup,
   onNavigateToMap,
+  onStartSearch,
+  isSearchActive = false,
+  isStartingSearch = false,
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const [shareStatus, setShareStatus] = useState(null); // 'copied' | 'shared' | 'error'
@@ -237,7 +242,48 @@ export default function OverviewTab({
         </div>
       </div>
 
-      {/* 4 ACTION BUTTONS GRID - All take DIRECT action */}
+      {/* ============================================================ */}
+      {/* PRIMARY CTA - START SEARCHING */}
+      {/* ============================================================ */}
+      {!isReunited && (
+        <div className="mt-6">
+          <button
+            onClick={onStartSearch}
+            disabled={isStartingSearch || isSearchActive}
+            className={`w-full py-5 px-6 rounded-2xl font-bold text-lg transition-all duration-200 flex items-center justify-center gap-3 ${
+              isSearchActive
+                ? 'bg-green-500/20 border-2 border-green-500 text-green-400'
+                : isStartingSearch
+                  ? 'bg-slate-700 text-slate-400 cursor-wait'
+                  : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-xl shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02] active:scale-[0.98]'
+            }`}
+          >
+            {isStartingSearch ? (
+              <>
+                <Loader2 size={24} className="animate-spin" />
+                Starting Search...
+              </>
+            ) : isSearchActive ? (
+              <>
+                <Navigation size={24} className="animate-pulse" />
+                Search Active - Tap to View
+              </>
+            ) : (
+              <>
+                <Navigation size={24} />
+                Start Searching
+              </>
+            )}
+          </button>
+          {!isSearchActive && !isStartingSearch && (
+            <p className="text-center text-slate-500 text-sm mt-2">
+              GPS-tracked • Earn 100 pts/mile • Help find {mission.petName}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* 4 ACTION BUTTONS GRID - Secondary actions */}
       <div className="grid grid-cols-2 gap-3 mt-6">
         {actionButtons.map((action) => {
           const Icon = action.icon;

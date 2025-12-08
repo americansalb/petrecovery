@@ -17,7 +17,7 @@
  * All features from original V3 preserved.
  */
 
-import { Suspense } from 'react';
+import { Suspense, useState, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 
 // Components
@@ -42,8 +42,12 @@ import {
   EmptyState,
 } from './components/modals';
 
-// State Management Hook
+// Active Search Screen
+import ActiveSearchScreen from './components/ActiveSearchScreen';
+
+// State Management Hooks
 import useMissionControl from './hooks/useMissionControl';
+import useSearchSession from './hooks/useSearchSession';
 
 // Icons
 import {
@@ -125,6 +129,45 @@ function MissionControlV3Content() {
     // Router
     router,
   } = useMissionControl(session);
+
+  // GPS Search session state
+  const [showActiveSearchScreen, setShowActiveSearchScreen] = useState(false);
+
+  // Last seen location for search validation
+  const lastSeenLocation = useMemo(() => {
+    if (activeMission?.lastSeenLatitude && activeMission?.lastSeenLongitude) {
+      return {
+        lat: activeMission.lastSeenLatitude,
+        lng: activeMission.lastSeenLongitude,
+      };
+    }
+    return null;
+  }, [activeMission?.lastSeenLatitude, activeMission?.lastSeenLongitude]);
+
+  // GPS Search session hook
+  const searchSession = useSearchSession(activeMission?.id, lastSeenLocation);
+
+  // Handle starting a search
+  const handleStartSearch = async () => {
+    const result = await searchSession.startSearch();
+    if (result.success) {
+      setShowActiveSearchScreen(true);
+    } else {
+      showNotification({
+        type: 'error',
+        message: result.error || 'Failed to start search',
+      });
+    }
+  };
+
+  // Handle ending search from the active search screen
+  const handleSearchEnded = () => {
+    setShowActiveSearchScreen(false);
+    showNotification({
+      type: 'success',
+      message: `Search complete! You earned ${searchSession.stats.estimatedPoints} points!`,
+    });
+  };
 
   // Loading state
   if (loading) {
@@ -359,6 +402,9 @@ function MissionControlV3Content() {
             onLogActivity={() => setShowCustomActionModal(true)}
             onMessageGroup={() => setActiveTab('team')} // TODO: Open chat modal when implemented
             onNavigateToMap={() => setActiveTab('map')}
+            onStartSearch={handleStartSearch}
+            isSearchActive={searchSession.isActive}
+            isStartingSearch={searchSession.isStarting}
           />
         )}
 
@@ -366,11 +412,15 @@ function MissionControlV3Content() {
           <MapTab
             mission={activeMission}
             sightings={sightings}
-            gpsPath={gpsPath}
+            searchPath={searchSession.path}
+            searchStats={searchSession.stats}
+            searchValidation={searchSession.validation}
+            isSearchActive={searchSession.isActive}
+            isStartingSearch={searchSession.isStarting}
             onReportSighting={() => setShowSightingForm(true)}
-            onStartGPSTracking={startGPSTracking}
-            onStopGPSTracking={stopGPSTracking}
-            isGPSTracking={isGPSTracking}
+            onStartSearch={handleStartSearch}
+            onEndSearch={() => setShowActiveSearchScreen(true)}
+            onViewActiveSearch={() => setShowActiveSearchScreen(true)}
           />
         )}
 
@@ -513,6 +563,20 @@ function MissionControlV3Content() {
           onAccepted={() => {
             setShowWaiverModal(false);
             if (missionId) fetchMission(missionId);
+          }}
+        />
+      )}
+
+      {/* Active Search Screen - Full screen GPS search experience */}
+      {showActiveSearchScreen && searchSession.isActive && (
+        <ActiveSearchScreen
+          mission={activeMission}
+          searchSession={searchSession}
+          onEnd={handleSearchEnded}
+          onCancel={() => setShowActiveSearchScreen(false)}
+          onReportSighting={() => {
+            setShowActiveSearchScreen(false);
+            setShowSightingForm(true);
           }}
         />
       )}
