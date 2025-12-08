@@ -1,18 +1,18 @@
 'use client';
 
 /**
- * Mission Control Page - V3
+ * Mission Control Page - V4
  *
- * Redesigned single-page experience with:
- * - Top 1/4: Static hero with pet info
- * - Middle 2/4: Scrollable functional content
- * - Bottom 1/4: Navigation + mission cycling
+ * Complete redesign with clean 3-view structure:
+ * - Dashboard: Pet info, Suramaa tips, points, quick actions
+ * - Map: Full-screen with floating action buttons
+ * - Actions: Task categories, shelter contacts, leaderboard
  *
- * Previous versions kept for reference: MissionControlV1.js, MissionControlV2.js
+ * Previous versions: MissionControlV1.js, MissionControlV2.js, MissionControlV3.js
  */
 
-import MissionControlV3 from './MissionControlV3';
+import MissionControlV4 from './MissionControlV4';
 
 export default function MissionControl() {
-  return <MissionControlV3 />;
+  return <MissionControlV4 />;
 }
