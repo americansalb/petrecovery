@@ -30,10 +30,7 @@ import { normalizePhotoUrl } from '@/app/lib/utils';
 import {
   OverviewTab,
   MapTab,
-  TeamTab,
-  ActivityTab,
   ManageTab,
-  FlyersTab,
   ActionsTab,
 } from './components/tabs';
 
@@ -52,20 +49,16 @@ import useMissionControl from './hooks/useMissionControl';
 import {
   MapPin,
   Clock,
-  Users,
   AlertCircle,
   RefreshCw,
   Shield,
   ChevronLeft,
   ChevronRight,
   Crown,
-  Activity as ActivityIcon,
   Settings,
   CheckCircle,
   Info,
-  X,
   Star,
-  FileText,
 } from 'lucide-react';
 
 function MissionControlV3Content() {
@@ -211,14 +204,11 @@ function MissionControlV3Content() {
     );
   }
 
-  // Define tabs
+  // Define tabs - simplified to 3 main views
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: AlertCircle },
+    { id: 'overview', label: 'Home', icon: AlertCircle },
     { id: 'map', label: 'Map', icon: MapPin },
     { id: 'actions', label: 'Actions', icon: Star },
-    { id: 'flyers', label: 'Flyers', icon: FileText },
-    { id: 'team', label: 'Team', icon: Users },
-    { id: 'activity', label: 'Activity', icon: ActivityIcon },
   ];
 
   // Add manage tab for owners
@@ -394,30 +384,6 @@ function MissionControlV3Content() {
                 message: `+${result.pointsEarned || 0} points for ${task.displayName}!`,
               });
             }}
-          />
-        )}
-
-        {activeTab === 'flyers' && (
-          <FlyersTab
-            mission={activeMission}
-            session={session}
-          />
-        )}
-
-        {activeTab === 'team' && (
-          <TeamTab
-            mission={activeMission}
-            showNotification={showNotification}
-            session={session}
-          />
-        )}
-
-        {activeTab === 'activity' && (
-          <ActivityTab
-            sightings={sightings}
-            tasks={tasks}
-            gpsPath={gpsPath}
-            onLocationClick={() => setActiveTab('map')}
           />
         )}
 
