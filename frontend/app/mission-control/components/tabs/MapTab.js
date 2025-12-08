@@ -4,23 +4,28 @@
  * MapTab - Full Map View with GPS Search Integration
  *
  * Features:
- * - Full-screen map with last seen location
+ * - Full-screen Apple Map with last seen location
  * - Sighting markers
  * - GPS search path display (validated vs invalid)
  * - Start/Stop search buttons
  * - Real-time stats during search
  * - Report sighting button
+ *
+ * Now powered by Apple MapKit JS
  */
 
 import dynamic from 'next/dynamic';
-import { Eye, Navigation, Clock, Route, Star, Loader2, Square, AlertTriangle } from 'lucide-react';
+import { Eye, Navigation, Clock, Route, Star, Loader2, Square, AlertTriangle, Map } from 'lucide-react';
 
-// Lazy load map for performance
-const MapView = dynamic(() => import('@/app/components/case/SARMapView'), {
+// Lazy load Apple Map for performance
+const AppleMap = dynamic(() => import('@/components/maps/AppleMap'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full bg-slate-900 flex items-center justify-center">
-      <div className="animate-pulse text-slate-500">Loading map...</div>
+      <div className="text-center">
+        <Map size={32} className="text-slate-600 mx-auto mb-2 animate-pulse" />
+        <p className="text-slate-500 text-sm">Loading Apple Maps...</p>
+      </div>
     </div>
   )
 });
@@ -50,23 +55,23 @@ export default function MapTab({
 
   return (
     <div className="space-y-4 pb-20">
-      {/* Full Map View */}
+      {/* Full Map View - Powered by Apple Maps */}
       <div className="bg-slate-900 border border-flash-500/30 rounded-xl overflow-hidden relative" style={{ height: '50vh', minHeight: '300px' }}>
-        <MapView
+        <AppleMap
           center={mission.lastSeenLatitude && mission.lastSeenLongitude
-            ? [mission.lastSeenLatitude, mission.lastSeenLongitude]
-            : [41.8781, -87.6298]}
+            ? { lat: mission.lastSeenLatitude, lng: mission.lastSeenLongitude }
+            : { lat: 41.8781, lng: -87.6298 }}
           zoom={15}
-          lastSeen={mission.lastSeenLatitude ? {
+          mapType="mutedStandard"
+          colorScheme="dark"
+          showUserLocation={isSearchActive}
+          lastSeenLocation={mission.lastSeenLatitude ? {
             lat: mission.lastSeenLatitude,
             lng: mission.lastSeenLongitude,
             address: mission.lastSeenAddress,
           } : null}
           sightings={sightings}
-          petSpecies={mission.petSpecies}
           searchPath={searchPath}
-          showControls
-          showUserLocation={isSearchActive}
         />
 
         {/* Validation Warning Overlay */}

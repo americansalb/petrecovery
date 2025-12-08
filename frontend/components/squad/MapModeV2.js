@@ -4,25 +4,28 @@
  * MapModeV2 - Map mode for visualizing cases geographically
  *
  * Shows:
- * - Interactive map centered on city
+ * - Interactive Apple Map centered on city
  * - Case pins color-coded by status
  * - Division boundaries (if selected)
  * - Clickable pins open bottom sheet with case preview
+ *
+ * Now powered by Apple MapKit JS
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { X, ExternalLink } from 'lucide-react';
+import { X, ExternalLink, Map } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-// Dynamically import Leaflet to avoid SSR issues
-const MapComponent = dynamic(() => import('./MapComponentV2'), {
+// Dynamically import Apple Maps to avoid SSR issues
+const MapComponent = dynamic(() => import('./MapComponentApple'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-[600px] bg-slate-800/50 rounded-xl flex items-center justify-center">
       <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-flash-400 mb-4"></div>
-        <p className="text-slate-400">Loading map...</p>
+        <Map size={32} className="text-slate-600 mx-auto mb-3 animate-pulse" />
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-flash-400 mb-3"></div>
+        <p className="text-slate-400">Loading Apple Maps...</p>
       </div>
     </div>
   ),
@@ -168,7 +171,7 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
             transition-all duration-200
           "
         >
-          Open Full Case
+          Help Find {petName} →
           <ExternalLink size={20} strokeWidth={2.5} />
         </button>
       </div>
