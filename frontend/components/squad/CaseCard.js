@@ -112,15 +112,19 @@ export default function CaseCard({ caseItem, compact = false }) {
 
         {/* Helper badge or Help button */}
         {caseItem.isUserHelper ? (
-          <div className="px-2 py-1 rounded-full bg-[var(--hub-status-success)]/20 text-[var(--hub-status-success)] text-[10px] font-semibold">
-            Helping
-          </div>
+          <a
+            href={`/cases/${caseItem.caseNumber}`}
+            onClick={(e) => e.stopPropagation()}
+            className="px-3 py-1.5 rounded-full bg-[var(--hub-status-success)] text-white text-[10px] font-semibold hover:opacity-90 transition-opacity"
+          >
+            Continue →
+          </a>
         ) : (
           <button
             onClick={handleHelp}
             className={`px-3 py-1.5 rounded-full text-xs transition-all ${urgency.btnClass}`}
           >
-            Help
+            Help →
           </button>
         )}
       </button>
@@ -195,15 +199,19 @@ export default function CaseCard({ caseItem, compact = false }) {
 
         {/* Primary Action - high contrast CTA */}
         {caseItem.isUserHelper ? (
-          <div className="w-full py-2.5 rounded-lg bg-[var(--hub-status-success)]/20 text-[var(--hub-status-success)] text-sm font-semibold text-center">
-            You're Helping
-          </div>
+          <a
+            href={`/cases/${caseItem.caseNumber}`}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full py-2.5 rounded-lg bg-[var(--hub-status-success)] text-white text-sm font-semibold text-center block hover:opacity-90 transition-opacity"
+          >
+            Continue Helping {caseItem.petName} →
+          </a>
         ) : (
           <button
             onClick={handleHelp}
             className={`w-full py-2.5 rounded-lg text-sm transition-all hover:opacity-90 ${urgency.btnClass}`}
           >
-            Help Find {caseItem.petName}
+            Help Find {caseItem.petName} →
           </button>
         )}
 
@@ -224,7 +232,7 @@ export default function CaseCard({ caseItem, compact = false }) {
             onClick={(e) => e.stopPropagation()}
             className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] bg-[var(--hub-accent-primary)]/10 text-[var(--hub-accent-primary)] hover:bg-[var(--hub-accent-primary)]/20 rounded-lg transition-colors font-medium"
           >
-            View Case
+            View Details
           </a>
         </div>
       </div>
