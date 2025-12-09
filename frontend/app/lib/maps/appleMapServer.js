@@ -66,9 +66,12 @@ async function getAppleMapsToken() {
     }
 
     console.log('[AppleMapsServer] Key format check - lines:', privateKeyPem.split('\n').length);
+    console.log('[AppleMapsServer] Key starts with:', privateKeyPem.substring(0, 30));
+    console.log('[AppleMapsServer] Key ends with:', privateKeyPem.substring(privateKeyPem.length - 30));
 
     // Import the private key
     const privateKey = await jose.importPKCS8(privateKeyPem, 'ES256');
+    console.log('[AppleMapsServer] Key imported successfully, type:', privateKey.type);
 
     // Generate JWT token
     const now = Math.floor(Date.now() / 1000);
