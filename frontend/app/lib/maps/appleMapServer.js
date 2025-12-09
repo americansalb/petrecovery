@@ -35,8 +35,40 @@ async function getAppleMapsToken() {
   }
 
   try {
+    // Handle private key format issues from environment variables
+    let privateKeyPem = PRIVATE_KEY;
+
+    // Step 1: Convert escaped newlines to actual newlines
+    if (privateKeyPem.includes('\\n')) {
+      privateKeyPem = privateKeyPem.replace(/\\n/g, '\n');
+    }
+
+    // Step 2: If still no newlines, reconstruct the PEM format
+    if (!privateKeyPem.includes('\n') || privateKeyPem.split('\n').length < 3) {
+      // Extract the base64 content between headers
+      const beginMarker = '-----BEGIN PRIVATE KEY-----';
+      const endMarker = '-----END PRIVATE KEY-----';
+
+      // Remove headers and any whitespace
+      let keyContent = privateKeyPem
+        .replace(beginMarker, '')
+        .replace(endMarker, '')
+        .replace(/\s/g, '');
+
+      // Split into 64-character lines (PEM standard)
+      const lines = [];
+      for (let i = 0; i < keyContent.length; i += 64) {
+        lines.push(keyContent.substring(i, i + 64));
+      }
+
+      // Reconstruct properly formatted PEM
+      privateKeyPem = `${beginMarker}\n${lines.join('\n')}\n${endMarker}`;
+    }
+
+    console.log('[AppleMapsServer] Key format check - lines:', privateKeyPem.split('\n').length);
+
     // Import the private key
-    const privateKey = await jose.importPKCS8(PRIVATE_KEY, 'ES256');
+    const privateKey = await jose.importPKCS8(privateKeyPem, 'ES256');
 
     // Generate JWT token
     const now = Math.floor(Date.now() / 1000);
