@@ -4,12 +4,10 @@
  * MapModeV2 - Map mode for visualizing cases geographically
  *
  * Shows:
- * - Interactive Apple Map centered on city
+ * - Interactive Leaflet map centered on city
  * - Case pins color-coded by status
  * - Division boundaries (if selected)
  * - Clickable pins open bottom sheet with case preview
- *
- * Now powered by Apple MapKit JS
  */
 
 import { useState } from 'react';
@@ -17,15 +15,15 @@ import dynamic from 'next/dynamic';
 import { X, ExternalLink, Map } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-// Dynamically import Apple Maps to avoid SSR issues
-const MapComponent = dynamic(() => import('./MapComponentApple'), {
+// Dynamically import map to avoid SSR issues
+const MapComponent = dynamic(() => import('./MapComponentV2'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-[600px] bg-slate-800/50 rounded-xl flex items-center justify-center">
       <div className="text-center">
         <Map size={32} className="text-slate-600 mx-auto mb-3 animate-pulse" />
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-flash-400 mb-3"></div>
-        <p className="text-slate-400">Loading Apple Maps...</p>
+        <p className="text-slate-400">Loading map...</p>
       </div>
     </div>
   ),
