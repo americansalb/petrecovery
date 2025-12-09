@@ -1,9 +1,9 @@
 /**
- * Places Search API (Apple Maps)
+ * Places Search API (OpenStreetMap Overpass)
  *
  * GET /api/places/search - Search for places (shelters, vets, etc.)
  *
- * Powered by Apple Maps Server API (25K free calls/day)
+ * Powered by Overpass API - completely free, no API key required
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -12,8 +12,9 @@ import {
   searchShelters,
   searchVets,
   searchAnimalControl,
+  searchPetStores,
   searchPlaces,
-} from '@/app/lib/maps/appleMapServer';
+} from '@/app/lib/maps/overpassSearch';
 
 // =============================================================================
 // ROUTE HANDLER
@@ -27,8 +28,8 @@ import {
  * Query params:
  * - lat: Latitude (required)
  * - lng: Longitude (required)
- * - type: Place type - shelter, vet, animal_control (default: shelter)
- * - radius: Search radius in miles (default: 25, max: 75) - Note: Apple Maps uses proximity ranking
+ * - type: Place type - shelter, vet, animal_control, pet_store (default: shelter)
+ * - radius: Search radius in miles (default: 25, max: 75)
  * - query: Optional text query to filter results
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -63,32 +64,39 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // Convert miles to meters for Overpass API
+    const radiusMeters = radiusMiles * 1609.34;
+    const options = { radiusMeters };
+
     let places: any[];
+
+    console.log(`[Places API] Searching for ${type} near ${latitude},${longitude} within ${radiusMiles} miles`);
 
     // Search based on type or custom query
     if (query) {
       // Custom query search
-      places = await searchPlaces(query, latitude, longitude, { limit: 50 });
+      places = await searchPlaces(query, latitude, longitude, options);
     } else {
       // Type-based search
       switch (type) {
         case 'shelter':
-          places = await searchShelters(latitude, longitude, { limit: 50 });
+          places = await searchShelters(latitude, longitude, options);
           break;
         case 'vet':
-          places = await searchVets(latitude, longitude, { limit: 50 });
+          places = await searchVets(latitude, longitude, options);
           break;
         case 'animal_control':
-          places = await searchAnimalControl(latitude, longitude, { limit: 50 });
+          places = await searchAnimalControl(latitude, longitude, options);
+          break;
+        case 'pet_store':
+          places = await searchPetStores(latitude, longitude, options);
           break;
         default:
-          places = await searchShelters(latitude, longitude, { limit: 50 });
+          places = await searchShelters(latitude, longitude, options);
       }
     }
 
-    // Filter by radius (distance is in meters from Apple Maps)
-    const radiusMeters = radiusMiles * 1609.34;
-    places = places.filter(p => !p.distance || p.distance <= radiusMeters);
+    console.log(`[Places API] Found ${places.length} results`);
 
     // Add distance in miles to each result
     places = places.map(p => ({
@@ -100,21 +108,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       places: places.slice(0, 25), // Limit to 25 results
       total: places.length,
       radiusMiles,
-      source: 'apple_maps',
+      source: 'openstreetmap',
     });
   } catch (error: any) {
     console.error('Places search error:', error);
 
-    // Return helpful error message
-    const errorMessage = error?.message?.includes('token')
-      ? 'Apple Maps not configured. Admin: set APPLE_MAPKIT_TOKEN env var with your domain.'
-      : 'Search temporarily unavailable. Please try again.';
-
     return NextResponse.json({
       places: [],
       total: 0,
-      error: errorMessage,
-      source: 'apple_maps',
+      error: 'Search temporarily unavailable. Please try again.',
+      source: 'openstreetmap',
     });
   }
 }
@@ -123,7 +126,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  * POST /api/places/search
  *
  * Get detailed info for a specific place
- * Returns the place data with an Apple Maps link
+ * Returns the place data with a maps link
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -141,12 +144,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Generate Apple Maps URL for directions/details
+    // Generate Google Maps URL for directions/details (more universal)
     const lat = location?.lat;
     const lng = location?.lng;
     const mapsUrl = lat && lng
-      ? `https://maps.apple.com/?ll=${lat},${lng}&q=${encodeURIComponent(name || 'Location')}`
-      : `https://maps.apple.com/?q=${encodeURIComponent(address || name || 'Location')}`;
+      ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address || name || 'Location')}`;
 
     return NextResponse.json({
       placeId,
@@ -154,7 +157,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       address,
       location,
       mapsUrl,
-      source: 'apple_maps',
+      source: 'openstreetmap',
     });
   } catch (error) {
     console.error('Place details error:', error);
