@@ -54,6 +54,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const latitude = parseFloat(lat);
     const longitude = parseFloat(lng);
+    const radiusMiles = Math.min(parseFloat(searchParams.get('radius') || '25'), 75);
 
     if (isNaN(latitude) || isNaN(longitude)) {
       return NextResponse.json(
@@ -67,37 +68,52 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Search based on type or custom query
     if (query) {
       // Custom query search
-      places = await searchPlaces(query, latitude, longitude, { limit: 25 });
+      places = await searchPlaces(query, latitude, longitude, { limit: 50 });
     } else {
       // Type-based search
       switch (type) {
         case 'shelter':
-          places = await searchShelters(latitude, longitude, { limit: 25 });
+          places = await searchShelters(latitude, longitude, { limit: 50 });
           break;
         case 'vet':
-          places = await searchVets(latitude, longitude, { limit: 25 });
+          places = await searchVets(latitude, longitude, { limit: 50 });
           break;
         case 'animal_control':
-          places = await searchAnimalControl(latitude, longitude, { limit: 25 });
+          places = await searchAnimalControl(latitude, longitude, { limit: 50 });
           break;
         default:
-          places = await searchShelters(latitude, longitude, { limit: 25 });
+          places = await searchShelters(latitude, longitude, { limit: 50 });
       }
     }
 
+    // Filter by radius (distance is in meters from Apple Maps)
+    const radiusMeters = radiusMiles * 1609.34;
+    places = places.filter(p => !p.distance || p.distance <= radiusMeters);
+
+    // Add distance in miles to each result
+    places = places.map(p => ({
+      ...p,
+      distanceMiles: p.distance ? Math.round(p.distance / 1609.34 * 10) / 10 : null,
+    }));
+
     return NextResponse.json({
-      places,
+      places: places.slice(0, 25), // Limit to 25 results
       total: places.length,
+      radiusMiles,
       source: 'apple_maps',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Places search error:', error);
 
-    // Return empty results instead of error for better UX
+    // Return helpful error message
+    const errorMessage = error?.message?.includes('token')
+      ? 'Apple Maps not configured. Admin: set APPLE_MAPKIT_TOKEN env var with your domain.'
+      : 'Search temporarily unavailable. Please try again.';
+
     return NextResponse.json({
       places: [],
       total: 0,
-      error: 'Search temporarily unavailable',
+      error: errorMessage,
       source: 'apple_maps',
     });
   }

@@ -9,14 +9,23 @@
 
 const APPLE_MAPS_API_BASE = 'https://maps-api.apple.com/v1';
 
-// Use the same token as MapKit JS (it works for server API too)
-const MAPKIT_TOKEN = process.env.NEXT_PUBLIC_APPLE_MAPKIT_TOKEN ||
-  'eyJraWQiOiJCV0NHMjc3WTVTIiwidHlwIjoiSldUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJCRjIzTjRINjdWIiwiaWF0IjoxNzY1MjE0NjYyLCJvcmlnaW4iOiJwcm9wZXJ0eW1hbmFnZXItMS5vbnJlbmRlci5jb20ifQ.l6gETvYOkfVpd9JzQciyQvcvfNWI2FZ3Y1VeDcLMyltyDnGEyBl2l8HEs5FKubwOTI2Rx8Ztpch8hWmjy6KPkg';
+// Apple Maps token - MUST be set in environment for your domain
+// Generate at: https://developer.apple.com/account/resources/services/maps
+const MAPKIT_TOKEN = process.env.NEXT_PUBLIC_APPLE_MAPKIT_TOKEN || process.env.APPLE_MAPKIT_TOKEN;
+
+if (!MAPKIT_TOKEN) {
+  console.error('[AppleMapsServer] No APPLE_MAPKIT_TOKEN set! Shelter search will not work.');
+}
 
 /**
  * Make authenticated request to Apple Maps API
  */
 async function appleMapsFetch(endpoint, params = {}) {
+  if (!MAPKIT_TOKEN) {
+    console.error('[AppleMapsServer] Cannot make API call - no token configured');
+    throw new Error('Apple Maps not configured. Set APPLE_MAPKIT_TOKEN env var.');
+  }
+
   const url = new URL(`${APPLE_MAPS_API_BASE}${endpoint}`);
 
   // Add query params
@@ -25,6 +34,8 @@ async function appleMapsFetch(endpoint, params = {}) {
       url.searchParams.append(key, String(value));
     }
   });
+
+  console.log('[AppleMapsServer] Request:', endpoint, params);
 
   const response = await fetch(url.toString(), {
     headers: {
@@ -35,6 +46,10 @@ async function appleMapsFetch(endpoint, params = {}) {
   if (!response.ok) {
     const errorText = await response.text();
     console.error('[AppleMapsServer] API error:', response.status, errorText);
+
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Apple Maps token invalid or expired. Generate new token for your domain.');
+    }
     throw new Error(`Apple Maps API error: ${response.status}`);
   }
 
