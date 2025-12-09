@@ -83,7 +83,13 @@ async function getAppleMapsToken() {
     cachedToken = token;
     tokenExpiry = Date.now() + 25 * 60 * 1000; // 25 minutes
 
-    console.log('[AppleMapsServer] Generated new token');
+    // Debug: decode and log token claims (not signature)
+    const parts = token.split('.');
+    const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+    console.log('[AppleMapsServer] Generated token - header:', header);
+    console.log('[AppleMapsServer] Generated token - payload:', payload);
+
     return token;
   } catch (error) {
     console.error('[AppleMapsServer] Token generation failed:', error);
