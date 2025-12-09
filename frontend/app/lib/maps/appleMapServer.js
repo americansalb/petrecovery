@@ -7,24 +7,63 @@
  * Documentation: https://developer.apple.com/documentation/applemapsserverapi
  */
 
+import * as jose from 'jose';
+
 const APPLE_MAPS_API_BASE = 'https://maps-api.apple.com/v1';
 
-// Apple Maps token - MUST be set in environment for your domain
-// Generate at: https://developer.apple.com/account/resources/services/maps
-const MAPKIT_TOKEN = process.env.NEXT_PUBLIC_APPLE_MAPKIT_TOKEN || process.env.APPLE_MAPKIT_TOKEN;
+// Apple Maps credentials for Server API
+const TEAM_ID = process.env.APPLE_MAPS_TEAM_ID;
+const KEY_ID = process.env.APPLE_MAPS_KEY_ID;
+const PRIVATE_KEY = process.env.APPLE_MAPS_PRIVATE_KEY;
 
-if (!MAPKIT_TOKEN) {
-  console.error('[AppleMapsServer] No APPLE_MAPKIT_TOKEN set! Shelter search will not work.');
+// Cache the token (valid for 30 min, we refresh at 25 min)
+let cachedToken = null;
+let tokenExpiry = 0;
+
+/**
+ * Generate a JWT token for Apple Maps Server API
+ */
+async function getAppleMapsToken() {
+  // Return cached token if still valid
+  if (cachedToken && Date.now() < tokenExpiry) {
+    return cachedToken;
+  }
+
+  if (!TEAM_ID || !KEY_ID || !PRIVATE_KEY) {
+    console.error('[AppleMapsServer] Missing credentials. Set APPLE_MAPS_TEAM_ID, APPLE_MAPS_KEY_ID, APPLE_MAPS_PRIVATE_KEY');
+    throw new Error('Apple Maps not configured. Set environment variables.');
+  }
+
+  try {
+    // Import the private key
+    const privateKey = await jose.importPKCS8(PRIVATE_KEY, 'ES256');
+
+    // Generate JWT token
+    const now = Math.floor(Date.now() / 1000);
+    const token = await new jose.SignJWT({})
+      .setProtectedHeader({ alg: 'ES256', kid: KEY_ID, typ: 'JWT' })
+      .setIssuer(TEAM_ID)
+      .setIssuedAt(now)
+      .setExpirationTime(now + 1800) // 30 minutes
+      .sign(privateKey);
+
+    // Cache the token (refresh 5 min before expiry)
+    cachedToken = token;
+    tokenExpiry = Date.now() + 25 * 60 * 1000; // 25 minutes
+
+    console.log('[AppleMapsServer] Generated new token');
+    return token;
+  } catch (error) {
+    console.error('[AppleMapsServer] Token generation failed:', error);
+    throw new Error('Failed to generate Apple Maps token. Check your private key.');
+  }
 }
 
 /**
  * Make authenticated request to Apple Maps API
  */
 async function appleMapsFetch(endpoint, params = {}) {
-  if (!MAPKIT_TOKEN) {
-    console.error('[AppleMapsServer] Cannot make API call - no token configured');
-    throw new Error('Apple Maps not configured. Set APPLE_MAPKIT_TOKEN env var.');
-  }
+  const token = await getAppleMapsToken();
 
   const url = new URL(`${APPLE_MAPS_API_BASE}${endpoint}`);
 
@@ -39,7 +78,7 @@ async function appleMapsFetch(endpoint, params = {}) {
 
   const response = await fetch(url.toString(), {
     headers: {
-      'Authorization': `Bearer ${MAPKIT_TOKEN}`,
+      'Authorization': `Bearer ${token}`,
     },
   });
 
@@ -48,7 +87,10 @@ async function appleMapsFetch(endpoint, params = {}) {
     console.error('[AppleMapsServer] API error:', response.status, errorText);
 
     if (response.status === 401 || response.status === 403) {
-      throw new Error('Apple Maps token invalid or expired. Generate new token for your domain.');
+      // Invalidate cached token on auth error
+      cachedToken = null;
+      tokenExpiry = 0;
+      throw new Error('Apple Maps token invalid. Check your credentials.');
     }
     throw new Error(`Apple Maps API error: ${response.status}`);
   }
