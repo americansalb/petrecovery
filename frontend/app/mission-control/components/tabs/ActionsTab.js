@@ -1631,9 +1631,7 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
     }
   };
 
-  useEffect(() => {
-    if (activeTab === 'search') searchPlaces();
-  }, [activeTab, searchType, searchRadius]);
+  // Manual search only - no auto-search on tab/option change
 
   const handleAdd = async (place) => {
     setAdding(prev => ({ ...prev, [place.place_id]: true }));
@@ -1825,6 +1823,25 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
                 ))}
               </div>
 
+              {/* Search button */}
+              <button
+                onClick={searchPlaces}
+                disabled={searching}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-orange-500 hover:bg-orange-400 disabled:bg-orange-500/50 text-white font-medium rounded-lg transition-colors"
+              >
+                {searching ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} />
+                    Searching...
+                  </>
+                ) : (
+                  <>
+                    <Search size={16} />
+                    Search Now
+                  </>
+                )}
+              </button>
+
               {/* Error display */}
               {searchError && (
                 <div className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-xs">
@@ -1838,8 +1855,9 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
                   <Loader2 className="text-orange-400 animate-spin" size={24} />
                 </div>
               ) : searchResults.length === 0 && !searchError ? (
-                <div className="text-center py-8 text-slate-400">
-                  <p className="text-sm">No places found within {searchRadius} miles</p>
+                <div className="text-center py-6 text-slate-400">
+                  <Search size={28} className="mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">Select options and click Search Now</p>
                 </div>
               ) : (
                 <div className="space-y-1.5">

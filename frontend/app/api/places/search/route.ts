@@ -1,20 +1,35 @@
 /**
- * Places Search API (OpenStreetMap Overpass)
+ * Places Search API
  *
  * GET /api/places/search - Search for places (shelters, vets, etc.)
  *
- * Powered by Overpass API - completely free, no API key required
+ * Primary: Apple Maps Server API (25K free calls/day)
+ * Fallback: OpenStreetMap Overpass API (free, no key required)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import {
-  searchShelters,
-  searchVets,
-  searchAnimalControl,
-  searchPetStores,
-  searchPlaces,
+  searchShelters as searchSheltersOverpass,
+  searchVets as searchVetsOverpass,
+  searchAnimalControl as searchAnimalControlOverpass,
+  searchPetStores as searchPetStoresOverpass,
+  searchPlaces as searchPlacesOverpass,
 } from '@/app/lib/maps/overpassSearch';
+import {
+  searchShelters as searchSheltersApple,
+  searchVets as searchVetsApple,
+  searchAnimalControl as searchAnimalControlApple,
+} from '@/app/lib/maps/appleMapServer';
+
+// Check if Apple Maps is configured
+const isAppleMapsConfigured = () => {
+  return !!(
+    process.env.APPLE_MAPKIT_TEAM_ID &&
+    process.env.APPLE_MAPKIT_KEY_ID &&
+    process.env.APPLE_MAPKIT_PRIVATE_KEY
+  );
+};
 
 // =============================================================================
 // ROUTE HANDLER
@@ -69,34 +84,72 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const options = { radiusMeters };
 
     let places: any[];
+    let source = 'openstreetmap';
 
     console.log(`[Places API] Searching for ${type} near ${latitude},${longitude} within ${radiusMiles} miles`);
 
-    // Search based on type or custom query
-    if (query) {
-      // Custom query search
-      places = await searchPlaces(query, latitude, longitude, options);
+    // Try Apple Maps first if configured (better coverage for animal shelters)
+    const useAppleMaps = isAppleMapsConfigured() && !query;
+
+    if (useAppleMaps) {
+      try {
+        console.log('[Places API] Using Apple Maps Server API');
+        source = 'apple';
+
+        switch (type) {
+          case 'shelter':
+            places = await searchSheltersApple(latitude, longitude, { limit: 25 });
+            break;
+          case 'vet':
+            places = await searchVetsApple(latitude, longitude, { limit: 25 });
+            break;
+          case 'animal_control':
+            places = await searchAnimalControlApple(latitude, longitude, { limit: 25 });
+            break;
+          default:
+            places = await searchSheltersApple(latitude, longitude, { limit: 25 });
+        }
+
+        console.log(`[Places API] Apple Maps found ${places.length} results`);
+      } catch (appleError: any) {
+        console.error('[Places API] Apple Maps failed, falling back to Overpass:', appleError.message);
+        source = 'openstreetmap';
+        places = [];
+      }
     } else {
-      // Type-based search
-      switch (type) {
-        case 'shelter':
-          places = await searchShelters(latitude, longitude, options);
-          break;
-        case 'vet':
-          places = await searchVets(latitude, longitude, options);
-          break;
-        case 'animal_control':
-          places = await searchAnimalControl(latitude, longitude, options);
-          break;
-        case 'pet_store':
-          places = await searchPetStores(latitude, longitude, options);
-          break;
-        default:
-          places = await searchShelters(latitude, longitude, options);
+      places = [];
+    }
+
+    // Fall back to Overpass API if Apple Maps not configured or returned no results
+    if (places.length === 0) {
+      console.log('[Places API] Using OpenStreetMap Overpass API');
+      source = 'openstreetmap';
+
+      if (query) {
+        // Custom query search
+        places = await searchPlacesOverpass(query, latitude, longitude, options);
+      } else {
+        // Type-based search
+        switch (type) {
+          case 'shelter':
+            places = await searchSheltersOverpass(latitude, longitude, options);
+            break;
+          case 'vet':
+            places = await searchVetsOverpass(latitude, longitude, options);
+            break;
+          case 'animal_control':
+            places = await searchAnimalControlOverpass(latitude, longitude, options);
+            break;
+          case 'pet_store':
+            places = await searchPetStoresOverpass(latitude, longitude, options);
+            break;
+          default:
+            places = await searchSheltersOverpass(latitude, longitude, options);
+        }
       }
     }
 
-    console.log(`[Places API] Found ${places.length} results`);
+    console.log(`[Places API] Found ${places.length} results from ${source}`);
 
     // Add distance in miles to each result
     places = places.map(p => ({
@@ -108,7 +161,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       places: places.slice(0, 25), // Limit to 25 results
       total: places.length,
       radiusMiles,
-      source: 'openstreetmap',
+      source,
     });
   } catch (error: any) {
     console.error('Places search error:', error);
