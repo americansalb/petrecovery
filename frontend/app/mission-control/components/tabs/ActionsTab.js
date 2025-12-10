@@ -1055,9 +1055,10 @@ function ShelterContactSection({ caseId, mission, onPointsEarned }) {
   );
 }
 
-// Place Search Modal - search Google Places for shelters/vets
+// Place Search Modal - search Apple Maps for shelters/vets
 function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace }) {
   const [searchType, setSearchType] = useState('shelter');
+  const [radius, setRadius] = useState(25);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -1074,22 +1075,28 @@ function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace 
 
     try {
       const res = await fetch(
-        `/api/places/search?lat=${mission.lastSeenLatitude}&lng=${mission.lastSeenLongitude}&type=${searchType}&radius=25`
+        `/api/places/search?lat=${mission.lastSeenLatitude}&lng=${mission.lastSeenLongitude}&type=${searchType}&radius=${radius}`
       );
 
       if (res.ok) {
         const data = await res.json();
-        // Transform API response to expected format
-        const resultsWithType = (data.places || []).map(place => ({
-          place_id: place.placeId,
-          name: place.name,
-          vicinity: place.address,
-          geometry: { location: { lat: place.location.lat, lng: place.location.lng } },
-          rating: place.rating,
-          user_ratings_total: place.userRatingsTotal,
-          placeType: searchType === 'shelter' ? 'SHELTER' : searchType === 'vet' ? 'VET' : 'ANIMAL_CONTROL',
-        }));
-        setResults(resultsWithType);
+        if (data.error) {
+          setError(data.error);
+          setResults([]);
+        } else {
+          // Transform API response to expected format
+          const resultsWithType = (data.places || []).map(place => ({
+            place_id: place.placeId,
+            name: place.name,
+            vicinity: place.address,
+            distanceMiles: place.distanceMiles,
+            geometry: { location: { lat: place.location.lat, lng: place.location.lng } },
+            rating: place.rating,
+            user_ratings_total: place.userRatingsTotal,
+            placeType: searchType === 'shelter' ? 'SHELTER' : searchType === 'vet' ? 'VET' : 'ANIMAL_CONTROL',
+          }));
+          setResults(resultsWithType);
+        }
       } else {
         const errData = await res.json();
         setError(errData.error || 'Search failed');
@@ -1103,7 +1110,7 @@ function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace 
 
   useEffect(() => {
     searchPlaces();
-  }, [searchType]);
+  }, [searchType, radius]);
 
   const handleAdd = async (place) => {
     setAdding(prev => ({ ...prev, [place.place_id]: true }));
@@ -1137,7 +1144,7 @@ function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace 
           </button>
         </div>
 
-        <div className="p-4 border-b border-slate-700">
+        <div className="p-4 border-b border-slate-700 space-y-3">
           {/* Type tabs */}
           <div className="flex gap-2">
             {typeButtons.map(btn => (
@@ -1153,6 +1160,26 @@ function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace 
                 {btn.label}
               </button>
             ))}
+          </div>
+
+          {/* Radius selector */}
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-slate-400">Radius:</span>
+            <div className="flex gap-1.5">
+              {[10, 25, 50, 75].map(r => (
+                <button
+                  key={r}
+                  onClick={() => setRadius(r)}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+                    radius === r
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {r} mi
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -1186,7 +1213,14 @@ function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace 
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-white font-medium">{place.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-white font-medium">{place.name}</p>
+                        {place.distanceMiles && (
+                          <span className="text-xs text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded">
+                            {place.distanceMiles} mi
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-400 truncate">{place.vicinity || place.formatted_address}</p>
                       {place.rating && (
                         <p className="text-xs text-yellow-400 mt-1">
@@ -1556,32 +1590,42 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
 
   // Search state
   const [searchType, setSearchType] = useState('shelter');
+  const [searchRadius, setSearchRadius] = useState(25);
   const [searchResults, setSearchResults] = useState([]);
+  const [searchError, setSearchError] = useState(null);
   const [searching, setSearching] = useState(false);
   const [adding, setAdding] = useState({});
 
   const searchPlaces = async () => {
     if (!mission?.lastSeenLatitude || !mission?.lastSeenLongitude) return;
     setSearching(true);
+    setSearchError(null);
 
     try {
       const res = await fetch(
-        `/api/places/search?lat=${mission.lastSeenLatitude}&lng=${mission.lastSeenLongitude}&type=${searchType}&radius=25`
+        `/api/places/search?lat=${mission.lastSeenLatitude}&lng=${mission.lastSeenLongitude}&type=${searchType}&radius=${searchRadius}`
       );
       if (res.ok) {
         const data = await res.json();
-        setSearchResults((data.places || []).map(place => ({
-          place_id: place.placeId,
-          name: place.name,
-          vicinity: place.address,
-          geometry: { location: { lat: place.location.lat, lng: place.location.lng } },
-          rating: place.rating,
-          user_ratings_total: place.userRatingsTotal,
-          placeType: searchType === 'shelter' ? 'SHELTER' : searchType === 'vet' ? 'VET' : 'ANIMAL_CONTROL',
-        })));
+        if (data.error) {
+          setSearchError(data.error);
+          setSearchResults([]);
+        } else {
+          setSearchResults((data.places || []).map(place => ({
+            place_id: place.placeId,
+            name: place.name,
+            vicinity: place.address,
+            distanceMiles: place.distanceMiles,
+            geometry: { location: { lat: place.location.lat, lng: place.location.lng } },
+            rating: place.rating,
+            user_ratings_total: place.userRatingsTotal,
+            placeType: searchType === 'shelter' ? 'SHELTER' : searchType === 'vet' ? 'VET' : 'ANIMAL_CONTROL',
+          })));
+        }
       }
     } catch (err) {
       console.error('Search failed:', err);
+      setSearchError('Search failed. Please try again.');
     } finally {
       setSearching(false);
     }
@@ -1589,7 +1633,7 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
 
   useEffect(() => {
     if (activeTab === 'search') searchPlaces();
-  }, [activeTab, searchType]);
+  }, [activeTab, searchType, searchRadius]);
 
   const handleAdd = async (place) => {
     setAdding(prev => ({ ...prev, [place.place_id]: true }));
@@ -1763,14 +1807,39 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
                 ))}
               </div>
 
+              {/* Radius filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">Radius:</span>
+                {[10, 25, 50, 75].map(r => (
+                  <button
+                    key={r}
+                    onClick={() => setSearchRadius(r)}
+                    className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${
+                      searchRadius === r
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {r}mi
+                  </button>
+                ))}
+              </div>
+
+              {/* Error display */}
+              {searchError && (
+                <div className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-xs">
+                  {searchError}
+                </div>
+              )}
+
               {/* Results */}
               {searching ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="text-orange-400 animate-spin" size={24} />
                 </div>
-              ) : searchResults.length === 0 ? (
+              ) : searchResults.length === 0 && !searchError ? (
                 <div className="text-center py-8 text-slate-400">
-                  <p className="text-sm">No places found nearby</p>
+                  <p className="text-sm">No places found within {searchRadius} miles</p>
                 </div>
               ) : (
                 <div className="space-y-1.5">
@@ -1784,7 +1853,14 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
                         }`}
                       >
                         <div className="flex-1 min-w-0 mr-2">
-                          <p className="text-sm text-white font-medium truncate">{place.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm text-white font-medium truncate">{place.name}</p>
+                            {place.distanceMiles && (
+                              <span className="text-[10px] text-slate-500 bg-slate-700 px-1 rounded shrink-0">
+                                {place.distanceMiles}mi
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-slate-400 truncate">{place.vicinity}</p>
                         </div>
                         <button

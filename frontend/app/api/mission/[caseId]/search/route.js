@@ -558,7 +558,7 @@ export async function GET(request, { params }) {
           select: {
             latitude: true,
             longitude: true,
-            isValid: true,
+            accuracy: true,
             createdAt: true,
           },
         },
@@ -573,7 +573,7 @@ export async function GET(request, { params }) {
     const path = activeSession.locationPings.map(ping => ({
       lat: ping.latitude,
       lng: ping.longitude,
-      valid: ping.isValid,
+      valid: true, // All pings in DB are valid
     }));
 
     return NextResponse.json({

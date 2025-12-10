@@ -45,6 +45,9 @@ import {
 // Active Search Screen
 import ActiveSearchScreen from './components/ActiveSearchScreen';
 
+// Context Bar
+import ContextBar from './components/ContextBar';
+
 // State Management Hooks
 import useMissionControl from './hooks/useMissionControl';
 import useSearchSession from './hooks/useSearchSession';
@@ -171,7 +174,7 @@ function MissionControlV3Content() {
 
   // Loading state
   if (loading) {
-    return <PageLoading message="Initializing Mission Control..." />;
+    return <PageLoading message="Loading your missions..." />;
   }
 
   // Waiver modal (no mission loaded yet)
@@ -228,7 +231,7 @@ function MissionControlV3Content() {
               onClick={() => router.push('/mission-control')}
               className="px-6 py-3 bg-slate-800 text-slate-300 font-semibold rounded-xl border border-slate-700 hover:border-slate-600 transition"
             >
-              Back to Mission Control
+              Back to My Missions
             </button>
           </div>
         </div>
@@ -284,6 +287,11 @@ function MissionControlV3Content() {
           <span className="flex-1 font-medium text-sm">{notification.message}</span>
         </div>
       )}
+
+      {/* ============================================================ */}
+      {/* CONTEXT BAR - Shows squad hierarchy & back navigation */}
+      {/* ============================================================ */}
+      <ContextBar mission={activeMission} />
 
       {/* ============================================================ */}
       {/* COMPACT HERO SECTION - Pet Photo & Info */}
@@ -589,7 +597,7 @@ function MissionControlV3Content() {
 // ============================================================================
 export default function MissionControlV3() {
   return (
-    <Suspense fallback={<PageLoading message="Initializing Mission Control..." />}>
+    <Suspense fallback={<PageLoading message="Loading your missions..." />}>
       <MissionControlV3Content />
     </Suspense>
   );

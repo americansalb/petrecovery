@@ -221,7 +221,7 @@ export default function JoinMissionPage() {
             You're part of the search team.
           </p>
           <button onClick={goToMission} style={styles.goButton}>
-            Open Mission Control
+            Go to Mission →
           </button>
         </div>
       </div>

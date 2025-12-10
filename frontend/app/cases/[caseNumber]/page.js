@@ -23,5 +23,5 @@ export default function CaseRedirect() {
     }
   }, [caseNumber, router]);
 
-  return <PageLoading message="Redirecting to Mission Control..." />;
+  return <PageLoading message="Opening mission..." />;
 }

@@ -212,7 +212,7 @@ export default function MissionControlV2() {
 
   // Loading state
   if (loading) {
-    return <PageLoading message="Loading Mission Control..." />;
+    return <PageLoading message="Loading your missions..." />;
   }
 
   // Waiver modal
@@ -272,9 +272,9 @@ export default function MissionControlV2() {
       <div className="min-h-screen bg-slate-900">
         <div className="max-w-4xl mx-auto px-4 py-12 text-center">
           <div className="text-6xl mb-6">🎯</div>
-          <h1 className="text-3xl font-bold text-white mb-3">Mission Control</h1>
+          <h1 className="text-3xl font-bold text-white mb-3">My Missions</h1>
           <p className="text-slate-400 text-lg mb-8">
-            Select a mission to coordinate the search effort
+            Select a mission to continue helping
           </p>
 
           {availableMissions.length > 0 ? (

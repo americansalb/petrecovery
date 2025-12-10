@@ -360,7 +360,7 @@ export default function DashboardPage() {
                           {report.isLive ? (
                             <Link href={`/cases/${report.caseNumber}`}>
                               <Button variant="danger" size="sm" leftIcon={Zap}>
-                                Open Mission Control
+                                Continue Search
                               </Button>
                             </Link>
                           ) : (

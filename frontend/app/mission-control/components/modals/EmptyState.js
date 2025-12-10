@@ -21,8 +21,8 @@ export default function EmptyState({ missions = [], onSelectMission, onRefresh }
         <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-flash-500/20 border-2 border-flash-500/30 mb-6">
           <Radio size={48} className="text-flash-400" />
         </div>
-        <h1 className="text-3xl font-bold text-white mb-3">Mission Control</h1>
-        <p className="text-slate-400">Your command center for rescue missions</p>
+        <h1 className="text-3xl font-bold text-white mb-3">My Missions</h1>
+        <p className="text-slate-400">Your active rescue missions in one place</p>
       </div>
 
       {/* Missions List or Empty CTA */}

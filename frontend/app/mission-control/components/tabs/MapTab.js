@@ -56,17 +56,15 @@ export default function MapTab({
           center={mission.lastSeenLatitude && mission.lastSeenLongitude
             ? [mission.lastSeenLatitude, mission.lastSeenLongitude]
             : [41.8781, -87.6298]}
-          zoom={15}
           lastSeen={mission.lastSeenLatitude ? {
             lat: mission.lastSeenLatitude,
             lng: mission.lastSeenLongitude,
             address: mission.lastSeenAddress,
           } : null}
           sightings={sightings}
-          petSpecies={mission.petSpecies}
-          searchPath={searchPath}
-          showControls
-          showUserLocation={isSearchActive}
+          gpsPath={searchPath}
+          showLegend={true}
+          interactive={true}
         />
 
         {/* Validation Warning Overlay */}

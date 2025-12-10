@@ -119,7 +119,7 @@ function MissionControlV4Content() {
 
   // Loading state
   if (loading) {
-    return <PageLoading message="Initializing Mission Control..." />;
+    return <PageLoading message="Loading your missions..." />;
   }
 
   // Waiver modal (no mission loaded yet)
@@ -176,7 +176,7 @@ function MissionControlV4Content() {
               onClick={() => router.push('/mission-control')}
               className="px-6 py-3 bg-slate-800 text-slate-300 font-semibold rounded-xl border border-slate-700 hover:border-slate-600 transition"
             >
-              Back to Mission Control
+              Back to My Missions
             </button>
           </div>
         </div>
@@ -448,7 +448,7 @@ function MissionControlV4Content() {
 // ============================================================================
 export default function MissionControlV4() {
   return (
-    <Suspense fallback={<PageLoading message="Initializing Mission Control..." />}>
+    <Suspense fallback={<PageLoading message="Loading your missions..." />}>
       <MissionControlV4Content />
     </Suspense>
   );
