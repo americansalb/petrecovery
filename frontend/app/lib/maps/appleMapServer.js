@@ -12,9 +12,10 @@ import * as jose from 'jose';
 const APPLE_MAPS_API_BASE = 'https://maps-api.apple.com/v1';
 
 // Apple Maps credentials for Server API
-const TEAM_ID = process.env.APPLE_MAPS_TEAM_ID;
-const KEY_ID = process.env.APPLE_MAPS_KEY_ID;
-const PRIVATE_KEY = process.env.APPLE_MAPS_PRIVATE_KEY;
+// Use APPLE_MAPKIT_* for consistency with shelters/appleMapKit.js and .env.example
+const TEAM_ID = process.env.APPLE_MAPKIT_TEAM_ID;
+const KEY_ID = process.env.APPLE_MAPKIT_KEY_ID;
+const PRIVATE_KEY = process.env.APPLE_MAPKIT_PRIVATE_KEY;
 
 // Cache the token (valid for 30 min, we refresh at 25 min)
 let cachedToken = null;
@@ -30,7 +31,7 @@ async function getAppleMapsToken() {
   }
 
   if (!TEAM_ID || !KEY_ID || !PRIVATE_KEY) {
-    console.error('[AppleMapsServer] Missing credentials. Set APPLE_MAPS_TEAM_ID, APPLE_MAPS_KEY_ID, APPLE_MAPS_PRIVATE_KEY');
+    console.error('[AppleMapsServer] Missing credentials. Set APPLE_MAPKIT_TEAM_ID, APPLE_MAPKIT_KEY_ID, APPLE_MAPKIT_PRIVATE_KEY');
     throw new Error('Apple Maps not configured. Set environment variables.');
   }
 
