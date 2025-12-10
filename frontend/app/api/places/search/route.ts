@@ -24,11 +24,16 @@ import {
 
 // Check if Apple Maps is configured
 const isAppleMapsConfigured = () => {
-  return !!(
-    process.env.APPLE_MAPKIT_TEAM_ID &&
-    process.env.APPLE_MAPKIT_KEY_ID &&
-    process.env.APPLE_MAPKIT_PRIVATE_KEY
-  );
+  const teamId = process.env.APPLE_MAPKIT_TEAM_ID;
+  const keyId = process.env.APPLE_MAPKIT_KEY_ID;
+  const privateKey = process.env.APPLE_MAPKIT_PRIVATE_KEY;
+
+  const configured = !!(teamId && keyId && privateKey);
+
+  // Debug logging to help troubleshoot
+  console.log(`[Places API] Apple Maps config check: TEAM_ID=${teamId ? 'SET' : 'MISSING'}, KEY_ID=${keyId ? 'SET' : 'MISSING'}, PRIVATE_KEY=${privateKey ? 'SET' : 'MISSING'}`);
+
+  return configured;
 };
 
 // =============================================================================
