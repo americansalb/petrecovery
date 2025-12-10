@@ -22,11 +22,11 @@ import {
   searchAnimalControl as searchAnimalControlApple,
 } from '@/app/lib/maps/appleMapServer';
 
-// Check if Apple Maps is configured
+// Check if Apple Maps is configured (supports both APPLE_MAPKIT_* and APPLE_MAPS_* naming)
 const isAppleMapsConfigured = () => {
-  const teamId = process.env.APPLE_MAPKIT_TEAM_ID;
-  const keyId = process.env.APPLE_MAPKIT_KEY_ID;
-  const privateKey = process.env.APPLE_MAPKIT_PRIVATE_KEY;
+  const teamId = process.env.APPLE_MAPKIT_TEAM_ID || process.env.APPLE_MAPS_TEAM_ID;
+  const keyId = process.env.APPLE_MAPKIT_KEY_ID || process.env.APPLE_MAPS_KEY_ID;
+  const privateKey = process.env.APPLE_MAPKIT_PRIVATE_KEY || process.env.APPLE_MAPS_PRIVATE_KEY;
 
   const configured = !!(teamId && keyId && privateKey);
 

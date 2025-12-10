@@ -12,10 +12,10 @@ import * as jose from 'jose';
 const APPLE_MAPS_API_BASE = 'https://maps-api.apple.com/v1';
 
 // Apple Maps credentials for Server API
-// Use APPLE_MAPKIT_* for consistency with shelters/appleMapKit.js and .env.example
-const TEAM_ID = process.env.APPLE_MAPKIT_TEAM_ID;
-const KEY_ID = process.env.APPLE_MAPKIT_KEY_ID;
-const PRIVATE_KEY = process.env.APPLE_MAPKIT_PRIVATE_KEY;
+// Supports both APPLE_MAPKIT_* (documented) and APPLE_MAPS_* (legacy) naming
+const TEAM_ID = process.env.APPLE_MAPKIT_TEAM_ID || process.env.APPLE_MAPS_TEAM_ID;
+const KEY_ID = process.env.APPLE_MAPKIT_KEY_ID || process.env.APPLE_MAPS_KEY_ID;
+const PRIVATE_KEY = process.env.APPLE_MAPKIT_PRIVATE_KEY || process.env.APPLE_MAPS_PRIVATE_KEY;
 
 // Cache the token (valid for 30 min, we refresh at 25 min)
 let cachedToken = null;
