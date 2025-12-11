@@ -156,7 +156,9 @@ button, a, input[type="submit"], input[type="button"] {
 }
 
 /* Form inputs - better mobile experience */
-input, textarea, select {
+input:not([type="file"]):not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
   font-size: 16px; /* Prevents zoom on iOS */
   -webkit-appearance: none;
   appearance: none;
