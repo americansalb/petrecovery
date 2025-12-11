@@ -159,6 +159,44 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Quick Actions Bar - High visibility placement */}
+      <div className="bg-white border-b border-midnight-100 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-midnight-600 uppercase tracking-wider flex items-center gap-2">
+              <Zap className="w-4 h-4 text-flash-500" />
+              Quick Actions
+            </h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Link href="/report/new" className="block group">
+              <div className="flex items-center gap-3 p-3 bg-red-50 border-2 border-red-200 rounded-xl text-red-700 font-semibold hover:bg-red-100 hover:border-red-300 hover:shadow-md transition-all group-hover:-translate-y-0.5">
+                <Bell className="w-5 h-5" />
+                <span className="truncate">Report Lost Pet</span>
+              </div>
+            </Link>
+            <Link href="/found" className="block group">
+              <div className="flex items-center gap-3 p-3 bg-green-50 border-2 border-green-200 rounded-xl text-green-700 font-semibold hover:bg-green-100 hover:border-green-300 hover:shadow-md transition-all group-hover:-translate-y-0.5">
+                <CheckCircle2 className="w-5 h-5" />
+                <span className="truncate">Report Found Pet</span>
+              </div>
+            </Link>
+            <Link href="/rescue-squads/search" className="block group">
+              <div className="flex items-center gap-3 p-3 bg-blue-50 border-2 border-blue-200 rounded-xl text-blue-700 font-semibold hover:bg-blue-100 hover:border-blue-300 hover:shadow-md transition-all group-hover:-translate-y-0.5">
+                <Users className="w-5 h-5" />
+                <span className="truncate">Find Squads</span>
+              </div>
+            </Link>
+            <Link href="/shelters" className="block group">
+              <div className="flex items-center gap-3 p-3 bg-purple-50 border-2 border-purple-200 rounded-xl text-purple-700 font-semibold hover:bg-purple-100 hover:border-purple-300 hover:shadow-md transition-all group-hover:-translate-y-0.5">
+                <Building2 className="w-5 h-5" />
+                <span className="truncate">Search Shelters</span>
+              </div>
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Error Alert */}
@@ -173,7 +211,7 @@ export default function DashboardPage() {
           {/* Left Column - Main Content */}
           <div className="space-y-6">
             {/* Active Cases Section */}
-            <Card padding="none">
+            <Card padding="none" accent="red">
               <CardHeader
                 icon={Zap}
                 iconColor="bg-red-100 text-red-600"
@@ -236,10 +274,10 @@ export default function DashboardPage() {
             </Card>
 
             {/* My Squads Section */}
-            <Card padding="none">
+            <Card padding="none" accent="blue">
               <CardHeader
                 icon={Users}
-                iconColor="bg-midnight-100 text-midnight-600"
+                iconColor="bg-blue-100 text-blue-600"
                 title="My Rescue Squads"
                 description="Teams you're part of"
                 action={
@@ -304,7 +342,7 @@ export default function DashboardPage() {
 
             {/* Lost Pet Reports */}
             {reports.length > 0 && (
-              <Card padding="none">
+              <Card padding="none" accent="amber">
                 <CardHeader
                   icon={AlertCircle}
                   iconColor="bg-amber-100 text-amber-600"
@@ -387,12 +425,13 @@ export default function DashboardPage() {
           {/* Right Sidebar */}
           <div className="space-y-6">
             {/* Rescue Level Progress */}
-            <Card>
-              <h3 className="text-xs font-semibold text-midnight-500 uppercase tracking-wider mb-4">
-                Your Rescue Level
-              </h3>
+            <Card accent="green">
+              <div className="flex items-center gap-2 mb-4">
+                <Award className="w-4 h-4 text-green-500" />
+                <h3 className="text-sm font-bold text-midnight-700">Your Rescue Level</h3>
+              </div>
               <div className="flex items-center gap-4 mb-4">
-                <div className={`w-14 h-14 rounded-full ${rescueLevel.color} bg-opacity-20 flex items-center justify-center border-3 border-current`}>
+                <div className={`w-14 h-14 rounded-full ${rescueLevel.color} bg-opacity-20 flex items-center justify-center border-3 border-current shadow-sm`}>
                   <LevelIcon className={`w-7 h-7 ${rescueLevel.color.replace('bg-', 'text-')}`} />
                 </div>
                 <div>
@@ -416,45 +455,13 @@ export default function DashboardPage() {
               )}
             </Card>
 
-            {/* Quick Actions */}
-            <Card>
-              <h3 className="text-xs font-semibold text-midnight-500 uppercase tracking-wider mb-4">
-                Quick Actions
-              </h3>
-              <div className="space-y-3">
-                <Link href="/report/new" className="block">
-                  <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 font-semibold hover:bg-red-100 transition-colors">
-                    <Bell className="w-5 h-5" />
-                    Report Lost Pet
-                  </div>
-                </Link>
-                <Link href="/found" className="block">
-                  <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 font-semibold hover:bg-green-100 transition-colors">
-                    <CheckCircle2 className="w-5 h-5" />
-                    Report Found Pet
-                  </div>
-                </Link>
-                <Link href="/rescue-squads/search" className="block">
-                  <div className="flex items-center gap-3 p-3 bg-midnight-50 border border-midnight-200 rounded-xl text-midnight-700 font-semibold hover:bg-midnight-100 transition-colors">
-                    <Search className="w-5 h-5" />
-                    Find Rescue Squads
-                  </div>
-                </Link>
-                <Link href="/shelters" className="block">
-                  <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-200 rounded-xl text-purple-700 font-semibold hover:bg-purple-100 transition-colors">
-                    <Building2 className="w-5 h-5" />
-                    Search Nearby Shelters
-                  </div>
-                </Link>
-              </div>
-            </Card>
-
             {/* Nearby Alerts */}
             {nearbyAlerts.length > 0 && (
-              <Card>
-                <h3 className="text-xs font-semibold text-midnight-500 uppercase tracking-wider mb-4">
-                  Nearby Lost Pets
-                </h3>
+              <Card accent="orange">
+                <div className="flex items-center gap-2 mb-4">
+                  <MapPin className="w-4 h-4 text-orange-500" />
+                  <h3 className="text-sm font-bold text-midnight-700">Nearby Lost Pets</h3>
+                </div>
                 <div className="space-y-2">
                   {nearbyAlerts.slice(0, 5).map((alert) => (
                     <Link

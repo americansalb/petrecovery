@@ -4,13 +4,13 @@
  * Card Component
  *
  * A unified card component for consistent styling throughout the app.
- * Supports multiple variants for different use cases.
+ * Supports multiple variants, accent colors, and hover effects.
  */
 
 import { cn } from './utils';
 
 const variants = {
-  default: 'bg-white border border-midnight-200 shadow-card',
+  default: 'bg-white border border-midnight-200 shadow-sm',
   elevated: 'bg-white shadow-lg',
   outline: 'bg-white border-2 border-midnight-200',
   ghost: 'bg-midnight-50',
@@ -28,9 +28,24 @@ const paddings = {
   xl: 'p-8',
 };
 
+// Colored left border accents for visual variety
+const accents = {
+  none: '',
+  red: 'border-l-4 border-l-red-500',
+  orange: 'border-l-4 border-l-orange-500',
+  amber: 'border-l-4 border-l-amber-500',
+  yellow: 'border-l-4 border-l-flash-500',
+  green: 'border-l-4 border-l-green-500',
+  blue: 'border-l-4 border-l-blue-500',
+  purple: 'border-l-4 border-l-purple-500',
+  pink: 'border-l-4 border-l-pink-500',
+  midnight: 'border-l-4 border-l-midnight-600',
+};
+
 export function Card({
   variant = 'default',
   padding = 'md',
+  accent = 'none',
   hover = false,
   className,
   children,
@@ -42,7 +57,8 @@ export function Card({
         'rounded-2xl transition-all duration-200',
         variants[variant],
         paddings[padding],
-        hover && 'hover:shadow-card-hover hover:-translate-y-0.5 cursor-pointer',
+        accents[accent],
+        hover && 'hover:shadow-md hover:-translate-y-0.5 hover:border-midnight-300 cursor-pointer',
         className
       )}
       {...props}
@@ -54,6 +70,7 @@ export function Card({
 
 /**
  * CardHeader - Optional header section with title and description
+ * Enhanced typography for better visual hierarchy
  */
 export function CardHeader({ icon: Icon, iconColor, title, description, action, className }) {
   return (
@@ -61,14 +78,14 @@ export function CardHeader({ icon: Icon, iconColor, title, description, action, 
       <div className="flex items-center gap-3">
         {Icon && (
           <div className={cn(
-            'p-2 rounded-xl',
+            'p-2.5 rounded-xl shadow-sm',
             iconColor || 'bg-midnight-100 text-midnight-600'
           )}>
             <Icon className="w-5 h-5" />
           </div>
         )}
         <div>
-          <h3 className="font-semibold text-midnight-900 text-base">{title}</h3>
+          <h3 className="font-bold text-midnight-900 text-lg">{title}</h3>
           {description && (
             <p className="text-sm text-midnight-500 mt-0.5">{description}</p>
           )}
