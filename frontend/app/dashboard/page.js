@@ -15,7 +15,7 @@ import {
   Users, MapPin, Search, Clock, Award, Shield,
   ChevronRight, Plus, AlertCircle, CheckCircle2,
   Target, TrendingUp, Star, Zap, PawPrint, Bell, Building2,
-  ChevronDown, ArrowUpDown, ArrowUp, ArrowDown
+  ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, Mail, Calendar, UserCheck
 } from 'lucide-react';
 import { Card, CardHeader, Button, Badge, StatusBadge, EmptyState, CardSkeleton, ListItemSkeleton } from '@/components/ui';
 
@@ -50,6 +50,12 @@ export default function DashboardPage() {
   const [missionSort, setMissionSort] = useState({ field: 'activity', asc: false });
   const [showAllSquads, setShowAllSquads] = useState(false);
   const MAX_SQUADS_DISPLAY = 5;
+
+  // Admin members state
+  const [memberSort, setMemberSort] = useState({ field: 'recent', asc: false });
+  const [memberSearch, setMemberSearch] = useState('');
+  const [showAllMembers, setShowAllMembers] = useState(false);
+  const MAX_MEMBERS_DISPLAY = 10;
 
   // Toggle sort function
   const toggleSort = (current, setCurrent, field) => {
@@ -171,9 +177,10 @@ export default function DashboardPage() {
     return null;
   }
 
-  const { user, squads = [], activeCases = [], reports = [], nearbyAlerts = [], missions = [] } = userData;
+  const { user, squads = [], activeCases = [], reports = [], nearbyAlerts = [], missions = [], allMembers = [] } = userData;
   const rescueLevel = RESCUE_LEVELS[user?.rescueLevel] || RESCUE_LEVELS.PET_OWNER;
   const LevelIcon = rescueLevel.icon;
+  const isAdmin = user?.role === 'ADMIN';
 
   // Sort squads
   const sortedSquads = [...squads].sort((a, b) => {
@@ -212,6 +219,39 @@ export default function DashboardPage() {
   // Squads to display (limited or all)
   const displayedSquads = showAllSquads ? sortedSquads : sortedSquads.slice(0, MAX_SQUADS_DISPLAY);
   const hasMoreSquads = sortedSquads.length > MAX_SQUADS_DISPLAY;
+
+  // Filter and sort members (admin only)
+  const filteredMembers = allMembers.filter(member => {
+    if (!memberSearch) return true;
+    const search = memberSearch.toLowerCase();
+    return (
+      member.firstName?.toLowerCase().includes(search) ||
+      member.lastName?.toLowerCase().includes(search) ||
+      member.email?.toLowerCase().includes(search)
+    );
+  });
+
+  const sortedMembers = [...filteredMembers].sort((a, b) => {
+    let result = 0;
+    switch (memberSort.field) {
+      case 'name':
+        result = `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+        break;
+      case 'email':
+        result = (a.email || '').localeCompare(b.email || '');
+        break;
+      case 'activity':
+        result = new Date(b.lastLoginAt || 0) - new Date(a.lastLoginAt || 0);
+        break;
+      case 'recent':
+      default:
+        result = new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    }
+    return memberSort.asc ? -result : result;
+  });
+
+  const displayedMembers = showAllMembers ? sortedMembers : sortedMembers.slice(0, MAX_MEMBERS_DISPLAY);
+  const hasMoreMembers = sortedMembers.length > MAX_MEMBERS_DISPLAY;
 
   return (
     <div className="min-h-screen bg-midnight-50">
@@ -557,6 +597,135 @@ export default function DashboardPage() {
                 </div>
               )}
             </Card>
+
+            {/* Admin: All Members List */}
+            {isAdmin && (
+              <Card padding="none" accent="purple" className="animate-fade-in">
+                <div className="px-5 py-4 border-b border-midnight-100">
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                        <UserCheck className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-midnight-900">All Registered Members</h3>
+                        <p className="text-sm text-midnight-500">{allMembers.length} total users</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {[
+                        { field: 'recent', label: 'Newest' },
+                        { field: 'name', label: 'Name' },
+                        { field: 'activity', label: 'Active' },
+                      ].map(({ field, label }) => (
+                        <button
+                          key={field}
+                          onClick={() => toggleSort(memberSort, setMemberSort, field)}
+                          className={`px-2 py-1 text-xs rounded-md flex items-center gap-0.5 transition-colors ${
+                            memberSort.field === field
+                              ? 'bg-purple-100 text-purple-700 font-medium'
+                              : 'text-midnight-500 hover:bg-midnight-100'
+                          }`}
+                        >
+                          {label}
+                          {memberSort.field === field && (
+                            memberSort.asc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Search input */}
+                  <div className="mt-3">
+                    <input
+                      type="text"
+                      placeholder="Search by name or email..."
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-midnight-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {displayedMembers.length === 0 ? (
+                  <div className="p-6 text-center text-midnight-500">
+                    {memberSearch ? 'No members match your search' : 'No registered members'}
+                  </div>
+                ) : (
+                  <>
+                    <div className="divide-y divide-midnight-100">
+                      {displayedMembers.map((member) => (
+                        <div
+                          key={member.id}
+                          className="flex items-center justify-between p-4 hover:bg-midnight-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            {member.profileImage ? (
+                              <img
+                                src={member.profileImage}
+                                alt={`${member.firstName} ${member.lastName}`}
+                                className="w-10 h-10 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center text-white font-medium">
+                                {member.firstName?.[0]?.toUpperCase() || '?'}
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-semibold text-midnight-900">
+                                {member.firstName} {member.lastName}
+                              </div>
+                              <div className="text-sm text-midnight-500 flex items-center gap-1">
+                                <Mail className="w-3 h-3" />
+                                {member.email}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 text-sm">
+                            <div className="text-right hidden sm:block">
+                              <div className="text-midnight-500 flex items-center gap-1 justify-end">
+                                <Calendar className="w-3 h-3" />
+                                Joined {new Date(member.createdAt).toLocaleDateString()}
+                              </div>
+                              {member.lastLoginAt && (
+                                <div className="text-xs text-midnight-400">
+                                  Last active: {new Date(member.lastLoginAt).toLocaleDateString()}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              {member.role === 'ADMIN' && (
+                                <Badge className="bg-purple-100 text-purple-700">Admin</Badge>
+                              )}
+                              {member.emailVerified && (
+                                <Badge className="bg-green-100 text-green-700 text-xs">Verified</Badge>
+                              )}
+                            </div>
+                            <div className="text-midnight-400 text-xs text-right">
+                              <div>{member.squadsCount} squad{member.squadsCount !== 1 ? 's' : ''}</div>
+                              <div>{member.casesCount} case{member.casesCount !== 1 ? 's' : ''}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {hasMoreMembers && (
+                      <button
+                        onClick={() => setShowAllMembers(!showAllMembers)}
+                        className="w-full py-3 text-sm font-medium text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors flex items-center justify-center gap-1"
+                      >
+                        {showAllMembers ? (
+                          <>Show Less</>
+                        ) : (
+                          <>Show {sortedMembers.length - MAX_MEMBERS_DISPLAY} More</>
+                        )}
+                        <ChevronDown className={`w-4 h-4 transition-transform ${showAllMembers ? 'rotate-180' : ''}`} />
+                      </button>
+                    )}
+                  </>
+                )}
+              </Card>
+            )}
           </div>
 
           {/* Right Sidebar */}

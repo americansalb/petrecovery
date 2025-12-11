@@ -360,12 +360,62 @@ export async function GET(request) {
         }
       }));
 
+    // Admin: Fetch all registered members
+    let allMembers = [];
+    const isAdmin = user.role === 'ADMIN';
+
+    if (isAdmin) {
+      const allUsers = await prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          role: true,
+          rescueLevel: true,
+          createdAt: true,
+          lastLoginAt: true,
+          emailVerified: true,
+          profileImage: true,
+          squadsJoinedCount: true,
+          areasMarkedCount: true,
+          successfulReunions: true,
+          _count: {
+            select: {
+              cases: true,
+              rescueSquadMemberships: { where: { isActive: true } },
+            }
+          }
+        }
+      });
+
+      allMembers = allUsers.map(u => ({
+        id: u.id,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        email: u.email,
+        role: u.role,
+        rescueLevel: u.rescueLevel,
+        createdAt: u.createdAt,
+        lastLoginAt: u.lastLoginAt,
+        emailVerified: !!u.emailVerified,
+        profileImage: u.profileImage,
+        squadsJoinedCount: u.squadsJoinedCount || u._count.rescueSquadMemberships,
+        areasMarkedCount: u.areasMarkedCount || 0,
+        successfulReunions: u.successfulReunions || 0,
+        casesCount: u._count.cases,
+        squadsCount: u._count.rescueSquadMemberships,
+      }));
+    }
+
     return NextResponse.json({
       user: {
         id: user.id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
+        role: user.role,
         rescueLevel: user.rescueLevel,
         squadsJoinedCount: user.squadsJoinedCount,
         areasMarkedCount: user.areasMarkedCount,
@@ -382,6 +432,8 @@ export async function GET(request) {
       squads, // Squads user belongs to
       activeCases, // Cases user is actively helping with
       missions, // Unified list: all cases user is involved with (owner or volunteer)
+      // Admin-only data
+      ...(isAdmin && { allMembers }),
     });
 
   } catch (error) {
