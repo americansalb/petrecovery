@@ -14,7 +14,8 @@ import Link from 'next/link';
 import {
   Users, MapPin, Search, Clock, Award, Shield,
   ChevronRight, Plus, AlertCircle, CheckCircle2,
-  Target, TrendingUp, Star, Zap, PawPrint, Bell, Building2
+  Target, TrendingUp, Star, Zap, PawPrint, Bell, Building2,
+  ChevronDown, ArrowUpDown
 } from 'lucide-react';
 import { Card, CardHeader, Button, Badge, StatusBadge, EmptyState, CardSkeleton, ListItemSkeleton } from '@/components/ui';
 
@@ -43,6 +44,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
   const [error, setError] = useState('');
+
+  // Sorting and display states
+  const [squadSort, setSquadSort] = useState('activity'); // 'activity' | 'name' | 'members'
+  const [missionSort, setMissionSort] = useState('activity'); // 'activity' | 'name' | 'missing'
+  const [showAllSquads, setShowAllSquads] = useState(false);
+  const MAX_SQUADS_DISPLAY = 5;
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -159,6 +166,38 @@ export default function DashboardPage() {
   const rescueLevel = RESCUE_LEVELS[user?.rescueLevel] || RESCUE_LEVELS.PET_OWNER;
   const LevelIcon = rescueLevel.icon;
 
+  // Sort squads
+  const sortedSquads = [...squads].sort((a, b) => {
+    switch (squadSort) {
+      case 'name':
+        return a.name.localeCompare(b.name);
+      case 'members':
+        return (b.memberCount || 0) - (a.memberCount || 0);
+      case 'activity':
+      default:
+        // Sort by joinedAt (most recent first) as proxy for activity
+        return new Date(b.joinedAt || 0) - new Date(a.joinedAt || 0);
+    }
+  });
+
+  // Sort missions
+  const sortedMissions = [...missions].sort((a, b) => {
+    switch (missionSort) {
+      case 'name':
+        return a.petName.localeCompare(b.petName);
+      case 'missing':
+        return (b.hoursMissing || 0) - (a.hoursMissing || 0);
+      case 'activity':
+      default:
+        // Most recently active first (fewer hours missing = more recent)
+        return (a.hoursMissing || 0) - (b.hoursMissing || 0);
+    }
+  });
+
+  // Squads to display (limited or all)
+  const displayedSquads = showAllSquads ? sortedSquads : sortedSquads.slice(0, MAX_SQUADS_DISPLAY);
+  const hasMoreSquads = sortedSquads.length > MAX_SQUADS_DISPLAY;
+
   return (
     <div className="min-h-screen bg-midnight-50">
       {/* Hero Section */}
@@ -258,20 +297,37 @@ export default function DashboardPage() {
           <div className="space-y-6">
             {/* Active Squads */}
             <Card padding="none" accent="blue" className="animate-fade-in">
-              <CardHeader
-                icon={Users}
-                iconColor="bg-blue-100 text-blue-600"
-                title="Active Squads"
-                description="Teams you're part of"
-                action={
-                  <Link href="/rescue-squads/search">
-                    <Button variant="outline" size="sm" leftIcon={Plus}>
-                      Join Squad
-                    </Button>
-                  </Link>
-                }
-                className="px-5 py-4 border-b border-midnight-100"
-              />
+              <div className="px-5 py-4 border-b border-midnight-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-midnight-900">Active Squads</h3>
+                      <p className="text-sm text-midnight-500">Teams you're part of</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {squads.length > 0 && (
+                      <select
+                        value={squadSort}
+                        onChange={(e) => setSquadSort(e.target.value)}
+                        className="text-xs bg-midnight-50 border border-midnight-200 rounded-lg px-2 py-1.5 text-midnight-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      >
+                        <option value="activity">Latest Activity</option>
+                        <option value="name">Name</option>
+                        <option value="members">Members</option>
+                      </select>
+                    )}
+                    <Link href="/rescue-squads/search">
+                      <Button variant="outline" size="sm" leftIcon={Plus}>
+                        Join
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
 
               {squads.length === 0 ? (
                 <EmptyState
@@ -288,51 +344,82 @@ export default function DashboardPage() {
                   className="py-6"
                 />
               ) : (
-                <div className="divide-y divide-midnight-100">
-                  {squads.map((squad) => {
-                    const roleConfig = SQUAD_ROLES[squad.myRole] || SQUAD_ROLES.MEMBER;
-                    const RoleIcon = roleConfig.icon;
-                    return (
-                      <Link
-                        key={squad.id}
-                        href={`/rescue-squads/${squad.id}`}
-                        className="flex items-center justify-between p-4 hover:bg-midnight-50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white">
-                            <Users className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-midnight-900">
-                              {squad.name}
+                <>
+                  <div className="divide-y divide-midnight-100">
+                    {displayedSquads.map((squad) => {
+                      const roleConfig = SQUAD_ROLES[squad.myRole] || SQUAD_ROLES.MEMBER;
+                      return (
+                        <Link
+                          key={squad.id}
+                          href={`/rescue-squads/${squad.id}`}
+                          className="flex items-center justify-between p-4 hover:bg-midnight-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white">
+                              <Users className="w-5 h-5" />
                             </div>
-                            <div className="text-sm text-midnight-500">
-                              {squad.memberCount} member{squad.memberCount !== 1 ? 's' : ''}
+                            <div>
+                              <div className="font-semibold text-midnight-900">
+                                {squad.name}
+                              </div>
+                              <div className="text-sm text-midnight-500">
+                                {squad.memberCount} member{squad.memberCount !== 1 ? 's' : ''}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={roleConfig.color}>
-                            {roleConfig.label}
-                          </Badge>
-                          <ChevronRight className="w-5 h-5 text-midnight-300" />
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
+                          <div className="flex items-center gap-2">
+                            <Badge className={roleConfig.color}>
+                              {roleConfig.label}
+                            </Badge>
+                            <ChevronRight className="w-5 h-5 text-midnight-300" />
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                  {hasMoreSquads && (
+                    <button
+                      onClick={() => setShowAllSquads(!showAllSquads)}
+                      className="w-full py-3 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors flex items-center justify-center gap-1"
+                    >
+                      {showAllSquads ? (
+                        <>Show Less</>
+                      ) : (
+                        <>Show {sortedSquads.length - MAX_SQUADS_DISPLAY} More</>
+                      )}
+                      <ChevronDown className={`w-4 h-4 transition-transform ${showAllSquads ? 'rotate-180' : ''}`} />
+                    </button>
+                  )}
+                </>
               )}
             </Card>
 
             {/* Active Missions */}
             <Card padding="none" accent="amber" className="animate-fade-in">
-              <CardHeader
-                icon={Target}
-                iconColor="bg-amber-100 text-amber-600"
-                title="Active Missions"
-                description="Cases you're involved with"
-                className="px-5 py-4 border-b border-midnight-100"
-              />
+              <div className="px-5 py-4 border-b border-midnight-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                      <Target className="w-4 h-4 text-amber-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-midnight-900">Active Missions</h3>
+                      <p className="text-sm text-midnight-500">Cases you're involved with</p>
+                    </div>
+                  </div>
+                  {missions.length > 0 && (
+                    <select
+                      value={missionSort}
+                      onChange={(e) => setMissionSort(e.target.value)}
+                      className="text-xs bg-midnight-50 border border-midnight-200 rounded-lg px-2 py-1.5 text-midnight-600 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    >
+                      <option value="activity">Latest Activity</option>
+                      <option value="name">Name</option>
+                      <option value="missing">Time Missing</option>
+                    </select>
+                  )}
+                </div>
+              </div>
 
               {missions.length === 0 ? (
                 <EmptyState
@@ -350,7 +437,7 @@ export default function DashboardPage() {
                 />
               ) : (
                 <div className="divide-y divide-midnight-100">
-                  {missions.map((mission) => (
+                  {sortedMissions.map((mission) => (
                     <Link
                       key={mission.id}
                       href={`/cases/${mission.caseNumber}`}

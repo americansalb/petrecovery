@@ -172,7 +172,6 @@ input[type="url"],
 textarea,
 select {
   border-radius: 8px;
-  padding: 12px 16px;
   border: 1px solid #e2e8f0;
   background: white;
   width: 100%;
