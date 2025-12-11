@@ -6,7 +6,7 @@ import { PET_COLORS } from '../lib/colors';
 export default function ColorSelector({ value, onChange }) {
   const [selectedColors, setSelectedColors] = useState([]);
   const [inputValue, setInputValue] = useState('');
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(true); // Show dropdown by default
   const [filteredColors, setFilteredColors] = useState(PET_COLORS);
   const [isOther, setIsOther] = useState(false);
   const dropdownRef = useRef(null);
@@ -129,29 +129,25 @@ export default function ColorSelector({ value, onChange }) {
         }}
         placeholder={
           isOther
-            ? "Type color and press Enter to add..."
-            : "Click to select colors or start typing..."
+            ? "Type a custom color and press Enter..."
+            : "Type to filter colors below..."
         }
         className="color-input"
       />
 
-      {/* Dropdown */}
-      {showDropdown && !isOther && filteredColors.length > 0 && (
-        <div ref={dropdownRef} className="color-dropdown">
+      {/* Color Options Grid - Always visible when not in "Other" mode */}
+      {!isOther && (
+        <div ref={dropdownRef} className="color-grid">
           {filteredColors.map((color) => (
-            <div
+            <button
               key={color}
+              type="button"
               onClick={() => handleColorClick(color)}
-              className={`color-dropdown-item ${selectedColors.includes(color) ? 'selected' : ''}`}
+              className={`color-grid-item ${selectedColors.includes(color) ? 'selected' : ''}`}
             >
-              <input
-                type="checkbox"
-                checked={selectedColors.includes(color)}
-                readOnly
-                className="color-checkbox"
-              />
               {color}
-            </div>
+              {selectedColors.includes(color) && <span className="color-check">✓</span>}
+            </button>
           ))}
         </div>
       )}
@@ -170,8 +166,10 @@ export default function ColorSelector({ value, onChange }) {
       {/* Help Text */}
       <p className="color-help-text">
         {isOther
-          ? "Type a color and press Enter to add it"
-          : `${selectedColors.length} color${selectedColors.length !== 1 ? 's' : ''} selected - click colors to add/remove`}
+          ? "Type a color name and press Enter to add it"
+          : selectedColors.length > 0
+            ? `${selectedColors.length} color${selectedColors.length !== 1 ? 's' : ''} selected — click again to remove`
+            : "Click colors below to select (you can choose multiple)"}
       </p>
 
       <style jsx>{`
@@ -222,42 +220,45 @@ export default function ColorSelector({ value, onChange }) {
           border-color: #6366f1;
           box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
-        .color-dropdown {
-          position: absolute;
-          top: calc(100% + 0.25rem);
-          left: 0;
-          right: 0;
-          max-height: 250px;
+        .color-grid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          margin-top: 0.75rem;
+          padding: 0.75rem;
+          background: #f9fafb;
+          border: 2px solid #e5e7eb;
+          border-radius: 0.5rem;
+          max-height: 200px;
           overflow-y: auto;
-          background: white;
+        }
+        .color-grid-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+          padding: 0.5rem 0.75rem;
           border: 2px solid #d1d5db;
           border-radius: 0.5rem;
-          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-          z-index: 1000;
-        }
-        .color-dropdown-item {
-          padding: 0.75rem 1rem;
+          background: white;
+          color: #374151;
+          font-size: 0.875rem;
+          font-weight: 500;
           cursor: pointer;
-          border-bottom: 1px solid #e5e7eb;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          color: #111827;
-          transition: background 0.15s;
+          transition: all 0.15s;
         }
-        .color-dropdown-item:hover {
-          background: #f3f4f6;
+        .color-grid-item:hover {
+          border-color: #6366f1;
+          background: #f5f3ff;
         }
-        .color-dropdown-item.selected {
+        .color-grid-item.selected {
+          border-color: #10b981;
           background: rgba(16, 185, 129, 0.15);
+          color: #059669;
+          font-weight: 600;
         }
-        .color-checkbox {
-          width: 18px;
-          height: 18px;
-          min-width: 18px;
-          min-height: 18px;
-          cursor: pointer;
-          accent-color: #6366f1;
+        .color-check {
+          font-size: 0.75rem;
+          font-weight: bold;
         }
         .color-other-label {
           display: flex;

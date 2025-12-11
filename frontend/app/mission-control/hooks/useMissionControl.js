@@ -58,6 +58,7 @@ export default function useMissionControl(session) {
   const [tasks, setTasks] = useState([]);
   const [isGPSTracking, setIsGPSTracking] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [isJoining, setIsJoining] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState(['immediate']);
 
   // ============================================================
@@ -255,24 +256,45 @@ export default function useMissionControl(session) {
   // ============================================================
 
   const handleJoinMission = useCallback(async () => {
-    if (!activeMission) return;
+    if (!activeMission) {
+      showNotification('error', 'No active mission to join');
+      return;
+    }
+    if (isJoining) return; // Prevent double-click
+
     try {
       const squadId = activeMission.rescueSquadId || activeMission.squadId || activeMission.assignments?.[0]?.rescueSquadId;
-      if (!squadId) return;
+      if (!squadId) {
+        showNotification('info', 'This case needs a rescue squad first. Find one nearby to coordinate the search!');
+        return;
+      }
+
+      setIsJoining(true);
 
       const res = await fetchWithRetry(`/api/rescue-squads/${squadId}/cases/${activeMission.id}/help`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
 
-      if (res.ok || (res.status === 400)) {
+      if (res.ok) {
+        showNotification('success', 'You\'ve joined the search team! Check the Actions tab for ways to help.');
         await fetchMission(missionId);
         await fetchAvailableMissions();
+      } else if (res.status === 400) {
+        const data = await res.json().catch(() => ({}));
+        showNotification('info', data.error || 'You\'re already helping with this case!');
+        await fetchMission(missionId);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showNotification('error', data.error || 'Could not join mission. Please try again.');
       }
     } catch (err) {
       console.error('Error joining mission:', err);
+      showNotification('error', 'Network error. Please check your connection and try again.');
+    } finally {
+      setIsJoining(false);
     }
-  }, [activeMission, missionId, fetchMission, fetchAvailableMissions]);
+  }, [activeMission, missionId, fetchMission, fetchAvailableMissions, showNotification, isJoining]);
 
   // GPS Tracking
   const startGPSTracking = useCallback(() => {
@@ -372,6 +394,7 @@ export default function useMissionControl(session) {
     setTasks,
     isGPSTracking,
     setIsGPSTracking,
+    isJoining,
     selectedTask,
     setSelectedTask,
     expandedCategories,

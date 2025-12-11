@@ -337,6 +337,46 @@ export async function geocode(address) {
 }
 
 /**
+ * Get detailed place information by ID
+ * The /place/{id} endpoint may return additional details like phone/hours
+ *
+ * @param {string} placeId - The Apple Maps place ID
+ * @returns {Promise<Object|null>} Place details or null
+ */
+export async function getPlaceDetails(placeId) {
+  if (!placeId) return null;
+
+  try {
+    const data = await appleMapsFetch(`/place/${placeId}`, {
+      lang: 'en-US',
+    });
+
+    console.log('[AppleMapsServer] Place details response fields:', Object.keys(data || {}));
+
+    if (!data) return null;
+
+    return {
+      placeId: data.id || placeId,
+      name: data.name,
+      address: formatAppleAddress(data),
+      location: {
+        lat: data.center?.latitude || data.coordinate?.latitude,
+        lng: data.center?.longitude || data.coordinate?.longitude,
+      },
+      category: data.poiCategory,
+      // Try all possible phone field names
+      phone: data.telephone || data.phoneNumber || data.phone || data.tel || null,
+      url: data.url || data.website || null,
+      // Try all possible hours field names
+      hours: data.openingHours || data.hoursOfOperation || data.hours || data.operatingHours || null,
+    };
+  } catch (error) {
+    console.error('[AppleMapsServer] Get place details error:', error.message);
+    return null;
+  }
+}
+
+/**
  * Reverse geocode coordinates to address
  */
 export async function reverseGeocode(lat, lng) {
@@ -390,6 +430,45 @@ function formatAppleAddress(place) {
   return parts.join(', ') || place.name || '';
 }
 
+/**
+ * Enrich search results with detailed place information
+ * Fetches phone/hours for each place (rate limited)
+ *
+ * @param {Array} places - Array of search results
+ * @param {number} limit - Max places to enrich (default 10)
+ * @returns {Promise<Array>} Enriched places
+ */
+export async function enrichPlacesWithDetails(places, limit = 10) {
+  const enriched = [];
+
+  for (const place of places.slice(0, limit)) {
+    if (place.placeId) {
+      try {
+        const details = await getPlaceDetails(place.placeId);
+        if (details) {
+          enriched.push({
+            ...place,
+            phone: details.phone || place.phone,
+            url: details.url || place.url,
+            hours: details.hours || place.hours,
+          });
+        } else {
+          enriched.push(place);
+        }
+      } catch (error) {
+        enriched.push(place);
+      }
+    } else {
+      enriched.push(place);
+    }
+  }
+
+  // Add remaining places without enrichment
+  enriched.push(...places.slice(limit));
+
+  return enriched;
+}
+
 export default {
   searchPlaces,
   searchShelters,
@@ -397,4 +476,6 @@ export default {
   searchAnimalControl,
   geocode,
   reverseGeocode,
+  getPlaceDetails,
+  enrichPlacesWithDetails,
 };

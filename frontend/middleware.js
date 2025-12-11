@@ -20,7 +20,7 @@ const rateLimitMap = new Map();
 const RATE_LIMIT_CONFIG = {
   '/api/auth/register': { windowMs: 60000, maxRequests: 5 },
   '/api/auth/login': { windowMs: 60000, maxRequests: 10 },
-  '/api/cases': { windowMs: 60000, maxRequests: 30 },
+  '/api/cases': { windowMs: 60000, maxRequests: 120 },
   '/api/contact': { windowMs: 60000, maxRequests: 5 },
   default: { windowMs: 60000, maxRequests: 100 },
 };

@@ -50,6 +50,7 @@ import {
   Info,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from 'lucide-react';
 
 // ============================================================================
@@ -90,6 +91,7 @@ function MissionControlV4Content() {
     setGpsPath,
     isGPSTracking,
     setIsGPSTracking,
+    isJoining,
 
     // Computed values
     timeMissing,
@@ -275,9 +277,21 @@ function MissionControlV4Content() {
           {!isReunited && !isOwner && !isDeployed && (
             <button
               onClick={handleJoinMission}
-              className="px-3 py-1.5 rounded-lg bg-flash-500 text-slate-900 font-bold text-sm hover:bg-flash-400 transition flex-shrink-0"
+              disabled={isJoining}
+              className={`px-3 py-1.5 rounded-lg font-bold text-sm transition flex-shrink-0 flex items-center gap-1.5 ${
+                isJoining
+                  ? 'bg-flash-300 text-slate-700 cursor-wait'
+                  : 'bg-flash-500 text-slate-900 hover:bg-flash-400'
+              }`}
             >
-              Join
+              {isJoining ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  Joining...
+                </>
+              ) : (
+                'Join'
+              )}
             </button>
           )}
 

@@ -21,6 +21,8 @@ import {
   searchShelters as searchSheltersApple,
   searchVets as searchVetsApple,
   searchAnimalControl as searchAnimalControlApple,
+  getPlaceDetails as getApplePlaceDetails,
+  enrichPlacesWithDetails,
 } from '@/app/lib/maps/appleMapServer';
 import { searchSheltersWithCache } from '@/app/lib/maps/shelterCacheService';
 
@@ -149,6 +151,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         }
 
         console.log(`[Places API] Apple Maps found ${places.length} results`);
+
+        // Log first result to see available fields
+        if (places.length > 0) {
+          console.log('[Places API] First result fields:', JSON.stringify(places[0], null, 2));
+
+          // Try to fetch detailed info for the first place to see what's available
+          if (places[0].placeId) {
+            try {
+              const details = await getApplePlaceDetails(places[0].placeId);
+              console.log('[Places API] Place details response:', JSON.stringify(details, null, 2));
+            } catch (detailsError: any) {
+              console.log('[Places API] Place details endpoint error:', detailsError.message);
+            }
+          }
+        }
       } catch (appleError: any) {
         console.error('[Places API] Apple Maps failed:', appleError.message);
         places = [];
@@ -215,7 +232,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  * POST /api/places/search
  *
  * Get detailed info for a specific place
- * Returns the place data with a maps link
+ * Returns the place data with a maps link, and tries to fetch phone/hours from Apple Maps
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -224,13 +241,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { placeId, name, address, location } = await request.json();
+    const { placeId, name, address, location, source: placeSource } = await request.json();
 
     if (!placeId) {
       return NextResponse.json(
         { error: 'Missing placeId' },
         { status: 400 }
       );
+    }
+
+    let phone = null;
+    let url = null;
+    let hours = null;
+
+    // Try to fetch details from Apple Maps if we have a valid place ID
+    if (placeId && isAppleMapsConfigured()) {
+      try {
+        console.log('[Places API] Fetching Apple Maps details for:', placeId);
+        const details = await getApplePlaceDetails(placeId);
+        if (details) {
+          phone = details.phone;
+          url = details.url;
+          hours = details.hours;
+          console.log('[Places API] Got details:', { phone, url, hours: !!hours });
+        }
+      } catch (detailsError: any) {
+        console.log('[Places API] Could not fetch Apple Maps details:', detailsError.message);
+      }
     }
 
     // Generate Google Maps URL for directions/details (more universal)
@@ -245,8 +282,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       name,
       address,
       location,
+      phone,
+      url,
+      hours,
       mapsUrl,
-      source: 'openstreetmap',
+      source: placeSource || 'unknown',
     });
   } catch (error) {
     console.error('Place details error:', error);
