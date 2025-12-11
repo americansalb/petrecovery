@@ -1661,7 +1661,7 @@ function ShelterSearchButton({ caseId, mission, onPointsEarned }) {
 
 // Full Shelter Contact Modal (combines search + contact list)
 function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, onClose, onAddShelter, onPointsEarned }) {
-  const [activeTab, setActiveTab] = useState('contacts'); // 'contacts' | 'search'
+  const [activeTab, setActiveTab] = useState('search'); // Start on search tab
   const [selectedShelter, setSelectedShelter] = useState(null);
   const [showCallModal, setShowCallModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -1674,11 +1674,13 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
   const [searchError, setSearchError] = useState(null);
   const [searching, setSearching] = useState(false);
   const [adding, setAdding] = useState({});
+  const [searchMeta, setSearchMeta] = useState(null); // Store source info
 
   const searchPlaces = async () => {
     if (!mission?.lastSeenLatitude || !mission?.lastSeenLongitude) return;
     setSearching(true);
     setSearchError(null);
+    setSearchMeta(null);
 
     try {
       const res = await fetch(
@@ -1686,23 +1688,44 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
       );
       if (res.ok) {
         const data = await res.json();
+        console.log('[ShelterModal] Search response:', {
+          source: data.source,
+          total: data.total,
+          cacheHit: data.cacheHit,
+          citiesSearched: data.citiesSearched,
+          citiesRefreshed: data.citiesRefreshed,
+        });
+
         if (data.error) {
           setSearchError(data.error);
           setSearchResults([]);
         } else {
+          // Store metadata for display
+          setSearchMeta({
+            source: data.source,
+            total: data.total,
+            cacheHit: data.cacheHit,
+            citiesSearched: data.citiesSearched,
+            citiesRefreshed: data.citiesRefreshed,
+          });
+
           setSearchResults((data.places || []).map(place => ({
             place_id: place.placeId || place.id,
             name: place.name,
             vicinity: place.address,
+            city: place.city,
+            state: place.state,
             distanceMiles: place.distanceMiles,
             phone: place.phone,
-            // Handle both location object (Apple Maps) and direct lat/lng (database)
+            website: place.website,
+            hours: place.hours,
+            source: place.source, // APPLE_MAPKIT, database, etc.
             geometry: { location: { lat: place.location?.lat ?? place.latitude, lng: place.location?.lng ?? place.longitude } },
-            rating: place.rating,
-            user_ratings_total: place.userRatingsTotal,
             placeType: searchType === 'shelter' ? 'SHELTER' : searchType === 'vet' ? 'VET' : 'ANIMAL_CONTROL',
           })));
         }
+      } else {
+        setSearchError('Search failed. Please try again.');
       }
     } catch (err) {
       console.error('Search failed:', err);
@@ -1711,8 +1734,6 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
       setSearching(false);
     }
   };
-
-  // Manual search only - no auto-search on tab/option change
 
   const handleAdd = async (place) => {
     setAdding(prev => ({ ...prev, [place.place_id]: true }));
@@ -1767,215 +1788,359 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
     }
   };
 
+  // Parse hours JSON if it's a string
+  const parseHours = (hours) => {
+    if (!hours) return null;
+    try {
+      return typeof hours === 'string' ? JSON.parse(hours) : hours;
+    } catch {
+      return null;
+    }
+  };
+
   const notContacted = shelters.filter(s => s.status === 'NOT_CONTACTED');
   const contacted = shelters.filter(s => s.status !== 'NOT_CONTACTED');
   const existingPlaceIds = shelters.map(s => s.placeId);
 
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 rounded-2xl max-w-lg w-full border border-slate-700 shadow-xl max-h-[85vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-700">
-          <div className="flex items-center gap-3">
-            <Building2 className="text-orange-400" size={24} />
-            <div>
-              <h3 className="text-white font-semibold">Shelters & Vets</h3>
-              <p className="text-xs text-slate-400">Call: 8 pts • Email: 15 pts</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg">
-            <X className="text-slate-400" size={20} />
-          </button>
-        </div>
+  const typeLabels = {
+    shelter: 'Shelters',
+    vet: 'Veterinarians',
+    animal_control: 'Animal Control',
+  };
 
-        {/* Tabs */}
-        <div className="flex border-b border-slate-700">
-          <button
-            onClick={() => setActiveTab('contacts')}
-            className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
-              activeTab === 'contacts'
-                ? 'text-orange-400 border-b-2 border-orange-400'
-                : 'text-slate-400 hover:text-slate-300'
-            }`}
-          >
-            My List ({shelters.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('search')}
-            className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
-              activeTab === 'search'
-                ? 'text-orange-400 border-b-2 border-orange-400'
-                : 'text-slate-400 hover:text-slate-300'
-            }`}
-          >
-            Find Nearby
-          </button>
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-900 rounded-3xl w-full max-w-3xl border border-slate-700/50 shadow-2xl flex flex-col" style={{ height: '90vh', maxHeight: '800px' }}>
+
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-slate-900">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-white">Shelters & Vets</h2>
+              <p className="text-slate-400 mt-1">Find and contact nearby shelters about this pet</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2.5 hover:bg-slate-700 rounded-xl transition-colors"
+            >
+              <X className="text-slate-400" size={24} />
+            </button>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-2 mt-5">
+            <button
+              onClick={() => setActiveTab('search')}
+              className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all ${
+                activeTab === 'search'
+                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/25'
+                  : 'bg-slate-800/50 text-slate-400 hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <Search size={18} className="inline mr-2 -mt-0.5" />
+              Find Nearby
+            </button>
+            <button
+              onClick={() => setActiveTab('contacts')}
+              className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all relative ${
+                activeTab === 'contacts'
+                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/25'
+                  : 'bg-slate-800/50 text-slate-400 hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <Building2 size={18} className="inline mr-2 -mt-0.5" />
+              My List ({shelters.length})
+              {notContacted.length > 0 && activeTab !== 'contacts' && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  {notContacted.length}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
-          {activeTab === 'contacts' ? (
-            <div className="p-3 space-y-2">
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="text-orange-400 animate-spin" size={24} />
+          {activeTab === 'search' ? (
+            <div className="p-6">
+              {/* Search Controls */}
+              <div className="bg-slate-800/30 rounded-2xl p-5 border border-slate-700/30">
+                {/* Type Selection */}
+                <div className="flex gap-3 mb-4">
+                  {[
+                    { value: 'shelter', label: 'Shelters', icon: '🏠' },
+                    { value: 'vet', label: 'Vets', icon: '🏥' },
+                    { value: 'animal_control', label: 'Animal Ctrl', icon: '🚔' },
+                  ].map(btn => (
+                    <button
+                      key={btn.value}
+                      onClick={() => setSearchType(btn.value)}
+                      className={`flex-1 py-3.5 px-4 rounded-xl font-semibold transition-all ${
+                        searchType === btn.value
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      <span className="mr-2">{btn.icon}</span>
+                      {btn.label}
+                    </button>
+                  ))}
                 </div>
-              ) : shelters.length === 0 ? (
-                <div className="text-center py-8 text-slate-400">
-                  <Building2 size={32} className="mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No shelters added yet</p>
-                  <button
-                    onClick={() => setActiveTab('search')}
-                    className="mt-2 text-orange-400 text-sm hover:underline"
-                  >
-                    Find nearby shelters →
-                  </button>
+
+                {/* Radius Selection */}
+                <div className="flex items-center gap-3 mb-5">
+                  <span className="text-slate-400 text-sm font-medium">Search Radius:</span>
+                  <div className="flex gap-2 flex-1">
+                    {[10, 25, 50, 75].map(r => (
+                      <button
+                        key={r}
+                        onClick={() => setSearchRadius(r)}
+                        className={`flex-1 py-2.5 rounded-lg font-semibold transition-all ${
+                          searchRadius === r
+                            ? 'bg-orange-500/20 text-orange-400 border-2 border-orange-500/50'
+                            : 'bg-slate-700/30 text-slate-400 border-2 border-transparent hover:border-slate-600'
+                        }`}
+                      >
+                        {r} mi
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              ) : (
-                <>
-                  {notContacted.length > 0 && (
-                    <div className="space-y-1.5">
-                      <p className="text-xs text-slate-500 uppercase px-1">To Contact ({notContacted.length})</p>
-                      {notContacted.map(shelter => (
-                        <ShelterListItem
-                          key={shelter.id}
-                          shelter={shelter}
-                          onCall={() => { setSelectedShelter(shelter); setShowCallModal(true); }}
-                          onEmail={() => { setSelectedShelter(shelter); setShowEmailModal(true); }}
-                        />
-                      ))}
-                    </div>
+
+                {/* Search Button */}
+                <button
+                  onClick={searchPlaces}
+                  disabled={searching}
+                  className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:from-orange-600 disabled:to-orange-700 disabled:cursor-wait text-white font-bold text-lg rounded-xl transition-all flex items-center justify-center gap-3 shadow-lg shadow-orange-500/30"
+                >
+                  {searching ? (
+                    <>
+                      <Loader2 size={22} className="animate-spin" />
+                      Searching {typeLabels[searchType]}...
+                    </>
+                  ) : (
+                    <>
+                      <Search size={22} />
+                      Search {typeLabels[searchType]}
+                    </>
                   )}
-                  {contacted.length > 0 && (
-                    <div className="space-y-1.5 mt-3">
-                      <p className="text-xs text-slate-500 uppercase px-1">Contacted ({contacted.length})</p>
-                      {contacted.map(shelter => (
-                        <ShelterListItem
-                          key={shelter.id}
-                          shelter={shelter}
-                          onCall={() => { setSelectedShelter(shelter); setShowCallModal(true); }}
-                          onEmail={() => { setSelectedShelter(shelter); setShowEmailModal(true); }}
-                          contacted
-                        />
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          ) : (
-            <div className="p-3 space-y-3">
-              {/* Type filter */}
-              <div className="flex gap-2">
-                {[
-                  { value: 'shelter', label: 'Shelters' },
-                  { value: 'vet', label: 'Vets' },
-                  { value: 'animal_control', label: 'Animal Ctrl' },
-                ].map(btn => (
-                  <button
-                    key={btn.value}
-                    onClick={() => setSearchType(btn.value)}
-                    className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                      searchType === btn.value
-                        ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50'
-                        : 'bg-slate-800 text-slate-400 border border-slate-700'
-                    }`}
-                  >
-                    {btn.label}
-                  </button>
-                ))}
+                </button>
               </div>
 
-              {/* Radius filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">Radius:</span>
-                {[10, 25, 50, 75].map(r => (
-                  <button
-                    key={r}
-                    onClick={() => setSearchRadius(r)}
-                    className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${
-                      searchRadius === r
-                        ? 'bg-orange-500 text-white'
-                        : 'bg-slate-800 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {r}mi
-                  </button>
-                ))}
-              </div>
-
-              {/* Search button */}
-              <button
-                onClick={searchPlaces}
-                disabled={searching}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-orange-500 hover:bg-orange-400 disabled:bg-orange-500/50 text-white font-medium rounded-lg transition-colors"
-              >
-                {searching ? (
-                  <>
-                    <Loader2 className="animate-spin" size={16} />
-                    Searching...
-                  </>
-                ) : (
-                  <>
-                    <Search size={16} />
-                    Search Now
-                  </>
-                )}
-              </button>
-
-              {/* Error display */}
+              {/* Error State */}
               {searchError && (
-                <div className="p-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-xs">
-                  {searchError}
+                <div className="mt-5 p-5 bg-red-950/50 border-2 border-red-500/30 rounded-2xl">
+                  <div className="flex items-start gap-4">
+                    <div className="p-2.5 bg-red-500/20 rounded-xl shrink-0">
+                      <X className="text-red-400" size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-red-300 font-semibold">Search Failed</h4>
+                      <p className="text-red-400/80 text-sm mt-1">{searchError}</p>
+                      <button
+                        onClick={searchPlaces}
+                        className="mt-3 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-lg"
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {/* Results */}
-              {searching ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="text-orange-400 animate-spin" size={24} />
+              {/* Results Meta - Source Info */}
+              {searchMeta && searchResults.length > 0 && (
+                <div className="mt-5 flex items-center justify-between px-2">
+                  <p className="text-slate-400 text-sm">
+                    Found <span className="text-white font-semibold">{searchMeta.total}</span> {typeLabels[searchType].toLowerCase()}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className={`px-2.5 py-1 rounded-full font-medium ${
+                      searchMeta.source === 'database'
+                        ? 'bg-blue-500/20 text-blue-300'
+                        : searchMeta.source === 'apple'
+                        ? 'bg-gray-500/20 text-gray-300'
+                        : 'bg-green-500/20 text-green-300'
+                    }`}>
+                      {searchMeta.source === 'database' ? '💾 Cached' : searchMeta.source === 'apple' ? '🍎 Apple Maps' : '🗺️ OpenStreetMap'}
+                    </span>
+                    {searchMeta.source === 'database' && searchMeta.citiesRefreshed > 0 && (
+                      <span className="px-2.5 py-1 rounded-full bg-yellow-500/20 text-yellow-300">
+                        ↻ {searchMeta.citiesRefreshed} cities refreshed
+                      </span>
+                    )}
+                  </div>
                 </div>
-              ) : searchResults.length === 0 && !searchError ? (
-                <div className="text-center py-6 text-slate-400">
-                  <Search size={28} className="mx-auto mb-2 opacity-40" />
-                  <p className="text-sm">Select options and click Search Now</p>
-                </div>
-              ) : (
-                <div className="space-y-1.5">
+              )}
+
+              {/* Results List */}
+              {!searching && searchResults.length > 0 && (
+                <div className="mt-4 space-y-3">
                   {searchResults.map(place => {
                     const isAdded = existingPlaceIds.includes(place.place_id);
+                    const hours = parseHours(place.hours);
+
                     return (
                       <div
                         key={place.place_id}
-                        className={`flex items-center justify-between p-2.5 rounded-lg border ${
-                          isAdded ? 'bg-green-500/10 border-green-500/30' : 'bg-slate-800/50 border-slate-700/50'
+                        className={`p-4 rounded-2xl border-2 transition-all ${
+                          isAdded
+                            ? 'bg-green-950/30 border-green-500/30'
+                            : 'bg-slate-800/40 border-slate-700/40 hover:border-slate-600/60'
                         }`}
                       >
-                        <div className="flex-1 min-w-0 mr-2">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-sm text-white font-medium truncate">{place.name}</p>
-                            {place.distanceMiles && (
-                              <span className="text-[10px] text-slate-500 bg-slate-700 px-1 rounded shrink-0">
-                                {place.distanceMiles}mi
-                              </span>
+                        <div className="flex items-start gap-4">
+                          <div className="flex-1 min-w-0">
+                            {/* Name and Distance */}
+                            <div className="flex items-start justify-between gap-3">
+                              <h4 className="text-white font-semibold text-lg leading-tight">{place.name}</h4>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {place.distanceMiles != null && (
+                                  <span className="px-3 py-1 bg-orange-500/20 text-orange-300 text-sm font-semibold rounded-full">
+                                    {place.distanceMiles} mi
+                                  </span>
+                                )}
+                                {isAdded && (
+                                  <span className="px-3 py-1 bg-green-500/20 text-green-300 text-sm font-semibold rounded-full">
+                                    ✓ Added
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Address */}
+                            <p className="text-slate-400 text-sm mt-1.5">{place.vicinity}</p>
+
+                            {/* Phone */}
+                            {place.phone && (
+                              <div className="flex items-center gap-2 mt-3">
+                                <Phone size={14} className="text-slate-500" />
+                                <a href={`tel:${place.phone}`} className="text-orange-400 text-sm font-medium hover:underline">
+                                  {place.phone}
+                                </a>
+                              </div>
+                            )}
+
+                            {/* Hours (if available) */}
+                            {hours && (
+                              <div className="mt-3 p-3 bg-slate-900/50 rounded-xl">
+                                <p className="text-slate-400 text-xs font-medium mb-2">Hours:</p>
+                                <div className="grid grid-cols-2 gap-1 text-xs">
+                                  {Object.entries(hours).slice(0, 4).map(([day, time]) => (
+                                    <div key={day} className="flex justify-between">
+                                      <span className="text-slate-500 capitalize">{day}:</span>
+                                      <span className="text-slate-300">{time}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
                             )}
                           </div>
-                          <p className="text-xs text-slate-400 truncate">{place.vicinity}</p>
+
+                          {/* Add Button */}
+                          {!isAdded && (
+                            <button
+                              onClick={() => handleAdd(place)}
+                              disabled={adding[place.place_id]}
+                              className="px-5 py-3 bg-orange-500 hover:bg-orange-400 disabled:bg-slate-700 text-white font-semibold rounded-xl transition-all shrink-0"
+                            >
+                              {adding[place.place_id] ? (
+                                <Loader2 size={18} className="animate-spin" />
+                              ) : (
+                                'Add'
+                              )}
+                            </button>
+                          )}
                         </div>
-                        <button
-                          onClick={() => handleAdd(place)}
-                          disabled={isAdded || adding[place.place_id]}
-                          className={`px-2.5 py-1 text-xs font-medium rounded-lg shrink-0 ${
-                            isAdded
-                              ? 'bg-green-500/20 text-green-300'
-                              : 'bg-orange-500 hover:bg-orange-400 text-white'
-                          }`}
-                        >
-                          {adding[place.place_id] ? '...' : isAdded ? '✓' : 'Add'}
-                        </button>
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              {/* Empty State */}
+              {!searching && !searchError && searchResults.length === 0 && (
+                <div className="mt-8 text-center py-12">
+                  <div className="inline-flex items-center justify-center w-20 h-20 bg-slate-800/50 rounded-full mb-5">
+                    <Search size={36} className="text-slate-600" />
+                  </div>
+                  <h4 className="text-slate-300 font-semibold text-lg">Ready to Search</h4>
+                  <p className="text-slate-500 mt-2 max-w-sm mx-auto">
+                    Select the type of place and radius, then click Search to find nearby {typeLabels[searchType].toLowerCase()}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* My List Tab */
+            <div className="p-6">
+              {loading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="text-orange-400 animate-spin" size={32} />
+                </div>
+              ) : shelters.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="inline-flex items-center justify-center w-20 h-20 bg-slate-800/50 rounded-full mb-5">
+                    <Building2 size={36} className="text-slate-600" />
+                  </div>
+                  <h4 className="text-slate-300 font-semibold text-lg">No Shelters Added</h4>
+                  <p className="text-slate-500 mt-2 max-w-sm mx-auto">
+                    Search for nearby shelters and add them to your list to start contacting them.
+                  </p>
+                  <button
+                    onClick={() => setActiveTab('search')}
+                    className="mt-6 px-6 py-3 bg-orange-500 hover:bg-orange-400 text-white font-semibold rounded-xl transition-colors"
+                  >
+                    Find Nearby Shelters
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Points Info */}
+                  <div className="bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-500/20 rounded-xl p-4">
+                    <p className="text-orange-300 text-sm font-medium text-center">
+                      🎯 Earn points: <span className="text-white">8 pts</span> per call • <span className="text-white">15 pts</span> per email
+                    </p>
+                  </div>
+
+                  {/* Not Contacted */}
+                  {notContacted.length > 0 && (
+                    <div>
+                      <h4 className="text-slate-400 text-sm font-semibold uppercase tracking-wide mb-3 px-1">
+                        To Contact ({notContacted.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {notContacted.map(shelter => (
+                          <ShelterListItem
+                            key={shelter.id}
+                            shelter={shelter}
+                            onCall={() => { setSelectedShelter(shelter); setShowCallModal(true); }}
+                            onEmail={() => { setSelectedShelter(shelter); setShowEmailModal(true); }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Contacted */}
+                  {contacted.length > 0 && (
+                    <div>
+                      <h4 className="text-slate-400 text-sm font-semibold uppercase tracking-wide mb-3 px-1">
+                        Contacted ({contacted.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {contacted.map(shelter => (
+                          <ShelterListItem
+                            key={shelter.id}
+                            shelter={shelter}
+                            onCall={() => { setSelectedShelter(shelter); setShowCallModal(true); }}
+                            onEmail={() => { setSelectedShelter(shelter); setShowEmailModal(true); }}
+                            contacted
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1983,10 +2148,10 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-slate-700">
+        <div className="px-6 py-4 border-t border-slate-700/50 bg-slate-800/30">
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 bg-slate-800 text-slate-300 rounded-lg font-medium hover:bg-slate-700"
+            className="w-full py-3.5 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-xl transition-colors"
           >
             Done
           </button>
