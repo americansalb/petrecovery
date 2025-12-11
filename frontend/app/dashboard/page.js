@@ -14,7 +14,7 @@ import Link from 'next/link';
 import {
   Users, MapPin, Search, Clock, Award, Shield,
   ChevronRight, Plus, AlertCircle, CheckCircle2,
-  Target, TrendingUp, Star, Zap, PawPrint, Bell
+  Target, TrendingUp, Star, Zap, PawPrint, Bell, Building2
 } from 'lucide-react';
 import { Card, CardHeader, Button, Badge, StatusBadge, EmptyState } from '@/components/ui';
 
@@ -438,6 +438,12 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-3 p-3 bg-midnight-50 border border-midnight-200 rounded-xl text-midnight-700 font-semibold hover:bg-midnight-100 transition-colors">
                     <Search className="w-5 h-5" />
                     Find Rescue Squads
+                  </div>
+                </Link>
+                <Link href="/shelters" className="block">
+                  <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-200 rounded-xl text-purple-700 font-semibold hover:bg-purple-100 transition-colors">
+                    <Building2 className="w-5 h-5" />
+                    Search Nearby Shelters
                   </div>
                 </Link>
               </div>
