@@ -16,7 +16,7 @@ import {
   ChevronRight, Plus, AlertCircle, CheckCircle2,
   Target, TrendingUp, Star, Zap, PawPrint, Bell, Building2
 } from 'lucide-react';
-import { Card, CardHeader, Button, Badge, StatusBadge, EmptyState } from '@/components/ui';
+import { Card, CardHeader, Button, Badge, StatusBadge, EmptyState, CardSkeleton, ListItemSkeleton } from '@/components/ui';
 
 // Rescue level configuration
 const RESCUE_LEVELS = {
@@ -72,13 +72,59 @@ export default function DashboardPage() {
     }
   }, [session, status]);
 
-  // Loading state
+  // Loading state - Show skeleton UI for better perceived performance
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-midnight-200 border-t-midnight-900 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-midnight-500 font-medium">Loading your dashboard...</p>
+      <div className="min-h-screen bg-midnight-50">
+        {/* Skeleton Hero */}
+        <div className="bg-gradient-to-br from-midnight-900 via-midnight-800 to-midnight-900 text-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+            <div className="animate-pulse">
+              <div className="h-4 bg-white/20 rounded w-24 mb-2" />
+              <div className="h-10 bg-white/20 rounded w-48 mb-4" />
+              <div className="flex gap-2">
+                <div className="h-8 bg-white/10 rounded-full w-24" />
+                <div className="h-8 bg-white/10 rounded-full w-20" />
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Skeleton Quick Actions */}
+        <div className="bg-white border-b border-midnight-100 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[1,2,3,4].map(i => (
+                <div key={i} className="h-14 bg-midnight-100 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          </div>
+        </div>
+        {/* Skeleton Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+          <div className="grid lg:grid-cols-[1fr_380px] gap-6">
+            <div className="space-y-6">
+              <Card padding="md">
+                <CardSkeleton rows={2} />
+              </Card>
+              <Card padding="md">
+                <CardSkeleton rows={2} />
+              </Card>
+            </div>
+            <div className="space-y-6">
+              <Card padding="md">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-midnight-200 rounded w-1/2 mb-4" />
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-midnight-200 rounded-full" />
+                    <div className="flex-1">
+                      <div className="h-5 bg-midnight-200 rounded w-24 mb-2" />
+                      <div className="h-3 bg-midnight-100 rounded w-32" />
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -210,8 +256,63 @@ export default function DashboardPage() {
         <div className="grid lg:grid-cols-[1fr_380px] gap-6">
           {/* Left Column - Main Content */}
           <div className="space-y-6">
+            {/* When both are empty, show side-by-side on desktop */}
+            {activeCases.length === 0 && squads.length === 0 ? (
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Active Cases Section - Compact */}
+                <Card padding="none" accent="red" className="animate-fade-in">
+                  <CardHeader
+                    icon={Zap}
+                    iconColor="bg-red-100 text-red-600"
+                    title="Active Searches"
+                    description="Cases you're helping with"
+                    className="px-5 py-4 border-b border-midnight-100"
+                  />
+                  <EmptyState
+                    icon={Search}
+                    iconColor="red"
+                    title="No Active Searches"
+                    description="Join a rescue squad to help find lost pets"
+                    tip="Rescue squads notify you when pets go missing nearby!"
+                    action={{
+                      label: 'Find a Squad',
+                      href: '/rescue-squads/search',
+                      icon: Users,
+                    }}
+                    compact
+                    className="py-6"
+                  />
+                </Card>
+
+                {/* My Squads Section - Compact */}
+                <Card padding="none" accent="blue" className="animate-fade-in">
+                  <CardHeader
+                    icon={Users}
+                    iconColor="bg-blue-100 text-blue-600"
+                    title="My Rescue Squads"
+                    description="Teams you're part of"
+                    className="px-5 py-4 border-b border-midnight-100"
+                  />
+                  <EmptyState
+                    icon={Users}
+                    iconColor="blue"
+                    title="Not in Any Squads"
+                    description="Join a local rescue squad to help your community"
+                    tip="Many pet reunions happen thanks to squad coordination!"
+                    action={{
+                      label: 'Find Squads',
+                      href: '/rescue-squads/search',
+                      icon: Search,
+                    }}
+                    compact
+                    className="py-6"
+                  />
+                </Card>
+              </div>
+            ) : (
+              <>
             {/* Active Cases Section */}
-            <Card padding="none" accent="red">
+            <Card padding="none" accent="red" className="animate-fade-in">
               <CardHeader
                 icon={Zap}
                 iconColor="bg-red-100 text-red-600"
@@ -228,14 +329,17 @@ export default function DashboardPage() {
               {activeCases.length === 0 ? (
                 <EmptyState
                   icon={Search}
+                  iconColor="red"
                   title="No Active Searches"
                   description="Join a rescue squad to help find lost pets in your area"
+                  tip="Rescue squads notify you when pets go missing nearby. Join one to start helping!"
                   action={{
                     label: 'Find a Squad',
                     href: '/rescue-squads/search',
                     icon: Users,
                   }}
-                  className="py-10"
+                  compact={squads.length === 0}
+                  className="py-8"
                 />
               ) : (
                 <div className="divide-y divide-midnight-100">
@@ -293,14 +397,17 @@ export default function DashboardPage() {
               {squads.length === 0 ? (
                 <EmptyState
                   icon={Users}
+                  iconColor="blue"
                   title="Not in Any Squads Yet"
                   description="Join a local rescue squad to coordinate searches with your community"
+                  tip="Squads are community teams that help find lost pets. Many reunions happen thanks to squad coordination!"
                   action={{
                     label: 'Find Squads Near You',
                     href: '/rescue-squads/search',
                     icon: Search,
                   }}
-                  className="py-10"
+                  compact={activeCases.length === 0}
+                  className="py-8"
                 />
               ) : (
                 <div className="divide-y divide-midnight-100">
@@ -339,6 +446,8 @@ export default function DashboardPage() {
                 </div>
               )}
             </Card>
+              </>
+            )}
 
             {/* Lost Pet Reports */}
             {reports.length > 0 && (
@@ -352,64 +461,88 @@ export default function DashboardPage() {
                 />
                 <div className="divide-y divide-midnight-100">
                   {reports.map((report) => (
-                    <div key={report.id} className="p-4">
+                    <div key={report.id} className="p-5 hover:bg-midnight-50/50 transition-colors">
+                      {/* Pet Info - Larger layout */}
                       <Link
                         href={`/cases/${report.caseNumber}`}
-                        className="flex items-center justify-between"
+                        className="flex gap-4 group"
                       >
-                        <div className="flex items-center gap-3">
-                          {report.petPhotoUrl ? (
-                            <img
-                              src={report.petPhotoUrl}
-                              alt={report.petName}
-                              className="w-12 h-12 rounded-xl object-cover"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center text-2xl">
-                              {report.petSpecies === 'DOG' ? '🐕' : report.petSpecies === 'CAT' ? '🐈' : '🐾'}
+                        {/* Larger Pet Photo */}
+                        {report.petPhotoUrl ? (
+                          <img
+                            src={report.petPhotoUrl}
+                            alt={report.petName}
+                            className="w-20 h-20 rounded-2xl object-cover shadow-sm flex-shrink-0 group-hover:shadow-md transition-shadow"
+                          />
+                        ) : (
+                          <div className="w-20 h-20 bg-gradient-to-br from-amber-100 to-amber-200 rounded-2xl flex items-center justify-center text-4xl shadow-sm flex-shrink-0">
+                            {report.petSpecies === 'DOG' ? '🐕' : report.petSpecies === 'CAT' ? '🐈' : '🐾'}
+                          </div>
+                        )}
+
+                        {/* Pet Details - Better hierarchy */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h4 className="font-bold text-midnight-900 text-lg flex items-center gap-2">
+                                {report.petName}
+                                {report.isLive && <StatusBadge status="live" />}
+                              </h4>
+                              <p className="text-xs text-midnight-400 mt-0.5">
+                                Case #{report.caseNumber}
+                              </p>
                             </div>
-                          )}
-                          <div>
-                            <div className="font-semibold text-midnight-900 flex items-center gap-2">
-                              {report.petName}
-                              {report.isLive && <StatusBadge status="live" />}
-                            </div>
-                            <div className="text-sm text-midnight-500 mt-0.5">
-                              {report.status === 'RESOLVED' ? (
-                                <span className="text-green-600 flex items-center gap-1">
-                                  <CheckCircle2 className="w-3.5 h-3.5" /> Resolved
-                                </span>
-                              ) : (
-                                <>
+                            <ChevronRight className="w-5 h-5 text-midnight-400 group-hover:text-midnight-600 flex-shrink-0" />
+                          </div>
+
+                          {/* Status Info */}
+                          <div className="mt-2 text-sm">
+                            {report.status === 'RESOLVED' ? (
+                              <span className="inline-flex items-center gap-1.5 text-green-600 font-medium">
+                                <CheckCircle2 className="w-4 h-4" /> Resolved - Pet Found!
+                              </span>
+                            ) : (
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-midnight-600">
+                                <span className="inline-flex items-center gap-1">
+                                  <Clock className="w-3.5 h-3.5" />
                                   Missing {report.hoursMissing < 24 ? `${report.hoursMissing}h` : `${Math.floor(report.hoursMissing / 24)}d`}
-                                  {report.activeVolunteers > 0 && ` • ${report.activeVolunteers} searching`}
-                                  {report.sightings > 0 && ` • ${report.sightings} sightings`}
-                                </>
-                              )}
-                            </div>
+                                </span>
+                                {report.activeVolunteers > 0 && (
+                                  <span className="inline-flex items-center gap-1">
+                                    <Users className="w-3.5 h-3.5" />
+                                    {report.activeVolunteers} helping
+                                  </span>
+                                )}
+                                {report.sightings > 0 && (
+                                  <span className="inline-flex items-center gap-1 text-green-600 font-medium">
+                                    <MapPin className="w-3.5 h-3.5" />
+                                    {report.sightings} sighting{report.sightings !== 1 ? 's' : ''}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-midnight-400" />
                       </Link>
 
-                      {/* Mission Control Quick Actions */}
+                      {/* Action Buttons - Full width for mobile */}
                       {report.status !== 'RESOLVED' && report.status !== 'CLOSED_OTHER' && (
-                        <div className="flex gap-2 mt-3 ml-15 pl-15">
+                        <div className="flex gap-2 mt-4">
                           {report.isLive ? (
-                            <Link href={`/cases/${report.caseNumber}`}>
-                              <Button variant="danger" size="sm" leftIcon={Zap}>
+                            <Link href={`/cases/${report.caseNumber}`} className="flex-1">
+                              <Button variant="danger" size="sm" leftIcon={Zap} className="w-full justify-center">
                                 Continue Search
                               </Button>
                             </Link>
                           ) : (
-                            <Link href={`/cases/${report.caseNumber}`}>
-                              <Button size="sm" leftIcon={Zap}>
+                            <Link href={`/cases/${report.caseNumber}`} className="flex-1">
+                              <Button size="sm" leftIcon={Zap} className="w-full justify-center">
                                 Start Live Search
                               </Button>
                             </Link>
                           )}
-                          <Link href={`/cases/${report.caseNumber}/coordinate`}>
-                            <Button variant="outline" size="sm" leftIcon={Target}>
+                          <Link href={`/cases/${report.caseNumber}/coordinate`} className="flex-1">
+                            <Button variant="outline" size="sm" leftIcon={Target} className="w-full justify-center">
                               Coordinate
                             </Button>
                           </Link>
