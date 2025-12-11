@@ -158,9 +158,13 @@ export default function Navigation() {
               >
                 <DropdownLink href="/pets" icon={PawPrint} title="My Pets" description="View all your pets" />
                 <DropdownLink href="/cases" icon={ClipboardList} title="My Cases" description="Active lost/found reports" />
-                <DropdownDivider />
-                <DropdownLink href="/database" icon={Search} title="Search Database" description="Find lost & found pets" />
               </NavDropdown>
+
+              {/* Database Link - Prominent */}
+              <NavLink href="/database" active={pathname === '/database'}>
+                <Search className="w-4 h-4" />
+                Database
+              </NavLink>
 
               {/* Squads Dropdown */}
               <NavDropdown
@@ -225,6 +229,7 @@ export default function Navigation() {
                   onToggle={() => toggleDropdown('admin')}
                 >
                   <DropdownLink href="/admin" icon={BarChart3} title="Dashboard" description="Overview & stats" />
+                  <DropdownLink href="/admin/users" icon={Users} title="Users" description="Manage all users" />
                   <DropdownLink href="/admin/rescue-squads" icon={Shield} title="Rescue Squads" description="Manage squads" />
                   <DropdownLink href="/admin/divisions" icon={MapPin} title="Divisions" description="Geographic areas" />
                   <DropdownLink href="/admin/cases" icon={ClipboardList} title="Cases" description="All lost/found cases" />
@@ -415,6 +420,7 @@ export default function Navigation() {
                 Admin
               </div>
               <MobileNavLink href="/admin" icon={BarChart3} label="Admin Dashboard" active={pathname === '/admin'} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/admin/users" icon={Users} label="Manage Users" active={pathname === '/admin/users'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/admin/rescue-squads" icon={Shield} label="Manage Squads" active={pathname === '/admin/rescue-squads'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/admin/divisions" icon={MapPin} label="Manage Divisions" active={pathname === '/admin/divisions'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/admin/cases" icon={ClipboardList} label="Manage Cases" active={pathname === '/admin/cases'} onClick={() => setMobileMenuOpen(false)} />

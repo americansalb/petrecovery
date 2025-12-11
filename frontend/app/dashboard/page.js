@@ -327,10 +327,10 @@ export default function DashboardPage() {
                 <span className="truncate">Find Squads</span>
               </div>
             </Link>
-            <Link href="/shelters" className="block group">
+            <Link href="/database" className="block group">
               <div className="flex items-center gap-3 p-3 bg-purple-50 border-2 border-purple-200 rounded-xl text-purple-700 font-semibold hover:bg-purple-100 hover:border-purple-300 hover:shadow-md transition-all group-hover:-translate-y-0.5">
-                <Building2 className="w-5 h-5" />
-                <span className="truncate">Search Shelters</span>
+                <Search className="w-5 h-5" />
+                <span className="truncate">Browse Database</span>
               </div>
             </Link>
           </div>
