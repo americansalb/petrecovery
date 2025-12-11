@@ -117,7 +117,8 @@ export async function GET(request, { params }) {
       prisma = (await import('@/app/lib/prisma')).default;
       const nextAuth = await import('next-auth');
       getServerSession = nextAuth.getServerSession;
-      const authModule = await import('@/app/api/auth/[...nextauth]/route');
+      // Import authOptions from the lib file where it's actually exported
+      const authModule = await import('@/app/lib/auth');
       authOptions = authModule.authOptions;
     } catch (importError) {
       console.error('Database not available:', importError.message);
@@ -176,6 +177,7 @@ export async function GET(request, { params }) {
     const squadId = squad.id;
 
     console.log('[Hub Debug] Found squad:', { id: squadId, name: squad.name, city: squad.city });
+    console.log('[Hub Debug] Session:', { hasSession: !!session, hasUser: !!session?.user, userId: session?.user?.id });
 
     // Check user's membership status
     let membership = {
@@ -198,6 +200,14 @@ export async function GET(request, { params }) {
         },
       });
 
+      console.log('[Hub Debug] Membership query result:', {
+        squadId,
+        userId: session.user.id,
+        found: !!userMembership,
+        membershipId: userMembership?.id,
+        isActive: userMembership?.isActive
+      });
+
       if (userMembership) {
         membership = {
           isMember: true,
@@ -207,6 +217,8 @@ export async function GET(request, { params }) {
           role: userMembership.role,
         };
       }
+    } else {
+      console.log('[Hub Debug] No session.user.id - skipping membership check');
     }
 
     // Get cases assigned to this squad
