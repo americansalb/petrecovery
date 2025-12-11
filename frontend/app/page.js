@@ -1,15 +1,15 @@
 'use client';
 
 /**
- * Homepage - Action First
+ * Homepage - Warm, Engaging, Action-Oriented
  *
- * Direct. Clear. Get people to act, not scroll.
+ * Balance: Emotional connection + Clear actions
  */
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bell,
   Search,
@@ -19,17 +19,73 @@ import {
   Shield,
   ArrowRight,
   Building2,
-  Clock,
-  CheckCircle,
+  Navigation,
+  Eye,
+  ChevronDown,
 } from 'lucide-react';
+
+// Live Reunion Ticker - celebrates recent reunions
+const ReunionTicker = ({ reunions = [], loading }) => {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (reunions.length <= 1) return;
+    const timer = setInterval(() => setIndex((i) => (i + 1) % reunions.length), 5000);
+    return () => clearInterval(timer);
+  }, [reunions.length]);
+
+  if (loading || reunions.length === 0) return null;
+
+  const current = reunions[index];
+
+  return (
+    <div className="bg-gradient-to-r from-emerald-600 to-green-600 text-white py-2.5 relative overflow-hidden">
+      <div className="max-w-6xl mx-auto px-4 flex items-center justify-center gap-3">
+        <motion.div
+          animate={{ scale: [1, 1.2, 1] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        >
+          <Heart className="w-4 h-4 fill-white" />
+        </motion.div>
+        <AnimatePresence mode="wait">
+          <motion.span
+            key={index}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="text-sm"
+          >
+            <strong>{current.petName}</strong> is back home
+            {current.city && <span className="text-emerald-100"> in {current.city}</span>}
+            {current.timeToReunionHours && (
+              <span className="ml-2 bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                {current.timeToReunionHours < 24
+                  ? `${Math.round(current.timeToReunionHours)}h`
+                  : `${Math.round(current.timeToReunionHours / 24)}d`}
+              </span>
+            )}
+          </motion.span>
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+};
 
 export default function Home() {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(true);
+  const [scrolled, setScrolled] = useState(false);
   const [data, setData] = useState({
-    metrics: { petsReunited: 0, openCases: 0, activeSquads: 0, totalVolunteers: 0 },
+    metrics: { petsReunited: 0, openCases: 0, activeSquads: 0, totalVolunteers: 0, weeklyReunions: 0 },
+    ticker: [],
     casesNeedingHelp: [],
   });
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 50);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     async function fetchData() {
@@ -45,39 +101,51 @@ export default function Home() {
     fetchData();
   }, []);
 
-  const { metrics, casesNeedingHelp } = data;
+  const { metrics, ticker, casesNeedingHelp } = data;
 
   return (
     <div className="min-h-screen bg-midnight-950">
+      {/* Reunion Ticker */}
+      <ReunionTicker reunions={ticker} loading={loading} />
+
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-midnight-950/90 backdrop-blur-sm border-b border-white/10">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <header
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          scrolled ? 'bg-midnight-950/95 backdrop-blur-md shadow-lg' : ''
+        }`}
+        style={{ top: !loading && ticker.length > 0 ? '36px' : '0' }}
+      >
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src="https://petrescue.b-cdn.net/Logos.svg" alt="PetRecovery" className="h-8 w-auto" />
-            <span className="text-white font-bold hidden sm:inline">PetRecovery</span>
+            <img
+              src="https://petrescue.b-cdn.net/Logos.svg"
+              alt="PetRecovery"
+              className="h-9 w-auto drop-shadow-lg"
+            />
+            <span className="text-white font-bold text-lg hidden sm:inline">PetRecovery</span>
           </Link>
 
-          <nav className="flex items-center gap-4 text-sm">
-            <Link href="/database" className="text-white/70 hover:text-white transition">
+          <nav className="flex items-center gap-2 sm:gap-4 text-sm">
+            <Link href="/database" className="text-white/70 hover:text-white transition px-2 py-1">
               Search
             </Link>
-            <Link href="/rescue-squads/search" className="text-white/70 hover:text-white transition">
+            <Link href="/rescue-squads/search" className="text-white/70 hover:text-white transition px-2 py-1">
               Squads
             </Link>
-            <Link href="/shelters" className="text-white/70 hover:text-white transition">
+            <Link href="/shelters" className="text-white/70 hover:text-white transition px-2 py-1 hidden sm:block">
               Shelters
             </Link>
             {session ? (
               <Link
                 href="/dashboard"
-                className="bg-flash-400 text-midnight-900 px-4 py-2 rounded-lg font-semibold hover:bg-flash-500 transition"
+                className="bg-flash-400 text-midnight-900 px-4 py-2 rounded-xl font-semibold hover:bg-flash-500 transition"
               >
                 Dashboard
               </Link>
             ) : (
               <Link
                 href="/login"
-                className="text-white/70 hover:text-white transition"
+                className="bg-white/10 text-white px-4 py-2 rounded-xl font-medium hover:bg-white/20 transition"
               >
                 Login
               </Link>
@@ -86,233 +154,368 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Hero - Action First */}
-      <main className="pt-20">
-        <div className="max-w-6xl mx-auto px-4 py-12 md:py-20">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+      {/* Hero Section */}
+      <section className="relative min-h-screen flex items-center">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img
+            src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?q=80&w=2069&auto=format&fit=crop"
+            alt="Dogs running happily"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-midnight-950 via-midnight-950/90 to-midnight-950/70" />
+          <div className="absolute inset-0 bg-gradient-to-t from-midnight-950 via-transparent to-midnight-950/50" />
+        </div>
 
-            {/* Left: Message + Actions */}
-            <div>
+        {/* Content */}
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 pt-32 pb-20">
+          <div className="max-w-2xl">
+            {/* Mascot */}
+            <motion.img
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              src="https://petrescue.b-cdn.net/Logos%20(1).svg"
+              alt="Surumaa"
+              className="h-20 w-auto mb-6 drop-shadow-2xl"
+            />
+
+            {/* Live alert */}
+            {!loading && metrics.openCases > 0 && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="inline-flex items-center gap-2 bg-red-500/20 backdrop-blur-sm border border-red-500/30 text-red-200 px-4 py-2 rounded-full text-sm mb-6"
               >
-                {/* Live stat */}
-                {!loading && metrics.openCases > 0 && (
-                  <div className="inline-flex items-center gap-2 bg-red-500/20 text-red-300 px-3 py-1 rounded-full text-sm mb-6">
-                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                    {metrics.openCases} pets need help right now
-                  </div>
-                )}
-
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 leading-tight">
-                  Lost Pet?
-                  <br />
-                  <span className="text-flash-400">We mobilize searchers.</span>
-                </h1>
-
-                <p className="text-lg text-white/70 mb-8 max-w-md">
-                  GPS-tracked volunteers. Real-time sightings. Coordinated search teams in your neighborhood.
-                </p>
-
-                {/* Primary Actions - Using Link styled as buttons */}
-                <div className="flex flex-col sm:flex-row gap-3 mb-6">
-                  <Link
-                    href="/report/new"
-                    className="inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white px-6 py-4 rounded-xl font-bold text-lg transition shadow-lg shadow-red-600/30"
-                  >
-                    <Bell className="w-5 h-5" />
-                    Report Lost Pet
-                  </Link>
-                  <Link
-                    href="/report/found"
-                    className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-4 rounded-xl font-bold text-lg transition"
-                  >
-                    <Heart className="w-5 h-5" />
-                    I Found a Pet
-                  </Link>
-                </div>
-
-                {/* Secondary Actions */}
-                <div className="flex flex-wrap gap-3">
-                  <Link
-                    href="/database"
-                    className="inline-flex items-center gap-2 text-white/70 hover:text-white transition text-sm"
-                  >
-                    <Search className="w-4 h-4" />
-                    Search lost pets
-                  </Link>
-                  <span className="text-white/30">•</span>
-                  <Link
-                    href="/rescue-squads/search"
-                    className="inline-flex items-center gap-2 text-white/70 hover:text-white transition text-sm"
-                  >
-                    <Shield className="w-4 h-4" />
-                    Join a rescue squad
-                  </Link>
-                  <span className="text-white/30">•</span>
-                  <Link
-                    href="/shelters"
-                    className="inline-flex items-center gap-2 text-white/70 hover:text-white transition text-sm"
-                  >
-                    <Building2 className="w-4 h-4" />
-                    Check shelters
-                  </Link>
-                </div>
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                {metrics.openCases} pets need help right now
               </motion.div>
-            </div>
+            )}
 
-            {/* Right: Active Cases */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-white/5 border border-white/10 rounded-2xl p-6"
+            {/* Headline */}
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="text-5xl md:text-6xl lg:text-7xl font-black text-white mb-6 leading-[1.1]"
             >
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-white font-bold flex items-center gap-2">
-                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                  Active Searches
-                </h2>
-                <Link href="/database" className="text-flash-400 text-sm hover:underline">
-                  View all →
-                </Link>
-              </div>
+              When They're Lost,
+              <br />
+              <span className="text-flash-400">We Search Together</span>
+            </motion.h1>
 
-              {loading ? (
-                <div className="space-y-3">
-                  {[1,2,3].map(i => (
-                    <div key={i} className="h-20 bg-white/5 rounded-xl animate-pulse" />
-                  ))}
+            {/* Subheadline */}
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="text-xl text-white/80 mb-8 leading-relaxed"
+            >
+              Real volunteers. GPS-tracked searches. Live sighting reports.
+              <br className="hidden sm:block" />
+              Your community comes together to bring your pet home.
+            </motion.p>
+
+            {/* Stats */}
+            {!loading && metrics.petsReunited > 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="flex items-center gap-6 mb-10 text-white/60"
+              >
+                <div>
+                  <span className="text-2xl font-bold text-white">{metrics.petsReunited.toLocaleString()}</span>
+                  <span className="ml-1">reunited</span>
                 </div>
-              ) : casesNeedingHelp.length > 0 ? (
-                <div className="space-y-3">
-                  {casesNeedingHelp.slice(0, 4).map((pet) => (
-                    <Link
-                      key={pet.id}
-                      href={`/cases/${pet.caseNumber}`}
-                      className="flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-xl p-3 transition group"
-                    >
-                      <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-midnight-800">
-                        {pet.petPhotoUrl ? (
-                          <img src={pet.petPhotoUrl} alt={pet.petName} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-2xl">
-                            {pet.petSpecies === 'DOG' ? '🐕' : '🐈'}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-white font-semibold truncate">{pet.petName}</span>
-                          <span className="text-xs bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full">
-                            {pet.hoursLost < 24 ? `${pet.hoursLost}h` : `${Math.floor(pet.hoursLost / 24)}d`}
-                          </span>
-                        </div>
-                        <div className="text-white/50 text-sm flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {pet.city}, {pet.state}
-                        </div>
-                      </div>
-                      <ArrowRight className="w-4 h-4 text-white/30 group-hover:text-flash-400 transition" />
-                    </Link>
-                  ))}
+                <div className="w-px h-6 bg-white/20" />
+                <div>
+                  <span className="text-2xl font-bold text-white">{metrics.activeSquads}</span>
+                  <span className="ml-1">rescue squads</span>
                 </div>
-              ) : (
-                <div className="text-center py-8 text-white/50">
-                  No active cases right now
-                </div>
-              )}
+                {metrics.weeklyReunions > 0 && (
+                  <>
+                    <div className="w-px h-6 bg-white/20" />
+                    <div className="text-green-400">
+                      +{metrics.weeklyReunions} this week
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            )}
+
+            {/* Primary Actions */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+              className="flex flex-col sm:flex-row gap-4 mb-8"
+            >
+              <Link
+                href="/report/new"
+                className="inline-flex items-center justify-center gap-3 bg-red-600 hover:bg-red-500 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-xl shadow-red-900/30 hover:shadow-red-900/50 hover:scale-[1.02]"
+              >
+                <Bell className="w-5 h-5" />
+                Report Lost Pet
+              </Link>
+              <Link
+                href="/report/found"
+                className="inline-flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all hover:scale-[1.02]"
+              >
+                <Heart className="w-5 h-5" />
+                I Found a Pet
+              </Link>
+            </motion.div>
+
+            {/* Secondary Actions */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="flex flex-wrap items-center gap-x-6 gap-y-2 text-white/60"
+            >
+              <Link href="/database" className="inline-flex items-center gap-2 hover:text-white transition">
+                <Search className="w-4 h-4" />
+                Search lost pets
+              </Link>
+              <Link href="/rescue-squads/search" className="inline-flex items-center gap-2 hover:text-white transition">
+                <Shield className="w-4 h-4" />
+                Find your squad
+              </Link>
+              <Link href="/shelters" className="inline-flex items-center gap-2 hover:text-white transition">
+                <Building2 className="w-4 h-4" />
+                Check shelters
+              </Link>
             </motion.div>
           </div>
         </div>
 
-        {/* Quick Stats Bar */}
-        {!loading && (
-          <div className="border-t border-white/10 bg-white/5">
-            <div className="max-w-6xl mx-auto px-4 py-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-                <div>
-                  <div className="text-2xl md:text-3xl font-black text-white">{metrics.petsReunited.toLocaleString()}</div>
-                  <div className="text-white/50 text-sm">Pets Reunited</div>
-                </div>
-                <div>
-                  <div className="text-2xl md:text-3xl font-black text-white">{metrics.activeSquads}</div>
-                  <div className="text-white/50 text-sm">Rescue Squads</div>
-                </div>
-                <div>
-                  <div className="text-2xl md:text-3xl font-black text-white">{metrics.totalVolunteers?.toLocaleString() || '0'}</div>
-                  <div className="text-white/50 text-sm">Volunteers</div>
-                </div>
-                <div>
-                  <div className="text-2xl md:text-3xl font-black text-white">24/7</div>
-                  <div className="text-white/50 text-sm">Coverage</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Scroll indicator */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/40"
+        >
+          <ChevronDown className="w-6 h-6 animate-bounce" />
+        </motion.div>
+      </section>
 
-        {/* How It Works - Compact */}
-        <div className="bg-midnight-900 py-16">
+      {/* Pets Needing Help */}
+      {!loading && casesNeedingHelp.length > 0 && (
+        <section className="bg-midnight-900 py-16">
           <div className="max-w-6xl mx-auto px-4">
-            <h2 className="text-2xl font-bold text-white text-center mb-10">How It Works</h2>
-            <div className="grid md:grid-cols-4 gap-6">
-              {[
-                { icon: Bell, title: "Report", desc: "Add your pet's details in 2 minutes" },
-                { icon: Users, title: "Mobilize", desc: "Local volunteers get notified" },
-                { icon: MapPin, title: "Search", desc: "GPS-tracked coordinated search" },
-                { icon: Heart, title: "Reunite", desc: "Community brings them home" },
-              ].map((step, i) => (
-                <div key={i} className="text-center">
-                  <div className="w-12 h-12 bg-flash-400/20 rounded-xl flex items-center justify-center mx-auto mb-3">
-                    <step.icon className="w-6 h-6 text-flash-400" />
-                  </div>
-                  <div className="text-white font-semibold mb-1">{step.title}</div>
-                  <div className="text-white/50 text-sm">{step.desc}</div>
-                </div>
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                  Pets Who Need You
+                </h2>
+                <p className="text-white/60">Join an active search. Every helper makes a difference.</p>
+              </div>
+              <Link
+                href="/database"
+                className="hidden sm:inline-flex items-center gap-2 text-flash-400 hover:text-flash-300 font-medium"
+              >
+                View all
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {casesNeedingHelp.slice(0, 4).map((pet, i) => (
+                <motion.div
+                  key={pet.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                >
+                  <Link
+                    href={`/cases/${pet.caseNumber}`}
+                    className="block bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl overflow-hidden transition group"
+                  >
+                    <div className="relative h-40">
+                      {pet.petPhotoUrl ? (
+                        <img
+                          src={pet.petPhotoUrl}
+                          alt={pet.petName}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-midnight-800 flex items-center justify-center text-5xl">
+                          {pet.petSpecies === 'DOG' ? '🐕' : '🐈'}
+                        </div>
+                      )}
+                      <div className="absolute top-3 right-3">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-bold ${
+                            pet.hoursLost < 24 ? 'bg-red-500' : 'bg-orange-500'
+                          } text-white`}
+                        >
+                          {pet.hoursLost < 24 ? `${pet.hoursLost}h` : `${Math.floor(pet.hoursLost / 24)}d`}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="text-white font-bold text-lg mb-1">{pet.petName}</h3>
+                      <p className="text-white/50 text-sm flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {pet.city}, {pet.state}
+                      </p>
+                    </div>
+                  </Link>
+                </motion.div>
               ))}
             </div>
+
+            <div className="mt-6 text-center sm:hidden">
+              <Link
+                href="/database"
+                className="inline-flex items-center gap-2 text-flash-400 font-medium"
+              >
+                View all lost pets
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* How It Works */}
+      <section className="bg-gradient-to-b from-midnight-900 to-midnight-950 py-20">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              How We Bring Them Home
+            </h2>
+            <p className="text-white/60 max-w-2xl mx-auto">
+              Not just a lost pet post. A coordinated search effort with real volunteers.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {
+                icon: Bell,
+                title: 'Report',
+                desc: 'Add your pet\'s photo and last location. Takes 2 minutes.',
+                color: 'bg-red-500',
+              },
+              {
+                icon: Users,
+                title: 'Alert',
+                desc: 'Local rescue squads receive instant notifications.',
+                color: 'bg-amber-500',
+              },
+              {
+                icon: Navigation,
+                title: 'Search',
+                desc: 'GPS-tracked volunteers cover your neighborhood systematically.',
+                color: 'bg-blue-500',
+              },
+              {
+                icon: Eye,
+                title: 'Spot',
+                desc: 'Community reports sightings. Teams converge on hot spots.',
+                color: 'bg-purple-500',
+              },
+            ].map((step, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="bg-white/5 border border-white/10 rounded-2xl p-6 text-center"
+              >
+                <div
+                  className={`w-14 h-14 ${step.color} rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg`}
+                >
+                  <step.icon className="w-7 h-7 text-white" />
+                </div>
+                <h3 className="text-white font-bold text-lg mb-2">{step.title}</h3>
+                <p className="text-white/60 text-sm">{step.desc}</p>
+              </motion.div>
+            ))}
           </div>
         </div>
+      </section>
 
-        {/* CTA Section */}
-        <div className="bg-gradient-to-r from-flash-500 to-amber-500 py-12">
-          <div className="max-w-4xl mx-auto px-4 text-center">
-            <h2 className="text-2xl md:text-3xl font-bold text-midnight-900 mb-4">
-              Ready to help or need help?
+      {/* Join CTA */}
+      <section className="relative py-20 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-flash-500 to-amber-500" />
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1587300003388-59208cc962cb?q=80&w=2000')] bg-cover bg-center opacity-20" />
+
+        <div className="relative max-w-4xl mx-auto px-4 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-3xl md:text-4xl font-bold text-midnight-900 mb-4">
+              It Takes a Village
             </h2>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <p className="text-midnight-800/80 text-lg mb-8 max-w-2xl mx-auto">
+              Every reunion happens because someone chose to help.
+              Join {metrics.totalVolunteers?.toLocaleString() || 'our'} volunteers making a difference.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 href="/register"
-                className="inline-flex items-center justify-center gap-2 bg-midnight-900 hover:bg-midnight-800 text-white px-6 py-3 rounded-xl font-semibold transition"
+                className="inline-flex items-center justify-center gap-2 bg-midnight-900 hover:bg-midnight-800 text-white px-8 py-4 rounded-2xl font-bold text-lg transition"
               >
-                Sign Up Free
-                <ArrowRight className="w-4 h-4" />
+                Join Free
+                <ArrowRight className="w-5 h-5" />
               </Link>
               <Link
                 href="/patrol/signup"
-                className="inline-flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 text-midnight-900 px-6 py-3 rounded-xl font-semibold transition"
+                className="inline-flex items-center justify-center gap-2 bg-white/30 hover:bg-white/40 text-midnight-900 px-8 py-4 rounded-2xl font-bold text-lg transition backdrop-blur-sm"
               >
-                <Shield className="w-4 h-4" />
+                <Shield className="w-5 h-5" />
                 Become a Volunteer
               </Link>
             </div>
-          </div>
+          </motion.div>
         </div>
-      </main>
+      </section>
 
-      {/* Footer - Minimal */}
-      <footer className="bg-midnight-950 border-t border-white/10 py-8">
+      {/* Footer */}
+      <footer className="bg-midnight-950 border-t border-white/10 py-10">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <img src="https://petrescue.b-cdn.net/Logos.svg" alt="PetRecovery" className="h-6 w-auto" />
-              <span className="text-white/50 text-sm">© {new Date().getFullYear()} PetRecovery</span>
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-2 mb-4">
+                <img src="https://petrescue.b-cdn.net/Logos.svg" alt="PetRecovery" className="h-8 w-auto" />
+                <span className="text-white font-bold">PetRecovery</span>
+              </div>
+              <p className="text-white/50 text-sm max-w-sm">
+                Coordinated pet search and rescue. GPS-tracked volunteers. Live sighting network.
+                Because finding a lost pet takes a village.
+              </p>
             </div>
-            <div className="flex items-center gap-6 text-sm text-white/50">
-              <Link href="/about-surumaa" className="hover:text-white transition">About</Link>
-              <Link href="/contact" className="hover:text-white transition">Contact</Link>
+            <div>
+              <h4 className="text-white font-semibold mb-3 text-sm">Quick Links</h4>
+              <ul className="space-y-2 text-white/50 text-sm">
+                <li><Link href="/report/new" className="hover:text-white transition">Report Lost Pet</Link></li>
+                <li><Link href="/report/found" className="hover:text-white transition">Report Found Pet</Link></li>
+                <li><Link href="/database" className="hover:text-white transition">Search Database</Link></li>
+                <li><Link href="/rescue-squads/search" className="hover:text-white transition">Find Squads</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-white font-semibold mb-3 text-sm">More</h4>
+              <ul className="space-y-2 text-white/50 text-sm">
+                <li><Link href="/shelters" className="hover:text-white transition">Shelters</Link></li>
+                <li><Link href="/patrol/signup" className="hover:text-white transition">Volunteer</Link></li>
+                <li><Link href="/about-surumaa" className="hover:text-white transition">About</Link></li>
+                <li><Link href="/contact" className="hover:text-white transition">Contact</Link></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-white/10 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-white/40">
+            <p>© {new Date().getFullYear()} PetRecovery.org</p>
+            <div className="flex items-center gap-6">
               <Link href="/privacy" className="hover:text-white transition">Privacy</Link>
               <Link href="/terms" className="hover:text-white transition">Terms</Link>
             </div>
