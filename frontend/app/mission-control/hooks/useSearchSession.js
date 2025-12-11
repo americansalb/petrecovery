@@ -54,6 +54,31 @@ function getGridCellId(lat, lng, baseLat, baseLng) {
 }
 
 /**
+ * Determine transportation method based on average speed
+ */
+function getTransportMethod(avgSpeedMph) {
+  if (avgSpeedMph < 0.5) return 'stationary';
+  if (avgSpeedMph < 4) return 'walking';
+  if (avgSpeedMph < 7) return 'jogging';
+  if (avgSpeedMph < 15) return 'cycling';
+  return 'driving';
+}
+
+/**
+ * Get transportation method display info
+ */
+function getTransportInfo(method) {
+  const info = {
+    stationary: { label: 'Stationary', icon: '⏸️', color: 'text-slate-400', thorough: 'N/A' },
+    walking: { label: 'Walking', icon: '🚶', color: 'text-green-400', thorough: 'Excellent' },
+    jogging: { label: 'Jogging', icon: '🏃', color: 'text-amber-400', thorough: 'Good' },
+    cycling: { label: 'Cycling', icon: '🚴', color: 'text-orange-400', thorough: 'Fair' },
+    driving: { label: 'Driving', icon: '🚗', color: 'text-red-400', thorough: 'Low' },
+  };
+  return info[method] || info.stationary;
+}
+
+/**
  * Validate movement between two pings
  */
 function validateMovement(prevPing, currentPing) {
@@ -98,6 +123,10 @@ export default function useSearchSession(caseId, lastSeenLocation) {
     validatedDistanceMiles: 0,
     estimatedPoints: 0,
     gridCellsCovered: 0,
+    // Rolling speed tracking (last 30 seconds)
+    recentSpeeds: [], // Array of { speed, timestamp }
+    avgSpeed30s: 0, // Average speed over last 30 seconds (mph)
+    transportMethod: 'stationary', // 'stationary', 'walking', 'jogging', 'cycling', 'driving'
   });
 
   // Path for visualization
@@ -237,11 +266,14 @@ export default function useSearchSession(caseId, lastSeenLocation) {
                    movementValidation.reason === 'DRIVING' ? 'DRIVING' : null,
     });
 
-    // Add to path
+    // Add to path with timestamp for duration calculation
     setPath(prev => [...prev, {
       lat: currentPing.latitude,
       lng: currentPing.longitude,
       valid: inZone && movementValidation.valid,
+      timestamp: currentPing.timestamp,
+      speed: movementValidation.speed,
+      distance: movementValidation.distance,
     }]);
 
     // Update grid cells
@@ -262,16 +294,34 @@ export default function useSearchSession(caseId, lastSeenLocation) {
       }
     }
 
-    // Update distance stats
-    if (movementValidation.valid) {
-      setStats(prev => ({
+    // Update distance stats and rolling speed
+    setStats(prev => {
+      // Add new speed to recent speeds
+      const now = Date.now();
+      const newSpeeds = [
+        ...prev.recentSpeeds.filter(s => now - s.timestamp < 30000), // Keep last 30 seconds
+        { speed: movementValidation.speed, timestamp: now }
+      ];
+
+      // Calculate average speed over last 30 seconds
+      const avgSpeed30s = newSpeeds.length > 0
+        ? newSpeeds.reduce((sum, s) => sum + s.speed, 0) / newSpeeds.length
+        : 0;
+
+      // Determine transportation method
+      const transportMethod = getTransportMethod(avgSpeed30s);
+
+      return {
         ...prev,
         totalDistanceMiles: prev.totalDistanceMiles + movementValidation.distance,
-        validatedDistanceMiles: inZone
+        validatedDistanceMiles: movementValidation.valid && inZone
           ? prev.validatedDistanceMiles + movementValidation.distance
           : prev.validatedDistanceMiles,
-      }));
-    }
+        recentSpeeds: newSpeeds,
+        avgSpeed30s,
+        transportMethod,
+      };
+    });
 
     // Store as last ping
     lastPingRef.current = currentPing;
@@ -402,7 +452,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
         estimatedPoints: 0,
         gridCellsCovered: 0,
       });
-      setPath([{ lat: latitude, lng: longitude, valid: inZone }]);
+      setPath([{ lat: latitude, lng: longitude, valid: inZone, timestamp: Date.now(), speed: 0, distance: 0 }]);
       visitedCellsRef.current = new Set();
       lastPingRef.current = {
         latitude,

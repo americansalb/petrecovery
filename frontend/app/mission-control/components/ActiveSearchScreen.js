@@ -179,7 +179,7 @@ export default function ActiveSearchScreen({
             lng: mission.lastSeenLongitude,
             address: mission.lastSeenAddress,
           } : null}
-          searchPath={path}
+          gpsPath={path}
           showUserLocation={true}
           petSpecies={mission?.petSpecies}
           showControls={false}
@@ -276,11 +276,14 @@ export default function ActiveSearchScreen({
               <div className="bg-slate-800/50 rounded-lg p-2 text-center">
                 <Zap size={14} className="mx-auto text-amber-400 mb-1" />
                 <p className="text-lg font-bold text-white">
-                  {validation.currentSpeed ? validation.currentSpeed.toFixed(1) : '0'}
+                  {stats.avgSpeed30s ? stats.avgSpeed30s.toFixed(1) : '0'}
                 </p>
-                <p className="text-xs text-slate-500">mph</p>
+                <p className="text-xs text-slate-500">mph (30s)</p>
               </div>
             </div>
+
+            {/* Transportation Method Detection */}
+            <TransportMethodBadge method={stats.transportMethod} />
 
             {/* Minimum requirements indicator */}
             {!meetsMinimumRequirements && (
@@ -377,6 +380,35 @@ export default function ActiveSearchScreen({
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Transportation Method Badge - Shows detected movement type
+ */
+function TransportMethodBadge({ method }) {
+  const info = {
+    stationary: { label: 'Stationary', icon: '⏸️', color: 'bg-slate-700 text-slate-300', thorough: null },
+    walking: { label: 'Walking', icon: '🚶', color: 'bg-green-500/20 text-green-400 border border-green-500/30', thorough: 'Excellent thoroughness' },
+    jogging: { label: 'Jogging', icon: '🏃', color: 'bg-amber-500/20 text-amber-400 border border-amber-500/30', thorough: 'Good thoroughness' },
+    cycling: { label: 'Cycling', icon: '🚴', color: 'bg-orange-500/20 text-orange-400 border border-orange-500/30', thorough: 'Fair thoroughness' },
+    driving: { label: 'Driving', icon: '🚗', color: 'bg-red-500/20 text-red-400 border border-red-500/30', thorough: 'Low thoroughness - consider walking' },
+  };
+
+  const { label, icon, color, thorough } = info[method] || info.stationary;
+
+  return (
+    <div className="mt-3 flex flex-col items-center">
+      <div className={`px-4 py-2 rounded-xl ${color} flex items-center gap-2`}>
+        <span className="text-lg">{icon}</span>
+        <span className="font-semibold">{label}</span>
+      </div>
+      {thorough && (
+        <p className={`text-xs mt-1 ${method === 'walking' ? 'text-green-400' : method === 'driving' ? 'text-red-400' : 'text-slate-400'}`}>
+          {thorough}
+        </p>
       )}
     </div>
   );
