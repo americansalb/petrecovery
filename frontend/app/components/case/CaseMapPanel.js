@@ -412,14 +412,19 @@ export default function CaseMapPanel({ caseData, searchAreas = [], onSightingCli
         const lat = caseData.lastSeenLatitude;
         const lon = caseData.lastSeenLongitude;
 
-        // Use Open-Meteo free API (no key required)
+        // Use Open-Meteo free API (no key required) - include sunrise/sunset
         const res = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&temperature_unit=fahrenheit&timezone=auto`
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&daily=sunrise,sunset&temperature_unit=fahrenheit&timezone=auto&forecast_days=1`
         );
 
         if (res.ok) {
           const data = await res.json();
-          setWeather(data.current);
+          // Merge current weather with today's sunrise/sunset
+          setWeather({
+            ...data.current,
+            sunrise: data.daily?.sunrise?.[0],
+            sunset: data.daily?.sunset?.[0],
+          });
         }
       } catch (err) {
         console.error('Error fetching weather:', err);
@@ -431,6 +436,31 @@ export default function CaseMapPanel({ caseData, searchAreas = [], onSightingCli
     const interval = setInterval(fetchWeather, 30 * 60 * 1000);
     return () => clearInterval(interval);
   }, [caseData?.lastSeenLatitude, caseData?.lastSeenLongitude]);
+
+  // Check if it's dawn or dusk based on actual sunrise/sunset
+  const getDawnDuskStatus = (weatherData) => {
+    if (!weatherData?.sunrise || !weatherData?.sunset) return null;
+
+    const now = new Date();
+    const sunrise = new Date(weatherData.sunrise);
+    const sunset = new Date(weatherData.sunset);
+
+    // Dawn: 30 min before to 60 min after sunrise
+    const dawnStart = new Date(sunrise.getTime() - 30 * 60 * 1000);
+    const dawnEnd = new Date(sunrise.getTime() + 60 * 60 * 1000);
+
+    // Dusk: 60 min before to 30 min after sunset
+    const duskStart = new Date(sunset.getTime() - 60 * 60 * 1000);
+    const duskEnd = new Date(sunset.getTime() + 30 * 60 * 1000);
+
+    if (now >= dawnStart && now <= dawnEnd) {
+      return { type: 'dawn', message: 'Dawn - prime search time! Pets are most active now.' };
+    }
+    if (now >= duskStart && now <= duskEnd) {
+      return { type: 'dusk', message: 'Dusk - excellent search time! Pets come out when it cools.' };
+    }
+    return null;
+  };
 
   // Get weather icon and description
   const getWeatherInfo = (code) => {
@@ -783,6 +813,21 @@ export default function CaseMapPanel({ caseData, searchAreas = [], onSightingCli
                 <p className="text-xs text-red-400">
                   🥵 Hot temps - pet may seek shade/water
                 </p>
+              </div>
+            )}
+            {/* Dawn/Dusk alert based on actual sunrise/sunset */}
+            {getDawnDuskStatus(weather) && (
+              <div className="mt-2 px-2 py-1.5 bg-amber-500/20 border border-amber-500/30 rounded-lg">
+                <p className="text-xs text-amber-300">
+                  {getDawnDuskStatus(weather).type === 'dawn' ? '🌅' : '🌇'} {getDawnDuskStatus(weather).message}
+                </p>
+              </div>
+            )}
+            {/* Show sunrise/sunset times */}
+            {weather.sunrise && weather.sunset && (
+              <div className="mt-2 text-xs text-slate-500 flex items-center gap-3">
+                <span>🌅 {new Date(weather.sunrise).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <span>🌇 {new Date(weather.sunset).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
             )}
           </div>

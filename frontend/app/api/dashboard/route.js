@@ -35,6 +35,8 @@ export async function GET(request) {
                 name: true,
                 city: true,
                 state: true,
+                logoUrl: true,
+                photoUrl: true,
                 rescueSquadLevel: true,
                 totalCasesCompleted: true,
                 successfulReunions: true,
@@ -322,17 +324,19 @@ export async function GET(request) {
         name: membership.rescueSquad.name,
         city: membership.rescueSquad.city,
         state: membership.rescueSquad.state,
+        logoUrl: membership.rescueSquad.logoUrl,
+        photoUrl: membership.rescueSquad.photoUrl,
         level: membership.rescueSquad.rescueSquadLevel,
         memberCount: membership.rescueSquad._count.members,
         totalCasesCompleted: membership.rescueSquad.totalCasesCompleted,
         successfulReunions: membership.rescueSquad.successfulReunions,
         myRole: membership.role,
-      division: membership.division,
-      joinedAt: membership.joinedAt,
-      // Personal stats within this squad
-      casesParticipated: membership.casesParticipated,
-      searchHours: membership.searchHours,
-      areasMarked: membership.areasMarked,
+        division: membership.division,
+        joinedAt: membership.joinedAt,
+        // Personal stats within this squad
+        casesParticipated: membership.casesParticipated,
+        searchHours: membership.searchHours,
+        areasMarked: membership.areasMarked,
     }));
 
     // Format active case participations

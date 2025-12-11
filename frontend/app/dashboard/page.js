@@ -15,7 +15,7 @@ import {
   Users, MapPin, Search, Clock, Award, Shield,
   ChevronRight, Plus, AlertCircle, CheckCircle2,
   Target, TrendingUp, Star, Zap, PawPrint, Bell, Building2,
-  ChevronDown, ArrowUpDown
+  ChevronDown, ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { Card, CardHeader, Button, Badge, StatusBadge, EmptyState, CardSkeleton, ListItemSkeleton } from '@/components/ui';
 
@@ -46,10 +46,19 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
 
   // Sorting and display states
-  const [squadSort, setSquadSort] = useState('activity'); // 'activity' | 'name' | 'members'
-  const [missionSort, setMissionSort] = useState('activity'); // 'activity' | 'name' | 'missing'
+  const [squadSort, setSquadSort] = useState({ field: 'activity', asc: false });
+  const [missionSort, setMissionSort] = useState({ field: 'activity', asc: false });
   const [showAllSquads, setShowAllSquads] = useState(false);
   const MAX_SQUADS_DISPLAY = 5;
+
+  // Toggle sort function
+  const toggleSort = (current, setCurrent, field) => {
+    if (current.field === field) {
+      setCurrent({ field, asc: !current.asc });
+    } else {
+      setCurrent({ field, asc: false });
+    }
+  };
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -168,30 +177,36 @@ export default function DashboardPage() {
 
   // Sort squads
   const sortedSquads = [...squads].sort((a, b) => {
-    switch (squadSort) {
+    let result = 0;
+    switch (squadSort.field) {
       case 'name':
-        return a.name.localeCompare(b.name);
+        result = a.name.localeCompare(b.name);
+        break;
       case 'members':
-        return (b.memberCount || 0) - (a.memberCount || 0);
+        result = (b.memberCount || 0) - (a.memberCount || 0);
+        break;
       case 'activity':
       default:
-        // Sort by joinedAt (most recent first) as proxy for activity
-        return new Date(b.joinedAt || 0) - new Date(a.joinedAt || 0);
+        result = new Date(b.joinedAt || 0) - new Date(a.joinedAt || 0);
     }
+    return squadSort.asc ? -result : result;
   });
 
   // Sort missions
   const sortedMissions = [...missions].sort((a, b) => {
-    switch (missionSort) {
+    let result = 0;
+    switch (missionSort.field) {
       case 'name':
-        return a.petName.localeCompare(b.petName);
+        result = a.petName.localeCompare(b.petName);
+        break;
       case 'missing':
-        return (b.hoursMissing || 0) - (a.hoursMissing || 0);
+        result = (b.hoursMissing || 0) - (a.hoursMissing || 0);
+        break;
       case 'activity':
       default:
-        // Most recently active first (fewer hours missing = more recent)
-        return (a.hoursMissing || 0) - (b.hoursMissing || 0);
+        result = (a.hoursMissing || 0) - (b.hoursMissing || 0);
     }
+    return missionSort.asc ? -result : result;
   });
 
   // Squads to display (limited or all)
@@ -308,17 +323,30 @@ export default function DashboardPage() {
                       <p className="text-sm text-midnight-500">Teams you're part of</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     {squads.length > 0 && (
-                      <select
-                        value={squadSort}
-                        onChange={(e) => setSquadSort(e.target.value)}
-                        className="text-xs bg-midnight-50 border border-midnight-200 rounded-lg px-2 py-1.5 text-midnight-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      >
-                        <option value="activity">Latest Activity</option>
-                        <option value="name">Name</option>
-                        <option value="members">Members</option>
-                      </select>
+                      <div className="flex items-center gap-1 mr-2">
+                        {[
+                          { field: 'activity', label: 'Recent' },
+                          { field: 'name', label: 'Name' },
+                          { field: 'members', label: 'Size' },
+                        ].map(({ field, label }) => (
+                          <button
+                            key={field}
+                            onClick={() => toggleSort(squadSort, setSquadSort, field)}
+                            className={`px-2 py-1 text-xs rounded-md flex items-center gap-0.5 transition-colors ${
+                              squadSort.field === field
+                                ? 'bg-blue-100 text-blue-700 font-medium'
+                                : 'text-midnight-500 hover:bg-midnight-100'
+                            }`}
+                          >
+                            {label}
+                            {squadSort.field === field && (
+                              squadSort.asc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
                     )}
                     <Link href="/rescue-squads/search">
                       <Button variant="outline" size="sm" leftIcon={Plus}>
@@ -355,9 +383,17 @@ export default function DashboardPage() {
                           className="flex items-center justify-between p-4 hover:bg-midnight-50 transition-colors"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white">
-                              <Users className="w-5 h-5" />
-                            </div>
+                            {squad.logoUrl || squad.photoUrl ? (
+                              <img
+                                src={squad.logoUrl || squad.photoUrl}
+                                alt={squad.name}
+                                className="w-10 h-10 rounded-lg object-cover"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white">
+                                <Users className="w-5 h-5" />
+                              </div>
+                            )}
                             <div>
                               <div className="font-semibold text-midnight-900">
                                 {squad.name}
@@ -408,15 +444,28 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   {missions.length > 0 && (
-                    <select
-                      value={missionSort}
-                      onChange={(e) => setMissionSort(e.target.value)}
-                      className="text-xs bg-midnight-50 border border-midnight-200 rounded-lg px-2 py-1.5 text-midnight-600 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                    >
-                      <option value="activity">Latest Activity</option>
-                      <option value="name">Name</option>
-                      <option value="missing">Time Missing</option>
-                    </select>
+                    <div className="flex items-center gap-1">
+                      {[
+                        { field: 'activity', label: 'Recent' },
+                        { field: 'name', label: 'Name' },
+                        { field: 'missing', label: 'Missing' },
+                      ].map(({ field, label }) => (
+                        <button
+                          key={field}
+                          onClick={() => toggleSort(missionSort, setMissionSort, field)}
+                          className={`px-2 py-1 text-xs rounded-md flex items-center gap-0.5 transition-colors ${
+                            missionSort.field === field
+                              ? 'bg-amber-100 text-amber-700 font-medium'
+                              : 'text-midnight-500 hover:bg-midnight-100'
+                          }`}
+                        >
+                          {label}
+                          {missionSort.field === field && (
+                            missionSort.asc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
