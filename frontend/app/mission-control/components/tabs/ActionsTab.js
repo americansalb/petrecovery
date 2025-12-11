@@ -1063,6 +1063,7 @@ function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [adding, setAdding] = useState({});
+  const [hasSearched, setHasSearched] = useState(false);
 
   const searchPlaces = async () => {
     if (!mission?.lastSeenLatitude || !mission?.lastSeenLongitude) {
@@ -1072,6 +1073,7 @@ function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace 
 
     setLoading(true);
     setError(null);
+    setHasSearched(true);
 
     try {
       const res = await fetch(
@@ -1084,13 +1086,22 @@ function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace 
           setError(data.error);
           setResults([]);
         } else {
-          // Transform API response to expected format
+          // Transform API response to expected format - handle both Apple Maps and database results
           const resultsWithType = (data.places || []).map(place => ({
-            place_id: place.placeId,
+            place_id: place.placeId || place.id,
             name: place.name,
             vicinity: place.address,
             distanceMiles: place.distanceMiles,
-            geometry: { location: { lat: place.location.lat, lng: place.location.lng } },
+            phone: place.phone,
+            website: place.website,
+            hours: place.hours,
+            // Handle both location object and direct lat/lng
+            geometry: {
+              location: {
+                lat: place.location?.lat ?? place.latitude,
+                lng: place.location?.lng ?? place.longitude
+              }
+            },
             rating: place.rating,
             user_ratings_total: place.userRatingsTotal,
             placeType: searchType === 'shelter' ? 'SHELTER' : searchType === 'vet' ? 'VET' : 'ANIMAL_CONTROL',
@@ -1102,15 +1113,13 @@ function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace 
         setError(errData.error || 'Search failed');
       }
     } catch (err) {
-      setError('Failed to search');
+      setError('Search failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    searchPlaces();
-  }, [searchType, radius]);
+  // No auto-search - user must click Search button
 
   const handleAdd = async (place) => {
     setAdding(prev => ({ ...prev, [place.place_id]: true }));
@@ -1125,36 +1134,32 @@ function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace 
   const typeButtons = [
     { value: 'shelter', label: 'Shelters', icon: Building2 },
     { value: 'vet', label: 'Vets', icon: Building2 },
-    { value: 'animal_control', label: 'Animal Control', icon: Building2 },
+    { value: 'animal_control', label: 'Animal Ctrl', icon: Building2 },
   ];
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 rounded-2xl max-w-lg w-full border border-slate-700 shadow-xl max-h-[85vh] flex flex-col">
+      <div className="bg-slate-900 rounded-2xl max-w-md w-full border border-slate-700 shadow-xl max-h-[80vh] flex flex-col">
+        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-700">
-          <div className="flex items-center gap-3">
-            <Search className="text-orange-400" size={24} />
-            <div>
-              <h3 className="text-white font-semibold">Find Nearby Places</h3>
-              <p className="text-xs text-slate-400">Add shelters & vets to contact</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg">
+          <h3 className="text-white font-semibold text-lg">Shelters & Vets</h3>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors">
             <X className="text-slate-400" size={20} />
           </button>
         </div>
 
-        <div className="p-4 border-b border-slate-700 space-y-3">
+        {/* Search Options */}
+        <div className="p-4 space-y-4 border-b border-slate-700/50">
           {/* Type tabs */}
           <div className="flex gap-2">
             {typeButtons.map(btn => (
               <button
                 key={btn.value}
                 onClick={() => setSearchType(btn.value)}
-                className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                className={`flex-1 py-2.5 text-sm font-medium rounded-xl transition-all ${
                   searchType === btn.value
-                    ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50'
-                    : 'bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-600'
+                    ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/25'
+                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
                 }`}
               >
                 {btn.label}
@@ -1163,93 +1168,120 @@ function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace 
           </div>
 
           {/* Radius selector */}
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-400">Radius:</span>
-            <div className="flex gap-1.5">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-400">Radius:</span>
+            <div className="flex gap-1.5 flex-1">
               {[10, 25, 50, 75].map(r => (
                 <button
                   key={r}
                   onClick={() => setRadius(r)}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+                  className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all ${
                     radius === r
-                      ? 'bg-orange-500 text-white'
-                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                      ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50'
+                      : 'bg-slate-800/50 text-slate-500 hover:text-slate-300'
                   }`}
                 >
-                  {r} mi
+                  {r}mi
                 </button>
               ))}
             </div>
           </div>
+
+          {/* Search Button */}
+          <button
+            onClick={searchPlaces}
+            disabled={loading}
+            className="w-full py-3 bg-orange-500 hover:bg-orange-400 disabled:bg-orange-500/50 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20"
+          >
+            {loading ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                Searching...
+              </>
+            ) : (
+              <>
+                <Search size={18} />
+                Search Now
+              </>
+            )}
+          </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        {/* Results */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-[200px]">
           {error && (
-            <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-sm">
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center">
               {error}
             </div>
           )}
 
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="text-orange-400 animate-spin" size={32} />
+          {!hasSearched && !loading && !error && (
+            <div className="text-center py-12 text-slate-500">
+              <Search size={40} className="mx-auto mb-3 opacity-30" />
+              <p className="text-sm">Select options and click Search</p>
             </div>
-          ) : results.length === 0 ? (
-            <div className="text-center py-8 text-slate-400">
-              <Building2 size={32} className="mx-auto mb-2 opacity-50" />
-              <p>No {searchType === 'shelter' ? 'shelters' : searchType === 'vet' ? 'vet clinics' : 'animal control'} found nearby</p>
-            </div>
-          ) : (
-            results.map(place => {
-              const isAdded = existingPlaceIds.includes(place.place_id);
-              const isAdding = adding[place.place_id];
+          )}
 
-              return (
-                <div
-                  key={place.place_id}
-                  className={`p-3 rounded-lg border ${
-                    isAdded ? 'bg-green-500/10 border-green-500/30' : 'bg-slate-800/50 border-slate-700/50'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-white font-medium">{place.name}</p>
-                        {place.distanceMiles && (
-                          <span className="text-xs text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded">
-                            {place.distanceMiles} mi
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-400 truncate">{place.vicinity || place.formatted_address}</p>
-                      {place.rating && (
-                        <p className="text-xs text-yellow-400 mt-1">
-                          ★ {place.rating} ({place.user_ratings_total} reviews)
-                        </p>
+          {hasSearched && !loading && results.length === 0 && !error && (
+            <div className="text-center py-12 text-slate-500">
+              <Building2 size={40} className="mx-auto mb-3 opacity-30" />
+              <p className="text-sm">No results found</p>
+              <p className="text-xs mt-1">Try increasing the search radius</p>
+            </div>
+          )}
+
+          {results.map(place => {
+            const isAdded = existingPlaceIds.includes(place.place_id);
+            const isAdding = adding[place.place_id];
+
+            return (
+              <div
+                key={place.place_id}
+                className={`p-3 rounded-xl border transition-all ${
+                  isAdded
+                    ? 'bg-green-500/5 border-green-500/20'
+                    : 'bg-slate-800/30 border-slate-700/30 hover:border-slate-600/50'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-white font-medium text-sm">{place.name}</p>
+                      {place.distanceMiles != null && (
+                        <span className="text-xs text-orange-400 font-medium">
+                          {place.distanceMiles} mi
+                        </span>
                       )}
                     </div>
-                    <button
-                      onClick={() => handleAdd(place)}
-                      disabled={isAdded || isAdding}
-                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                        isAdded
-                          ? 'bg-green-500/20 text-green-300'
-                          : 'bg-orange-500 hover:bg-orange-400 text-white disabled:bg-slate-700'
-                      }`}
-                    >
-                      {isAdding ? <Loader2 size={14} className="animate-spin" /> : isAdded ? 'Added' : 'Add'}
-                    </button>
+                    <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{place.vicinity}</p>
+                    {place.phone && (
+                      <p className="text-xs text-slate-400 mt-1">{place.phone}</p>
+                    )}
                   </div>
+                  <button
+                    onClick={() => handleAdd(place)}
+                    disabled={isAdded || isAdding}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all shrink-0 ${
+                      isAdded
+                        ? 'bg-green-500/10 text-green-400 cursor-default'
+                        : isAdding
+                        ? 'bg-slate-700 text-slate-400'
+                        : 'bg-orange-500 hover:bg-orange-400 text-white'
+                    }`}
+                  >
+                    {isAdding ? <Loader2 size={12} className="animate-spin" /> : isAdded ? 'Added' : 'Add'}
+                  </button>
                 </div>
-              );
-            })
-          )}
+              </div>
+            );
+          })}
         </div>
 
-        <div className="p-4 border-t border-slate-700">
+        {/* Footer */}
+        <div className="p-4 border-t border-slate-700/50">
           <button
             onClick={onClose}
-            className="w-full px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-medium hover:bg-slate-700 transition-colors"
+            className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl transition-colors"
           >
             Done
           </button>
