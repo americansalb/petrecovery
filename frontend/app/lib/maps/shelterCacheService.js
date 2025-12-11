@@ -113,9 +113,8 @@ export async function searchSheltersWithCache(lat, lng, options = {}) {
       }
     }
 
-    // Step 6: Refresh stale cities (limit to 3 at a time to avoid rate limits)
-    const citiesToRefresh = staleCities.slice(0, 3);
-    for (const staleCity of citiesToRefresh) {
+    // Step 6: Refresh all stale cities
+    for (const staleCity of staleCities) {
       try {
         await refreshCityCache(staleCity, type, db);
       } catch (error) {
@@ -141,8 +140,8 @@ export async function searchSheltersWithCache(lat, lng, options = {}) {
       total: results.length,
       source: 'database',
       citiesSearched: citiesInRadius.length,
-      citiesRefreshed: citiesToRefresh.length,
-      cacheHit: citiesToRefresh.length === 0,
+      citiesRefreshed: staleCities.length,
+      cacheHit: staleCities.length === 0,
     };
   } catch (error) {
     console.error('[ShelterCache] Search error:', error);
