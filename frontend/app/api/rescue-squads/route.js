@@ -8,6 +8,10 @@ import { logEvent } from '@/lib/logging';
 // GET /api/rescue-squads - Search for cities with rescue squads nearby
 export async function GET(request) {
   const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
+
+  // Debug logging
+  console.log('[Squad Search] Session user ID:', userId);
 
   try {
     const { searchParams } = new URL(request.url);
@@ -133,8 +137,6 @@ export async function GET(request) {
       zipCode = cityData.zips.length > 0 ? cityData.zips[0] : null;
     }
 
-    const userId = session?.user?.id;
-
     // Find all active squads with coordinates
     const squads = await prisma.rescueSquad.findMany({
       where: {
@@ -194,6 +196,17 @@ export async function GET(request) {
             .filter(div => div.distance !== null) // Only include divisions with coordinates
             .sort((a, b) => a.distance - b.distance); // Sort by distance
 
+          // Check membership
+          const isMember = userId ? squad.members.some(m => m.userId === userId) : false;
+
+          // Debug logging
+          if (userId) {
+            console.log(`[Squad Search] Squad ${squad.name}: userId=${userId}, members count=${squad.members.length}, isMember=${isMember}`);
+            if (squad.members.length > 0 && squad.members.length < 10) {
+              console.log(`[Squad Search] Member userIds:`, squad.members.map(m => m.userId));
+            }
+          }
+
           nearbyCities.set(key, {
             city: squad.city,
             state: squad.state,
@@ -203,7 +216,7 @@ export async function GET(request) {
               id: squad.id,
               name: squad.name,
               memberCount: squad._count.members,
-              isMember: userId ? squad.members.some(m => m.userId === userId) : false,
+              isMember,
               totalCasesAccepted: squad.totalCasesAccepted,
               successfulReunions: squad.successfulReunions,
             },

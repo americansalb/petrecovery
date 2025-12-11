@@ -36,7 +36,12 @@ export async function POST(request, { params }) {
 
     if (existingMembership) {
       if (existingMembership.isActive) {
-        return NextResponse.json({ error: 'Already a member' }, { status: 400 });
+        // Already a member - return success with redirect info instead of error
+        return NextResponse.json({
+          membership: existingMembership,
+          alreadyMember: true,
+          message: 'You are already a member of this squad'
+        });
       }
 
       // Reactivate membership
