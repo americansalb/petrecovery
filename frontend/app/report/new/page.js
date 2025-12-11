@@ -586,6 +586,14 @@ export default function ReportLostPet() {
         city = cityComponent?.long_name || '';
         state = stateComponent?.short_name || '';
         displayAddress = result.formatted_address;
+
+        // Set state and advance to step 3
+        setLastSeenAddress(displayAddress);
+        setCityName(city || (isZipCode ? `Zip ${query}` : ''));
+        setCenter([lat, lon]);
+        setLocationConfirmed(false);
+        setStep(3);
+        return true;
       } else if (!useGoogleFormat && data && Array.isArray(data) && data.length > 0) {
         // Nominatim format
         lat = parseFloat(data[0].lat);
