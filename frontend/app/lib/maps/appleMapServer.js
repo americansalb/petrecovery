@@ -12,25 +12,27 @@ import * as jose from 'jose';
 const APPLE_MAPS_API_BASE = 'https://maps-api.apple.com/v1';
 
 // Apple Maps credentials for Server API
-const TEAM_ID = process.env.APPLE_MAPS_TEAM_ID;
-const KEY_ID = process.env.APPLE_MAPS_KEY_ID;
-const PRIVATE_KEY = process.env.APPLE_MAPS_PRIVATE_KEY;
+// Supports both APPLE_MAPKIT_* (documented) and APPLE_MAPS_* (legacy) naming
+const TEAM_ID = process.env.APPLE_MAPKIT_TEAM_ID || process.env.APPLE_MAPS_TEAM_ID;
+const KEY_ID = process.env.APPLE_MAPKIT_KEY_ID || process.env.APPLE_MAPS_KEY_ID;
+const PRIVATE_KEY = process.env.APPLE_MAPKIT_PRIVATE_KEY || process.env.APPLE_MAPS_PRIVATE_KEY;
 
-// Cache the token (valid for 30 min, we refresh at 25 min)
-let cachedToken = null;
-let tokenExpiry = 0;
+// Cache the access token (valid for 30 min, we refresh at 25 min)
+let cachedAccessToken = null;
+let accessTokenExpiry = 0;
 
 /**
- * Generate a JWT token for Apple Maps Server API
+ * Generate a JWT Auth Token and exchange it for an Access Token
+ * Apple Maps Server API requires this two-step process
  */
 async function getAppleMapsToken() {
-  // Return cached token if still valid
-  if (cachedToken && Date.now() < tokenExpiry) {
-    return cachedToken;
+  // Return cached access token if still valid
+  if (cachedAccessToken && Date.now() < accessTokenExpiry) {
+    return cachedAccessToken;
   }
 
   if (!TEAM_ID || !KEY_ID || !PRIVATE_KEY) {
-    console.error('[AppleMapsServer] Missing credentials. Set APPLE_MAPS_TEAM_ID, APPLE_MAPS_KEY_ID, APPLE_MAPS_PRIVATE_KEY');
+    console.error('[AppleMapsServer] Missing credentials. Set APPLE_MAPKIT_TEAM_ID, APPLE_MAPKIT_KEY_ID, APPLE_MAPKIT_PRIVATE_KEY');
     throw new Error('Apple Maps not configured. Set environment variables.');
   }
 
@@ -45,58 +47,71 @@ async function getAppleMapsToken() {
 
     // Step 2: If still no newlines, reconstruct the PEM format
     if (!privateKeyPem.includes('\n') || privateKeyPem.split('\n').length < 3) {
-      // Extract the base64 content between headers
       const beginMarker = '-----BEGIN PRIVATE KEY-----';
       const endMarker = '-----END PRIVATE KEY-----';
 
-      // Remove headers and any whitespace
       let keyContent = privateKeyPem
         .replace(beginMarker, '')
         .replace(endMarker, '')
         .replace(/\s/g, '');
 
-      // Split into 64-character lines (PEM standard)
       const lines = [];
       for (let i = 0; i < keyContent.length; i += 64) {
         lines.push(keyContent.substring(i, i + 64));
       }
 
-      // Reconstruct properly formatted PEM
       privateKeyPem = `${beginMarker}\n${lines.join('\n')}\n${endMarker}`;
     }
 
     console.log('[AppleMapsServer] Key format check - lines:', privateKeyPem.split('\n').length);
-    console.log('[AppleMapsServer] Key starts with:', privateKeyPem.substring(0, 30));
-    console.log('[AppleMapsServer] Key ends with:', privateKeyPem.substring(privateKeyPem.length - 30));
 
     // Import the private key
     const privateKey = await jose.importPKCS8(privateKeyPem, 'ES256');
-    console.log('[AppleMapsServer] Key imported successfully, type:', privateKey.type);
+    console.log('[AppleMapsServer] Key imported successfully');
 
-    // Generate JWT token
+    // Step 1: Generate JWT Auth Token
     const now = Math.floor(Date.now() / 1000);
-    const token = await new jose.SignJWT({})
+    const authToken = await new jose.SignJWT({})
       .setProtectedHeader({ alg: 'ES256', kid: KEY_ID, typ: 'JWT' })
       .setIssuer(TEAM_ID)
       .setIssuedAt(now)
-      .setExpirationTime(now + 1800) // 30 minutes
+      .setExpirationTime(now + 1800)
       .sign(privateKey);
 
-    // Cache the token (refresh 5 min before expiry)
-    cachedToken = token;
-    tokenExpiry = Date.now() + 25 * 60 * 1000; // 25 minutes
+    console.log('[AppleMapsServer] Auth token generated, exchanging for access token...');
 
-    // Debug: decode and log token claims (not signature)
-    const parts = token.split('.');
-    const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
-    console.log('[AppleMapsServer] Generated token - header:', header);
-    console.log('[AppleMapsServer] Generated token - payload:', payload);
+    // Step 2: Exchange Auth Token for Access Token at /v1/token
+    const tokenResponse = await fetch(`${APPLE_MAPS_API_BASE}/token`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+      },
+    });
 
-    return token;
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('[AppleMapsServer] Token exchange failed:', tokenResponse.status, errorText);
+      throw new Error(`Token exchange failed: ${tokenResponse.status} - ${errorText}`);
+    }
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.accessToken;
+
+    if (!accessToken) {
+      throw new Error('No access token in response');
+    }
+
+    console.log('[AppleMapsServer] Access token received, expires in:', tokenData.expiresInSeconds, 'seconds');
+
+    // Cache the access token (refresh 5 min before expiry)
+    cachedAccessToken = accessToken;
+    const expiresIn = tokenData.expiresInSeconds || 1800;
+    accessTokenExpiry = Date.now() + (expiresIn - 300) * 1000; // 5 min before expiry
+
+    return accessToken;
   } catch (error) {
     console.error('[AppleMapsServer] Token generation failed:', error);
-    throw new Error('Failed to generate Apple Maps token. Check your private key.');
+    throw new Error('Failed to generate Apple Maps token. Check your credentials.');
   }
 }
 
@@ -129,8 +144,8 @@ async function appleMapsFetch(endpoint, params = {}) {
 
     if (response.status === 401 || response.status === 403) {
       // Invalidate cached token on auth error
-      cachedToken = null;
-      tokenExpiry = 0;
+      cachedAccessToken = null;
+      accessTokenExpiry = 0;
       throw new Error('Apple Maps token invalid. Check your credentials.');
     }
     throw new Error(`Apple Maps API error: ${response.status}`);
@@ -163,6 +178,11 @@ export async function searchPlaces(query, lat, lng, options = {}) {
       limitToCountries: 'US',
     });
 
+    // Log first result to see all available fields
+    if (data.results?.[0]) {
+      console.log('[AppleMapsServer] Sample place fields:', Object.keys(data.results[0]));
+    }
+
     // Transform results to our format
     const places = (data.results || []).slice(0, limit).map(place => ({
       placeId: place.id || place.muid,
@@ -176,6 +196,8 @@ export async function searchPlaces(query, lat, lng, options = {}) {
       phone: place.telephone,
       url: place.url,
       distance: place.distance, // in meters
+      // Capture hours if available (field name TBD from Apple response)
+      hours: place.openingHours || place.hoursOfOperation || place.hours || null,
     }));
 
     return places;

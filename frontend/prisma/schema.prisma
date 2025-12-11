@@ -1648,6 +1648,35 @@ model PushNotificationLog {
 // PHASE 9: SHELTER INTEGRATION
 // ============================================================================
 
+// City-level cache for shelter data to reduce API calls
+model CityCache {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // City identification
+  city        String
+  state       String
+  country     String   @default("US")
+
+  // Geographic data
+  centerLat   Float?              // City center latitude
+  centerLng   Float?              // City center longitude
+  boundary    String?             // GeoJSON polygon of city boundary
+
+  // Cache tracking
+  lastFetchedAt   DateTime?       // When shelters were last fetched from API
+  shelterCount    Int      @default(0) // Number of shelters found
+  fetchSource     String?          // APPLE_MAPKIT, GOOGLE_PLACES, etc.
+
+  // Relations - shelters in this city
+  shelters    Shelter[] @relation("CityShelters")
+
+  @@unique([city, state, country])
+  @@index([state])
+  @@index([lastFetchedAt])
+}
+
 model Shelter {
   id          String   @id @default(cuid())
   createdAt   DateTime @default(now())
@@ -1698,8 +1727,11 @@ model Shelter {
   // Relations
   intakes     ShelterIntake[]
   tasks       SquadTask[]
+  cityCache   CityCache? @relation("CityShelters", fields: [cityCacheId], references: [id])
+  cityCacheId String?
 
   @@index([city, state])
+  @@index([cityCacheId])
   @@index([latitude, longitude])
   @@index([isActive])
   @@index([type])
