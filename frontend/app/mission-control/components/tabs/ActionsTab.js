@@ -1975,82 +1975,62 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
 
               {/* Results List */}
               {!searching && searchResults.length > 0 && (
-                <div className="mt-4 space-y-3">
+                <div className="mt-4 space-y-2">
                   {searchResults.map(place => {
                     const isAdded = existingPlaceIds.includes(place.place_id);
-                    const hours = parseHours(place.hours);
+                    const mapsUrl = place.geometry?.location?.lat
+                      ? `https://www.google.com/maps/search/?api=1&query=${place.geometry.location.lat},${place.geometry.location.lng}`
+                      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name + ' ' + place.vicinity)}`;
 
                     return (
                       <div
                         key={place.place_id}
-                        className={`p-4 rounded-2xl border-2 transition-all ${
+                        className={`p-4 rounded-xl transition-all ${
                           isAdded
-                            ? 'bg-green-950/30 border-green-500/30'
-                            : 'bg-slate-800/40 border-slate-700/40 hover:border-slate-600/60'
+                            ? 'bg-green-900/20 border border-green-500/30'
+                            : 'bg-slate-800/50 border border-slate-700/50 hover:bg-slate-800/70'
                         }`}
                       >
-                        <div className="flex items-start gap-4">
+                        <div className="flex items-center justify-between gap-3">
                           <div className="flex-1 min-w-0">
-                            {/* Name and Distance */}
-                            <div className="flex items-start justify-between gap-3">
-                              <h4 className="text-white font-semibold text-lg leading-tight">{place.name}</h4>
-                              <div className="flex items-center gap-2 shrink-0">
-                                {place.distanceMiles != null && (
-                                  <span className="px-3 py-1 bg-orange-500/20 text-orange-300 text-sm font-semibold rounded-full">
-                                    {place.distanceMiles} mi
-                                  </span>
-                                )}
-                                {isAdded && (
-                                  <span className="px-3 py-1 bg-green-500/20 text-green-300 text-sm font-semibold rounded-full">
-                                    ✓ Added
-                                  </span>
-                                )}
-                              </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="text-white font-semibold">{place.name}</h4>
+                              {place.distanceMiles != null && (
+                                <span className="text-xs text-orange-400 font-medium">
+                                  {place.distanceMiles} mi
+                                </span>
+                              )}
+                              {isAdded && (
+                                <span className="text-xs text-green-400">✓ Added</span>
+                              )}
                             </div>
-
-                            {/* Address */}
-                            <p className="text-slate-400 text-sm mt-1.5">{place.vicinity}</p>
-
-                            {/* Phone */}
+                            <p className="text-slate-400 text-sm mt-1 truncate">{place.vicinity}</p>
                             {place.phone && (
-                              <div className="flex items-center gap-2 mt-3">
-                                <Phone size={14} className="text-slate-500" />
-                                <a href={`tel:${place.phone}`} className="text-orange-400 text-sm font-medium hover:underline">
-                                  {place.phone}
-                                </a>
-                              </div>
-                            )}
-
-                            {/* Hours (if available) */}
-                            {hours && (
-                              <div className="mt-3 p-3 bg-slate-900/50 rounded-xl">
-                                <p className="text-slate-400 text-xs font-medium mb-2">Hours:</p>
-                                <div className="grid grid-cols-2 gap-1 text-xs">
-                                  {Object.entries(hours).slice(0, 4).map(([day, time]) => (
-                                    <div key={day} className="flex justify-between">
-                                      <span className="text-slate-500 capitalize">{day}:</span>
-                                      <span className="text-slate-300">{time}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
+                              <a href={`tel:${place.phone}`} className="text-orange-400 text-sm mt-1 inline-block hover:underline">
+                                {place.phone}
+                              </a>
                             )}
                           </div>
-
-                          {/* Add Button */}
-                          {!isAdded && (
-                            <button
-                              onClick={() => handleAdd(place)}
-                              disabled={adding[place.place_id]}
-                              className="px-5 py-3 bg-orange-500 hover:bg-orange-400 disabled:bg-slate-700 text-white font-semibold rounded-xl transition-all shrink-0"
+                          <div className="flex items-center gap-2 shrink-0">
+                            <a
+                              href={mapsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                              title="Open in Google Maps"
                             >
-                              {adding[place.place_id] ? (
-                                <Loader2 size={18} className="animate-spin" />
-                              ) : (
-                                'Add'
-                              )}
-                            </button>
-                          )}
+                              <ExternalLink size={18} />
+                            </a>
+                            {!isAdded && (
+                              <button
+                                onClick={() => handleAdd(place)}
+                                disabled={adding[place.place_id]}
+                                className="px-4 py-2 bg-orange-500 hover:bg-orange-400 disabled:bg-slate-600 text-white font-semibold rounded-lg transition-colors"
+                              >
+                                {adding[place.place_id] ? <Loader2 size={16} className="animate-spin" /> : 'Add'}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
