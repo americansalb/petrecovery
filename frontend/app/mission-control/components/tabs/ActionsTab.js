@@ -1597,11 +1597,11 @@ function ShelterSearchButton({ caseId, mission, onPointsEarned }) {
           placeId: place.place_id,
           name: place.name,
           address: place.vicinity || place.formatted_address,
-          phone: place.formatted_phone_number,
+          phone: place.phone || place.formatted_phone_number,
           email: null,
           type: place.placeType || 'SHELTER',
-          latitude: place.geometry.location.lat,
-          longitude: place.geometry.location.lng,
+          latitude: place.geometry?.location?.lat,
+          longitude: place.geometry?.location?.lng,
         }),
       });
 
@@ -1691,11 +1691,13 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
           setSearchResults([]);
         } else {
           setSearchResults((data.places || []).map(place => ({
-            place_id: place.placeId,
+            place_id: place.placeId || place.id,
             name: place.name,
             vicinity: place.address,
             distanceMiles: place.distanceMiles,
-            geometry: { location: { lat: place.location.lat, lng: place.location.lng } },
+            phone: place.phone,
+            // Handle both location object (Apple Maps) and direct lat/lng (database)
+            geometry: { location: { lat: place.location?.lat ?? place.latitude, lng: place.location?.lng ?? place.longitude } },
             rating: place.rating,
             user_ratings_total: place.userRatingsTotal,
             placeType: searchType === 'shelter' ? 'SHELTER' : searchType === 'vet' ? 'VET' : 'ANIMAL_CONTROL',
