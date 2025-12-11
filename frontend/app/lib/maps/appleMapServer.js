@@ -178,6 +178,11 @@ export async function searchPlaces(query, lat, lng, options = {}) {
       limitToCountries: 'US',
     });
 
+    // Log first result to see all available fields
+    if (data.results?.[0]) {
+      console.log('[AppleMapsServer] Sample place fields:', Object.keys(data.results[0]));
+    }
+
     // Transform results to our format
     const places = (data.results || []).slice(0, limit).map(place => ({
       placeId: place.id || place.muid,
@@ -191,6 +196,8 @@ export async function searchPlaces(query, lat, lng, options = {}) {
       phone: place.telephone,
       url: place.url,
       distance: place.distance, // in meters
+      // Capture hours if available (field name TBD from Apple response)
+      hours: place.openingHours || place.hoursOfOperation || place.hours || null,
     }));
 
     return places;
