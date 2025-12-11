@@ -566,6 +566,27 @@ export default function ReportLostPet() {
         return false;
       }
 
+      // If Google returned OK but with no results, fall back to Nominatim
+      if (useGoogleFormat && (!data.results || data.results.length === 0)) {
+        console.log('[REPORT] Google returned no results, falling back to Nominatim');
+        let url;
+        if (isZipCode) {
+          url = `/api/geocode?q=${encodeURIComponent(query + ' USA')}&limit=1&addressdetails=1`;
+        } else {
+          url = `/api/geocode?q=${encodeURIComponent(query)}&limit=1&countrycodes=us&addressdetails=1`;
+        }
+        const nominatimResponse = await fetch(url);
+        if (nominatimResponse.ok) {
+          const nominatimText = await nominatimResponse.text();
+          try {
+            data = JSON.parse(nominatimText);
+            useGoogleFormat = false;
+          } catch (e) {
+            console.error('Failed to parse Nominatim response:', nominatimText);
+          }
+        }
+      }
+
       let lat, lon, city, state, displayAddress;
 
       if (useGoogleFormat && data.results && data.results.length > 0) {
@@ -606,7 +627,6 @@ export default function ReportLostPet() {
         state = addr.state || '';
 
         // Build a proper display address
-        displayAddress;
         if (isZipCode) {
           // For zip codes, show city, state, and zip
           if (city && state) {
