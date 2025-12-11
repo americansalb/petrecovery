@@ -1138,52 +1138,57 @@ function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace 
   ];
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 rounded-2xl max-w-md w-full border border-slate-700 shadow-xl max-h-[80vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-900 rounded-2xl w-full max-w-2xl border border-slate-700 shadow-2xl flex flex-col" style={{ height: '85vh', maxHeight: '700px' }}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-700">
-          <h3 className="text-white font-semibold text-lg">Shelters & Vets</h3>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors">
-            <X className="text-slate-400" size={20} />
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+          <div>
+            <h3 className="text-white font-bold text-xl">Shelters & Vets</h3>
+            <p className="text-slate-400 text-sm mt-0.5">Find nearby places to contact about this pet</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-xl transition-colors">
+            <X className="text-slate-400" size={24} />
           </button>
         </div>
 
-        {/* Search Options */}
-        <div className="p-4 space-y-4 border-b border-slate-700/50">
-          {/* Type tabs */}
-          <div className="flex gap-2">
-            {typeButtons.map(btn => (
-              <button
-                key={btn.value}
-                onClick={() => setSearchType(btn.value)}
-                className={`flex-1 py-2.5 text-sm font-medium rounded-xl transition-all ${
-                  searchType === btn.value
-                    ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/25'
-                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
-                }`}
-              >
-                {btn.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Radius selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-400">Radius:</span>
-            <div className="flex gap-1.5 flex-1">
-              {[10, 25, 50, 75].map(r => (
+        {/* Search Controls */}
+        <div className="px-6 py-5 border-b border-slate-700 bg-slate-800/30">
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Type Selection */}
+            <div className="flex gap-2 flex-1">
+              {typeButtons.map(btn => (
                 <button
-                  key={r}
-                  onClick={() => setRadius(r)}
-                  className={`flex-1 py-1.5 text-sm font-medium rounded-lg transition-all ${
-                    radius === r
-                      ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50'
-                      : 'bg-slate-800/50 text-slate-500 hover:text-slate-300'
+                  key={btn.value}
+                  onClick={() => setSearchType(btn.value)}
+                  className={`flex-1 py-3 px-4 text-sm font-semibold rounded-xl transition-all ${
+                    searchType === btn.value
+                      ? 'bg-orange-500 text-white shadow-lg'
+                      : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
                   }`}
                 >
-                  {r}mi
+                  {btn.label}
                 </button>
               ))}
+            </div>
+
+            {/* Radius Selection */}
+            <div className="flex items-center gap-3 bg-slate-800 rounded-xl px-4 py-2">
+              <span className="text-slate-400 text-sm whitespace-nowrap">Radius:</span>
+              <div className="flex gap-1">
+                {[10, 25, 50, 75].map(r => (
+                  <button
+                    key={r}
+                    onClick={() => setRadius(r)}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                      radius === r
+                        ? 'bg-orange-500 text-white'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                    }`}
+                  >
+                    {r}mi
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -1191,97 +1196,139 @@ function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace 
           <button
             onClick={searchPlaces}
             disabled={loading}
-            className="w-full py-3 bg-orange-500 hover:bg-orange-400 disabled:bg-orange-500/50 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20"
+            className="w-full mt-4 py-4 bg-orange-500 hover:bg-orange-400 disabled:bg-orange-600 disabled:cursor-wait text-white font-bold text-lg rounded-xl transition-all flex items-center justify-center gap-3"
           >
             {loading ? (
               <>
-                <Loader2 size={18} className="animate-spin" />
-                Searching...
+                <Loader2 size={22} className="animate-spin" />
+                Searching nearby places...
               </>
             ) : (
               <>
-                <Search size={18} />
+                <Search size={22} />
                 Search Now
               </>
             )}
           </button>
         </div>
 
-        {/* Results */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-[200px]">
+        {/* Results Area */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Error State */}
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center">
-              {error}
-            </div>
-          )}
-
-          {!hasSearched && !loading && !error && (
-            <div className="text-center py-12 text-slate-500">
-              <Search size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">Select options and click Search</p>
-            </div>
-          )}
-
-          {hasSearched && !loading && results.length === 0 && !error && (
-            <div className="text-center py-12 text-slate-500">
-              <Building2 size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No results found</p>
-              <p className="text-xs mt-1">Try increasing the search radius</p>
-            </div>
-          )}
-
-          {results.map(place => {
-            const isAdded = existingPlaceIds.includes(place.place_id);
-            const isAdding = adding[place.place_id];
-
-            return (
-              <div
-                key={place.place_id}
-                className={`p-3 rounded-xl border transition-all ${
-                  isAdded
-                    ? 'bg-green-500/5 border-green-500/20'
-                    : 'bg-slate-800/30 border-slate-700/30 hover:border-slate-600/50'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-white font-medium text-sm">{place.name}</p>
-                      {place.distanceMiles != null && (
-                        <span className="text-xs text-orange-400 font-medium">
-                          {place.distanceMiles} mi
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{place.vicinity}</p>
-                    {place.phone && (
-                      <p className="text-xs text-slate-400 mt-1">{place.phone}</p>
-                    )}
-                  </div>
+            <div className="m-6 p-6 bg-red-950/50 border-2 border-red-500/30 rounded-2xl">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-red-500/20 rounded-xl">
+                  <X className="text-red-400" size={24} />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-red-300 font-semibold text-lg">Search Failed</h4>
+                  <p className="text-red-400/80 mt-1">{error}</p>
                   <button
-                    onClick={() => handleAdd(place)}
-                    disabled={isAdded || isAdding}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all shrink-0 ${
-                      isAdded
-                        ? 'bg-green-500/10 text-green-400 cursor-default'
-                        : isAdding
-                        ? 'bg-slate-700 text-slate-400'
-                        : 'bg-orange-500 hover:bg-orange-400 text-white'
-                    }`}
+                    onClick={searchPlaces}
+                    className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-medium rounded-lg transition-colors"
                   >
-                    {isAdding ? <Loader2 size={12} className="animate-spin" /> : isAdded ? 'Added' : 'Add'}
+                    Try Again
                   </button>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          )}
+
+          {/* Initial State */}
+          {!hasSearched && !loading && !error && (
+            <div className="flex flex-col items-center justify-center h-full py-16 px-6">
+              <div className="p-6 bg-slate-800/50 rounded-full mb-6">
+                <Search size={48} className="text-slate-600" />
+              </div>
+              <h4 className="text-slate-300 font-semibold text-lg">Ready to Search</h4>
+              <p className="text-slate-500 mt-2 text-center max-w-sm">
+                Select the type of place and search radius above, then click Search Now
+              </p>
+            </div>
+          )}
+
+          {/* Empty Results */}
+          {hasSearched && !loading && results.length === 0 && !error && (
+            <div className="flex flex-col items-center justify-center h-full py-16 px-6">
+              <div className="p-6 bg-slate-800/50 rounded-full mb-6">
+                <Building2 size={48} className="text-slate-600" />
+              </div>
+              <h4 className="text-slate-300 font-semibold text-lg">No Results Found</h4>
+              <p className="text-slate-500 mt-2 text-center max-w-sm">
+                No {searchType === 'shelter' ? 'shelters' : searchType === 'vet' ? 'veterinarians' : 'animal control offices'} found within {radius} miles
+              </p>
+              <button
+                onClick={() => setRadius(Math.min(radius + 25, 75))}
+                disabled={radius >= 75}
+                className="mt-6 px-6 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 font-medium rounded-xl transition-colors"
+              >
+                Expand Search Radius
+              </button>
+            </div>
+          )}
+
+          {/* Results List */}
+          {results.length > 0 && (
+            <div className="p-4 space-y-3">
+              <p className="text-slate-400 text-sm px-2 mb-2">
+                Found {results.length} {searchType === 'shelter' ? 'shelters' : searchType === 'vet' ? 'veterinarians' : 'animal control offices'}
+              </p>
+              {results.map(place => {
+                const isAdded = existingPlaceIds.includes(place.place_id);
+                const isAdding = adding[place.place_id];
+
+                return (
+                  <div
+                    key={place.place_id}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      isAdded
+                        ? 'bg-green-950/30 border-green-500/30'
+                        : 'bg-slate-800/50 border-slate-700/50 hover:border-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3">
+                          <h4 className="text-white font-semibold text-base">{place.name}</h4>
+                          {place.distanceMiles != null && (
+                            <span className="px-2.5 py-1 bg-orange-500/20 text-orange-300 text-xs font-semibold rounded-full">
+                              {place.distanceMiles} mi
+                            </span>
+                          )}
+                          {isAdded && (
+                            <span className="px-2.5 py-1 bg-green-500/20 text-green-300 text-xs font-semibold rounded-full">
+                              Added
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-slate-400 text-sm mt-1.5">{place.vicinity}</p>
+                        {place.phone && (
+                          <p className="text-slate-300 text-sm mt-2 font-medium">{place.phone}</p>
+                        )}
+                      </div>
+                      {!isAdded && (
+                        <button
+                          onClick={() => handleAdd(place)}
+                          disabled={isAdding}
+                          className="px-5 py-2.5 bg-orange-500 hover:bg-orange-400 disabled:bg-slate-700 text-white font-semibold rounded-xl transition-all shrink-0"
+                        >
+                          {isAdding ? <Loader2 size={18} className="animate-spin" /> : 'Add'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-700/50">
+        <div className="px-6 py-4 border-t border-slate-700 bg-slate-800/30">
           <button
             onClick={onClose}
-            className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl transition-colors"
+            className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-xl transition-colors"
           >
             Done
           </button>
