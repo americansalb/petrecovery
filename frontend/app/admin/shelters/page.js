@@ -25,6 +25,7 @@ import {
   Trash2,
   ExternalLink,
   Database,
+  Mail,
 } from 'lucide-react';
 
 const SHELTER_TYPES = [
@@ -178,51 +179,75 @@ export default function AdminSheltersPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Stats Cards */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                   <Building2 className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.total?.toLocaleString() || 0}</p>
-                  <p className="text-sm text-gray-500">Total Shelters</p>
+                  <p className="text-xl font-bold text-gray-900">{stats.total?.toLocaleString() || 0}</p>
+                  <p className="text-xs text-gray-500">Total</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
                   <MapPin className="w-5 h-5 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.cities || 0}</p>
-                  <p className="text-sm text-gray-500">Cities Covered</p>
+                  <p className="text-xl font-bold text-gray-900">{stats.cities || 0}</p>
+                  <p className="text-xs text-gray-500">Cities</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                   <Phone className="w-5 h-5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.withPhone || 0}</p>
-                  <p className="text-sm text-gray-500">With Phone</p>
+                  <p className="text-xl font-bold text-gray-900">{stats.withPhone || 0}</p>
+                  <p className="text-xs text-gray-500">W/ Phone</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
+                  <Mail className="w-5 h-5 text-pink-600" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-gray-900">{stats.withEmail || 0}</p>
+                  <p className="text-xs text-gray-500">W/ Email</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-cyan-100 rounded-lg flex items-center justify-center">
+                  <Globe className="w-5 h-5 text-cyan-600" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-gray-900">{stats.withWebsite || 0}</p>
+                  <p className="text-xs text-gray-500">W/ Website</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                   <Clock className="w-5 h-5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{stats.withHours || 0}</p>
-                  <p className="text-sm text-gray-500">With Hours</p>
+                  <p className="text-xl font-bold text-gray-900">{stats.withHours || 0}</p>
+                  <p className="text-xs text-gray-500">W/ Hours</p>
                 </div>
               </div>
             </div>
@@ -295,9 +320,12 @@ export default function AdminSheltersPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shelter</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Website</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hours</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -331,6 +359,18 @@ export default function AdminSheltersPage() {
                       )}
                     </td>
                     <td className="px-4 py-4">
+                      {shelter.email ? (
+                        <a
+                          href={`mailto:${shelter.email}`}
+                          className="text-sm text-gray-900 hover:text-blue-600 truncate max-w-[150px] block"
+                        >
+                          {shelter.email}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
                       {shelter.website ? (
                         <a
                           href={shelter.website}
@@ -342,6 +382,16 @@ export default function AdminSheltersPage() {
                           Visit
                           <ExternalLink className="w-3 h-3" />
                         </a>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
+                      {shelter.hours ? (
+                        <span className="text-xs text-gray-700" title={typeof shelter.hours === 'string' ? shelter.hours : JSON.stringify(shelter.hours)}>
+                          <Clock className="w-3 h-3 inline mr-1" />
+                          Available
+                        </span>
                       ) : (
                         <span className="text-xs text-gray-400">—</span>
                       )}
@@ -362,6 +412,11 @@ export default function AdminSheltersPage() {
                         {shelter.source === 'APPLE_MAPKIT' ? 'Apple Maps' : shelter.source}
                       </span>
                     </td>
+                    <td className="px-4 py-4">
+                      <span className="text-xs text-gray-500">
+                        {shelter.fetchedAt ? new Date(shelter.fetchedAt).toLocaleDateString() : '—'}
+                      </span>
+                    </td>
                     <td className="px-4 py-4 text-right">
                       <button
                         onClick={() => handleDelete(shelter.id)}
@@ -376,7 +431,7 @@ export default function AdminSheltersPage() {
 
                 {shelters.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-gray-500 whitespace-normal">
+                    <td colSpan={10} className="px-4 py-12 text-center text-gray-500 whitespace-normal">
                       <Building2 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                       <p>No shelters found</p>
                       <p className="text-sm mt-1">Shelters are added when users search on the Find Shelters page</p>

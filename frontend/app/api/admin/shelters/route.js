@@ -71,9 +71,11 @@ export async function GET(request) {
     ]);
 
     // Get stats
-    const [totalAll, withPhone, withHours, citiesCount] = await Promise.all([
+    const [totalAll, withPhone, withEmail, withWebsite, withHours, citiesCount] = await Promise.all([
       prisma.shelter.count({ where: { isActive: true } }),
-      prisma.shelter.count({ where: { isActive: true, phone: { not: null } } }),
+      prisma.shelter.count({ where: { isActive: true, AND: [{ phone: { not: null } }, { phone: { not: '' } }] } }),
+      prisma.shelter.count({ where: { isActive: true, AND: [{ email: { not: null } }, { email: { not: '' } }] } }),
+      prisma.shelter.count({ where: { isActive: true, AND: [{ website: { not: null } }, { website: { not: '' } }] } }),
       prisma.shelter.count({ where: { isActive: true, hours: { not: null } } }),
       prisma.shelter.groupBy({
         by: ['city', 'state'],
@@ -89,6 +91,8 @@ export async function GET(request) {
       stats: {
         total: totalAll,
         withPhone,
+        withEmail,
+        withWebsite,
         withHours,
         cities: citiesCount.length,
       },
