@@ -327,17 +327,32 @@ export async function searchPlaceDetails(name, latitude, longitude) {
 
       if (data?.places?.length > 0) {
         const place = data.places[0];
-        console.log('[MapKit Search] Found place:', {
-          name: place.name,
-          telephone: place.telephone,
-          url: place.url,
-          hours: place.hours,
-          fullPlace: place,
-        });
+        // Log all available properties to see what MapKit JS provides
+        console.log('[MapKit Search] Found place:', place.name);
+        console.log('[MapKit Search] Place keys:', Object.keys(place));
+        console.log('[MapKit Search] telephone:', place.telephone);
+        console.log('[MapKit Search] url:', place.url);
+        console.log('[MapKit Search] hours:', place.hours);
+        console.log('[MapKit Search] pointOfInterestCategory:', place.pointOfInterestCategory);
+
+        // MapKit JS may return hours as a structured object or not at all
+        let formattedHours = null;
+        if (place.hours) {
+          // Try to extract today's hours if structured
+          if (typeof place.hours === 'object' && place.hours.hoursText) {
+            formattedHours = place.hours.hoursText;
+          } else if (typeof place.hours === 'string') {
+            formattedHours = place.hours;
+          } else {
+            // Just stringify for now to see what we get
+            formattedHours = JSON.stringify(place.hours);
+          }
+        }
+
         resolve({
           telephone: place.telephone || null,
           url: place.url || null,
-          hours: place.hours || null,
+          hours: formattedHours,
         });
       } else {
         console.log('[MapKit Search] No places found for:', name);
