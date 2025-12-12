@@ -61,7 +61,7 @@ export async function GET(
 
     // Get all flyer postings
     const flyers = await prisma.flyerPosting.findMany({
-      where: { missionId },
+      where: { caseId: missionId },
       include: {
         user: {
           select: { id: true, firstName: true, lastName: true },
