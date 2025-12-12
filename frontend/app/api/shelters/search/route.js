@@ -6,6 +6,7 @@ import prisma from '@/app/lib/prisma';
  * GET /api/shelters/search
  *
  * Search for shelters near a location using Apple MapKit.
+ * Results are automatically saved to the database for caching.
  */
 export async function GET(request) {
   try {
@@ -24,6 +25,7 @@ export async function GET(request) {
     const results = {
       shelters: [],
       source: 'APPLE_MAPKIT',
+      savedToDatabase: 0,
     };
 
     // If Apple MapKit is configured and live search is enabled, search directly
@@ -46,12 +48,25 @@ export async function GET(request) {
             longitude: geocoded.coordinate.longitude,
             formattedAddress: geocoded.formattedAddressLines?.join(', '),
           };
+
+          // Save results to database in background (don't await)
+          saveSheltersToDatabase(shelters).then(saveResult => {
+            console.log(`Saved ${saveResult.created} new shelters, updated ${saveResult.updated}`);
+          }).catch(err => {
+            console.error('Failed to save shelters to database:', err);
+          });
+
         } else {
           // Fallback: search by city name
           const parts = location.split(',').map(p => p.trim());
           if (parts.length >= 2) {
             const shelters = await appleMapKit.searchSheltersInCity(parts[0], parts[1]);
             results.shelters = shelters;
+
+            // Save to database
+            saveSheltersToDatabase(shelters).catch(err => {
+              console.error('Failed to save shelters to database:', err);
+            });
           }
         }
       } catch (error) {
@@ -117,4 +132,102 @@ export async function GET(request) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * Save shelters from Apple Maps to database
+ */
+async function saveSheltersToDatabase(shelters) {
+  const results = { created: 0, updated: 0, skipped: 0 };
+
+  for (const shelter of shelters) {
+    try {
+      if (!shelter.name || !shelter.city || !shelter.state) {
+        results.skipped++;
+        continue;
+      }
+
+      // Check if shelter already exists
+      const existing = await prisma.shelter.findFirst({
+        where: {
+          OR: [
+            { appleMapKitId: shelter.appleMapKitId },
+            {
+              AND: [
+                { name: shelter.name },
+                { city: shelter.city },
+                { state: shelter.state },
+              ],
+            },
+          ],
+        },
+      });
+
+      if (existing) {
+        // Update existing shelter with fresh data
+        await prisma.shelter.update({
+          where: { id: existing.id },
+          data: {
+            appleMapKitId: shelter.appleMapKitId || existing.appleMapKitId,
+            phone: shelter.phone || existing.phone,
+            website: shelter.website || existing.website,
+            address: shelter.address || existing.address,
+            latitude: shelter.latitude ?? existing.latitude,
+            longitude: shelter.longitude ?? existing.longitude,
+            hours: shelter.hours || existing.hours,
+            fetchedAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+        results.updated++;
+      } else {
+        // Create new shelter
+        await prisma.shelter.create({
+          data: {
+            appleMapKitId: shelter.appleMapKitId,
+            name: shelter.name,
+            phone: shelter.phone,
+            website: shelter.website,
+            address: shelter.address || '',
+            city: shelter.city,
+            state: shelter.state,
+            zipCode: shelter.zipCode || '',
+            latitude: shelter.latitude,
+            longitude: shelter.longitude,
+            hours: shelter.hours,
+            type: determineShelterType(shelter.name),
+            source: 'APPLE_MAPKIT',
+            fetchedAt: new Date(),
+            isActive: true,
+          },
+        });
+        results.created++;
+      }
+    } catch (error) {
+      console.error(`Error saving shelter "${shelter.name}":`, error.message);
+      results.skipped++;
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Determine shelter type from name
+ */
+function determineShelterType(name) {
+  const nameLower = name.toLowerCase();
+  if (nameLower.includes('animal control') || nameLower.includes('city of') || nameLower.includes('county')) {
+    return 'ANIMAL_CONTROL';
+  }
+  if (nameLower.includes('humane society') || nameLower.includes('spca')) {
+    return 'SHELTER';
+  }
+  if (nameLower.includes('rescue')) {
+    return 'RESCUE';
+  }
+  if (nameLower.includes('vet') || nameLower.includes('veterinary') || nameLower.includes('animal hospital')) {
+    return 'VET';
+  }
+  return 'SHELTER';
 }
