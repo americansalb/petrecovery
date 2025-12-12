@@ -178,9 +178,9 @@ export async function searchPlaces(query, lat, lng, options = {}) {
       limitToCountries: 'US',
     });
 
-    // Log first result to see all available fields
+    // Log first result to see ALL available fields
     if (data.results?.[0]) {
-      console.log('[AppleMapsServer] Sample place fields:', Object.keys(data.results[0]));
+      console.log('[AppleMapsServer] Full first result:', JSON.stringify(data.results[0], null, 2));
     }
 
     // Transform results to our format
@@ -193,11 +193,13 @@ export async function searchPlaces(query, lat, lng, options = {}) {
         lng: place.center?.longitude || place.coordinate?.longitude,
       },
       category: place.poiCategory,
-      phone: place.telephone,
-      url: place.url,
+      // Try ALL possible field names for phone
+      phone: place.telephone || place.phoneNumbers?.[0] || place.phone || place.tel || null,
+      // Try ALL possible field names for website
+      url: place.url || place.urls?.[0] || place.website || place.websiteUrl || null,
       distance: place.distance, // in meters
-      // Capture hours if available (field name TBD from Apple response)
-      hours: place.openingHours || place.hoursOfOperation || place.hours || null,
+      // Try ALL possible field names for hours
+      hours: place.openingHours || place.hoursOfOperation || place.hours || place.businessHours || null,
     }));
 
     return places;
@@ -347,11 +349,12 @@ export async function getPlaceDetails(placeId) {
   if (!placeId) return null;
 
   try {
+    // Try the /place endpoint (may not exist in Server API)
     const data = await appleMapsFetch(`/place/${placeId}`, {
       lang: 'en-US',
     });
 
-    console.log('[AppleMapsServer] Place details response fields:', Object.keys(data || {}));
+    console.log('[AppleMapsServer] Place details full response:', JSON.stringify(data, null, 2));
 
     if (!data) return null;
 
@@ -365,13 +368,14 @@ export async function getPlaceDetails(placeId) {
       },
       category: data.poiCategory,
       // Try all possible phone field names
-      phone: data.telephone || data.phoneNumber || data.phone || data.tel || null,
-      url: data.url || data.website || null,
+      phone: data.telephone || data.phoneNumbers?.[0] || data.phoneNumber || data.phone || data.tel || null,
+      url: data.url || data.urls?.[0] || data.website || data.websiteUrl || null,
       // Try all possible hours field names
-      hours: data.openingHours || data.hoursOfOperation || data.hours || data.operatingHours || null,
+      hours: data.openingHours || data.hoursOfOperation || data.hours || data.businessHours || data.operatingHours || null,
     };
   } catch (error) {
-    console.error('[AppleMapsServer] Get place details error:', error.message);
+    // The /place/{id} endpoint might not exist in Apple Maps Server API
+    console.log('[AppleMapsServer] Place details endpoint not available:', error.message);
     return null;
   }
 }
