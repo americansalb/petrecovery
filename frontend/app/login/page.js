@@ -91,7 +91,7 @@ export default function LoginPage() {
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400 pointer-events-none" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400 pointer-events-none z-10" />
                 <input
                   id="email"
                   name="email"
@@ -102,7 +102,8 @@ export default function LoginPage() {
                   placeholder="you@example.com"
                   required
                   aria-required="true"
-                  className="w-full pl-14 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                  className="w-full pl-12 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                  style={{ textIndent: '0', paddingLeft: '3rem' }}
                 />
               </div>
             </div>
@@ -117,7 +118,7 @@ export default function LoginPage() {
                 </Link>
               </div>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400 pointer-events-none" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400 pointer-events-none z-10" />
                 <input
                   id="password"
                   name="password"
@@ -128,7 +129,8 @@ export default function LoginPage() {
                   placeholder="Enter your password"
                   required
                   aria-required="true"
-                  className="w-full pl-14 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                  className="w-full pl-12 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                  style={{ paddingLeft: '3rem' }}
                 />
               </div>
             </div>

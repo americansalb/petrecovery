@@ -146,14 +146,15 @@ const AuthModal = ({ isOpen, onClose, squadToJoin, onAuthSuccess }) => {
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none z-10" />
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="you@example.com"
                 required
-                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
+                className="w-full pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
+                style={{ paddingLeft: '3rem' }}
               />
             </div>
           </div>
@@ -161,7 +162,7 @@ const AuthModal = ({ isOpen, onClose, squadToJoin, onAuthSuccess }) => {
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none z-10" />
               <input
                 type="password"
                 value={formData.password}
@@ -169,7 +170,8 @@ const AuthModal = ({ isOpen, onClose, squadToJoin, onAuthSuccess }) => {
                 placeholder="••••••••"
                 required
                 minLength={mode === 'register' ? 8 : undefined}
-                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
+                className="w-full pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
+                style={{ paddingLeft: '3rem' }}
               />
             </div>
           </div>
@@ -811,13 +813,14 @@ export default function Home() {
             <h3 className="text-white font-bold text-xl mb-4 text-center">Find Squads Near You</h3>
             <form onSubmit={handleFindSquad} className="flex flex-col sm:flex-row gap-3 mb-4">
               <div className="flex-1 relative">
-                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none z-10" />
                 <input
                   type="text"
                   value={locationQuery}
                   onChange={(e) => setLocationQuery(e.target.value)}
                   placeholder="City or zip code..."
-                  className="w-full pl-14 pr-4 py-4 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                  className="w-full pr-4 py-4 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                  style={{ paddingLeft: '3rem' }}
                 />
               </div>
               <button
