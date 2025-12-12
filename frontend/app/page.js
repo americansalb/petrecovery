@@ -561,8 +561,17 @@ export default function Home() {
       </header>
 
       {/* Hero */}
-      <section className="py-16 md:py-20">
-        <div className="max-w-6xl mx-auto px-4">
+      <section className="py-16 md:py-24 relative overflow-hidden">
+        {/* Dynamic background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-midnight-900 via-midnight-800 to-indigo-900">
+          <div className="absolute inset-0 opacity-40">
+            <div className="absolute top-20 left-20 w-96 h-96 bg-flash-400 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute bottom-20 right-20 w-80 h-80 bg-flash-300 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+          </div>
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 relative z-10">
           <div className="text-center mb-12">
             {/* Mascot */}
             <motion.img
@@ -570,7 +579,7 @@ export default function Home() {
               animate={{ opacity: 1, scale: 1 }}
               src="https://petrescue.b-cdn.net/Logos%20(1).svg"
               alt="Surumaa"
-              className="h-16 w-auto mx-auto mb-4"
+              className="h-20 w-auto mx-auto mb-6 drop-shadow-2xl"
             />
 
             {/* Live Alert */}
@@ -578,9 +587,9 @@ export default function Home() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="inline-flex items-center gap-2 bg-red-100 text-red-700 px-4 py-2 rounded-full text-sm mb-6"
+                className="inline-flex items-center gap-2 bg-red-500/20 backdrop-blur-sm text-red-200 px-4 py-2 rounded-full text-sm mb-6 border border-red-400/30"
               >
-                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
                 {metrics.openCases} pets need help right now
               </motion.div>
             )}
@@ -589,10 +598,10 @@ export default function Home() {
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 mb-4"
+              className="text-4xl md:text-6xl lg:text-7xl font-black text-white mb-6"
             >
               Your Neighborhood Searches{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-flash-400 via-flash-500 to-flash-400">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-flash-300 via-flash-400 to-amber-400 drop-shadow-lg">
                 Together
               </span>
             </motion.h1>
@@ -601,7 +610,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto"
+              className="text-xl text-slate-300 mb-10 max-w-2xl mx-auto"
             >
               When your pet goes missing, we mobilize GPS-tracked volunteers who coordinate in real-time to bring them home.
             </motion.p>
@@ -611,23 +620,26 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="flex flex-wrap justify-center gap-6 mb-10 text-gray-600"
+              className="flex flex-wrap justify-center gap-8 mb-12"
             >
               {loading ? (
-                <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
+                <div className="h-8 w-48 bg-white/10 rounded animate-pulse" />
               ) : (
                 <>
-                  <div className="flex items-center gap-2">
-                    <Heart className="w-5 h-5 text-rose-500" />
-                    <span className="font-bold text-gray-900">{metrics.petsReunited.toLocaleString()}</span> reunited
+                  <div className="flex items-center gap-2 text-white">
+                    <Heart className="w-5 h-5 text-flash-400" />
+                    <span className="font-black text-2xl text-flash-300">{metrics.petsReunited.toLocaleString()}</span>
+                    <span className="text-slate-400">reunited</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-blue-500" />
-                    <span className="font-bold text-gray-900">{metrics.activeSquads}</span> rescue squads
+                  <div className="flex items-center gap-2 text-white">
+                    <Shield className="w-5 h-5 text-blue-400" />
+                    <span className="font-black text-2xl text-blue-300">{metrics.activeSquads}</span>
+                    <span className="text-slate-400">rescue squads</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-purple-500" />
-                    <span className="font-bold text-gray-900">{metrics.totalVolunteers?.toLocaleString() || 0}</span> volunteers
+                  <div className="flex items-center gap-2 text-white">
+                    <Users className="w-5 h-5 text-emerald-400" />
+                    <span className="font-black text-2xl text-emerald-300">{metrics.totalVolunteers?.toLocaleString() || 0}</span>
+                    <span className="text-slate-400">volunteers</span>
                   </div>
                 </>
               )}
@@ -638,20 +650,20 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="flex flex-col sm:flex-row gap-4 justify-center mb-6"
+              className="flex flex-col sm:flex-row gap-4 justify-center mb-8"
             >
               <Link
                 href="/report/new"
-                className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg shadow-red-200/50 hover:shadow-red-300/50 hover:scale-[1.02]"
+                className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 text-white px-10 py-5 rounded-2xl font-black text-xl transition-all shadow-2xl shadow-red-500/30 hover:shadow-red-500/50 hover:scale-105"
               >
-                <Bell className="w-5 h-5" />
+                <Bell className="w-6 h-6" />
                 Report Lost Pet
               </Link>
               <Link
                 href="/report/found"
-                className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg shadow-emerald-200/50 hover:shadow-emerald-300/50 hover:scale-[1.02]"
+                className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-flash-400 to-amber-500 hover:from-flash-300 hover:to-amber-400 text-midnight-900 px-10 py-5 rounded-2xl font-black text-xl transition-all shadow-2xl shadow-flash-400/30 hover:shadow-flash-400/50 hover:scale-105"
               >
-                <Heart className="w-5 h-5" />
+                <Heart className="w-6 h-6" />
                 I Found a Pet
               </Link>
             </motion.div>
@@ -661,15 +673,15 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="flex flex-wrap justify-center gap-6 text-gray-500"
+              className="flex flex-wrap justify-center gap-6 text-slate-400"
             >
-              <Link href="/database" className="inline-flex items-center gap-2 hover:text-gray-900 transition">
+              <Link href="/database" className="inline-flex items-center gap-2 hover:text-flash-300 transition">
                 <Search className="w-4 h-4" /> Search lost pets
               </Link>
-              <Link href="/rescue-squads/search" className="inline-flex items-center gap-2 hover:text-gray-900 transition">
+              <Link href="/rescue-squads/search" className="inline-flex items-center gap-2 hover:text-flash-300 transition">
                 <Shield className="w-4 h-4" /> Find your squad
               </Link>
-              <Link href="/shelters" className="inline-flex items-center gap-2 hover:text-gray-900 transition">
+              <Link href="/shelters" className="inline-flex items-center gap-2 hover:text-flash-300 transition">
                 <Building2 className="w-4 h-4" /> Check shelters
               </Link>
             </motion.div>
@@ -695,13 +707,14 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-slate-100"
+              whileHover={{ scale: 1.03, y: -5 }}
+              className="bg-gradient-to-br from-midnight-800 to-midnight-900 rounded-3xl p-6 shadow-xl hover:shadow-2xl transition-all cursor-pointer group"
             >
-              <div className="w-12 h-12 bg-gradient-to-br from-midnight-700 to-midnight-900 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-midnight-200">
-                <Shield className="w-6 h-6 text-white" />
+              <div className="w-14 h-14 bg-gradient-to-br from-flash-300 to-flash-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
+                <Shield className="w-7 h-7 text-midnight-900" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Rescue Squads</h3>
-              <p className="text-gray-600 text-sm">
+              <h3 className="text-xl font-black text-white mb-2">Rescue Squads</h3>
+              <p className="text-slate-300 text-sm">
                 Join your neighborhood squad or start one. Real volunteers ready to search when you need them.
               </p>
             </motion.div>
@@ -712,13 +725,14 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
-              className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-slate-100"
+              whileHover={{ scale: 1.03, y: -5 }}
+              className="bg-gradient-to-br from-flash-400 to-amber-500 rounded-3xl p-6 shadow-xl hover:shadow-2xl transition-all cursor-pointer group"
             >
-              <div className="w-12 h-12 bg-gradient-to-br from-flash-400 to-flash-500 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-flash-200">
-                <FileText className="w-6 h-6 text-white" />
+              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
+                <FileText className="w-7 h-7 text-flash-600" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Auto-Generated Flyers</h3>
-              <p className="text-gray-600 text-sm">
+              <h3 className="text-xl font-black text-midnight-900 mb-2">Auto-Generated Flyers</h3>
+              <p className="text-midnight-800 text-sm">
                 Professional flyers created instantly from your report. Print, share, and post around town.
               </p>
             </motion.div>
@@ -729,13 +743,14 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
-              className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-slate-100"
+              whileHover={{ scale: 1.03, y: -5 }}
+              className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 shadow-xl hover:shadow-2xl transition-all cursor-pointer group"
             >
-              <div className="w-12 h-12 bg-gradient-to-br from-teal-400 to-emerald-500 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-teal-200">
-                <Building2 className="w-6 h-6 text-white" />
+              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
+                <Building2 className="w-7 h-7 text-emerald-600" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Nearby Shelters</h3>
-              <p className="text-gray-600 text-sm">
+              <h3 className="text-xl font-black text-white mb-2">Nearby Shelters</h3>
+              <p className="text-emerald-100 text-sm">
                 We find shelters near you automatically. Check if your pet was brought in. Get contact info instantly.
               </p>
             </motion.div>
@@ -746,13 +761,14 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.3 }}
-              className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-slate-100"
+              whileHover={{ scale: 1.03, y: -5 }}
+              className="bg-gradient-to-br from-violet-500 to-purple-700 rounded-3xl p-6 shadow-xl hover:shadow-2xl transition-all cursor-pointer group"
             >
-              <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-violet-200">
-                <Map className="w-6 h-6 text-white" />
+              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
+                <Map className="w-7 h-7 text-violet-600" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Tracked Searches</h3>
-              <p className="text-gray-600 text-sm">
+              <h3 className="text-xl font-black text-white mb-2">Tracked Searches</h3>
+              <p className="text-violet-100 text-sm">
                 See who's searching where. GPS tracks coverage so no area gets missed. Everyone works together.
               </p>
             </motion.div>
