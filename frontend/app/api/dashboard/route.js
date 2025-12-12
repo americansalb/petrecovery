@@ -111,9 +111,9 @@ export async function GET(request) {
 
     // Get Mission Control status for each case
     const missionStatuses = await prisma.missionControl.findMany({
-      where: { missionId: { in: missionIds } },
+      where: { caseId: { in: missionIds } },
       select: {
-        missionId: true,
+        caseId: true,
         mode: true,
         activatedAt: true,
         activeVolunteers: {
@@ -123,7 +123,7 @@ export async function GET(request) {
       }
     });
     const missionMap = Object.fromEntries(
-      missionStatuses.map(m => [m.missionId, {
+      missionStatuses.map(m => [m.caseId, {
         isLive: ['LIVE_SEARCH', 'CONTAINMENT', 'TRAP_OPS'].includes(m.mode),
         mode: m.mode,
         activeVolunteers: m.activeVolunteers?.length || 0,
