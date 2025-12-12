@@ -302,6 +302,91 @@ export const DefaultMapOptions = {
   padding: { top: 20, right: 20, bottom: 20, left: 20 },
 };
 
+/**
+ * Search for a place by name and location to get full details including phone/hours
+ * This uses MapKit JS client-side which has access to more data than the Server API
+ */
+export async function searchPlaceDetails(name, latitude, longitude) {
+  const mapkit = await initializeMapKit();
+
+  return new Promise((resolve, reject) => {
+    const search = new mapkit.Search({
+      region: new mapkit.CoordinateRegion(
+        new mapkit.Coordinate(latitude, longitude),
+        new mapkit.CoordinateSpan(0.1, 0.1)
+      ),
+      includePointsOfInterest: true,
+    });
+
+    search.search(name, (error, data) => {
+      if (error) {
+        console.error('[MapKit Search] Error:', error);
+        resolve(null);
+        return;
+      }
+
+      if (data?.places?.length > 0) {
+        const place = data.places[0];
+        console.log('[MapKit Search] Found place:', {
+          name: place.name,
+          telephone: place.telephone,
+          url: place.url,
+          hours: place.hours,
+          fullPlace: place,
+        });
+        resolve({
+          telephone: place.telephone || null,
+          url: place.url || null,
+          hours: place.hours || null,
+        });
+      } else {
+        console.log('[MapKit Search] No places found for:', name);
+        resolve(null);
+      }
+    });
+  });
+}
+
+/**
+ * Enrich an array of shelters with phone/hours from MapKit JS client-side
+ */
+export async function enrichSheltersWithDetails(shelters, maxToEnrich = 10) {
+  const mapkit = await initializeMapKit();
+
+  const enriched = await Promise.all(
+    shelters.slice(0, maxToEnrich).map(async (shelter) => {
+      // Skip if already has phone
+      if (shelter.phone) {
+        return shelter;
+      }
+
+      try {
+        const details = await searchPlaceDetails(
+          shelter.name,
+          shelter.latitude || shelter.lat,
+          shelter.longitude || shelter.lng
+        );
+
+        if (details) {
+          return {
+            ...shelter,
+            phone: details.telephone || shelter.phone,
+            website: details.url || shelter.website,
+            hours: details.hours || shelter.hours,
+          };
+        }
+      } catch (err) {
+        console.error('[MapKit Enrich] Error for', shelter.name, err);
+      }
+
+      return shelter;
+    })
+  );
+
+  // Return enriched shelters plus any remaining (not enriched)
+  return [...enriched, ...shelters.slice(maxToEnrich)];
+}
+
 export default {
   initializeMapKit,
   isMapKitInitialized,
@@ -314,6 +399,8 @@ export default {
   createCircleOverlay,
   createPolylineOverlay,
   createPolygonOverlay,
+  searchPlaceDetails,
+  enrichSheltersWithDetails,
   MapTypes,
   MapColors,
   DefaultMapOptions,

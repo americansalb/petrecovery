@@ -8,7 +8,8 @@
  */
 
 import { useState, useCallback } from 'react';
-import { Search, MapPin, Phone, Globe, Building2, ExternalLink, Navigation, Clock, Mail } from 'lucide-react';
+import { Search, MapPin, Phone, Globe, Building2, ExternalLink, Navigation, Clock, Mail, Loader2 } from 'lucide-react';
+import { enrichSheltersWithDetails } from '@/app/lib/maps/appleMapKit';
 
 const DISTANCE_OPTIONS = [
   { value: 10, label: '10 miles' },
@@ -20,6 +21,7 @@ const DISTANCE_OPTIONS = [
 export default function ShelterSearch({ defaultLocation = '', className = '' }) {
   const [shelters, setShelters] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [enriching, setEnriching] = useState(false);
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
 
@@ -51,11 +53,27 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
         throw new Error(data.error || 'Search failed');
       }
 
-      setShelters(data.shelters || []);
+      const initialShelters = data.shelters || [];
+      setShelters(initialShelters);
+      setLoading(false);
+
+      // Now enrich with phone/hours using client-side MapKit JS
+      if (initialShelters.length > 0) {
+        setEnriching(true);
+        try {
+          const enrichedShelters = await enrichSheltersWithDetails(initialShelters, 15);
+          setShelters(enrichedShelters);
+          console.log('[ShelterSearch] Enriched shelters:', enrichedShelters);
+        } catch (enrichErr) {
+          console.error('[ShelterSearch] Enrichment error:', enrichErr);
+          // Keep original shelters if enrichment fails
+        } finally {
+          setEnriching(false);
+        }
+      }
     } catch (err) {
       setError(err.message);
       setShelters([]);
-    } finally {
       setLoading(false);
     }
   }, [filters]);
@@ -131,9 +149,17 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
       {/* Results */}
       {shelters.length > 0 && (
         <div>
-          <p className="text-midnight-600 mb-4 font-medium">
-            Found {shelters.length} shelter{shelters.length !== 1 ? 's' : ''} near {filters.location}
-          </p>
+          <div className="flex items-center gap-3 mb-4">
+            <p className="text-midnight-600 font-medium">
+              Found {shelters.length} shelter{shelters.length !== 1 ? 's' : ''} near {filters.location}
+            </p>
+            {enriching && (
+              <span className="inline-flex items-center gap-2 text-sm text-flash-600 bg-flash-50 px-3 py-1 rounded-full">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Getting contact info...
+              </span>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {shelters.map((shelter) => (
