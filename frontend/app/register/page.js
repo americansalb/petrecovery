@@ -141,7 +141,9 @@ export default function RegisterPage() {
                 First Name <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400" />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <User className="w-5 h-5 text-midnight-400" />
+                </div>
                 <input
                   id="firstName"
                   type="text"
@@ -152,7 +154,7 @@ export default function RegisterPage() {
                   required
                   autoComplete="given-name"
                   aria-required="true"
-                  className="w-full pl-11 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                  className="w-full pl-12 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
                 />
               </div>
             </div>
@@ -163,7 +165,9 @@ export default function RegisterPage() {
                 Email Address <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400" />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <Mail className="w-5 h-5 text-midnight-400" />
+                </div>
                 <input
                   id="email"
                   type="email"
@@ -174,7 +178,7 @@ export default function RegisterPage() {
                   required
                   autoComplete="email"
                   aria-required="true"
-                  className="w-full pl-11 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                  className="w-full pl-12 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
                 />
               </div>
             </div>
@@ -185,7 +189,9 @@ export default function RegisterPage() {
                 Phone Number <span className="text-midnight-400">(optional)</span>
               </label>
               <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400" />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <Phone className="w-5 h-5 text-midnight-400" />
+                </div>
                 <input
                   id="phone"
                   type="tel"
@@ -194,7 +200,7 @@ export default function RegisterPage() {
                   onChange={handleChange}
                   placeholder="555-0100"
                   autoComplete="tel"
-                  className="w-full pl-11 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                  className="w-full pl-12 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
                 />
               </div>
             </div>
@@ -205,7 +211,9 @@ export default function RegisterPage() {
                 Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400" />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <Lock className="w-5 h-5 text-midnight-400" />
+                </div>
                 <input
                   id="password"
                   type="password"
@@ -217,7 +225,7 @@ export default function RegisterPage() {
                   autoComplete="new-password"
                   aria-required="true"
                   aria-describedby="password-hint"
-                  className="w-full pl-11 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                  className="w-full pl-12 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
                 />
               </div>
               <p id="password-hint" className="text-xs text-midnight-500 mt-1">
@@ -231,7 +239,9 @@ export default function RegisterPage() {
                 Confirm Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400" />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <Lock className="w-5 h-5 text-midnight-400" />
+                </div>
                 <input
                   id="confirmPassword"
                   type="password"
@@ -242,7 +252,7 @@ export default function RegisterPage() {
                   required
                   autoComplete="new-password"
                   aria-required="true"
-                  className="w-full pl-11 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
+                  className="w-full pl-12 pr-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
                 />
               </div>
             </div>

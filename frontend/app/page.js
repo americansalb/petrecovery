@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -22,6 +23,7 @@ import {
   Map,
   Radio,
   FileText,
+  LocateFixed,
 } from 'lucide-react';
 
 // Live Reunion Ticker
@@ -63,7 +65,10 @@ const ReunionTicker = ({ reunions = [], loading }) => {
 
 export default function Home() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [locationQuery, setLocationQuery] = useState('');
+  const [locating, setLocating] = useState(false);
   const [data, setData] = useState({
     metrics: { petsReunited: 0, openCases: 0, activeSquads: 0, totalVolunteers: 0, weeklyReunions: 0 },
     ticker: [],
@@ -83,6 +88,31 @@ export default function Home() {
     }
     fetchData();
   }, []);
+
+  const handleFindSquad = (e) => {
+    e.preventDefault();
+    if (locationQuery.trim()) {
+      router.push(`/rescue-squads/search?q=${encodeURIComponent(locationQuery.trim())}`);
+    }
+  };
+
+  const handleUseLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser');
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        router.push(`/rescue-squads/search?lat=${latitude}&lng=${longitude}`);
+      },
+      (error) => {
+        setLocating(false);
+        alert('Unable to get your location. Please enter a city or zip code.');
+      }
+    );
+  };
 
   const { metrics, ticker, casesNeedingHelp } = data;
 
@@ -325,6 +355,57 @@ export default function Home() {
               </p>
             </motion.div>
           </div>
+        </div>
+      </section>
+
+      {/* Find Your Squad */}
+      <section className="py-16 bg-gradient-to-r from-blue-600 to-indigo-600">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <Shield className="w-12 h-12 text-white/80 mx-auto mb-4" />
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              Find Your Rescue Squad
+            </h2>
+            <p className="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">
+              Join volunteers in your neighborhood. When a pet goes missing nearby, you'll be ready to help.
+            </p>
+
+            <form onSubmit={handleFindSquad} className="flex flex-col sm:flex-row gap-3 max-w-xl mx-auto mb-4">
+              <div className="flex-1 relative">
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={locationQuery}
+                  onChange={(e) => setLocationQuery(e.target.value)}
+                  placeholder="Enter city or zip code"
+                  className="w-full pl-12 pr-4 py-4 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                />
+              </div>
+              <button
+                type="submit"
+                className="bg-amber-400 hover:bg-amber-300 text-gray-900 px-8 py-4 rounded-xl font-bold transition"
+              >
+                Find Squads
+              </button>
+            </form>
+
+            <button
+              onClick={handleUseLocation}
+              disabled={locating}
+              className="inline-flex items-center gap-2 text-white/80 hover:text-white transition text-sm"
+            >
+              <LocateFixed className={`w-4 h-4 ${locating ? 'animate-pulse' : ''}`} />
+              {locating ? 'Finding your location...' : 'Use my current location'}
+            </button>
+
+            <p className="text-blue-200 text-sm mt-6">
+              No squad nearby? <Link href="/rescue-squads/create" className="text-white underline hover:no-underline">Start one in your area</Link>
+            </p>
+          </motion.div>
         </div>
       </section>
 
