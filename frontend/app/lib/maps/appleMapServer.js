@@ -130,7 +130,7 @@ async function appleMapsFetch(endpoint, params = {}) {
     }
   });
 
-  console.log('[AppleMapsServer] Request:', endpoint, params);
+  console.log('[AppleMapsServer] >>> REQUEST:', url.toString());
 
   const response = await fetch(url.toString(), {
     headers: {
@@ -138,9 +138,12 @@ async function appleMapsFetch(endpoint, params = {}) {
     },
   });
 
+  const responseText = await response.text();
+  console.log('[AppleMapsServer] <<< RESPONSE STATUS:', response.status);
+  console.log('[AppleMapsServer] <<< RESPONSE BODY (first 2000 chars):', responseText.substring(0, 2000));
+
   if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[AppleMapsServer] API error:', response.status, errorText);
+    console.error('[AppleMapsServer] API error:', response.status, responseText);
 
     if (response.status === 401 || response.status === 403) {
       // Invalidate cached token on auth error
@@ -151,7 +154,12 @@ async function appleMapsFetch(endpoint, params = {}) {
     throw new Error(`Apple Maps API error: ${response.status}`);
   }
 
-  return response.json();
+  try {
+    return JSON.parse(responseText);
+  } catch (e) {
+    console.error('[AppleMapsServer] Failed to parse JSON:', e.message);
+    return null;
+  }
 }
 
 /**
