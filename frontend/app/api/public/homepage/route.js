@@ -166,7 +166,7 @@ export async function GET(request) {
           city: true,
           state: true,
           logoUrl: true,
-          coverPhotoUrl: true,
+          photoUrl: true,
           _count: {
             select: { members: true }
           }
@@ -246,7 +246,7 @@ export async function GET(request) {
       city: squad.city,
       state: squad.state,
       logoUrl: squad.logoUrl ? normalizePhotoUrl(squad.logoUrl) : null,
-      coverPhotoUrl: squad.coverPhotoUrl ? normalizePhotoUrl(squad.coverPhotoUrl) : null,
+      photoUrl: squad.photoUrl ? normalizePhotoUrl(squad.photoUrl) : null,
       memberCount: squad._count.members,
     }));
 
