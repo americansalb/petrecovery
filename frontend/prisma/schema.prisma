@@ -737,8 +737,8 @@ enum AvailabilityStatus {
 // CASE ASSIGNMENT (Rescue Squad Accepts Case)
 model CaseAssignment {
   id              String   @id @default(cuid())
-  caseId          String
-  case            Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  missionId       String   @map("caseId")
+  case            Case     @relation(fields: [missionId], references: [id], onDelete: Cascade)
   rescueSquadId   String
   rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
 
@@ -762,8 +762,8 @@ model CaseAssignment {
   petSpottings    PetSpotting[]
   messages        SquadMessage[]
 
-  @@unique([caseId, rescueSquadId]) // Rescue Squad can only accept case once
-  @@index([caseId])
+  @@unique([missionId, rescueSquadId]) // Rescue Squad can only accept case once
+  @@index([missionId])
   @@index([rescueSquadId])
   @@index([status])
 }
@@ -2916,7 +2916,7 @@ model SearchSession {
   // Points attribution uses userId directly; participantId is for squad coordination features
   participantId   String?
   participant     CaseParticipant? @relation(fields: [participantId], references: [id], onDelete: Cascade)
-  caseId          String
+  missionId       String   @map("caseId")
   divisionId      String?
 
   // Assignment
@@ -2950,7 +2950,7 @@ model SearchSession {
   locationPings   LocationPing[]
 
   @@index([participantId])
-  @@index([caseId])
+  @@index([missionId])
   @@index([status])
   @@index([userId])
 }
