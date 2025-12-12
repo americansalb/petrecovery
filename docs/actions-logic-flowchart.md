@@ -179,7 +179,7 @@ TIER 4: FALLBACK - Google Places (PAID)
 ```
 ON CASE CREATION:
 
-1. Get case location (city, state, coordinates)
+1. Get mission location (city, state, coordinates)
 2. Check: shelter data for this area < 1 year old?
 
    NO → Background job:
@@ -326,7 +326,7 @@ Apple-first hybrid approach:
   - Apple MapKit:      $0 (250K free/day)
   - PetFinder:         $0 (free API)
   - User corrections:  $0
-  - Google fallback:   ~$20/year (edge cases)
+  - Google fallback:   ~$20/year (edge missions)
   ─────────────────────────────
   TOTAL:               ~$20/year
 
@@ -441,7 +441,7 @@ flowchart TD
     NEAR_SHELTER -->|No| DO_CALL[📞 CALL THIS SHELTER<br/>Ask about new intakes<br/>Describe the pet<br/>Log the result]
     NEAR_SHELTER -->|Yes| NEXT_SHELTER[Try next nearest shelter]
 
-    AT_HOME --> SHARE[📱 Share the case<br/>Every share helps]
+    AT_HOME --> SHARE[📱 Share the mission<br/>Every share helps]
 ```
 
 ---
@@ -616,7 +616,7 @@ erDiagram
 
     ACTION_LOG {
         string id
-        string caseId
+        string missionId
         string actionType
         string actionId
         datetime completedAt
@@ -640,7 +640,7 @@ erDiagram
 
     SIGHTING {
         string id
-        string caseId
+        string missionId
         point location
         datetime seenAt
         string description
@@ -677,7 +677,7 @@ erDiagram
 | `review_coverage` | Review squad search coverage | Both | 2+ | Owner | Has squad |
 | `claim_area` | Claim uncovered search area | Both | 1+ | Squad | GPS |
 | `report_sighting` | Report a sighting | Both | Any | Both | - |
-| `share_case` | Share case on social media | Both | Any | Both | - |
+| `share_mission` | Share mission on social media | Both | Any | Both | - |
 
 ---
 

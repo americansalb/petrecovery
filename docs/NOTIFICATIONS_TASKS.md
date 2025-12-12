@@ -2,7 +2,7 @@
 
 **Feature Spec:** `docs/features/notifications-mvp.md`
 **Status:** Ready for Implementation
-**Goal:** Build transactional email notifications for case lifecycle events
+**Goal:** Build transactional email notifications for mission lifecycle events
 
 ---
 
@@ -13,7 +13,7 @@ This document breaks down Phase 25-26 (Notifications MVP) into 6 focused tasks:
 - **TASK-N01**: Audit existing email infrastructure
 - **TASK-N02**: Create notification helper module
 - **TASK-N03**: Wire public report notifications
-- **TASK-N04**: Wire case status change notifications
+- **TASK-N04**: Wire mission status change notifications
 - **TASK-N05**: Admin notifications settings
 - **TASK-N06**: QA integration, ERROR_IMPACT, and documentation
 
@@ -147,35 +147,35 @@ const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL;
 /**
  * Send confirmation email to contact when public report is submitted
  *
- * @param {Object} caseData - Case details
- * @param {string} caseData.caseNumber - Case number (e.g., "CHI-2025-0001")
- * @param {string} caseData.petName - Pet name
- * @param {string} caseData.petSpecies - Pet species (DOG, CAT, etc.)
- * @param {string} caseData.city - City
- * @param {string} caseData.state - State
- * @param {string} caseData.contactName - Contact name
- * @param {string} caseData.contactEmail - Contact email
- * @param {Date} caseData.createdAt - Submission timestamp
+ * @param {Object} missionData - Mission details
+ * @param {string} missionData.missionNumber - Mission number (e.g., "CHI-2025-0001")
+ * @param {string} missionData.petName - Pet name
+ * @param {string} missionData.petSpecies - Pet species (DOG, CAT, etc.)
+ * @param {string} missionData.city - City
+ * @param {string} missionData.state - State
+ * @param {string} missionData.contactName - Contact name
+ * @param {string} missionData.contactEmail - Contact email
+ * @param {Date} missionData.createdAt - Submission timestamp
  * @param {Object} options - Additional options
  * @param {boolean} options.isPublicReport - Whether this is a public report
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-export async function sendCaseReportConfirmation(caseData, options = {}) {
+export async function sendMissionReportConfirmation(missionData, options = {}) {
   const startTime = Date.now();
-  const notificationType = 'case_report_confirmation';
+  const notificationType = 'mission_report_confirmation';
 
   try {
     // Log attempt
     await logEvent({
       event_type: 'notification.send_attempted',
       resource_type: 'notification',
-      resource_id: caseData.caseNumber,
+      resource_id: missionData.missionNumber,
       action: 'create',
       result: 'success',
       metadata: {
         notification_type: notificationType,
-        recipient: caseData.contactEmail,
-        case_number: caseData.caseNumber
+        recipient: missionData.contactEmail,
+        mission_number: missionData.missionNumber
       }
     });
 
@@ -188,24 +188,24 @@ export async function sendCaseReportConfirmation(caseData, options = {}) {
           </div>
 
           <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-            <p>Hi ${caseData.contactName || 'there'},</p>
+            <p>Hi ${missionData.contactName || 'there'},</p>
 
             <p>Thank you for submitting a lost pet report to PetRecovery.org.</p>
 
             <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
-              <h3 style="margin-top: 0; color: #1f2937;">Case Details:</h3>
+              <h3 style="margin-top: 0; color: #1f2937;">Mission Details:</h3>
               <ul style="margin: 0; padding-left: 20px;">
-                <li><strong>Case Number:</strong> ${caseData.caseNumber}</li>
-                <li><strong>Pet:</strong> ${caseData.petName || 'Unknown'} (${caseData.petSpecies})</li>
-                <li><strong>Location:</strong> ${caseData.city}, ${caseData.state}</li>
-                <li><strong>Submitted:</strong> ${new Date(caseData.createdAt).toLocaleString()}</li>
+                <li><strong>Mission Number:</strong> ${missionData.missionNumber}</li>
+                <li><strong>Pet:</strong> ${missionData.petName || 'Unknown'} (${missionData.petSpecies})</li>
+                <li><strong>Location:</strong> ${missionData.city}, ${missionData.state}</li>
+                <li><strong>Submitted:</strong> ${new Date(missionData.createdAt).toLocaleString()}</li>
               </ul>
             </div>
 
             <h3 style="color: #1f2937;">What happens next:</h3>
             <ol style="padding-left: 20px;">
               <li>Our admin team will review your report within 24-48 hours.</li>
-              <li>Once approved, your case will be visible on the public portal.</li>
+              <li>Once approved, your mission will be visible on the public portal.</li>
               <li>You'll receive email updates when the status changes.</li>
             </ol>
 
@@ -227,8 +227,8 @@ export async function sendCaseReportConfirmation(caseData, options = {}) {
 
     // Send email
     const result = await sendEmail({
-      to: caseData.contactEmail,
-      subject: `✅ We received your lost pet report: ${caseData.petName || caseData.caseNumber}`,
+      to: missionData.contactEmail,
+      subject: `✅ We received your lost pet report: ${missionData.petName || missionData.missionNumber}`,
       html
     });
 
@@ -239,13 +239,13 @@ export async function sendCaseReportConfirmation(caseData, options = {}) {
       await logEvent({
         event_type: 'notification.send_succeeded',
         resource_type: 'notification',
-        resource_id: caseData.caseNumber,
+        resource_id: missionData.missionNumber,
         action: 'create',
         result: 'success',
         metadata: {
           notification_type: notificationType,
-          recipient: caseData.contactEmail,
-          case_number: caseData.caseNumber,
+          recipient: missionData.contactEmail,
+          mission_number: missionData.missionNumber,
           response_time_ms: responseTime
         }
       });
@@ -254,15 +254,15 @@ export async function sendCaseReportConfirmation(caseData, options = {}) {
       await logEvent({
         event_type: 'notification.send_failed',
         resource_type: 'notification',
-        resource_id: caseData.caseNumber,
+        resource_id: missionData.missionNumber,
         action: 'create',
         result: 'failure',
         error_code: 'EMAIL_SEND_FAILED',
         error_message: result.error,
         metadata: {
           notification_type: notificationType,
-          recipient: caseData.contactEmail,
-          case_number: caseData.caseNumber,
+          recipient: missionData.contactEmail,
+          mission_number: missionData.missionNumber,
           response_time_ms: responseTime
         }
       });
@@ -275,15 +275,15 @@ export async function sendCaseReportConfirmation(caseData, options = {}) {
     await logEvent({
       event_type: 'notification.send_failed',
       resource_type: 'notification',
-      resource_id: caseData.caseNumber,
+      resource_id: missionData.missionNumber,
       action: 'create',
       result: 'failure',
       error_code: 'NOTIFICATION_ERROR',
       error_message: error.message,
       metadata: {
         notification_type: notificationType,
-        recipient: caseData.contactEmail,
-        case_number: caseData.caseNumber
+        recipient: missionData.contactEmail,
+        mission_number: missionData.missionNumber
       }
     });
 
@@ -294,7 +294,7 @@ export async function sendCaseReportConfirmation(caseData, options = {}) {
 /**
  * Send alert to admin when public report is submitted
  */
-export async function sendAdminPublicReportAlert(caseData) {
+export async function sendAdminPublicReportAlert(missionData) {
   const startTime = Date.now();
   const notificationType = 'admin_alert';
 
@@ -308,13 +308,13 @@ export async function sendAdminPublicReportAlert(caseData) {
     await logEvent({
       event_type: 'notification.send_attempted',
       resource_type: 'notification',
-      resource_id: caseData.caseNumber,
+      resource_id: missionData.missionNumber,
       action: 'create',
       result: 'success',
       metadata: {
         notification_type: notificationType,
         recipient: ADMIN_EMAIL,
-        case_number: caseData.caseNumber
+        mission_number: missionData.missionNumber
       }
     });
 
@@ -330,34 +330,34 @@ export async function sendAdminPublicReportAlert(caseData) {
             <p style="font-size: 16px; margin-top: 0;"><strong>A new public lost pet report requires review:</strong></p>
 
             <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
-              <h3 style="margin-top: 0; color: #1f2937;">Case Information:</h3>
+              <h3 style="margin-top: 0; color: #1f2937;">Mission Information:</h3>
               <ul style="margin: 0; padding-left: 20px;">
-                <li><strong>Case Number:</strong> ${caseData.caseNumber}</li>
-                <li><strong>Pet:</strong> ${caseData.petName || 'Unknown'} (${caseData.petSpecies}${caseData.petBreed ? ', ' + caseData.petBreed : ''})</li>
-                <li><strong>Location:</strong> ${caseData.city}, ${caseData.state} ${caseData.zipCode ? '(' + caseData.zipCode + ')' : ''}</li>
-                ${caseData.lastSeenLandmark ? `<li><strong>Landmark:</strong> ${caseData.lastSeenLandmark}</li>` : ''}
-                <li><strong>Submitted:</strong> ${new Date(caseData.createdAt).toLocaleString()}</li>
+                <li><strong>Mission Number:</strong> ${missionData.missionNumber}</li>
+                <li><strong>Pet:</strong> ${missionData.petName || 'Unknown'} (${missionData.petSpecies}${missionData.petBreed ? ', ' + missionData.petBreed : ''})</li>
+                <li><strong>Location:</strong> ${missionData.city}, ${missionData.state} ${missionData.zipCode ? '(' + missionData.zipCode + ')' : ''}</li>
+                ${missionData.lastSeenLandmark ? `<li><strong>Landmark:</strong> ${missionData.lastSeenLandmark}</li>` : ''}
+                <li><strong>Submitted:</strong> ${new Date(missionData.createdAt).toLocaleString()}</li>
               </ul>
             </div>
 
             <div style="background: #fef3c7; padding: 15px; border-radius: 6px; margin: 20px 0;">
               <h3 style="margin-top: 0; color: #1f2937;">Contact Information:</h3>
               <ul style="margin: 0; padding-left: 20px;">
-                <li><strong>Name:</strong> ${caseData.contactName}</li>
-                ${caseData.contactEmail ? `<li><strong>Email:</strong> ${caseData.contactEmail}</li>` : ''}
-                ${caseData.contactPhone ? `<li><strong>Phone:</strong> ${caseData.contactPhone}</li>` : ''}
+                <li><strong>Name:</strong> ${missionData.contactName}</li>
+                ${missionData.contactEmail ? `<li><strong>Email:</strong> ${missionData.contactEmail}</li>` : ''}
+                ${missionData.contactPhone ? `<li><strong>Phone:</strong> ${missionData.contactPhone}</li>` : ''}
               </ul>
             </div>
 
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${BASE_URL}/admin/cases/${caseData.id}"
+              <a href="${BASE_URL}/admin/missions/${missionData.id}"
                  style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                Review Case in Admin Panel →
+                Review Mission in Admin Panel →
               </a>
             </div>
 
             <div style="background: #fee2e2; border-left: 4px solid #dc2626; padding: 15px;">
-              <p style="margin: 0;"><strong>Action Required:</strong> This case is currently <strong>NOT public</strong> (requires approval). Review the report and set <code>isPublic=true</code> to make it visible.</p>
+              <p style="margin: 0;"><strong>Action Required:</strong> This mission is currently <strong>NOT public</strong> (requires approval). Review the report and set <code>isPublic=true</code> to make it visible.</p>
             </div>
 
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
@@ -373,7 +373,7 @@ export async function sendAdminPublicReportAlert(caseData) {
     // Send email
     const result = await sendEmail({
       to: ADMIN_EMAIL,
-      subject: `🚨 New Public Report: ${caseData.city}, ${caseData.state} – ${caseData.petName || caseData.caseNumber}`,
+      subject: `🚨 New Public Report: ${missionData.city}, ${missionData.state} – ${missionData.petName || missionData.missionNumber}`,
       html
     });
 
@@ -383,13 +383,13 @@ export async function sendAdminPublicReportAlert(caseData) {
       await logEvent({
         event_type: 'notification.send_succeeded',
         resource_type: 'notification',
-        resource_id: caseData.caseNumber,
+        resource_id: missionData.missionNumber,
         action: 'create',
         result: 'success',
         metadata: {
           notification_type: notificationType,
           recipient: ADMIN_EMAIL,
-          case_number: caseData.caseNumber,
+          mission_number: missionData.missionNumber,
           response_time_ms: responseTime
         }
       });
@@ -397,7 +397,7 @@ export async function sendAdminPublicReportAlert(caseData) {
       await logEvent({
         event_type: 'notification.send_failed',
         resource_type: 'notification',
-        resource_id: caseData.caseNumber,
+        resource_id: missionData.missionNumber,
         action: 'create',
         result: 'failure',
         error_code: 'EMAIL_SEND_FAILED',
@@ -405,7 +405,7 @@ export async function sendAdminPublicReportAlert(caseData) {
         metadata: {
           notification_type: notificationType,
           recipient: ADMIN_EMAIL,
-          case_number: caseData.caseNumber,
+          mission_number: missionData.missionNumber,
           response_time_ms: responseTime
         }
       });
@@ -417,7 +417,7 @@ export async function sendAdminPublicReportAlert(caseData) {
     await logEvent({
       event_type: 'notification.send_failed',
       resource_type: 'notification',
-      resource_id: caseData.caseNumber,
+      resource_id: missionData.missionNumber,
       action: 'create',
       result: 'failure',
       error_code: 'NOTIFICATION_ERROR',
@@ -425,7 +425,7 @@ export async function sendAdminPublicReportAlert(caseData) {
       metadata: {
         notification_type: notificationType,
         recipient: ADMIN_EMAIL,
-        case_number: caseData.caseNumber
+        mission_number: missionData.missionNumber
       }
     });
 
@@ -434,13 +434,13 @@ export async function sendAdminPublicReportAlert(caseData) {
 }
 
 /**
- * Send status update to contact when case status changes
+ * Send status update to contact when mission status changes
  */
-export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) {
+export async function sendMissionStatusUpdate(missionData, previousStatus, newStatus) {
   const startTime = Date.now();
   const notificationType = 'status_update';
 
-  if (!caseData.contactEmail) {
+  if (!missionData.contactEmail) {
     return { success: false, error: 'No contact email provided' };
   }
 
@@ -449,13 +449,13 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
     await logEvent({
       event_type: 'notification.send_attempted',
       resource_type: 'notification',
-      resource_id: caseData.caseNumber,
+      resource_id: missionData.missionNumber,
       action: 'create',
       result: 'success',
       metadata: {
         notification_type: notificationType,
-        recipient: caseData.contactEmail,
-        case_number: caseData.caseNumber,
+        recipient: missionData.contactEmail,
+        mission_number: missionData.missionNumber,
         previous_status: previousStatus,
         new_status: newStatus
       }
@@ -466,19 +466,19 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
       'ACTIVE_SEARCH': {
         title: 'Active Search Started',
         icon: '🔍',
-        message: `Rescue squad volunteers are actively searching for ${caseData.petName || 'your pet'} in ${caseData.city}.`,
+        message: `Rescue squad volunteers are actively searching for ${missionData.petName || 'your pet'} in ${missionData.city}.`,
         color: '#f59e0b'
       },
       'RESOLVED': {
-        title: 'Case Resolved',
+        title: 'Mission Resolved',
         icon: '🎉',
-        message: `Great news! Your lost pet case has been marked as RESOLVED. ${caseData.statusReason || 'We hope your pet is safe!'}`,
+        message: `Great news! Your lost pet mission has been marked as RESOLVED. ${missionData.statusReason || 'We hope your pet is safe!'}`,
         color: '#10b981'
       },
       'CLOSED_OTHER': {
-        title: 'Case Closed',
+        title: 'Mission Closed',
         icon: 'ℹ️',
-        message: `Your case has been closed. ${caseData.statusReason || 'If you need further assistance, please contact us.'}`,
+        message: `Your mission has been closed. ${missionData.statusReason || 'If you need further assistance, please contact us.'}`,
         color: '#6b7280'
       }
     };
@@ -486,7 +486,7 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
     const content = statusContent[newStatus] || {
       title: 'Status Updated',
       icon: '📢',
-      message: `Your case status has been updated to ${newStatus}.`,
+      message: `Your mission status has been updated to ${newStatus}.`,
       color: '#2563eb'
     };
 
@@ -499,26 +499,26 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
           </div>
 
           <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-            <p>Hi ${caseData.contactName || 'there'},</p>
+            <p>Hi ${missionData.contactName || 'there'},</p>
 
             <p>${content.message}</p>
 
             <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
-              <h3 style="margin-top: 0; color: #1f2937;">Case Information:</h3>
+              <h3 style="margin-top: 0; color: #1f2937;">Mission Information:</h3>
               <ul style="margin: 0; padding-left: 20px;">
-                <li><strong>Case Number:</strong> ${caseData.caseNumber}</li>
-                <li><strong>Pet:</strong> ${caseData.petName || 'Unknown'}</li>
+                <li><strong>Mission Number:</strong> ${missionData.missionNumber}</li>
+                <li><strong>Pet:</strong> ${missionData.petName || 'Unknown'}</li>
                 <li><strong>Previous Status:</strong> ${previousStatus}</li>
                 <li><strong>New Status:</strong> <strong>${newStatus}</strong></li>
                 <li><strong>Updated:</strong> ${new Date().toLocaleString()}</li>
               </ul>
             </div>
 
-            ${caseData.isPublic ? `
+            ${missionData.isPublic ? `
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${BASE_URL}/cases/${caseData.caseNumber}"
+              <a href="${BASE_URL}/missions/${missionData.missionNumber}"
                  style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                View Your Case Online →
+                View Your Mission Online →
               </a>
             </div>
             ` : ''}
@@ -537,8 +537,8 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
 
     // Send email
     const result = await sendEmail({
-      to: caseData.contactEmail,
-      subject: `📢 Update on your lost pet case ${caseData.caseNumber}: ${content.title}`,
+      to: missionData.contactEmail,
+      subject: `📢 Update on your lost pet mission ${missionData.missionNumber}: ${content.title}`,
       html
     });
 
@@ -548,13 +548,13 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
       await logEvent({
         event_type: 'notification.send_succeeded',
         resource_type: 'notification',
-        resource_id: caseData.caseNumber,
+        resource_id: missionData.missionNumber,
         action: 'create',
         result: 'success',
         metadata: {
           notification_type: notificationType,
-          recipient: caseData.contactEmail,
-          case_number: caseData.caseNumber,
+          recipient: missionData.contactEmail,
+          mission_number: missionData.missionNumber,
           previous_status: previousStatus,
           new_status: newStatus,
           response_time_ms: responseTime
@@ -564,15 +564,15 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
       await logEvent({
         event_type: 'notification.send_failed',
         resource_type: 'notification',
-        resource_id: caseData.caseNumber,
+        resource_id: missionData.missionNumber,
         action: 'create',
         result: 'failure',
         error_code: 'EMAIL_SEND_FAILED',
         error_message: result.error,
         metadata: {
           notification_type: notificationType,
-          recipient: caseData.contactEmail,
-          case_number: caseData.caseNumber,
+          recipient: missionData.contactEmail,
+          mission_number: missionData.missionNumber,
           previous_status: previousStatus,
           new_status: newStatus,
           response_time_ms: responseTime
@@ -586,15 +586,15 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
     await logEvent({
       event_type: 'notification.send_failed',
       resource_type: 'notification',
-      resource_id: caseData.caseNumber,
+      resource_id: missionData.missionNumber,
       action: 'create',
       result: 'failure',
       error_code: 'NOTIFICATION_ERROR',
       error_message: error.message,
       metadata: {
         notification_type: notificationType,
-        recipient: caseData.contactEmail,
-        case_number: caseData.caseNumber,
+        recipient: missionData.contactEmail,
+        mission_number: missionData.missionNumber,
         previous_status: previousStatus,
         new_status: newStatus
       }
@@ -608,9 +608,9 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
 **Acceptance Criteria:**
 - [ ] File created at `frontend/app/lib/notifications.js`
 - [ ] Three notification functions implemented:
-  - `sendCaseReportConfirmation()`
+  - `sendMissionReportConfirmation()`
   - `sendAdminPublicReportAlert()`
-  - `sendCaseStatusUpdate()`
+  - `sendMissionStatusUpdate()`
 - [ ] Each function emits proper `notification.*` events
 - [ ] Each function handles errors gracefully
 - [ ] Email templates are clear and well-formatted
@@ -626,9 +626,9 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
 [Phase 25-26] TASK-N02: Create notification helper module
 
 - Created lib/notifications.js with 3 notification functions
-- sendCaseReportConfirmation(): Owner confirmation for public reports
+- sendMissionReportConfirmation(): Owner confirmation for public reports
 - sendAdminPublicReportAlert(): Admin alert for new public reports
-- sendCaseStatusUpdate(): Status change notifications
+- sendMissionStatusUpdate(): Status change notifications
 - All functions emit notification.* events
 - HTML email templates with branding
 - Graceful error handling
@@ -641,18 +641,18 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
 **Goal:** Hook notification sending into the public report submission endpoint.
 
 **File to Modify:**
-- `frontend/app/api/public/cases/route.js`
+- `frontend/app/api/public/missions/route.js`
 
 **Current Flow (Phase 15-16):**
 1. Validate request
-2. Create case with `isPublic=false`, `source=PUBLIC_REPORT`
-3. Emit `public_case.report_submitted` event
+2. Create mission with `isPublic=false`, `source=PUBLIC_REPORT`
+3. Emit `public_mission.report_submitted` event
 4. Return success response
 
 **New Flow (Phase 25-26):**
 1. Validate request
-2. Create case
-3. Emit `public_case.report_submitted` event
+2. Create mission
+3. Emit `public_mission.report_submitted` event
 4. **NEW:** Send notifications (non-blocking)
    - Send confirmation to contact (if email provided)
    - Send alert to admin (if configured)
@@ -662,17 +662,17 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
 
 Add imports at top of file:
 ```javascript
-import { sendCaseReportConfirmation, sendAdminPublicReportAlert } from '@/app/lib/notifications';
+import { sendMissionReportConfirmation, sendAdminPublicReportAlert } from '@/app/lib/notifications';
 ```
 
-Add after `public_case.report_submitted` event (around line 375):
+Add after `public_mission.report_submitted` event (around line 375):
 
 ```javascript
 // Existing event logging...
 await logEvent({
-  event_type: 'public_case.report_submitted',
-  resource_type: 'public_case',
-  resource_id: newCase.id,
+  event_type: 'public_mission.report_submitted',
+  resource_type: 'public_mission',
+  resource_id: newMission.id,
   action: 'create',
   result: 'success',
   // ... existing metadata
@@ -681,16 +681,16 @@ await logEvent({
 // NEW: Send notifications (non-blocking - errors logged but don't break API response)
 try {
   // 1. Send confirmation to contact (if email provided)
-  if (newCase.contactEmail) {
-    await sendCaseReportConfirmation({
-      caseNumber: newCase.caseNumber,
-      petName: newCase.petName,
-      petSpecies: newCase.petSpecies,
-      city: newCase.city,
-      state: newCase.state,
-      contactName: newCase.contactName,
-      contactEmail: newCase.contactEmail,
-      createdAt: newCase.createdAt
+  if (newMission.contactEmail) {
+    await sendMissionReportConfirmation({
+      missionNumber: newMission.missionNumber,
+      petName: newMission.petName,
+      petSpecies: newMission.petSpecies,
+      city: newMission.city,
+      state: newMission.state,
+      contactName: newMission.contactName,
+      contactEmail: newMission.contactEmail,
+      createdAt: newMission.createdAt
     }, { isPublicReport: true });
   }
 
@@ -698,19 +698,19 @@ try {
   const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
   if (adminEmail) {
     await sendAdminPublicReportAlert({
-      id: newCase.id,
-      caseNumber: newCase.caseNumber,
-      petName: newCase.petName,
-      petSpecies: newCase.petSpecies,
-      petBreed: newCase.petBreed,
-      city: newCase.city,
-      state: newCase.state,
-      zipCode: newCase.zipCode,
-      lastSeenLandmark: newCase.lastSeenLandmark,
-      contactName: newCase.contactName,
-      contactEmail: newCase.contactEmail,
-      contactPhone: newCase.contactPhone,
-      createdAt: newCase.createdAt
+      id: newMission.id,
+      missionNumber: newMission.missionNumber,
+      petName: newMission.petName,
+      petSpecies: newMission.petSpecies,
+      petBreed: newMission.petBreed,
+      city: newMission.city,
+      state: newMission.state,
+      zipCode: newMission.zipCode,
+      lastSeenLandmark: newMission.lastSeenLandmark,
+      contactName: newMission.contactName,
+      contactEmail: newMission.contactEmail,
+      contactPhone: newMission.contactPhone,
+      createdAt: newMission.createdAt
     });
   }
 } catch (notificationError) {
@@ -727,7 +727,7 @@ try {
     error_code: 'NOTIFICATION_EXCEPTION',
     error_message: notificationError.message,
     metadata: {
-      case_number: newCase.caseNumber,
+      mission_number: newMission.missionNumber,
       error_stack: notificationError.stack?.substring(0, 500)
     }
   });
@@ -736,22 +736,22 @@ try {
 // Return the original successful response (unchanged)
 return NextResponse.json({
   success: true,
-  caseNumber: newCase.caseNumber,
+  missionNumber: newMission.missionNumber,
   message: 'Your lost pet report has been submitted and is pending admin approval.',
-  case: {
-    caseNumber: newCase.caseNumber,
-    city: newCase.city,
-    state: newCase.state,
-    petName: newCase.petName,
-    petSpecies: newCase.petSpecies,
-    createdAt: newCase.createdAt
+  mission: {
+    missionNumber: newMission.missionNumber,
+    city: newMission.city,
+    state: newMission.state,
+    petName: newMission.petName,
+    petSpecies: newMission.petSpecies,
+    createdAt: newMission.createdAt
   }
 }, { status: 201 });
 ```
 
 **Key Points:**
 - Notification sending is wrapped in try/catch
-- Email failures don't break the API response (case creation still succeeds)
+- Email failures don't break the API response (mission creation still succeeds)
 - Individual notification functions handle their own logging
 - Top-level catch provides safety net for unexpected exceptions
 
@@ -764,7 +764,7 @@ return NextResponse.json({
 - [ ] No regressions to existing public report flow
 
 **Testing:**
-1. Submit public report via `/cases/report` with your email
+1. Submit public report via `/missions/report` with your email
 2. Verify you receive confirmation email
 3. Verify admin receives alert email (if ADMIN_NOTIFICATION_EMAIL configured)
 4. Check `/admin/health` for `notification.*` events
@@ -774,9 +774,9 @@ return NextResponse.json({
 ```
 [Phase 25-26] TASK-N03: Wire public report notifications
 
-- Modified POST /api/public/cases to send notifications after case creation
-- Contact receives confirmation email with case number and next steps
-- Admin receives alert email with case details and review link
+- Modified POST /api/public/missions to send notifications after mission creation
+- Contact receives confirmation email with mission number and next steps
+- Admin receives alert email with mission details and review link
 - Notifications are non-blocking (errors don't break API response)
 - All notification attempts logged via notification.* events
 - No regressions to Phase 15-16 public report flow
@@ -784,43 +784,43 @@ return NextResponse.json({
 
 ---
 
-## TASK-N04: Wire Case Status Change Notifications
+## TASK-N04: Wire Mission Status Change Notifications
 
-**Goal:** Hook notification sending into the case status update endpoint.
+**Goal:** Hook notification sending into the mission status update endpoint.
 
 **File to Modify:**
-- `frontend/app/api/cases/[id]/status/route.js`
+- `frontend/app/api/missions/[id]/status/route.js`
 
 **Current Flow (Phase 13-14):**
 1. Validate status transition
-2. Update case status in database
+2. Update mission status in database
 3. Create status change note
-4. Emit `case.status_changed` event
-5. Return updated case
+4. Emit `mission.status_changed` event
+5. Return updated mission
 
 **New Flow (Phase 25-26):**
 1. Validate status transition
-2. Update case status
+2. Update mission status
 3. Create status change note
-4. Emit `case.status_changed` event
+4. Emit `mission.status_changed` event
 5. **NEW:** Send status update notification (if applicable)
-6. Return updated case
+6. Return updated mission
 
 **Implementation:**
 
 Add import at top of file:
 ```javascript
-import { sendCaseStatusUpdate } from '@/app/lib/notifications';
+import { sendMissionStatusUpdate } from '@/app/lib/notifications';
 ```
 
-Add after `case.status_changed` event:
+Add after `mission.status_changed` event:
 
 ```javascript
 // Existing event logging...
 await logEvent({
-  event_type: 'case.status_changed',
-  resource_type: 'case',
-  resource_id: updatedCase.id,
+  event_type: 'mission.status_changed',
+  resource_type: 'mission',
+  resource_id: updatedMission.id,
   action: 'update',
   result: 'success',
   // ... existing metadata
@@ -829,25 +829,25 @@ await logEvent({
 // NEW: Send status update notification (if relevant status change)
 const notifiableStatuses = ['ACTIVE_SEARCH', 'RESOLVED', 'CLOSED_OTHER'];
 const shouldNotify = notifiableStatuses.includes(newStatus)
-                     && updatedCase.contactEmail
+                     && updatedMission.contactEmail
                      && previousStatus !== newStatus; // Avoid duplicate sends
 
 if (shouldNotify) {
   try {
-    await sendCaseStatusUpdate({
-      caseNumber: updatedCase.caseNumber,
-      petName: updatedCase.petName,
-      contactName: updatedCase.contactName,
-      contactEmail: updatedCase.contactEmail,
-      city: updatedCase.city,
-      statusReason: updatedCase.statusReason,
-      isPublic: updatedCase.isPublic
+    await sendMissionStatusUpdate({
+      missionNumber: updatedMission.missionNumber,
+      petName: updatedMission.petName,
+      contactName: updatedMission.contactName,
+      contactEmail: updatedMission.contactEmail,
+      city: updatedMission.city,
+      statusReason: updatedMission.statusReason,
+      isPublic: updatedMission.isPublic
     }, previousStatus, newStatus);
   } catch (notificationError) {
     // Log error but don't break the API response
     console.error('❌ Status notification error:', notificationError);
 
-    // sendCaseStatusUpdate already logs its own failures,
+    // sendMissionStatusUpdate already logs its own failures,
     // but log this exception as well
     await logEvent({
       event_type: 'notification.send_failed',
@@ -857,7 +857,7 @@ if (shouldNotify) {
       error_code: 'STATUS_NOTIFICATION_EXCEPTION',
       error_message: notificationError.message,
       metadata: {
-        case_number: updatedCase.caseNumber,
+        mission_number: updatedMission.missionNumber,
         previous_status: previousStatus,
         new_status: newStatus
       }
@@ -867,7 +867,7 @@ if (shouldNotify) {
 
 // Return the original successful response (unchanged)
 return NextResponse.json({
-  case: updatedCase
+  mission: updatedMission
 }, { status: 200 });
 ```
 
@@ -888,7 +888,7 @@ return NextResponse.json({
 - [ ] No regressions to Phase 13-14 status change flow
 
 **Testing:**
-1. Create a case with `contactEmail` via `/admin/cases`
+1. Create a mission with `contactEmail` via `/admin/missions`
 2. Change status to `ACTIVE_SEARCH`
 3. Verify you receive email
 4. Change status to `RESOLVED`
@@ -899,9 +899,9 @@ return NextResponse.json({
 
 **Commit Message:**
 ```
-[Phase 25-26] TASK-N04: Wire case status change notifications
+[Phase 25-26] TASK-N04: Wire mission status change notifications
 
-- Modified POST /api/cases/[id]/status to send status update emails
+- Modified POST /api/missions/[id]/status to send status update emails
 - Notifications sent for ACTIVE_SEARCH, RESOLVED, CLOSED_OTHER transitions
 - Email content customized per status type
 - Duplicate prevention (don't send if status unchanged)
@@ -931,7 +931,7 @@ Add to `SETUP.md`:
 ```markdown
 ### Notifications Configuration (Phase 25-26)
 
-PetRecovery.org sends transactional email notifications for key case lifecycle events.
+PetRecovery.org sends transactional email notifications for key mission lifecycle events.
 
 #### Email Service Setup
 
@@ -964,7 +964,7 @@ The system sends these automatic emails:
 
 1. **Public Report Confirmation** - To the contact email when a public report is submitted
 2. **Admin Alert** - To `ADMIN_NOTIFICATION_EMAIL` when a public report is submitted
-3. **Status Updates** - To the contact email when case status changes to ACTIVE_SEARCH, RESOLVED, or CLOSED_OTHER
+3. **Status Updates** - To the contact email when mission status changes to ACTIVE_SEARCH, RESOLVED, or CLOSED_OTHER
 
 All notification attempts are logged and visible in the Admin Health Dashboard.
 ```
@@ -1031,7 +1031,7 @@ async function testPublicReportNotificationEvents() {
   // Test that public report triggers notification events (check logs, not actual email delivery)
 
   const timestamp = Date.now();
-  const res = await fetch('/api/public/cases', {
+  const res = await fetch('/api/public/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1056,8 +1056,8 @@ async function testPublicReportNotificationEvents() {
 
   const data = await res.json();
 
-  if (!data.caseNumber) {
-    throw new Error('Missing caseNumber in response');
+  if (!data.missionNumber) {
+    throw new Error('Missing missionNumber in response');
   }
 
   // Wait a moment for events to be logged
@@ -1069,7 +1069,7 @@ async function testPublicReportNotificationEvents() {
 
   const notificationEvents = eventsData.events?.filter(e =>
     e.event_type.startsWith('notification.') &&
-    e.metadata?.case_number === data.caseNumber
+    e.metadata?.mission_number === data.missionNumber
   ) || [];
 
   const attemptedEvents = notificationEvents.filter(e => e.event_type === 'notification.send_attempted');
@@ -1077,7 +1077,7 @@ async function testPublicReportNotificationEvents() {
   const failedEvents = notificationEvents.filter(e => e.event_type === 'notification.send_failed');
 
   return {
-    case_number: data.caseNumber,
+    mission_number: data.missionNumber,
     notification_attempts: attemptedEvents.length,
     notification_successes: succeededEvents.length,
     notification_failures: failedEvents.length,
@@ -1088,8 +1088,8 @@ async function testPublicReportNotificationEvents() {
 async function testStatusChangeNotificationEvents() {
   // Test that status change triggers notification events
 
-  // First create a case with contact email
-  const createRes = await fetch('/api/cases', {
+  // First create a mission with contact email
+  const createRes = await fetch('/api/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1104,13 +1104,13 @@ async function testStatusChangeNotificationEvents() {
   });
 
   if (!createRes.ok) {
-    throw new Error('Failed to create test case');
+    throw new Error('Failed to create test mission');
   }
 
-  const { case: testCase } = await createRes.json();
+  const { mission: testMission } = await createRes.json();
 
   // Update status to ACTIVE_SEARCH
-  const statusRes = await fetch(`/api/cases/${testCase.id}/status`, {
+  const statusRes = await fetch(`/api/missions/${testMission.id}/status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1132,12 +1132,12 @@ async function testStatusChangeNotificationEvents() {
 
   const notificationEvents = eventsData.events?.filter(e =>
     e.event_type.startsWith('notification.') &&
-    e.metadata?.case_number === testCase.caseNumber &&
+    e.metadata?.mission_number === testMission.missionNumber &&
     e.metadata?.notification_type === 'status_update'
   ) || [];
 
   return {
-    case_number: testCase.caseNumber,
+    mission_number: testMission.missionNumber,
     status_updated_to: 'ACTIVE_SEARCH',
     notification_events: notificationEvents.length,
     has_attempt: notificationEvents.some(e => e.event_type === 'notification.send_attempted'),
@@ -1177,7 +1177,7 @@ async function testEmailConfiguration() {
 **Add notification tests to state** (in `TestsPanel` component):
 
 ```javascript
-// After existing caseTests state, add:
+// After existing missionTests state, add:
 
 // Notification tests state (Phase 25-26)
 const [notificationTests, setNotificationTests] = useState([
@@ -1220,18 +1220,18 @@ const runNotificationTests = async () => {
 const runAllTests = async () => {
   await runLegalTests();
   await runSquadTests();
-  await runCaseTests();
-  await runPublicCaseTests();
+  await runMissionTests();
+  await runPublicMissionTests();
   await runNotificationTests(); // NEW
 };
 
-const isAnyRunning = runningLegal || runningSquad || runningCase || runningPublicCase || runningNotification; // Add runningNotification
+const isAnyRunning = runningLegal || runningSquad || runningMission || runningPublicMission || runningNotification; // Add runningNotification
 ```
 
 **Add TestSuite component for notifications** (in render):
 
 ```javascript
-{/* After Public Case Test Suite */}
+{/* After Public Mission Test Suite */}
 
 {/* Notification Test Suite (Phase 25-26) */}
 <TestSuite
@@ -1271,11 +1271,11 @@ const ERROR_IMPACT = {
 Add Phase 25-26 entry after Phase 20-21:
 
 ```markdown
-- **🎉 Phase 25-26: Notifications MVP (Case Alerts & Admin Signals)** ✅ **COMPLETE** (Nov 25, 2025)
+- **🎉 Phase 25-26: Notifications MVP (Mission Alerts & Admin Signals)** ✅ **COMPLETE** (Nov 25, 2025)
   - **Notification Types:** 3 transactional email types (report confirmation, admin alert, status update)
   - **Notification Helper:** `lib/notifications.js` with structured event logging
   - **Public Report Integration:** Contact and admin emails sent on public report submission
-  - **Status Update Integration:** Emails sent when case status changes to ACTIVE_SEARCH, RESOLVED, CLOSED_OTHER
+  - **Status Update Integration:** Emails sent when mission status changes to ACTIVE_SEARCH, RESOLVED, CLOSED_OTHER
   - **Configuration:** Environment variable approach (`ADMIN_NOTIFICATION_EMAIL`)
   - **Observability:** All notification attempts logged via `notification.*` events
   - **QA Integration:** 3 new tests in QA harness (event verification, config check)
@@ -1287,7 +1287,7 @@ Update "Next Tactical Priorities":
 
 ```markdown
 1. **Identify and implement next phase cluster from roadmap**
-   - Build on Phase 0 (observability), Phase 13-14 (cases), Phase 15-16 (public portal), Phase 20-21 (QA), Phase 25-26 (notifications) foundations
+   - Build on Phase 0 (observability), Phase 13-14 (missions), Phase 15-16 (public portal), Phase 20-21 (QA), Phase 25-26 (notifications) foundations
    - Continue 108-phase roadmap with same discipline
    - All features must emit structured events and respect legal gating
    - Candidate phases: SMS notifications, role/permission refinement, pet matching algorithm, sighting reports

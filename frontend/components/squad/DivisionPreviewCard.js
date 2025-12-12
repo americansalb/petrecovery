@@ -24,13 +24,13 @@ export default function DivisionPreviewCard({
 
   // Calculate stats for this division
   const divisionCases = cases.filter(c => c.divisionId === division.id);
-  const activeCases = divisionCases.filter(
+  const activeMissions = divisionCases.filter(
     c => c.status === 'IN_PROGRESS' || c.status === 'ACTIVE'
   ).length;
   const reunitedCases = divisionCases.filter(c => c.status === 'REUNITED').length;
 
   // Get recent cases (last 3)
-  const recentCases = divisionCases
+  const recentMissions = divisionCases
     .sort((a, b) => new Date(b.lastSeenAt) - new Date(a.lastSeenAt))
     .slice(0, 3);
 
@@ -112,7 +112,7 @@ export default function DivisionPreviewCard({
           <div className="p-8 grid grid-cols-3 gap-5">
             <StatBox
               icon={AlertCircle}
-              value={activeCases}
+              value={activeMissions}
               label="Active"
               color="red"
             />
@@ -135,7 +135,7 @@ export default function DivisionPreviewCard({
             <h4 className="text-sm font-bold text-white mb-4 tracking-wide uppercase">
               Recent Cases
             </h4>
-            {recentCases.length === 0 ? (
+            {recentMissions.length === 0 ? (
               <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/30 to-slate-900/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-10 text-center">
                 <div className="absolute inset-0 bg-flash-500/5 rounded-full blur-2xl" />
                 <div className="relative">
@@ -145,7 +145,7 @@ export default function DivisionPreviewCard({
               </div>
             ) : (
               <div className="space-y-3">
-                {recentCases.map(c => {
+                {recentMissions.map(c => {
                   const speciesEmoji = {
                     DOG: '🐕',
                     CAT: '🐈',

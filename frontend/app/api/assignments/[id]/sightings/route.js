@@ -118,11 +118,11 @@ export async function POST(request, { params }) {
     if (confidenceLevel >= 7) {
       const assignment = await prisma.caseAssignment.findUnique({
         where: { id: assignmentId },
-        select: { caseId: true },
+        select: { missionId: true },
       });
 
       await prisma.case.update({
-        where: { id: assignment.caseId },
+        where: { id: assignment.missionId },
         data: { status: 'SIGHTING_REPORTED' },
       });
     }

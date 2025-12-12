@@ -259,7 +259,7 @@ function OtherActivityModal({ isOpen, onClose, onSubmit, submitting }) {
 }
 
 // GPS Search Tracker Component - tracks search sessions with location
-function GPSSearchTracker({ caseId, onPointsEarned }) {
+function GPSSearchTracker({ missionId, onPointsEarned }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
@@ -272,11 +272,11 @@ function GPSSearchTracker({ caseId, onPointsEarned }) {
 
   // Fetch active session on mount
   useEffect(() => {
-    if (!caseId) return;
+    if (!missionId) return;
 
     const fetchSession = async () => {
       try {
-        const res = await fetch(`/api/mission/${caseId}/search`);
+        const res = await fetch(`/api/mission/${missionId}/search`);
         if (res.ok) {
           const data = await res.json();
           if (data.activeSession) {
@@ -295,7 +295,7 @@ function GPSSearchTracker({ caseId, onPointsEarned }) {
     };
 
     fetchSession();
-  }, [caseId]);
+  }, [missionId]);
 
   // Duration timer
   useEffect(() => {
@@ -319,7 +319,7 @@ function GPSSearchTracker({ caseId, onPointsEarned }) {
             });
           });
 
-          await fetch(`/api/mission/${caseId}/search`, {
+          await fetch(`/api/mission/${missionId}/search`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -342,7 +342,7 @@ function GPSSearchTracker({ caseId, onPointsEarned }) {
     }
 
     return () => clearInterval(pingIntervalRef.current);
-  }, [session?.status, session?.id, caseId]);
+  }, [session?.status, session?.id, missionId]);
 
   const handleStartSearch = async () => {
     setStarting(true);
@@ -357,7 +357,7 @@ function GPSSearchTracker({ caseId, onPointsEarned }) {
         });
       });
 
-      const res = await fetch(`/api/mission/${caseId}/search`, {
+      const res = await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -390,7 +390,7 @@ function GPSSearchTracker({ caseId, onPointsEarned }) {
     setEnding(true);
 
     try {
-      const res = await fetch(`/api/mission/${caseId}/search`, {
+      const res = await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -523,16 +523,16 @@ function GPSSearchTracker({ caseId, onPointsEarned }) {
 }
 
 // Compact GPS Search Button - opens modal with full tracker
-function GPSSearchButton({ caseId, onPointsEarned }) {
+function GPSSearchButton({ missionId, onPointsEarned }) {
   const [showModal, setShowModal] = useState(false);
   const [hasActiveSession, setHasActiveSession] = useState(false);
 
   // Check for active session on mount
   useEffect(() => {
-    if (!caseId) return;
+    if (!missionId) return;
     const checkSession = async () => {
       try {
-        const res = await fetch(`/api/mission/${caseId}/search`);
+        const res = await fetch(`/api/mission/${missionId}/search`);
         if (res.ok) {
           const data = await res.json();
           setHasActiveSession(!!data.activeSession);
@@ -542,7 +542,7 @@ function GPSSearchButton({ caseId, onPointsEarned }) {
       }
     };
     checkSession();
-  }, [caseId]);
+  }, [missionId]);
 
   return (
     <>
@@ -563,7 +563,7 @@ function GPSSearchButton({ caseId, onPointsEarned }) {
 
       {showModal && (
         <GPSSearchModal
-          caseId={caseId}
+          missionId={missionId}
           onClose={() => setShowModal(false)}
           onPointsEarned={(pts, dist) => {
             setHasActiveSession(false);
@@ -577,7 +577,7 @@ function GPSSearchButton({ caseId, onPointsEarned }) {
 }
 
 // GPS Search Modal - Full tracking interface
-function GPSSearchModal({ caseId, onClose, onPointsEarned, onSessionStart }) {
+function GPSSearchModal({ missionId, onClose, onPointsEarned, onSessionStart }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
@@ -590,10 +590,10 @@ function GPSSearchModal({ caseId, onClose, onPointsEarned, onSessionStart }) {
 
   // Fetch active session on mount
   useEffect(() => {
-    if (!caseId) return;
+    if (!missionId) return;
     const fetchSession = async () => {
       try {
-        const res = await fetch(`/api/mission/${caseId}/search`);
+        const res = await fetch(`/api/mission/${missionId}/search`);
         if (res.ok) {
           const data = await res.json();
           if (data.activeSession) {
@@ -610,7 +610,7 @@ function GPSSearchModal({ caseId, onClose, onPointsEarned, onSessionStart }) {
       }
     };
     fetchSession();
-  }, [caseId]);
+  }, [missionId]);
 
   // Duration timer
   useEffect(() => {
@@ -628,7 +628,7 @@ function GPSSearchModal({ caseId, onClose, onPointsEarned, onSessionStart }) {
           const position = await new Promise((resolve, reject) => {
             navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
           });
-          await fetch(`/api/mission/${caseId}/search`, {
+          await fetch(`/api/mission/${missionId}/search`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -647,7 +647,7 @@ function GPSSearchModal({ caseId, onClose, onPointsEarned, onSessionStart }) {
       pingLocation();
     }
     return () => clearInterval(pingIntervalRef.current);
-  }, [session?.status, session?.id, caseId]);
+  }, [session?.status, session?.id, missionId]);
 
   const handleStart = async () => {
     setStarting(true);
@@ -656,7 +656,7 @@ function GPSSearchModal({ caseId, onClose, onPointsEarned, onSessionStart }) {
       const position = await new Promise((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
       });
-      const res = await fetch(`/api/mission/${caseId}/search`, {
+      const res = await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -686,7 +686,7 @@ function GPSSearchModal({ caseId, onClose, onPointsEarned, onSessionStart }) {
     if (!session?.id) return;
     setEnding(true);
     try {
-      const res = await fetch(`/api/mission/${caseId}/search`, {
+      const res = await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'end', sessionId: session.id }),
@@ -790,7 +790,7 @@ function GPSSearchModal({ caseId, onClose, onPointsEarned, onSessionStart }) {
 }
 
 // Shelter Contact Section - for contacting shelters/vets
-function ShelterContactSection({ caseId, mission, onPointsEarned }) {
+function ShelterContactSection({ missionId, mission, onPointsEarned }) {
   const [shelters, setShelters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
@@ -801,11 +801,11 @@ function ShelterContactSection({ caseId, mission, onPointsEarned }) {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!caseId) return;
+    if (!missionId) return;
 
     const fetchShelters = async () => {
       try {
-        const res = await fetch(`/api/mission/${caseId}/shelters`);
+        const res = await fetch(`/api/mission/${missionId}/shelters`);
         if (res.ok) {
           const data = await res.json();
           setShelters(data.shelters || []);
@@ -818,11 +818,11 @@ function ShelterContactSection({ caseId, mission, onPointsEarned }) {
     };
 
     fetchShelters();
-  }, [caseId]);
+  }, [missionId]);
 
   const handleAddShelter = async (place) => {
     try {
-      const res = await fetch(`/api/mission/${caseId}/shelters`, {
+      const res = await fetch(`/api/mission/${missionId}/shelters`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -863,7 +863,7 @@ function ShelterContactSection({ caseId, mission, onPointsEarned }) {
   const handleLogCall = async (shelterId, outcome, staffResponse, notes) => {
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/mission/${caseId}/shelters/${shelterId}`, {
+      const res = await fetch(`/api/mission/${missionId}/shelters/${shelterId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -896,7 +896,7 @@ function ShelterContactSection({ caseId, mission, onPointsEarned }) {
   const handleSendEmail = async (shelterId, emailData) => {
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/mission/${caseId}/shelters/${shelterId}`, {
+      const res = await fetch(`/api/mission/${missionId}/shelters/${shelterId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1339,7 +1339,7 @@ function PlaceSearchModal({ mission, existingPlaceIds = [], onClose, onAddPlace 
 }
 
 // Flyer Generation Card (Compact)
-function FlyerGenerationCard({ caseId }) {
+function FlyerGenerationCard({ missionId }) {
   const [showModal, setShowModal] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [flyerHtml, setFlyerHtml] = useState(null);
@@ -1351,11 +1351,11 @@ function FlyerGenerationCard({ caseId }) {
   });
 
   const handleGenerate = async () => {
-    if (!caseId) return;
+    if (!missionId) return;
     setGenerating(true);
 
     try {
-      const res = await fetch(`/api/mission/${caseId}/flyers/generate`, {
+      const res = await fetch(`/api/mission/${missionId}/flyers/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(options),
@@ -1511,16 +1511,16 @@ function FlyerGenerationCard({ caseId }) {
 }
 
 // Volunteer Check-in Card (Compact)
-function VolunteerCheckInCard({ caseId }) {
+function VolunteerCheckInCard({ missionId }) {
   const [checkedIn, setCheckedIn] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleToggle = async () => {
-    if (!caseId) return;
+    if (!missionId) return;
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/mission/${caseId}/volunteer`, {
+      const res = await fetch(`/api/mission/${missionId}/volunteer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1564,7 +1564,7 @@ function VolunteerCheckInCard({ caseId }) {
 }
 
 // Shelter Search Button (Compact - opens full modal)
-function ShelterSearchButton({ caseId, mission, onPointsEarned }) {
+function ShelterSearchButton({ missionId, mission, onPointsEarned }) {
   const [showModal, setShowModal] = useState(false);
   const [shelters, setShelters] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -1575,7 +1575,7 @@ function ShelterSearchButton({ caseId, mission, onPointsEarned }) {
     if (shelters.length === 0) {
       setLoading(true);
       try {
-        const res = await fetch(`/api/mission/${caseId}/shelters`);
+        const res = await fetch(`/api/mission/${missionId}/shelters`);
         if (res.ok) {
           const data = await res.json();
           setShelters(data.shelters || []);
@@ -1590,7 +1590,7 @@ function ShelterSearchButton({ caseId, mission, onPointsEarned }) {
 
   const handleAddShelter = async (place) => {
     try {
-      const res = await fetch(`/api/mission/${caseId}/shelters`, {
+      const res = await fetch(`/api/mission/${missionId}/shelters`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1645,7 +1645,7 @@ function ShelterSearchButton({ caseId, mission, onPointsEarned }) {
 
       {showModal && (
         <ShelterContactModal
-          caseId={caseId}
+          missionId={missionId}
           mission={mission}
           shelters={shelters}
           setShelters={setShelters}
@@ -1660,7 +1660,7 @@ function ShelterSearchButton({ caseId, mission, onPointsEarned }) {
 }
 
 // Full Shelter Contact Modal (combines search + contact list)
-function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, onClose, onAddShelter, onPointsEarned }) {
+function ShelterContactModal({ missionId, mission, shelters, setShelters, loading, onClose, onAddShelter, onPointsEarned }) {
   const [activeTab, setActiveTab] = useState('search'); // Start on search tab
   const [selectedShelter, setSelectedShelter] = useState(null);
   const [showCallModal, setShowCallModal] = useState(false);
@@ -1747,7 +1747,7 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
   const handleLogCall = async (shelterId, outcome, staffResponse, notes) => {
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/mission/${caseId}/shelters/${shelterId}`, {
+      const res = await fetch(`/api/mission/${missionId}/shelters/${shelterId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'call', outcome, staffResponse, notes }),
@@ -1769,7 +1769,7 @@ function ShelterContactModal({ caseId, mission, shelters, setShelters, loading, 
   const handleSendEmail = async (shelterId, emailData) => {
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/mission/${caseId}/shelters/${shelterId}`, {
+      const res = await fetch(`/api/mission/${missionId}/shelters/${shelterId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'email', ...emailData }),
@@ -3017,7 +3017,7 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
       setLoading(true);
       try {
         // Fetch points summary
-        const pointsRes = await fetch(`/api/users/me/points?caseId=${mission.id}`);
+        const pointsRes = await fetch(`/api/users/me/points?missionId=${mission.id}`);
         if (pointsRes.ok) {
           const data = await pointsRes.json();
           setPoints(data);
@@ -3120,7 +3120,7 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          caseId: mission.id,
+          missionId: mission.id,
           taskId: selectedTask.id,
           actionType: selectedTask.id,
           notes,
@@ -3211,7 +3211,7 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          caseId: mission.id,
+          missionId: mission.id,
           taskId: 'other',
           actionType: 'other',
           notes: description,
@@ -3322,10 +3322,10 @@ export default function ActionsTab({ mission, userId, onTaskComplete, onNavigate
 
         {/* Quick Actions Row */}
         <div className="p-2 grid grid-cols-4 gap-2">
-          <GPSSearchButton caseId={mission?.id} onPointsEarned={handleExternalPointsEarned} />
-          <ShelterSearchButton caseId={mission?.id} mission={mission} onPointsEarned={handleExternalPointsEarned} />
-          <FlyerGenerationCard caseId={mission?.id} />
-          <VolunteerCheckInCard caseId={mission?.id} />
+          <GPSSearchButton missionId={mission?.id} onPointsEarned={handleExternalPointsEarned} />
+          <ShelterSearchButton missionId={mission?.id} mission={mission} onPointsEarned={handleExternalPointsEarned} />
+          <FlyerGenerationCard missionId={mission?.id} />
+          <VolunteerCheckInCard missionId={mission?.id} />
         </div>
       </div>
 

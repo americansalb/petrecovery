@@ -21,8 +21,8 @@ const PRIORITY_LEVELS = {
 /**
  * Determine case priority level
  */
-export function getCasePriority(caseData) {
-  const hoursSinceReport = (Date.now() - new Date(caseData.createdAt).getTime()) / (1000 * 60 * 60);
+export function getCasePriority(missionData) {
+  const hoursSinceReport = (Date.now() - new Date(missionData.createdAt).getTime()) / (1000 * 60 * 60);
 
   if (hoursSinceReport <= PRIORITY_LEVELS.CRITICAL) {
     return {
@@ -76,15 +76,15 @@ export function getCasePriority(caseData) {
 /**
  * Activate priority mode for a case
  */
-export async function activatePriorityMode(caseId, options = {}) {
+export async function activatePriorityMode(missionId, options = {}) {
   const {
     triggeredBy = 'SYSTEM',
     reason = 'Fresh case',
     duration = 2, // hours
   } = options;
 
-  const caseData = await prisma.case.findUnique({
-    where: { id: caseId },
+  const missionData = await prisma.case.findUnique({
+    where: { id: missionId },
     include: {
       assignments: {
         include: {
@@ -98,14 +98,14 @@ export async function activatePriorityMode(caseId, options = {}) {
     }
   });
 
-  if (!caseData) {
-    return { success: false, error: 'Case not found' };
+  if (!missionData) {
+    return { success: false, error: 'Mission not found' };
   }
 
   // Create priority mode record
   const priorityMode = await prisma.casePriorityMode.create({
     data: {
-      caseId,
+      missionId,
       startedAt: new Date(),
       expiresAt: new Date(Date.now() + duration * 60 * 60 * 1000),
       triggeredBy,
@@ -116,12 +116,12 @@ export async function activatePriorityMode(caseId, options = {}) {
 
   // Update case priority
   await prisma.case.update({
-    where: { id: caseId },
+    where: { id: missionId },
     data: { priorityLevel: 'CRITICAL' }
   });
 
   // Trigger surge notifications
-  await triggerVolunteerSurge(caseData);
+  await triggerVolunteerSurge(missionData);
 
   return {
     success: true,
@@ -133,11 +133,11 @@ export async function activatePriorityMode(caseId, options = {}) {
 /**
  * Trigger volunteer surge for a case
  */
-async function triggerVolunteerSurge(caseData) {
+async function triggerVolunteerSurge(missionData) {
   // Get all squads covering this area
   const squads = await findSquadsCoveringLocation(
-    caseData.lastSeenLatitude,
-    caseData.lastSeenLongitude
+    missionData.lastSeenLatitude,
+    missionData.lastSeenLongitude
   );
 
   const results = [];
@@ -147,9 +147,9 @@ async function triggerVolunteerSurge(caseData) {
     for (const division of squad.divisions || []) {
       const result = await sendDivisionAlert(division.id, {
         type: 'PRIORITY_SURGE',
-        title: `🚨 URGENT: ${caseData.petName} just went missing!`,
-        body: `${caseData.petSpecies} lost near ${caseData.lastSeenAddress}. Every minute counts!`,
-        caseId: caseData.id,
+        title: `🚨 URGENT: ${missionData.petName} just went missing!`,
+        body: `${missionData.petSpecies} lost near ${missionData.lastSeenAddress}. Every minute counts!`,
+        missionId: missionData.id,
         priority: 'URGENT',
       });
       results.push(result);
@@ -157,16 +157,16 @@ async function triggerVolunteerSurge(caseData) {
 
     // Also alert individual members with high response rates
     const topResponders = await getTopResponders(squad.id, 20);
-    await sendSurgeNotificationToUsers(topResponders, caseData);
+    await sendSurgeNotificationToUsers(topResponders, missionData);
   }
 
   // Send broader notification to all nearby patrol members
-  await alertNearbyPatrolMembers(caseData);
+  await alertNearbyPatrolMembers(missionData);
 
   // Log surge event
   await prisma.surgeEvent.create({
     data: {
-      caseId: caseData.id,
+      missionId: missionData.id,
       type: 'PRIORITY_ACTIVATED',
       squadsNotified: squads.length,
       volunteersNotified: results.reduce((sum, r) => sum + (r.sent || 0), 0),
@@ -213,7 +213,7 @@ async function getTopResponders(squadId, limit = 20) {
 /**
  * Send surge notification to specific users
  */
-async function sendSurgeNotificationToUsers(users, caseData) {
+async function sendSurgeNotificationToUsers(users, missionData) {
   const subscriptions = [];
 
   for (const user of users) {
@@ -228,17 +228,17 @@ async function sendSurgeNotificationToUsers(users, caseData) {
   if (subscriptions.length === 0) return;
 
   const payload = {
-    title: `🚨 URGENT: Help find ${caseData.petName}!`,
-    body: `A ${caseData.petSpecies} just went missing near you. Your help is needed NOW!`,
+    title: `🚨 URGENT: Help find ${missionData.petName}!`,
+    body: `A ${missionData.petSpecies} just went missing near you. Your help is needed NOW!`,
     icon: '/icons/urgent-alert.png',
     badge: '/icons/badge-urgent.png',
-    tag: `surge-${caseData.id}`,
+    tag: `surge-${missionData.id}`,
     requireInteraction: true,
     vibrate: [200, 100, 200, 100, 200],
     data: {
       type: 'PRIORITY_SURGE',
-      caseId: caseData.id,
-      url: `/search/${caseData.id}`,
+      missionId: missionData.id,
+      url: `/search/${missionData.id}`,
     },
     actions: [
       { action: 'join', title: 'I\'ll Help!' },
@@ -252,7 +252,7 @@ async function sendSurgeNotificationToUsers(users, caseData) {
 /**
  * Alert nearby patrol members (within radius)
  */
-async function alertNearbyPatrolMembers(caseData) {
+async function alertNearbyPatrolMembers(missionData) {
   const radiusMiles = 5;
 
   // Find users with patrol profiles in range
@@ -261,12 +261,12 @@ async function alertNearbyPatrolMembers(caseData) {
       patrolProfile: { isNot: null },
       profile: {
         latitude: {
-          gte: caseData.lastSeenLatitude - (radiusMiles / 69),
-          lte: caseData.lastSeenLatitude + (radiusMiles / 69),
+          gte: missionData.lastSeenLatitude - (radiusMiles / 69),
+          lte: missionData.lastSeenLatitude + (radiusMiles / 69),
         },
         longitude: {
-          gte: caseData.lastSeenLongitude - (radiusMiles / 54),
-          lte: caseData.lastSeenLongitude + (radiusMiles / 54),
+          gte: missionData.lastSeenLongitude - (radiusMiles / 54),
+          lte: missionData.lastSeenLongitude + (radiusMiles / 54),
         },
       },
       pushSubscriptions: { some: {} },
@@ -284,8 +284,8 @@ async function alertNearbyPatrolMembers(caseData) {
     if (!member.profile) continue;
 
     const distance = haversineDistance(
-      caseData.lastSeenLatitude,
-      caseData.lastSeenLongitude,
+      missionData.lastSeenLatitude,
+      missionData.lastSeenLongitude,
       member.profile.latitude,
       member.profile.longitude
     );
@@ -304,15 +304,15 @@ async function alertNearbyPatrolMembers(caseData) {
   if (subscriptions.length === 0) return;
 
   const payload = {
-    title: `📍 Lost ${caseData.petSpecies} near you!`,
-    body: `${caseData.petName} went missing nearby. Can you help look?`,
+    title: `📍 Lost ${missionData.petSpecies} near you!`,
+    body: `${missionData.petName} went missing nearby. Can you help look?`,
     icon: '/icons/location-alert.png',
-    tag: `nearby-${caseData.id}`,
+    tag: `nearby-${missionData.id}`,
     requireInteraction: true,
     data: {
       type: 'NEARBY_ALERT',
-      caseId: caseData.id,
-      url: `/search/${caseData.id}`,
+      missionId: missionData.id,
+      url: `/search/${missionData.id}`,
     },
   };
 
@@ -322,10 +322,10 @@ async function alertNearbyPatrolMembers(caseData) {
 /**
  * Deactivate priority mode
  */
-export async function deactivatePriorityMode(caseId, reason = 'Expired') {
+export async function deactivatePriorityMode(missionId, reason = 'Expired') {
   await prisma.casePriorityMode.updateMany({
     where: {
-      caseId,
+      missionId,
       isActive: true,
     },
     data: {
@@ -336,14 +336,14 @@ export async function deactivatePriorityMode(caseId, reason = 'Expired') {
   });
 
   // Update case priority
-  const caseData = await prisma.case.findUnique({
-    where: { id: caseId },
+  const missionData = await prisma.case.findUnique({
+    where: { id: missionId },
   });
 
-  const newPriority = getCasePriority(caseData);
+  const newPriority = getCasePriority(missionData);
 
   await prisma.case.update({
-    where: { id: caseId },
+    where: { id: missionId },
     data: { priorityLevel: newPriority.level }
   });
 
@@ -419,8 +419,8 @@ export async function managePriorityModes() {
     }
   });
 
-  for (const caseData of newCases) {
-    await activatePriorityMode(caseData.id, {
+  for (const missionData of newCases) {
+    await activatePriorityMode(missionData.id, {
       triggeredBy: 'AUTO',
       reason: 'New case auto-activation',
     });
@@ -439,7 +439,7 @@ export async function managePriorityModes() {
  * Check for cases with poor coverage and trigger re-surge
  */
 async function checkCoverageGaps() {
-  const activeCases = await prisma.case.findMany({
+  const activeMissions = await prisma.case.findMany({
     where: {
       status: 'ACTIVE',
       createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }, // Last 24 hours
@@ -453,22 +453,22 @@ async function checkCoverageGaps() {
     }
   });
 
-  for (const caseData of activeCases) {
-    const totalVolunteers = caseData.assignments.reduce(
+  for (const missionData of activeMissions) {
+    const totalVolunteers = missionData.assignments.reduce(
       (sum, a) => sum + a._count.participants, 0
     );
 
     // If case is less than 6 hours old with < 5 volunteers, re-surge
-    const hoursOld = (Date.now() - new Date(caseData.createdAt).getTime()) / (1000 * 60 * 60);
+    const hoursOld = (Date.now() - new Date(missionData.createdAt).getTime()) / (1000 * 60 * 60);
 
     if (hoursOld < 6 && totalVolunteers < 5) {
       // Check if already in priority mode
       const existingPriority = await prisma.casePriorityMode.findFirst({
-        where: { caseId: caseData.id, isActive: true },
+        where: { missionId: missionData.id, isActive: true },
       });
 
       if (!existingPriority) {
-        await activatePriorityMode(caseData.id, {
+        await activatePriorityMode(missionData.id, {
           triggeredBy: 'AUTO',
           reason: 'Low volunteer coverage',
           duration: 1,
@@ -481,14 +481,14 @@ async function checkCoverageGaps() {
 /**
  * Get volunteer surge stats for a case
  */
-export async function getSurgeStats(caseId) {
+export async function getSurgeStats(missionId) {
   const surgeEvents = await prisma.surgeEvent.findMany({
-    where: { caseId },
+    where: { missionId },
     orderBy: { createdAt: 'desc' },
   });
 
   const priorityModes = await prisma.casePriorityMode.findMany({
-    where: { caseId },
+    where: { missionId },
     orderBy: { startedAt: 'desc' },
   });
 

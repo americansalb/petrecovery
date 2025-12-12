@@ -34,19 +34,19 @@ export default function MapModeV2({
   divisions,
   squad,
 }) {
-  const [selectedCaseId, setSelectedCaseId] = useState(null);
+  const [selectedMissionId, setSelectedMissionId] = useState(null);
   const router = useRouter();
 
-  const handleCaseClick = (caseId) => {
-    console.log('[MapModeV2] Case clicked:', caseId);
+  const handleMissionClick = (missionId) => {
+    console.log('[MapModeV2] Case clicked:', missionId);
     console.log('[MapModeV2] Available cases:', cases.map(c => ({ id: c.id, petName: c.petName })));
-    setSelectedCaseId(caseId);
+    setSelectedMissionId(missionId);
   };
 
   // Find selected case
-  const selectedCase = cases.find(c => c.id === selectedCaseId);
-  console.log('[MapModeV2] Selected case ID:', selectedCaseId);
-  console.log('[MapModeV2] Found selected case:', selectedCase ? { id: selectedCase.id, petName: selectedCase.petName } : null);
+  const selectedMission = cases.find(c => c.id === selectedMissionId);
+  console.log('[MapModeV2] Selected case ID:', selectedMissionId);
+  console.log('[MapModeV2] Found selected case:', selectedMission ? { id: selectedMission.id, petName: selectedMission.petName } : null);
 
   return (
     <div className="space-y-6">
@@ -57,16 +57,16 @@ export default function MapModeV2({
             cases={cases}
             divisions={divisions}
             squad={squad}
-            onCaseClick={handleCaseClick}
+            onCaseClick={handleMissionClick}
           />
         </div>
 
         {/* Case Detail Bottom Sheet - Overlays on map */}
-        {selectedCase && (
+        {selectedMission && (
           <CaseBottomSheet
-            caseData={selectedCase}
-            onClose={() => setSelectedCaseId(null)}
-            onOpenCase={() => router.push(`/cases/${selectedCase.caseNumber}`)}
+            missionData={selectedMission}
+            onClose={() => setSelectedMissionId(null)}
+            onOpenCase={() => router.push(`/cases/${selectedMission.missionNumber}`)}
           />
         )}
       </div>
@@ -75,7 +75,7 @@ export default function MapModeV2({
       <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 shadow-lg">
         <h4 className="text-sm font-bold text-white mb-4 tracking-wide uppercase">Map Legend</h4>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <LegendItem color="bg-red-500" label="Active Cases" />
+          <LegendItem color="bg-red-500" label="Active Missions" />
           <LegendItem color="bg-flash-400" label="Incoming" />
           <LegendItem color="bg-green-500" label="Reunited" />
           <LegendItem color="bg-cyan-500" label="Division Boundary" />
@@ -85,15 +85,15 @@ export default function MapModeV2({
   );
 }
 
-function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
+function CaseBottomSheet({ missionData, onClose, onOpenCase }) {
   const {
     petName,
     species,
-    caseNumber,
+    missionNumber,
     status,
     lastSeenAddress,
     photoUrl,
-  } = caseData;
+  } = missionData;
 
   const speciesEmoji = {
     DOG: '🐕',
@@ -143,7 +143,7 @@ function CaseBottomSheet({ caseData, onClose, onOpenCase }) {
           {/* Case Info */}
           <div className="flex-1 min-w-0">
             <h3 className="text-xl font-bold text-white mb-1">{petName}</h3>
-            <p className="text-xs text-slate-400 font-medium mb-2">Case #{caseNumber}</p>
+            <p className="text-xs text-slate-400 font-medium mb-2">Case #{missionNumber}</p>
             <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${statusStyle.color} bg-slate-800/50 border border-slate-700/50`}>
               {statusStyle.label}
             </span>

@@ -177,8 +177,8 @@ export async function detectDuplicateCases(newCaseImages, existingCases) {
 
     if (confidence > 70) {
       duplicates.push({
-        caseId: existingCase.id,
-        caseNumber: existingCase.caseNumber,
+        missionId: existingCase.id,
+        missionNumber: existingCase.missionNumber,
         confidence,
         petName: existingCase.petName,
         status: existingCase.status,

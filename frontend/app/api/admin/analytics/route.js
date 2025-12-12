@@ -40,7 +40,7 @@ export async function GET(request) {
         case 'overview':
           data = await getDashboardStats(days);
           break;
-        case 'cases':
+        case 'missions':
           data = await getCasesByStatusOverTime(days);
           break;
         case 'petTypes':

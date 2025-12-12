@@ -96,7 +96,7 @@ export default function NotFound() {
           </Link>
 
           <Link
-            href="/cases"
+            href="/missions"
             style={{
               padding: '0.75rem 1.5rem',
               backgroundColor: 'transparent',

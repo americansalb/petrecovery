@@ -14,7 +14,7 @@
 import { useState } from 'react';
 import { CheckCircle2, MapPin } from 'lucide-react';
 
-export default function SightingFormModal({ caseId, onClose, onSuccess }) {
+export default function SightingFormModal({ missionId, onClose, onSuccess }) {
   const [location, setLocation] = useState(null);
   const [address, setAddress] = useState('');
   const [description, setDescription] = useState('');
@@ -69,7 +69,7 @@ export default function SightingFormModal({ caseId, onClose, onSuccess }) {
     setSubmitting(true);
 
     try {
-      const res = await fetch(`/api/cases/${caseId}/sightings`, {
+      const res = await fetch(`/api/missions/${missionId}/sightings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

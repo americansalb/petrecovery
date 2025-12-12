@@ -161,18 +161,18 @@ export default function MapComponentV2({
 
     // Group cases by location to handle overlapping
     const locationGroups = new Map();
-    cases.forEach(caseData => {
-      if (!caseData.lastSeenLat || !caseData.lastSeenLng) return;
-      const key = `${caseData.lastSeenLat.toFixed(6)},${caseData.lastSeenLng.toFixed(6)}`;
+    cases.forEach(missionData => {
+      if (!missionData.lastSeenLat || !missionData.lastSeenLng) return;
+      const key = `${missionData.lastSeenLat.toFixed(6)},${missionData.lastSeenLng.toFixed(6)}`;
       if (!locationGroups.has(key)) {
         locationGroups.set(key, []);
       }
-      locationGroups.get(key).push(caseData);
+      locationGroups.get(key).push(missionData);
     });
 
     // Add case markers with offset for overlapping cases
     locationGroups.forEach((casesAtLocation, locationKey) => {
-      casesAtLocation.forEach((caseData, index) => {
+      casesAtLocation.forEach((missionData, index) => {
         // Calculate offset for overlapping markers (spiral pattern)
         let offsetLat = 0;
         let offsetLng = 0;
@@ -183,20 +183,20 @@ export default function MapComponentV2({
           offsetLng = Math.cos(angle) * radius;
         }
 
-        const lat = caseData.lastSeenLat + offsetLat;
-        const lng = caseData.lastSeenLng + offsetLng;
+        const lat = missionData.lastSeenLat + offsetLat;
+        const lng = missionData.lastSeenLng + offsetLng;
 
         // Determine marker color based on status
         let markerColor = '#ef4444'; // red for active
-        if (caseData.status === 'PENDING') markerColor = '#f59e0b'; // amber for pending
-        if (caseData.status === 'REUNITED') markerColor = '#10b981'; // green for reunited
+        if (missionData.status === 'PENDING') markerColor = '#f59e0b'; // amber for pending
+        if (missionData.status === 'REUNITED') markerColor = '#10b981'; // green for reunited
 
         // Create custom icon with photo or emoji
-        const hasPhoto = caseData.photoUrl && caseData.photoUrl.trim();
+        const hasPhoto = missionData.photoUrl && missionData.photoUrl.trim();
         const icon = L.divIcon({
           className: 'custom-case-marker',
           html: `
-            <div data-case-id="${caseData.id}" style="
+            <div data-case-id="${missionData.id}" style="
               width: 48px;
               height: 48px;
               background: ${markerColor};
@@ -209,11 +209,11 @@ export default function MapComponentV2({
               font-size: ${hasPhoto ? '0' : '24px'};
               cursor: pointer;
               overflow: hidden;
-              ${caseData.urgency === 'HIGH' ? 'animation: pulse 2s infinite;' : ''}
+              ${missionData.urgency === 'HIGH' ? 'animation: pulse 2s infinite;' : ''}
             ">
               ${hasPhoto
-                ? `<img src="${caseData.photoUrl}" alt="${caseData.petName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.parentElement.innerHTML='${getSpeciesEmoji(caseData.species)}'; this.parentElement.style.fontSize='24px';" />`
-                : getSpeciesEmoji(caseData.species)
+                ? `<img src="${missionData.photoUrl}" alt="${missionData.petName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.parentElement.innerHTML='${getSpeciesEmoji(missionData.species)}'; this.parentElement.style.fontSize='24px';" />`
+                : getSpeciesEmoji(missionData.species)
               }
             </div>
           `,
@@ -226,15 +226,15 @@ export default function MapComponentV2({
 
         // Add click event that will definitely work
         marker.on('click', (e) => {
-          console.log('Marker clicked!', caseData.id);
-          onCaseClick(caseData.id);
+          console.log('Marker clicked!', missionData.id);
+          onCaseClick(missionData.id);
         });
 
         // Also add click handler to the HTML element for better reliability
         marker.getElement()?.addEventListener('click', (e) => {
           e.stopPropagation();
-          console.log('Marker HTML clicked!', caseData.id);
-          onCaseClick(caseData.id);
+          console.log('Marker HTML clicked!', missionData.id);
+          onCaseClick(missionData.id);
         });
 
         markersRef.current.push(marker);

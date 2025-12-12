@@ -3,7 +3,7 @@
 **Last Updated:** 2025-11-27
 **Status:** Pre-MVP Development (~45% complete)
 
-> **IMPORTANT**: See [ROADMAP.md](/ROADMAP.md) for the comprehensive and accurate project status. Previous documentation overstated project readiness. Critical features like password reset, image upload, and case coordination UI are NOT implemented.
+> **IMPORTANT**: See [ROADMAP.md](/ROADMAP.md) for the comprehensive and accurate project status. Previous documentation overstated project readiness. Critical features like password reset, image upload, and mission coordination UI are NOT implemented.
 
 ---
 
@@ -11,7 +11,7 @@
 
 PetRecovery.org is a community-powered platform to help reunite lost pets with their families through:
 - **Rescue Squads**: City-based volunteer groups that help search for lost pets
-- **Case Management**: Track lost pet cases with assignments and search coordination
+- **Mission Management**: Track lost pet missions with assignments and search coordination
 - **Simple UX**: Clean, intuitive interface that works for everyone
 
 ---
@@ -90,7 +90,7 @@ The "optimization" removed:
 - **Phase 3: Structured Event Logging** ✅ **COMPLETE** (Nov 25, 2025)
   - logEvent() utility in `lib/logging.js`
   - EventLog model with indexed queries
-  - All core endpoints migrated: squads, cases, legal, admin
+  - All core endpoints migrated: squads, missions, legal, admin
   - **See:** `docs/SQUAD_LOGGING_MIGRATION.md`
 
 - **Phase 4: Admin Health Visibility** ✅ **COMPLETE**
@@ -106,57 +106,57 @@ The "optimization" removed:
 
 - **Phase 5+: Permissions & Roles** ❌
 
-- **🎉 Phase 13-14: Lost Pet Cases MVP** ✅ **COMPLETE** (Nov 25, 2025)
-  - **Database Models:** `LostPetCase`, `LostPetCaseNote`, status/species enums
+- **🎉 Phase 13-14: Lost Pet Missions MVP** ✅ **COMPLETE** (Nov 25, 2025)
+  - **Database Models:** `LostPetMission`, `LostPetMissionNote`, status/species enums
   - **API Endpoints:** 5 endpoints with legal gating and structured logging
-    - GET/POST /api/cases (list + create)
-    - GET /api/cases/[id] (detail with notes)
-    - POST /api/cases/[id]/status (status updates)
-    - POST /api/cases/[id]/notes (add notes)
-  - **Admin UI:** List, detail, and create pages at `/admin/cases`
-  - **Observability:** All case events logged, metrics in admin dashboard
-  - **Legal Integration:** Full waiver enforcement for all case actions
-  - **See:** `docs/features/lost-pet-cases-mvp.md`
+    - GET/POST /api/missions (list + create)
+    - GET /api/missions/[id] (detail with notes)
+    - POST /api/missions/[id]/status (status updates)
+    - POST /api/missions/[id]/notes (add notes)
+  - **Admin UI:** List, detail, and create pages at `/admin/missions`
+  - **Observability:** All mission events logged, metrics in admin dashboard
+  - **Legal Integration:** Full waiver enforcement for all mission actions
+  - **See:** `docs/features/lost-pet-missions-mvp.md`
 
-- **🎉 Phase 15-16: Public Lost Pet Case Portal MVP** ✅ **COMPLETE** (Nov 25, 2025)
-  - **Database Changes:** Added `isPublic`, `publicContactOk`, `source` fields to `LostPetCase`
+- **🎉 Phase 15-16: Public Lost Pet Mission Portal MVP** ✅ **COMPLETE** (Nov 25, 2025)
+  - **Database Changes:** Added `isPublic`, `publicContactOk`, `source` fields to `LostPetMission`
   - **Public API Endpoints:** 3 public endpoints (NO authentication required)
-    - GET /api/public/cases (list with city/state/species/status filters)
-    - GET /api/public/cases/[caseNumber] (detail with privacy controls)
-    - POST /api/public/cases (submit report, creates isPublic=false case)
-  - **Public Pages:** 3 public-facing pages at `/cases`
+    - GET /api/public/missions (list with city/state/species/status filters)
+    - GET /api/public/missions/[missionNumber] (detail with privacy controls)
+    - POST /api/public/missions (submit report, creates isPublic=false mission)
+  - **Public Pages:** 3 public-facing pages at `/missions`
     - List page with filters and pagination
     - Detail page with conditional contact info display
     - Report form for public lost pet submissions
   - **Privacy Controls:** Contact info only shown if `publicContactOk=true`
-  - **Safe Defaults:** All cases default to `isPublic=false` (admin approval required)
-  - **Observability:** All public actions emit `public_case.*` events
+  - **Safe Defaults:** All missions default to `isPublic=false` (admin approval required)
+  - **Observability:** All public actions emit `public_mission.*` events
   - **QA Integration:** 3 new tests in QA harness (list, detail, submit)
   - **See:** `docs/features/public-lost-pet-portal-mvp.md`
 
 - **🎉 Phase 20-21: Admin QA Harness MVP** ✅ **COMPLETE** (Nov 25, 2025)
   - **QA Page:** Browser-based testing and data generation at `/admin/qa`
-  - **Test Suites:** 10 smoke tests (3 Legal + 4 Squad + 3 Case)
+  - **Test Suites:** 10 smoke tests (3 Legal + 4 Squad + 3 Mission)
     - Legal: Waiver acceptance, blocked actions
     - Squad: Create, search, join, leave
-    - Case: Create, update status, add notes
-  - **Data Generators:** Create demo squads and cases without shell scripts
+    - Mission: Create, update status, add notes
+  - **Data Generators:** Create demo squads and missions without shell scripts
     - Squad generator with customizable cities
-    - Case generator with random species, breeds, colors
-    - Test data cleanup (mark [TEST] cases as CLOSED_OTHER)
+    - Mission generator with random species, breeds, colors
+    - Test data cleanup (mark [TEST] missions as CLOSED_OTHER)
   - **Test Execution Engine:** Real-time status, duration tracking, error display
   - **Observability:** All QA actions emit `qa.*` events visible in admin health
   - **Perfect for Render:** No SSH access required, all browser-based
   - **See:** `docs/features/admin-qa-harness-mvp.md`
 
-- **🎉 Phase 25-26: Notifications MVP (Case Alerts & Admin Signals)** ✅ **COMPLETE** (Nov 25, 2025)
+- **🎉 Phase 25-26: Notifications MVP (Mission Alerts & Admin Signals)** ✅ **COMPLETE** (Nov 25, 2025)
   - **Notification Helper Module:** 3 notification functions in `lib/notifications.js`
-    - `sendCaseReportConfirmation()` - Email to contact when public report submitted
+    - `sendMissionReportConfirmation()` - Email to contact when public report submitted
     - `sendAdminPublicReportAlert()` - Email to admin when public report needs review
-    - `sendCaseStatusUpdate()` - Email to contact when status changes (ACTIVE_SEARCH, RESOLVED, CLOSED_OTHER)
+    - `sendMissionStatusUpdate()` - Email to contact when status changes (ACTIVE_SEARCH, RESOLVED, CLOSED_OTHER)
   - **Email Integration:** 2 API endpoints wired with notifications
-    - POST /api/public/cases - sends confirmation + admin alert
-    - POST /api/cases/[id]/status - sends status update
+    - POST /api/public/missions - sends confirmation + admin alert
+    - POST /api/missions/[id]/status - sends status update
   - **Configuration:** Environment variables for email setup
     - EMAIL_SERVICE, EMAIL_USER, EMAIL_PASSWORD, EMAIL_FROM
     - ADMIN_NOTIFICATION_EMAIL for admin alerts
@@ -168,11 +168,11 @@ The "optimization" removed:
   - **Documentation:** SETUP.md updated with email provider setup (Gmail, SendGrid)
   - **See:** `docs/features/notifications-mvp.md`
 
-- **🎯 Phase 22-24: Roles, Permissions & Case Assignment MVP** ✅ **COMPLETE** (Nov 25, 2025)
-  - **Scope:** Explicit global role enforcement and case coordinator tracking
+- **🎯 Phase 22-24: Roles, Permissions & Mission Assignment MVP** ✅ **COMPLETE** (Nov 25, 2025)
+  - **Scope:** Explicit global role enforcement and mission coordinator tracking
   - **Permission Model:** ADMIN, MODERATOR, PATROL, USER with clear access rules
   - **Admin Gating:** All `/admin/*` surfaces require ADMIN role
-  - **Case Assignment:** Optional `coordinatorId` and explicit `squadId` semantics on `LostPetCase`
+  - **Mission Assignment:** Optional `coordinatorId` and explicit `squadId` semantics on `LostPetMission`
   - **Assignment APIs:** Endpoints to assign coordinator and owning squad
   - **Permission Helper:** Centralized `lib/permissions.js` module with `requireAdmin()`, `requireStaffOrAdmin()`, etc.
   - **Observability:** All permission failures emit `auth.permission_denied` events
@@ -182,10 +182,10 @@ The "optimization" removed:
 ### 🎯 Next Tactical Priorities
 
 1. **Identify and implement next phase cluster from roadmap**
-   - Build on Phase 0 (observability), Phase 13-14 (cases), Phase 15-16 (public portal), Phase 20-21 (QA), Phase 25-26 (notifications), Phase 22-24 (roles & assignment) foundations
+   - Build on Phase 0 (observability), Phase 13-14 (missions), Phase 15-16 (public portal), Phase 20-21 (QA), Phase 25-26 (notifications), Phase 22-24 (roles & assignment) foundations
    - Continue 108-phase roadmap with same discipline
    - All features must emit structured events and respect legal gating
-   - Candidate phases: sighting reports, case matching algorithm, coordinator notifications, workload metrics
+   - Candidate phases: sighting reports, mission matching algorithm, coordinator notifications, workload metrics
 
 **⚠️ IMPORTANT CLARIFICATION:**
 
@@ -193,7 +193,7 @@ While the items marked as "complete" above have their *backend APIs* implemented
 
 - ❌ **No password reset** - Users cannot recover accounts
 - ❌ **No image upload** - Only URL fields exist, no actual upload
-- ❌ **No case coordination UI** - APIs exist but zero frontend
+- ❌ **No mission coordination UI** - APIs exist but zero frontend
 - ❌ **No squad chat interface** - API exists, no React component
 - ❌ **No search area mapping** - API exists, no interactive map
 - ❌ **No sighting submission UI** - API exists, no form
@@ -203,7 +203,7 @@ Platform IS ready for:
 - ✅ Observability via admin dashboard
 - ✅ Structured event logging
 - ✅ Health monitoring
-- ✅ Basic admin case management
+- ✅ Basic admin mission management
 
 ---
 
@@ -272,7 +272,7 @@ RescueSquad {
   radiusMiles: Int (default 10)
   isActive: Boolean
   members: RescueSquadMember[]
-  totalCasesAccepted: Int
+  totalMissionsAccepted: Int
   successfulReunions: Int
 }
 

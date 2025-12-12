@@ -1,5 +1,5 @@
 /**
- * Seed script to create a welcome announcement from Surumaa (mascot)
+ * Seed script to create a welcome announcement from Sarama (mascot)
  * for all existing rescue squads
  *
  * Run with: node prisma/seed-welcome-announcement.js
@@ -32,21 +32,21 @@ async function seedWelcomeAnnouncements() {
 
   console.log(`Found ${squads.length} active squads`);
 
-  // Find or create a system user for Surumaa
+  // Find or create a system user for Sarama
   let systemUser = await prisma.user.findFirst({
-    where: { email: 'surumaa@petrecovery.app' },
+    where: { email: 'sarama@petrecovery.app' },
   });
 
   if (!systemUser) {
     systemUser = await prisma.user.create({
       data: {
-        email: 'surumaa@petrecovery.app',
-        firstName: 'Surumaa',
+        email: 'sarama@petrecovery.app',
+        firstName: 'Sarama',
         lastName: '',
         role: 'ADMIN',
       },
     });
-    console.log('Created system user for Surumaa');
+    console.log('Created system user for Sarama');
   }
 
   let created = 0;

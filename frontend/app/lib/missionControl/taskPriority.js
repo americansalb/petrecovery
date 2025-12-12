@@ -485,16 +485,16 @@ export const ACTION_TYPES = {
  * Calculate priority score for a task
  *
  * @param {Object} task - The task object
- * @param {Object} caseData - The case data (pet info, time missing, etc.)
+ * @param {Object} missionData - The case data (pet info, time missing, etc.)
  * @param {Object} context - Context (current time, user location, user role, sightings, completedTasks)
  * @returns {number} - Priority score (higher = more urgent)
  */
-export function calculatePriorityScore(task, caseData, context = {}) {
+export function calculatePriorityScore(task, missionData, context = {}) {
   const actionDef = ACTION_TYPES[task.actionId] || {};
   let score = actionDef.basePriority || 50;
 
   const now = context.currentTime || new Date();
-  const hoursMissing = getHoursMissing(caseData.missingAt, now);
+  const hoursMissing = getHoursMissing(missionData.missingAt, now);
   const currentHour = now.getHours();
 
   // ==========================================================================
@@ -587,7 +587,7 @@ export function calculatePriorityScore(task, caseData, context = {}) {
   // ==========================================================================
   // PET TYPE MATCHING
   // ==========================================================================
-  if (actionDef.petType !== 'BOTH' && actionDef.petType !== caseData.petType) {
+  if (actionDef.petType !== 'BOTH' && actionDef.petType !== missionData.petType) {
     score -= 1000; // Wrong pet type - hide this task
   }
 
@@ -608,12 +608,12 @@ export function calculatePriorityScore(task, caseData, context = {}) {
   // ==========================================================================
   // PET-SPECIFIC MODIFIERS - Indoor/outdoor cats, dog sizes
   // ==========================================================================
-  score += calculatePetSpecificBonus(task, caseData, actionDef);
+  score += calculatePetSpecificBonus(task, missionData, actionDef);
 
   // ==========================================================================
   // HEALTH URGENCY MULTIPLIER - Critical health needs increase all scores
   // ==========================================================================
-  const healthMultiplier = getHealthMultiplier(caseData);
+  const healthMultiplier = getHealthMultiplier(missionData);
   if (healthMultiplier > 1.0) {
     // Apply multiplier to positive scores only (don't make penalties worse)
     if (score > 0) {
@@ -656,16 +656,16 @@ export function calculatePriorityScore(task, caseData, context = {}) {
  * Calculate priority score WITH detailed breakdown for debugging
  *
  * @param {Object} task - The task object
- * @param {Object} caseData - The case data (pet info, time missing, etc.)
+ * @param {Object} missionData - The case data (pet info, time missing, etc.)
  * @param {Object} context - Context (current time, user location, user role)
  * @returns {Object} - { score: number, breakdown: Array<{label, value, description}> }
  */
-export function calculatePriorityScoreWithBreakdown(task, caseData, context = {}) {
+export function calculatePriorityScoreWithBreakdown(task, missionData, context = {}) {
   const actionDef = ACTION_TYPES[task.actionId] || {};
   const breakdown = [];
 
   const now = context.currentTime || new Date();
-  const hoursMissing = getHoursMissing(caseData.missingAt, now);
+  const hoursMissing = getHoursMissing(missionData.missingAt, now);
   const currentHour = now.getHours();
 
   // Base priority
@@ -838,12 +838,12 @@ export function calculatePriorityScoreWithBreakdown(task, caseData, context = {}
 
   // Pet type penalty
   let petTypePenalty = 0;
-  if (actionDef.petType !== 'BOTH' && actionDef.petType !== caseData.petType) {
+  if (actionDef.petType !== 'BOTH' && actionDef.petType !== missionData.petType) {
     petTypePenalty = -1000;
     breakdown.push({
       label: 'Wrong pet type',
       value: petTypePenalty,
-      description: `Action for ${actionDef.petType}, pet is ${caseData.petType}`,
+      description: `Action for ${actionDef.petType}, pet is ${missionData.petType}`,
     });
   }
 
@@ -877,7 +877,7 @@ export function calculatePriorityScoreWithBreakdown(task, caseData, context = {}
   // ==========================================================================
   // PET-SPECIFIC MODIFIERS
   // ==========================================================================
-  const petSpecificResult = calculatePetSpecificBonusWithDetails(task, caseData, actionDef);
+  const petSpecificResult = calculatePetSpecificBonusWithDetails(task, missionData, actionDef);
   let petSpecificBonus = petSpecificResult.bonus;
   if (petSpecificBonus !== 0) {
     breakdown.push({
@@ -890,7 +890,7 @@ export function calculatePriorityScoreWithBreakdown(task, caseData, context = {}
   // ==========================================================================
   // HEALTH URGENCY
   // ==========================================================================
-  const healthMultiplier = getHealthMultiplier(caseData);
+  const healthMultiplier = getHealthMultiplier(missionData);
   let healthBonus = 0;
   if (healthMultiplier > 1.0) {
     // Calculate what the multiplier adds
@@ -902,7 +902,7 @@ export function calculatePriorityScoreWithBreakdown(task, caseData, context = {}
       breakdown.push({
         label: 'Health urgency',
         value: healthBonus,
-        description: `${healthMultiplier}x multiplier (${caseData.healthCondition || 'medical need'})`,
+        description: `${healthMultiplier}x multiplier (${missionData.healthCondition || 'medical need'})`,
       });
     }
   }
@@ -990,20 +990,20 @@ export function calculatePriorityScoreWithBreakdown(task, caseData, context = {}
 /**
  * Generate tasks for a case based on pet type, phase, and available resources
  *
- * @param {Object} caseData - The case data
+ * @param {Object} missionData - The case data
  * @param {Array} shelters - Nearby shelters
  * @param {Object} existingTasks - Map of existing tasks by actionId
  * @returns {Array} - Array of task objects to create
  */
-export function generateTasksForCase(caseData, shelters = [], existingTasks = {}) {
+export function generateTasksForCase(missionData, shelters = [], existingTasks = {}) {
   const tasks = [];
-  const hoursMissing = getHoursMissing(caseData.missingAt);
+  const hoursMissing = getHoursMissing(missionData.missingAt);
   const currentPhase = getPhase(hoursMissing);
 
   // Generate tasks from action definitions
   for (const [actionId, actionDef] of Object.entries(ACTION_TYPES)) {
     // Skip if wrong pet type
-    if (actionDef.petType !== 'BOTH' && actionDef.petType !== caseData.petType) {
+    if (actionDef.petType !== 'BOTH' && actionDef.petType !== missionData.petType) {
       continue;
     }
 
@@ -1013,12 +1013,12 @@ export function generateTasksForCase(caseData, shelters = [], existingTasks = {}
     }
 
     // Skip if requires microchip but pet isn't chipped
-    if (actionDef.requiresMicrochip && !caseData.isMicrochipped) {
+    if (actionDef.requiresMicrochip && !missionData.isMicrochipped) {
       continue;
     }
 
     // Skip if requires skittish but pet isn't skittish
-    if (actionDef.requiresSkittish && caseData.temperament !== 'SKITTISH') {
+    if (actionDef.requiresSkittish && missionData.temperament !== 'SKITTISH') {
       continue;
     }
 
@@ -1053,8 +1053,8 @@ export function generateTasksForCase(caseData, shelters = [], existingTasks = {}
         role: actionDef.role,
         petType: actionDef.petType,
         phase: actionDef.phase,
-        latitude: caseData.lastSeenLatitude,
-        longitude: caseData.lastSeenLongitude,
+        latitude: missionData.lastSeenLatitude,
+        longitude: missionData.lastSeenLongitude,
       });
     }
   }
@@ -1066,15 +1066,15 @@ export function generateTasksForCase(caseData, shelters = [], existingTasks = {}
  * Sort tasks by priority score
  *
  * @param {Array} tasks - Array of tasks
- * @param {Object} caseData - Case data
+ * @param {Object} missionData - Case data
  * @param {Object} context - Context (user location, current time, etc.)
  * @returns {Array} - Sorted tasks with priority scores
  */
-export function sortTasksByPriority(tasks, caseData, context = {}) {
+export function sortTasksByPriority(tasks, missionData, context = {}) {
   return tasks
     .map(task => ({
       ...task,
-      priorityScore: calculatePriorityScore(task, caseData, context),
+      priorityScore: calculatePriorityScore(task, missionData, context),
     }))
     .sort((a, b) => b.priorityScore - a.priorityScore);
 }
@@ -1269,20 +1269,20 @@ function calculateSightingBoostWithDetails(task, sightings, now) {
 /**
  * Calculate bonus based on pet profile and task type
  */
-function calculatePetSpecificBonus(task, caseData, actionDef) {
-  return calculatePetSpecificBonusWithDetails(task, caseData, actionDef).bonus;
+function calculatePetSpecificBonus(task, missionData, actionDef) {
+  return calculatePetSpecificBonusWithDetails(task, missionData, actionDef).bonus;
 }
 
 /**
  * Calculate pet-specific bonus with explanation
  */
-function calculatePetSpecificBonusWithDetails(task, caseData, actionDef) {
+function calculatePetSpecificBonusWithDetails(task, missionData, actionDef) {
   let bonus = 0;
   let reasons = [];
 
-  const petType = caseData.petType || 'CAT';
-  const isIndoor = caseData.isIndoor ?? true; // Default to indoor
-  const petSize = caseData.petSize || 'MEDIUM';
+  const petType = missionData.petType || 'CAT';
+  const isIndoor = missionData.isIndoor ?? true; // Default to indoor
+  const petSize = missionData.petSize || 'MEDIUM';
 
   if (petType === 'CAT') {
     const profile = isIndoor ? PET_PROFILES.CAT.INDOOR : PET_PROFILES.CAT.OUTDOOR;
@@ -1356,7 +1356,7 @@ function calculatePetSpecificBonusWithDetails(task, caseData, actionDef) {
   }
 
   // Skittish pet modifier
-  if (caseData.temperament === 'SKITTISH') {
+  if (missionData.temperament === 'SKITTISH') {
     if (task.actionId === 'humane_trap' || task.actionId === 'night_flashlight') {
       bonus += 30;
       reasons.push('Skittish - indirect methods');
@@ -1376,8 +1376,8 @@ function calculatePetSpecificBonusWithDetails(task, caseData, actionDef) {
 /**
  * Get health urgency multiplier from case data
  */
-function getHealthMultiplier(caseData) {
-  const condition = caseData.healthCondition || caseData.healthUrgency;
+function getHealthMultiplier(missionData) {
+  const condition = missionData.healthCondition || missionData.healthUrgency;
   if (!condition) return HEALTH_URGENCY.NONE;
 
   // Map condition strings to multipliers
@@ -1672,10 +1672,10 @@ function calculateClusterBonusWithDetails(task, allTasks) {
 /**
  * Generate "Why this is #1" explanation for a task
  */
-export function generateWhyExplanation(task, caseData, context = {}) {
+export function generateWhyExplanation(task, missionData, context = {}) {
   const reasons = [];
   const actionDef = ACTION_TYPES[task.actionId] || {};
-  const hoursMissing = getHoursMissing(caseData.missingAt);
+  const hoursMissing = getHoursMissing(missionData.missingAt);
   const currentHour = context.currentTime?.getHours() || new Date().getHours();
 
   // Time urgency
@@ -1724,16 +1724,16 @@ export function generateWhyExplanation(task, caseData, context = {}) {
 /**
  * Generate "What to say" script for shelter calls
  */
-export function generateCallScript(task, caseData) {
+export function generateCallScript(task, missionData) {
   if (task.actionId !== 'call_shelter') return null;
 
-  const petType = caseData.petType?.toLowerCase() || 'pet';
-  const breed = caseData.petBreed || '';
-  const color = caseData.petColor || '';
-  const name = caseData.petName || '';
-  const location = caseData.lastSeenAddress || caseData.lastSeenCity || 'the area';
+  const petType = missionData.petType?.toLowerCase() || 'pet';
+  const breed = missionData.petBreed || '';
+  const color = missionData.petColor || '';
+  const name = missionData.petName || '';
+  const location = missionData.lastSeenAddress || missionData.lastSeenCity || 'the area';
 
-  const timeSince = getHoursMissing(caseData.missingAt);
+  const timeSince = getHoursMissing(missionData.missingAt);
   let timeDesc;
   if (timeSince < 1) {
     timeDesc = 'within the last hour';

@@ -54,7 +54,7 @@ export async function POST(request, { params }) {
             }
           }
         },
-        select: { id: true, caseId: true }
+        select: { id: true, missionId: true }
       });
     } else {
       // Get all active missions for this squad
@@ -63,17 +63,17 @@ export async function POST(request, { params }) {
           rescueSquadId: squadId,
           status: { in: ['ACCEPTED', 'ACTIVE'] },
         },
-        select: { caseId: true }
+        select: { missionId: true }
       });
 
-      const caseIds = assignments.map(a => a.caseId);
+      const missionIds = assignments.map(a => a.missionId);
 
       missions = await prisma.missionControl.findMany({
         where: {
-          caseId: { in: caseIds },
+          missionId: { in: missionIds },
           mode: { in: ['LIVE_SEARCH', 'CONTAINMENT', 'TRAP_OPS'] },
         },
-        select: { id: true, caseId: true }
+        select: { id: true, missionId: true }
       });
     }
 

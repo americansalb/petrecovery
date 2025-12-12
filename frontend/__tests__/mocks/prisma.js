@@ -43,7 +43,7 @@ const mockPrismaClient = {
     count: jest.fn(),
     groupBy: jest.fn(),
   },
-  lostPetCase: {
+  mission: {
     findUnique: jest.fn(),
     findFirst: jest.fn(),
     findMany: jest.fn(),
@@ -173,7 +173,7 @@ function createMockCase(overrides = {}) {
 function createMockSighting(overrides = {}) {
   return {
     id: 'sighting-123',
-    caseId: 'case-123',
+    missionId: 'case-123',
     userId: 'user-123',
     latitude: 30.2672,
     longitude: -97.7431,

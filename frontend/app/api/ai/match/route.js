@@ -12,19 +12,19 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { caseNumber, limit = 20 } = await request.json();
+    const { missionNumber, limit = 20 } = await request.json();
 
-    if (!caseNumber) {
-      return NextResponse.json({ error: 'Case number required' }, { status: 400 });
+    if (!missionNumber) {
+      return NextResponse.json({ error: 'Mission number required' }, { status: 400 });
     }
 
     // Get the lost pet case
     const lostCase = await prisma.case.findUnique({
-      where: { caseNumber },
+      where: { missionNumber },
     });
 
     if (!lostCase) {
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
     // Find potential matches from found reports and shelter intakes
@@ -44,7 +44,7 @@ export async function POST(request) {
       candidates.push({
         type: 'found_report',
         id: foundCase.id,
-        caseNumber: foundCase.caseNumber,
+        missionNumber: foundCase.missionNumber,
         species: foundCase.petSpecies,
         breed: foundCase.petBreed,
         color: foundCase.petColor,
@@ -109,7 +109,7 @@ export async function POST(request) {
     matches.sort((a, b) => b.matchScore - a.matchScore);
 
     return NextResponse.json({
-      caseNumber,
+      missionNumber,
       petName: lostCase.petName,
       matches: matches.slice(0, limit),
       totalCandidates: candidates.length,

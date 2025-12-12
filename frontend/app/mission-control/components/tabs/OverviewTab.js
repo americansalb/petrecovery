@@ -77,7 +77,7 @@ export default function OverviewTab({
 
   // Handle share action
   const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/cases/${mission.caseNumber || mission.id}`;
+    const shareUrl = `${window.location.origin}/cases/${mission.missionNumber || mission.id}`;
     const shareText = `Help find ${mission.petName}! ${mission.petBreed || mission.petSpecies} missing near ${mission.lastSeenAddress?.split(',').slice(0, 2).join(',') || 'unknown location'}.`;
 
     // Try native share first (mobile)

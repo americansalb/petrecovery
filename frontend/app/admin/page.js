@@ -74,9 +74,9 @@ export default function AdminDashboard() {
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <QuickStatCard
-              title="Active Cases"
-              value={stats.activeCases}
-              change={`+${stats.recentCases} this week`}
+              title="Active Missions"
+              value={stats.activeMissions}
+              change={`+${stats.recentMissions} this week`}
               positive
             />
             <QuickStatCard
@@ -115,7 +115,7 @@ export default function AdminDashboard() {
           <AdminCard
             title="Cases"
             description="Moderate cases, review reports, and manage status"
-            href="/admin/cases"
+            href="/admin/missions"
             icon="📋"
           />
           <AdminCard

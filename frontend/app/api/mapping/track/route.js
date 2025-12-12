@@ -14,16 +14,16 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { caseId, latitude, longitude, accuracy, altitude, heading, speed } = await request.json();
+    const { missionId, latitude, longitude, accuracy, altitude, heading, speed } = await request.json();
 
-    if (!caseId || !latitude || !longitude) {
+    if (!missionId || !latitude || !longitude) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     // Verify user is participant in case
     const assignment = await prisma.caseAssignment.findFirst({
       where: {
-        caseId,
+        missionId,
         participants: {
           some: { userId: session.user.id, isActive: true },
         },
@@ -39,7 +39,7 @@ export async function POST(request) {
     const breadcrumb = await prisma.gpsBreadcrumb.create({
       data: {
         userId: session.user.id,
-        caseId,
+        missionId,
         assignmentId: assignment.id,
         latitude,
         longitude,
@@ -69,13 +69,13 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const caseId = searchParams.get('caseId');
+    const missionId = searchParams.get('missionId');
     const userId = searchParams.get('userId');
     const since = searchParams.get('since'); // ISO timestamp
     const limit = parseInt(searchParams.get('limit') || '1000');
 
     const where = {
-      ...(caseId && { caseId }),
+      ...(missionId && { missionId }),
       ...(userId && { userId }),
       ...(since && { createdAt: { gte: new Date(since) } }),
     };
@@ -141,9 +141,9 @@ export async function DELETE(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const caseId = searchParams.get('caseId');
+    const missionId = searchParams.get('missionId');
 
-    if (!caseId) {
+    if (!missionId) {
       return NextResponse.json({ error: 'Case ID required' }, { status: 400 });
     }
 
@@ -155,7 +155,7 @@ export async function DELETE(request) {
 
     const isCoordinator = await prisma.caseAssignment.findFirst({
       where: {
-        caseId,
+        missionId,
         rescueSquad: {
           members: {
             some: {
@@ -172,7 +172,7 @@ export async function DELETE(request) {
     }
 
     const result = await prisma.gpsBreadcrumb.deleteMany({
-      where: { caseId },
+      where: { missionId },
     });
 
     return NextResponse.json({

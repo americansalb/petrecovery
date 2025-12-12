@@ -196,7 +196,7 @@ export async function GET(request, { params }) {
         name: true,
         description: true,
         totalMembers: true,
-        activeCases: true,
+        activeMissions: true,
       },
       orderBy: {
         name: 'asc',

@@ -1408,7 +1408,7 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
                 type="text"
                 value={details.notes}
                 onChange={(e) => setDetails({ ...details, notes: e.target.value })}
-                placeholder="Case number or confirmation..."
+                placeholder="Mission number or confirmation..."
                 className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                 style={{ backgroundColor: '#1e293b', color: '#ffffff' }}
               />

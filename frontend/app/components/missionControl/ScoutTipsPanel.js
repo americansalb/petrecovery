@@ -17,7 +17,7 @@ import ScoutTipBanner from './ScoutTipBanner';
 const SCOUT_ICON = '\u{1F436}';
 
 export default function ScoutTipsPanel({
-  caseId,
+  missionId,
   onAction,
   variant = 'full', // 'full' | 'sidebar' | 'minimal'
   maxTips = 10,
@@ -34,7 +34,7 @@ export default function ScoutTipsPanel({
     dismissTip,
     getTipIcon,
     getTipLabel,
-  } = useScoutTips(caseId, { coldSpotsCount });
+  } = useScoutTips(missionId, { coldSpotsCount });
 
   const [filter, setFilter] = useState('all'); // 'all' | 'high' | type
   const [sortBy, setSortBy] = useState('priority'); // 'priority' | 'time'

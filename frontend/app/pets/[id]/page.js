@@ -357,10 +357,10 @@ export default function PetDetailPage() {
               {pet.cases.map(c => (
                 <Link
                   key={c.id}
-                  href={`/cases/${c.caseNumber}`}
+                  href={`/missions/${c.missionNumber}`}
                   className="flex justify-between items-center p-3 bg-white rounded-lg hover:bg-midnight-50 transition-colors"
                 >
-                  <span className="text-flash-600 font-medium">{c.caseNumber}</span>
+                  <span className="text-flash-600 font-medium">{c.missionNumber}</span>
                   <Badge
                     variant={
                       c.status === 'RESOLVED' ? 'success' :

@@ -294,7 +294,7 @@ Prerequisite: Logged in
 
 Expected:
 - Welcome message with user name
-- Section for "My Cases" (lost pets reported)
+- Section for "My Missions" (lost pets reported)
 - Section for "My Pets" (registered pets)
 - Quick action buttons
 - No console errors
@@ -302,7 +302,7 @@ Expected:
 Actions:
 1. Navigate to /dashboard
 2. Verify personalized greeting
-3. Verify cases section exists (may be empty)
+3. Verify missions section exists (may be empty)
 4. Verify pets section exists (may be empty)
 5. Look for "Report Lost Pet" CTA
 
@@ -398,12 +398,12 @@ Actions:
 
 Expected:
 - Success message
-- Redirect to case detail page OR dashboard
-- Case visible in dashboard
+- Redirect to mission detail page OR dashboard
+- Mission visible in dashboard
 
 Pass Criteria:
-- Case created in database
-- User can view their case
+- Mission created in database
+- User can view their mission
 ```
 
 ### Test 4.4: Report Lost Pet - With Image Upload
@@ -421,12 +421,12 @@ Actions:
 
 Expected:
 - Image uploads to CDN (Bunny.net)
-- Case created with image URL
-- Image visible on case detail page
+- Mission created with image URL
+- Image visible on mission detail page
 
 Pass Criteria:
 - Image upload works
-- Image displays on case page
+- Image displays on mission page
 ```
 
 ---
@@ -605,30 +605,30 @@ Pass Criteria:
 
 ---
 
-## TEST SUITE 7: Case Management
+## TEST SUITE 7: Mission Management
 
-### Test 7.1: View My Cases
+### Test 7.1: View My Missions
 ```
-URL: /dashboard or /cases
-Prerequisite: Have created a case in Test 4.3
+URL: /dashboard or /missions
+Prerequisite: Have created a mission in Test 4.3
 
 Actions:
 1. Navigate to dashboard
-2. Find cases section
-3. Verify case from Test 4.3 visible
+2. Find missions section
+3. Verify mission from Test 4.3 visible
 4. Verify status shown (Active/Open)
 
 Pass Criteria:
-- Cases display
+- Missions display
 - Status accurate
 ```
 
-### Test 7.2: Case Detail Page
+### Test 7.2: Mission Detail Page
 ```
-URL: /cases/[id]
+URL: /missions/[id]
 
 Actions:
-1. Click on case from dashboard
+1. Click on mission from dashboard
 2. Verify detail page loads
 3. Expected info:
    - Pet photo (if uploaded)
@@ -644,12 +644,12 @@ Pass Criteria:
 - Map renders (if applicable)
 ```
 
-### Test 7.3: Update Case Status
+### Test 7.3: Update Mission Status
 ```
-URL: /cases/[id]
+URL: /missions/[id]
 
 Actions:
-1. Go to case detail
+1. Go to mission detail
 2. Find status update option
 3. Change status to "Reunited" (or similar)
 4. Save
@@ -660,10 +660,10 @@ Pass Criteria:
 - Change persists
 ```
 
-### Test 7.4: Case Coordination Page
+### Test 7.4: Mission Coordination Page
 ```
-URL: /cases/[id]/coordinate
-Prerequisite: Active case
+URL: /missions/[id]/coordinate
+Prerequisite: Active mission
 
 Expected:
 - Chat/message area
@@ -757,12 +757,12 @@ Pass Criteria:
 - Graceful redirect
 ```
 
-### Test 9.3: Invalid Case ID
+### Test 9.3: Invalid Mission ID
 ```
-URL: /cases/invalid-id-12345
+URL: /missions/invalid-id-12345
 
 Actions:
-1. Navigate to invalid case URL
+1. Navigate to invalid mission URL
 2. Verify error message or 404
 3. No server crash
 
@@ -839,7 +839,7 @@ After all tests, verify:
 - [ ] Can report lost pet
 - [ ] Can report found pet
 - [ ] Can manage pet profiles
-- [ ] Cases display correctly
+- [ ] Missions display correctly
 - [ ] Mobile responsive
 - [ ] No critical console errors
 - [ ] Error pages work

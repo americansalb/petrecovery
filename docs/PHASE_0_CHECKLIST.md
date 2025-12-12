@@ -27,7 +27,7 @@ Before we treat MASTER_PLAN.md (Phases 1–108) as executable, these items MUST 
   - [x] Total users
   - [x] Total cities (unique city+state pairs from rescue squads)
   - [x] Total rescue squads
-  - [ ] (Later) Total cases, total sightings, total notifications.
+  - [ ] (Later) Total missions, total sightings, total notifications.
   - **Implementation:** `GET /api/admin/health/metrics`
   - **UI:** Metrics Grid with 6 cards (users, cities, squads, active squads, members, active members)
 - [x] Flow tests:
@@ -79,7 +79,7 @@ Before we treat MASTER_PLAN.md (Phases 1–108) as executable, these items MUST 
 - [x] Critical actions are blocked without acceptance:
   - [x] Creating a city rescue squad → Blocked in `POST /api/rescue-squads` (line 195-221)
   - [x] Joining a city rescue squad → Blocked in `POST /api/rescue-squads/[id]/join` (line 15-49)
-  - [ ] Creating a lost-pet case (not implemented yet - Phase 13+)
+  - [ ] Creating a lost-pet mission (not implemented yet - Phase 13+)
   - [ ] Accepting/participating in missions (not implemented yet - Phase 25+)
 - [x] All legal acceptance events are logged with `legal.accepted` and include:
   - [x] `actor_user_id` (session.user.id)
@@ -154,5 +154,5 @@ Before we treat MASTER_PLAN.md (Phases 1–108) as executable, these items MUST 
 - ✅ Structured event logging for debugging
 
 **Next Phase:**
-- Phase 13-14: Pet Profiles + Lost-Pet Case MVP
+- Phase 13-14: Pet Profiles + Lost-Pet Mission MVP
 - Migrate rescue squad endpoints to logEvent()

@@ -28,7 +28,7 @@ export async function GET(request) {
         orderBy: { resolvedAt: 'desc' },
         select: {
           id: true,
-          caseNumber: true,
+          missionNumber: true,
           petName: true,
           petSpecies: true,
           petBreed: true,
@@ -93,30 +93,30 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { caseId, story, thankYouNote, sharePublicly = true } = await request.json();
+    const { missionId, story, thankYouNote, sharePublicly = true } = await request.json();
 
-    if (!caseId || !story) {
+    if (!missionId || !story) {
       return NextResponse.json({ error: 'Case ID and story required' }, { status: 400 });
     }
 
     // Verify ownership
-    const caseData = await prisma.case.findUnique({
-      where: { id: caseId },
+    const missionData = await prisma.case.findUnique({
+      where: { id: missionId },
       select: { reporterId: true, status: true },
     });
 
-    if (!caseData || caseData.reporterId !== session.user.id) {
+    if (!missionData || missionData.reporterId !== session.user.id) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    if (caseData.status !== 'REUNITED') {
+    if (missionData.status !== 'REUNITED') {
       return NextResponse.json({ error: 'Case must be reunited to share story' }, { status: 400 });
     }
 
     // Create success story
     const successStory = await prisma.successStory.create({
       data: {
-        caseId,
+        missionId,
         userId: session.user.id,
         story,
         thankYouNote,
@@ -126,7 +126,7 @@ export async function POST(request) {
 
     // Update case with resolution notes
     await prisma.case.update({
-      where: { id: caseId },
+      where: { id: missionId },
       data: { resolutionNotes: story },
     });
 

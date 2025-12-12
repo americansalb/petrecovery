@@ -24,11 +24,11 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const caseId = searchParams.get('caseId');
+    const missionId = searchParams.get('missionId');
 
-    if (caseId) {
+    if (missionId) {
       // Get case-specific impact
-      const impact = await getCaseImpact(caseId, session.user.id);
+      const impact = await getCaseImpact(missionId, session.user.id);
 
       if (!impact.success) {
         return NextResponse.json(
@@ -38,7 +38,7 @@ export async function GET(request) {
       }
 
       // Include any thank you message
-      const thankYou = await getOwnerThankYou(caseId, session.user.id);
+      const thankYou = await getOwnerThankYou(missionId, session.user.id);
 
       return NextResponse.json({
         ...impact,
@@ -78,16 +78,16 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { caseId, message, photoUrl, recipientId } = body;
+    const { missionId, message, photoUrl, recipientId } = body;
 
-    if (!caseId || !message) {
+    if (!missionId || !message) {
       return NextResponse.json(
         { error: 'Case ID and message required' },
         { status: 400 }
       );
     }
 
-    const result = await createOwnerThankYou(caseId, session.user.id, {
+    const result = await createOwnerThankYou(missionId, session.user.id, {
       message,
       photoUrl,
       recipientId,

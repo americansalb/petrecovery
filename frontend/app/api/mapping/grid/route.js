@@ -11,16 +11,16 @@ import { generateSearchGrid, toGeoJSON } from '@/app/lib/mapping/heatmap';
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const caseId = searchParams.get('caseId');
+    const missionId = searchParams.get('missionId');
     const cellSize = parseFloat(searchParams.get('cellSize') || '0.1'); // miles
 
-    if (!caseId) {
+    if (!missionId) {
       return NextResponse.json({ error: 'Case ID required' }, { status: 400 });
     }
 
     // Get case details
-    const caseData = await prisma.case.findUnique({
-      where: { id: caseId },
+    const missionData = await prisma.case.findUnique({
+      where: { id: missionId },
       select: {
         lastSeenLatitude: true,
         lastSeenLongitude: true,
@@ -28,20 +28,20 @@ export async function GET(request) {
       },
     });
 
-    if (!caseData) {
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+    if (!missionData) {
+      return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
     // Generate grid
     const grid = generateSearchGrid(
-      { lat: caseData.lastSeenLatitude, lng: caseData.lastSeenLongitude },
-      caseData.searchRadius || 5,
+      { lat: missionData.lastSeenLatitude, lng: missionData.lastSeenLongitude },
+      missionData.searchRadius || 5,
       cellSize
     );
 
     // Get searched cells
     const assignments = await prisma.caseAssignment.findMany({
-      where: { caseId },
+      where: { missionId },
       select: { id: true },
     });
 
@@ -96,10 +96,10 @@ export async function GET(request) {
           : 0,
       },
       center: {
-        lat: caseData.lastSeenLatitude,
-        lng: caseData.lastSeenLongitude,
+        lat: missionData.lastSeenLatitude,
+        lng: missionData.lastSeenLongitude,
       },
-      radius: caseData.searchRadius || 5,
+      radius: missionData.searchRadius || 5,
     });
   } catch (error) {
     console.error('Grid error:', error);
@@ -118,16 +118,16 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { caseId, cellId, bounds, notes, potentialSpotting } = await request.json();
+    const { missionId, cellId, bounds, notes, potentialSpotting } = await request.json();
 
-    if (!caseId || !cellId || !bounds) {
+    if (!missionId || !cellId || !bounds) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     // Get assignment for this case
     const assignment = await prisma.caseAssignment.findFirst({
       where: {
-        caseId,
+        missionId,
         participants: {
           some: { userId: session.user.id, isActive: true },
         },

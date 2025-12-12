@@ -20,7 +20,7 @@ import { Send, MessageCircle, X, ChevronDown, ChevronUp, Users } from 'lucide-re
 // SQUAD CHAT HOOK
 // =============================================================================
 
-export function useSquadChat(squadId, caseId, options = {}) {
+export function useSquadChat(squadId, missionId, options = {}) {
   const { autoRefresh = true, refreshInterval = 10000 } = options;
 
   const [messages, setMessages] = useState([]);
@@ -35,8 +35,8 @@ export function useSquadChat(squadId, caseId, options = {}) {
     if (!squadId) return;
 
     try {
-      const url = caseId
-        ? `/api/rescue-squads/${squadId}/chat?caseId=${caseId}`
+      const url = missionId
+        ? `/api/rescue-squads/${squadId}/chat?missionId=${missionId}`
         : `/api/rescue-squads/${squadId}/chat`;
 
       const res = await fetch(url);
@@ -51,7 +51,7 @@ export function useSquadChat(squadId, caseId, options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [squadId, caseId]);
+  }, [squadId, missionId]);
 
   // Send message
   const sendMessage = useCallback(async (content) => {
@@ -63,7 +63,7 @@ export function useSquadChat(squadId, caseId, options = {}) {
       const res = await fetch(`/api/rescue-squads/${squadId}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, caseId }),
+        body: JSON.stringify({ content, missionId }),
       });
 
       if (!res.ok) throw new Error('Failed to send message');
@@ -80,7 +80,7 @@ export function useSquadChat(squadId, caseId, options = {}) {
     } finally {
       setSending(false);
     }
-  }, [squadId, caseId]);
+  }, [squadId, missionId]);
 
   // Share Scout tip to chat
   const shareScoutTip = useCallback(async (tip) => {
@@ -118,7 +118,7 @@ export function useSquadChat(squadId, caseId, options = {}) {
 
 export default function SquadChat({
   squadId,
-  caseId,
+  missionId,
   variant = 'compact', // 'compact' | 'expanded' | 'floating'
   onClose,
   className = '',
@@ -130,7 +130,7 @@ export default function SquadChat({
     error,
     sendMessage,
     fetchMessages,
-  } = useSquadChat(squadId, caseId);
+  } = useSquadChat(squadId, missionId);
 
   const [inputValue, setInputValue] = useState('');
   const [isExpanded, setIsExpanded] = useState(variant === 'expanded');

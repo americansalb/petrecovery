@@ -232,8 +232,8 @@ export async function reportStrayToAnimalControl(reportData) {
 /**
  * Generate court documents for pet recovery
  */
-export async function generateCourtDocuments(caseData) {
-  const { caseId, petInfo, ownerInfo, finderInfo, documentType } = caseData;
+export async function generateCourtDocuments(missionData) {
+  const { missionId, petInfo, ownerInfo, finderInfo, documentType } = missionData;
 
   const documents = [];
 
@@ -244,7 +244,7 @@ export async function generateCourtDocuments(caseData) {
         sections: [
           { title: 'Petitioner Information', content: formatOwnerInfo(ownerInfo) },
           { title: 'Property Description', content: formatPetInfo(petInfo) },
-          { title: 'Circumstances', content: generateCircumstancesSection(caseData) },
+          { title: 'Circumstances', content: generateCircumstancesSection(missionData) },
           { title: 'Relief Requested', content: 'Return of pet to rightful owner' },
         ],
       });
@@ -255,8 +255,8 @@ export async function generateCourtDocuments(caseData) {
         type: 'Affidavit of Finding',
         sections: [
           { title: 'Affiant Information', content: formatFinderInfo(finderInfo) },
-          { title: 'Discovery Details', content: generateDiscoveryDetails(caseData) },
-          { title: 'Care Provided', content: generateCareDetails(caseData) },
+          { title: 'Discovery Details', content: generateDiscoveryDetails(missionData) },
+          { title: 'Care Provided', content: generateCareDetails(missionData) },
           { title: 'Declaration', content: 'I declare under penalty of perjury...' },
         ],
       });
@@ -269,7 +269,7 @@ export async function generateCourtDocuments(caseData) {
           { title: 'Transferor', content: formatOwnerInfo(ownerInfo) },
           { title: 'Transferee', content: formatFinderInfo(finderInfo) },
           { title: 'Animal Description', content: formatPetInfo(petInfo) },
-          { title: 'Terms', content: generateTransferTerms(caseData) },
+          { title: 'Terms', content: generateTransferTerms(missionData) },
         ],
       });
       break;
@@ -277,7 +277,7 @@ export async function generateCourtDocuments(caseData) {
 
   return {
     documents,
-    jurisdiction: caseData.jurisdiction,
+    jurisdiction: missionData.jurisdiction,
     generatedAt: new Date().toISOString(),
     disclaimer: 'These documents are templates. Consult with a legal professional before filing.',
   };
@@ -286,8 +286,8 @@ export async function generateCourtDocuments(caseData) {
 /**
  * Cross-jurisdiction coordination
  */
-export async function coordinateAcrossJurisdictions(caseData) {
-  const { petInfo, lastSeenLocation, searchRadius } = caseData;
+export async function coordinateAcrossJurisdictions(missionData) {
+  const { petInfo, lastSeenLocation, searchRadius } = missionData;
 
   // Find all agencies within search radius
   const agencies = await findAgenciesInRadius(lastSeenLocation, searchRadius);
@@ -299,9 +299,9 @@ export async function coordinateAcrossJurisdictions(caseData) {
     const notification = await sendBOLOToAgency(agency, {
       petInfo,
       lastSeenLocation,
-      caseNumber: caseData.caseNumber,
-      contactInfo: caseData.contactInfo,
-      reward: caseData.rewardAmount,
+      missionNumber: missionData.missionNumber,
+      contactInfo: missionData.contactInfo,
+      reward: missionData.rewardAmount,
     });
 
     notifications.push({
@@ -442,19 +442,19 @@ function formatFinderInfo(finder) {
   return `Name: ${finder.name}\nAddress: ${finder.address}`;
 }
 
-function generateCircumstancesSection(caseData) {
+function generateCircumstancesSection(missionData) {
   return 'Pet was lost on [date] and has been missing since then.';
 }
 
-function generateDiscoveryDetails(caseData) {
+function generateDiscoveryDetails(missionData) {
   return 'Found on [date] at [location].';
 }
 
-function generateCareDetails(caseData) {
+function generateCareDetails(missionData) {
   return 'Provided food, water, and shelter.';
 }
 
-function generateTransferTerms(caseData) {
+function generateTransferTerms(missionData) {
   return 'Transfer is voluntary and permanent.';
 }
 

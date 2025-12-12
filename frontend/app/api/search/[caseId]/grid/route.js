@@ -16,9 +16,9 @@ import {
 
 export async function GET(request, { params }) {
   try {
-    const { caseId } = params;
+    const { missionId } = params;
 
-    const result = await getGridStatus(caseId);
+    const result = await getGridStatus(missionId);
 
     if (!result.success) {
       return NextResponse.json(
@@ -39,7 +39,7 @@ export async function GET(request, { params }) {
 
 export async function POST(request, { params }) {
   try {
-    const { caseId } = params;
+    const { missionId } = params;
     const body = await request.json();
     const { action, location, cellId, sessionId, result: searchResult } = body;
 
@@ -48,7 +48,7 @@ export async function POST(request, { params }) {
 
     switch (action) {
       case 'generate':
-        const generateResult = await generateSearchGrid(caseId, body.options);
+        const generateResult = await generateSearchGrid(missionId, body.options);
         return NextResponse.json(generateResult);
 
       case 'suggest':
@@ -58,7 +58,7 @@ export async function POST(request, { params }) {
             { status: 400 }
           );
         }
-        const suggestion = await getSuggestedArea(caseId, location);
+        const suggestion = await getSuggestedArea(missionId, location);
         return NextResponse.json(suggestion);
 
       case 'claim':

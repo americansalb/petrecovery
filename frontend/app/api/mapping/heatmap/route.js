@@ -14,16 +14,16 @@ import {
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const caseId = searchParams.get('caseId');
+    const missionId = searchParams.get('missionId');
     const type = searchParams.get('type') || 'all'; // sightings, coverage, probability, all
 
-    if (!caseId) {
+    if (!missionId) {
       return NextResponse.json({ error: 'Case ID required' }, { status: 400 });
     }
 
     // Get case details
-    const caseData = await prisma.case.findUnique({
-      where: { id: caseId },
+    const missionData = await prisma.case.findUnique({
+      where: { id: missionId },
       select: {
         id: true,
         lastSeenLatitude: true,
@@ -33,22 +33,22 @@ export async function GET(request) {
       },
     });
 
-    if (!caseData) {
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+    if (!missionData) {
+      return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
     const result = {
-      caseId,
+      missionId,
       center: {
-        lat: caseData.lastSeenLatitude,
-        lng: caseData.lastSeenLongitude,
+        lat: missionData.lastSeenLatitude,
+        lng: missionData.lastSeenLongitude,
       },
     };
 
     // Get sightings heat map
     if (type === 'sightings' || type === 'all') {
       const sightings = await prisma.caseSighting.findMany({
-        where: { caseId },
+        where: { missionId },
         select: {
           id: true,
           latitude: true,
@@ -66,7 +66,7 @@ export async function GET(request) {
     // Get search coverage heat map
     if (type === 'coverage' || type === 'all') {
       const assignments = await prisma.caseAssignment.findMany({
-        where: { caseId },
+        where: { missionId },
         select: { id: true },
       });
 
@@ -88,10 +88,10 @@ export async function GET(request) {
 
     // Get probability zones
     if (type === 'probability' || type === 'all') {
-      const hoursElapsed = (Date.now() - new Date(caseData.lastSeenAt).getTime()) / (1000 * 60 * 60);
+      const hoursElapsed = (Date.now() - new Date(missionData.lastSeenAt).getTime()) / (1000 * 60 * 60);
 
       const sightings = await prisma.caseSighting.findMany({
-        where: { caseId, isVerified: true },
+        where: { missionId, isVerified: true },
         select: {
           latitude: true,
           longitude: true,
@@ -103,7 +103,7 @@ export async function GET(request) {
       });
 
       result.probabilityZones = generateProbabilityZones(
-        { lat: caseData.lastSeenLatitude, lng: caseData.lastSeenLongitude },
+        { lat: missionData.lastSeenLatitude, lng: missionData.lastSeenLongitude },
         sightings,
         hoursElapsed
       );

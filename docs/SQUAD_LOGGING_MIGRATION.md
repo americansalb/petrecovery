@@ -15,7 +15,7 @@ During the "rescue squad search restoration" work (Nov 24), extensive `console.l
 1. **Enable error tracking** in Admin Health Dashboard
 2. **Provide searchable event history** via EventLog model
 3. **Maintain debugging capability** through metadata fields
-4. **Follow Phase 0 logging standard** established for legal + cases
+4. **Follow Phase 0 logging standard** established for legal + missions
 
 ---
 
@@ -57,7 +57,7 @@ During the "rescue squad search restoration" work (Nov 24), extensive `console.l
 
 ## Event Type Naming Convention
 
-Following Phase 0 + Cases pattern:
+Following Phase 0 + Missions pattern:
 
 ```
 squad.<action>_<result>

@@ -30,7 +30,7 @@ export default function MyAlertsPage() {
       params.set('myOnly', 'true');
       params.set('limit', '50');
 
-      const res = await fetch(`/api/cases?${params.toString()}`);
+      const res = await fetch(`/api/missions?${params.toString()}`);
       const data = await res.json();
 
       if (!res.ok) {
@@ -80,7 +80,7 @@ export default function MyAlertsPage() {
     setSuccessMessage('');
 
     try {
-      const res = await fetch(`/api/cases/${alertId}/status`, {
+      const res = await fetch(`/api/missions/${alertId}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -564,7 +564,7 @@ export default function MyAlertsPage() {
                         </div>
                         <div style={{ textAlign: 'right', fontSize: '0.875rem', color: '#6b7280' }}>
                           <div>{getDaysAgo(alert.createdAt)}</div>
-                          <div style={{ fontWeight: '600', color: '#2563eb' }}>{alert.caseNumber}</div>
+                          <div style={{ fontWeight: '600', color: '#2563eb' }}>{alert.missionNumber}</div>
                         </div>
                       </div>
 
@@ -635,7 +635,7 @@ export default function MyAlertsPage() {
                         gap: '0.75rem',
                       }}>
                         <Link
-                          href={`/alerts/${alert.caseNumber || alert.id}`}
+                          href={`/alerts/${alert.missionNumber || alert.id}`}
                           style={{
                             padding: '0.75rem',
                             backgroundColor: '#2563eb',

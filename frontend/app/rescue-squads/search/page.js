@@ -369,7 +369,7 @@ export default function RescueSquadSearchPage() {
                         {item.exists && item.squad && (
                           <p className="text-midnight-400 text-xs mt-1 flex items-center gap-2">
                             <Users className="w-3 h-3" />
-                            {item.squad.memberCount} member{item.squad.memberCount !== 1 ? 's' : ''} | {item.squad.totalCasesAccepted || 0} cases
+                            {item.squad.memberCount} member{item.squad.memberCount !== 1 ? 's' : ''} | {item.squad.totalMissionsAccepted || 0} cases
                             {item.divisions && item.divisions.length > 0 && ` | ${item.divisions.length} divisions`}
                           </p>
                         )}

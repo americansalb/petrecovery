@@ -103,23 +103,23 @@ export const PUSH_TEMPLATES = {
   /**
    * New sighting alert
    */
-  SIGHTING_ALERT: (petName, location, caseId) => ({
+  SIGHTING_ALERT: (petName, location, missionId) => ({
     title: `🔔 Possible ${petName} Sighting!`,
     body: `Someone may have spotted ${petName} near ${location}. Tap to view details.`,
     icon: '/icons/alert-icon.png',
     badge: '/icons/badge-72x72.png',
-    tag: `sighting-${caseId}`,
+    tag: `sighting-${missionId}`,
     type: 'SIGHTING_ALERT',
-    caseId,
-    url: `/cases/${caseId}`,
+    missionId,
+    url: `/missions/${missionId}`,
     requireInteraction: true,
-    data: { caseId, type: 'SIGHTING_ALERT' },
+    data: { missionId, type: 'SIGHTING_ALERT' },
   }),
 
   /**
    * Case status update
    */
-  CASE_UPDATE: (petName, status, caseId) => {
+  CASE_UPDATE: (petName, status, missionId) => {
     const statusMessages = {
       FOUND: `${petName} has been found!`,
       REUNITED: `${petName} has been reunited!`,
@@ -131,11 +131,11 @@ export const PUSH_TEMPLATES = {
       title: status === 'FOUND' || status === 'REUNITED' ? '🎉 Great News!' : '📢 Case Update',
       body: statusMessages[status] || `Update on ${petName}'s case: ${status}`,
       icon: '/icons/icon-192x192.png',
-      tag: `case-${caseId}`,
+      tag: `case-${missionId}`,
       type: 'CASE_UPDATE',
-      caseId,
-      url: `/cases/${caseId}`,
-      data: { caseId, status, type: 'CASE_UPDATE' },
+      missionId,
+      url: `/missions/${missionId}`,
+      data: { missionId, status, type: 'CASE_UPDATE' },
     };
   },
 
@@ -155,15 +155,15 @@ export const PUSH_TEMPLATES = {
   /**
    * Nearby lost pet alert
    */
-  NEARBY_ALERT: (petName, distance, caseId) => ({
+  NEARBY_ALERT: (petName, distance, missionId) => ({
     title: '📍 Lost Pet Nearby',
     body: `${petName} was reported missing ${distance} from you. Help spread the word!`,
     icon: '/icons/location-icon.png',
-    tag: `nearby-${caseId}`,
+    tag: `nearby-${missionId}`,
     type: 'NEARBY_ALERT',
-    caseId,
-    url: `/cases/${caseId}`,
-    data: { caseId, type: 'NEARBY_ALERT' },
+    missionId,
+    url: `/missions/${missionId}`,
+    data: { missionId, type: 'NEARBY_ALERT' },
   }),
 
   /**

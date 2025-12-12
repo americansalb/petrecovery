@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-export default function SquadActivityFeed({ squadId, caseId = null, isLeader = false }) {
+export default function SquadActivityFeed({ squadId, missionId = null, isLeader = false }) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, cases, members, tasks
@@ -14,13 +14,13 @@ export default function SquadActivityFeed({ squadId, caseId = null, isLeader = f
     // Refresh every 30 seconds
     const interval = setInterval(loadActivities, 30000);
     return () => clearInterval(interval);
-  }, [squadId, caseId, filter]);
+  }, [squadId, missionId, filter]);
 
   const loadActivities = async () => {
     try {
       let url = `/api/rescue-squads/${squadId}/activities?filter=${filter}`;
-      if (caseId) {
-        url += `&caseId=${caseId}`;
+      if (missionId) {
+        url += `&missionId=${missionId}`;
       }
       const res = await fetch(url);
       if (res.ok) {
@@ -123,7 +123,7 @@ export default function SquadActivityFeed({ squadId, caseId = null, isLeader = f
         }}>
           {[
             { value: 'all', label: 'All' },
-            { value: 'cases', label: 'Cases' },
+            { value: 'missions', label: 'Cases' },
             { value: 'members', label: 'Team' },
             { value: 'tasks', label: 'Tasks' }
           ].map(tab => (
@@ -194,23 +194,23 @@ export default function SquadActivityFeed({ squadId, caseId = null, isLeader = f
                   borderLeft: `4px solid ${colors.border}`,
                   borderRadius: '8px',
                   transition: 'all 0.2s',
-                  cursor: activity.caseId ? 'pointer' : 'default'
+                  cursor: activity.missionId ? 'pointer' : 'default'
                 }}
                 onMouseEnter={(e) => {
-                  if (activity.caseId) {
+                  if (activity.missionId) {
                     e.currentTarget.style.transform = 'translateX(4px)';
                     e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (activity.caseId) {
+                  if (activity.missionId) {
                     e.currentTarget.style.transform = 'translateX(0)';
                     e.currentTarget.style.boxShadow = 'none';
                   }
                 }}
                 onClick={() => {
-                  if (activity.caseId) {
-                    window.location.href = `/cases/${activity.caseId}`;
+                  if (activity.missionId) {
+                    window.location.href = `/cases/${activity.missionId}`;
                   }
                 }}
               >
@@ -279,7 +279,7 @@ export default function SquadActivityFeed({ squadId, caseId = null, isLeader = f
                   </div>
 
                   {/* Action Badge */}
-                  {activity.caseId && (
+                  {activity.missionId && (
                     <div style={{
                       padding: '0.4rem 0.75rem',
                       background: colors.bg,

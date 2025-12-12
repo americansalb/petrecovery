@@ -16,7 +16,7 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const squadId = searchParams.get('squadId');
-    const caseId = searchParams.get('caseId');
+    const missionId = searchParams.get('missionId');
     const date = searchParams.get('date'); // YYYY-MM-DD
     const weekOf = searchParams.get('weekOf'); // Get full week
 
@@ -26,8 +26,8 @@ export async function GET(request) {
       where.squadId = squadId;
     }
 
-    if (caseId) {
-      where.caseId = caseId;
+    if (missionId) {
+      where.missionId = missionId;
     }
 
     if (date) {
@@ -53,7 +53,7 @@ export async function GET(request) {
           select: { id: true, firstName: true, lastName: true, profileImage: true },
         },
         case: {
-          select: { id: true, petName: true, caseNumber: true },
+          select: { id: true, petName: true, missionNumber: true },
         },
         squad: {
           select: { id: true, name: true },
@@ -92,7 +92,7 @@ export async function POST(request) {
 
     const {
       squadId,
-      caseId,
+      missionId,
       startTime,
       endTime,
       title,
@@ -124,7 +124,7 @@ export async function POST(request) {
     const shift = await prisma.volunteerShift.create({
       data: {
         squadId,
-        caseId,
+        missionId,
         createdById: session.user.id,
         title: title || 'Search Shift',
         description,

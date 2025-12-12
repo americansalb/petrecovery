@@ -99,7 +99,7 @@ export default function ManageTab({ mission, onUpdate, onMarkReunited, onEditCas
             </button>
           ) : (
             <div className="w-full py-3 px-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-semibold rounded-xl text-center">
-              {outcome?.outcome === 'REUNITED' ? '🎉 Case Reunited!' : '📋 Case Closed'}
+              {outcome?.outcome === 'REUNITED' ? '🎉 Case Reunited!' : '📋 Mission Closed'}
               {outcome?.timeToReunionHours && (
                 <span className="block text-sm text-emerald-400/70 mt-1">
                   Resolved in {Math.round(outcome.timeToReunionHours)} hours

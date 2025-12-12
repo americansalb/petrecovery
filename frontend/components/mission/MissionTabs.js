@@ -5,12 +5,12 @@
  * Mobile-first design - just the tabs, no extra clutter
  */
 
-import CaseCommandCenterV2 from '@/app/components/case/CaseCommandCenterV2';
+import MissionCommandCenterV2 from '@/app/components/mission/CaseCommandCenterV2';
 
 export default function MissionTabs({ mission, onRefresh, session }) {
   return (
-    <CaseCommandCenterV2
-      caseNumber={mission?.caseNumber || mission?.id}
+    <MissionCommandCenterV2
+      missionNumber={mission?.missionNumber || mission?.id}
       initialData={mission}
       onClose={null}
       hideHeader={true}

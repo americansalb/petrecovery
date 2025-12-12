@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import { TOUCH_TARGETS, triggerHaptic } from '@/app/lib/missionControl/accessibility';
 
-export default function ActivationSwitch({ caseId, mission, userRole, onActivated }) {
+export default function ActivationSwitch({ missionId, mission, userRole, onActivated }) {
   const [activating, setActivating] = useState(false);
   const [radius, setRadius] = useState(1.0);
 
@@ -23,7 +23,7 @@ export default function ActivationSwitch({ caseId, mission, userRole, onActivate
     triggerHaptic('warning');
 
     try {
-      const res = await fetch(`/api/mission/${caseId}`, {
+      const res = await fetch(`/api/mission/${missionId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

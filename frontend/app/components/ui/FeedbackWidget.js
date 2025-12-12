@@ -21,7 +21,7 @@ import { MessageSquare, ThumbsUp, ThumbsDown, Meh, Bug, X, Send, Loader2 } from 
 // =============================================================================
 
 export function useFeedback(options = {}) {
-  const { caseId, feature, userId } = options;
+  const { missionId, feature, userId } = options;
 
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -37,7 +37,7 @@ export function useFeedback(options = {}) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...feedback,
-          caseId,
+          missionId,
           feature,
           userId,
           timestamp: new Date().toISOString(),
@@ -58,7 +58,7 @@ export function useFeedback(options = {}) {
     } finally {
       setSubmitting(false);
     }
-  }, [caseId, feature, userId]);
+  }, [missionId, feature, userId]);
 
   const reset = useCallback(() => {
     setSubmitted(false);
@@ -79,7 +79,7 @@ export function useFeedback(options = {}) {
 // =============================================================================
 
 export default function FeedbackWidget({
-  caseId,
+  missionId,
   feature = 'general',
   userId,
   variant = 'floating', // 'floating' | 'inline' | 'modal'
@@ -87,7 +87,7 @@ export default function FeedbackWidget({
   className = '',
 }) {
   const { submitting, submitted, error, submitFeedback, reset } = useFeedback({
-    caseId,
+    missionId,
     feature,
     userId,
   });
@@ -364,14 +364,14 @@ function RatingButton({ icon, label, color, onClick }) {
 // QUICK FEEDBACK BUTTON
 // =============================================================================
 
-export function QuickFeedbackButton({ feature, caseId, userId, className = '' }) {
+export function QuickFeedbackButton({ feature, missionId, userId, className = '' }) {
   const [showWidget, setShowWidget] = useState(false);
 
   if (showWidget) {
     return (
       <FeedbackWidget
         feature={feature}
-        caseId={caseId}
+        missionId={missionId}
         userId={userId}
         variant="modal"
         onClose={() => setShowWidget(false)}

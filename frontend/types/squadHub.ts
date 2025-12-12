@@ -30,7 +30,7 @@ export type HubCaseUrgency = 'LOW' | 'MEDIUM' | 'HIGH';
 
 export type HubCase = {
   id: string;
-  caseNumber: string;
+  missionNumber: string;
   divisionId: string;
   petName: string;
   species: 'DOG' | 'CAT' | 'BIRD' | 'RABBIT' | 'OTHER';
@@ -61,7 +61,7 @@ export type HubEvent = {
   type: HubEventType;
   createdAt: string;        // ISO timestamp
   payload: {
-    caseNumber?: string;
+    missionNumber?: string;
     petName?: string;
     memberName?: string;
     message?: string;
@@ -77,7 +77,7 @@ export type HubChatMessage = {
   content: string;
   createdAt: string;        // ISO timestamp
   divisionId?: string;      // null = squad-wide
-  caseId?: string | null;   // optional case context
+  missionId?: string | null;   // optional case context
 };
 
 export type HubAnnouncement = {
@@ -99,7 +99,7 @@ export type HubRequest = {
   title: string;
   body: string;
   divisionId: string | null; // null = squad-wide
-  caseId?: string | null;    // optional link to a case
+  missionId?: string | null;    // optional link to a case
   caseCode?: string | null;  // e.g. "CHI-LKV-0001"
   authorId: string;
   authorName: string;
@@ -207,7 +207,7 @@ export type SquadHubState = {
   // Map state
   mapCenter: [number, number] | null;
   mapZoom: number;
-  selectedCaseId: string | null;
+  selectedMissionId: string | null;
 
   // Request highlight (for scroll-to)
   highlightRequestId: string | null;
@@ -226,28 +226,28 @@ export type SquadHubActions = {
   setCommunityTab: (tab: CommunityTab) => void;
   setMobileTab: (tab: MobileTab) => void;
   setMobileCommunityTab: (tab: MobileCommunityTab) => void;
-  selectCase: (caseId: string | null) => void;
+  selectCase: (missionId: string | null) => void;
   toggleOnDuty: () => Promise<void>;
 
   // Case actions
-  helpOnCase: (caseId: string) => Promise<void>;
-  leaveCase: (caseId: string) => Promise<void>;
+  helpOnCase: (missionId: string) => Promise<void>;
+  leaveCase: (missionId: string) => Promise<void>;
 
   // Request (micro-mission) actions
   helpOnRequest: (requestId: string) => Promise<void>;
   completeRequestForUser: (requestId: string) => Promise<void>;
   leaveRequest: (requestId: string) => Promise<void>;
-  postRequest: (title: string, body: string, divisionId?: string | null, caseId?: string | null) => Promise<void>;
+  postRequest: (title: string, body: string, divisionId?: string | null, missionId?: string | null) => Promise<void>;
 
   // Chat actions
-  sendChatMessage: (content: string, divisionId?: string | null, caseId?: string | null) => Promise<void>;
+  sendChatMessage: (content: string, divisionId?: string | null, missionId?: string | null) => Promise<void>;
   setChatScope: (scope: ChatScopeFilter) => void;
-  setChatCaseFilterId: (caseId: string | null) => void;
+  setChatCaseFilterId: (missionId: string | null) => void;
 
   // Navigation actions
   joinSquad: () => Promise<void>;
   openCommunityView: () => void;
-  openCaseChat: (caseId: string) => void;
+  openCaseChat: (missionId: string) => void;
   openMission: (mission: YourMission) => void;
   setHighlightRequestId: (requestId: string | null) => void;
 };

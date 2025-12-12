@@ -93,12 +93,12 @@ export async function POST(request) {
 
   // Active cases count
   try {
-    const activeCases = await prisma.case.count({
+    const activeMissions = await prisma.case.count({
       where: { status: { in: ['ACTIVE', 'IN_PROGRESS'] } },
     });
-    checks.metrics.activeCases = activeCases;
+    checks.metrics.activeMissions = activeMissions;
   } catch (error) {
-    checks.metrics.activeCases = 'error';
+    checks.metrics.activeMissions = 'error';
   }
 
   // Today's activity

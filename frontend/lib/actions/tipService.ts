@@ -12,7 +12,7 @@ import { PrismaClient, TipType } from '@prisma/client';
 // =============================================================================
 
 export interface TipContext {
-  caseId: string;
+  missionId: string;
   petName: string;
   petType: 'DOG' | 'CAT' | 'OTHER';
   hoursLost: number;
@@ -507,9 +507,9 @@ export class TipService {
   /**
    * Get context data for tip generation
    */
-  async getTipContext(caseId: string): Promise<TipContext | null> {
-    const caseData = await this.prisma.case.findUnique({
-      where: { id: caseId },
+  async getTipContext(missionId: string): Promise<TipContext | null> {
+    const missionData = await this.prisma.case.findUnique({
+      where: { id: missionId },
       select: {
         id: true,
         petName: true,
@@ -520,14 +520,14 @@ export class TipService {
       },
     });
 
-    if (!caseData) return null;
+    if (!missionData) return null;
 
     // Get stats and search sessions
     const [shelterCount, flyerCount, searchSessions, latestSighting] = await Promise.all([
-      this.prisma.shelterContact.count({ where: { caseId } }),
-      this.prisma.flyerPosting.count({ where: { caseId } }),
+      this.prisma.shelterContact.count({ where: { missionId } }),
+      this.prisma.flyerPosting.count({ where: { missionId } }),
       this.prisma.searchSession.findMany({
-        where: { caseId },
+        where: { missionId },
         select: {
           id: true,
           endedAt: true,
@@ -536,20 +536,20 @@ export class TipService {
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.caseSighting.findFirst({
-        where: { caseId },
+        where: { missionId },
         orderBy: { createdAt: 'desc' },
         select: { latitude: true, longitude: true, createdAt: true },
       }),
     ]);
 
     // Calculate hours lost
-    const lastSeenAt = caseData.lastSeenAt || new Date();
+    const lastSeenAt = missionData.lastSeenAt || new Date();
     const hoursLost = (Date.now() - lastSeenAt.getTime()) / (1000 * 60 * 60);
 
     // Determine pet type
     let petType: 'DOG' | 'CAT' | 'OTHER' = 'OTHER';
-    if (caseData.petSpecies === 'DOG') petType = 'DOG';
-    else if (caseData.petSpecies === 'CAT') petType = 'CAT';
+    if (missionData.petSpecies === 'DOG') petType = 'DOG';
+    else if (missionData.petSpecies === 'CAT') petType = 'CAT';
 
     // Calculate unsearched directions (simplified - SearchSession doesn't have location data)
     const unsearchedDirections: string[] = [];
@@ -564,17 +564,17 @@ export class TipService {
 
     // Fetch weather data if we have coordinates
     let weather: TipContext['weather'] | undefined;
-    if (caseData.lastSeenLatitude && caseData.lastSeenLongitude) {
-      weather = await this.fetchWeather(caseData.lastSeenLatitude, caseData.lastSeenLongitude);
+    if (missionData.lastSeenLatitude && missionData.lastSeenLongitude) {
+      weather = await this.fetchWeather(missionData.lastSeenLatitude, missionData.lastSeenLongitude);
     }
 
     return {
-      caseId,
-      petName: caseData.petName,
+      missionId,
+      petName: missionData.petName,
       petType,
       hoursLost,
-      lastSeenLat: caseData.lastSeenLatitude || undefined,
-      lastSeenLng: caseData.lastSeenLongitude || undefined,
+      lastSeenLat: missionData.lastSeenLatitude || undefined,
+      lastSeenLng: missionData.lastSeenLongitude || undefined,
       sheltersContacted: shelterCount,
       flyersPosted: flyerCount,
       searchesCompleted: searchSessions.length,
@@ -637,11 +637,11 @@ export class TipService {
   /**
    * Save generated tips to database
    */
-  async saveTips(caseId: string, tips: GeneratedTip[]): Promise<void> {
+  async saveTips(missionId: string, tips: GeneratedTip[]): Promise<void> {
     // Delete expired tips first
     await this.prisma.mascotTip.deleteMany({
       where: {
-        caseId,
+        missionId,
         expiresAt: { lt: new Date() },
       },
     });
@@ -651,7 +651,7 @@ export class TipService {
       // Check if similar tip already exists
       const existingTip = await this.prisma.mascotTip.findFirst({
         where: {
-          caseId,
+          missionId,
           tipType: tip.tipType,
           message: tip.message,
           expiresAt: tip.expiresAt ? { gte: new Date() } : undefined,
@@ -661,7 +661,7 @@ export class TipService {
       if (!existingTip) {
         await this.prisma.mascotTip.create({
           data: {
-            caseId,
+            missionId,
             tipType: tip.tipType,
             title: tip.title,
             message: tip.message,
@@ -679,10 +679,10 @@ export class TipService {
   /**
    * Get active tips for a case
    */
-  async getActiveTips(caseId: string, userId?: string): Promise<any[]> {
+  async getActiveTips(missionId: string, userId?: string): Promise<any[]> {
     const tips = await this.prisma.mascotTip.findMany({
       where: {
-        caseId,
+        missionId,
         OR: [
           { expiresAt: null },
           { expiresAt: { gte: new Date() } },

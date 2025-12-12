@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-export default function TaskCoordination({ squadId, caseId, caseName, userRole, userId }) {
+export default function TaskCoordination({ squadId, missionId, caseName, userRole, userId }) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -24,11 +24,11 @@ export default function TaskCoordination({ squadId, caseId, caseName, userRole, 
     if (isLeader) {
       loadSquadMembers();
     }
-  }, [squadId, caseId]);
+  }, [squadId, missionId]);
 
   const loadTasks = async () => {
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/tasks?caseId=${caseId}`);
+      const res = await fetch(`/api/rescue-squads/${squadId}/tasks?missionId=${missionId}`);
       if (res.ok) {
         const data = await res.json();
         setTasks(data.tasks || []);
@@ -61,7 +61,7 @@ export default function TaskCoordination({ squadId, caseId, caseName, userRole, 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          caseId,
+          missionId,
           title: taskTitle,
           description: taskDescription,
           type: taskType,

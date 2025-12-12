@@ -80,9 +80,9 @@ export async function POST(request) {
   }
 }
 
-async function bulkCloseCases(caseIds, params) {
+async function bulkCloseCases(missionIds, params) {
   const result = await prisma.case.updateMany({
-    where: { id: { in: caseIds } },
+    where: { id: { in: missionIds } },
     data: {
       status: 'CLOSED_OTHER',
       resolution: params?.resolution || 'SEARCH_CEASED',

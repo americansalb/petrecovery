@@ -494,7 +494,7 @@ export async function findSimilarPets(prisma, imageUrl, options = {}) {
     },
     select: {
       id: true,
-      caseNumber: true,
+      missionNumber: true,
       petName: true,
       petSpecies: true,
       petBreed: true,
@@ -508,21 +508,21 @@ export async function findSimilarPets(prisma, imageUrl, options = {}) {
   // Calculate similarities
   const results = [];
 
-  for (const caseData of cases) {
+  for (const missionData of cases) {
     let embedding;
 
     // Use stored embedding or generate new one
-    if (caseData.imageEmbedding) {
-      embedding = JSON.parse(caseData.imageEmbedding);
+    if (missionData.imageEmbedding) {
+      embedding = JSON.parse(missionData.imageEmbedding);
     } else {
-      embedding = await generateImageEmbedding(caseData.petPhotoUrl);
+      embedding = await generateImageEmbedding(missionData.petPhotoUrl);
     }
 
     if (embedding) {
       const similarity = calculateEmbeddingSimilarity(queryEmbedding, embedding);
       if (similarity >= minSimilarity) {
         results.push({
-          ...caseData,
+          ...missionData,
           similarity: Math.round(similarity * 100),
         });
       }

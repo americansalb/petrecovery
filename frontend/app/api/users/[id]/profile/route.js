@@ -41,14 +41,14 @@ export async function GET(request, { params }) {
     }
 
     // Get recent activity
-    const [recentCases, recentSightings, badges] = await Promise.all([
+    const [recentMissions, recentSightings, badges] = await Promise.all([
       prisma.case.findMany({
         where: { reporterId: params.id, status: 'REUNITED' },
         take: 5,
         orderBy: { resolvedAt: 'desc' },
         select: {
           id: true,
-          caseNumber: true,
+          missionNumber: true,
           petName: true,
           petSpecies: true,
           resolvedAt: true,
@@ -62,7 +62,7 @@ export async function GET(request, { params }) {
           id: true,
           createdAt: true,
           case: {
-            select: { petName: true, caseNumber: true },
+            select: { petName: true, missionNumber: true },
           },
         },
       }),
@@ -86,7 +86,7 @@ export async function GET(request, { params }) {
           sightingsReported: user._count.caseSightings,
         },
         badges,
-        recentReunions: recentCases,
+        recentReunions: recentMissions,
         recentSightings,
       },
     });

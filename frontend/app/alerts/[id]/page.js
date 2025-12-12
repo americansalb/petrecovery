@@ -24,15 +24,15 @@ export default function AlertDetailPage() {
   useEffect(() => {
     const fetchAlert = async () => {
       try {
-        const res = await fetch(`/api/public/cases/${alertId}`);
+        const res = await fetch(`/api/public/missions/${alertId}`);
         if (!res.ok) {
           throw new Error('Failed to fetch alert');
         }
         const data = await res.json();
-        const caseData = data.case;
+        const missionData = data.case;
 
         // Calculate time ago
-        const createdDate = new Date(caseData.lastSeenAt || caseData.createdAt);
+        const createdDate = new Date(missionData.lastSeenAt || missionData.createdAt);
         const now = new Date();
         const diffMs = now - createdDate;
         const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
@@ -42,28 +42,28 @@ export default function AlertDetailPage() {
                       `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
 
         setAlert({
-          id: caseData.id,
-          caseNumber: caseData.caseNumber,
-          petName: caseData.petName || 'Unknown',
-          species: caseData.petSpecies || 'UNKNOWN',
-          breed: caseData.petBreed || 'Unknown breed',
-          color: caseData.petColor || 'Unknown color',
-          size: caseData.petSize || 'MEDIUM',
-          age: caseData.petAge || null,
-          sex: caseData.petSex || 'UNKNOWN',
-          lastSeenAddress: `${caseData.city}, ${caseData.state}${caseData.zipCode ? ' ' + caseData.zipCode : ''}`,
-          lastSeenDetails: caseData.petDescription || caseData.lastSeenLandmark || '',
+          id: missionData.id,
+          missionNumber: missionData.missionNumber,
+          petName: missionData.petName || 'Unknown',
+          species: missionData.petSpecies || 'UNKNOWN',
+          breed: missionData.petBreed || 'Unknown breed',
+          color: missionData.petColor || 'Unknown color',
+          size: missionData.petSize || 'MEDIUM',
+          age: missionData.petAge || null,
+          sex: missionData.petSex || 'UNKNOWN',
+          lastSeenAddress: `${missionData.city}, ${missionData.state}${missionData.zipCode ? ' ' + missionData.zipCode : ''}`,
+          lastSeenDetails: missionData.petDescription || missionData.lastSeenLandmark || '',
           timeAgo,
-          status: caseData.status === 'RESOLVED' || caseData.status === 'CLOSED_OTHER' ? 'FOUND' : 'ACTIVE',
-          reporterName: caseData.contactName || 'Unknown',
-          reporterPhone: caseData.contactPhone || '',
-          reporterEmail: caseData.contactEmail || '',
-          distinctiveMarks: caseData.petDistinctiveMarks || '',
-          microchipId: caseData.petMicrochipId || '',
-          hasReward: caseData.rewardAmount > 0,
-          rewardAmount: caseData.rewardAmount || 0,
-          createdAt: caseData.createdAt,
-          userId: caseData.createdById,
+          status: missionData.status === 'RESOLVED' || missionData.status === 'CLOSED_OTHER' ? 'FOUND' : 'ACTIVE',
+          reporterName: missionData.contactName || 'Unknown',
+          reporterPhone: missionData.contactPhone || '',
+          reporterEmail: missionData.contactEmail || '',
+          distinctiveMarks: missionData.petDistinctiveMarks || '',
+          microchipId: missionData.petMicrochipId || '',
+          hasReward: missionData.rewardAmount > 0,
+          rewardAmount: missionData.rewardAmount || 0,
+          createdAt: missionData.createdAt,
+          userId: missionData.createdById,
         });
 
         // Set sightings if available (would need to be added to API)

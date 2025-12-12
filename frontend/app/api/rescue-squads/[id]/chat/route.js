@@ -28,7 +28,7 @@ export async function GET(request, { params }) {
     const squadId = params.id;
     const { searchParams } = new URL(request.url);
     const divisionId = searchParams.get('divisionId');
-    const caseId = searchParams.get('caseId');
+    const missionId = searchParams.get('missionId');
     const limit = parseInt(searchParams.get('limit') || '50');
 
     // Get chat messages (stored as SquadActivity with type CHAT_MESSAGE)
@@ -37,8 +37,8 @@ export async function GET(request, { params }) {
       type: 'CHAT_MESSAGE',
     };
 
-    if (caseId) {
-      whereClause.caseId = caseId;
+    if (missionId) {
+      whereClause.missionId = missionId;
     }
 
     const activities = await prisma.squadActivity.findMany({
@@ -84,7 +84,7 @@ export async function GET(request, { params }) {
           content: a.message,
           createdAt: a.createdAt.toISOString(),
           divisionId: details.divisionId || null,
-          caseId: a.caseId,
+          missionId: a.missionId,
         };
       })
       .filter(Boolean)
@@ -123,7 +123,7 @@ export async function POST(request, { params }) {
     }
 
     const squadId = params.id;
-    const { content, divisionId, caseId } = await request.json();
+    const { content, divisionId, missionId } = await request.json();
 
     if (!content || !content.trim()) {
       return NextResponse.json({ error: 'Message content required' }, { status: 400 });
@@ -155,7 +155,7 @@ export async function POST(request, { params }) {
         type: 'CHAT_MESSAGE',
         message: content.trim(),
         actorId: session.user.id,
-        caseId: caseId || null,
+        missionId: missionId || null,
         details: JSON.stringify({
           divisionId: divisionId || null,
         }),
@@ -171,7 +171,7 @@ export async function POST(request, { params }) {
         content: message.message,
         createdAt: message.createdAt.toISOString(),
         divisionId: divisionId || null,
-        caseId: caseId || null,
+        missionId: missionId || null,
       },
     });
   } catch (error) {

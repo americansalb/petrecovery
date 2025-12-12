@@ -26,7 +26,7 @@
 
 ### Phase R3: Dashboard (BLOCKING)
 - [x] `/dashboard` page loads (HTTP 200 - needs API test)
-- [ ] Shows user's cases (or empty state)
+- [ ] Shows user's missions (or empty state)
 - [ ] Shows user's pets (or empty state)
 - [ ] Navigation works from dashboard
 - [ ] No console errors
@@ -36,9 +36,9 @@
 - [ ] All form fields work (text, select, file upload)
 - [ ] Image upload to Bunny.net works
 - [ ] Form submits without error
-- [ ] Case created in database
-- [ ] User redirected to case page
-- [ ] Case appears in dashboard
+- [ ] Mission created in database
+- [ ] User redirected to mission page
+- [ ] Mission appears in dashboard
 
 ### Phase R5: Report Found Pet Flow
 - [x] `/report/found` - Page loads (HTTP 200 - needs API test)
@@ -51,9 +51,9 @@
 
 ### Phase R6: Public Pet Database
 - [x] `/database` - Page loads (HTTP 200 - needs API test)
-- [ ] Cases display in grid/list
+- [ ] Missions display in grid/list
 - [ ] Filters work (species, location, date)
-- [ ] Case detail pages load
+- [ ] Mission detail pages load
 - [ ] Contact info gated for logged-in users
 - [ ] No auth required to browse
 
@@ -65,8 +65,8 @@
 - [ ] Squad detail page works
 - [ ] Legal consent flow works
 
-### Phase R8: Case Coordination
-- [ ] `/cases/[id]/coordinate` - Page loads
+### Phase R8: Mission Coordination
+- [ ] `/missions/[id]/coordinate` - Page loads
 - [ ] Chat works (send/receive messages)
 - [ ] Map displays
 - [ ] Can add sightings
@@ -81,7 +81,7 @@
 - [ ] Can "report lost" from pet profile
 
 ### Phase R10: Notifications
-- [ ] Email sends on new case
+- [ ] Email sends on new mission
 - [ ] Email sends on match found
 - [ ] Email sends on sighting
 - [ ] Emails don't go to spam
@@ -111,11 +111,11 @@ Auth:
 [ ] POST /api/auth/forgot-password
 [ ] POST /api/auth/reset-password
 
-Cases:
-[ ] GET /api/cases
-[ ] POST /api/cases
-[ ] GET /api/cases/[id]
-[ ] PATCH /api/cases/[id]
+Missions:
+[ ] GET /api/missions
+[ ] POST /api/missions
+[ ] GET /api/missions/[id]
+[ ] PATCH /api/missions/[id]
 
 Pets:
 [ ] GET /api/pets
@@ -126,7 +126,7 @@ Pets:
 
 Found:
 [ ] POST /api/public/found
-[ ] GET /api/public/cases
+[ ] GET /api/public/missions
 
 Squads:
 [ ] GET /api/rescue-squads
@@ -189,7 +189,7 @@ Dashboard:
    - Log in successfully
    - See their dashboard
    - Report a lost pet with photo
-   - View their case
+   - View their mission
    - Log out
 
 2. **A finder can:**
@@ -200,8 +200,8 @@ Dashboard:
 3. **A volunteer can:**
    - Browse rescue squads
    - Join a squad
-   - See cases in their area
-   - Add sightings to cases
+   - See missions in their area
+   - Add sightings to missions
 
 4. **The system:**
    - Doesn't crash
@@ -234,7 +234,7 @@ Dashboard:
 | R5: Report Found | 2-3 hours | Low |
 | R6: Public Database | 1-2 hours | Medium |
 | R7: Rescue Squads | 3-5 hours | Low |
-| R8: Case Coordination | 4-6 hours | Low |
+| R8: Mission Coordination | 4-6 hours | Low |
 | R9: Pet Profiles | 2-3 hours | Medium |
 | R10: Notifications | 2-3 hours | Medium |
 

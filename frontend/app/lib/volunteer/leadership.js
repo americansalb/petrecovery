@@ -44,7 +44,7 @@ export async function getLeadershipDashboard(userId, squadId) {
   const divisionId = membership.divisionId;
 
   // Get active cases
-  const activeCases = await prisma.caseAssignment.findMany({
+  const activeMissions = await prisma.caseAssignment.findMany({
     where: {
       rescueSquadId: squadId,
       status: 'ACCEPTED',
@@ -118,9 +118,9 @@ export async function getLeadershipDashboard(userId, squadId) {
     },
     division: membership.division,
     divisions: isCommander ? membership.rescueSquad.divisions : null,
-    activeCases: activeCases.map(a => ({
+    activeMissions: activeMissions.map(a => ({
       assignmentId: a.id,
-      caseId: a.case.id,
+      missionId: a.case.id,
       petName: a.case.petName,
       petSpecies: a.case.petSpecies,
       status: a.case.status,

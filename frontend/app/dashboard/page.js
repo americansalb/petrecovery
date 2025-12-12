@@ -177,7 +177,7 @@ export default function DashboardPage() {
     return null;
   }
 
-  const { user, squads = [], activeCases = [], reports = [], nearbyAlerts = [], missions = [], allMembers = [] } = userData;
+  const { user, squads = [], activeMissions = [], reports = [], nearbyAlerts = [], missions = [], allMembers = [] } = userData;
   const rescueLevel = RESCUE_LEVELS[user?.rescueLevel] || RESCUE_LEVELS.PET_OWNER;
   const LevelIcon = rescueLevel.icon;
   const isAdmin = user?.role === 'ADMIN';
@@ -283,7 +283,7 @@ export default function DashboardPage() {
             {/* Quick Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
               {[
-                { label: 'Cases Helped', value: activeCases.length, icon: Target },
+                { label: 'Cases Helped', value: activeMissions.length, icon: Target },
                 { label: 'Areas Marked', value: user?.areasMarkedCount || 0, icon: MapPin },
                 { label: 'Acres Searched', value: Math.round(user?.totalAcreageSearched || 0), icon: Search },
                 { label: 'Reunions', value: user?.successfulReunions || 0, icon: Award },
@@ -529,7 +529,7 @@ export default function DashboardPage() {
                   {sortedMissions.map((mission) => (
                     <Link
                       key={mission.id}
-                      href={`/cases/${mission.caseNumber}`}
+                      href={`/missions/${mission.missionNumber}`}
                       className="block p-4 hover:bg-midnight-50 transition-colors"
                     >
                       <div className="flex items-center gap-3">
@@ -772,7 +772,7 @@ export default function DashboardPage() {
                   {nearbyAlerts.slice(0, 5).map((alert) => (
                     <Link
                       key={alert.id}
-                      href={`/cases/${alert.id}`}
+                      href={`/missions/${alert.id}`}
                       className="flex items-center justify-between p-3 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"
                     >
                       <div>

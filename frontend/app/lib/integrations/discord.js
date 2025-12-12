@@ -30,55 +30,55 @@ export async function sendWebhookMessage(webhookUrl, message) {
 /**
  * Format a lost pet alert for Discord (embed)
  */
-export function formatLostPetAlert(caseData) {
+export function formatLostPetAlert(missionData) {
   const embed = {
-    title: `:rotating_light: Lost Pet Alert: ${caseData.petName}`,
+    title: `:rotating_light: Lost Pet Alert: ${missionData.petName}`,
     color: 0xff6b6b, // Red
     fields: [
       {
         name: 'Pet Name',
-        value: caseData.petName || 'Unknown',
+        value: missionData.petName || 'Unknown',
         inline: true,
       },
       {
         name: 'Species',
-        value: caseData.species || 'Unknown',
+        value: missionData.species || 'Unknown',
         inline: true,
       },
       {
         name: 'Breed',
-        value: caseData.breed || 'Unknown',
+        value: missionData.breed || 'Unknown',
         inline: true,
       },
       {
         name: 'Color',
-        value: caseData.color || 'Unknown',
+        value: missionData.color || 'Unknown',
         inline: true,
       },
       {
         name: 'Last Seen',
-        value: caseData.lastSeenAddress || caseData.location || 'Unknown location',
+        value: missionData.lastSeenAddress || missionData.location || 'Unknown location',
         inline: false,
       },
     ],
     timestamp: new Date().toISOString(),
     footer: {
-      text: `Case #${caseData.caseNumber}`,
+      text: `Case #${missionData.missionNumber}`,
     },
   };
 
-  if (caseData.description) {
-    embed.description = caseData.description;
+  if (missionData.description) {
+    embed.description = missionData.description;
   }
 
-  if (caseData.photoUrl) {
-    embed.thumbnail = { url: caseData.photoUrl };
+  if (missionData.photoUrl) {
+    embed.thumbnail = { url: missionData.photoUrl };
   }
 
-  const caseUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/cases/${caseData.caseNumber}`;
+  const caseUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/cases/${missionData.missionNumber}`;
 
   return {
-    content: `**New Lost Pet Report** - Please help find ${caseData.petName}!`,
+    content: `**New Lost Pet Report** - Please help find ${missionData.petName}!`,
     embeds: [embed],
     components: [
       {
@@ -105,28 +105,28 @@ export function formatLostPetAlert(caseData) {
 /**
  * Format a reunion notification for Discord
  */
-export function formatReunionAlert(caseData) {
+export function formatReunionAlert(missionData) {
   return {
-    content: `:tada: **Great News!** ${caseData.petName} has been reunited with their family!`,
+    content: `:tada: **Great News!** ${missionData.petName} has been reunited with their family!`,
     embeds: [
       {
-        title: `${caseData.petName} is Home!`,
+        title: `${missionData.petName} is Home!`,
         color: 0x51cf66, // Green
-        description: `Case #${caseData.caseNumber} has been successfully resolved.`,
+        description: `Case #${missionData.missionNumber} has been successfully resolved.`,
         fields: [
           {
             name: 'Days Missing',
-            value: `${caseData.daysLost || '?'} days`,
+            value: `${missionData.daysLost || '?'} days`,
             inline: true,
           },
           {
             name: 'Resolution',
-            value: caseData.resolution || 'Reunited',
+            value: missionData.resolution || 'Reunited',
             inline: true,
           },
         ],
         timestamp: new Date().toISOString(),
-        thumbnail: caseData.photoUrl ? { url: caseData.photoUrl } : undefined,
+        thumbnail: missionData.photoUrl ? { url: missionData.photoUrl } : undefined,
       },
     ],
   };
@@ -147,7 +147,7 @@ export function formatSightingAlert(sightingData) {
       },
       {
         name: 'Case',
-        value: `#${sightingData.caseNumber}`,
+        value: `#${sightingData.missionNumber}`,
         inline: true,
       },
       {
@@ -177,7 +177,7 @@ export function formatSightingAlert(sightingData) {
             type: 2,
             style: 5,
             label: 'View Case',
-            url: `${process.env.NEXT_PUBLIC_BASE_URL}/cases/${sightingData.caseNumber}`,
+            url: `${process.env.NEXT_PUBLIC_BASE_URL}/cases/${sightingData.missionNumber}`,
           },
         ],
       },
@@ -223,7 +223,7 @@ export function formatSquadUpdate(squadData, updateType) {
           },
           {
             name: 'Case',
-            value: `${squadData.petName} (#${squadData.caseNumber})`,
+            value: `${squadData.petName} (#${squadData.missionNumber})`,
             inline: true,
           },
         ],
@@ -274,18 +274,18 @@ export function formatAreaSummary(squadData) {
 /**
  * Send notification to all configured Discord webhooks for a case
  */
-export async function notifyDiscordChannels(prisma, caseId, messageFormatter, data) {
+export async function notifyDiscordChannels(prisma, missionId, messageFormatter, data) {
   // Get all Discord integrations for squads associated with this case
   const integrations = await prisma.integration.findMany({
     where: {
       type: 'DISCORD',
       isActive: true,
       OR: [
-        { caseId },
+        { missionId },
         {
           rescueSquad: {
             cases: {
-              some: { id: caseId },
+              some: { id: missionId },
             },
           },
         },

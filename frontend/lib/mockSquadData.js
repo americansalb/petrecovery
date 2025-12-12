@@ -90,7 +90,7 @@ export const mockChicagoSquadData = {
   cases: [
     {
       id: 'case_001',
-      caseNumber: 'CHI-LKV-0001',
+      missionNumber: 'CHI-LKV-0001',
       divisionId: 'div_lakeview',
       petName: 'Max',
       species: 'DOG',
@@ -109,7 +109,7 @@ export const mockChicagoSquadData = {
     },
     {
       id: 'case_002',
-      caseNumber: 'CHI-LKV-0002',
+      missionNumber: 'CHI-LKV-0002',
       divisionId: 'div_lakeview',
       petName: 'Whiskers',
       species: 'CAT',
@@ -128,7 +128,7 @@ export const mockChicagoSquadData = {
     },
     {
       id: 'case_003',
-      caseNumber: 'CHI-LKV-0003',
+      missionNumber: 'CHI-LKV-0003',
       divisionId: 'div_lakeview',
       petName: 'Buddy',
       species: 'DOG',
@@ -147,7 +147,7 @@ export const mockChicagoSquadData = {
     },
     {
       id: 'case_004',
-      caseNumber: 'CHI-LP-0001',
+      missionNumber: 'CHI-LP-0001',
       divisionId: 'div_lincoln_park',
       petName: 'Luna',
       species: 'CAT',
@@ -166,7 +166,7 @@ export const mockChicagoSquadData = {
     },
     {
       id: 'case_005',
-      caseNumber: 'CHI-LP-0002',
+      missionNumber: 'CHI-LP-0002',
       divisionId: 'div_lincoln_park',
       petName: 'Charlie',
       species: 'DOG',
@@ -185,7 +185,7 @@ export const mockChicagoSquadData = {
     },
     {
       id: 'case_006',
-      caseNumber: 'CHI-LS-0001',
+      missionNumber: 'CHI-LS-0001',
       divisionId: 'div_logan_square',
       petName: 'Milo',
       species: 'CAT',
@@ -204,7 +204,7 @@ export const mockChicagoSquadData = {
     },
     {
       id: 'case_007',
-      caseNumber: 'CHI-SL-0001',
+      missionNumber: 'CHI-SL-0001',
       divisionId: 'div_south_loop',
       petName: 'Rocky',
       species: 'DOG',
@@ -224,7 +224,7 @@ export const mockChicagoSquadData = {
     // Reunited case for success gallery
     {
       id: 'case_008',
-      caseNumber: 'CHI-LKV-0004',
+      missionNumber: 'CHI-LKV-0004',
       divisionId: 'div_lakeview',
       petName: 'Bella',
       species: 'DOG',
@@ -250,7 +250,7 @@ export const mockChicagoSquadData = {
         type: 'case_created',
         createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
         payload: {
-          caseNumber: 'CHI-LKV-0001',
+          missionNumber: 'CHI-LKV-0001',
           petName: 'Max',
         },
       },
@@ -267,7 +267,7 @@ export const mockChicagoSquadData = {
         type: 'sighting_reported',
         createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
         payload: {
-          caseNumber: 'CHI-LP-0001',
+          missionNumber: 'CHI-LP-0001',
           petName: 'Luna',
         },
       },
@@ -276,7 +276,7 @@ export const mockChicagoSquadData = {
         type: 'case_reunited',
         createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
         payload: {
-          caseNumber: 'CHI-LKV-0004',
+          missionNumber: 'CHI-LKV-0004',
           petName: 'Bella',
         },
       },
@@ -301,7 +301,7 @@ export const mockChicagoSquadData = {
         content: 'Just searched the area around Clark & Belmont. No sign of Max yet.',
         createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
         divisionId: 'div_lakeview',
-        caseId: 'case_001',
+        missionId: 'case_001',
       },
       {
         id: 'msg_002',
@@ -311,7 +311,7 @@ export const mockChicagoSquadData = {
         content: 'Thanks Sarah! Can someone cover the area near the lake? Max might have headed that way.',
         createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
         divisionId: 'div_lakeview',
-        caseId: 'case_001',
+        missionId: 'case_001',
       },
       {
         id: 'msg_003',
@@ -321,7 +321,7 @@ export const mockChicagoSquadData = {
         content: 'I can head there now. Will report back in 30 mins.',
         createdAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
         divisionId: 'div_lakeview',
-        caseId: 'case_001',
+        missionId: 'case_001',
       },
       {
         id: 'msg_004',
@@ -331,7 +331,7 @@ export const mockChicagoSquadData = {
         content: 'Got a possible sighting of Luna near the zoo! Can anyone confirm?',
         createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
         divisionId: 'div_lincoln_park',
-        caseId: 'case_004',
+        missionId: 'case_004',
       },
       {
         id: 'msg_005',
@@ -341,7 +341,7 @@ export const mockChicagoSquadData = {
         content: 'On my way to check it out now!',
         createdAt: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
         divisionId: 'div_lincoln_park',
-        caseId: 'case_004',
+        missionId: 'case_004',
       },
       {
         id: 'msg_006',
@@ -351,7 +351,7 @@ export const mockChicagoSquadData = {
         content: 'Great work everyone today! Remember to stay hydrated in this heat.',
         createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
         divisionId: null,
-        caseId: null,
+        missionId: null,
       },
     ],
   },
@@ -385,7 +385,7 @@ export const mockChicagoSquadData = {
       title: 'Need help putting up flyers in Lincoln Park',
       body: 'I have 200 flyers printed for Luna (CHI-LP-0001) but need help posting them around the zoo and nearby residential areas. Can meet at the Conservatory entrance.',
       divisionId: 'div_lincoln_park',
-      caseId: 'case_004',
+      missionId: 'case_004',
       caseCode: 'CHI-LP-0001',
       authorId: 'user_004',
       authorName: 'Maria G.',
@@ -404,7 +404,7 @@ export const mockChicagoSquadData = {
       title: 'Looking for someone with a drone for aerial search',
       body: 'Max (CHI-LKV-0001) was spotted near Montrose Harbor yesterday. Would love drone footage to cover the lakefront area more efficiently.',
       divisionId: 'div_lakeview',
-      caseId: 'case_001',
+      missionId: 'case_001',
       caseCode: 'CHI-LKV-0001',
       authorId: 'user_001',
       authorName: 'Sarah K.',
@@ -421,7 +421,7 @@ export const mockChicagoSquadData = {
       title: 'Can someone check under the Irving Park overpass?',
       body: 'Got a tip that a golden retriever matching Max description was seen there. I am working and cannot check until later tonight.',
       divisionId: null,
-      caseId: 'case_001',
+      missionId: 'case_001',
       caseCode: 'CHI-LKV-0001',
       authorId: 'user_005',
       authorName: 'Tom R.',
@@ -436,7 +436,7 @@ export const mockChicagoSquadData = {
       title: 'Need a Spanish speaker for canvassing',
       body: 'Looking to post flyers and talk to neighbors in a primarily Spanish-speaking area of Logan Square. Any volunteers who can help translate?',
       divisionId: 'div_logan_square',
-      caseId: null,
+      missionId: null,
       caseCode: null,
       authorId: 'user_002',
       authorName: 'David L.',
@@ -451,7 +451,7 @@ export const mockChicagoSquadData = {
       title: 'Set up feeding station near Wrigley',
       body: 'Bella was reunited thanks to our feeding station strategy. Can someone help set up a similar station for Max near Wrigley Field?',
       divisionId: 'div_lakeview',
-      caseId: 'case_001',
+      missionId: 'case_001',
       caseCode: 'CHI-LKV-0001',
       authorId: 'user_003',
       authorName: 'Jennifer M.',
@@ -594,7 +594,7 @@ export const mockCarpenstersvilleSquadData = {
   cases: [
     {
       id: 'case_cv_001',
-      caseNumber: 'CRP-0001',
+      missionNumber: 'CRP-0001',
       divisionId: 'div_entire_city',
       petName: 'Shadow',
       species: 'CAT',
@@ -620,7 +620,7 @@ export const mockCarpenstersvilleSquadData = {
         type: 'case_created',
         createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
         payload: {
-          caseNumber: 'CRP-0001',
+          missionNumber: 'CRP-0001',
           petName: 'Shadow',
         },
       },

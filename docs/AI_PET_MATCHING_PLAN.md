@@ -775,7 +775,7 @@ POST /api/ai/match
   Output: {
     matches: [
       {
-        caseId, petName, photoUrl,
+        missionId, petName, photoUrl,
         score: { visual, metadata, combined },
         confidence: number
       }
@@ -786,7 +786,7 @@ POST /api/ai/compare
   Input: { imageUrl1: string, imageUrl2: string }
   Output: { similarity: number, confidence: number, details: {} }
 
-GET /api/ai/search?lostCaseId=xxx
+GET /api/ai/search?lostMissionId=xxx
   Output: { potentialMatches: [...], shelterMatches: [...] }
 ```
 

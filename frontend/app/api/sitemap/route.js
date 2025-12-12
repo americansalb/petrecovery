@@ -8,12 +8,12 @@ export async function GET() {
     // Get active cases for sitemap (using Case model)
     const cases = await prisma.case.findMany({
       where: { status: { in: ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'] } },
-      select: { caseNumber: true, updatedAt: true },
+      select: { missionNumber: true, updatedAt: true },
       take: 1000,
     });
 
-    // Placeholder for legacy lostPetCases (model no longer exists)
-    const lostPetCases = [];
+    // Placeholder for legacy missions (model no longer exists)
+    const missions = [];
 
     // Get rescue squads
     const squads = await prisma.rescueSquad.findMany({
@@ -33,7 +33,7 @@ export async function GET() {
       { url: '/found', priority: 0.8, changefreq: 'daily' },
     ];
 
-    const xml = generateSitemapXML(staticPages, cases, lostPetCases, squads);
+    const xml = generateSitemapXML(staticPages, cases, missions, squads);
 
     return new Response(xml, {
       headers: {
@@ -47,7 +47,7 @@ export async function GET() {
   }
 }
 
-function generateSitemapXML(staticPages, cases, lostPetCases, squads) {
+function generateSitemapXML(staticPages, cases, missions, squads) {
   let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
   xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
@@ -63,7 +63,7 @@ function generateSitemapXML(staticPages, cases, lostPetCases, squads) {
   // Cases
   for (const c of cases) {
     xml += `  <url>
-    <loc>${BASE_URL}/cases/${c.caseNumber}</loc>
+    <loc>${BASE_URL}/cases/${c.missionNumber}</loc>
     <lastmod>${c.updatedAt.toISOString()}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
@@ -71,9 +71,9 @@ function generateSitemapXML(staticPages, cases, lostPetCases, squads) {
   }
 
   // Lost pet cases
-  for (const c of lostPetCases) {
+  for (const c of missions) {
     xml += `  <url>
-    <loc>${BASE_URL}/database/${c.caseNumber}</loc>
+    <loc>${BASE_URL}/database/${c.missionNumber}</loc>
     <lastmod>${c.updatedAt.toISOString()}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>

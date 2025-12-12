@@ -1,12 +1,12 @@
 /**
- * Phase 4: Automated E2E Tests - Lost Pet Cases
+ * Phase 4: Automated E2E Tests - Lost Pet Missions
  *
  * Tests for creating, viewing, editing, and searching lost pet cases.
  */
 
 import { test, expect } from '@playwright/test';
 
-test.describe('Lost Pet Cases', () => {
+test.describe('Lost Pet Missions', () => {
   test.describe('Case Listing', () => {
     test('should display recent cases on homepage', async ({ page }) => {
       await page.goto('/');
@@ -38,7 +38,7 @@ test.describe('Lost Pet Cases', () => {
       await searchInput.fill('90210');
 
       // Wait for results to update
-      await page.waitForResponse(resp => resp.url().includes('/api/cases') || resp.url().includes('cases'));
+      await page.waitForResponse(resp => resp.url().includes('/api/missions') || resp.url().includes('missions'));
 
       // Should show filtered results or no results message
       await expect(page.locator('body')).toContainText(/90210|beverly|no results|no cases/i);
@@ -79,7 +79,7 @@ test.describe('Lost Pet Cases', () => {
       // Navigate to cases and find one
       await page.goto('/cases');
 
-      const caseLink = page.locator('a[href*="/cases/"]').first();
+      const caseLink = page.locator('a[href*="/missions/"]').first();
       if (await caseLink.isVisible()) {
         await caseLink.click();
 
@@ -94,7 +94,7 @@ test.describe('Lost Pet Cases', () => {
     test('should display contact options for case', async ({ page }) => {
       await page.goto('/cases');
 
-      const caseLink = page.locator('a[href*="/cases/"]').first();
+      const caseLink = page.locator('a[href*="/missions/"]').first();
       if (await caseLink.isVisible()) {
         await caseLink.click();
 
@@ -113,7 +113,7 @@ test.describe('Lost Pet Cases', () => {
     test('should display share buttons', async ({ page }) => {
       await page.goto('/cases');
 
-      const caseLink = page.locator('a[href*="/cases/"]').first();
+      const caseLink = page.locator('a[href*="/missions/"]').first();
       if (await caseLink.isVisible()) {
         await caseLink.click();
 
@@ -128,7 +128,7 @@ test.describe('Lost Pet Cases', () => {
     test('should display pet images in gallery', async ({ page }) => {
       await page.goto('/cases');
 
-      const caseLink = page.locator('a[href*="/cases/"]').first();
+      const caseLink = page.locator('a[href*="/missions/"]').first();
       if (await caseLink.isVisible()) {
         await caseLink.click();
 
@@ -141,7 +141,7 @@ test.describe('Lost Pet Cases', () => {
     test('should show map with last seen location', async ({ page }) => {
       await page.goto('/cases');
 
-      const caseLink = page.locator('a[href*="/cases/"]').first();
+      const caseLink = page.locator('a[href*="/missions/"]').first();
       if (await caseLink.isVisible()) {
         await caseLink.click();
 
@@ -168,7 +168,7 @@ test.describe('Lost Pet Cases', () => {
     });
 
     test('should display case creation form', async ({ page }) => {
-      await page.goto('/cases/new');
+      await page.goto('/missions/new');
 
       await expect(page.getByRole('heading', { name: /report|create|new.*case|lost.*pet/i })).toBeVisible();
 
@@ -178,7 +178,7 @@ test.describe('Lost Pet Cases', () => {
     });
 
     test('should validate required fields', async ({ page }) => {
-      await page.goto('/cases/new');
+      await page.goto('/missions/new');
 
       // Try to submit empty form
       const submitButton = page.getByRole('button', { name: /submit|create|report/i });
@@ -189,7 +189,7 @@ test.describe('Lost Pet Cases', () => {
     });
 
     test('should allow image upload', async ({ page }) => {
-      await page.goto('/cases/new');
+      await page.goto('/missions/new');
 
       // Should have file upload input
       const fileInput = page.locator('input[type="file"]');
@@ -197,7 +197,7 @@ test.describe('Lost Pet Cases', () => {
     });
 
     test('should show location picker', async ({ page }) => {
-      await page.goto('/cases/new');
+      await page.goto('/missions/new');
 
       // Should have location input
       const locationInput = page.getByLabel(/location|address|where/i)
@@ -207,7 +207,7 @@ test.describe('Lost Pet Cases', () => {
     });
 
     test('should create case with valid data', async ({ page }) => {
-      await page.goto('/cases/new');
+      await page.goto('/missions/new');
 
       // Fill in required fields
       await page.getByLabel(/pet.*name|name/i).first().fill('Test Pet');
@@ -380,7 +380,7 @@ test.describe('Lost Pet Cases', () => {
     test('should allow reporting a sighting', async ({ page }) => {
       await page.goto('/cases');
 
-      const caseLink = page.locator('a[href*="/cases/"]').first();
+      const caseLink = page.locator('a[href*="/missions/"]').first();
       if (await caseLink.isVisible()) {
         await caseLink.click();
 
@@ -398,7 +398,7 @@ test.describe('Lost Pet Cases', () => {
     test('should allow contacting pet owner', async ({ page }) => {
       await page.goto('/cases');
 
-      const caseLink = page.locator('a[href*="/cases/"]').first();
+      const caseLink = page.locator('a[href*="/missions/"]').first();
       if (await caseLink.isVisible()) {
         await caseLink.click();
 
@@ -420,7 +420,7 @@ test.describe('Lost Pet Cases', () => {
     test('should track share clicks', async ({ page }) => {
       await page.goto('/cases');
 
-      const caseLink = page.locator('a[href*="/cases/"]').first();
+      const caseLink = page.locator('a[href*="/missions/"]').first();
       if (await caseLink.isVisible()) {
         await caseLink.click();
 
@@ -446,7 +446,7 @@ test.describe('Print Flyer', () => {
   test('should open flyer modal', async ({ page }) => {
     await page.goto('/cases');
 
-    const caseLink = page.locator('a[href*="/cases/"]').first();
+    const caseLink = page.locator('a[href*="/missions/"]').first();
     if (await caseLink.isVisible()) {
       await caseLink.click();
 
@@ -464,7 +464,7 @@ test.describe('Print Flyer', () => {
   test('should allow customizing flyer', async ({ page }) => {
     await page.goto('/cases');
 
-    const caseLink = page.locator('a[href*="/cases/"]').first();
+    const caseLink = page.locator('a[href*="/missions/"]').first();
     if (await caseLink.isVisible()) {
       await caseLink.click();
 

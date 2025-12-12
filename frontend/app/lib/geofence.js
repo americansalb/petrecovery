@@ -31,13 +31,13 @@ function toRad(deg) {
  */
 export async function findNearbyCases(latitude, longitude, radiusMiles = 5) {
   // Get all active cases
-  const activeCases = await prisma.case.findMany({
+  const activeMissions = await prisma.case.findMany({
     where: {
       status: { in: ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'] },
     },
     select: {
       id: true,
-      caseNumber: true,
+      missionNumber: true,
       petName: true,
       petSpecies: true,
       petPhotoUrl: true,
@@ -49,7 +49,7 @@ export async function findNearbyCases(latitude, longitude, radiusMiles = 5) {
   });
 
   // Filter by distance
-  const nearbyCases = activeCases.filter((c) => {
+  const nearbyMissions = activeMissions.filter((c) => {
     if (!c.lastSeenLatitude || !c.lastSeenLongitude) return false;
     const distance = calculateDistance(
       latitude, longitude,
@@ -58,7 +58,7 @@ export async function findNearbyCases(latitude, longitude, radiusMiles = 5) {
     return distance <= (c.searchRadius || radiusMiles);
   });
 
-  return nearbyCases.map((c) => ({
+  return nearbyMissions.map((c) => ({
     ...c,
     distance: calculateDistance(
       latitude, longitude,
@@ -71,19 +71,19 @@ export async function findNearbyCases(latitude, longitude, radiusMiles = 5) {
  * Check if user is entering a case search zone
  */
 export async function checkGeofenceEntry(userId, latitude, longitude) {
-  const nearbyCases = await findNearbyCases(latitude, longitude, 2);
+  const nearbyMissions = await findNearbyCases(latitude, longitude, 2);
 
-  if (nearbyCases.length === 0) return [];
+  if (nearbyMissions.length === 0) return [];
 
   const notifications = [];
 
-  for (const nearbyCase of nearbyCases.slice(0, 3)) {
+  for (const nearbyCase of nearbyMissions.slice(0, 3)) {
     // Check if we've already notified this user about this case recently
     const recentNotification = await prisma.notification.findFirst({
       where: {
         userId,
         type: 'SIGHTING',
-        data: { contains: nearbyCase.caseNumber },
+        data: { contains: nearbyCase.missionNumber },
         createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       },
     });
@@ -93,8 +93,8 @@ export async function checkGeofenceEntry(userId, latitude, longitude) {
     const notification = {
       title: `Lost ${nearbyCase.petSpecies}: ${nearbyCase.petName}`,
       body: `You're near where ${nearbyCase.petName} was last seen (${nearbyCase.distance.toFixed(1)} miles). Keep an eye out!`,
-      url: `/cases/${nearbyCase.caseNumber}`,
-      data: { caseNumber: nearbyCase.caseNumber, type: 'geofence' },
+      url: `/missions/${nearbyCase.missionNumber}`,
+      data: { missionNumber: nearbyCase.missionNumber, type: 'geofence' },
     };
 
     // Send push notification
@@ -107,7 +107,7 @@ export async function checkGeofenceEntry(userId, latitude, longitude) {
       title: notification.title,
       message: notification.body,
       actionUrl: notification.url,
-      data: { caseNumber: nearbyCase.caseNumber, distance: nearbyCase.distance },
+      data: { missionNumber: nearbyCase.missionNumber, distance: nearbyCase.distance },
     });
 
     notifications.push(notification);
@@ -134,7 +134,7 @@ export async function getCasesInBounds(northEast, southWest) {
     },
     select: {
       id: true,
-      caseNumber: true,
+      missionNumber: true,
       petName: true,
       petSpecies: true,
       petPhotoUrl: true,

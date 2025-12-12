@@ -18,7 +18,7 @@ After comprehensive codebase analysis, PetRecovery.org is **more complete than i
 | Squad Management | Complete | 85% |
 | Mission Control UI | Complete | 85% |
 | Mission Control API | Complete | 90% |
-| Case Coordination | Complete | 80% |
+| Mission Coordination | Complete | 80% |
 | Notifications (Email) | Complete | 85% |
 | Notifications (Push) | Incomplete | 20% |
 | Notifications (SMS) | Incomplete | 40% |
@@ -42,30 +42,30 @@ After comprehensive codebase analysis, PetRecovery.org is **more complete than i
 ### Problem
 Features exist but the user journey may have gaps. We need to verify:
 - User can register → report lost pet → see it on dashboard
-- Squad member can accept case → volunteers can join → coordination works
+- Squad member can accept mission → volunteers can join → coordination works
 - Mission Control activates and shows real-time data
 
 ### Tasks
 
 #### 1.1 Verify Report → Dashboard Flow
 ```
-[ ] Test /report/new creates Case record correctly
-[ ] Verify dashboard API returns new cases
-[ ] Check case appears in "Your Lost Pet Reports" section
+[ ] Test /report/new creates Mission record correctly
+[ ] Verify dashboard API returns new missions
+[ ] Check mission appears in "Your Lost Pet Reports" section
 [ ] Verify "Start Live Search" button works
 ```
 
-#### 1.2 Verify Squad → Case Assignment Flow
+#### 1.2 Verify Squad → Mission Assignment Flow
 ```
 [ ] Test squad search returns real squads
 [ ] Verify joining squad creates membership
-[ ] Test case assignment to squad
-[ ] Verify squad members can see available cases
+[ ] Test mission assignment to squad
+[ ] Verify squad members can see available missions
 ```
 
 #### 1.3 Verify Mission Control Flow
 ```
-[ ] Test /api/mission/[caseId] returns valid state
+[ ] Test /api/mission/[missionId] returns valid state
 [ ] Verify MissionControl component renders correctly
 [ ] Test volunteer check-in flow
 [ ] Verify sighting submission works
@@ -73,13 +73,13 @@ Features exist but the user journey may have gaps. We need to verify:
 
 #### 1.4 Fix Navigation Gaps
 ```
-[ ] Add clear navigation from case detail to Mission Control
+[ ] Add clear navigation from mission detail to Mission Control
 [ ] Add quick-start guide for new users
 [ ] Ensure all CTA buttons link to correct pages
 ```
 
 ### Acceptance Criteria
-- Complete user journey works from registration to case resolution
+- Complete user journey works from registration to mission resolution
 - No 500 errors in any critical flow
 - All API endpoints return expected data
 
@@ -112,7 +112,7 @@ Features exist but the user journey may have gaps. We need to verify:
 [ ] Sighting reported → notify nearby volunteers
 [ ] Containment mode → notify all active volunteers
 [ ] New volunteer joined → notify coordinator
-[ ] Case resolved → notify all participants
+[ ] Mission resolved → notify all participants
 ```
 
 #### 2.3 Complete SMS Notifications (Twilio)
@@ -120,14 +120,14 @@ Features exist but the user journey may have gaps. We need to verify:
 [ ] Verify Twilio credentials configured
 [ ] Implement SMS send utility
 [ ] Add SMS to sighting notifications
-[ ] Add SMS to urgent case updates
+[ ] Add SMS to urgent mission updates
 ```
 
 #### 2.4 Notification Preferences UI
 ```
 [ ] Create /settings/notifications page
 [ ] Allow toggle for email/SMS/push
-[ ] Implement per-case notification preferences
+[ ] Implement per-mission notification preferences
 ```
 
 ### Files to Modify
@@ -233,17 +233,17 @@ Current rate limiter is in-memory only. Won't survive server restarts.
 
 #### 5.1 Add Database Indexes
 ```sql
--- Cases by location (for nearby searches)
-CREATE INDEX idx_cases_location ON "Case" (lastSeenLatitude, lastSeenLongitude);
-CREATE INDEX idx_cases_status ON "Case" (status);
-CREATE INDEX idx_cases_reporter ON "Case" (reporterId);
+-- Missions by location (for nearby searches)
+CREATE INDEX idx_missions_location ON "Mission" (lastSeenLatitude, lastSeenLongitude);
+CREATE INDEX idx_missions_status ON "Mission" (status);
+CREATE INDEX idx_missions_reporter ON "Mission" (reporterId);
 
 -- Squads by location
 CREATE INDEX idx_squads_location ON "RescueSquad" (centerLatitude, centerLongitude);
 CREATE INDEX idx_squads_active ON "RescueSquad" (isActive);
 
 -- Mission Control
-CREATE INDEX idx_mission_case ON "MissionControl" (caseId);
+CREATE INDEX idx_mission_mission ON "MissionControl" (missionId);
 CREATE INDEX idx_mission_mode ON "MissionControl" (mode);
 ```
 
@@ -290,18 +290,18 @@ CREATE INDEX idx_mission_mode ON "MissionControl" (mode);
 // tests/e2e/critical-flows.spec.ts
 describe('Lost Pet Recovery Flow', () => {
   test('User registers and reports lost pet')
-  test('Pet owner sees case on dashboard')
+  test('Pet owner sees mission on dashboard')
   test('Pet owner activates Mission Control')
-  test('Volunteer joins squad and opts into case')
+  test('Volunteer joins squad and opts into mission')
   test('Volunteer reports sighting')
-  test('Case is resolved')
+  test('Mission is resolved')
 })
 ```
 
 #### 6.3 API Integration Tests
 ```
 [ ] Test all auth endpoints
-[ ] Test case CRUD operations
+[ ] Test mission CRUD operations
 [ ] Test squad operations
 [ ] Test mission control endpoints
 ```
@@ -316,7 +316,7 @@ describe('Lost Pet Recovery Flow', () => {
 ### Files to Create
 - `frontend/playwright.config.ts`
 - `frontend/tests/e2e/auth.spec.ts`
-- `frontend/tests/e2e/cases.spec.ts`
+- `frontend/tests/e2e/missions.spec.ts`
 - `frontend/tests/e2e/squads.spec.ts`
 - `frontend/tests/e2e/mission-control.spec.ts`
 
@@ -440,7 +440,7 @@ describe('Lost Pet Recovery Flow', () => {
 #### 9.3 Empty States
 ```
 [ ] Design meaningful empty states for:
-    - No cases on dashboard
+    - No missions on dashboard
     - No squads joined
     - No nearby alerts
     - No search results
@@ -594,7 +594,7 @@ TWILIO_PHONE_NUMBER=...
 
 ### Post-Launch Metrics (First 30 Days)
 - Users registered: Target 500+
-- Cases created: Target 50+
+- Missions created: Target 50+
 - Squads active: Target 10+
 - Error rate: < 1%
 - Uptime: > 99.5%

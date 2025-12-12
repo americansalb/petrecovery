@@ -152,7 +152,7 @@ export class VerificationService {
   async completeSearchSession(params: {
     sessionId: string;
     userId: string;
-    caseId: string;
+    missionId: string;
     path: GeoPoint[];
     caseCreatedAt?: Date;
     timezone?: string;
@@ -163,7 +163,7 @@ export class VerificationService {
     isVerified: boolean;
     error?: string;
   }> {
-    const { sessionId, userId, caseId, path, caseCreatedAt, timezone } = params;
+    const { sessionId, userId, missionId, path, caseCreatedAt, timezone } = params;
 
     // Validate path
     const validation = validateGPSPath(path);
@@ -195,7 +195,7 @@ export class VerificationService {
     // Award verified points
     const result = await this.pointsService.awardVerifiedPoints({
       userId,
-      caseId,
+      missionId,
       actionType: 'search_area' as ActionType,
       verificationMethod: 'GPS' as VerificationMethod,
       basePoints,
@@ -235,7 +235,7 @@ export class VerificationService {
    */
   async verifyFlyerPosting(params: {
     userId: string;
-    caseId: string;
+    missionId: string;
     latitude: number;
     longitude: number;
     photoUrl?: string;
@@ -247,14 +247,14 @@ export class VerificationService {
     pointsEarned: number;
     isVerified: boolean;
   }> {
-    const { userId, caseId, latitude, longitude, photoUrl, notes, caseCreatedAt, timezone } = params;
+    const { userId, missionId, latitude, longitude, photoUrl, notes, caseCreatedAt, timezone } = params;
 
     const basePoints = getTaskBasePoints('post_flyers');
 
     // Award verified points
     const result = await this.pointsService.awardVerifiedPoints({
       userId,
-      caseId,
+      missionId,
       actionType: 'post_flyers' as ActionType,
       verificationMethod: 'GPS' as VerificationMethod,
       basePoints,
@@ -269,7 +269,7 @@ export class VerificationService {
     // Create flyer posting record
     const flyer = await this.prisma.flyerPosting.create({
       data: {
-        caseId,
+        missionId,
         userId,
         latitude,
         longitude,
@@ -293,7 +293,7 @@ export class VerificationService {
    */
   async verifyDoorKnocking(params: {
     userId: string;
-    caseId: string;
+    missionId: string;
     latitude: number;
     longitude: number;
     notes?: string;
@@ -303,13 +303,13 @@ export class VerificationService {
     pointsEarned: number;
     isVerified: boolean;
   }> {
-    const { userId, caseId, latitude, longitude, notes, caseCreatedAt, timezone } = params;
+    const { userId, missionId, latitude, longitude, notes, caseCreatedAt, timezone } = params;
 
     const basePoints = getTaskBasePoints('knock_doors');
 
     const result = await this.pointsService.awardVerifiedPoints({
       userId,
-      caseId,
+      missionId,
       actionType: 'knock_doors' as ActionType,
       verificationMethod: 'GPS' as VerificationMethod,
       basePoints,
@@ -335,7 +335,7 @@ export class VerificationService {
    */
   async verifyPhotoAction(params: {
     userId: string;
-    caseId: string;
+    missionId: string;
     actionType: ActionType;
     photoUrl: string;
     notes?: string;
@@ -347,7 +347,7 @@ export class VerificationService {
     isVerified: boolean;
     verifiedActionId: string;
   }> {
-    const { userId, caseId, actionType, photoUrl, notes, caseCreatedAt, timezone, ownerRequested } = params;
+    const { userId, missionId, actionType, photoUrl, notes, caseCreatedAt, timezone, ownerRequested } = params;
 
     // Verify this action type supports photo verification
     const taskDef = TASK_DEFINITIONS[actionType];
@@ -359,7 +359,7 @@ export class VerificationService {
 
     const result = await this.pointsService.awardVerifiedPoints({
       userId,
-      caseId,
+      missionId,
       actionType,
       verificationMethod: 'PHOTO' as VerificationMethod,
       basePoints,
@@ -387,7 +387,7 @@ export class VerificationService {
    */
   async recordPlatformEmail(params: {
     userId: string;
-    caseId: string;
+    missionId: string;
     shelterContactId: string;
     actionType: ActionType;
     emailId: string;
@@ -402,7 +402,7 @@ export class VerificationService {
   }> {
     const {
       userId,
-      caseId,
+      missionId,
       shelterContactId,
       actionType,
       emailId,
@@ -417,7 +417,7 @@ export class VerificationService {
 
     const result = await this.pointsService.awardVerifiedPoints({
       userId,
-      caseId,
+      missionId,
       actionType,
       verificationMethod: 'PLATFORM_EMAIL' as VerificationMethod,
       basePoints,
@@ -520,7 +520,7 @@ export class VerificationService {
    */
   async logShelterCall(params: {
     userId: string;
-    caseId: string;
+    missionId: string;
     shelterContactId: string;
     actionType: ActionType;
     callOutcome: 'NO_ANSWER' | 'LEFT_VOICEMAIL' | 'SPOKE_WITH_STAFF' | 'WRONG_NUMBER' | 'BUSY';
@@ -531,7 +531,7 @@ export class VerificationService {
     pointsEarned: number;
     remainingDaily: number;
   }> {
-    const { userId, caseId, shelterContactId, actionType, callOutcome, staffResponse, notes } = params;
+    const { userId, missionId, shelterContactId, actionType, callOutcome, staffResponse, notes } = params;
 
     // Get call points (8 for self-reported calls)
     const basePoints = getTaskBasePoints(actionType, 'call');

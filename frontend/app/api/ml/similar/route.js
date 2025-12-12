@@ -51,24 +51,24 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { caseId } = await request.json();
+    const { missionId } = await request.json();
 
-    if (!caseId) {
+    if (!missionId) {
       return NextResponse.json({ error: 'Case ID required' }, { status: 400 });
     }
 
     // Get case
-    const caseData = await prisma.case.findUnique({
-      where: { id: caseId },
+    const missionData = await prisma.case.findUnique({
+      where: { id: missionId },
       select: { id: true, petPhotoUrl: true, reporterId: true },
     });
 
-    if (!caseData) {
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+    if (!missionData) {
+      return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
     // Check ownership or admin
-    if (caseData.reporterId !== session.user.id) {
+    if (missionData.reporterId !== session.user.id) {
       const user = await prisma.user.findUnique({
         where: { id: session.user.id },
         select: { role: true },
@@ -79,7 +79,7 @@ export async function PUT(request) {
     }
 
     // Generate embedding
-    const embedding = await generateImageEmbedding(caseData.petPhotoUrl);
+    const embedding = await generateImageEmbedding(missionData.petPhotoUrl);
 
     if (!embedding) {
       return NextResponse.json({ error: 'Failed to generate embedding' }, { status: 500 });
@@ -90,7 +90,7 @@ export async function PUT(request) {
 
     return NextResponse.json({
       success: true,
-      caseId,
+      missionId,
       embeddingSize: embedding.length,
     });
   } catch (error) {

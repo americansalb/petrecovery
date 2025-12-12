@@ -83,11 +83,11 @@ export function sendRealtimeNotification(userId, notification) {
 /**
  * Send case update to all participants
  */
-export async function broadcastCaseUpdate(caseId, event, data, participantUserIds) {
+export async function broadcastCaseUpdate(missionId, event, data, participantUserIds) {
   return broadcastToUsers(participantUserIds, {
     type: 'case_update',
     payload: {
-      caseId,
+      missionId,
       event,
       data,
     },

@@ -40,35 +40,35 @@ self.addEventListener('notificationclick', function(event) {
   // Determine URL based on notification type
   switch (data.type) {
     case 'SIGHTING':
-      url = `/cases/${data.caseNumber}`;
+      url = `/cases/${data.missionNumber}`;
       break;
     case 'MISSION_STARTED':
     case 'LIVE_SEARCH':
-      url = `/cases/${data.caseNumber}`;
+      url = `/cases/${data.missionNumber}`;
       break;
     case 'CONTAINMENT':
-      url = `/cases/${data.caseNumber}`;
+      url = `/cases/${data.missionNumber}`;
       break;
     case 'BROADCAST':
-      url = `/cases/${data.caseNumber}`;
+      url = `/cases/${data.missionNumber}`;
       break;
     case 'JOIN_REQUEST':
-      url = `/join/${data.caseId}`;
+      url = `/join/${data.missionId}`;
       break;
     case 'SQUAD_ALERT':
       url = `/rescue-squads/${data.squadId}`;
       break;
     default:
-      if (data.caseNumber) {
-        url = `/cases/${data.caseNumber}`;
+      if (data.missionNumber) {
+        url = `/cases/${data.missionNumber}`;
       }
   }
 
   // Handle action buttons
   if (event.action === 'join') {
-    url = `/join/${data.caseId}`;
+    url = `/join/${data.missionId}`;
   } else if (event.action === 'view') {
-    url = `/cases/${data.caseNumber}`;
+    url = `/cases/${data.missionNumber}`;
   } else if (event.action === 'dismiss') {
     return;
   }

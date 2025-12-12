@@ -1,32 +1,32 @@
-# Feature Spec: Roles, Permissions & Case Assignment MVP (Phase 22–24)
+# Feature Spec: Roles, Permissions & Mission Assignment MVP (Phase 22–24)
 
 **Status:** ❌ Not Started
 **Owner:** Product + Engineering
 **Last Updated:** November 25, 2025
-**Phase:** 22–24 (Roles, Permissions & Case Assignment MVP)
+**Phase:** 22–24 (Roles, Permissions & Mission Assignment MVP)
 
 ---
 
 ## 0. Summary
 
-We're building a **clear roles and permissions model** plus **explicit case assignment workflow** to establish who can do what and who is responsible for each case. This MVP focuses on:
+We're building a **clear roles and permissions model** plus **explicit mission assignment workflow** to establish who can do what and who is responsible for each mission. This MVP focuses on:
 
-- **Global role enforcement**: Consistent permission checks across all admin surfaces (`/admin/health`, `/admin/qa`, `/admin/cases`, etc.).
-- **Case coordinator tracking**: Each case has an optional "primary coordinator" responsible for its progress.
-- **Owning squad clarity**: Explicit assignment of cases to rescue squads (building on existing `squadId` relationship).
+- **Global role enforcement**: Consistent permission checks across all admin surfaces (`/admin/health`, `/admin/qa`, `/admin/missions`, etc.).
+- **Mission coordinator tracking**: Each mission has an optional "primary coordinator" responsible for its progress.
+- **Owning squad clarity**: Explicit assignment of missions to rescue squads (building on existing `squadId` relationship).
 - **Full observability**: All permission failures and assignment changes emit structured events visible in `/admin/health`.
 
 This is a **minimal, pragmatic** implementation:
 - No complex RBAC system with fine-grained per-field ACLs
 - No arbitrary policy engine
 - Built on existing `User.role` enum (ADMIN, MODERATOR, PATROL, USER)
-- Leverages existing case and squad infrastructure
+- Leverages existing mission and squad infrastructure
 
 **Key Principles:**
 
 - **Explicit over implicit**: Clear permission helpers, not scattered role checks
 - **Observable failures**: Permission denials logged with `auth.permission_denied` events
-- **Ownership clarity**: Every case should have a clear "who's responsible?"
+- **Ownership clarity**: Every mission should have a clear "who's responsible?"
 - **No breaking changes**: All existing functionality preserved
 
 ---
@@ -41,24 +41,24 @@ This is a **minimal, pragmatic** implementation:
 - Easy to forget checks when adding new admin endpoints
 - Hard to audit "who can access what?"
 
-**2. No Explicit Case Ownership**
-- Cases have `createdById` (who created) and optional `squadId` (which squad)
-- But no clear "primary coordinator" or "who's driving this case?"
-- Hard to answer:  - "Which cases have no one assigned?"
+**2. No Explicit Mission Ownership**
+- Missions have `createdById` (who created) and optional `squadId` (which squad)
+- But no clear "primary coordinator" or "who's driving this mission?"
+- Hard to answer:  - "Which missions have no one assigned?"
   - "Who should I notify when status changes?"
   - "Who's accountable for follow-up?"
 
 **3. Unclear Permission Model**
 - Global roles exist (`UserRole` enum) but usage is ad-hoc
 - Squad roles exist (`RescueSquadMemberRole`) but don't interact with global permissions
-- No shared vocabulary: "Can a MODERATOR edit cases?" "Can PATROL users create squads?"
+- No shared vocabulary: "Can a MODERATOR edit missions?" "Can PATROL users create squads?"
 
 **Why This Matters:**
 
 - **Security**: Admin-only tools need consistent gating
-- **Accountability**: Cases need clear owners for follow-up and metrics
+- **Accountability**: Missions need clear owners for follow-up and metrics
 - **Scalability**: As team grows, need clear roles and responsibilities
-- **User Experience**: Coordinators need visibility into "their" cases
+- **User Experience**: Coordinators need visibility into "their" missions
 
 ---
 
@@ -69,47 +69,47 @@ This is a **minimal, pragmatic** implementation:
 **Global Roles & Permissions (MVP):**
 
 - Define a **clear permission model** based on existing `UserRole` enum:
-  - `ADMIN` – Full access to all admin tools, can assign coordinators, manage cases
-  - `MODERATOR` – Can view admin tools, limited case management (future: may help coordinate)
-  - `PATROL` – Regular patrol members, can view assigned cases (via squad)
-  - `USER` – Pet owners, can view own cases
+  - `ADMIN` – Full access to all admin tools, can assign coordinators, manage missions
+  - `MODERATOR` – Can view admin tools, limited mission management (future: may help coordinate)
+  - `PATROL` – Regular patrol members, can view assigned missions (via squad)
+  - `USER` – Pet owners, can view own missions
 
 - Create a **centralized permission helper** module:
   - `requireAdmin(session)` – throws if not ADMIN
   - `requireStaffOrAdmin(session)` – MODERATOR or ADMIN
-  - `canEditCase(session, caseData)` – coordinator, squad leader, or ADMIN
-  - `canAssignCase(session, caseData)` – ADMIN only for MVP
+  - `canEditMission(session, missionData)` – coordinator, squad leader, or ADMIN
+  - `canAssignMission(session, missionData)` – ADMIN only for MVP
 
 - **Gate all admin surfaces**:
   - `/admin/health` – ADMIN only
   - `/admin/qa` – ADMIN only
-  - `/admin/cases/*` – ADMIN only (MVP; future: coordinators can view assigned)
+  - `/admin/missions/*` – ADMIN only (MVP; future: coordinators can view assigned)
 
 - **Log permission failures**:
   - Emit `auth.permission_denied` events with actor, resource, required role
 
-**Case Assignment (MVP):**
+**Mission Assignment (MVP):**
 
-- Add `coordinatorId` field to `LostPetCase`:
+- Add `coordinatorId` field to `LostPetMission`:
   - Optional `User` relation
-  - Represents primary person responsible for case progress
+  - Represents primary person responsible for mission progress
   - Can be ADMIN or MODERATOR (staff roles)
 
 - Keep existing `squadId` field:
-  - Already links case to RescueSquad
+  - Already links mission to RescueSquad
   - For MVP, no changes needed; just clarify it as "owning squad"
 
 - Create **assignment APIs**:
-  - `POST /api/cases/[id]/assign-coordinator` – change coordinator
-  - `PATCH /api/cases/[id]` – update `squadId` if needed (or separate endpoint)
+  - `POST /api/missions/[id]/assign-coordinator` – change coordinator
+  - `PATCH /api/missions/[id]` – update `squadId` if needed (or separate endpoint)
 
 - **Assignment change logging**:
-  - Emit `case.assignment_changed` events with previous and new values
+  - Emit `mission.assignment_changed` events with previous and new values
   - Track who made the change and when
 
 **UI/UX (MVP):**
 
-- Admin case list/detail:
+- Admin mission list/detail:
   - Show current coordinator name (or "Unassigned")
   - Show owning squad name (or "No squad")
   - ADMIN can change both via simple dropdowns/select controls
@@ -123,7 +123,7 @@ This is a **minimal, pragmatic** implementation:
 **Out of scope:**
 
 - **No general RBAC engine**: Not building an arbitrary policy system
-- **No per-field ACLs**: Not restricting who can edit specific case fields
+- **No per-field ACLs**: Not restricting who can edit specific mission fields
 - **No complex role hierarchies**: No "teams" or "departments" beyond squads
 - **No notification changes**: Assignment doesn't trigger new notifications (Phase 25-26 already handles status changes; future phase can add coordinator notifications)
 - **No public-facing changes**: Assignment is internal operations only
@@ -135,27 +135,27 @@ This is a **minimal, pragmatic** implementation:
 
 ### Admin
 
-- **As an ADMIN**, I can access `/admin/health`, `/admin/qa`, and `/admin/cases` without interruption.
-- **As an ADMIN**, I can assign a coordinator to any case via simple dropdown UI.
-- **As an ADMIN**, I can see at a glance which cases have no coordinator assigned (filter/sort).
-- **As an ADMIN**, I can change a case's owning squad if it was initially assigned incorrectly.
+- **As an ADMIN**, I can access `/admin/health`, `/admin/qa`, and `/admin/missions` without interruption.
+- **As an ADMIN**, I can assign a coordinator to any mission via simple dropdown UI.
+- **As an ADMIN**, I can see at a glance which missions have no coordinator assigned (filter/sort).
+- **As an ADMIN**, I can change a mission's owning squad if it was initially assigned incorrectly.
 - **As an ADMIN**, I see clear permission denied errors if something goes wrong.
 
 ### Moderator (Future Staff Role)
 
-- **As a MODERATOR**, I can view cases assigned to me but cannot access all admin tools like health or QA.
-- **As a MODERATOR**, I can edit case details and status for cases I coordinate.
+- **As a MODERATOR**, I can view missions assigned to me but cannot access all admin tools like health or QA.
+- **As a MODERATOR**, I can edit mission details and status for missions I coordinate.
 
 ### Patrol / Volunteer
 
 - **As a PATROL member**, I am redirected away from admin-only pages with a clear message.
-- **As a PATROL member**, I can view cases assigned to my squad (future enhancement).
+- **As a PATROL member**, I can view missions assigned to my squad (future enhancement).
 
 ### Platform / Operations
 
 - **As the platform operator**, I want permission failures logged so I can audit access attempts.
 - **As the platform operator**, I want assignment changes logged so I can track accountability.
-- **As the platform operator**, I want a clear audit trail of who changed case coordinators and when.
+- **As the platform operator**, I want a clear audit trail of who changed mission coordinators and when.
 
 ---
 
@@ -165,12 +165,12 @@ This is a **minimal, pragmatic** implementation:
 
 Based on existing `User.role` field in schema:
 
-| Role | Description | Typical Use Case |
+| Role | Description | Typical Use Mission |
 |------|-------------|------------------|
-| **ADMIN** | Platform administrator | Full access to all admin tools, case management, squad oversight |
-| **MODERATOR** | Staff coordinator | Internal team member who can coordinate cases, limited admin access |
-| **PATROL** | Patrol member/volunteer | Searches for pets via squads, can view squad-assigned cases |
-| **USER** | Pet owner | Submits cases, views own cases |
+| **ADMIN** | Platform administrator | Full access to all admin tools, mission management, squad oversight |
+| **MODERATOR** | Staff coordinator | Internal team member who can coordinate missions, limited admin access |
+| **PATROL** | Patrol member/volunteer | Searches for pets via squads, can view squad-assigned missions |
+| **USER** | Pet owner | Submits missions, views own missions |
 
 ### Squad Roles (RescueSquadMemberRole)
 
@@ -179,7 +179,7 @@ Existing squad-level roles (unchanged for MVP):
 | Role | Description |
 |------|-------------|
 | **FOUNDER** | Created the squad |
-| **LEADER** | Can accept cases, manage squad members |
+| **LEADER** | Can accept missions, manage squad members |
 | **COORDINATOR** | Can coordinate searches, post updates |
 | **MEMBER** | Regular volunteer searcher |
 
@@ -198,36 +198,36 @@ Access rules for key operations:
 |-----------|-------|-----------|--------|------|
 | View `/admin/health` | ✅ | ❌ | ❌ | ❌ |
 | View `/admin/qa` | ✅ | ❌ | ❌ | ❌ |
-| View `/admin/cases` | ✅ | ❌ † | ❌ † | ❌ |
-| Create case (admin) | ✅ | ✅ | ❌ | ❌ |
-| Edit case status | ✅ | ✅ * | ❌ † | ❌ |
-| Add case notes | ✅ | ✅ * | ❌ † | ❌ |
+| View `/admin/missions` | ✅ | ❌ † | ❌ † | ❌ |
+| Create mission (admin) | ✅ | ✅ | ❌ | ❌ |
+| Edit mission status | ✅ | ✅ * | ❌ † | ❌ |
+| Add mission notes | ✅ | ✅ * | ❌ † | ❌ |
 | Assign coordinator | ✅ | ❌ | ❌ | ❌ |
 | Change owning squad | ✅ | ❌ | ❌ | ❌ |
 
 **Legend:**
 - ✅ = Allowed
 - ❌ = Denied
-- † = Future: may allow for assigned cases
-- \* = Future: only for cases they coordinate
+- † = Future: may allow for assigned missions
+- \* = Future: only for missions they coordinate
 
-**MVP Simplification**: For Phase 22-24, only ADMIN can access admin tools and manage all cases. MODERATOR support is designed in but not fully wired (future phase).
+**MVP Simplification**: For Phase 22-24, only ADMIN can access admin tools and manage all missions. MODERATOR support is designed in but not fully wired (future phase).
 
 ---
 
-## 5. Case Assignment Model
+## 5. Mission Assignment Model
 
 ### Data Model
 
-**Add to `LostPetCase`:**
+**Add to `LostPetMission`:**
 
 ```prisma
-model LostPetCase {
+model LostPetMission {
   // ... existing fields ...
 
-  // NEW: Case Assignment (Phase 22-24)
+  // NEW: Mission Assignment (Phase 22-24)
   coordinatorId   String?
-  coordinator     User?         @relation("CaseCoordinator", fields: [coordinatorId], references: [id])
+  coordinator     User?         @relation("MissionCoordinator", fields: [coordinatorId], references: [id])
 
   // EXISTING: Owning squad (already present, just clarifying semantics)
   squadId         String?
@@ -241,8 +241,8 @@ model LostPetCase {
 model User {
   // ... existing relations ...
 
-  // NEW: Cases coordinated by this user
-  coordinatedCases  LostPetCase[]  @relation("CaseCoordinator")
+  // NEW: Missions coordinated by this user
+  coordinatedMissions  LostPetMission[]  @relation("MissionCoordinator")
 }
 ```
 
@@ -251,10 +251,10 @@ model User {
 - `coordinatorId` = primary person responsible (typically ADMIN or MODERATOR)
 - `squadId` = rescue squad assigned to help (already exists)
 - Both are **optional** and **independent**:
-  - A case can have a coordinator but no squad
-  - A case can be assigned to a squad but no specific coordinator
-  - A case can have both
-  - A case can have neither (unassigned)
+  - A mission can have a coordinator but no squad
+  - A mission can be assigned to a squad but no specific coordinator
+  - A mission can have both
+  - A mission can have neither (unassigned)
 
 ### Assignment Rules
 
@@ -268,14 +268,14 @@ model User {
 
 **Assignment Lifecycle:**
 
-1. Case created → `coordinatorId = null` (unassigned)
+1. Mission created → `coordinatorId = null` (unassigned)
 2. Admin assigns coordinator → `coordinatorId = userId`
 3. Coordinator changed → old coordinator removed, new one assigned
 4. Coordinator removed → `coordinatorId = null` (back to unassigned)
 
 **Migration:**
 
-- Existing cases will have `coordinatorId = null` after migration
+- Existing missions will have `coordinatorId = null` after migration
 - No automatic assignment (admin can manually assign as needed)
 
 ---
@@ -352,33 +352,33 @@ export async function requireStaffOrAdmin(session, context = {}) {
 }
 
 /**
- * Check if user can edit case
+ * Check if user can edit mission
  * MVP: Only ADMIN
  * Future: Also coordinator, squad leaders
  */
-export function canEditCase(session, caseData) {
+export function canEditMission(session, missionData) {
   const role = getUserRole(session);
 
-  // ADMIN can edit all cases
+  // ADMIN can edit all missions
   if (role === 'ADMIN') {
     return true;
   }
 
   // Future: MODERATOR can edit if they're the coordinator
-  // if (role === 'MODERATOR' && caseData.coordinatorId === session.user.id) {
+  // if (role === 'MODERATOR' && missionData.coordinatorId === session.user.id) {
   //   return true;
   // }
 
-  // Future: Squad leaders can edit squad cases
+  // Future: Squad leaders can edit squad missions
 
   return false;
 }
 
 /**
- * Check if user can assign case coordinator
+ * Check if user can assign mission coordinator
  * MVP: Only ADMIN
  */
-export function canAssignCase(session) {
+export function canAssignMission(session) {
   return getUserRole(session) === 'ADMIN';
 }
 
@@ -401,12 +401,12 @@ Apply permission checks to:
 **Admin Pages (Client-Side):**
 - `/admin/health/page.jsx` – add `requireAdmin`
 - `/admin/qa/page.js` – already has check, but use helper for consistency
-- `/admin/cases/page.js` – add `requireAdmin`
-- `/admin/cases/[id]/page.js` – add `requireAdmin`
-- `/admin/cases/new/page.js` – add `requireAdmin`
+- `/admin/missions/page.js` – add `requireAdmin`
+- `/admin/missions/[id]/page.js` – add `requireAdmin`
+- `/admin/missions/new/page.js` – add `requireAdmin`
 
 **Admin APIs (Server-Side):**
-- All `/api/cases/*` routes – use `requireStaffOrAdmin`
+- All `/api/missions/*` routes – use `requireStaffOrAdmin`
 - New assignment endpoints – use `requireAdmin`
 - `/api/admin/*` endpoints – use `requireAdmin`
 
@@ -420,7 +420,7 @@ export async function POST(request, { params }) {
 
   try {
     await requireAdmin(session, {
-      resource_type: 'case',
+      resource_type: 'mission',
       resource_id: params.id,
       action: 'assign_coordinator'
     });
@@ -443,9 +443,9 @@ export async function POST(request, { params }) {
 
 ## 7. Assignment APIs
 
-### POST /api/cases/[id]/assign-coordinator
+### POST /api/missions/[id]/assign-coordinator
 
-**Purpose:** Assign or change the case coordinator.
+**Purpose:** Assign or change the mission coordinator.
 
 **Request:**
 ```json
@@ -458,9 +458,9 @@ export async function POST(request, { params }) {
 ```json
 {
   "success": true,
-  "case": {
+  "mission": {
     "id": "...",
-    "caseNumber": "CHI-2025-001",
+    "missionNumber": "CHI-2025-001",
     "coordinatorId": "clx123abc...",
     "coordinator": {
       "id": "clx123abc...",
@@ -475,15 +475,15 @@ export async function POST(request, { params }) {
 **Errors:**
 - `401` – Not authenticated
 - `403` – Insufficient permissions (not ADMIN)
-- `404` – Case not found
+- `404` – Mission not found
 - `400` – Invalid coordinator ID, or coordinator doesn't have ADMIN/MODERATOR role
 
 **Events Logged:**
-- `case.assignment_changed` (success)
+- `mission.assignment_changed` (success)
 - `auth.permission_denied` (permission failure)
-- `case.assign_coordinator_failed` (validation failure)
+- `mission.assign_coordinator_failed` (validation failure)
 
-### PATCH /api/cases/[id]/squad
+### PATCH /api/missions/[id]/squad
 
 **Purpose:** Assign or change the owning squad.
 
@@ -498,9 +498,9 @@ export async function POST(request, { params }) {
 ```json
 {
   "success": true,
-  "case": {
+  "mission": {
     "id": "...",
-    "caseNumber": "CHI-2025-001",
+    "missionNumber": "CHI-2025-001",
     "squadId": "clx456def...",
     "squad": {
       "id": "clx456def...",
@@ -516,16 +516,16 @@ export async function POST(request, { params }) {
 **Errors:** Same as coordinator endpoint.
 
 **Events Logged:**
-- `case.squad_assigned` (success)
+- `mission.squad_assigned` (success)
 - `auth.permission_denied` (permission failure)
 
-**Alternative:** Could integrate squad assignment into main case update endpoint (`PATCH /api/cases/[id]`) but dedicated endpoint makes logging and permissions clearer.
+**Alternative:** Could integrate squad assignment into main mission update endpoint (`PATCH /api/missions/[id]`) but dedicated endpoint makes logging and permissions clearer.
 
 ---
 
 ## 8. UI / UX
 
-### Admin Case List Page (`/admin/cases`)
+### Admin Mission List Page (`/admin/missions`)
 
 **Changes:**
 
@@ -536,18 +536,18 @@ export async function POST(request, { params }) {
    - "Squad" column already exists, keep as-is
 
 2. **Filter/Sort:**
-   - Add filter: "Unassigned cases" (where `coordinatorId === null`)
+   - Add filter: "Unassigned missions" (where `coordinatorId === null`)
    - Sort by coordinator name
 
 3. **Role Badge:**
    - Add "ADMIN ONLY" badge at top of page to make gating explicit
 
-### Admin Case Detail Page (`/admin/cases/[id]`)
+### Admin Mission Detail Page (`/admin/missions/[id]`)
 
 **Changes:**
 
 1. **Assignment Section:**
-   - Add new "Assignment" card/section below case details:
+   - Add new "Assignment" card/section below mission details:
      ```
      ┌─ Assignment ──────────────────────────┐
      │ Coordinator:   [Dropdown: Select...] │
@@ -571,7 +571,7 @@ export async function POST(request, { params }) {
    - Only shows "Save" button if values changed
    - Calls assignment APIs
    - Shows success/error toast
-   - Refreshes case data
+   - Refreshes mission data
 
 ### Permission Denied UI
 
@@ -603,9 +603,9 @@ You need ADMIN role to access this page.
 | Event Type | Resource Type | When | Severity |
 |------------|---------------|------|----------|
 | `auth.permission_denied` | varies | Permission check fails | medium |
-| `case.assignment_changed` | case | Coordinator or squad assigned/changed | low |
-| `case.assign_coordinator_failed` | case | Assignment API validation failure | medium |
-| `case.squad_assigned` | case | Squad successfully assigned | low |
+| `mission.assignment_changed` | mission | Coordinator or squad assigned/changed | low |
+| `mission.assign_coordinator_failed` | mission | Assignment API validation failure | medium |
+| `mission.squad_assigned` | mission | Squad successfully assigned | low |
 
 **Event Metadata:**
 
@@ -618,11 +618,11 @@ You need ADMIN role to access this page.
 }
 ```
 
-**`case.assignment_changed`:**
+**`mission.assignment_changed`:**
 ```json
 {
-  "case_id": "clx789...",
-  "case_number": "CHI-2025-001",
+  "mission_id": "clx789...",
+  "mission_number": "CHI-2025-001",
   "field_changed": "coordinator", // or "squad"
   "previous_value": "clx123...", // or null
   "new_value": "clx456...", // or null
@@ -640,9 +640,9 @@ const ERROR_IMPACT = {
 
   // Permission & Assignment (Phase 22-24)
   'auth.permission_denied': { label: 'Permission Denied', severity: 'medium' },
-  'case.assign_coordinator_failed': { label: 'Case Assignment', severity: 'medium' },
-  'case.assignment_changed': { label: 'Case Assignment', severity: 'low' },
-  'case.squad_assigned': { label: 'Squad Assignment', severity: 'low' },
+  'mission.assign_coordinator_failed': { label: 'Mission Assignment', severity: 'medium' },
+  'mission.assignment_changed': { label: 'Mission Assignment', severity: 'low' },
+  'mission.squad_assigned': { label: 'Squad Assignment', severity: 'low' },
 };
 ```
 
@@ -651,8 +651,8 @@ const ERROR_IMPACT = {
 Admin health dashboard could show:
 
 - **Permission failures (last 24h)**: Count of `auth.permission_denied` events
-- **Unassigned cases**: Count where `coordinatorId === null`
-- **Assignment activity**: Count of `case.assignment_changed` events per day
+- **Unassigned missions**: Count where `coordinatorId === null`
+- **Assignment activity**: Count of `mission.assignment_changed` events per day
 
 (Metrics implementation is optional for MVP; just ensure events are logged.)
 
@@ -668,7 +668,7 @@ Admin health dashboard could show:
 
 ### Legal Compliance
 
-- **No impact on public portal**: Public case endpoints (Phase 15-16) unaffected.
+- **No impact on public portal**: Public mission endpoints (Phase 15-16) unaffected.
 - **Terms of Service**: No changes needed; assignment is admin functionality.
 - **GDPR/CCPA**: No additional user data processing; standard internal operations.
 
@@ -700,11 +700,11 @@ Add new test suite: **"Permission & Assignment Tests"**
 
 **Assignment Tests:**
 
-4. **Test: Assign Case Coordinator**
+4. **Test: Assign Mission Coordinator**
    - Login as ADMIN
-   - Create test case
+   - Create test mission
    - Assign coordinator via API
-   - Expect: Case updated, `case.assignment_changed` event logged
+   - Expect: Mission updated, `mission.assignment_changed` event logged
 
 5. **Test: Non-Admin Cannot Assign Coordinator**
    - Login as PATROL
@@ -712,10 +712,10 @@ Add new test suite: **"Permission & Assignment Tests"**
    - Expect: 403 Forbidden
    - Verify: `auth.permission_denied` event logged
 
-6. **Test: Assign Case to Squad**
+6. **Test: Assign Mission to Squad**
    - Login as ADMIN
-   - Assign case to squad via API
-   - Expect: Case updated, `case.squad_assigned` event logged
+   - Assign mission to squad via API
+   - Expect: Mission updated, `mission.squad_assigned` event logged
 
 ### Manual Testing
 
@@ -723,19 +723,19 @@ Add new test suite: **"Permission & Assignment Tests"**
 
 1. **Role-based access:**
    - Create users with each role (USER, PATROL, MODERATOR, ADMIN)
-   - Attempt to access `/admin/health`, `/admin/qa`, `/admin/cases`
+   - Attempt to access `/admin/health`, `/admin/qa`, `/admin/missions`
    - Verify access control works
 
 2. **Coordinator assignment:**
    - Assign coordinator via UI
    - Verify dropdown shows only ADMIN/MODERATOR users
-   - Verify case detail reflects change
-   - Check EventLog for `case.assignment_changed`
+   - Verify mission detail reflects change
+   - Check EventLog for `mission.assignment_changed`
 
-3. **Unassigned case filtering:**
-   - Create several cases with/without coordinators
+3. **Unassigned mission filtering:**
+   - Create several missions with/without coordinators
    - Filter by "Unassigned"
-   - Verify correct cases shown
+   - Verify correct missions shown
 
 4. **Permission failures:**
    - Trigger permission denial (non-admin accessing admin page)
@@ -761,24 +761,24 @@ Phase 22-24 is **COMPLETE** when:
 **✅ Admin Surface Gating:**
 - [ ] `/admin/health` requires ADMIN (enforced client + server side)
 - [ ] `/admin/qa` requires ADMIN
-- [ ] `/admin/cases/*` pages require ADMIN
+- [ ] `/admin/missions/*` pages require ADMIN
 - [ ] Non-admin users redirected with clear message
 
-**✅ Case Assignment Schema:**
-- [ ] `LostPetCase.coordinatorId` field added (migration created)
-- [ ] `User.coordinatedCases` relation added
-- [ ] Existing cases have `coordinatorId = null` after migration
+**✅ Mission Assignment Schema:**
+- [ ] `LostPetMission.coordinatorId` field added (migration created)
+- [ ] `User.coordinatedMissions` relation added
+- [ ] Existing missions have `coordinatorId = null` after migration
 
 **✅ Assignment APIs:**
-- [ ] `POST /api/cases/[id]/assign-coordinator` implemented
-- [ ] `PATCH /api/cases/[id]/squad` implemented (or integrated into existing update)
+- [ ] `POST /api/missions/[id]/assign-coordinator` implemented
+- [ ] `PATCH /api/missions/[id]/squad` implemented (or integrated into existing update)
 - [ ] Both APIs enforce ADMIN-only access
-- [ ] Assignment changes emit `case.assignment_changed` events
+- [ ] Assignment changes emit `mission.assignment_changed` events
 - [ ] Invalid coordinators rejected with validation errors
 
 **✅ Admin UI:**
-- [ ] Case list shows coordinator column
-- [ ] Case detail has Assignment section with dropdowns
+- [ ] Mission list shows coordinator column
+- [ ] Mission detail has Assignment section with dropdowns
 - [ ] Coordinator dropdown lists ADMIN/MODERATOR users only
 - [ ] Squad dropdown lists all active squads
 - [ ] Changes saved via API calls
@@ -800,7 +800,7 @@ Phase 22-24 is **COMPLETE** when:
 - [ ] All code committed and pushed
 
 **✅ No Regressions:**
-- [ ] Existing case workflows unchanged (create, status, notes)
+- [ ] Existing mission workflows unchanged (create, status, notes)
 - [ ] Public portal unaffected
 - [ ] QA harness still works
 - [ ] Notifications still work
@@ -814,42 +814,42 @@ Phase 22-24 is **COMPLETE** when:
 ### Phase 22-24-A: Moderator Full Support
 
 - Enable MODERATOR role to:
-  - View and edit assigned cases (where they're coordinator)
-  - Create and manage cases they're responsible for
-  - Access limited admin tools (e.g. case dashboard, not health/QA)
+  - View and edit assigned missions (where they're coordinator)
+  - Create and manage missions they're responsible for
+  - Access limited admin tools (e.g. mission dashboard, not health/QA)
 
-- Implement `canEditCase()` logic for coordinators
+- Implement `canEditMission()` logic for coordinators
 
 ### Phase 22-24-B: Squad Leader Permissions
 
 - Allow LEADER role within squads to:
-  - Edit cases assigned to their squad
-  - View squad-specific case dashboard
+  - Edit missions assigned to their squad
+  - View squad-specific mission dashboard
 
 - Integrate squad roles with global permissions
 
 ### Phase 22-24-C: Coordinator Notifications
 
 - Send email to coordinator when:
-  - They're assigned to a case
-  - A case they coordinate has a new sighting
-  - A case they coordinate is escalated/urgent
+  - They're assigned to a mission
+  - A mission they coordinate has a new sighting
+  - A mission they coordinate is escalated/urgent
 
 - Add coordinator preferences for notification frequency
 
 ### Phase 22-24-D: Self-Assignment
 
-- Allow coordinators to self-assign to unassigned cases
+- Allow coordinators to self-assign to unassigned missions
 - Add "Assign to me" button for staff users
 
 ### Phase 22-24-E: Assignment History
 
-- Create `CaseAssignmentHistory` model to track all changes
-- Show assignment timeline on case detail page
+- Create `MissionAssignmentHistory` model to track all changes
+- Show assignment timeline on mission detail page
 
 ### Phase 22-24-F: Workload Balancing
 
-- Show case counts per coordinator in UI
+- Show mission counts per coordinator in UI
 - Auto-suggest least-busy coordinator for new assignments
 - Dashboard showing coordinator workload metrics
 

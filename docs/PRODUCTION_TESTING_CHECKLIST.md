@@ -40,7 +40,7 @@
 4. [ ] Verify: No error message, redirect to login or dashboard
 5. [ ] Check: User appears in database
 
-**Test edge cases:**
+**Test edge missions:**
 - [ ] Invalid email format → Shows validation error
 - [ ] Short password (<8 chars) → Shows validation error
 - [ ] Duplicate email → Shows generic error (no email enumeration)
@@ -60,7 +60,7 @@
 7. [ ] Close browser, reopen → Session persists (within 30 days)
 8. [ ] Click logout → Redirects to home, session cleared
 
-**Test edge cases:**
+**Test edge missions:**
 - [ ] Wrong password → Shows error (no account lockout yet)
 - [ ] Non-existent email → Shows generic error
 - [ ] Rate limit (6+ attempts) → Shows "Too many requests"
@@ -81,7 +81,7 @@
 9. [ ] Verify: Success message
 10. [ ] Login with new password → Works
 
-**Test edge cases:**
+**Test edge missions:**
 - [ ] Non-existent email → Shows same success message (security)
 - [ ] Expired token (wait 1 hour) → Shows expired error
 - [ ] Invalid token → Shows invalid error
@@ -101,11 +101,11 @@
    - [ ] Contact email or phone
 4. [ ] Upload pet photo (optional)
 5. [ ] Submit form
-6. [ ] Verify: Success message with case number
-7. [ ] Verify: Redirects to case detail page
-8. [ ] Verify: Case appears in dashboard
+6. [ ] Verify: Success message with mission number
+7. [ ] Verify: Redirects to mission detail page
+8. [ ] Verify: Mission appears in dashboard
 
-**Test edge cases:**
+**Test edge missions:**
 - [ ] Missing required fields → Validation errors
 - [ ] Invalid photo type → Shows file type error
 - [ ] Large photo (>10MB) → Shows size error
@@ -115,16 +115,16 @@
 ### Flow 5: Public Lost Pet Report (No Account)
 **Priority: CRITICAL**
 
-1. [ ] Visit `/cases/report` (not logged in)
+1. [ ] Visit `/missions/report` (not logged in)
 2. [ ] Fill in required fields
 3. [ ] Check "Agree to terms" checkbox
 4. [ ] Submit form
-5. [ ] Verify: Success message with case number
+5. [ ] Verify: Success message with mission number
 6. [ ] Verify: Confirmation email sent to contact email
 7. [ ] Verify: Admin notification sent (check admin email)
-8. [ ] Verify: Case is NOT public (requires admin approval)
+8. [ ] Verify: Mission is NOT public (requires admin approval)
 
-**Test edge cases:**
+**Test edge missions:**
 - [ ] Missing terms agreement → Shows error
 - [ ] Rate limit (11+ reports) → Shows "Too many requests"
 
@@ -133,14 +133,14 @@
 ### Flow 6: Report Found Pet
 **Priority: HIGH**
 
-1. [ ] Visit `/report/found` or `/cases/report` (select "Found")
+1. [ ] Visit `/report/found` or `/missions/report` (select "Found")
 2. [ ] Fill in required fields:
    - [ ] Pet species
    - [ ] Location (city, state)
    - [ ] Contact info
 3. [ ] Upload photo of found pet (optional)
 4. [ ] Submit form
-5. [ ] Verify: Success with case number
+5. [ ] Verify: Success with mission number
 6. [ ] Verify: Matches displayed if any high-scoring matches
 7. [ ] Verify: Owner notifications sent for matches
 
@@ -150,9 +150,9 @@
 **Priority: HIGH**
 
 1. [ ] Visit `/database` (not logged in)
-2. [ ] Verify: Public cases displayed
+2. [ ] Verify: Public missions displayed
 3. [ ] Use filters: Species, location
-4. [ ] Click on a case → Detail page loads
+4. [ ] Click on a mission → Detail page loads
 5. [ ] Verify: Contact info hidden (unless publicContactOk)
 6. [ ] Login → Contact info visible (if publicContactOk)
 
@@ -173,11 +173,11 @@
 
 ---
 
-### Flow 9: Case Coordination (Squad Members)
+### Flow 9: Mission Coordination (Squad Members)
 **Priority: MEDIUM**
 
 1. [ ] Login as squad member
-2. [ ] Navigate to active case coordination page
+2. [ ] Navigate to active mission coordination page
 3. [ ] Test chat: Send message → Appears in chat
 4. [ ] Test map: Add search area polygon → Saves
 5. [ ] Test sighting: Add sighting with location → Saves
@@ -194,7 +194,7 @@
 4. [ ] Fill in pet details with photo
 5. [ ] Save pet
 6. [ ] Edit pet → Changes saved
-7. [ ] Report pet as lost → Creates case linked to pet
+7. [ ] Report pet as lost → Creates mission linked to pet
 
 ---
 
@@ -203,8 +203,8 @@
 ### Admin Dashboard
 - [ ] Login as admin user
 - [ ] Visit `/admin/health` → Dashboard loads
-- [ ] Visit `/admin/cases` → Cases list loads
-- [ ] Approve a pending case → Case becomes public
+- [ ] Visit `/admin/missions` → Missions list loads
+- [ ] Approve a pending mission → Mission becomes public
 - [ ] Visit `/admin/qa` → QA harness loads
 - [ ] Run smoke tests → All pass
 
@@ -214,7 +214,7 @@
 
 ### Email Delivery
 - [ ] Password reset email: Delivered (not spam)
-- [ ] Case confirmation email: Delivered
+- [ ] Mission confirmation email: Delivered
 - [ ] Admin alert email: Delivered
 - [ ] Found pet match notification: Delivered
 
@@ -247,7 +247,7 @@
 Test each by making rapid requests:
 - [ ] `/api/auth/register` - Blocks after 5 attempts
 - [ ] `/api/auth/forgot-password` - Blocks after 5 attempts
-- [ ] `/api/public/cases` POST - Blocks after 10 attempts
+- [ ] `/api/public/missions` POST - Blocks after 10 attempts
 - [ ] `/api/upload` - Blocks after 20 attempts
 
 ### Input Validation
@@ -256,9 +256,9 @@ Test each by making rapid requests:
 - [ ] Path traversal in upload delete → Rejected
 
 ### Authorization
-- [ ] Non-owner can't edit others' cases
+- [ ] Non-owner can't edit others' missions
 - [ ] Non-admin can't access `/admin/*`
-- [ ] Case matches require authentication
+- [ ] Mission matches require authentication
 
 ---
 
@@ -267,12 +267,12 @@ Test each by making rapid requests:
 ### Page Load Times (Target: <3s)
 - [ ] Homepage: ___s
 - [ ] Dashboard: ___s
-- [ ] Case list: ___s
-- [ ] Case detail: ___s
+- [ ] Mission list: ___s
+- [ ] Mission detail: ___s
 
 ### API Response Times (Target: <500ms)
-- [ ] GET /api/public/cases: ___ms
-- [ ] POST /api/cases: ___ms
+- [ ] GET /api/public/missions: ___ms
+- [ ] POST /api/missions: ___ms
 - [ ] GET /api/public/metrics: ___ms
 
 ---
@@ -294,7 +294,7 @@ After all tests pass:
 - [ ] No console errors on main pages
 - [ ] No 500 errors in logs
 - [ ] Metrics displaying correctly on homepage
-- [ ] Admin can manage cases
+- [ ] Admin can manage missions
 
 ---
 

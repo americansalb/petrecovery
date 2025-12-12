@@ -51,7 +51,7 @@ export const MARKER_TYPES = {
  */
 export async function initARSession(options = {}) {
   const {
-    caseId,
+    missionId,
     userId,
     enablePosterRecognition = true,
     enableAnimalDetection = true,
@@ -71,7 +71,7 @@ export async function initARSession(options = {}) {
   // Create session
   const session = {
     id: `ar-${Date.now()}`,
-    caseId,
+    missionId,
     userId,
     config: {
       ...AR_CONFIG,
@@ -84,11 +84,11 @@ export async function initARSession(options = {}) {
   };
 
   // Load case data for AR overlay
-  if (caseId) {
-    const caseData = await loadCaseDataForAR(caseId);
-    session.markers = caseData.markers;
-    session.petModel = caseData.petModel;
-    session.searchZones = caseData.searchZones;
+  if (missionId) {
+    const missionData = await loadMissionDataForAR(missionId);
+    session.markers = missionData.markers;
+    session.petModel = missionData.petModel;
+    session.searchZones = missionData.searchZones;
   }
 
   return {
@@ -106,30 +106,30 @@ export async function initARSession(options = {}) {
 /**
  * Generate AR markers for case
  */
-export async function generateARMarkers(caseData) {
+export async function generateARMarkers(missionData) {
   const markers = [];
 
   // Last seen location marker
-  if (caseData.lastSeenLocation) {
+  if (missionData.lastSeenLocation) {
     markers.push({
-      id: `marker-last-seen-${caseData.id}`,
+      id: `marker-last-seen-${missionData.id}`,
       type: MARKER_TYPES.LAST_SEEN,
       position: {
-        latitude: caseData.lastSeenLocation.lat,
-        longitude: caseData.lastSeenLocation.lng,
-        altitude: caseData.lastSeenLocation.altitude || 0,
+        latitude: missionData.lastSeenLocation.lat,
+        longitude: missionData.lastSeenLocation.lng,
+        altitude: missionData.lastSeenLocation.altitude || 0,
       },
-      label: `Last seen: ${formatTimeAgo(caseData.lastSeenAt)}`,
+      label: `Last seen: ${formatTimeAgo(missionData.lastSeenAt)}`,
       data: {
-        date: caseData.lastSeenAt,
-        address: caseData.lastSeenAddress,
+        date: missionData.lastSeenAt,
+        address: missionData.lastSeenAddress,
       },
     });
   }
 
   // Sighting markers
-  if (caseData.sightings?.length > 0) {
-    for (const sighting of caseData.sightings.slice(0, 10)) {
+  if (missionData.sightings?.length > 0) {
+    for (const sighting of missionData.sightings.slice(0, 10)) {
       markers.push({
         id: `marker-sighting-${sighting.id}`,
         type: MARKER_TYPES.SIGHTING,
@@ -149,8 +149,8 @@ export async function generateARMarkers(caseData) {
   }
 
   // Search area markers
-  if (caseData.searchAreas?.length > 0) {
-    for (const area of caseData.searchAreas) {
+  if (missionData.searchAreas?.length > 0) {
+    for (const area of missionData.searchAreas) {
       markers.push({
         id: `marker-search-${area.id}`,
         type: MARKER_TYPES.SEARCH_AREA,
@@ -171,7 +171,7 @@ export async function generateARMarkers(caseData) {
   }
 
   // Nearby shelters
-  const shelters = await findNearbyShelters(caseData.lastSeenLocation, 10);
+  const shelters = await findNearbyShelters(missionData.lastSeenLocation, 10);
   for (const shelter of shelters) {
     markers.push({
       id: `marker-shelter-${shelter.id}`,
@@ -268,8 +268,8 @@ export async function scanPoster(imageData) {
       rawText: extractedText,
     },
     matches: matches.map(m => ({
-      caseId: m.id,
-      caseNumber: m.caseNumber,
+      missionId: m.id,
+      missionNumber: m.missionNumber,
       petName: m.petName,
       confidence: m.confidence,
       status: m.status,
@@ -362,20 +362,20 @@ export async function createARNavigation(startPosition, destination) {
 /**
  * Generate shareable AR poster
  */
-export async function generateARPoster(caseData) {
+export async function generateARPoster(missionData) {
   // Create poster with AR marker
   const poster = {
-    id: `poster-${caseData.id}`,
-    caseNumber: caseData.caseNumber,
-    petName: caseData.petName,
-    petPhoto: caseData.petPhotoUrl,
-    lastSeen: caseData.lastSeenAddress,
-    contactInfo: caseData.contactPhone,
-    reward: caseData.rewardAmount,
+    id: `poster-${missionData.id}`,
+    missionNumber: missionData.missionNumber,
+    petName: missionData.petName,
+    petPhoto: missionData.petPhotoUrl,
+    lastSeen: missionData.lastSeenAddress,
+    contactInfo: missionData.contactPhone,
+    reward: missionData.rewardAmount,
     arMarker: {
       type: 'qr',
-      data: `petrecovery://case/${caseData.caseNumber}`,
-      embedUrl: `https://petrecovery.org/ar/case/${caseData.caseNumber}`,
+      data: `petrecovery://case/${missionData.missionNumber}`,
+      embedUrl: `https://petrecovery.org/ar/case/${missionData.missionNumber}`,
     },
   };
 
@@ -432,7 +432,7 @@ async function checkARSupport() {
   return { supported: false, reason: 'WebXR not available' };
 }
 
-async function loadCaseDataForAR(caseId) {
+async function loadMissionDataForAR(missionId) {
   return {
     markers: [],
     petModel: null,
