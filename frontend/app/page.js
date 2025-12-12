@@ -73,6 +73,7 @@ export default function Home() {
     metrics: { petsReunited: 0, openCases: 0, activeSquads: 0, totalVolunteers: 0, weeklyReunions: 0 },
     ticker: [],
     casesNeedingHelp: [],
+    featuredSquads: [],
   });
 
   useEffect(() => {
@@ -114,7 +115,7 @@ export default function Home() {
     );
   };
 
-  const { metrics, ticker, casesNeedingHelp } = data;
+  const { metrics, ticker, casesNeedingHelp, featuredSquads } = data;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-blue-50">
@@ -358,53 +359,154 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Find Your Squad */}
-      <section className="py-16 bg-gradient-to-r from-blue-600 to-indigo-600">
-        <div className="max-w-4xl mx-auto px-4 text-center">
+      {/* Find Your Squad - Dynamic Community Section */}
+      <section className="py-16 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 overflow-hidden relative">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-10 left-10 w-32 h-32 bg-white rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-10 right-10 w-40 h-40 bg-amber-400 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-green-400 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 relative z-10">
+          <div className="text-center mb-10">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+            >
+              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full text-white/90 text-sm mb-6">
+                <Users className="w-4 h-4" />
+                <span>{metrics.totalVolunteers?.toLocaleString() || 0} volunteers ready to help</span>
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                Your Neighborhood Has a Rescue Squad
+              </h2>
+              <p className="text-blue-100 text-lg max-w-2xl mx-auto">
+                Real volunteers. Real communities. Ready to mobilize the moment a pet goes missing.
+              </p>
+            </motion.div>
+          </div>
+
+          {/* Featured Squads Grid */}
+          {featuredSquads.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10"
+            >
+              {featuredSquads.slice(0, 6).map((squad, i) => (
+                <motion.div
+                  key={squad.id}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  whileHover={{ scale: 1.02 }}
+                >
+                  <Link
+                    href={`/rescue-squads/${squad.id}`}
+                    className="block bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 hover:bg-white/20 transition group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-lg">
+                        {squad.logoUrl ? (
+                          <img src={squad.logoUrl} alt={squad.name} className="w-10 h-10 rounded-lg object-cover" />
+                        ) : (
+                          <Shield className="w-7 h-7 text-white" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-bold truncate group-hover:text-amber-200 transition">
+                          {squad.name}
+                        </h3>
+                        <p className="text-blue-200 text-sm flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          {squad.city}, {squad.state}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-amber-300 font-bold">{squad.memberCount}</div>
+                        <div className="text-blue-200 text-xs">members</div>
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+
+          {/* Search Your Area */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
+            className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-3xl p-6 md:p-8 max-w-2xl mx-auto"
           >
-            <Shield className="w-12 h-12 text-white/80 mx-auto mb-4" />
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Find Your Rescue Squad
-            </h2>
-            <p className="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">
-              Join volunteers in your neighborhood. When a pet goes missing nearby, you'll be ready to help.
-            </p>
-
-            <form onSubmit={handleFindSquad} className="flex flex-col sm:flex-row gap-3 max-w-xl mx-auto mb-4">
+            <h3 className="text-white font-bold text-xl mb-4 text-center">Find Squads Near You</h3>
+            <form onSubmit={handleFindSquad} className="flex flex-col sm:flex-row gap-3 mb-4">
               <div className="flex-1 relative">
-                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <MapPin className="w-5 h-5 text-gray-400" />
+                </div>
                 <input
                   type="text"
                   value={locationQuery}
                   onChange={(e) => setLocationQuery(e.target.value)}
-                  placeholder="Enter city or zip code"
+                  placeholder="City or zip code..."
                   className="w-full pl-12 pr-4 py-4 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-amber-400 focus:outline-none"
                 />
               </div>
               <button
                 type="submit"
-                className="bg-amber-400 hover:bg-amber-300 text-gray-900 px-8 py-4 rounded-xl font-bold transition"
+                className="bg-amber-400 hover:bg-amber-300 text-gray-900 px-6 py-4 rounded-xl font-bold transition flex items-center justify-center gap-2"
               >
-                Find Squads
+                <Search className="w-5 h-5" />
+                Search
               </button>
             </form>
 
-            <button
-              onClick={handleUseLocation}
-              disabled={locating}
-              className="inline-flex items-center gap-2 text-white/80 hover:text-white transition text-sm"
-            >
-              <LocateFixed className={`w-4 h-4 ${locating ? 'animate-pulse' : ''}`} />
-              {locating ? 'Finding your location...' : 'Use my current location'}
-            </button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-sm">
+              <button
+                onClick={handleUseLocation}
+                disabled={locating}
+                className="inline-flex items-center gap-2 text-white/90 hover:text-white transition bg-white/10 px-4 py-2 rounded-full hover:bg-white/20"
+              >
+                <LocateFixed className={`w-4 h-4 ${locating ? 'animate-spin' : ''}`} />
+                {locating ? 'Locating...' : 'Use my location'}
+              </button>
+              <span className="text-blue-200 hidden sm:block">or</span>
+              <Link
+                href="/rescue-squads/create"
+                className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 transition"
+              >
+                <Shield className="w-4 h-4" />
+                Start a squad in your area
+              </Link>
+            </div>
+          </motion.div>
 
-            <p className="text-blue-200 text-sm mt-6">
-              No squad nearby? <Link href="/rescue-squads/create" className="text-white underline hover:no-underline">Start one in your area</Link>
-            </p>
+          {/* Stats row */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.3 }}
+            className="flex flex-wrap justify-center gap-8 mt-10 text-center"
+          >
+            <div>
+              <div className="text-3xl font-bold text-white">{metrics.activeSquads}</div>
+              <div className="text-blue-200 text-sm">Active Squads</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold text-white">{metrics.citiesCovered || 0}</div>
+              <div className="text-blue-200 text-sm">Cities Covered</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold text-white">{metrics.weeklyReunions || 0}</div>
+              <div className="text-blue-200 text-sm">Reunions This Week</div>
+            </div>
           </motion.div>
         </div>
       </section>

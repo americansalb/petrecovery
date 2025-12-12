@@ -63,6 +63,8 @@ export async function GET(request) {
       recentSightingsCount,
       // This week's reunions
       weeklyReunions,
+      // Featured squads
+      featuredSquads,
     ] = await Promise.all([
       // Pets reunited total
       prisma.case.count({ where: { status: 'REUNITED' } }),
@@ -150,6 +152,26 @@ export async function GET(request) {
           createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
         }
       }),
+
+      // Featured/active squads with member counts
+      prisma.rescueSquad.findMany({
+        where: { isActive: true },
+        orderBy: [
+          { members: { _count: 'desc' } },
+        ],
+        take: 6,
+        select: {
+          id: true,
+          name: true,
+          city: true,
+          state: true,
+          logoUrl: true,
+          coverPhotoUrl: true,
+          _count: {
+            select: { members: true }
+          }
+        }
+      }),
     ]);
 
     // Transform reunions for ticker
@@ -217,6 +239,17 @@ export async function GET(request) {
     // Format avg reunion time
     const avgHours = avgReunionTime._avg?.timeToReunionHours || 0;
 
+    // Transform featured squads
+    const squadsForDisplay = featuredSquads.map((squad) => ({
+      id: squad.id,
+      name: squad.name,
+      city: squad.city,
+      state: squad.state,
+      logoUrl: squad.logoUrl ? normalizePhotoUrl(squad.logoUrl) : null,
+      coverPhotoUrl: squad.coverPhotoUrl ? normalizePhotoUrl(squad.coverPhotoUrl) : null,
+      memberCount: squad._count.members,
+    }));
+
     // Build response
     const homepageData = {
       metrics: {
@@ -233,6 +266,7 @@ export async function GET(request) {
       },
       ticker: tickerReunions,
       casesNeedingHelp: casesNeedingHelp,
+      featuredSquads: squadsForDisplay,
       timestamp: new Date().toISOString(),
     };
 
@@ -267,6 +301,7 @@ export async function GET(request) {
       },
       ticker: [],
       casesNeedingHelp: [],
+      featuredSquads: [],
       timestamp: new Date().toISOString(),
       error: true,
       message: 'Unable to fetch homepage data'
