@@ -128,7 +128,7 @@ export async function GET(request) {
     // Format response
     const formattedCases = cases.map(c => ({
       id: c.id,
-      missionNumber: c.missionNumber,
+      missionNumber: c.caseNumber,
       reportType: c.reportType,
       status: c.status,
       priority: c.priority,

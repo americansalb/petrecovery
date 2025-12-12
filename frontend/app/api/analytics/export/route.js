@@ -55,7 +55,7 @@ export async function GET(request) {
         data = await prisma.case.findMany({
           where: { createdAt: { gte: startDate } },
           select: {
-            missionNumber: true,
+            caseNumber: true,
             petName: true,
             petSpecies: true,
             status: true,
@@ -155,7 +155,7 @@ function generateCSV(data, headers, type) {
     switch (type) {
       case 'missions':
         row = [
-          item.missionNumber,
+          item.caseNumber,
           escapeCSV(item.petName),
           item.petSpecies,
           item.status,

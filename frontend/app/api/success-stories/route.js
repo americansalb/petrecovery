@@ -28,7 +28,7 @@ export async function GET(request) {
         orderBy: { resolvedAt: 'desc' },
         select: {
           id: true,
-          missionNumber: true,
+          caseNumber: true,
           petName: true,
           petSpecies: true,
           petBreed: true,

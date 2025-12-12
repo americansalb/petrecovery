@@ -44,7 +44,7 @@ export async function POST(request) {
       candidates.push({
         type: 'found_report',
         id: foundCase.id,
-        missionNumber: foundCase.missionNumber,
+        missionNumber: foundCase.caseNumber,
         species: foundCase.petSpecies,
         breed: foundCase.petBreed,
         color: foundCase.petColor,

@@ -76,7 +76,7 @@ export async function GET(request) {
         where,
         select: {
           id: true,
-          missionNumber: true,
+          caseNumber: true,
           createdAt: true,
           updatedAt: true,
           // Pet info

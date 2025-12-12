@@ -106,7 +106,7 @@ export async function GET(request, { params }) {
     const responseData = {
       case: {
         id: missionRecord.id,
-        missionNumber: missionRecord.missionNumber,
+        missionNumber: missionRecord.caseNumber,
         petName: missionRecord.petName,
         petSpecies: missionRecord.petSpecies,
         petBreed: missionRecord.petBreed,

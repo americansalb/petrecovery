@@ -28,7 +28,7 @@ export async function POST(request, { params }) {
     // Check case exists
     const existingCase = await prisma.case.findUnique({
       where: { id: missionId },
-      select: { id: true, missionNumber: true },
+      select: { id: true, caseNumber: true },
     });
 
     if (!existingCase) {
@@ -43,7 +43,7 @@ export async function POST(request, { params }) {
       error: 'Endpoint deprecated',
       code: 'DEPRECATED',
       message: 'The Case model no longer has a coordinatorId field. Coordinator assignment is now handled through Mission Control. Use POST /api/missions/[id]/coordinate to activate Mission Control for a case.',
-      missionNumber: existingCase.missionNumber,
+      missionNumber: existingCase.caseNumber,
       alternativeEndpoint: `/api/missions/${missionId}/coordinate`,
     }, { status: 410 }); // 410 Gone
 

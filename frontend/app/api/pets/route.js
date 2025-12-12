@@ -35,7 +35,7 @@ export async function GET(request) {
         cases: {
           select: {
             id: true,
-            missionNumber: true,
+            caseNumber: true,
             status: true,
             createdAt: true
           },

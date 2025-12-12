@@ -34,7 +34,7 @@ export async function GET(request, { params }) {
       where: { missionNumber },
       select: {
         id: true,
-        missionNumber: true,
+        caseNumber: true,
         createdAt: true,
         updatedAt: true,
         // Pet info
@@ -102,7 +102,7 @@ export async function GET(request, { params }) {
     // Build response
     const response = {
       id: missionData.id,
-      missionNumber: missionData.missionNumber,
+      missionNumber: missionData.caseNumber,
       createdAt: missionData.createdAt,
       updatedAt: missionData.updatedAt,
       // Pet info

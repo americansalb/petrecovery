@@ -133,7 +133,7 @@ export async function POST(request, { params }) {
       include: {
         case: {
           select: {
-            missionNumber: true,
+            caseNumber: true,
             petName: true,
             petSpecies: true,
             petPhotoUrl: true,

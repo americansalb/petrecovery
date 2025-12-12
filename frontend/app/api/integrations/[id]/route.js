@@ -16,7 +16,7 @@ export async function GET(request, { params }) {
       where: { id: params.id },
       include: {
         case: {
-          select: { id: true, petName: true, missionNumber: true },
+          select: { id: true, petName: true, caseNumber: true },
         },
         rescueSquad: {
           select: { id: true, name: true },

@@ -160,7 +160,7 @@ export async function GET(request) {
 
       return {
         id: missionData.id,
-        missionNumber: missionData.missionNumber,
+        missionNumber: missionData.caseNumber,
         petName: missionData.petName,
         petSpecies: missionData.petSpecies,
         petBreed: missionData.petBreed,

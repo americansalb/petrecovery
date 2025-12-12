@@ -8,7 +8,7 @@ export async function GET() {
     // Get active cases for sitemap (using Case model)
     const cases = await prisma.case.findMany({
       where: { status: { in: ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'] } },
-      select: { missionNumber: true, updatedAt: true },
+      select: { caseNumber: true, updatedAt: true },
       take: 1000,
     });
 
@@ -63,7 +63,7 @@ function generateSitemapXML(staticPages, cases, missions, squads) {
   // Cases
   for (const c of cases) {
     xml += `  <url>
-    <loc>${BASE_URL}/cases/${c.missionNumber}</loc>
+    <loc>${BASE_URL}/cases/${c.caseNumber}</loc>
     <lastmod>${c.updatedAt.toISOString()}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
@@ -73,7 +73,7 @@ function generateSitemapXML(staticPages, cases, missions, squads) {
   // Lost pet cases
   for (const c of missions) {
     xml += `  <url>
-    <loc>${BASE_URL}/database/${c.missionNumber}</loc>
+    <loc>${BASE_URL}/database/${c.caseNumber}</loc>
     <lastmod>${c.updatedAt.toISOString()}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>

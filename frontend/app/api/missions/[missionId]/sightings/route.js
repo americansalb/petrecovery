@@ -37,7 +37,7 @@ export async function GET(request, { params }) {
       where: isId
         ? { id: params.id }
         : { missionNumber: params.id },
-      select: { id: true, missionNumber: true }
+      select: { id: true, caseNumber: true }
     });
 
     if (!missionData) {
@@ -119,7 +119,7 @@ export async function POST(request, { params }) {
       where: isId
         ? { id: params.id }
         : { missionNumber: params.id },
-      select: { id: true, missionNumber: true, status: true }
+      select: { id: true, caseNumber: true, status: true }
     });
 
     if (!missionData) {
@@ -195,7 +195,7 @@ export async function POST(request, { params }) {
       result: 'success',
       actor_user_id: reportedById,
       metadata: {
-        missionNumber: missionData.missionNumber,
+        missionNumber: missionData.caseNumber,
         sightingId: sighting.id,
         confidence,
         behavior,

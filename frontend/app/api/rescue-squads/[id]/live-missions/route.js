@@ -35,7 +35,7 @@ export async function GET(request, { params }) {
         case: {
           select: {
             id: true,
-            missionNumber: true,
+            caseNumber: true,
             petName: true,
             petPhotoUrl: true,
             petSpecies: true,
@@ -69,7 +69,7 @@ export async function GET(request, { params }) {
     const formattedMissions = missions.map(mission => ({
       id: mission.id,
       missionId: mission.missionId,
-      missionNumber: mission.case?.missionNumber,
+      missionNumber: mission.case?.caseNumber,
       mode: mission.mode,
       startedAt: mission.activatedAt,
       pet: {

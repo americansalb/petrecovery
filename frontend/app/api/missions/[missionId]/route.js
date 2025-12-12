@@ -182,7 +182,7 @@ export async function GET(request, { params }) {
       actor_role: session.user.role || 'USER',
       metadata: {
         missionId: missionData.id,
-        missionNumber: missionData.missionNumber,
+        missionNumber: missionData.caseNumber,
         status: missionData.status,
         updates_count: missionData.updates?.length || 0,
         sightings_count: missionData.sightings?.length || 0,
@@ -257,7 +257,7 @@ export async function DELETE(request, { params }) {
     // Check if case exists
     const existingCase = await prisma.case.findUnique({
       where: { id: params.id },
-      select: { id: true, missionNumber: true, petName: true }
+      select: { id: true, caseNumber: true, petName: true }
     });
 
     if (!existingCase) {
@@ -306,12 +306,12 @@ export async function DELETE(request, { params }) {
       actor_user_id: session.user.id,
       actor_role: 'ADMIN',
       metadata: {
-        missionNumber: existingCase.missionNumber,
+        missionNumber: existingCase.caseNumber,
         petName: existingCase.petName
       }
     });
 
-    return NextResponse.json({ success: true, deleted: existingCase.missionNumber });
+    return NextResponse.json({ success: true, deleted: existingCase.caseNumber });
 
   } catch (error) {
     console.error('Error deleting case:', error);

@@ -28,7 +28,7 @@ export async function GET(request) {
       },
       select: {
         id: true,
-        missionNumber: true,
+        caseNumber: true,
         petName: true,
         petSpecies: true,
         petBreed: true,
@@ -78,7 +78,7 @@ export async function GET(request) {
       },
       select: {
         id: true,
-        missionNumber: true,
+        caseNumber: true,
         petName: true,
         petSpecies: true,
         petBreed: true,
@@ -126,7 +126,7 @@ export async function GET(request) {
 
         allCasesMap.set(caseItem.id, {
           id: caseItem.id,
-          missionNumber: caseItem.missionNumber,
+          missionNumber: caseItem.caseNumber,
           petName: caseItem.petName || 'Unknown',
           petSpecies: caseItem.petSpecies || 'OTHER',
           petType: caseItem.petSpecies || 'OTHER', // Alias for compatibility

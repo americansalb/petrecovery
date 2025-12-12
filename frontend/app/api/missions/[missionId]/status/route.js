@@ -64,7 +64,7 @@ export async function POST(request, { params }) {
       where: { id: params.id },
       select: {
         id: true,
-        missionNumber: true,
+        caseNumber: true,
         status: true,
         reporterId: true,
         petName: true,
@@ -149,7 +149,7 @@ export async function POST(request, { params }) {
         data: updateData,
         select: {
           id: true,
-          missionNumber: true,
+          caseNumber: true,
           petName: true,
           petSpecies: true,
           status: true,
@@ -188,7 +188,7 @@ export async function POST(request, { params }) {
       actor_user_id: session.user.id,
       metadata: {
         missionId: params.id,
-        missionNumber: currentMission.missionNumber,
+        missionNumber: currentMission.caseNumber,
         oldStatus,
         newStatus: status,
         resolution,

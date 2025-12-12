@@ -154,7 +154,7 @@ export async function POST(request, { params }) {
       where: { id: missionId },
       select: {
         id: true,
-        missionNumber: true,
+        caseNumber: true,
         reporterId: true,
         status: true,
       },
@@ -250,7 +250,7 @@ export async function POST(request, { params }) {
       result: 'success',
       actor_user_id: session.user.id,
       metadata: {
-        missionNumber: existingCase.missionNumber,
+        missionNumber: existingCase.caseNumber,
         squadId: squadId,
         squadName: squad.name,
         assignmentId: assignment.id,
