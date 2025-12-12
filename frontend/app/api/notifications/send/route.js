@@ -36,7 +36,6 @@ export async function POST(request) {
       missionId,
       squadId,
       divisionId,
-      missionId,
       targetUserIds,
       urgent = false,
       data = {},

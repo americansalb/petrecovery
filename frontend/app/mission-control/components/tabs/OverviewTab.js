@@ -34,7 +34,7 @@ import useScoutTips from '@/app/mission-control/hooks/useScoutTips';
 import ScoutTipBanner, { ScoutTipCarousel } from '@/app/components/missionControl/ScoutTipBanner';
 
 // Lazy load map for performance
-const MapView = dynamic(() => import('@/app/components/case/SARMapView'), {
+const MapView = dynamic(() => import('@/app/components/mission/SARMapView'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full bg-slate-800/50 flex items-center justify-center rounded-xl">

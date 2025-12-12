@@ -16,7 +16,7 @@ import dynamic from 'next/dynamic';
 import { Eye, Navigation, Clock, Route, Star, Loader2, Square, AlertTriangle } from 'lucide-react';
 
 // Lazy load map for performance
-const MapView = dynamic(() => import('@/app/components/case/SARMapView'), {
+const MapView = dynamic(() => import('@/app/components/mission/SARMapView'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full bg-slate-900 flex items-center justify-center">
