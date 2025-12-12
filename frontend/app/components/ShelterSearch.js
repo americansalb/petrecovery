@@ -8,7 +8,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { Search, MapPin, Phone, Globe, Building2, ExternalLink, Navigation } from 'lucide-react';
+import { Search, MapPin, Phone, Globe, Building2, ExternalLink, Navigation, Clock, Mail } from 'lucide-react';
 
 const DISTANCE_OPTIONS = [
   { value: 10, label: '10 miles' },
@@ -175,6 +175,7 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
 
 /**
  * Shelter Card Component
+ * Handles both local database format (flat) and PetFinder format (nested address)
  */
 function ShelterCard({ shelter }) {
   const typeLabel = {
@@ -191,14 +192,43 @@ function ShelterCard({ shelter }) {
     VET: 'bg-amber-100 text-amber-700',
   };
 
-  const fullAddress = [
-    shelter.address,
-    shelter.city,
-    shelter.state,
-    shelter.zipCode,
-  ].filter(Boolean).join(', ');
+  // Handle both flat (local DB) and nested (PetFinder) address formats
+  const streetAddress = shelter.address?.address1 || shelter.address?.street || shelter.address;
+  const city = shelter.address?.city || shelter.city;
+  const state = shelter.address?.state || shelter.state;
+  const zipCode = shelter.address?.postcode || shelter.zipCode;
 
-  const mapsUrl = `https://maps.apple.com/?q=${encodeURIComponent(fullAddress)}`;
+  const fullAddress = [streetAddress, city, state, zipCode].filter(Boolean).join(', ');
+  const mapsUrl = `https://maps.apple.com/?q=${encodeURIComponent(fullAddress || shelter.name)}`;
+
+  // Get contact info (handles both formats)
+  const phone = shelter.phone;
+  const email = shelter.email;
+  const website = shelter.website || shelter.url;
+
+  // Format hours if available
+  const formatHours = (hours) => {
+    if (!hours) return null;
+    if (typeof hours === 'string') return hours;
+
+    // PetFinder returns hours as object with days
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const today = days[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+
+    if (hours[today]) {
+      return `Today: ${hours[today]}`;
+    }
+
+    // Return first available day's hours
+    for (const day of days) {
+      if (hours[day]) {
+        return `${day.charAt(0).toUpperCase() + day.slice(1)}: ${hours[day]}`;
+      }
+    }
+    return null;
+  };
+
+  const hoursDisplay = formatHours(shelter.hours);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-midnight-100 overflow-hidden hover:shadow-md transition-shadow">
@@ -221,7 +251,7 @@ function ShelterCard({ shelter }) {
             href={mapsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-start gap-2 text-sm text-midnight-600 hover:text-flash-600 mb-3 group"
+            className="flex items-start gap-2 text-sm text-midnight-600 hover:text-flash-600 mb-2 group"
           >
             <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <span className="group-hover:underline">{fullAddress}</span>
@@ -230,27 +260,45 @@ function ShelterCard({ shelter }) {
 
         {/* Distance */}
         {shelter.distance !== undefined && (
-          <div className="flex items-center gap-2 text-sm text-midnight-500 mb-3">
+          <div className="flex items-center gap-2 text-sm text-midnight-500 mb-2">
             <Navigation className="w-4 h-4" />
             <span>{shelter.distance < 1 ? '< 1' : Math.round(shelter.distance)} miles away</span>
           </div>
         )}
 
+        {/* Hours */}
+        {hoursDisplay && (
+          <div className="flex items-center gap-2 text-sm text-midnight-600 mb-2">
+            <Clock className="w-4 h-4" />
+            <span>{hoursDisplay}</span>
+          </div>
+        )}
+
         {/* Contact Info */}
         <div className="space-y-2 pt-3 border-t border-midnight-100">
-          {shelter.phone && (
+          {phone && (
             <a
-              href={`tel:${shelter.phone}`}
+              href={`tel:${phone}`}
               className="flex items-center gap-2 text-sm text-midnight-700 hover:text-flash-600"
             >
               <Phone className="w-4 h-4" />
-              <span>{shelter.phone}</span>
+              <span>{phone}</span>
             </a>
           )}
 
-          {shelter.website && (
+          {email && (
             <a
-              href={shelter.website}
+              href={`mailto:${email}`}
+              className="flex items-center gap-2 text-sm text-midnight-700 hover:text-flash-600"
+            >
+              <Mail className="w-4 h-4" />
+              <span className="truncate">{email}</span>
+            </a>
+          )}
+
+          {website && (
+            <a
+              href={website}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-sm text-flash-600 hover:text-flash-700"
