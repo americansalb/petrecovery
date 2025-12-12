@@ -592,7 +592,7 @@ export default function Home() {
               className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 mb-4"
             >
               Your Neighborhood Searches{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-flash-400 via-flash-500 to-amber-500">
                 Together
               </span>
             </motion.h1>
@@ -649,7 +649,7 @@ export default function Home() {
               </Link>
               <Link
                 href="/report/found"
-                className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg shadow-emerald-200 hover:shadow-emerald-300 hover:scale-[1.02]"
+                className="inline-flex items-center justify-center gap-2 bg-flash-400 hover:bg-flash-300 text-midnight-900 px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg shadow-flash-200 hover:shadow-flash-300 hover:scale-[1.02]"
               >
                 <Heart className="w-5 h-5" />
                 I Found a Pet
@@ -695,13 +695,13 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-6 border border-blue-200"
+              className="bg-midnight-900 rounded-2xl p-6 text-white"
             >
-              <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mb-4">
-                <Shield className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 bg-flash-400 rounded-xl flex items-center justify-center mb-4">
+                <Shield className="w-6 h-6 text-midnight-900" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Rescue Squads</h3>
-              <p className="text-gray-600 text-sm">
+              <h3 className="text-lg font-bold mb-2">Rescue Squads</h3>
+              <p className="text-slate-300 text-sm">
                 Join your neighborhood squad or start one. Real volunteers ready to search when you need them.
               </p>
             </motion.div>
@@ -712,13 +712,13 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
-              className="bg-gradient-to-br from-amber-50 to-orange-100 rounded-2xl p-6 border border-amber-200"
+              className="bg-flash-400 rounded-2xl p-6"
             >
-              <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center mb-4">
-                <FileText className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center mb-4">
+                <FileText className="w-6 h-6 text-flash-600" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Auto-Generated Flyers</h3>
-              <p className="text-gray-600 text-sm">
+              <h3 className="text-lg font-bold text-midnight-900 mb-2">Auto-Generated Flyers</h3>
+              <p className="text-midnight-700 text-sm">
                 Professional flyers created instantly from your report. Print, share, and post around town.
               </p>
             </motion.div>
@@ -729,13 +729,13 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
-              className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-2xl p-6 border border-green-200"
+              className="bg-emerald-600 rounded-2xl p-6 text-white"
             >
-              <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center mb-4">
-                <Building2 className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center mb-4">
+                <Building2 className="w-6 h-6 text-emerald-600" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Nearby Shelters</h3>
-              <p className="text-gray-600 text-sm">
+              <h3 className="text-lg font-bold mb-2">Nearby Shelters</h3>
+              <p className="text-emerald-100 text-sm">
                 We find shelters near you automatically. Check if your pet was brought in. Get contact info instantly.
               </p>
             </motion.div>
@@ -746,13 +746,13 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.3 }}
-              className="bg-gradient-to-br from-purple-50 to-violet-100 rounded-2xl p-6 border border-purple-200"
+              className="bg-violet-600 rounded-2xl p-6 text-white"
             >
-              <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center mb-4">
-                <Map className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center mb-4">
+                <Map className="w-6 h-6 text-violet-600" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Tracked Searches</h3>
-              <p className="text-gray-600 text-sm">
+              <h3 className="text-lg font-bold mb-2">Tracked Searches</h3>
+              <p className="text-violet-100 text-sm">
                 See who's searching where. GPS tracks coverage so no area gets missed. Everyone works together.
               </p>
             </motion.div>
