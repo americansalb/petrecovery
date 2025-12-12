@@ -296,10 +296,21 @@ export default function Home() {
 
     setSearching(true);
     try {
-      const res = await fetch(`/api/rescue-squads/search?q=${encodeURIComponent(locationQuery.trim())}`);
+      const res = await fetch(`/api/rescue-squads?search=${encodeURIComponent(locationQuery.trim())}`);
       if (res.ok) {
-        const results = await res.json();
-        setSearchResults(results.squads || results);
+        const data = await res.json();
+        // Extract squads from cities that have one
+        const squads = (data.cities || [])
+          .filter(city => city.exists && city.squad)
+          .map(city => ({
+            id: city.squad.id,
+            name: city.squad.name,
+            city: city.city,
+            state: city.state,
+            memberCount: city.squad.memberCount,
+            distance: city.distance,
+          }));
+        setSearchResults(squads);
       }
     } catch (e) {
       console.error(e);
@@ -319,13 +330,41 @@ export default function Home() {
         const { latitude, longitude } = position.coords;
         setSearching(true);
         try {
-          const res = await fetch(`/api/rescue-squads/search?lat=${latitude}&lng=${longitude}`);
-          if (res.ok) {
-            const results = await res.json();
-            setSearchResults(results.squads || results);
+          // Reverse geocode to get ZIP code using Nominatim
+          const geoRes = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+            { headers: { 'User-Agent': 'PetRecovery/1.0' } }
+          );
+          if (geoRes.ok) {
+            const geoData = await geoRes.json();
+            const zipCode = geoData.address?.postcode;
+            const city = geoData.address?.city || geoData.address?.town || geoData.address?.village;
+
+            if (zipCode || city) {
+              const searchTerm = zipCode || city;
+              setLocationQuery(searchTerm);
+              const res = await fetch(`/api/rescue-squads?search=${encodeURIComponent(searchTerm)}`);
+              if (res.ok) {
+                const data = await res.json();
+                const squads = (data.cities || [])
+                  .filter(c => c.exists && c.squad)
+                  .map(c => ({
+                    id: c.squad.id,
+                    name: c.squad.name,
+                    city: c.city,
+                    state: c.state,
+                    memberCount: c.squad.memberCount,
+                    distance: c.distance,
+                  }));
+                setSearchResults(squads);
+              }
+            } else {
+              alert('Could not determine your location. Please enter a city or zip code.');
+            }
           }
         } catch (e) {
           console.error(e);
+          alert('Unable to get your location. Please enter a city or zip code.');
         } finally {
           setSearching(false);
           setLocating(false);
