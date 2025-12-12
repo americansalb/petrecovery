@@ -36,7 +36,7 @@ export async function GET(request, { params }) {
     const missionData = await prisma.case.findFirst({
       where: isId
         ? { id: params.id }
-        : { missionNumber: params.id },
+        : { caseNumber: params.id },
       select: { id: true, caseNumber: true }
     });
 
@@ -118,7 +118,7 @@ export async function POST(request, { params }) {
     const missionData = await prisma.case.findFirst({
       where: isId
         ? { id: params.id }
-        : { missionNumber: params.id },
+        : { caseNumber: params.id },
       select: { id: true, caseNumber: true, status: true }
     });
 

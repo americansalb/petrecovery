@@ -81,7 +81,7 @@ export async function GET(request) {
         { petBreed: { contains: search, mode: 'insensitive' } },
         { petColor: { contains: search, mode: 'insensitive' } },
         { lastSeenAddress: { contains: search, mode: 'insensitive' } },
-        { missionNumber: { contains: search, mode: 'insensitive' } },
+        { caseNumber: { contains: search, mode: 'insensitive' } },
       ];
     }
 

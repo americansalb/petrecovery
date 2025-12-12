@@ -81,7 +81,7 @@ export async function GET(request, { params }) {
     const missionData = await prisma.case.findFirst({
       where: isId
         ? { id: params.id }
-        : { missionNumber: params.id },
+        : { caseNumber: params.id },
       include: {
         reporter: {
           select: {
