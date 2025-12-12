@@ -270,6 +270,9 @@ export default function Home() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [squadToJoin, setSquadToJoin] = useState(null);
   const [joiningSquad, setJoiningSquad] = useState(null);
+  const [creatingSquad, setCreatingSquad] = useState(null);
+  const [citySuggestions, setCitySuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [data, setData] = useState({
     metrics: { petsReunited: 0, openCases: 0, activeSquads: 0, totalVolunteers: 0, weeklyReunions: 0 },
     ticker: [],
@@ -291,34 +294,66 @@ export default function Home() {
     fetchData();
   }, []);
 
-  // Search for squads inline
+  // Debounced city autocomplete
+  useEffect(() => {
+    if (locationQuery.length < 2) {
+      setCitySuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/cities/suggest?q=${encodeURIComponent(locationQuery)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setCitySuggestions((data.suggestions || []).slice(0, 5));
+          setShowSuggestions(true);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [locationQuery]);
+
+  // Search for squads inline - include ALL cities
   const handleFindSquad = async (e) => {
     e.preventDefault();
     if (!locationQuery.trim()) return;
+    setShowSuggestions(false);
 
     setSearching(true);
     try {
       const res = await fetch(`/api/rescue-squads?search=${encodeURIComponent(locationQuery.trim())}`);
       if (res.ok) {
         const data = await res.json();
-        // Extract squads from cities that have one
-        const squads = (data.cities || [])
-          .filter(city => city.exists && city.squad)
-          .map(city => ({
-            id: city.squad.id,
-            name: city.squad.name,
-            city: city.city,
-            state: city.state,
-            memberCount: city.squad.memberCount,
-            distance: city.distance,
-          }));
-        setSearchResults(squads);
+        // Include ALL cities - both with and without squads
+        const results = (data.cities || []).map(city => ({
+          id: city.squad?.id || `new-${city.city}-${city.state}`,
+          name: city.squad?.name || `${city.city} Rescue Squad`,
+          city: city.city,
+          state: city.state,
+          memberCount: city.squad?.memberCount || 0,
+          distance: city.distance,
+          exists: city.exists,
+          logoUrl: city.squad?.logoUrl || null,
+        }));
+        setSearchResults(results);
       }
     } catch (e) {
       console.error(e);
     } finally {
       setSearching(false);
     }
+  };
+
+  const handleSelectSuggestion = (suggestion) => {
+    setLocationQuery(suggestion.city);
+    setShowSuggestions(false);
+    // Trigger search
+    setTimeout(() => {
+      const form = document.getElementById('squad-search-form');
+      if (form) form.dispatchEvent(new Event('submit', { bubbles: true }));
+    }, 100);
   };
 
   const handleUseLocation = async () => {
@@ -348,17 +383,17 @@ export default function Home() {
               const res = await fetch(`/api/rescue-squads?search=${encodeURIComponent(searchTerm)}`);
               if (res.ok) {
                 const data = await res.json();
-                const squads = (data.cities || [])
-                  .filter(c => c.exists && c.squad)
-                  .map(c => ({
-                    id: c.squad.id,
-                    name: c.squad.name,
-                    city: c.city,
-                    state: c.state,
-                    memberCount: c.squad.memberCount,
-                    distance: c.distance,
-                  }));
-                setSearchResults(squads);
+                const results = (data.cities || []).map(c => ({
+                  id: c.squad?.id || `new-${c.city}-${c.state}`,
+                  name: c.squad?.name || `${c.city} Rescue Squad`,
+                  city: c.city,
+                  state: c.state,
+                  memberCount: c.squad?.memberCount || 0,
+                  distance: c.distance,
+                  exists: c.exists,
+                  logoUrl: c.squad?.logoUrl || null,
+                }));
+                setSearchResults(results);
               }
             } else {
               alert('Could not determine your location. Please enter a city or zip code.');
@@ -392,6 +427,50 @@ export default function Home() {
     await joinSquadDirectly(squad);
   };
 
+  // Handle creating a new squad
+  const handleCreateSquad = async (cityData) => {
+    if (!session) {
+      // Not logged in - show auth modal with city to create
+      setSquadToJoin({ ...cityData, isNew: true });
+      setShowAuthModal(true);
+      return;
+    }
+
+    await createSquadDirectly(cityData);
+  };
+
+  const createSquadDirectly = async (cityData) => {
+    setCreatingSquad(`${cityData.city}-${cityData.state}`);
+    try {
+      const res = await fetch('/api/rescue-squads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          city: cityData.city,
+          state: cityData.state,
+          zipCode: cityData.zipCode || locationQuery,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/rescue-squads/${data.squad.id}?created=true`);
+      } else {
+        const data = await res.json();
+        if (data.code === 'WAIVER_NOT_ACCEPTED') {
+          router.push(data.redirectTo);
+        } else {
+          alert(data.error || 'Failed to create squad');
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Failed to create squad');
+    } finally {
+      setCreatingSquad(null);
+    }
+  };
+
   const joinSquadDirectly = async (squad) => {
     setJoiningSquad(squad.id);
     try {
@@ -418,7 +497,11 @@ export default function Home() {
     setShowAuthModal(false);
     await updateSession();
     if (squadToJoin) {
-      await joinSquadDirectly(squadToJoin);
+      if (squadToJoin.isNew) {
+        await createSquadDirectly(squadToJoin);
+      } else {
+        await joinSquadDirectly(squadToJoin);
+      }
     }
   };
 
@@ -678,12 +761,12 @@ export default function Home() {
       </section>
 
       {/* Find Your Squad - Dynamic Community Section */}
-      <section className="py-16 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 overflow-hidden relative">
+      <section className="py-16 bg-gradient-to-br from-midnight-800 via-midnight-700 to-midnight-900 overflow-hidden relative">
         {/* Animated background elements */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 w-32 h-32 bg-white rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-10 right-10 w-40 h-40 bg-amber-400 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-          <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-green-400 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-10 left-10 w-32 h-32 bg-flash-400 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-10 right-10 w-40 h-40 bg-flash-300 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-flash-500 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
         </div>
 
         <div className="max-w-6xl mx-auto px-4 relative z-10">
@@ -693,14 +776,14 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full text-white/90 text-sm mb-6">
+              <div className="inline-flex items-center gap-2 bg-flash-400/20 backdrop-blur-sm px-4 py-2 rounded-full text-flash-300 text-sm mb-6 border border-flash-400/30">
                 <Users className="w-4 h-4" />
                 <span>{metrics.totalVolunteers?.toLocaleString() || 0} volunteers ready to help</span>
               </div>
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
                 Your Neighborhood Has a Rescue Squad
               </h2>
-              <p className="text-blue-100 text-lg max-w-2xl mx-auto">
+              <p className="text-midnight-200 text-lg max-w-2xl mx-auto">
                 Real volunteers. Real communities. Ready to mobilize the moment a pet goes missing.
               </p>
             </motion.div>
@@ -716,12 +799,12 @@ export default function Home() {
                     {searchResults.length === 0 ? (
                       'No squads found in this area'
                     ) : (
-                      <>Found <span className="font-bold text-amber-300">{searchResults.length}</span> squads</>
+                      <>Found <span className="font-bold text-flash-400">{searchResults.length}</span> squads</>
                     )}
                   </p>
                   <button
                     onClick={() => { setSearchResults(null); setLocationQuery(''); }}
-                    className="text-blue-200 hover:text-white text-sm transition"
+                    className="text-midnight-300 hover:text-white text-sm transition"
                   >
                     Clear search
                   </button>
@@ -746,54 +829,88 @@ export default function Home() {
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: i * 0.05 }}
                       whileHover={{ scale: 1.02 }}
-                      className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 hover:bg-white/20 transition"
+                      className={`backdrop-blur-sm border rounded-2xl p-4 transition ${
+                        squad.exists
+                          ? 'bg-midnight-600/50 border-midnight-500/50 hover:bg-midnight-600/70'
+                          : 'bg-flash-400/10 border-flash-400/30 hover:bg-flash-400/20'
+                      }`}
                     >
                       <div className="flex items-center gap-4 mb-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg ${
+                          squad.exists
+                            ? 'bg-gradient-to-br from-flash-400 to-flash-500'
+                            : 'bg-gradient-to-br from-flash-300 to-flash-400'
+                        }`}>
                           {squad.logoUrl ? (
-                            <img src={squad.logoUrl} alt={squad.name} className="w-8 h-8 rounded-lg object-cover" />
+                            <img src={squad.logoUrl} alt={squad.name} className="w-12 h-12 rounded-xl object-cover" />
+                          ) : squad.exists ? (
+                            <Shield className="w-6 h-6 text-midnight-900" />
                           ) : (
-                            <Shield className="w-6 h-6 text-white" />
+                            <UserPlus className="w-6 h-6 text-midnight-900" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="text-white font-bold truncate">
-                            {squad.name}
+                            {squad.exists ? squad.name : `${squad.city} Rescue Squad`}
                           </h3>
-                          <p className="text-blue-200 text-sm flex items-center gap-1">
+                          <p className="text-midnight-300 text-sm flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
                             {squad.city}, {squad.state}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
-                        <div className="text-blue-200 text-sm">
-                          <span className="text-amber-300 font-bold">{squad.memberCount || squad._count?.members || 0}</span> members
-                        </div>
-                        <button
-                          onClick={() => handleJoinSquad(squad)}
-                          disabled={joiningSquad === squad.id}
-                          className="bg-amber-400 hover:bg-amber-300 text-gray-900 px-4 py-2 rounded-lg font-bold text-sm transition flex items-center gap-1"
-                        >
-                          {joiningSquad === squad.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <>
-                              <UserPlus className="w-4 h-4" />
-                              Join
-                            </>
-                          )}
-                        </button>
+                        {squad.exists ? (
+                          <>
+                            <div className="text-midnight-300 text-sm">
+                              <span className="text-flash-400 font-bold">{squad.memberCount || 0}</span> members
+                            </div>
+                            <button
+                              onClick={() => handleJoinSquad(squad)}
+                              disabled={joiningSquad === squad.id}
+                              className="bg-flash-400 hover:bg-flash-300 text-midnight-900 px-4 py-2 rounded-lg font-bold text-sm transition flex items-center gap-1"
+                            >
+                              {joiningSquad === squad.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <UserPlus className="w-4 h-4" />
+                                  Join
+                                </>
+                              )}
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-flash-300 text-sm">
+                              Be the first!
+                            </div>
+                            <button
+                              onClick={() => handleCreateSquad(squad)}
+                              disabled={creatingSquad === `${squad.city}-${squad.state}`}
+                              className="bg-flash-400 hover:bg-flash-300 text-midnight-900 px-4 py-2 rounded-lg font-bold text-sm transition flex items-center gap-1"
+                            >
+                              {creatingSquad === `${squad.city}-${squad.state}` ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Shield className="w-4 h-4" />
+                                  Create
+                                </>
+                              )}
+                            </button>
+                          </>
+                        )}
                       </div>
                     </motion.div>
                   ))}
                 </motion.div>
               ) : searchResults && searchResults.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-blue-200 mb-4">No squads found in this area yet.</p>
+                  <p className="text-midnight-300 mb-4">No squads found in this area yet.</p>
                   <Link
                     href="/rescue-squads/create"
-                    className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-gray-900 px-6 py-3 rounded-xl font-bold transition"
+                    className="inline-flex items-center gap-2 bg-flash-400 hover:bg-flash-300 text-midnight-900 px-6 py-3 rounded-xl font-bold transition"
                   >
                     <Shield className="w-5 h-5" />
                     Start the First Squad Here
@@ -808,25 +925,44 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-3xl p-6 md:p-8 max-w-2xl mx-auto"
+            className="bg-midnight-600/50 backdrop-blur-sm border border-midnight-500/50 rounded-3xl p-6 md:p-8 max-w-2xl mx-auto"
           >
             <h3 className="text-white font-bold text-xl mb-4 text-center">Find Squads Near You</h3>
-            <form onSubmit={handleFindSquad} className="flex flex-col sm:flex-row gap-3 mb-4">
+            <form id="squad-search-form" onSubmit={handleFindSquad} className="flex flex-col sm:flex-row gap-3 mb-4">
               <div className="flex-1 relative">
                 <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none z-10" />
                 <input
                   type="text"
                   value={locationQuery}
                   onChange={(e) => setLocationQuery(e.target.value)}
+                  onFocus={() => citySuggestions.length > 0 && setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                   placeholder="City or zip code..."
                   className="w-full pr-4 py-4 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-amber-400 focus:outline-none"
                   style={{ paddingLeft: '3rem' }}
+                  autoComplete="off"
                 />
+                {/* Autocomplete dropdown */}
+                {showSuggestions && citySuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50">
+                    {citySuggestions.map((suggestion, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => handleSelectSuggestion(suggestion)}
+                        className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3 border-b border-gray-100 last:border-0"
+                      >
+                        <MapPin className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-900">{suggestion.city}, {suggestion.state}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <button
                 type="submit"
                 disabled={searching}
-                className="bg-amber-400 hover:bg-amber-300 text-gray-900 px-6 py-4 rounded-xl font-bold transition flex items-center justify-center gap-2 disabled:opacity-70"
+                className="bg-flash-400 hover:bg-flash-300 text-midnight-900 px-6 py-4 rounded-xl font-bold transition flex items-center justify-center gap-2 disabled:opacity-70"
               >
                 {searching ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -841,15 +977,15 @@ export default function Home() {
               <button
                 onClick={handleUseLocation}
                 disabled={locating}
-                className="inline-flex items-center gap-2 text-white/90 hover:text-white transition bg-white/10 px-4 py-2 rounded-full hover:bg-white/20"
+                className="inline-flex items-center gap-2 text-white/90 hover:text-white transition bg-midnight-500/50 px-4 py-2 rounded-full hover:bg-midnight-500/70 border border-midnight-400/30"
               >
                 <LocateFixed className={`w-4 h-4 ${locating ? 'animate-spin' : ''}`} />
                 {locating ? 'Locating...' : 'Use my location'}
               </button>
-              <span className="text-blue-200 hidden sm:block">or</span>
+              <span className="text-midnight-400 hidden sm:block">or</span>
               <Link
                 href="/rescue-squads/create"
-                className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 transition"
+                className="inline-flex items-center gap-2 text-flash-400 hover:text-flash-300 transition"
               >
                 <Shield className="w-4 h-4" />
                 Start a squad in your area
@@ -866,16 +1002,16 @@ export default function Home() {
             className="flex flex-wrap justify-center gap-8 mt-10 text-center"
           >
             <div>
-              <div className="text-3xl font-bold text-white">{metrics.activeSquads}</div>
-              <div className="text-blue-200 text-sm">Active Squads</div>
+              <div className="text-3xl font-bold text-flash-400">{metrics.activeSquads}</div>
+              <div className="text-midnight-300 text-sm">Active Squads</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-white">{metrics.citiesCovered || 0}</div>
-              <div className="text-blue-200 text-sm">Cities Covered</div>
+              <div className="text-3xl font-bold text-flash-400">{metrics.citiesCovered || 0}</div>
+              <div className="text-midnight-300 text-sm">Cities Covered</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-white">{metrics.weeklyReunions || 0}</div>
-              <div className="text-blue-200 text-sm">Reunions This Week</div>
+              <div className="text-3xl font-bold text-flash-400">{metrics.weeklyReunions || 0}</div>
+              <div className="text-midnight-300 text-sm">Reunions This Week</div>
             </div>
           </motion.div>
         </div>
