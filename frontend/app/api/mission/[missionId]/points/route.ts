@@ -58,14 +58,14 @@ export async function GET(
 
     // Get total points for the case
     const totalPoints = await prisma.verifiedAction.aggregate({
-      where: { caseId: missionId },
+      where: { missionId },
       _sum: { totalPoints: true },
     });
 
     // Get total contributors
     const contributors = await prisma.verifiedAction.groupBy({
       by: ['userId'],
-      where: { caseId: missionId },
+      where: { missionId },
     });
 
     // Find current user's rank if not in top
@@ -74,7 +74,7 @@ export async function GET(
 
     if (currentUser) {
       const userPoints = await prisma.verifiedAction.aggregate({
-        where: { caseId: missionId, userId: currentUser.id },
+        where: { missionId, userId: currentUser.id },
         _sum: { totalPoints: true },
       });
 
@@ -84,7 +84,7 @@ export async function GET(
         // Count users with more points
         const usersAbove = await prisma.verifiedAction.groupBy({
           by: ['userId'],
-          where: { caseId: missionId },
+          where: { missionId },
           _sum: { totalPoints: true },
           having: {
             totalPoints: {

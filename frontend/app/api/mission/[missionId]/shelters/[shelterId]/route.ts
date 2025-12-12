@@ -63,7 +63,7 @@ export async function GET(
     const { missionId, shelterId } = await params;
 
     const shelter = await prisma.shelterContact.findFirst({
-      where: { id: shelterId, caseId: missionId },
+      where: { id: shelterId, missionId },
       include: {
         attempts: {
           orderBy: { createdAt: 'desc' },
@@ -162,7 +162,7 @@ export async function POST(
 
     // Get shelter
     const shelter = await prisma.shelterContact.findFirst({
-      where: { id: shelterId, caseId: missionId },
+      where: { id: shelterId, missionId },
     });
 
     if (!shelter) {

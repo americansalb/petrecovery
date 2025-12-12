@@ -45,7 +45,7 @@ export async function DELETE(
 
     // Verify tip exists and belongs to case
     const tip = await prisma.mascotTip.findFirst({
-      where: { id: tipId, caseId: missionId },
+      where: { id: tipId, missionId },
     });
 
     if (!tip) {
@@ -94,7 +94,7 @@ export async function POST(
 
     // Verify tip exists and belongs to case
     const tip = await prisma.mascotTip.findFirst({
-      where: { id: tipId, caseId: missionId },
+      where: { id: tipId, missionId },
     });
 
     if (!tip) {

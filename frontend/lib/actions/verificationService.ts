@@ -269,7 +269,7 @@ export class VerificationService {
     // Create flyer posting record
     const flyer = await this.prisma.flyerPosting.create({
       data: {
-        caseId: missionId,
+        missionId,
         userId,
         latitude,
         longitude,

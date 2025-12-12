@@ -3619,7 +3619,7 @@ model VerifiedAction {
   // Core references
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  caseId          String
+  missionId       String   @map("caseId")
 
   // Action details
   actionType      ActionType
@@ -3650,10 +3650,10 @@ model VerifiedAction {
   emailRepliedAt  DateTime?
 
   @@index([userId])
-  @@index([caseId])
+  @@index([missionId])
   @@index([actionType])
   @@index([createdAt])
-  @@index([userId, caseId])
+  @@index([userId, missionId])
 }
 
 /// Daily points log - SOURCE OF TRUTH for daily points
@@ -3719,7 +3719,7 @@ model ShelterContact {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  caseId          String
+  missionId       String   @map("caseId")
 
   // External place reference (Google Places API)
   placeId         String   // Google Places ID
@@ -3742,8 +3742,8 @@ model ShelterContact {
   // Contact attempts
   attempts        ShelterContactAttempt[]
 
-  @@unique([caseId, placeId])
-  @@index([caseId])
+  @@unique([missionId, placeId])
+  @@index([missionId])
   @@index([status])
 }
 
@@ -3790,7 +3790,7 @@ model FlyerPosting {
   id              String   @id @default(cuid())
   createdAt       DateTime @default(now())
 
-  caseId          String
+  missionId       String   @map("caseId")
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -3809,7 +3809,7 @@ model FlyerPosting {
   isVerified      Boolean  @default(true)  // GPS-verified by default
   verifiedActionId String? @unique  // Link to VerifiedAction
 
-  @@index([caseId])
+  @@index([missionId])
   @@index([userId])
   @@index([createdAt])
 }
@@ -3838,8 +3838,8 @@ model MascotTip {
   id          String    @id @default(cuid())
   createdAt   DateTime  @default(now())
 
-  caseId      String
-  case        Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  missionId   String    @map("caseId")
+  case        Case      @relation(fields: [missionId], references: [id], onDelete: Cascade)
 
   // Tip content
   tipType     TipType
@@ -3860,7 +3860,7 @@ model MascotTip {
   // Context metadata (for debugging/analytics)
   context     Json?     // e.g., { hour: 17, weather: "rain", sheltersContacted: 5 }
 
-  @@index([caseId])
+  @@index([missionId])
   @@index([tipType])
   @@index([createdAt])
 }
