@@ -568,9 +568,15 @@ export default function Home() {
         <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-amber-100 rounded-full blur-3xl opacity-30 -translate-x-1/2 -translate-y-1/2" />
 
         {/* Subtle paw prints decoration */}
-        <div className="absolute top-20 left-[10%] text-flash-300/20 text-6xl transform -rotate-12">🐾</div>
-        <div className="absolute bottom-32 right-[15%] text-flash-300/20 text-5xl transform rotate-12">🐾</div>
-        <div className="absolute top-1/3 right-[8%] text-amber-200/30 text-4xl transform rotate-45">🐾</div>
+        <svg className="absolute top-20 left-[10%] w-16 h-16 text-flash-300/20 transform -rotate-12" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 6c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z"/>
+        </svg>
+        <svg className="absolute bottom-32 right-[15%] w-14 h-14 text-flash-300/20 transform rotate-12" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 6c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z"/>
+        </svg>
+        <svg className="absolute top-1/3 right-[8%] w-12 h-12 text-amber-200/30 transform rotate-45" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 6c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z"/>
+        </svg>
 
         <div className="max-w-6xl mx-auto px-4 relative z-10">
           <div className="text-center mb-12">
@@ -700,9 +706,13 @@ export default function Home() {
 
       {/* Heartwarming Testimonial */}
       <section className="py-16 bg-gradient-to-b from-amber-50/50 to-white relative overflow-hidden">
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-10 left-1/4 text-8xl">🐕</div>
-          <div className="absolute bottom-10 right-1/4 text-8xl">🐈</div>
+        <div className="absolute inset-0 opacity-[0.03]">
+          <svg className="absolute top-10 left-1/4 w-32 h-32 text-midnight-900" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 6c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z"/>
+          </svg>
+          <svg className="absolute bottom-10 right-1/4 w-32 h-32 text-midnight-900" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 6c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z"/>
+          </svg>
         </div>
         <div className="max-w-4xl mx-auto px-4 relative z-10">
           <motion.div
@@ -716,8 +726,8 @@ export default function Home() {
 
             <div className="flex flex-col md:flex-row gap-8 items-center">
               <div className="flex-shrink-0">
-                <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-flash-200 to-amber-100 flex items-center justify-center text-5xl md:text-6xl shadow-lg">
-                  🐕
+                <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-flash-200 to-amber-100 flex items-center justify-center shadow-lg">
+                  <Heart className="w-12 h-12 md:w-16 md:h-16 text-amber-600 fill-amber-500" />
                 </div>
               </div>
               <div className="flex-1 text-center md:text-left">
@@ -728,9 +738,15 @@ export default function Home() {
                 </p>
                 <div className="flex items-center justify-center md:justify-start gap-3">
                   <div className="flex -space-x-2">
-                    <div className="w-8 h-8 rounded-full bg-flash-400 border-2 border-white flex items-center justify-center text-xs">👩</div>
-                    <div className="w-8 h-8 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center text-xs">👨</div>
-                    <div className="w-8 h-8 rounded-full bg-rose-400 border-2 border-white flex items-center justify-center text-xs">👩</div>
+                    <div className="w-8 h-8 rounded-full bg-flash-400 border-2 border-white flex items-center justify-center">
+                      <Users className="w-4 h-4 text-midnight-900" />
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center">
+                      <Heart className="w-4 h-4 text-midnight-900" />
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-rose-400 border-2 border-white flex items-center justify-center">
+                      <Shield className="w-4 h-4 text-white" />
+                    </div>
                   </div>
                   <div>
                     <p className="font-bold text-midnight-900">Sarah & Max</p>
@@ -856,9 +872,15 @@ export default function Home() {
 
         {/* Subtle pattern overlay */}
         <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-20 left-[5%] text-7xl">🐾</div>
-          <div className="absolute bottom-20 right-[10%] text-6xl">🐾</div>
-          <div className="absolute top-1/3 right-[20%] text-5xl">❤️</div>
+          <svg className="absolute top-20 left-[5%] w-20 h-20 text-white" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 6c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z"/>
+          </svg>
+          <svg className="absolute bottom-20 right-[10%] w-16 h-16 text-white" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 6c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z"/>
+          </svg>
+          <svg className="absolute top-1/3 right-[20%] w-14 h-14 text-flash-400" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
         </div>
 
         <div className="max-w-6xl mx-auto px-4 relative z-10">
@@ -1151,8 +1173,8 @@ export default function Home() {
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center text-5xl">
-                          {pet.petSpecies === 'DOG' ? '🐕' : '🐈'}
+                        <div className="w-full h-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
+                          <Search className="w-12 h-12 text-amber-400" />
                         </div>
                       )}
                       <div className="absolute top-3 right-3">
