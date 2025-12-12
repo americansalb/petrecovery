@@ -78,7 +78,7 @@ export async function POST(request) {
         return NextResponse.json(report);
 
       case 'coordinate':
-        const coordination = await coordinateAcrossJurisdictions(body.caseData);
+        const coordination = await coordinateAcrossJurisdictions(body.missionData);
         return NextResponse.json(coordination);
 
       default:

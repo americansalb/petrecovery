@@ -14,7 +14,7 @@ import { useState, useRef } from 'react';
 import { TOUCH_TARGETS, triggerHaptic, announce } from '@/app/lib/missionControl/accessibility';
 
 export default function SightingButton({
-  caseId,
+  missionId,
   volunteerId,
   location,
   petName,
@@ -70,7 +70,7 @@ export default function SightingButton({
     );
 
     try {
-      const res = await fetch(`/api/mission/${caseId}/sighting`, {
+      const res = await fetch(`/api/mission/${missionId}/sighting`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

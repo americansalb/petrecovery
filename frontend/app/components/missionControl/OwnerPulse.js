@@ -21,7 +21,7 @@ const OWNER_ACTIVITIES = [
   { id: 'SETTING_TRAP', label: 'Setting trap', icon: '🪤' },
 ];
 
-export default function OwnerPulse({ caseId, mission, onUpdate }) {
+export default function OwnerPulse({ missionId, mission, onUpdate }) {
   const [ownerView, setOwnerView] = useState(null);
   const [showCallMode, setShowCallMode] = useState(false);
   const [showBroadcast, setShowBroadcast] = useState(false);
@@ -36,7 +36,7 @@ export default function OwnerPulse({ caseId, mission, onUpdate }) {
 
   const fetchOwnerView = async () => {
     try {
-      const res = await fetch(`/api/mission/${caseId}/owner`);
+      const res = await fetch(`/api/mission/${missionId}/owner`);
       if (res.ok) {
         const data = await res.json();
         setOwnerView(data);
@@ -48,7 +48,7 @@ export default function OwnerPulse({ caseId, mission, onUpdate }) {
 
   const updateStatus = async (newActivity, newBroadcast = null) => {
     try {
-      await fetch(`/api/mission/${caseId}/owner`, {
+      await fetch(`/api/mission/${missionId}/owner`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -68,7 +68,7 @@ export default function OwnerPulse({ caseId, mission, onUpdate }) {
 
   const triggerCallMode = async () => {
     try {
-      await fetch(`/api/mission/${caseId}/owner`, {
+      await fetch(`/api/mission/${missionId}/owner`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'TRIGGER_CALL_MODE' }),

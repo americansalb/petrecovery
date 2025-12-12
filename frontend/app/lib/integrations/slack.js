@@ -31,13 +31,13 @@ export async function sendWebhookMessage(webhookUrl, message) {
 /**
  * Format a lost pet alert for Slack
  */
-export function formatLostPetAlert(caseData) {
+export function formatLostPetAlert(missionData) {
   const blocks = [
     {
       type: 'header',
       text: {
         type: 'plain_text',
-        text: `:rotating_light: Lost Pet Alert: ${caseData.petName}`,
+        text: `:rotating_light: Lost Pet Alert: ${missionData.petName}`,
         emoji: true,
       },
     },
@@ -46,19 +46,19 @@ export function formatLostPetAlert(caseData) {
       fields: [
         {
           type: 'mrkdwn',
-          text: `*Pet Name:*\n${caseData.petName}`,
+          text: `*Pet Name:*\n${missionData.petName}`,
         },
         {
           type: 'mrkdwn',
-          text: `*Species:*\n${caseData.species || 'Unknown'}`,
+          text: `*Species:*\n${missionData.species || 'Unknown'}`,
         },
         {
           type: 'mrkdwn',
-          text: `*Breed:*\n${caseData.breed || 'Unknown'}`,
+          text: `*Breed:*\n${missionData.breed || 'Unknown'}`,
         },
         {
           type: 'mrkdwn',
-          text: `*Color:*\n${caseData.color || 'Unknown'}`,
+          text: `*Color:*\n${missionData.color || 'Unknown'}`,
         },
       ],
     },
@@ -66,26 +66,26 @@ export function formatLostPetAlert(caseData) {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `*Last Seen:*\n${caseData.lastSeenAddress || caseData.location || 'Unknown location'}`,
+        text: `*Last Seen:*\n${missionData.lastSeenAddress || missionData.location || 'Unknown location'}`,
       },
     },
   ];
 
-  if (caseData.description) {
+  if (missionData.description) {
     blocks.push({
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `*Description:*\n${caseData.description}`,
+        text: `*Description:*\n${missionData.description}`,
       },
     });
   }
 
-  if (caseData.photoUrl) {
+  if (missionData.photoUrl) {
     blocks.push({
       type: 'image',
-      image_url: caseData.photoUrl,
-      alt_text: `Photo of ${caseData.petName}`,
+      image_url: missionData.photoUrl,
+      alt_text: `Photo of ${missionData.petName}`,
     });
   }
 
@@ -99,7 +99,7 @@ export function formatLostPetAlert(caseData) {
           text: 'View Case Details',
           emoji: true,
         },
-        url: `${process.env.NEXT_PUBLIC_BASE_URL}/cases/${caseData.caseNumber}`,
+        url: `${process.env.NEXT_PUBLIC_BASE_URL}/cases/${missionData.missionNumber}`,
         style: 'primary',
       },
       {
@@ -109,7 +109,7 @@ export function formatLostPetAlert(caseData) {
           text: 'Report Sighting',
           emoji: true,
         },
-        url: `${process.env.NEXT_PUBLIC_BASE_URL}/cases/${caseData.caseNumber}/sighting`,
+        url: `${process.env.NEXT_PUBLIC_BASE_URL}/cases/${missionData.missionNumber}/sighting`,
       },
     ],
   });
@@ -120,14 +120,14 @@ export function formatLostPetAlert(caseData) {
 /**
  * Format a reunion notification for Slack
  */
-export function formatReunionAlert(caseData) {
+export function formatReunionAlert(missionData) {
   return {
     blocks: [
       {
         type: 'header',
         text: {
           type: 'plain_text',
-          text: `:tada: Pet Reunited: ${caseData.petName}!`,
+          text: `:tada: Pet Reunited: ${missionData.petName}!`,
           emoji: true,
         },
       },
@@ -135,7 +135,7 @@ export function formatReunionAlert(caseData) {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `Great news! *${caseData.petName}* has been reunited with their family!`,
+          text: `Great news! *${missionData.petName}* has been reunited with their family!`,
         },
       },
       {
@@ -143,7 +143,7 @@ export function formatReunionAlert(caseData) {
         elements: [
           {
             type: 'mrkdwn',
-            text: `Case #${caseData.caseNumber} • Resolved after ${caseData.daysLost || '?'} days`,
+            text: `Case #${missionData.missionNumber} • Resolved after ${missionData.daysLost || '?'} days`,
           },
         ],
       },
@@ -174,7 +174,7 @@ export function formatSightingAlert(sightingData) {
           },
           {
             type: 'mrkdwn',
-            text: `*Case:*\n#${sightingData.caseNumber}`,
+            text: `*Case:*\n#${sightingData.missionNumber}`,
           },
         ],
       },
@@ -195,7 +195,7 @@ export function formatSightingAlert(sightingData) {
               text: 'View Sighting',
               emoji: true,
             },
-            url: `${process.env.NEXT_PUBLIC_BASE_URL}/cases/${sightingData.caseNumber}`,
+            url: `${process.env.NEXT_PUBLIC_BASE_URL}/cases/${sightingData.missionNumber}`,
             style: 'primary',
           },
         ],
@@ -229,7 +229,7 @@ export function formatSquadUpdate(squadData, updateType) {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `*Squad:* ${squadData.squadName}\n*Case:* ${squadData.petName} (#${squadData.caseNumber})`,
+          text: `*Squad:* ${squadData.squadName}\n*Case:* ${squadData.petName} (#${squadData.missionNumber})`,
         },
       },
       {
@@ -248,18 +248,18 @@ export function formatSquadUpdate(squadData, updateType) {
 /**
  * Send notification to all configured Slack webhooks for a case
  */
-export async function notifySlackChannels(prisma, caseId, messageFormatter, data) {
+export async function notifySlackChannels(prisma, missionId, messageFormatter, data) {
   // Get all Slack integrations for squads associated with this case
   const integrations = await prisma.integration.findMany({
     where: {
       type: 'SLACK',
       isActive: true,
       OR: [
-        { caseId },
+        { missionId },
         {
           rescueSquad: {
             cases: {
-              some: { id: caseId },
+              some: { id: missionId },
             },
           },
         },

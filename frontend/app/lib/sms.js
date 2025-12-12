@@ -213,8 +213,8 @@ export async function verifyPhoneNumber(userId, phoneNumber, code) {
 /**
  * Send urgent alert SMS
  */
-export async function sendUrgentAlert(userId, phoneNumber, { petName, caseNumber, location, message }) {
-  const alertMessage = `URGENT PetRecovery Alert: ${petName} (Case #${caseNumber}) spotted near ${location}. ${message || 'Check app for details.'}`;
+export async function sendUrgentAlert(userId, phoneNumber, { petName, missionNumber, location, message }) {
+  const alertMessage = `URGENT PetRecovery Alert: ${petName} (Case #${missionNumber}) spotted near ${location}. ${message || 'Check app for details.'}`;
 
   return sendSms(phoneNumber, alertMessage, {
     userId,
@@ -237,8 +237,8 @@ export async function sendSightingAlert(userId, phoneNumber, { petName, location
 /**
  * Send case update SMS
  */
-export async function sendCaseUpdateSms(userId, phoneNumber, { caseNumber, updateType, summary }) {
-  const alertMessage = `PetRecovery Case ${caseNumber}: ${updateType}. ${summary}`;
+export async function sendCaseUpdateSms(userId, phoneNumber, { missionNumber, updateType, summary }) {
+  const alertMessage = `PetRecovery Case ${missionNumber}: ${updateType}. ${summary}`;
 
   return sendSms(phoneNumber, alertMessage, {
     userId,

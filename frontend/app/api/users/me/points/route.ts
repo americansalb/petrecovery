@@ -21,12 +21,12 @@ import { getPointsService, DAILY_SELF_REPORTED_CAP } from '@/lib/actions';
  * Get current user's points summary
  *
  * Query params:
- * - caseId: Optional - get points for a specific case
+ * - missionId: Optional - get points for a specific case
  *
  * Returns:
  * - today: { verified, selfReported, total, remaining }
  * - allTime: { verified, selfReported, total }
- * - caseTotal: (if caseId provided)
+ * - caseTotal: (if missionId provided)
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     const { searchParams } = new URL(request.url);
-    const caseId = searchParams.get('caseId') || undefined;
+    const missionId = searchParams.get('missionId') || undefined;
 
     // Get user
     const user = await prisma.user.findUnique({
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Use points service to get summary
     const pointsService = getPointsService(prisma);
-    const summary = await pointsService.getPointsSummary(user.id, caseId);
+    const summary = await pointsService.getPointsSummary(user.id, missionId);
 
     // Get recent verified actions for activity
     const recentActions = await prisma.verifiedAction.findMany({
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         actionType: true,
         totalPoints: true,
         createdAt: true,
-        caseId: true,
+        missionId: true,
       },
     });
 
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         type: action.actionType,
         points: action.totalPoints,
         createdAt: action.createdAt,
-        caseId: action.caseId,
+        missionId: action.missionId,
       })),
     });
   } catch (error) {

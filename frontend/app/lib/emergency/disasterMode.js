@@ -112,7 +112,7 @@ async function findCasesInArea(prisma, affectedArea) {
     },
     select: {
       id: true,
-      caseNumber: true,
+      missionNumber: true,
       petName: true,
       reporterId: true,
     },
@@ -232,7 +232,7 @@ export async function updateEvacuationStatus(prisma, evacuationId, updates) {
           lastSeenLongitude: currentLocation?.lng,
           lastSeenAddress: currentLocation?.address || 'Unknown - emergency evacuation',
           emergencyEventId: evacuation.emergencyEventId,
-          caseNumber: await generateCaseNumber(prisma),
+          missionNumber: await generateCaseNumber(prisma),
         },
       });
     }
@@ -363,7 +363,7 @@ export async function getEmergencyDashboard(prisma, emergencyEventId) {
     stats: {
       totalEvacuations: Object.values(statusCounts).reduce((a, b) => a + b, 0),
       ...statusCounts,
-      activeCases: cases,
+      activeMissions: cases,
     },
     shelterLocations: emergency.shelterLocations ? JSON.parse(emergency.shelterLocations) : [],
     evacuationRoutes: emergency.evacuationRoutes ? JSON.parse(emergency.evacuationRoutes) : [],
@@ -378,13 +378,13 @@ async function generateCaseNumber(prisma) {
   const prefix = `EMG-${today.getFullYear()}`;
 
   const lastCase = await prisma.case.findFirst({
-    where: { caseNumber: { startsWith: prefix } },
-    orderBy: { caseNumber: 'desc' },
+    where: { missionNumber: { startsWith: prefix } },
+    orderBy: { missionNumber: 'desc' },
   });
 
   let sequence = 1;
   if (lastCase) {
-    const lastSeq = parseInt(lastCase.caseNumber.split('-').pop(), 10);
+    const lastSeq = parseInt(lastCase.missionNumber.split('-').pop(), 10);
     sequence = lastSeq + 1;
   }
 

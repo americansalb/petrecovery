@@ -66,23 +66,23 @@ export default function OpenGraphMeta({
  * Generate metadata object for Next.js App Router
  * Use this in page.js files for SSR meta tags
  */
-export function generateCaseMetadata(caseData) {
+export function generateCaseMetadata(missionData) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://petrecovery.org';
 
   return {
-    title: `Help Find ${caseData.petName}! - Missing ${caseData.petSpecies} | PetRecovery.org`,
-    description: `${caseData.petSpecies} ${caseData.petBreed || ''} named ${caseData.petName} went missing near ${caseData.lastSeenAddress}. ${caseData.petDescription?.substring(0, 150)}...`,
+    title: `Help Find ${missionData.petName}! - Missing ${missionData.petSpecies} | PetRecovery.org`,
+    description: `${missionData.petSpecies} ${missionData.petBreed || ''} named ${missionData.petName} went missing near ${missionData.lastSeenAddress}. ${missionData.petDescription?.substring(0, 150)}...`,
     openGraph: {
-      title: `Help Find ${caseData.petName}!`,
-      description: `Missing ${caseData.petSpecies}: ${caseData.petName}. Last seen near ${caseData.lastSeenAddress}. Please share to help bring them home!`,
-      url: `${baseUrl}/cases/${caseData.id}`,
+      title: `Help Find ${missionData.petName}!`,
+      description: `Missing ${missionData.petSpecies}: ${missionData.petName}. Last seen near ${missionData.lastSeenAddress}. Please share to help bring them home!`,
+      url: `${baseUrl}/cases/${missionData.id}`,
       siteName: 'PetRecovery.org',
-      images: caseData.petPhotoUrl ? [
+      images: missionData.petPhotoUrl ? [
         {
-          url: caseData.petPhotoUrl,
+          url: missionData.petPhotoUrl,
           width: 1200,
           height: 630,
-          alt: `Photo of ${caseData.petName}`,
+          alt: `Photo of ${missionData.petName}`,
         }
       ] : [],
       locale: 'en_US',
@@ -90,16 +90,16 @@ export function generateCaseMetadata(caseData) {
     },
     twitter: {
       card: 'summary_large_image',
-      title: `Help Find ${caseData.petName}!`,
-      description: `Missing ${caseData.petSpecies}: ${caseData.petName}. Last seen near ${caseData.lastSeenAddress}.`,
-      images: caseData.petPhotoUrl ? [caseData.petPhotoUrl] : [],
+      title: `Help Find ${missionData.petName}!`,
+      description: `Missing ${missionData.petSpecies}: ${missionData.petName}. Last seen near ${missionData.lastSeenAddress}.`,
+      images: missionData.petPhotoUrl ? [missionData.petPhotoUrl] : [],
     },
     robots: {
-      index: caseData.isPublic,
+      index: missionData.isPublic,
       follow: true,
     },
     alternates: {
-      canonical: `${baseUrl}/cases/${caseData.id}`,
+      canonical: `${baseUrl}/cases/${missionData.id}`,
     },
   };
 }
@@ -107,17 +107,17 @@ export function generateCaseMetadata(caseData) {
 /**
  * Generate JSON-LD structured data for lost pets
  */
-export function generateCaseStructuredData(caseData) {
+export function generateCaseStructuredData(missionData) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://petrecovery.org';
 
   return {
     '@context': 'https://schema.org',
     '@type': 'Article',
-    headline: `Help Find ${caseData.petName}!`,
-    description: `Missing ${caseData.petSpecies}: ${caseData.petName}. Last seen near ${caseData.lastSeenAddress}.`,
-    image: caseData.petPhotoUrl || undefined,
-    datePublished: caseData.createdAt,
-    dateModified: caseData.updatedAt,
+    headline: `Help Find ${missionData.petName}!`,
+    description: `Missing ${missionData.petSpecies}: ${missionData.petName}. Last seen near ${missionData.lastSeenAddress}.`,
+    image: missionData.petPhotoUrl || undefined,
+    datePublished: missionData.createdAt,
+    dateModified: missionData.updatedAt,
     author: {
       '@type': 'Organization',
       name: 'PetRecovery.org'
@@ -132,7 +132,7 @@ export function generateCaseStructuredData(caseData) {
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `${baseUrl}/cases/${caseData.id}`
+      '@id': `${baseUrl}/cases/${missionData.id}`
     }
   };
 }

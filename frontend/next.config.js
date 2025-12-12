@@ -130,7 +130,7 @@ const nextConfig = {
       // Redirect old URLs (if any)
       {
         source: '/report',
-        destination: '/cases/new',
+        destination: '/missions/new',
         permanent: true,
       },
     ];

@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import LoadingSpinner from './LoadingSpinner';
 
-export default function MatchesPanel({ caseNumber }) {
+export default function MatchesPanel({ missionNumber }) {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -18,11 +18,11 @@ export default function MatchesPanel({ caseNumber }) {
 
   useEffect(() => {
     fetchMatches();
-  }, [caseNumber]);
+  }, [missionNumber]);
 
   const fetchMatches = async () => {
     try {
-      const res = await fetch(`/api/cases/${caseNumber}/matches`);
+      const res = await fetch(`/api/missions/${missionNumber}/matches`);
       if (!res.ok) throw new Error('Failed to fetch matches');
       const data = await res.json();
       setMatches(data.matches || []);
@@ -118,7 +118,7 @@ export default function MatchesPanel({ caseNumber }) {
         <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
           {matches.map((match, index) => (
             <div
-              key={match.caseNumber}
+              key={match.missionNumber}
               style={{
                 padding: '1rem 1.5rem',
                 borderBottom: index < matches.length - 1 ? '1px solid #f1f5f9' : 'none',
@@ -257,7 +257,7 @@ export default function MatchesPanel({ caseNumber }) {
                   alignItems: 'center',
                 }}>
                   <Link
-                    href={`/cases/${match.caseNumber}`}
+                    href={`/missions/${match.missionNumber}`}
                     style={{
                       padding: '0.375rem 0.75rem',
                       background: '#2563eb',

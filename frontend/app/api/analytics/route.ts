@@ -59,7 +59,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (type === 'overview') {
       // Basic overview stats
-      const [totalCases, activeCases, reunitedCases, avgTimeToReunion] = await Promise.all([
+      const [totalCases, activeMissions, reunitedCases, avgTimeToReunion] = await Promise.all([
         prisma.case.count({
           where: dateFilter ? { createdAt: { gte: dateFilter } } : undefined,
         }),
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({
         overview: {
           totalCases,
-          activeCases,
+          activeMissions,
           reunitedCases,
           reunionRate: totalCases > 0 ? Math.round((reunitedCases / totalCases) * 100) : 0,
           avgTimeToReunionHours: Math.round((avgTimeToReunion._avg.timeToReunionHours || 0) * 10) / 10,

@@ -13,7 +13,7 @@ function getUrgencyColor(lastSeenAt) {
   return '#eab308';
 }
 
-export default function MissionMap({ squad, cases, selectedCase, onSelectCase }) {
+export default function MissionMap({ squad, cases, selectedMission, onSelectCase }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
@@ -96,7 +96,7 @@ export default function MissionMap({ squad, cases, selectedCase, onSelectCase })
       if (!caseItem.lastSeenLatitude || !caseItem.lastSeenLongitude) return;
 
       const urgencyColor = getUrgencyColor(caseItem.lastSeenAt);
-      const isSelected = selectedCase?.id === caseItem.id;
+      const isSelected = selectedMission?.id === caseItem.id;
 
       const caseIcon = L.divIcon({
         className: 'case-marker',
@@ -161,22 +161,22 @@ export default function MissionMap({ squad, cases, selectedCase, onSelectCase })
     if (cases.length > 0 && markersRef.current.length > 0) {
       const group = L.featureGroup(markersRef.current);
       // Only fit bounds if not tracking a specific selected case
-      if (!selectedCase) {
+      if (!selectedMission) {
         mapInstanceRef.current.fitBounds(group.getBounds().pad(0.1));
       }
     }
-  }, [cases, selectedCase, onSelectCase]);
+  }, [cases, selectedMission, onSelectCase]);
 
   // Pan to selected case
   useEffect(() => {
-    if (!mapInstanceRef.current || !selectedCase?.lastSeenLatitude || !selectedCase?.lastSeenLongitude) return;
+    if (!mapInstanceRef.current || !selectedMission?.lastSeenLatitude || !selectedMission?.lastSeenLongitude) return;
 
     mapInstanceRef.current.setView(
-      [selectedCase.lastSeenLatitude, selectedCase.lastSeenLongitude],
+      [selectedMission.lastSeenLatitude, selectedMission.lastSeenLongitude],
       14,
       { animate: true }
     );
-  }, [selectedCase]);
+  }, [selectedMission]);
 
   return (
     <div

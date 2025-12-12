@@ -122,10 +122,10 @@ export function useRealtime({
 /**
  * Hook for real-time case coordination updates
  *
- * @param {string} caseId - Case ID to subscribe to
+ * @param {string} missionId - Case ID to subscribe to
  * @param {Object} handlers - Event handlers
  */
-export function useCaseRealtime(caseId, {
+export function useCaseRealtime(missionId, {
   onMessage,
   onParticipantJoined,
   onParticipantLeft,
@@ -134,7 +134,7 @@ export function useCaseRealtime(caseId, {
 } = {}) {
   const { connected } = useRealtime({
     onCaseUpdate: (payload) => {
-      if (payload.caseId !== caseId) return;
+      if (payload.missionId !== missionId) return;
 
       switch (payload.event) {
         case 'message':
@@ -154,7 +154,7 @@ export function useCaseRealtime(caseId, {
           break;
       }
     },
-    enabled: !!caseId,
+    enabled: !!missionId,
   });
 
   return { connected };

@@ -11,12 +11,12 @@ import prisma from '@/app/lib/prisma';
  * Quick join a case as a volunteer
  * Creates minimal user record if needed, joins the case immediately
  */
-export async function quickJoinCase(caseId, volunteerInfo) {
+export async function quickJoinCase(missionId, volunteerInfo) {
   const { userId, deviceId, location, name, phone } = volunteerInfo;
 
   // Get the case and its assignment
-  const caseData = await prisma.case.findUnique({
-    where: { id: caseId },
+  const missionData = await prisma.case.findUnique({
+    where: { id: missionId },
     include: {
       assignments: {
         where: { status: 'ACCEPTED' },
@@ -32,15 +32,15 @@ export async function quickJoinCase(caseId, volunteerInfo) {
     }
   });
 
-  if (!caseData) {
-    return { success: false, error: 'Case not found' };
+  if (!missionData) {
+    return { success: false, error: 'Mission not found' };
   }
 
-  if (caseData.status !== 'ACTIVE') {
+  if (missionData.status !== 'ACTIVE') {
     return { success: false, error: 'Case is no longer active' };
   }
 
-  let assignment = caseData.assignments[0];
+  let assignment = missionData.assignments[0];
 
   // If no assignment exists, this is a community case - create ad-hoc participation
   if (!assignment) {
@@ -50,7 +50,7 @@ export async function quickJoinCase(caseId, volunteerInfo) {
     if (nearestSquad) {
       assignment = await prisma.caseAssignment.create({
         data: {
-          caseId,
+          missionId,
           rescueSquadId: nearestSquad.id,
           status: 'ACCEPTED',
           acceptedById: nearestSquad.leaderId || 'system',
@@ -120,7 +120,7 @@ export async function quickJoinCase(caseId, volunteerInfo) {
   const searchSession = await prisma.searchSession.create({
     data: {
       odpaticipantId: participant.id,
-      caseId,
+      missionId,
       divisionId: suggestedDivision?.id,
       status: 'READY',
       startLocation: location ? JSON.stringify(location) : null,
@@ -138,7 +138,7 @@ export async function quickJoinCase(caseId, volunteerInfo) {
     nextAction: {
       type: 'VIEW_ASSIGNMENT',
       prompt: 'See where to search',
-      url: `/search/${caseId}/field`,
+      url: `/search/${missionId}/field`,
     }
   };
 }
@@ -327,10 +327,10 @@ export async function leaveCase(participantId, reason = null) {
 /**
  * Get volunteer status for a case
  */
-export async function getVolunteerStatus(caseId, userId) {
+export async function getVolunteerStatus(missionId, userId) {
   const participation = await prisma.caseParticipant.findFirst({
     where: {
-      assignment: { caseId },
+      assignment: { missionId },
       userId,
       isActive: true,
     },

@@ -28,7 +28,7 @@ export const OPERATION_MODES = {
   TRAP_OPS: 'TRAP_OPS',           // Passive trapping mode
   STANDBY: 'STANDBY',             // Paused but ready
   RESOLVED: 'RESOLVED',           // Pet found
-  CLOSED: 'CLOSED',               // Case closed
+  CLOSED: 'CLOSED',               // Mission closed
 };
 
 export const VOLUNTEER_STATUS = {

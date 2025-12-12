@@ -52,7 +52,7 @@ async function initDB() {
           keyPath: 'id',
           autoIncrement: true,
         });
-        store.createIndex('caseId', 'caseId', { unique: false });
+        store.createIndex('missionId', 'missionId', { unique: false });
         store.createIndex('createdAt', 'createdAt', { unique: false });
         store.createIndex('status', 'status', { unique: false });
       }
@@ -282,11 +282,11 @@ export function stopAutoSync() {
 /**
  * Queue a flyer posting for later sync
  */
-export async function queueFlyerPosting(caseId, latitude, longitude, photoUrl, notes) {
+export async function queueFlyerPosting(missionId, latitude, longitude, photoUrl, notes) {
   return queueAction({
     type: 'flyer_posting',
-    caseId,
-    endpoint: `/api/mission/${caseId}/flyers`,
+    missionId,
+    endpoint: `/api/mission/${missionId}/flyers`,
     method: 'POST',
     data: { latitude, longitude, photoUrl, notes },
   });
@@ -295,11 +295,11 @@ export async function queueFlyerPosting(caseId, latitude, longitude, photoUrl, n
 /**
  * Queue a search session for later sync
  */
-export async function queueSearchSession(caseId, gpsPath, durationMinutes) {
+export async function queueSearchSession(missionId, gpsPath, durationMinutes) {
   return queueAction({
     type: 'search_session',
-    caseId,
-    endpoint: `/api/mission/${caseId}/searches`,
+    missionId,
+    endpoint: `/api/mission/${missionId}/searches`,
     method: 'POST',
     data: { gpsPath, durationMinutes },
   });
@@ -308,11 +308,11 @@ export async function queueSearchSession(caseId, gpsPath, durationMinutes) {
 /**
  * Queue an activity log for later sync
  */
-export async function queueActivityLog(caseId, activityType, notes) {
+export async function queueActivityLog(missionId, activityType, notes) {
   return queueAction({
     type: 'activity_log',
-    caseId,
-    endpoint: `/api/mission/${caseId}/activities`,
+    missionId,
+    endpoint: `/api/mission/${missionId}/activities`,
     method: 'POST',
     data: { activityType, notes },
   });

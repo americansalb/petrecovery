@@ -97,7 +97,7 @@ export async function POST(request, { params }) {
     });
 
     // Opt out of all active case participations
-    const activeCases = await prisma.caseParticipant.findMany({
+    const activeMissions = await prisma.caseParticipant.findMany({
       where: {
         userId: session.user.id,
         isActive: true,
@@ -108,7 +108,7 @@ export async function POST(request, { params }) {
       },
     });
 
-    for (const participation of activeCases) {
+    for (const participation of activeMissions) {
       await prisma.caseParticipant.update({
         where: { id: participation.id },
         data: {
@@ -129,7 +129,7 @@ export async function POST(request, { params }) {
       metadata: {
         squad_id: id,
         previous_role: membership.role,
-        cases_opted_out: activeCases.length
+        cases_opted_out: activeMissions.length
       }
     });
 

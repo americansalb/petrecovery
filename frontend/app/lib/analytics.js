@@ -15,12 +15,12 @@ export async function getDashboardStats(dateRange = 30) {
 
   const [
     totalCases,
-    activeCases,
+    activeMissions,
     resolvedCases,
     totalUsers,
     activeUsers,
     totalSquads,
-    recentCases,
+    recentMissions,
     recentReunions,
   ] = await Promise.all([
     // Total cases all time
@@ -67,13 +67,13 @@ export async function getDashboardStats(dateRange = 30) {
 
   return {
     totalCases,
-    activeCases,
+    activeMissions,
     resolvedCases,
     resolutionRate: totalCases > 0 ? (resolvedCases / totalCases * 100).toFixed(1) : 0,
     totalUsers,
     activeUsers,
     totalSquads,
-    recentCases,
+    recentMissions,
     recentReunions,
     dateRange,
   };
@@ -351,7 +351,7 @@ export async function trackEvent(eventData) {
       data: {
         eventType: eventData.eventType,
         userId: eventData.userId || null,
-        caseId: eventData.caseId || null,
+        missionId: eventData.missionId || null,
         metadata: eventData.metadata ? JSON.stringify(eventData.metadata) : null,
         ipAddress: eventData.ipAddress || null,
         userAgent: eventData.userAgent || null,
@@ -375,7 +375,7 @@ export async function updateDailyStats() {
     where: { date: today },
     create: {
       date: today,
-      newCases: stats.recentCases,
+      newCases: stats.recentMissions,
       resolvedCases: stats.recentReunions,
       newUsers: stats.activeUsers,
       activeUsers: stats.activeUsers,
@@ -383,7 +383,7 @@ export async function updateDailyStats() {
       sightings: 0, // Would need to calculate
     },
     update: {
-      newCases: stats.recentCases,
+      newCases: stats.recentMissions,
       resolvedCases: stats.recentReunions,
       newUsers: stats.activeUsers,
       activeUsers: stats.activeUsers,

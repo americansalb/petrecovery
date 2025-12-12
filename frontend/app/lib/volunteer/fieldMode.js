@@ -44,18 +44,18 @@ export async function startFieldMode(sessionId, location) {
     }
   });
 
-  const caseData = session.participant.assignment.case;
+  const missionData = session.participant.assignment.case;
 
   return {
     success: true,
     fieldData: {
       sessionId,
-      caseId: caseData.id,
-      petName: caseData.petName,
-      petSpecies: caseData.petSpecies,
-      petPhotoUrl: caseData.petPhotoUrl,
-      petDescription: caseData.petDescription,
-      petColor: caseData.petColor,
+      missionId: missionData.id,
+      petName: missionData.petName,
+      petSpecies: missionData.petSpecies,
+      petPhotoUrl: missionData.petPhotoUrl,
+      petDescription: missionData.petDescription,
+      petColor: missionData.petColor,
       assignedCell: session.gridCell ? {
         id: session.gridCell.id,
         bounds: {
@@ -208,7 +208,7 @@ export async function handleFieldAction(sessionId, action, data = {}) {
     return { success: false, error: 'Session not found' };
   }
 
-  const caseId = session.participant.assignment.caseId;
+  const missionId = session.participant.assignment.missionId;
   const userId = session.participant.userId;
 
   switch (action) {
@@ -250,7 +250,7 @@ async function reportPetFound(session, data) {
   // Create high-priority sighting
   const sighting = await prisma.caseSighting.create({
     data: {
-      caseId: session.participant.assignment.caseId,
+      missionId: session.participant.assignment.missionId,
       reporterId: session.participant.userId,
       latitude: location?.lat,
       longitude: location?.lng,
@@ -265,7 +265,7 @@ async function reportPetFound(session, data) {
 
   // Update case status
   await prisma.case.update({
-    where: { id: session.participant.assignment.caseId },
+    where: { id: session.participant.assignment.missionId },
     data: {
       status: 'FOUND',
       foundById: session.participant.userId,
@@ -312,7 +312,7 @@ async function reportSighting(session, data) {
 
   const sighting = await prisma.caseSighting.create({
     data: {
-      caseId: session.participant.assignment.caseId,
+      missionId: session.participant.assignment.missionId,
       reporterId: session.participant.userId,
       latitude: location?.lat,
       longitude: location?.lng,
@@ -332,7 +332,7 @@ async function reportSighting(session, data) {
   });
 
   // Notify nearby volunteers
-  await notifyNearbyVolunteers(session.participant.assignment.caseId, sighting);
+  await notifyNearbyVolunteers(session.participant.assignment.missionId, sighting);
 
   return {
     success: true,
@@ -356,7 +356,7 @@ async function reportClue(session, data) {
 
   const clue = await prisma.caseClue.create({
     data: {
-      caseId: session.participant.assignment.caseId,
+      missionId: session.participant.assignment.missionId,
       reporterId: session.participant.userId,
       latitude: location?.lat,
       longitude: location?.lng,
@@ -442,7 +442,7 @@ async function requestHelp(session, data) {
   await prisma.helpRequest.create({
     data: {
       sessionId: session.id,
-      caseId: session.participant.assignment.caseId,
+      missionId: session.participant.assignment.missionId,
       requesterId: session.participant.userId,
       helpType: helpType || 'GENERAL', // FOUND_PET, INJURED_ANIMAL, NEED_BACKUP, GENERAL
       message: message || 'Volunteer needs assistance',
@@ -565,46 +565,46 @@ async function endSession(session, data) {
     nextAction: {
       type: 'VIEW_IMPACT',
       prompt: 'See your impact',
-      url: `/search/${session.participant.assignment.caseId}/impact`,
+      url: `/search/${session.participant.assignment.missionId}/impact`,
     }
   };
 }
 
 // Push notification helpers
-async function notifyOwnerPetFound(caseData, sighting) {
+async function notifyOwnerPetFound(missionData, sighting) {
   try {
-    if (!caseData?.reporterId) {
+    if (!missionData?.reporterId) {
       console.log('No reporter ID for case, cannot notify owner');
       return;
     }
 
     const payload = PUSH_TEMPLATES.SIGHTING_ALERT(
-      caseData.petName || 'Your pet',
+      missionData.petName || 'Your pet',
       sighting?.location?.address || 'a location',
-      caseData.id
+      missionData.id
     );
 
     // Make it more urgent for potential find
     payload.title = '🎉 Possible Pet Sighting!';
-    payload.body = `Someone may have spotted ${caseData.petName}! Tap to view details and location.`;
+    payload.body = `Someone may have spotted ${missionData.petName}! Tap to view details and location.`;
     payload.requireInteraction = true;
     payload.vibrate = [200, 100, 200];
 
-    await sendPushToUser(prisma, caseData.reporterId, payload);
-    console.log(`✅ Owner notified for potential pet find: ${caseData.petName}`);
+    await sendPushToUser(prisma, missionData.reporterId, payload);
+    console.log(`✅ Owner notified for potential pet find: ${missionData.petName}`);
   } catch (error) {
     console.error('Error notifying owner of pet found:', error);
   }
 }
 
-async function notifyNearbyVolunteers(caseId, sighting) {
+async function notifyNearbyVolunteers(missionId, sighting) {
   try {
     // Get case assignment to find squad members
-    const caseData = await prisma.case.findUnique({
-      where: { id: caseId },
+    const missionData = await prisma.case.findUnique({
+      where: { id: missionId },
       select: {
         petName: true,
-        caseNumber: true,
+        missionNumber: true,
         assignment: {
           select: {
             participants: {
@@ -616,9 +616,9 @@ async function notifyNearbyVolunteers(caseId, sighting) {
       }
     });
 
-    if (!caseData?.assignment?.participants) return;
+    if (!missionData?.assignment?.participants) return;
 
-    const userIds = caseData.assignment.participants.map(p => p.userId).filter(Boolean);
+    const userIds = missionData.assignment.participants.map(p => p.userId).filter(Boolean);
     if (userIds.length === 0) return;
 
     const subscriptions = await prisma.pushSubscription.findMany({
@@ -634,11 +634,11 @@ async function notifyNearbyVolunteers(caseId, sighting) {
     }));
 
     const payload = PUSH_TEMPLATES.SIGHTING_ALERT(
-      caseData.petName || 'Pet',
+      missionData.petName || 'Pet',
       sighting?.location?.address || 'nearby',
-      caseId
+      missionId
     );
-    payload.url = `/cases/${caseData.caseNumber}`;
+    payload.url = `/cases/${missionData.missionNumber}`;
 
     const result = await sendPushToMany(formattedSubs, payload);
     console.log(`✅ Nearby volunteers notified: ${result.sent} sent`);
@@ -667,7 +667,7 @@ async function notifyHelpRequest(session) {
           }
         },
         case: {
-          select: { petName: true, caseNumber: true }
+          select: { petName: true, missionNumber: true }
         }
       }
     });
@@ -693,7 +693,7 @@ async function notifyHelpRequest(session) {
     const payload = PUSH_TEMPLATES.GENERIC(
       '🆘 Help Requested',
       `${volunteerName} needs assistance during search for ${assignment.case?.petName || 'pet'}`,
-      `/cases/${assignment.case?.caseNumber}`
+      `/cases/${assignment.case?.missionNumber}`
     );
     payload.tag = `help-${session.id}`;
     payload.requireInteraction = true;

@@ -194,7 +194,7 @@ export async function POST(request) {
     // Transform lost reports into format expected by matching algorithm
     const candidates = lostPetReports.map(lr => ({
       id: lr.id,
-      caseNumber: `LR-${lr.id}`,
+      missionNumber: `LR-${lr.id}`,
       petSpecies: lr.pet.species,
       petBreed: lr.pet.breed || '',
       petColor: lr.pet.color,

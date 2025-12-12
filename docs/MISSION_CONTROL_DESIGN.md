@@ -58,7 +58,7 @@ A search and rescue coordination interface that feels like a **real-time operati
 
 ---
 
-## Layout: Mobile (Primary Use Case)
+## Layout: Mobile (Primary Use Mission)
 
 ```
 ┌─────────────────────────┐
@@ -114,9 +114,9 @@ A search and rescue coordination interface that feels like a **real-time operati
 - Tap volunteer → Show name + "Message"
 - Long-press → Report sighting at location
 
-### 3. Active Cases Panel (Right sidebar / Bottom sheet on mobile)
+### 3. Active Missions Panel (Right sidebar / Bottom sheet on mobile)
 - Sorted by: Urgency → Distance
-- Each case shows:
+- Each mission shows:
   - Pet photo (circular, 48px)
   - Pet name + species
   - Time missing (with urgency color)
@@ -129,7 +129,7 @@ A search and rescue coordination interface that feels like a **real-time operati
 - Types:
   - 🟢 Sighting reported
   - 🔵 Volunteer joined/left search
-  - 🟠 New case added
+  - 🟠 New mission added
   - ✅ Area cleared
   - 🎉 Pet found! (celebration animation)
 
@@ -158,13 +158,13 @@ A search and rescue coordination interface that feels like a **real-time operati
 ### Real-time Updates Needed:
 1. Volunteer positions (if location sharing enabled)
 2. New sightings
-3. Case status changes
-4. New cases in radius
+3. Mission status changes
+4. New missions in radius
 5. Volunteer join/leave events
 
 ### API Endpoints Needed:
 - `GET /api/squads/[id]/live-feed` - Activity stream (SSE or polling)
-- `GET /api/squads/[id]/nearby-cases` - Cases within radius ✅ (created)
+- `GET /api/squads/[id]/nearby-missions` - Missions within radius ✅ (created)
 - `POST /api/squads/[id]/sightings` - Report sighting
 - `POST /api/squads/[id]/volunteer-status` - Update position/status
 - `GET /api/squads/[id]/active-volunteers` - Who's searching
@@ -176,7 +176,7 @@ A search and rescue coordination interface that feels like a **real-time operati
 ### Phase 1: Core Layout (Today)
 - [ ] Replace current squad page with map-first layout
 - [ ] Full-screen interactive map with proper markers
-- [ ] Active cases sidebar/bottom sheet
+- [ ] Active missions sidebar/bottom sheet
 - [ ] Basic activity feed (polling)
 
 ### Phase 2: Real-Time (Next)
@@ -196,9 +196,9 @@ A search and rescue coordination interface that feels like a **real-time operati
 ## Success Metrics
 
 1. **Time to First Action** - How quickly does a volunteer join a search?
-2. **Sightings per Case** - Are volunteers actively reporting?
+2. **Sightings per Mission** - Are volunteers actively reporting?
 3. **Volunteer Retention** - Do they come back?
-4. **Cases Resolved** - Pets reunited with owners
+4. **Missions Resolved** - Pets reunited with owners
 
 ---
 

@@ -8,6 +8,10 @@ import { logEvent } from '@/lib/logging';
 // GET /api/rescue-squads - Search for cities with rescue squads nearby
 export async function GET(request) {
   const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
+
+  // Debug logging
+  console.log('[Squad Search] Session user ID:', userId);
 
   try {
     const { searchParams } = new URL(request.url);
@@ -133,8 +137,6 @@ export async function GET(request) {
       zipCode = cityData.zips.length > 0 ? cityData.zips[0] : null;
     }
 
-    const userId = session?.user?.id;
-
     // Find all active squads with coordinates
     const squads = await prisma.rescueSquad.findMany({
       where: {
@@ -194,6 +196,17 @@ export async function GET(request) {
             .filter(div => div.distance !== null) // Only include divisions with coordinates
             .sort((a, b) => a.distance - b.distance); // Sort by distance
 
+          // Check membership
+          const isMember = userId ? squad.members.some(m => m.userId === userId) : false;
+
+          // Debug logging
+          if (userId) {
+            console.log(`[Squad Search] Squad ${squad.name}: userId=${userId}, members count=${squad.members.length}, isMember=${isMember}`);
+            if (squad.members.length > 0 && squad.members.length < 10) {
+              console.log(`[Squad Search] Member userIds:`, squad.members.map(m => m.userId));
+            }
+          }
+
           nearbyCities.set(key, {
             city: squad.city,
             state: squad.state,
@@ -203,8 +216,8 @@ export async function GET(request) {
               id: squad.id,
               name: squad.name,
               memberCount: squad._count.members,
-              isMember: userId ? squad.members.some(m => m.userId === userId) : false,
-              totalCasesAccepted: squad.totalCasesAccepted,
+              isMember,
+              totalMissionsAccepted: squad.totalMissionsAccepted,
               successfulReunions: squad.successfulReunions,
             },
             divisions: divisionsWithDistance
@@ -548,7 +561,7 @@ export async function POST(request) {
 
     try {
       // Find all active cases (not resolved or closed)
-      const activeCases = await prisma.case.findMany({
+      const activeMissions = await prisma.case.findMany({
         where: {
           status: { not: 'RESOLVED' },
           isDeleted: false,
@@ -560,15 +573,15 @@ export async function POST(request) {
           lastSeenLatitude: true,
           lastSeenLongitude: true,
           petName: true,
-          caseNumber: true,
+          missionNumber: true,
         },
       });
 
-      console.log(`[Squad Create] Found ${activeCases.length} active cases to check for auto-assignment`);
+      console.log(`[Squad Create] Found ${activeMissions.length} active cases to check for auto-assignment`);
 
       // Calculate distances and filter cases within coverage
       const effectiveRadius = squad.radiusMiles + COVERAGE_BUFFER;
-      const casesToAssign = activeCases.filter(c => {
+      const casesToAssign = activeMissions.filter(c => {
         const distance = calculateDistance(
           squad.centerLatitude,
           squad.centerLongitude,
@@ -581,11 +594,11 @@ export async function POST(request) {
       console.log(`[Squad Create] ${casesToAssign.length} cases within ${effectiveRadius} mile coverage area`);
 
       // Create assignments for qualifying cases
-      for (const caseData of casesToAssign) {
+      for (const missionData of casesToAssign) {
         // Check if assignment already exists
         const existingAssignment = await prisma.caseAssignment.findFirst({
           where: {
-            caseId: caseData.id,
+            missionId: missionData.id,
             rescueSquadId: squad.id,
           },
         });
@@ -593,14 +606,14 @@ export async function POST(request) {
         if (!existingAssignment) {
           await prisma.caseAssignment.create({
             data: {
-              caseId: caseData.id,
+              missionId: missionData.id,
               rescueSquadId: squad.id,
               status: 'ACCEPTED',
               acceptedById: session.user.id,
             },
           });
           assignedCasesCount++;
-          console.log(`[Squad Create] Auto-assigned case ${caseData.caseNumber} (${caseData.petName}) to new squad`);
+          console.log(`[Squad Create] Auto-assigned case ${missionData.missionNumber} (${missionData.petName}) to new squad`);
         }
       }
 

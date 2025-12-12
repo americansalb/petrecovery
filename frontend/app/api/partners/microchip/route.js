@@ -65,7 +65,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { chipNumber, location, caseId } = body;
+    const { chipNumber, location, missionId } = body;
 
     if (!chipNumber) {
       return NextResponse.json(
@@ -91,7 +91,7 @@ export async function POST(request) {
       finderName: session.user.name,
       finderEmail: session.user.email,
       location,
-      caseId,
+      missionId,
     });
 
     return NextResponse.json({

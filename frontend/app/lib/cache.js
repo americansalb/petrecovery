@@ -174,9 +174,9 @@ export async function cacheWrap(key, fetchFn, ttlSeconds = DEFAULT_TTL / 1000) {
 export const cacheKeys = {
   // Case-related keys
   case: (id) => `case:${id}`,
-  caseList: (filters) => `cases:list:${JSON.stringify(filters)}`,
+  missionList: (filters) => `cases:list:${JSON.stringify(filters)}`,
   caseCount: (status) => `cases:count:${status || 'all'}`,
-  caseSightings: (caseId) => `case:${caseId}:sightings`,
+  caseSightings: (missionId) => `case:${missionId}:sightings`,
 
   // User-related keys
   user: (id) => `user:${id}`,

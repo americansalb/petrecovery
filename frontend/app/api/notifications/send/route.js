@@ -33,7 +33,7 @@ export async function POST(request) {
       type,
       title,
       body,
-      caseId,
+      missionId,
       squadId,
       divisionId,
       missionId,
@@ -80,11 +80,11 @@ export async function POST(request) {
         return NextResponse.json({ sent: 0, failed: 0 });
       }
       whereClause.userId = { in: userIds };
-    } else if (caseId) {
+    } else if (missionId) {
       // Send to all users who have interacted with this case
       // (volunteers, squad members assigned, etc.)
       const mission = await prisma.missionControl.findFirst({
-        where: { caseId },
+        where: { missionId },
         include: {
           volunteers: { select: { userId: true } },
         },
@@ -107,10 +107,10 @@ export async function POST(request) {
 
     // Get case info for notification data
     let caseInfo = null;
-    if (caseId) {
+    if (missionId) {
       caseInfo = await prisma.case.findUnique({
-        where: { id: caseId },
-        select: { caseNumber: true, petName: true },
+        where: { id: missionId },
+        select: { missionNumber: true, petName: true },
       });
     }
 
@@ -123,8 +123,8 @@ export async function POST(request) {
       tag: type || 'general',
       data: {
         type,
-        caseId,
-        caseNumber: caseInfo?.caseNumber,
+        missionId,
+        missionNumber: caseInfo?.missionNumber,
         squadId,
         missionId,
         urgent,

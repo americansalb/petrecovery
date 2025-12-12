@@ -103,7 +103,7 @@ export async function POST(request) {
         const tracking = await startLiveTracking(
           body.deviceId,
           body.provider,
-          body.caseId
+          body.missionId
         );
         return NextResponse.json(tracking);
 

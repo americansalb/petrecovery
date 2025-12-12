@@ -10,7 +10,7 @@ import {
 } from '@/app/lib/analytics/predictive';
 
 /**
- * GET /api/analytics/prediction?caseId=xxx
+ * GET /api/analytics/prediction?missionId=xxx
  * Get predictive analytics for a case
  */
 export async function GET(request) {
@@ -21,10 +21,10 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const caseId = searchParams.get('caseId');
+    const missionId = searchParams.get('missionId');
     const analysisType = searchParams.get('type') || 'full';
 
-    if (!caseId) {
+    if (!missionId) {
       return NextResponse.json(
         { error: 'Case ID is required' },
         { status: 400 }
@@ -32,8 +32,8 @@ export async function GET(request) {
     }
 
     // Fetch case data
-    const caseData = await prisma.case.findUnique({
-      where: { id: caseId },
+    const missionData = await prisma.case.findUnique({
+      where: { id: missionId },
       include: {
         sightings: true,
         _count: {
@@ -44,27 +44,27 @@ export async function GET(request) {
       },
     });
 
-    if (!caseData) {
+    if (!missionData) {
       return NextResponse.json(
-        { error: 'Case not found' },
+        { error: 'Mission not found' },
         { status: 404 }
       );
     }
 
     // Prepare case data for analysis
     const analysisData = {
-      petSpecies: caseData.petSpecies,
-      lastSeenAt: caseData.lastSeenAt,
-      hasMicrochip: caseData.hasMicrochip,
-      hasCollar: caseData.hasCollar,
-      sightingsCount: caseData.sightings?.length || 0,
-      activeSearchers: caseData._count?.squadAssignments || 0,
-      hasReward: caseData.rewardAmount > 0,
-      isUrban: caseData.isUrban ?? true,
-      checkedShelters: caseData.checkedShelters,
+      petSpecies: missionData.petSpecies,
+      lastSeenAt: missionData.lastSeenAt,
+      hasMicrochip: missionData.hasMicrochip,
+      hasCollar: missionData.hasCollar,
+      sightingsCount: missionData.sightings?.length || 0,
+      activeSearchers: missionData._count?.squadAssignments || 0,
+      hasReward: missionData.rewardAmount > 0,
+      isUrban: missionData.isUrban ?? true,
+      checkedShelters: missionData.checkedShelters,
     };
 
-    const response = { caseId };
+    const response = { missionId };
 
     // Success probability
     if (analysisType === 'full' || analysisType === 'probability') {
@@ -74,24 +74,24 @@ export async function GET(request) {
 
     // Optimal search times
     if (analysisType === 'full' || analysisType === 'times') {
-      const searchTimes = analyzeOptimalSearchTimes(caseData.sightings);
+      const searchTimes = analyzeOptimalSearchTimes(missionData.sightings);
       response.optimalSearchTimes = searchTimes;
     }
 
     // Location zones
     if (analysisType === 'full' || analysisType === 'zones') {
-      const hoursElapsed = (Date.now() - new Date(caseData.lastSeenAt).getTime()) / (1000 * 60 * 60);
+      const hoursElapsed = (Date.now() - new Date(missionData.lastSeenAt).getTime()) / (1000 * 60 * 60);
       const zones = predictLocationZones(
         {
-          lat: caseData.lastSeenLatitude,
-          lng: caseData.lastSeenLongitude,
+          lat: missionData.lastSeenLatitude,
+          lng: missionData.lastSeenLongitude,
         },
-        caseData.sightings?.map(s => ({
+        missionData.sightings?.map(s => ({
           latitude: s.latitude,
           longitude: s.longitude,
           sightedAt: s.sightedAt,
         })),
-        caseData.petSpecies,
+        missionData.petSpecies,
         hoursElapsed
       );
       response.locationZones = zones;
@@ -102,8 +102,8 @@ export async function GET(request) {
       const historicalCases = await prisma.case.findMany({
         where: {
           status: 'REUNITED',
-          petSpecies: caseData.petSpecies,
-          id: { not: caseId },
+          petSpecies: missionData.petSpecies,
+          id: { not: missionId },
         },
         take: 100,
         select: {
@@ -127,9 +127,9 @@ export async function GET(request) {
 
       const similarCases = findSimilarCases(
         {
-          petSpecies: caseData.petSpecies,
-          petSize: caseData.petSize,
-          city: caseData.city,
+          petSpecies: missionData.petSpecies,
+          petSize: missionData.petSize,
+          city: missionData.city,
         },
         casesWithDays
       );

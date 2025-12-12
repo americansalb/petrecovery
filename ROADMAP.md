@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-PetRecovery.org is a community-powered platform to help reunite lost pets with their families. This project follows a 108-phase roadmap. Significant work has been completed across infrastructure, case management, public portal, notifications, and now the core coordination features.
+PetRecovery.org is a community-powered platform to help reunite lost pets with their families. This project follows a 108-phase roadmap. Significant work has been completed across infrastructure, mission management, public portal, notifications, and now the core coordination features.
 
 ---
 
@@ -23,11 +23,11 @@ PetRecovery.org is a community-powered platform to help reunite lost pets with t
 | 2 | Legal Tracking | ✅ Complete | ToS/Waiver enforcement, consent UI |
 | 3 | Structured Logging | ✅ Complete | EventLog model, logEvent() utility |
 | 4 | Admin Health | ✅ Complete | /admin/health dashboard |
-| 13-14 | Lost Pet Cases MVP | ✅ Complete | Case model, status, notes, admin UI |
-| 15-16 | Public Portal MVP | ✅ Complete | Public case list, detail, report form |
+| 13-14 | Lost Pet Missions MVP | ✅ Complete | Mission model, status, notes, admin UI |
+| 15-16 | Public Portal MVP | ✅ Complete | Public mission list, detail, report form |
 | 20-21 | Admin QA Harness | ✅ Complete | Browser-based testing |
 | 22-24 | Roles & Assignment | ✅ Complete | Permissions, coordinator/squad assignment |
-| 25-26 | Notifications MVP | ✅ Complete | Email alerts for case events |
+| 25-26 | Notifications MVP | ✅ Complete | Email alerts for mission events |
 
 ### Critical Fixes & Features (Nov 27, 2025)
 
@@ -37,7 +37,7 @@ PetRecovery.org is a community-powered platform to help reunite lost pets with t
 | 0.2 | Real Metrics | ✅ Complete | Remove fake stats, public metrics API |
 | 0.3 | Error Handling | ✅ Complete | ErrorBoundary, 404, loading states |
 | 1.1 | Image Upload | ✅ Complete | Bunny.net CDN, drag-drop component |
-| 1.2 | Case Coordination UI | ✅ Complete | Chat, maps, sightings, participants |
+| 1.2 | Mission Coordination UI | ✅ Complete | Chat, maps, sightings, participants |
 | 1.3 | Pet Profile Management | ✅ Complete | /pets pages, pre-registration, quick report |
 | 1.4 | Lost/Found Matching | ✅ Complete | Matching algorithm, found pet reports, notifications |
 | 2.1 | Mobile Responsiveness | ✅ Complete | Hamburger menu, touch UI, responsive CSS |
@@ -85,39 +85,39 @@ PetRecovery.org is a community-powered platform to help reunite lost pets with t
 - Tabs: Overview, Errors, Tools
 - Test tools for geocoding and email
 
-#### Phase 13-14: Lost Pet Cases MVP ✅
-**Spec:** `docs/features/lost-pet-cases-mvp.md`
+#### Phase 13-14: Lost Pet Missions MVP ✅
+**Spec:** `docs/features/lost-pet-missions-mvp.md`
 
-- Database: `LostPetCase`, `LostPetCaseNote` models
+- Database: `LostPetMission`, `LostPetMissionNote` models
 - API: 5 endpoints with legal gating
-- Admin UI at `/admin/cases`
-- Case lifecycle: OPEN → ACTIVE_SEARCH → RESOLVED/CLOSED_OTHER
-- Case number format: `{CITY}-{YEAR}-{SEQ}` (e.g., CHI-2025-0001)
+- Admin UI at `/admin/missions`
+- Mission lifecycle: OPEN → ACTIVE_SEARCH → RESOLVED/CLOSED_OTHER
+- Mission number format: `{CITY}-{YEAR}-{SEQ}` (e.g., CHI-2025-0001)
 
-#### Phase 15-16: Public Lost Pet Case Portal MVP ✅
+#### Phase 15-16: Public Lost Pet Mission Portal MVP ✅
 **Spec:** `docs/features/public-lost-pet-portal-mvp.md`
 
 - Public API (no auth): list, detail, submit report
-- Public pages at `/cases`, `/cases/[caseNumber]`, `/cases/report`
+- Public pages at `/missions`, `/missions/[missionNumber]`, `/missions/report`
 - Privacy controls: `isPublic`, `publicContactOk` flags
-- Safe defaults: cases start as `isPublic=false`
+- Safe defaults: missions start as `isPublic=false`
 - QA tests for all public flows
 
 #### Phase 20-21: Admin QA Harness MVP ✅
 **Spec:** `docs/features/admin-qa-harness-mvp.md`
 
 - Browser-based testing at `/admin/qa`
-- 10+ smoke tests (Legal, Squad, Case, Public)
+- 10+ smoke tests (Legal, Squad, Mission, Public)
 - Data generators for demo content
 - Test data cleanup utilities
 
-#### Phase 22-24: Roles, Permissions & Case Assignment MVP ✅
+#### Phase 22-24: Roles, Permissions & Mission Assignment MVP ✅
 **Spec:** `docs/features/roles-and-assignment-mvp.md`
 
 - Permission model: USER, PATROL, MODERATOR, ADMIN
 - `lib/permissions.js` with `requireAdmin()`, `requireStaffOrAdmin()`
 - Admin gating on all `/admin/*` surfaces
-- Case assignment: `coordinatorId`, `squadId` fields
+- Mission assignment: `coordinatorId`, `squadId` fields
 - Assignment APIs for coordinator and squad
 
 #### Phase 25-26: Notifications MVP ✅
@@ -163,7 +163,7 @@ PetRecovery.org is a community-powered platform to help reunite lost pets with t
 - `DELETE /api/upload` - Remove from storage
 - `ImageUpload.js` component with drag-and-drop
 - File validation: JPEG, PNG, WebP, GIF (max 10MB)
-- Integrated in: `/cases/report`, sighting submission
+- Integrated in: `/missions/report`, sighting submission
 
 **Configuration:**
 ```env
@@ -172,8 +172,8 @@ BUNNY_API_KEY=your-api-key
 BUNNY_CDN_URL=https://your-zone.b-cdn.net
 ```
 
-#### Phase 1.2: Case Coordination UI ✅
-**Route:** `/cases/[caseNumber]/coordinate`
+#### Phase 1.2: Mission Coordination UI ✅
+**Route:** `/missions/[missionNumber]/coordinate`
 
 **Squad Chat:**
 - Real-time chat with 5-second polling
@@ -277,7 +277,7 @@ BUNNY_CDN_URL=https://your-zone.b-cdn.net
 - Path traversal prevention in file operations
 
 ### Authorization Fixes ✅
-- Case matches endpoint now requires authentication
+- Mission matches endpoint now requires authentication
 - Added authorization checks (owner, admin, or squad member)
 - Upload delete validates filename format (prevents path traversal)
 
@@ -329,13 +329,13 @@ BUNNY_CDN_URL=https://your-zone.b-cdn.net
 - Structured logging
 
 ### Milestone 2: Alpha ✅ COMPLETE
-- Admin case management
-- Public case portal
+- Admin mission management
+- Public mission portal
 - Notifications MVP
 - Roles & permissions
 - Password reset
 - Image upload
-- Case coordination UI
+- Mission coordination UI
 
 ### Milestone 3: Beta ✅ COMPLETE (Nov 27, 2025)
 - Pet profile management
@@ -418,7 +418,7 @@ The PetRecovery project is **MVP Complete**. All core features are functional an
 - Lost/found matching algorithm
 - Mobile responsiveness
 - Image uploads (Bunny.net)
-- Case coordination (chat, maps, sightings)
+- Mission coordination (chat, maps, sightings)
 - Password reset
 - Notifications
 

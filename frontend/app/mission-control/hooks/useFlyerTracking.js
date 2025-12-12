@@ -14,7 +14,7 @@ import { fetchWithRetry } from '@/app/lib/utils';
 const FLYER_BASE_POINTS = 8;
 const PHOTO_BONUS_POINTS = 3;
 
-export default function useFlyerTracking(caseId, options = {}) {
+export default function useFlyerTracking(missionId, options = {}) {
   const { autoRefresh = true, refreshInterval = 30000 } = options;
 
   // ==========================================================================
@@ -41,10 +41,10 @@ export default function useFlyerTracking(caseId, options = {}) {
   // FETCH FLYERS DATA
   // ==========================================================================
   const fetchFlyers = useCallback(async () => {
-    if (!caseId) return;
+    if (!missionId) return;
 
     try {
-      const res = await fetchWithRetry(`/api/mission/${caseId}/flyers`);
+      const res = await fetchWithRetry(`/api/mission/${missionId}/flyers`);
       if (!res.ok) {
         throw new Error('Failed to fetch flyers');
       }
@@ -68,7 +68,7 @@ export default function useFlyerTracking(caseId, options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [caseId]);
+  }, [missionId]);
 
   // ==========================================================================
   // LOCATION TRACKING
@@ -128,7 +128,7 @@ export default function useFlyerTracking(caseId, options = {}) {
   // POST FLYER
   // ==========================================================================
   const postFlyer = useCallback(async (photoUrl = null, notes = null) => {
-    if (!caseId) {
+    if (!missionId) {
       return { success: false, error: 'No case selected' };
     }
 
@@ -139,7 +139,7 @@ export default function useFlyerTracking(caseId, options = {}) {
     setPosting(true);
 
     try {
-      const res = await fetchWithRetry(`/api/mission/${caseId}/flyers`, {
+      const res = await fetchWithRetry(`/api/mission/${missionId}/flyers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -178,17 +178,17 @@ export default function useFlyerTracking(caseId, options = {}) {
     } finally {
       setPosting(false);
     }
-  }, [caseId, userLocation, fetchFlyers]);
+  }, [missionId, userLocation, fetchFlyers]);
 
   // ==========================================================================
   // FETCH USER STATS
   // ==========================================================================
   const fetchUserStats = useCallback(async () => {
-    if (!caseId) return;
+    if (!missionId) return;
 
     try {
       // Get user's flyers for this case
-      const flyersRes = await fetchWithRetry(`/api/mission/${caseId}/flyers`);
+      const flyersRes = await fetchWithRetry(`/api/mission/${missionId}/flyers`);
       if (flyersRes.ok) {
         const data = await flyersRes.json();
         // Count current user's flyers
@@ -198,7 +198,7 @@ export default function useFlyerTracking(caseId, options = {}) {
     } catch (err) {
       console.error('Error fetching user stats:', err);
     }
-  }, [caseId]);
+  }, [missionId]);
 
   // ==========================================================================
   // GET NEAREST COLD SPOT
@@ -232,7 +232,7 @@ export default function useFlyerTracking(caseId, options = {}) {
 
   // Initial fetch and location tracking
   useEffect(() => {
-    if (caseId) {
+    if (missionId) {
       fetchFlyers();
       startLocationTracking();
     }
@@ -240,11 +240,11 @@ export default function useFlyerTracking(caseId, options = {}) {
     return () => {
       stopLocationTracking();
     };
-  }, [caseId, fetchFlyers, startLocationTracking, stopLocationTracking]);
+  }, [missionId, fetchFlyers, startLocationTracking, stopLocationTracking]);
 
   // Auto-refresh
   useEffect(() => {
-    if (autoRefresh && caseId) {
+    if (autoRefresh && missionId) {
       refreshIntervalRef.current = setInterval(fetchFlyers, refreshInterval);
 
       return () => {
@@ -253,7 +253,7 @@ export default function useFlyerTracking(caseId, options = {}) {
         }
       };
     }
-  }, [autoRefresh, refreshInterval, caseId, fetchFlyers]);
+  }, [autoRefresh, refreshInterval, missionId, fetchFlyers]);
 
   // ==========================================================================
   // RETURN HOOK API

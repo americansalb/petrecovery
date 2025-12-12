@@ -11,7 +11,7 @@ import { createDonationSession } from '@/app/lib/payments/stripe';
 export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
-    const { amount, caseId, message } = await request.json();
+    const { amount, missionId, message } = await request.json();
 
     if (!amount || amount < 1) {
       return NextResponse.json({ error: 'Minimum donation is $1' }, { status: 400 });
@@ -22,12 +22,12 @@ export async function POST(request) {
     }
 
     let caseName = null;
-    if (caseId) {
-      const caseData = await prisma.case.findUnique({
-        where: { id: caseId },
+    if (missionId) {
+      const missionData = await prisma.case.findUnique({
+        where: { id: missionId },
         select: { petName: true },
       });
-      caseName = caseData?.petName;
+      caseName = missionData?.petName;
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -36,7 +36,7 @@ export async function POST(request) {
 
     const checkoutSession = await createDonationSession({
       amount,
-      caseId,
+      missionId,
       caseName,
       donorEmail: session?.user?.email,
       successUrl,
@@ -47,7 +47,7 @@ export async function POST(request) {
     await prisma.donation.create({
       data: {
         amount,
-        caseId,
+        missionId,
         donorId: session?.user?.id,
         stripeSessionId: checkoutSession.sessionId,
         message,
@@ -72,15 +72,15 @@ export async function POST(request) {
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const caseId = searchParams.get('caseId');
+    const missionId = searchParams.get('missionId');
 
-    if (!caseId) {
+    if (!missionId) {
       return NextResponse.json({ error: 'Case ID required' }, { status: 400 });
     }
 
     const donations = await prisma.donation.findMany({
       where: {
-        caseId,
+        missionId,
         status: 'COMPLETED',
       },
       select: {

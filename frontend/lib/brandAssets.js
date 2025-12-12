@@ -8,10 +8,10 @@
 const CDN_BASE = 'https://petrescue.b-cdn.net';
 
 export const BRAND_ASSETS = {
-  // Surumaa mascot - the friendly guide character
-  surumaa: {
+  // Sarama mascot - the divine guide (Sanskrit: सरमा, "the fleet one")
+  sarama: {
     avatar: `${CDN_BASE}/Untitled%20design%20(13).svg`,
-    name: 'Surumaa',
+    name: 'Sarama',
     tagline: 'Your Guide Home',
   },
 
@@ -25,8 +25,13 @@ export const BRAND_ASSETS = {
 };
 
 // Convenience exports
-export const SURUMAA_AVATAR = BRAND_ASSETS.surumaa.avatar;
-export const SURUMAA_NAME = BRAND_ASSETS.surumaa.name;
-export const SURUMAA_TAGLINE = BRAND_ASSETS.surumaa.tagline;
+export const SARAMA_AVATAR = BRAND_ASSETS.sarama.avatar;
+export const SARAMA_NAME = BRAND_ASSETS.sarama.name;
+export const SARAMA_TAGLINE = BRAND_ASSETS.sarama.tagline;
+
+// Legacy aliases (deprecated - use SARAMA_* instead)
+export const SURUMAA_AVATAR = SARAMA_AVATAR;
+export const SURUMAA_NAME = SARAMA_NAME;
+export const SURUMAA_TAGLINE = SARAMA_TAGLINE;
 export const LOGO_PRIMARY = BRAND_ASSETS.logos.primary;
 export const LOGO_ICON = BRAND_ASSETS.logos.icon;

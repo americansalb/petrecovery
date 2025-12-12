@@ -134,7 +134,8 @@ export default function RescueSquadSearchPage() {
     try {
       const res = await fetch(`/api/rescue-squads/${squadId}/join`, { method: 'POST' });
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok || data.alreadyMember) {
+        // Successfully joined or already a member - redirect to squad page
         router.push(`/rescue-squads/${squadId}`);
       } else {
         if (data.code === 'WAIVER_NOT_ACCEPTED' && data.redirectTo) {
@@ -162,7 +163,8 @@ export default function RescueSquadSearchPage() {
         return;
       }
 
-      if (!squadRes.ok && squadRes.status !== 400) {
+      // Allow continuing if already a member (alreadyMember flag) or success
+      if (!squadRes.ok && !squadData.alreadyMember) {
         setValidationError(squadData.error || 'Failed to join squad');
         return;
       }
@@ -367,7 +369,7 @@ export default function RescueSquadSearchPage() {
                         {item.exists && item.squad && (
                           <p className="text-midnight-400 text-xs mt-1 flex items-center gap-2">
                             <Users className="w-3 h-3" />
-                            {item.squad.memberCount} member{item.squad.memberCount !== 1 ? 's' : ''} | {item.squad.totalCasesAccepted || 0} cases
+                            {item.squad.memberCount} member{item.squad.memberCount !== 1 ? 's' : ''} | {item.squad.totalMissionsAccepted || 0} cases
                             {item.divisions && item.divisions.length > 0 && ` | ${item.divisions.length} divisions`}
                           </p>
                         )}

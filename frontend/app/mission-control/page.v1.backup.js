@@ -44,7 +44,7 @@ function MissionControlContent() {
     try {
       if (!session?.user) return;
 
-      const res = await fetchWithRetry('/api/cases/my-missions');
+      const res = await fetchWithRetry('/api/missions/my-missions');
       if (res.ok) {
         const data = await res.json();
         setAvailableMissions(data.missions || []);
@@ -69,7 +69,7 @@ function MissionControlContent() {
         return;
       }
 
-      const res = await fetchWithRetry(`/api/cases/${id}`);
+      const res = await fetchWithRetry(`/api/missions/${id}`);
 
       if (!res.ok) {
         if (res.status === 404) {

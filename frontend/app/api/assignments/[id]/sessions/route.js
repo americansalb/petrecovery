@@ -111,7 +111,7 @@ export async function POST(request, { params }) {
     const searchSession = await prisma.searchSession.create({
       data: {
         participantId: participation.id,
-        caseId: participation.assignment.case.id,
+        missionId: participation.assignment.case.id,
         status: 'ACTIVE',
         startedAt: new Date(),
       },
@@ -120,7 +120,7 @@ export async function POST(request, { params }) {
     // Create activity log
     await prisma.caseUpdate.create({
       data: {
-        caseId: participation.assignment.case.id,
+        missionId: participation.assignment.case.id,
         authorId: session.user.id,
         content: `${session.user.firstName || 'A volunteer'} started searching`,
         isUpdate: true,

@@ -327,47 +327,47 @@ async function main() {
   const cases = [];
 
   for (let i = 0; i < casesData.length; i++) {
-    const caseData = casesData[i];
-    const caseNumber = `CHI-2024-${String(i + 1).padStart(4, '0')}`;
+    const missionData = casesData[i];
+    const missionNumber = `CHI-2024-${String(i + 1).padStart(4, '0')}`;
 
     // Check if case exists
     let petCase = await prisma.case.findUnique({
-      where: { caseNumber },
+      where: { missionNumber },
     });
 
     if (!petCase) {
       petCase = await prisma.case.create({
         data: {
-          caseNumber,
-          petName: caseData.petName,
-          petSpecies: caseData.petSpecies,
-          petBreed: caseData.petBreed,
-          petColor: caseData.petColor,
+          missionNumber,
+          petName: missionData.petName,
+          petSpecies: missionData.petSpecies,
+          petBreed: missionData.petBreed,
+          petColor: missionData.petColor,
           petSize: 'MEDIUM',
           petPhotoUrl: null,
-          petDescription: `${caseData.petColor} ${caseData.petBreed}`,
+          petDescription: `${missionData.petColor} ${missionData.petBreed}`,
           reporterId: reporter.id,
           ownerName: `${reporter.firstName} ${reporter.lastName}`,
           ownerPhone: '555-0100',
           ownerEmail: reporter.email,
           reportType: 'LOST',
-          status: caseData.status,
-          priority: caseData.hoursAgo < 24 ? 'URGENT' : 'NORMAL',
-          lastSeenAt: new Date(Date.now() - caseData.hoursAgo * 60 * 60 * 1000),
-          lastSeenLatitude: caseData.lastSeenLatitude,
-          lastSeenLongitude: caseData.lastSeenLongitude,
-          lastSeenAddress: caseData.lastSeenAddress,
+          status: missionData.status,
+          priority: missionData.hoursAgo < 24 ? 'URGENT' : 'NORMAL',
+          lastSeenAt: new Date(Date.now() - missionData.hoursAgo * 60 * 60 * 1000),
+          lastSeenLatitude: missionData.lastSeenLatitude,
+          lastSeenLongitude: missionData.lastSeenLongitude,
+          lastSeenAddress: missionData.lastSeenAddress,
           searchRadius: 5,
           escapeScenario: 'DOOR_DASH',
-          hasReward: !!caseData.rewardAmount,
-          rewardAmount: caseData.rewardAmount,
-          resolvedAt: caseData.status === 'RESOLVED' ? new Date() : null,
-          resolution: caseData.status === 'RESOLVED' ? 'REUNITED' : null,
+          hasReward: !!missionData.rewardAmount,
+          rewardAmount: missionData.rewardAmount,
+          resolvedAt: missionData.status === 'RESOLVED' ? new Date() : null,
+          resolution: missionData.status === 'RESOLVED' ? 'REUNITED' : null,
         },
       });
     }
     cases.push(petCase);
-    console.log(`  ✅ Case: ${petCase.petName} (${petCase.caseNumber})`);
+    console.log(`  ✅ Case: ${petCase.petName} (${petCase.missionNumber})`);
   }
 
   // ============================================================================
@@ -379,7 +379,7 @@ async function main() {
     let assignment = await prisma.caseAssignment.findFirst({
       where: {
         rescueSquadId: chicagoSquad.id,
-        caseId: petCase.id,
+        missionId: petCase.id,
       },
     });
 
@@ -387,7 +387,7 @@ async function main() {
       assignment = await prisma.caseAssignment.create({
         data: {
           rescueSquadId: chicagoSquad.id,
-          caseId: petCase.id,
+          missionId: petCase.id,
           status: petCase.status === 'RESOLVED' ? 'COMPLETED' : 'ACTIVE',
           acceptedAt: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000),
           acceptedById: members[0].userId, // David accepted all cases
@@ -433,7 +433,7 @@ async function main() {
         type: actType.type,
         message: actType.message,
         actorId: actor.userId,
-        caseId: actType.type.startsWith('CASE') || actType.type === 'SIGHTING_REPORTED' ? petCase.id : null,
+        missionId: actType.type.startsWith('CASE') || actType.type === 'SIGHTING_REPORTED' ? petCase.id : null,
         details: JSON.stringify({}),
         createdAt: new Date(Date.now() - Math.random() * 48 * 60 * 60 * 1000),
       },
@@ -485,7 +485,7 @@ async function main() {
         status: 'PENDING',
         priority: 'NORMAL',
         creatorId: creator.id,
-        caseId: petCase?.id,
+        missionId: petCase?.id,
         createdAt: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000),
       },
     }).catch(() => {}); // Ignore duplicates

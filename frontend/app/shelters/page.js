@@ -90,7 +90,7 @@ export default function SheltersPage() {
           </p>
           <Button
             variant="primary"
-            href="/cases/new"
+            href="/missions/new"
             size="lg"
           >
             <AlertTriangle size={18} />

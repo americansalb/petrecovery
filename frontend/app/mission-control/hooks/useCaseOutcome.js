@@ -8,7 +8,7 @@
 
 import { useState, useCallback } from 'react';
 
-export default function useCaseOutcome(caseId) {
+export default function useCaseOutcome(missionId) {
   const [metrics, setMetrics] = useState(null);
   const [outcome, setOutcome] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -19,11 +19,11 @@ export default function useCaseOutcome(caseId) {
    * Fetch case metrics for display
    */
   const fetchMetrics = useCallback(async () => {
-    if (!caseId) return;
+    if (!missionId) return;
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/mission/${caseId}/close`);
+      const res = await fetch(`/api/mission/${missionId}/close`);
       if (!res.ok) throw new Error('Failed to fetch metrics');
 
       const data = await res.json();
@@ -36,18 +36,18 @@ export default function useCaseOutcome(caseId) {
     } finally {
       setLoading(false);
     }
-  }, [caseId]);
+  }, [missionId]);
 
   /**
    * Close the case with outcome
    */
   const closeCase = useCallback(
     async (outcomeData) => {
-      if (!caseId) return { success: false, error: 'No case ID' };
+      if (!missionId) return { success: false, error: 'No case ID' };
 
       setClosing(true);
       try {
-        const res = await fetch(`/api/mission/${caseId}/close`, {
+        const res = await fetch(`/api/mission/${missionId}/close`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(outcomeData),
@@ -71,7 +71,7 @@ export default function useCaseOutcome(caseId) {
         setClosing(false);
       }
     },
-    [caseId, fetchMetrics]
+    [missionId, fetchMetrics]
   );
 
   return {

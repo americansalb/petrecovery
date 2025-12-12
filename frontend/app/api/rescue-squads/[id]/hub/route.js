@@ -49,13 +49,13 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
 
 /**
  * Assign a case to the most appropriate division based on location
- * @param {Object} caseData - Case with lastSeenLatitude and lastSeenLongitude
+ * @param {Object} missionData - Case with lastSeenLatitude and lastSeenLongitude
  * @param {Array} divisions - Array of division objects
  * @returns {string|null} - Division ID or null
  */
-function assignCaseToDivision(caseData, divisions) {
-  const caseLat = caseData.lastSeenLatitude;
-  const caseLng = caseData.lastSeenLongitude;
+function assignCaseToDivision(missionData, divisions) {
+  const caseLat = missionData.lastSeenLatitude;
+  const caseLng = missionData.lastSeenLongitude;
 
   if (!caseLat || !caseLng || !divisions || divisions.length === 0) {
     return divisions[0]?.id || null;
@@ -117,7 +117,8 @@ export async function GET(request, { params }) {
       prisma = (await import('@/app/lib/prisma')).default;
       const nextAuth = await import('next-auth');
       getServerSession = nextAuth.getServerSession;
-      const authModule = await import('@/app/api/auth/[...nextauth]/route');
+      // Import authOptions from the lib file where it's actually exported
+      const authModule = await import('@/app/lib/auth');
       authOptions = authModule.authOptions;
     } catch (importError) {
       console.error('Database not available:', importError.message);
@@ -176,6 +177,7 @@ export async function GET(request, { params }) {
     const squadId = squad.id;
 
     console.log('[Hub Debug] Found squad:', { id: squadId, name: squad.name, city: squad.city });
+    console.log('[Hub Debug] Session:', { hasSession: !!session, hasUser: !!session?.user, userId: session?.user?.id });
 
     // Check user's membership status
     let membership = {
@@ -198,6 +200,14 @@ export async function GET(request, { params }) {
         },
       });
 
+      console.log('[Hub Debug] Membership query result:', {
+        squadId,
+        userId: session.user.id,
+        found: !!userMembership,
+        membershipId: userMembership?.id,
+        isActive: userMembership?.isActive
+      });
+
       if (userMembership) {
         membership = {
           isMember: true,
@@ -207,6 +217,8 @@ export async function GET(request, { params }) {
           role: userMembership.role,
         };
       }
+    } else {
+      console.log('[Hub Debug] No session.user.id - skipping membership check');
     }
 
     // Get cases assigned to this squad
@@ -233,7 +245,7 @@ export async function GET(request, { params }) {
     if (caseAssignments.length > 0) {
       console.log('[Hub Debug] Assignment details:');
       caseAssignments.forEach((assignment, idx) => {
-        console.log(`  [${idx}] ID: ${assignment.id}, CaseID: ${assignment.caseId}, Status: ${assignment.status}, PetName: ${assignment.case?.petName}, CaseStatus: ${assignment.case?.status}`);
+        console.log(`  [${idx}] ID: ${assignment.id}, CaseID: ${assignment.missionId}, Status: ${assignment.status}, PetName: ${assignment.case?.petName}, CaseStatus: ${assignment.case?.status}`);
       });
     }
 
@@ -264,7 +276,7 @@ export async function GET(request, { params }) {
 
       return {
         id: c.id,
-        caseNumber: c.caseNumber,
+        missionNumber: c.missionNumber,
         divisionId: assignCaseToDivision(c, squad.divisions),
         petName: c.petName,
         species: c.petSpecies,
@@ -351,22 +363,22 @@ export async function GET(request, { params }) {
         actor: {
           select: { firstName: true, lastName: true },
         },
-        // Note: caseId is just a String, not a relation - look up case data separately if needed
+        // Note: missionId is just a String, not a relation - look up case data separately if needed
       },
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
 
     // Build case lookup map for activity case references
-    const activityCaseIds = [...new Set(activities.map(a => a.caseId).filter(Boolean))];
+    const activityCaseIds = [...new Set(activities.map(a => a.missionId).filter(Boolean))];
     const activityCases = activityCaseIds.length > 0 ? await prisma.case.findMany({
       where: { id: { in: activityCaseIds } },
-      select: { id: true, petName: true, caseNumber: true },
+      select: { id: true, petName: true, missionNumber: true },
     }) : [];
     const activityCaseMap = new Map(activityCases.map(c => [c.id, c]));
 
     const recentEvents = activities.map(a => {
-      const linkedCase = a.caseId ? activityCaseMap.get(a.caseId) : null;
+      const linkedCase = a.missionId ? activityCaseMap.get(a.missionId) : null;
       return {
         id: a.id,
         type: a.type.toLowerCase(),
@@ -374,7 +386,7 @@ export async function GET(request, { params }) {
         payload: {
           memberName: a.actor ? `${a.actor.firstName} ${a.actor.lastName?.[0] || ''}.` : null,
           petName: linkedCase?.petName,
-          caseNumber: linkedCase?.caseNumber,
+          missionNumber: linkedCase?.missionNumber,
           ...JSON.parse(a.details || '{}'),
         },
       };
@@ -419,7 +431,7 @@ export async function GET(request, { params }) {
           content: a.message,
           createdAt: a.createdAt.toISOString(),
           divisionId: details.divisionId || null,
-          caseId: a.caseId,
+          missionId: a.missionId,
         };
       })
       .reverse(); // Oldest first
@@ -442,16 +454,16 @@ export async function GET(request, { params }) {
     // Auto-create welcome announcement if none exists
     if (announcementActivities.length === 0) {
       try {
-        // Find or create Surumaa system user
+        // Find or create Sarama system user
         let systemUser = await prisma.user.findFirst({
-          where: { email: 'surumaa@petrecovery.app' },
+          where: { email: 'sarama@petrecovery.app' },
         });
 
         if (!systemUser) {
           systemUser = await prisma.user.create({
             data: {
-              email: 'surumaa@petrecovery.app',
-              firstName: 'Surumaa',
+              email: 'sarama@petrecovery.app',
+              firstName: 'Sarama',
               lastName: '',
               role: 'ADMIN',
             },
@@ -499,11 +511,11 @@ Every share, every search, every kind word makes a difference. Together, we brin
 
     const announcements = announcementActivities.map(a => {
       const details = JSON.parse(a.details || '{}');
-      const isSystemPost = details.isSystemPost || a.actor?.firstName === 'Surumaa';
+      const isSystemPost = details.isSystemPost || a.actor?.firstName === 'Sarama';
       return {
         id: a.id,
         authorId: a.actorId,
-        authorName: isSystemPost ? 'Surumaa' : (a.actor ? `${a.actor.firstName} ${a.actor.lastName?.[0] || ''}.` : 'Unknown'),
+        authorName: isSystemPost ? 'Sarama' : (a.actor ? `${a.actor.firstName} ${a.actor.lastName?.[0] || ''}.` : 'Unknown'),
         title: details.title || 'Announcement',
         content: a.message,
         createdAt: a.createdAt.toISOString(),
@@ -526,28 +538,28 @@ Every share, every search, every kind word makes a difference. Together, we brin
         assignedTo: {
           select: { id: true, firstName: true, lastName: true },
         },
-        // Note: caseId is just a String, not a relation
+        // Note: missionId is just a String, not a relation
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    // Look up case codes for tasks with caseIds
-    const taskCaseIds = [...new Set(tasks.map(t => t.caseId).filter(Boolean))];
+    // Look up case codes for tasks with missionIds
+    const taskCaseIds = [...new Set(tasks.map(t => t.missionId).filter(Boolean))];
     const taskCases = taskCaseIds.length > 0 ? await prisma.case.findMany({
       where: { id: { in: taskCaseIds } },
-      select: { id: true, caseNumber: true },
+      select: { id: true, missionNumber: true },
     }) : [];
     const taskCaseMap = new Map(taskCases.map(c => [c.id, c]));
 
     const requests = tasks.map(t => {
-      const linkedCase = t.caseId ? taskCaseMap.get(t.caseId) : null;
+      const linkedCase = t.missionId ? taskCaseMap.get(t.missionId) : null;
       return {
         id: t.id,
         title: t.title,
         body: t.description || '',
         divisionId: null, // SquadTask doesn't have divisionId field
-        caseId: t.caseId,
-        caseCode: linkedCase?.caseNumber,
+        missionId: t.missionId,
+        caseCode: linkedCase?.missionNumber,
         authorId: t.createdById,
         authorName: t.createdBy ? `${t.createdBy.firstName} ${t.createdBy.lastName?.[0] || ''}.` : 'Unknown',
         createdAt: t.createdAt.toISOString(),

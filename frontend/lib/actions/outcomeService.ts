@@ -14,7 +14,7 @@ import { PrismaClient, OutcomeType, FoundMethod, Prisma, CaseResolution } from '
 // =============================================================================
 
 export interface CloseCase {
-  caseId: string;
+  missionId: string;
   outcome: OutcomeType;
   foundMethod?: FoundMethod;
   foundMethodDetails?: string;
@@ -65,8 +65,8 @@ export class OutcomeService {
    */
   async closeCase(input: CloseCase): Promise<{ success: boolean; outcomeId?: string; error?: string }> {
     try {
-      const caseData = await this.prisma.case.findUnique({
-        where: { id: input.caseId },
+      const missionData = await this.prisma.case.findUnique({
+        where: { id: input.missionId },
         select: {
           id: true,
           createdAt: true,
@@ -77,21 +77,21 @@ export class OutcomeService {
         },
       });
 
-      if (!caseData) {
-        return { success: false, error: 'Case not found' };
+      if (!missionData) {
+        return { success: false, error: 'Mission not found' };
       }
 
-      if (caseData.caseOutcome) {
+      if (missionData.caseOutcome) {
         return { success: false, error: 'Case already has an outcome recorded' };
       }
 
       // Compute metrics
-      const metrics = await this.computeCaseMetrics(input.caseId, caseData.createdAt);
+      const metrics = await this.computeCaseMetrics(input.missionId, missionData.createdAt);
 
       // Fetch current weather if available (for context)
       let weatherConditions: string | undefined;
       const caseWithLocation = await this.prisma.case.findUnique({
-        where: { id: input.caseId },
+        where: { id: input.missionId },
         select: { lastSeenLatitude: true, lastSeenLongitude: true },
       });
       if (caseWithLocation?.lastSeenLatitude && caseWithLocation?.lastSeenLongitude) {
@@ -106,14 +106,14 @@ export class OutcomeService {
         // Create CaseOutcome
         const outcomeRecord = await tx.caseOutcome.create({
           data: {
-            caseId: input.caseId,
+            missionId: input.missionId,
             outcome: input.outcome,
             foundMethod: input.foundMethod,
             foundMethodDetails: input.foundMethodDetails,
             timeToReunionHours: metrics.timeToReunionHours,
-            petType: caseData.petSpecies,
+            petType: missionData.petSpecies,
             petBehavior: input.petBehavior,
-            petSize: caseData.petSize,
+            petSize: missionData.petSize,
             locationType: input.locationType,
             weatherConditions,
             verifiedActionsCount: metrics.verifiedActionsCount,
@@ -132,7 +132,7 @@ export class OutcomeService {
         // Update case status
         const newStatus = input.outcome === 'REUNITED' ? 'REUNITED' : 'CLOSED_OTHER';
         await tx.case.update({
-          where: { id: input.caseId },
+          where: { id: input.missionId },
           data: {
             status: newStatus,
             resolvedAt: new Date(),
@@ -153,10 +153,10 @@ export class OutcomeService {
   /**
    * Compute all metrics for a case
    */
-  async computeCaseMetrics(caseId: string, caseCreatedAt: Date): Promise<CaseMetrics> {
+  async computeCaseMetrics(missionId: string, caseCreatedAt: Date): Promise<CaseMetrics> {
     // Get verified actions with aggregation
     const verifiedActions = await this.prisma.verifiedAction.findMany({
-      where: { caseId },
+      where: { missionId },
       select: {
         actionType: true,
         createdAt: true,
@@ -184,7 +184,7 @@ export class OutcomeService {
 
     // Get search sessions for total hours
     const searchSessions = await this.prisma.searchSession.findMany({
-      where: { caseId },
+      where: { missionId },
       select: { startedAt: true, endedAt: true },
     });
     const totalSearchHours = searchSessions.reduce((sum, s) => {
@@ -196,18 +196,18 @@ export class OutcomeService {
     }, 0);
 
     // Get flyer count
-    const totalFlyersPosted = await this.prisma.flyerPosting.count({ where: { caseId } });
+    const totalFlyersPosted = await this.prisma.flyerPosting.count({ where: { missionId } });
 
     // Get shelter contacts
-    const totalSheltersContacted = await this.prisma.shelterContact.count({ where: { caseId } });
+    const totalSheltersContacted = await this.prisma.shelterContact.count({ where: { missionId } });
 
     // Get sightings count
-    const sightingsCount = await this.prisma.caseSighting.count({ where: { caseId } });
+    const sightingsCount = await this.prisma.caseSighting.count({ where: { missionId } });
 
     // Get unique team members (from case participants via assignments)
     const participants = await this.prisma.caseParticipant.findMany({
       where: {
-        assignment: { caseId }
+        assignment: { missionId }
       },
       select: { userId: true },
     });
@@ -358,15 +358,15 @@ export class OutcomeService {
   /**
    * Get case-specific analytics for display
    */
-  async getCaseAnalytics(caseId: string): Promise<CaseMetrics | null> {
-    const caseData = await this.prisma.case.findUnique({
-      where: { id: caseId },
+  async getCaseAnalytics(missionId: string): Promise<CaseMetrics | null> {
+    const missionData = await this.prisma.case.findUnique({
+      where: { id: missionId },
       select: { createdAt: true },
     });
 
-    if (!caseData) return null;
+    if (!missionData) return null;
 
-    return this.computeCaseMetrics(caseId, caseData.createdAt);
+    return this.computeCaseMetrics(missionId, missionData.createdAt);
   }
 
   /**

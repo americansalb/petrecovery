@@ -92,7 +92,7 @@ export default function MissionControlV2() {
   const fetchAvailableMissions = useCallback(async () => {
     if (!session?.user) return;
     try {
-      const res = await fetchWithRetry('/api/cases/my-missions');
+      const res = await fetchWithRetry('/api/missions/my-missions');
       if (res.ok) {
         const data = await res.json();
         setAvailableMissions(data.missions || []);
@@ -116,7 +116,7 @@ export default function MissionControlV2() {
         return;
       }
 
-      const res = await fetchWithRetry(`/api/cases/${id}`);
+      const res = await fetchWithRetry(`/api/missions/${id}`);
 
       if (!res.ok) {
         if (res.status === 404) {
@@ -150,10 +150,10 @@ export default function MissionControlV2() {
   }, []);
 
   // Fetch sightings
-  const fetchSightings = async (caseId) => {
-    if (!caseId) return;
+  const fetchSightings = async (missionId) => {
+    if (!missionId) return;
     try {
-      const res = await fetch(`/api/cases/${caseId}/sightings`);
+      const res = await fetch(`/api/missions/${missionId}/sightings`);
       if (res.ok) {
         const data = await res.json();
         setSightings(data.sightings || []);
@@ -319,7 +319,7 @@ export default function MissionControlV2() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Case Header */}
         <CaseHeader
-          caseData={activeMission}
+          missionData={activeMission}
           onBack={handleBackToSquad}
           showBackButton={true}
         />
@@ -396,7 +396,7 @@ export default function MissionControlV2() {
               isExpanded={expandedPanel === 'tasks'}
               onToggle={(expanded) => setExpandedPanel(expanded ? 'tasks' : null)}
             >
-              <TasksPanel caseData={activeMission} session={session} />
+              <TasksPanel missionData={activeMission} session={session} />
             </ExpandablePanel>
 
             <ExpandablePanel
@@ -409,7 +409,7 @@ export default function MissionControlV2() {
               onToggle={(expanded) => setExpandedPanel(expanded ? 'sightings' : null)}
             >
               <SightingsPanel
-                caseId={activeMission.id}
+                missionId={activeMission.id}
                 sightings={sightings}
                 onSightingAdded={() => fetchSightings(activeMission.id)}
               />
@@ -424,7 +424,7 @@ export default function MissionControlV2() {
               isExpanded={expandedPanel === 'team'}
               onToggle={(expanded) => setExpandedPanel(expanded ? 'team' : null)}
             >
-              <TeamPanel caseData={activeMission} />
+              <TeamPanel missionData={activeMission} />
             </ExpandablePanel>
 
             <ExpandablePanel
@@ -434,7 +434,7 @@ export default function MissionControlV2() {
               isExpanded={expandedPanel === 'chat'}
               onToggle={(expanded) => setExpandedPanel(expanded ? 'chat' : null)}
             >
-              <ChatPanel caseId={activeMission.id} session={session} />
+              <ChatPanel missionId={activeMission.id} session={session} />
             </ExpandablePanel>
           </div>
         </div>
@@ -495,7 +495,7 @@ function MissionCard({ mission, onClick }) {
 // ============================================================================
 // TASKS PANEL - Full 25-item checklist with completion tracking
 // ============================================================================
-function TasksPanel({ caseData, session }) {
+function TasksPanel({ missionData, session }) {
   const [tasks, setTasks] = useState([]);
   const [expandedCategories, setExpandedCategories] = useState(['immediate']);
 
@@ -537,8 +537,8 @@ function TasksPanel({ caseData, session }) {
 
   // Load tasks from localStorage
   useEffect(() => {
-    if (!caseData?.id) return;
-    const key = `case_${caseData.id}_tasks_v2`;
+    if (!missionData?.id) return;
+    const key = `case_${missionData.id}_tasks_v2`;
     const saved = localStorage.getItem(key);
     if (saved) {
       try {
@@ -549,13 +549,13 @@ function TasksPanel({ caseData, session }) {
     } else {
       setTasks(defaultTasks);
     }
-  }, [caseData?.id]);
+  }, [missionData?.id]);
 
   // Save tasks to localStorage
   useEffect(() => {
-    if (!caseData?.id || tasks.length === 0) return;
-    localStorage.setItem(`case_${caseData.id}_tasks_v2`, JSON.stringify(tasks));
-  }, [tasks, caseData?.id]);
+    if (!missionData?.id || tasks.length === 0) return;
+    localStorage.setItem(`case_${missionData.id}_tasks_v2`, JSON.stringify(tasks));
+  }, [tasks, missionData?.id]);
 
   const toggleTask = (taskId) => {
     setTasks(prev => prev.map(t =>
@@ -654,7 +654,7 @@ function TasksPanel({ caseData, session }) {
 // ============================================================================
 // SIGHTINGS PANEL - Report and view sightings
 // ============================================================================
-function SightingsPanel({ caseId, sightings, onSightingAdded }) {
+function SightingsPanel({ missionId, sightings, onSightingAdded }) {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -680,7 +680,7 @@ function SightingsPanel({ caseId, sightings, onSightingAdded }) {
         console.log('Could not get GPS location');
       }
 
-      const res = await fetch(`/api/cases/${caseId}/sightings`, {
+      const res = await fetch(`/api/missions/${missionId}/sightings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -802,8 +802,8 @@ function SightingsPanel({ caseId, sightings, onSightingAdded }) {
 // ============================================================================
 // TEAM PANEL - View helpers on the case
 // ============================================================================
-function TeamPanel({ caseData }) {
-  const team = caseData?.assignments?.flatMap(a => a.participants || []) || [];
+function TeamPanel({ missionData }) {
+  const team = missionData?.assignments?.flatMap(a => a.participants || []) || [];
   const uniqueTeam = [...new Map(team.map(p => [p.userId, p])).values()];
   const activeCount = uniqueTeam.filter(p => p.isActive).length;
 
@@ -860,7 +860,7 @@ function TeamPanel({ caseData }) {
 // ============================================================================
 // CHAT PANEL - Case-specific messaging
 // ============================================================================
-function ChatPanel({ caseId, session }) {
+function ChatPanel({ missionId, session }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -870,7 +870,7 @@ function ChatPanel({ caseId, session }) {
   useEffect(() => {
     const fetchMessages = async () => {
       try {
-        const res = await fetch(`/api/cases/${caseId}/chat`);
+        const res = await fetch(`/api/missions/${missionId}/chat`);
         if (res.ok) {
           const data = await res.json();
           setMessages(data.messages || []);
@@ -886,7 +886,7 @@ function ChatPanel({ caseId, session }) {
     // Poll for new messages
     const interval = setInterval(fetchMessages, 10000);
     return () => clearInterval(interval);
-  }, [caseId]);
+  }, [missionId]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -894,7 +894,7 @@ function ChatPanel({ caseId, session }) {
 
     setSending(true);
     try {
-      const res = await fetch(`/api/cases/${caseId}/chat`, {
+      const res = await fetch(`/api/missions/${missionId}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: newMessage.trim() }),

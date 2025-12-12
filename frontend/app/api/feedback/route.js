@@ -23,7 +23,7 @@ export async function POST(request) {
     const session = await getServerSession();
     const body = await request.json();
 
-    const { rating, category, message, feature, caseId, timestamp, userAgent } = body;
+    const { rating, category, message, feature, missionId, timestamp, userAgent } = body;
 
     // Validate required fields
     if (!rating || !['positive', 'neutral', 'negative', 'bug'].includes(rating)) {
@@ -48,7 +48,7 @@ export async function POST(request) {
       category: category || 'general',
       feature: feature || 'general',
       message: message || null,
-      caseId: caseId || null,
+      missionId: missionId || null,
       userEmail: session?.user?.email || null,
       timestamp: timestamp || new Date().toISOString(),
       userAgent: userAgent || null,
@@ -69,7 +69,7 @@ export async function POST(request) {
         category,
         message: message?.substring(0, 100),
         userEmail: session?.user?.email,
-        caseId,
+        missionId,
       });
     }
 

@@ -14,7 +14,7 @@ import { useState, useEffect } from 'react';
 import { TOUCH_TARGETS, triggerHaptic } from '@/app/lib/missionControl/accessibility';
 
 export default function ShareMission({
-  caseId,
+  missionId,
   petName,
   petSpecies,
   isLive = false,
@@ -30,9 +30,9 @@ export default function ShareMission({
     // Generate the share URL
     if (typeof window !== 'undefined') {
       const baseUrl = window.location.origin;
-      setShareUrl(`${baseUrl}/join/${caseId}`);
+      setShareUrl(`${baseUrl}/join/${missionId}`);
     }
-  }, [caseId]);
+  }, [missionId]);
 
   const getMessage = () => {
     if (isLive) {

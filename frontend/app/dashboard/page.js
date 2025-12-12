@@ -14,7 +14,8 @@ import Link from 'next/link';
 import {
   Users, MapPin, Search, Clock, Award, Shield,
   ChevronRight, Plus, AlertCircle, CheckCircle2,
-  Target, TrendingUp, Star, Zap, PawPrint, Bell, Building2
+  Target, TrendingUp, Star, Zap, PawPrint, Bell, Building2,
+  ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, Mail, Calendar, UserCheck
 } from 'lucide-react';
 import { Card, CardHeader, Button, Badge, StatusBadge, EmptyState, CardSkeleton, ListItemSkeleton } from '@/components/ui';
 
@@ -43,6 +44,27 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
   const [error, setError] = useState('');
+
+  // Sorting and display states
+  const [squadSort, setSquadSort] = useState({ field: 'activity', asc: false });
+  const [missionSort, setMissionSort] = useState({ field: 'activity', asc: false });
+  const [showAllSquads, setShowAllSquads] = useState(false);
+  const MAX_SQUADS_DISPLAY = 5;
+
+  // Admin members state
+  const [memberSort, setMemberSort] = useState({ field: 'recent', asc: false });
+  const [memberSearch, setMemberSearch] = useState('');
+  const [showAllMembers, setShowAllMembers] = useState(false);
+  const MAX_MEMBERS_DISPLAY = 10;
+
+  // Toggle sort function
+  const toggleSort = (current, setCurrent, field) => {
+    if (current.field === field) {
+      setCurrent({ field, asc: !current.asc });
+    } else {
+      setCurrent({ field, asc: false });
+    }
+  };
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -155,9 +177,81 @@ export default function DashboardPage() {
     return null;
   }
 
-  const { user, squads = [], activeCases = [], reports = [], nearbyAlerts = [] } = userData;
+  const { user, squads = [], activeMissions = [], reports = [], nearbyAlerts = [], missions = [], allMembers = [] } = userData;
   const rescueLevel = RESCUE_LEVELS[user?.rescueLevel] || RESCUE_LEVELS.PET_OWNER;
   const LevelIcon = rescueLevel.icon;
+  const isAdmin = user?.role === 'ADMIN';
+
+  // Sort squads
+  const sortedSquads = [...squads].sort((a, b) => {
+    let result = 0;
+    switch (squadSort.field) {
+      case 'name':
+        result = a.name.localeCompare(b.name);
+        break;
+      case 'members':
+        result = (b.memberCount || 0) - (a.memberCount || 0);
+        break;
+      case 'activity':
+      default:
+        result = new Date(b.joinedAt || 0) - new Date(a.joinedAt || 0);
+    }
+    return squadSort.asc ? -result : result;
+  });
+
+  // Sort missions
+  const sortedMissions = [...missions].sort((a, b) => {
+    let result = 0;
+    switch (missionSort.field) {
+      case 'name':
+        result = a.petName.localeCompare(b.petName);
+        break;
+      case 'missing':
+        result = (b.hoursMissing || 0) - (a.hoursMissing || 0);
+        break;
+      case 'activity':
+      default:
+        result = (a.hoursMissing || 0) - (b.hoursMissing || 0);
+    }
+    return missionSort.asc ? -result : result;
+  });
+
+  // Squads to display (limited or all)
+  const displayedSquads = showAllSquads ? sortedSquads : sortedSquads.slice(0, MAX_SQUADS_DISPLAY);
+  const hasMoreSquads = sortedSquads.length > MAX_SQUADS_DISPLAY;
+
+  // Filter and sort members (admin only)
+  const filteredMembers = allMembers.filter(member => {
+    if (!memberSearch) return true;
+    const search = memberSearch.toLowerCase();
+    return (
+      member.firstName?.toLowerCase().includes(search) ||
+      member.lastName?.toLowerCase().includes(search) ||
+      member.email?.toLowerCase().includes(search)
+    );
+  });
+
+  const sortedMembers = [...filteredMembers].sort((a, b) => {
+    let result = 0;
+    switch (memberSort.field) {
+      case 'name':
+        result = `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+        break;
+      case 'email':
+        result = (a.email || '').localeCompare(b.email || '');
+        break;
+      case 'activity':
+        result = new Date(b.lastLoginAt || 0) - new Date(a.lastLoginAt || 0);
+        break;
+      case 'recent':
+      default:
+        result = new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    }
+    return memberSort.asc ? -result : result;
+  });
+
+  const displayedMembers = showAllMembers ? sortedMembers : sortedMembers.slice(0, MAX_MEMBERS_DISPLAY);
+  const hasMoreMembers = sortedMembers.length > MAX_MEMBERS_DISPLAY;
 
   return (
     <div className="min-h-screen bg-midnight-50">
@@ -189,7 +283,7 @@ export default function DashboardPage() {
             {/* Quick Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
               {[
-                { label: 'Cases Helped', value: activeCases.length, icon: Target },
+                { label: 'Cases Helped', value: activeMissions.length, icon: Target },
                 { label: 'Areas Marked', value: user?.areasMarkedCount || 0, icon: MapPin },
                 { label: 'Acres Searched', value: Math.round(user?.totalAcreageSearched || 0), icon: Search },
                 { label: 'Reunions', value: user?.successfulReunions || 0, icon: Award },
@@ -233,10 +327,10 @@ export default function DashboardPage() {
                 <span className="truncate">Find Squads</span>
               </div>
             </Link>
-            <Link href="/shelters" className="block group">
+            <Link href="/database" className="block group">
               <div className="flex items-center gap-3 p-3 bg-purple-50 border-2 border-purple-200 rounded-xl text-purple-700 font-semibold hover:bg-purple-100 hover:border-purple-300 hover:shadow-md transition-all group-hover:-translate-y-0.5">
-                <Building2 className="w-5 h-5" />
-                <span className="truncate">Search Shelters</span>
+                <Search className="w-5 h-5" />
+                <span className="truncate">Browse Database</span>
               </div>
             </Link>
           </div>
@@ -256,301 +350,380 @@ export default function DashboardPage() {
         <div className="grid lg:grid-cols-[1fr_380px] gap-6">
           {/* Left Column - Main Content */}
           <div className="space-y-6">
-            {/* When both are empty, show side-by-side on desktop */}
-            {activeCases.length === 0 && squads.length === 0 ? (
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Active Cases Section - Compact */}
-                <Card padding="none" accent="red" className="animate-fade-in">
-                  <CardHeader
-                    icon={Zap}
-                    iconColor="bg-red-100 text-red-600"
-                    title="Active Searches"
-                    description="Cases you're helping with"
-                    className="px-5 py-4 border-b border-midnight-100"
-                  />
-                  <EmptyState
-                    icon={Search}
-                    iconColor="red"
-                    title="No Active Searches"
-                    description="Join a rescue squad to help find lost pets"
-                    tip="Rescue squads notify you when pets go missing nearby!"
-                    action={{
-                      label: 'Find a Squad',
-                      href: '/rescue-squads/search',
-                      icon: Users,
-                    }}
-                    compact
-                    className="py-6"
-                  />
-                </Card>
-
-                {/* My Squads Section - Compact */}
-                <Card padding="none" accent="blue" className="animate-fade-in">
-                  <CardHeader
-                    icon={Users}
-                    iconColor="bg-blue-100 text-blue-600"
-                    title="My Rescue Squads"
-                    description="Teams you're part of"
-                    className="px-5 py-4 border-b border-midnight-100"
-                  />
-                  <EmptyState
-                    icon={Users}
-                    iconColor="blue"
-                    title="Not in Any Squads"
-                    description="Join a local rescue squad to help your community"
-                    tip="Many pet reunions happen thanks to squad coordination!"
-                    action={{
-                      label: 'Find Squads',
-                      href: '/rescue-squads/search',
-                      icon: Search,
-                    }}
-                    compact
-                    className="py-6"
-                  />
-                </Card>
-              </div>
-            ) : (
-              <>
-            {/* Active Cases Section */}
-            <Card padding="none" accent="red" className="animate-fade-in">
-              <CardHeader
-                icon={Zap}
-                iconColor="bg-red-100 text-red-600"
-                title="Active Searches"
-                description="Cases you're helping with"
-                action={
-                  <Link href="/cases" className="flex items-center gap-1 text-midnight-900 text-sm font-semibold hover:text-flash-600 transition-colors">
-                    Browse Cases <ChevronRight className="w-4 h-4" />
-                  </Link>
-                }
-                className="px-5 py-4 border-b border-midnight-100"
-              />
-
-              {activeCases.length === 0 ? (
-                <EmptyState
-                  icon={Search}
-                  iconColor="red"
-                  title="No Active Searches"
-                  description="Join a rescue squad to help find lost pets in your area"
-                  tip="Rescue squads notify you when pets go missing nearby. Join one to start helping!"
-                  action={{
-                    label: 'Find a Squad',
-                    href: '/rescue-squads/search',
-                    icon: Users,
-                  }}
-                  compact={squads.length === 0}
-                  className="py-8"
-                />
-              ) : (
-                <div className="divide-y divide-midnight-100">
-                  {activeCases.slice(0, 5).map((caseItem) => (
-                    <Link
-                      key={caseItem.id}
-                      href={`/cases/${caseItem.caseNumber}/coordinate`}
-                      className="flex items-center justify-between p-4 hover:bg-midnight-50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center text-2xl">
-                          {caseItem.petSpecies === 'DOG' ? '🐕' : caseItem.petSpecies === 'CAT' ? '🐈' : '🐾'}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-midnight-900 flex items-center gap-2">
-                            {caseItem.petName}
-                            <StatusBadge status="active" />
-                          </div>
-                          <div className="text-sm text-midnight-500 mt-0.5">
-                            {caseItem.city}, {caseItem.state} • {caseItem.activeVolunteers} volunteers
-                          </div>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-midnight-400" />
-                    </Link>
-                  ))}
-                  {activeCases.length > 5 && (
-                    <div className="p-4 text-center">
-                      <Link href="/cases" className="text-midnight-900 font-semibold text-sm hover:text-flash-600">
-                        View all {activeCases.length} cases
-                      </Link>
+            {/* Active Squads */}
+            <Card padding="none" accent="blue" className="animate-fade-in">
+              <div className="px-5 py-4 border-b border-midnight-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-blue-600" />
                     </div>
-                  )}
+                    <div>
+                      <h3 className="font-semibold text-midnight-900">Active Squads</h3>
+                      <p className="text-sm text-midnight-500">Teams you're part of</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {squads.length > 0 && (
+                      <div className="flex items-center gap-1 mr-2">
+                        {[
+                          { field: 'activity', label: 'Recent' },
+                          { field: 'name', label: 'Name' },
+                          { field: 'members', label: 'Size' },
+                        ].map(({ field, label }) => (
+                          <button
+                            key={field}
+                            onClick={() => toggleSort(squadSort, setSquadSort, field)}
+                            className={`px-2 py-1 text-xs rounded-md flex items-center gap-0.5 transition-colors ${
+                              squadSort.field === field
+                                ? 'bg-blue-100 text-blue-700 font-medium'
+                                : 'text-midnight-500 hover:bg-midnight-100'
+                            }`}
+                          >
+                            {label}
+                            {squadSort.field === field && (
+                              squadSort.asc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <Link href="/rescue-squads/search">
+                      <Button variant="outline" size="sm" leftIcon={Plus}>
+                        Join
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
-              )}
-            </Card>
-
-            {/* My Squads Section */}
-            <Card padding="none" accent="blue">
-              <CardHeader
-                icon={Users}
-                iconColor="bg-blue-100 text-blue-600"
-                title="My Rescue Squads"
-                description="Teams you're part of"
-                action={
-                  <Link href="/rescue-squads/search">
-                    <Button variant="outline" size="sm" leftIcon={Plus}>
-                      Join Squad
-                    </Button>
-                  </Link>
-                }
-                className="px-5 py-4 border-b border-midnight-100"
-              />
+              </div>
 
               {squads.length === 0 ? (
                 <EmptyState
                   icon={Users}
                   iconColor="blue"
-                  title="Not in Any Squads Yet"
-                  description="Join a local rescue squad to coordinate searches with your community"
-                  tip="Squads are community teams that help find lost pets. Many reunions happen thanks to squad coordination!"
+                  title="No Squads Yet"
+                  description="Join a local rescue squad to help find lost pets"
                   action={{
-                    label: 'Find Squads Near You',
+                    label: 'Find Squads',
                     href: '/rescue-squads/search',
                     icon: Search,
                   }}
-                  compact={activeCases.length === 0}
-                  className="py-8"
+                  compact
+                  className="py-6"
+                />
+              ) : (
+                <>
+                  <div className="divide-y divide-midnight-100">
+                    {displayedSquads.map((squad) => {
+                      const roleConfig = SQUAD_ROLES[squad.myRole] || SQUAD_ROLES.MEMBER;
+                      return (
+                        <Link
+                          key={squad.id}
+                          href={`/rescue-squads/${squad.id}`}
+                          className="flex items-center justify-between p-4 hover:bg-midnight-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            {squad.logoUrl || squad.photoUrl ? (
+                              <img
+                                src={squad.logoUrl || squad.photoUrl}
+                                alt={squad.name}
+                                className="w-10 h-10 rounded-lg object-cover"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white">
+                                <Users className="w-5 h-5" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-semibold text-midnight-900">
+                                {squad.name}
+                              </div>
+                              <div className="text-sm text-midnight-500">
+                                {squad.memberCount} member{squad.memberCount !== 1 ? 's' : ''}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge className={roleConfig.color}>
+                              {roleConfig.label}
+                            </Badge>
+                            <ChevronRight className="w-5 h-5 text-midnight-300" />
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                  {hasMoreSquads && (
+                    <button
+                      onClick={() => setShowAllSquads(!showAllSquads)}
+                      className="w-full py-3 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors flex items-center justify-center gap-1"
+                    >
+                      {showAllSquads ? (
+                        <>Show Less</>
+                      ) : (
+                        <>Show {sortedSquads.length - MAX_SQUADS_DISPLAY} More</>
+                      )}
+                      <ChevronDown className={`w-4 h-4 transition-transform ${showAllSquads ? 'rotate-180' : ''}`} />
+                    </button>
+                  )}
+                </>
+              )}
+            </Card>
+
+            {/* Active Missions */}
+            <Card padding="none" accent="amber" className="animate-fade-in">
+              <div className="px-5 py-4 border-b border-midnight-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                      <Target className="w-4 h-4 text-amber-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-midnight-900">Active Missions</h3>
+                      <p className="text-sm text-midnight-500">Cases you're involved with</p>
+                    </div>
+                  </div>
+                  {missions.length > 0 && (
+                    <div className="flex items-center gap-1">
+                      {[
+                        { field: 'activity', label: 'Recent' },
+                        { field: 'name', label: 'Name' },
+                        { field: 'missing', label: 'Missing' },
+                      ].map(({ field, label }) => (
+                        <button
+                          key={field}
+                          onClick={() => toggleSort(missionSort, setMissionSort, field)}
+                          className={`px-2 py-1 text-xs rounded-md flex items-center gap-0.5 transition-colors ${
+                            missionSort.field === field
+                              ? 'bg-amber-100 text-amber-700 font-medium'
+                              : 'text-midnight-500 hover:bg-midnight-100'
+                          }`}
+                        >
+                          {label}
+                          {missionSort.field === field && (
+                            missionSort.asc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {missions.length === 0 ? (
+                <EmptyState
+                  icon={Target}
+                  iconColor="amber"
+                  title="No Active Missions"
+                  description="Report a lost pet or join a squad to help with searches"
+                  action={{
+                    label: 'Report Lost Pet',
+                    href: '/report/new',
+                    icon: Bell,
+                  }}
+                  compact
+                  className="py-6"
                 />
               ) : (
                 <div className="divide-y divide-midnight-100">
-                  {squads.map((squad) => {
-                    const roleConfig = SQUAD_ROLES[squad.myRole] || SQUAD_ROLES.MEMBER;
-                    const RoleIcon = roleConfig.icon;
-                    return (
-                      <Link
-                        key={squad.id}
-                        href={`/rescue-squads/${squad.id}`}
-                        className="flex items-center justify-between p-4 hover:bg-midnight-50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gradient-to-br from-midnight-800 to-midnight-900 rounded-xl flex items-center justify-center text-white text-xl">
-                            🚨
-                          </div>
-                          <div>
-                            <div className="font-semibold text-midnight-900">
-                              {squad.name}
-                            </div>
-                            <div className="text-sm text-midnight-500 mt-0.5">
-                              {squad.city}, {squad.state} • {squad.memberCount} members
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Badge className={roleConfig.color}>
-                            <RoleIcon className="w-3 h-3" />
-                            {roleConfig.label}
-                          </Badge>
-                          <ChevronRight className="w-5 h-5 text-midnight-400" />
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </Card>
-              </>
-            )}
-
-            {/* Lost Pet Reports */}
-            {reports.length > 0 && (
-              <Card padding="none" accent="amber">
-                <CardHeader
-                  icon={AlertCircle}
-                  iconColor="bg-amber-100 text-amber-600"
-                  title="Your Lost Pet Reports"
-                  description="Pets you've reported missing"
-                  className="px-5 py-4 border-b border-midnight-100"
-                />
-                <div className="divide-y divide-midnight-100">
-                  {reports.map((report) => (
-                    <div key={report.id} className="p-5 hover:bg-midnight-50/50 transition-colors">
-                      {/* Pet Info - Larger layout */}
-                      <Link
-                        href={`/cases/${report.caseNumber}`}
-                        className="flex gap-4 group"
-                      >
-                        {/* Larger Pet Photo */}
-                        {report.petPhotoUrl ? (
+                  {sortedMissions.map((mission) => (
+                    <Link
+                      key={mission.id}
+                      href={`/missions/${mission.missionNumber}`}
+                      className="block p-4 hover:bg-midnight-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        {/* Pet Photo/Icon */}
+                        {mission.petPhotoUrl ? (
                           <img
-                            src={report.petPhotoUrl}
-                            alt={report.petName}
-                            className="w-20 h-20 rounded-2xl object-cover shadow-sm flex-shrink-0 group-hover:shadow-md transition-shadow"
+                            src={mission.petPhotoUrl}
+                            alt={mission.petName}
+                            className="w-12 h-12 rounded-xl object-cover"
                           />
                         ) : (
-                          <div className="w-20 h-20 bg-gradient-to-br from-amber-100 to-amber-200 rounded-2xl flex items-center justify-center text-4xl shadow-sm flex-shrink-0">
-                            {report.petSpecies === 'DOG' ? '🐕' : report.petSpecies === 'CAT' ? '🐈' : '🐾'}
+                          <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-2xl">
+                            {mission.petSpecies === 'DOG' ? '🐕' : mission.petSpecies === 'CAT' ? '🐈' : '🐾'}
                           </div>
                         )}
 
-                        {/* Pet Details - Better hierarchy */}
+                        {/* Mission Info */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <h4 className="font-bold text-midnight-900 text-lg flex items-center gap-2">
-                                {report.petName}
-                                {report.isLive && <StatusBadge status="live" />}
-                              </h4>
-                              <p className="text-xs text-midnight-400 mt-0.5">
-                                Case #{report.caseNumber}
-                              </p>
-                            </div>
-                            <ChevronRight className="w-5 h-5 text-midnight-400 group-hover:text-midnight-600 flex-shrink-0" />
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-midnight-900 truncate">
+                              {mission.petName}
+                            </span>
+                            {mission.isOwner && (
+                              <Badge className="bg-amber-100 text-amber-700 text-xs">Owner</Badge>
+                            )}
+                            {mission.isLive && <StatusBadge status="live" />}
                           </div>
-
-                          {/* Status Info */}
-                          <div className="mt-2 text-sm">
-                            {report.status === 'RESOLVED' ? (
-                              <span className="inline-flex items-center gap-1.5 text-green-600 font-medium">
-                                <CheckCircle2 className="w-4 h-4" /> Resolved - Pet Found!
-                              </span>
-                            ) : (
-                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-midnight-600">
-                                <span className="inline-flex items-center gap-1">
-                                  <Clock className="w-3.5 h-3.5" />
-                                  Missing {report.hoursMissing < 24 ? `${report.hoursMissing}h` : `${Math.floor(report.hoursMissing / 24)}d`}
-                                </span>
-                                {report.activeVolunteers > 0 && (
-                                  <span className="inline-flex items-center gap-1">
-                                    <Users className="w-3.5 h-3.5" />
-                                    {report.activeVolunteers} helping
-                                  </span>
-                                )}
-                                {report.sightings > 0 && (
-                                  <span className="inline-flex items-center gap-1 text-green-600 font-medium">
-                                    <MapPin className="w-3.5 h-3.5" />
-                                    {report.sightings} sighting{report.sightings !== 1 ? 's' : ''}
-                                  </span>
-                                )}
-                              </div>
+                          <div className="text-sm text-midnight-500 mt-0.5">
+                            {mission.hoursMissing < 24
+                              ? `${mission.hoursMissing}h missing`
+                              : `${Math.floor(mission.hoursMissing / 24)}d missing`}
+                            {mission.squadsHelping.length > 0 && (
+                              <span> · {mission.squadsHelping.length} squad{mission.squadsHelping.length !== 1 ? 's' : ''}</span>
+                            )}
+                            {mission.totalVolunteers > 0 && (
+                              <span> · {mission.totalVolunteers} volunteer{mission.totalVolunteers !== 1 ? 's' : ''}</span>
                             )}
                           </div>
                         </div>
-                      </Link>
 
-                      {/* Action Buttons - Full width for mobile */}
-                      {report.status !== 'RESOLVED' && report.status !== 'CLOSED_OTHER' && (
-                        <div className="flex gap-2 mt-4">
-                          {report.isLive ? (
-                            <Link href={`/cases/${report.caseNumber}`} className="flex-1">
-                              <Button variant="danger" size="sm" leftIcon={Zap} className="w-full justify-center">
-                                Continue Search
-                              </Button>
-                            </Link>
-                          ) : (
-                            <Link href={`/cases/${report.caseNumber}`} className="flex-1">
-                              <Button size="sm" leftIcon={Zap} className="w-full justify-center">
-                                Start Live Search
-                              </Button>
-                            </Link>
+                        <ChevronRight className="w-5 h-5 text-midnight-300 flex-shrink-0" />
+                      </div>
+
+                      {/* Squads helping - compact list */}
+                      {mission.squadsHelping.length > 0 && (
+                        <div className="mt-2 ml-15 flex flex-wrap gap-1">
+                          {mission.squadsHelping.slice(0, 3).map((squad) => (
+                            <span
+                              key={squad.squadId}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full"
+                            >
+                              <Users className="w-3 h-3" />
+                              {squad.squadName}
+                            </span>
+                          ))}
+                          {mission.squadsHelping.length > 3 && (
+                            <span className="px-2 py-0.5 bg-midnight-100 text-midnight-600 text-xs rounded-full">
+                              +{mission.squadsHelping.length - 3} more
+                            </span>
                           )}
-                          <Link href={`/cases/${report.caseNumber}/coordinate`} className="flex-1">
-                            <Button variant="outline" size="sm" leftIcon={Target} className="w-full justify-center">
-                              Coordinate
-                            </Button>
-                          </Link>
                         </div>
                       )}
-                    </div>
+                    </Link>
                   ))}
                 </div>
+              )}
+            </Card>
+
+            {/* Admin: All Members List */}
+            {isAdmin && (
+              <Card padding="none" accent="purple" className="animate-fade-in">
+                <div className="px-5 py-4 border-b border-midnight-100">
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                        <UserCheck className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-midnight-900">All Registered Members</h3>
+                        <p className="text-sm text-midnight-500">{allMembers.length} total users</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {[
+                        { field: 'recent', label: 'Newest' },
+                        { field: 'name', label: 'Name' },
+                        { field: 'activity', label: 'Active' },
+                      ].map(({ field, label }) => (
+                        <button
+                          key={field}
+                          onClick={() => toggleSort(memberSort, setMemberSort, field)}
+                          className={`px-2 py-1 text-xs rounded-md flex items-center gap-0.5 transition-colors ${
+                            memberSort.field === field
+                              ? 'bg-purple-100 text-purple-700 font-medium'
+                              : 'text-midnight-500 hover:bg-midnight-100'
+                          }`}
+                        >
+                          {label}
+                          {memberSort.field === field && (
+                            memberSort.asc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Search input */}
+                  <div className="mt-3">
+                    <input
+                      type="text"
+                      placeholder="Search by name or email..."
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-midnight-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {displayedMembers.length === 0 ? (
+                  <div className="p-6 text-center text-midnight-500">
+                    {memberSearch ? 'No members match your search' : 'No registered members'}
+                  </div>
+                ) : (
+                  <>
+                    <div className="divide-y divide-midnight-100">
+                      {displayedMembers.map((member) => (
+                        <div
+                          key={member.id}
+                          className="flex items-center justify-between p-4 hover:bg-midnight-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            {member.profileImage ? (
+                              <img
+                                src={member.profileImage}
+                                alt={`${member.firstName} ${member.lastName}`}
+                                className="w-10 h-10 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center text-white font-medium">
+                                {member.firstName?.[0]?.toUpperCase() || '?'}
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-semibold text-midnight-900">
+                                {member.firstName} {member.lastName}
+                              </div>
+                              <div className="text-sm text-midnight-500 flex items-center gap-1">
+                                <Mail className="w-3 h-3" />
+                                {member.email}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 text-sm">
+                            <div className="text-right hidden sm:block">
+                              <div className="text-midnight-500 flex items-center gap-1 justify-end">
+                                <Calendar className="w-3 h-3" />
+                                Joined {new Date(member.createdAt).toLocaleDateString()}
+                              </div>
+                              {member.lastLoginAt && (
+                                <div className="text-xs text-midnight-400">
+                                  Last active: {new Date(member.lastLoginAt).toLocaleDateString()}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              {member.role === 'ADMIN' && (
+                                <Badge className="bg-purple-100 text-purple-700">Admin</Badge>
+                              )}
+                              {member.emailVerified && (
+                                <Badge className="bg-green-100 text-green-700 text-xs">Verified</Badge>
+                              )}
+                            </div>
+                            <div className="text-midnight-400 text-xs text-right">
+                              <div>{member.squadsCount} squad{member.squadsCount !== 1 ? 's' : ''}</div>
+                              <div>{member.casesCount} case{member.casesCount !== 1 ? 's' : ''}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {hasMoreMembers && (
+                      <button
+                        onClick={() => setShowAllMembers(!showAllMembers)}
+                        className="w-full py-3 text-sm font-medium text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors flex items-center justify-center gap-1"
+                      >
+                        {showAllMembers ? (
+                          <>Show Less</>
+                        ) : (
+                          <>Show {sortedMembers.length - MAX_MEMBERS_DISPLAY} More</>
+                        )}
+                        <ChevronDown className={`w-4 h-4 transition-transform ${showAllMembers ? 'rotate-180' : ''}`} />
+                      </button>
+                    )}
+                  </>
+                )}
               </Card>
             )}
           </div>
@@ -599,7 +772,7 @@ export default function DashboardPage() {
                   {nearbyAlerts.slice(0, 5).map((alert) => (
                     <Link
                       key={alert.id}
-                      href={`/cases/${alert.id}`}
+                      href={`/missions/${alert.id}`}
                       className="flex items-center justify-between p-3 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"
                     >
                       <div>

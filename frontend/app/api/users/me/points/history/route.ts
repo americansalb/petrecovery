@@ -21,7 +21,7 @@ import prisma from '@/app/lib/prisma';
  *
  * Query params:
  * - days: Number of days to look back (default: 30, max: 90)
- * - caseId: Optional - filter to specific case
+ * - missionId: Optional - filter to specific case
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const { searchParams } = new URL(request.url);
     const days = Math.min(parseInt(searchParams.get('days') || '30', 10), 90);
-    const caseId = searchParams.get('caseId') || undefined;
+    const missionId = searchParams.get('missionId') || undefined;
 
     // Get user
     const user = await prisma.user.findUnique({
@@ -63,8 +63,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       userId: user.id,
       createdAt: { gte: startDate },
     };
-    if (caseId) {
-      actionsWhere.caseId = caseId;
+    if (missionId) {
+      actionsWhere.missionId = missionId;
     }
 
     const verifiedActions = await prisma.verifiedAction.findMany({
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         bonusPoints: true,
         multipliers: true,
         createdAt: true,
-        caseId: true,
+        missionId: true,
       },
     });
 
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         bonusPoints: action.bonusPoints,
         multipliers: action.multipliers ? JSON.parse(action.multipliers) : [],
         createdAt: action.createdAt,
-        caseId: action.caseId,
+        missionId: action.missionId,
       })),
       summary: {
         days,

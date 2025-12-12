@@ -61,8 +61,8 @@ export default function MapComponentApple({
     colorScheme: 'dark',
     showUserLocation: false,
     onAnnotationSelect: (annotation, data) => {
-      if (data?.caseId && onCaseClick) {
-        onCaseClick(data.caseId);
+      if (data?.missionId && onCaseClick) {
+        onCaseClick(data.missionId);
       }
     },
   });
@@ -109,23 +109,23 @@ export default function MapComponentApple({
 
     // Group cases by location to handle overlapping
     const locationGroups = new Map();
-    cases.forEach(caseData => {
-      const lat = caseData.lastSeenLat || caseData.lastSeenLatitude;
-      const lng = caseData.lastSeenLng || caseData.lastSeenLongitude;
+    cases.forEach(missionData => {
+      const lat = missionData.lastSeenLat || missionData.lastSeenLatitude;
+      const lng = missionData.lastSeenLng || missionData.lastSeenLongitude;
       if (!lat || !lng) return;
 
       const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
       if (!locationGroups.has(key)) {
         locationGroups.set(key, []);
       }
-      locationGroups.get(key).push(caseData);
+      locationGroups.get(key).push(missionData);
     });
 
     // Add markers with offset for overlapping cases
     locationGroups.forEach((casesAtLocation) => {
-      casesAtLocation.forEach((caseData, index) => {
-        const baseLat = caseData.lastSeenLat || caseData.lastSeenLatitude;
-        const baseLng = caseData.lastSeenLng || caseData.lastSeenLongitude;
+      casesAtLocation.forEach((missionData, index) => {
+        const baseLat = missionData.lastSeenLat || missionData.lastSeenLatitude;
+        const baseLng = missionData.lastSeenLng || missionData.lastSeenLongitude;
 
         // Calculate spiral offset for overlapping markers
         let offsetLat = 0;
@@ -142,23 +142,23 @@ export default function MapComponentApple({
 
         // Determine marker color based on status
         let markerColor = MapColors.URGENT; // red for active
-        if (caseData.status === 'PENDING') markerColor = MapColors.ACTIVE; // orange
-        if (caseData.status === 'REUNITED') markerColor = MapColors.SUCCESS; // green
+        if (missionData.status === 'PENDING') markerColor = MapColors.ACTIVE; // orange
+        if (missionData.status === 'REUNITED') markerColor = MapColors.SUCCESS; // green
 
         // Get glyph (emoji)
-        const emoji = SPECIES_EMOJI[caseData.species] || SPECIES_EMOJI.OTHER;
+        const emoji = SPECIES_EMOJI[missionData.species] || SPECIES_EMOJI.OTHER;
 
         const marker = addMarker(lat, lng, {
           color: markerColor,
-          title: caseData.petName || 'Missing Pet',
-          subtitle: getTimeAgo(caseData.lastSeenAt || caseData.createdAt),
+          title: missionData.petName || 'Missing Pet',
+          subtitle: getTimeAgo(missionData.lastSeenAt || missionData.createdAt),
           glyphText: emoji,
           data: {
-            caseId: caseData.id,
-            petName: caseData.petName,
-            species: caseData.species,
-            status: caseData.status,
-            photoUrl: caseData.photoUrl,
+            missionId: missionData.id,
+            petName: missionData.petName,
+            species: missionData.species,
+            status: missionData.status,
+            photoUrl: missionData.photoUrl,
           },
         });
 

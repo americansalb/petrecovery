@@ -23,7 +23,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { userIds, template, templateData, payload, caseId } = body;
+    const { userIds, template, templateData, payload, missionId } = body;
 
     if (!userIds || userIds.length === 0) {
       return NextResponse.json(
@@ -75,7 +75,7 @@ export async function POST(request) {
     // Log the push notification
     await prisma.pushNotificationLog.create({
       data: {
-        caseId: caseId || null,
+        missionId: missionId || null,
         template: template || null,
         payload: JSON.stringify(notificationPayload),
         recipientCount: subscriptions.length,

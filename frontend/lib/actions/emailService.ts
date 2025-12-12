@@ -17,7 +17,7 @@ import { getVerificationService } from './verificationService';
 
 export interface ShelterEmailParams {
   userId: string;
-  caseId: string;
+  missionId: string;
   shelterContactId: string;
   shelterName: string;
   shelterEmail: string;
@@ -258,7 +258,7 @@ export class EmailService {
       };
     }
 
-    const { shelterEmail, petName, petType, userId, caseId, shelterContactId, caseCreatedAt, timezone } = params;
+    const { shelterEmail, petName, petType, userId, missionId, shelterContactId, caseCreatedAt, timezone } = params;
 
     try {
       // Send email via Resend
@@ -270,7 +270,7 @@ export class EmailService {
         text: getShelterEmailText(params),
         tags: [
           { name: 'type', value: 'shelter_contact' },
-          { name: 'case_id', value: caseId },
+          { name: 'case_id', value: missionId },
           { name: 'shelter_type', value: params.shelterType },
         ],
       });
@@ -301,7 +301,7 @@ export class EmailService {
       const verificationService = getVerificationService(this.prisma);
       const result = await verificationService.recordPlatformEmail({
         userId,
-        caseId,
+        missionId,
         shelterContactId,
         actionType: actionType as any,
         emailId,

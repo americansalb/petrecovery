@@ -54,9 +54,9 @@ export async function POST(request) {
 
     if (action === 'alert') {
       // Send lost pet alert to clinics
-      const { caseData, clinicIds } = body;
+      const { missionData, clinicIds } = body;
 
-      if (!caseData || !clinicIds?.length) {
+      if (!missionData || !clinicIds?.length) {
         return NextResponse.json(
           { error: 'Case data and clinic IDs are required' },
           { status: 400 }
@@ -70,7 +70,7 @@ export async function POST(request) {
         alertEmail: `clinic-${id}@example.com`, // Placeholder
       }));
 
-      const results = await sendLostPetAlertToClinics(caseData, clinics);
+      const results = await sendLostPetAlertToClinics(missionData, clinics);
 
       return NextResponse.json({
         success: true,

@@ -16,7 +16,7 @@ import { TOUCH_TARGETS, triggerHaptic, announce, ARIA_ANNOUNCEMENTS } from '@/ap
 import SightingButton from './SightingButton';
 import useRealtimeUpdates from '@/app/lib/missionControl/useRealtimeUpdates';
 
-export default function VolunteerView({ caseId, mission, onUpdate }) {
+export default function VolunteerView({ missionId, mission, onUpdate }) {
   const [location, setLocation] = useState(null);
   const [locationStatus, setLocationStatus] = useState('acquiring'); // acquiring, active, error
   const [assignment, setAssignment] = useState(null);
@@ -30,7 +30,7 @@ export default function VolunteerView({ caseId, mission, onUpdate }) {
   const lastUpdateRef = useRef(null);
 
   // Real-time updates
-  const { connected, mode } = useRealtimeUpdates(caseId, {
+  const { connected, mode } = useRealtimeUpdates(missionId, {
     onSighting: (data) => {
       setRecentSightings(prev => [data, ...prev].slice(0, 3));
     },
@@ -40,12 +40,12 @@ export default function VolunteerView({ caseId, mission, onUpdate }) {
   // Initialize volunteer session
   useEffect(() => {
     // Get stored volunteer ID
-    const storedId = localStorage.getItem(`mission_${caseId}_volunteer`);
+    const storedId = localStorage.getItem(`mission_${missionId}_volunteer`);
     if (storedId) {
       setVolunteerId(storedId);
       setCheckInTime(new Date());
     }
-  }, [caseId]);
+  }, [missionId]);
 
   // Timer for elapsed time
   useEffect(() => {
@@ -88,20 +88,20 @@ export default function VolunteerView({ caseId, mission, onUpdate }) {
   // Update location on server
   useEffect(() => {
     if (volunteerId && location) {
-      fetch(`/api/mission/${caseId}/volunteer`, {
+      fetch(`/api/mission/${missionId}/volunteer`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ volunteerId, location }),
       }).catch(console.error);
     }
-  }, [caseId, volunteerId, location]);
+  }, [missionId, volunteerId, location]);
 
   // Handle quick signals
   const sendSignal = async (signalType) => {
     triggerHaptic('tap');
 
     try {
-      await fetch(`/api/mission/${caseId}/volunteer`, {
+      await fetch(`/api/mission/${missionId}/volunteer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -129,7 +129,7 @@ export default function VolunteerView({ caseId, mission, onUpdate }) {
     setResources(newResources);
 
     try {
-      await fetch(`/api/mission/${caseId}/volunteer`, {
+      await fetch(`/api/mission/${missionId}/volunteer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -148,7 +148,7 @@ export default function VolunteerView({ caseId, mission, onUpdate }) {
     triggerHaptic('tap');
 
     try {
-      await fetch(`/api/mission/${caseId}/volunteer`, {
+      await fetch(`/api/mission/${missionId}/volunteer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -157,7 +157,7 @@ export default function VolunteerView({ caseId, mission, onUpdate }) {
         }),
       });
 
-      localStorage.removeItem(`mission_${caseId}_volunteer`);
+      localStorage.removeItem(`mission_${missionId}_volunteer`);
       announce('Thank you for helping! You have checked out.', 'polite');
       onUpdate?.();
     } catch (err) {
@@ -239,7 +239,7 @@ export default function VolunteerView({ caseId, mission, onUpdate }) {
 
       {/* Giant Sighting Button - THE most important element */}
       <SightingButton
-        caseId={caseId}
+        missionId={missionId}
         volunteerId={volunteerId}
         location={location}
         petName={mission.pet.name}

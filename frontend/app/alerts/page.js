@@ -31,7 +31,7 @@ export default function AlertsPage() {
         params.set('species', filter.toUpperCase());
       }
 
-      const res = await fetch(`/api/public/cases?${params.toString()}`);
+      const res = await fetch(`/api/public/missions?${params.toString()}`);
       const data = await res.json();
 
       if (!res.ok) {
@@ -242,7 +242,7 @@ export default function AlertsPage() {
             {alerts.map((alert) => (
               <Link
                 key={alert.id}
-                href={`/alerts/${alert.caseNumber || alert.id}`}
+                href={`/alerts/${alert.missionNumber || alert.id}`}
                 style={{
                   backgroundColor: 'white',
                   borderRadius: '0.75rem',
@@ -284,7 +284,7 @@ export default function AlertsPage() {
                   </div>
                   <div style={{ textAlign: 'right', fontSize: '0.875rem', color: '#6b7280' }}>
                     <div>{getTimeAgo(alert.lastSeenAt || alert.createdAt)}</div>
-                    <div style={{ fontWeight: '600', color: '#2563eb' }}>{alert.caseNumber}</div>
+                    <div style={{ fontWeight: '600', color: '#2563eb' }}>{alert.missionNumber}</div>
                   </div>
                 </div>
 
@@ -322,7 +322,7 @@ export default function AlertsPage() {
                   paddingTop: '0.75rem',
                   borderTop: '1px solid #e5e7eb',
                 }}>
-                  <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Case #{alert.caseNumber}</div>
+                  <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Case #{alert.missionNumber}</div>
                   <span style={{
                     padding: '0.5rem 1rem',
                     backgroundColor: '#2563eb',

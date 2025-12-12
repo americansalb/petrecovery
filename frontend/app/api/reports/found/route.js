@@ -25,15 +25,15 @@ export async function POST(request) {
     }
 
     // Get the case and verify ownership
-    const caseRecord = await prisma.case.findUnique({
+    const missionRecord = await prisma.case.findUnique({
       where: { id: reportId },
     });
 
-    if (!caseRecord) {
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+    if (!missionRecord) {
+      return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
-    if (caseRecord.reporterId !== user.id) {
+    if (missionRecord.reporterId !== user.id) {
       return NextResponse.json({ error: 'Not authorized to update this case' }, { status: 403 });
     }
 
@@ -48,7 +48,7 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
-      message: `${caseRecord.petName} marked as found! 🎉`
+      message: `${missionRecord.petName} marked as found! 🎉`
     });
 
   } catch (error) {

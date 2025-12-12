@@ -21,7 +21,7 @@ import CommandCenter from './CommandCenter';
 import SightingAlert from './SightingAlert';
 import ActivationSwitch from './ActivationSwitch';
 
-export default function MissionControl({ caseId, userRole, initialState }) {
+export default function MissionControl({ missionId, userRole, initialState }) {
   const [mission, setMission] = useState(initialState);
   const [loading, setLoading] = useState(!initialState);
   const [error, setError] = useState(null);
@@ -29,7 +29,7 @@ export default function MissionControl({ caseId, userRole, initialState }) {
   // Fetch mission state
   const fetchMission = useCallback(async () => {
     try {
-      const res = await fetch(`/api/mission/${caseId}`);
+      const res = await fetch(`/api/mission/${missionId}`);
       if (!res.ok) throw new Error('Failed to fetch mission');
       const data = await res.json();
       setMission(data);
@@ -39,7 +39,7 @@ export default function MissionControl({ caseId, userRole, initialState }) {
     } finally {
       setLoading(false);
     }
-  }, [caseId]);
+  }, [missionId]);
 
   // Initial fetch
   useEffect(() => {
@@ -96,7 +96,7 @@ export default function MissionControl({ caseId, userRole, initialState }) {
   if (!mission?.isLive && mission?.mode === 'INACTIVE') {
     return (
       <ActivationSwitch
-        caseId={caseId}
+        missionId={missionId}
         mission={mission}
         userRole={userRole}
         onActivated={fetchMission}
@@ -121,7 +121,7 @@ export default function MissionControl({ caseId, userRole, initialState }) {
       case 'OWNER':
         return (
           <OwnerPulse
-            caseId={caseId}
+            missionId={missionId}
             mission={mission}
             onUpdate={fetchMission}
           />
@@ -131,7 +131,7 @@ export default function MissionControl({ caseId, userRole, initialState }) {
       case 'COORDINATOR':
         return (
           <CommandCenter
-            caseId={caseId}
+            missionId={missionId}
             mission={mission}
             onUpdate={fetchMission}
           />
@@ -141,7 +141,7 @@ export default function MissionControl({ caseId, userRole, initialState }) {
       default:
         return (
           <VolunteerView
-            caseId={caseId}
+            missionId={missionId}
             mission={mission}
             onUpdate={fetchMission}
           />

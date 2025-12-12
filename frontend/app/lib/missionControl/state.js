@@ -11,9 +11,9 @@ import { OPERATION_MODES, VOLUNTEER_STATUS, ZONE_STATUS } from './index';
 /**
  * Get or create mission state for a case
  */
-export async function getMissionState(caseId) {
+export async function getMissionState(missionId) {
   let mission = await prisma.missionControl.findUnique({
-    where: { caseId },
+    where: { missionId },
     include: {
       case: {
         include: {
@@ -48,7 +48,7 @@ export async function getMissionState(caseId) {
     // Create inactive mission state
     mission = await prisma.missionControl.create({
       data: {
-        caseId,
+        missionId,
         mode: OPERATION_MODES.INACTIVE,
         activatedAt: null,
       },
@@ -73,14 +73,14 @@ export async function getMissionState(caseId) {
  * Format mission state for client consumption
  */
 function formatMissionState(mission) {
-  const caseData = mission.case;
-  const hoursElapsed = caseData?.lastSeenAt
-    ? Math.floor((Date.now() - new Date(caseData.lastSeenAt).getTime()) / 3600000)
+  const missionData = mission.case;
+  const hoursElapsed = missionData?.lastSeenAt
+    ? Math.floor((Date.now() - new Date(missionData.lastSeenAt).getTime()) / 3600000)
     : null;
 
   return {
     id: mission.id,
-    caseId: mission.caseId,
+    missionId: mission.missionId,
     mode: mission.mode,
     isLive: mission.mode === OPERATION_MODES.LIVE_SEARCH ||
             mission.mode === OPERATION_MODES.CONTAINMENT,
@@ -92,29 +92,29 @@ function formatMissionState(mission) {
 
     // Pet info (always visible)
     pet: {
-      name: caseData?.petName,
-      species: caseData?.petSpecies,
-      breed: caseData?.petBreed,
-      color: caseData?.petColor,
-      photoUrl: caseData?.petPhotoUrl,
-      description: caseData?.petDescription,
-      temperament: caseData?.temperament,
-      medicalNeeds: caseData?.medicalNeeds,
-      respondsTo: caseData?.respondsTo,
+      name: missionData?.petName,
+      species: missionData?.petSpecies,
+      breed: missionData?.petBreed,
+      color: missionData?.petColor,
+      photoUrl: missionData?.petPhotoUrl,
+      description: missionData?.petDescription,
+      temperament: missionData?.temperament,
+      medicalNeeds: missionData?.medicalNeeds,
+      respondsTo: missionData?.respondsTo,
     },
 
     // Last seen
     lastSeen: {
-      address: caseData?.lastSeenAddress,
-      lat: caseData?.lastSeenLat,
-      lng: caseData?.lastSeenLng,
-      time: caseData?.lastSeenAt,
+      address: missionData?.lastSeenAddress,
+      lat: missionData?.lastSeenLat,
+      lng: missionData?.lastSeenLng,
+      time: missionData?.lastSeenAt,
     },
 
     // Owner
     owner: {
-      id: caseData?.reporter?.id,
-      name: caseData?.reporter?.firstName,
+      id: missionData?.reporter?.id,
+      name: missionData?.reporter?.firstName,
       status: mission.ownerStatus,
       location: mission.ownerLocation ? JSON.parse(mission.ownerLocation) : null,
       broadcast: mission.ownerBroadcast,

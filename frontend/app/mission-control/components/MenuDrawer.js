@@ -6,7 +6,7 @@
  * Features:
  * - Activity history link
  * - Team members link
- * - Case details
+ * - Mission details
  * - Owner controls (close case, edit, etc.)
  */
 
@@ -169,7 +169,7 @@ export default function MenuDrawer({ mission, isOwner, onClose, onNavigate, rout
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-700 bg-slate-900">
           <div className="text-center">
             <div className="text-slate-500 text-xs">My Missions</div>
-            <div className="text-slate-600 text-xs mt-1">Case #{mission?.caseNumber}</div>
+            <div className="text-slate-600 text-xs mt-1">Case #{mission?.missionNumber}</div>
           </div>
         </div>
       </div>

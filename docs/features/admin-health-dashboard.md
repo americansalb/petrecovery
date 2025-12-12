@@ -50,7 +50,7 @@ We need **a single place** where an admin can answer:
 - Provide a **single dashboard** at `/admin/health` with:
   - ✅ Service health indicators (DB + external services we actually use).
   - ✅ Recent error summaries (from structured event logs).
-  - ✅ Key operational metrics (users, cities, squads; later: cases, sightings, notifications).
+  - ✅ Key operational metrics (users, cities, squads; later: missions, sightings, notifications).
   - ✅ Admin-triggered flow tests (e.g., geocode a city/ZIP, send test email).
 - Make it possible for a **non-developer admin** to:
   - Confirm whether an issue is local or systemic.
@@ -181,7 +181,7 @@ For v1:
 - Total users
 - Total cities
 - Total rescue squads
-- (Later additions: total cases, sightings, notifications, etc.)
+- (Later additions: total missions, sightings, notifications, etc.)
 
 Backend endpoint: `GET /api/admin/health/metrics`
 

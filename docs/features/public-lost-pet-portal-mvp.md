@@ -1,32 +1,32 @@
-# Feature Spec: Public Lost Pet Case Portal MVP (Phase 15–16)
+# Feature Spec: Public Lost Pet Mission Portal MVP (Phase 15–16)
 
 **Status:** ✅ Fully Implemented
 **Owner:** Product + Engineering
 **Last Updated:** November 25, 2025
-**Phase:** 15–16 (Public Lost Pet Case Portal)
+**Phase:** 15–16 (Public Lost Pet Mission Portal)
 
 ---
 
 ## 0. Summary
 
-We're building a **public-facing lost pet case portal** that enables the general public to:
+We're building a **public-facing lost pet mission portal** that enables the general public to:
 
-- **Browse active lost pet cases** in their area without requiring an account.
+- **Browse active lost pet missions** in their area without requiring an account.
 - **View detailed information** about individual lost pets to help reunite them with owners.
-- **Report a lost pet** through a simple form that creates a case for admin review.
+- **Report a lost pet** through a simple form that creates a mission for admin review.
 
-This MVP transforms the existing internal `LostPetCase` system (Phase 13–14) into a **safe, read-only public portal** with a minimal entry mechanism for public reports. It maintains the platform's commitment to **legal compliance**, **observability**, and **data safety** while opening up the most valuable feature to the people who need it most.
+This MVP transforms the existing internal `LostPetMission` system (Phase 13–14) into a **safe, read-only public portal** with a minimal entry mechanism for public reports. It maintains the platform's commitment to **legal compliance**, **observability**, and **data safety** while opening up the most valuable feature to the people who need it most.
 
 **Key Principles:**
 
-- **Safety first**: Only cases marked `isPublic = true` are visible to the public.
+- **Safety first**: Only missions marked `isPublic = true` are visible to the public.
 - **Privacy controls**: Contact information is only shown when `publicContactOk = true`.
 - **Admin moderation**: Public reports start as `isPublic = false` and require admin approval.
 - **Full observability**: All public interactions emit structured events visible in `/admin/health`.
 - **No authentication required**: Public can browse and report without creating an account (MVP).
 
 This phase builds directly on:
-- **Phase 13–14**: Internal case management system
+- **Phase 13–14**: Internal mission management system
 - **Phase 0**: Observability + legal baseline
 - **Phase 20–21**: QA harness for testing
 
@@ -38,15 +38,15 @@ Future phases will add: owner accounts, public comments, geospatial maps, email 
 
 ### Current State
 
-After Phase 13–14, we have a **fully functional internal case management system** where admins and rescue squad members can:
-- Create and track lost pet cases
-- Update case status and add notes
-- Associate cases with rescue squads
+After Phase 13–14, we have a **fully functional internal mission management system** where admins and rescue squad members can:
+- Create and track lost pet missions
+- Update mission status and add notes
+- Associate missions with rescue squads
 
 However:
 - **The public cannot see any of this data**
 - Pet owners must contact admins directly to report lost pets
-- Community members cannot browse cases to help find lost pets
+- Community members cannot browse missions to help find lost pets
 - The platform's most valuable feature is locked behind admin access
 
 ### Problems This Solves
@@ -58,7 +58,7 @@ However:
 
 ### Why MVP Now
 
-- **Phase 13–14 foundation is solid**: Internal case system is fully built and tested.
+- **Phase 13–14 foundation is solid**: Internal mission system is fully built and tested.
 - **Observability is in place**: We can monitor public usage patterns immediately.
 - **QA harness exists**: We can test public endpoints without shell access.
 - **Legal baseline is ready**: We can add public disclaimers easily.
@@ -67,11 +67,11 @@ However:
 ### Non-Goals (For This MVP)
 
 - ❌ Owner accounts or direct owner login
-- ❌ Public comments or public notes on cases
+- ❌ Public comments or public notes on missions
 - ❌ Geospatial map UI or radius-based search
 - ❌ Email/SMS notifications to owners or finders
 - ❌ Advanced matching algorithms (image recognition, ML)
-- ❌ Public editing of existing cases
+- ❌ Public editing of existing missions
 - ❌ Rate limiting on public report submissions (future phase)
 
 ---
@@ -80,34 +80,34 @@ However:
 
 ### Functional Goals
 
-1. **Public Case Discovery**
-   - Public can view a list of active lost pet cases
+1. **Public Mission Discovery**
+   - Public can view a list of active lost pet missions
    - Filter by city, state, species, status
    - No authentication required
-   - Only shows cases where `isPublic = true`
+   - Only shows missions where `isPublic = true`
 
-2. **Public Case Detail View**
-   - Public can view detailed information about a specific case
-   - Access via shareable URL: `/cases/{caseNumber}`
+2. **Public Mission Detail View**
+   - Public can view detailed information about a specific mission
+   - Access via shareable URL: `/missions/{missionNumber}`
    - Shows pet info, location, status, and notes (if any)
    - Contact information only shown if `publicContactOk = true`
 
 3. **Public Report Lost Pet**
    - Simple form for pet owners to submit a lost pet report
-   - Creates case with `source = "PUBLIC_REPORT"` and `isPublic = false`
-   - Admin review required before case becomes public
+   - Creates mission with `source = "PUBLIC_REPORT"` and `isPublic = false`
+   - Admin review required before mission becomes public
    - No authentication required (MVP)
 
 4. **Admin Control**
-   - Admins can toggle `isPublic` flag on any case
+   - Admins can toggle `isPublic` flag on any mission
    - Admins can toggle `publicContactOk` flag to control contact visibility
-   - Admins can see `source` field to distinguish PUBLIC_REPORT vs ADMIN cases
+   - Admins can see `source` field to distinguish PUBLIC_REPORT vs ADMIN missions
 
 ### Non-Functional Goals
 
 1. **Observability**
    - All public API calls emit structured events
-   - New event types: `public_case.*`
+   - New event types: `public_mission.*`
    - Events visible in `/admin/health` for monitoring
 
 2. **Safety & Privacy**
@@ -117,12 +117,12 @@ However:
 
 3. **Performance**
    - Public list queries are indexed and fast
-   - Case detail pages load quickly
+   - Mission detail pages load quickly
    - No N+1 queries
 
 4. **Testing**
    - Public endpoints tested via `/admin/qa` harness
-   - Generator tools can create public test cases
+   - Generator tools can create public test missions
 
 ---
 
@@ -132,21 +132,21 @@ However:
 
 **Story 1: Browse Lost Pets**
 - As a **community member**, I want to **view a list of lost pets in my area** so that I can **help reunite them with their owners if I see them**.
-- Acceptance: Public list page shows active cases with filters for city, state, species
+- Acceptance: Public list page shows active missions with filters for city, state, species
 
-**Story 2: View Case Details**
+**Story 2: View Mission Details**
 - As a **potential finder**, I want to **see detailed information about a specific lost pet** so that I can **confirm if the pet I found matches the description**.
 - Acceptance: Public detail page shows pet info, location, status, and contact (if allowed)
 
-**Story 3: Share Case Link**
-- As a **pet owner**, I want to **share a direct link to my lost pet's case** so that **friends and neighbors can help spread the word**.
-- Acceptance: Case detail URL is shareable and works without authentication
+**Story 3: Share Mission Link**
+- As a **pet owner**, I want to **share a direct link to my lost pet's mission** so that **friends and neighbors can help spread the word**.
+- Acceptance: Mission detail URL is shareable and works without authentication
 
 ### Reporter Stories
 
 **Story 4: Report Lost Pet**
 - As a **pet owner**, I want to **report my lost pet online** so that **rescue squads can start helping immediately**.
-- Acceptance: Public form creates case with source = PUBLIC_REPORT, shows confirmation
+- Acceptance: Public form creates mission with source = PUBLIC_REPORT, shows confirmation
 
 **Story 5: Submit Without Account**
 - As a **distressed pet owner**, I want to **report my lost pet without creating an account** so that I can **get help as quickly as possible**.
@@ -155,12 +155,12 @@ However:
 ### Admin Stories
 
 **Story 6: Review Public Reports**
-- As an **admin**, I want to **see which cases came from public reports** so that I can **review and approve them for publication**.
+- As an **admin**, I want to **see which missions came from public reports** so that I can **review and approve them for publication**.
 - Acceptance: Admin list shows `source` field, can filter by PUBLIC_REPORT
 
 **Story 7: Control Public Visibility**
-- As an **admin**, I want to **toggle whether a case is visible to the public** so that I can **protect sensitive or incomplete cases**.
-- Acceptance: Admin can set `isPublic` flag on any case
+- As an **admin**, I want to **toggle whether a mission is visible to the public** so that I can **protect sensitive or incomplete missions**.
+- Acceptance: Admin can set `isPublic` flag on any mission
 
 **Story 8: Control Contact Visibility**
 - As an **admin**, I want to **control whether contact info is shown publicly** so that **owners' privacy is protected**.
@@ -172,10 +172,10 @@ However:
 
 ### Prisma Schema Changes
 
-Extend the existing `LostPetCase` model with three new fields:
+Extend the existing `LostPetMission` model with three new fields:
 
 ```prisma
-model LostPetCase {
+model LostPetMission {
   // ... existing fields from Phase 13-14 ...
 
   // NEW: Public visibility flags
@@ -191,14 +191,14 @@ model LostPetCase {
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `isPublic` | Boolean | `false` | Whether this case is visible on public pages. Admins must explicitly set to `true`. |
+| `isPublic` | Boolean | `false` | Whether this mission is visible on public pages. Admins must explicitly set to `true`. |
 | `publicContactOk` | Boolean | `false` | Whether to show `contactName`, `contactPhone`, `contactEmail` on public detail page. |
-| `source` | String | `"ADMIN"` | How the case was created: `"ADMIN"` (created via admin UI) or `"PUBLIC_REPORT"` (submitted via public form). |
+| `source` | String | `"ADMIN"` | How the mission was created: `"ADMIN"` (created via admin UI) or `"PUBLIC_REPORT"` (submitted via public form). |
 
 ### Migration Strategy
 
-- Add new fields to existing `LostPetCase` table
-- All existing cases default to `isPublic = false` (safe default)
+- Add new fields to existing `LostPetMission` table
+- All existing missions default to `isPublic = false` (safe default)
 - No breaking changes to existing Phase 13–14 functionality
 - Migration is reversible (can drop columns if needed)
 
@@ -206,16 +206,16 @@ model LostPetCase {
 
 ## 5. API Endpoints
 
-### 5.1 GET /api/public/cases
+### 5.1 GET /api/public/missions
 
-**Purpose:** List public lost pet cases with filtering
+**Purpose:** List public lost pet missions with filtering
 
 **Authentication:** None required
 
 **Query Parameters:**
 - `city` (optional): Filter by city name
 - `state` (optional): Filter by state code (e.g., "TX")
-- `status` (optional): Filter by `LostPetCaseStatus` enum
+- `status` (optional): Filter by `LostPetMissionStatus` enum
 - `species` (optional): Filter by `PetSpecies` enum
 - `limit` (optional, default: 20, max: 100): Number of results per page
 - `page` (optional, default: 1): Page number for pagination
@@ -223,10 +223,10 @@ model LostPetCase {
 **Response (200 OK):**
 ```json
 {
-  "cases": [
+  "missions": [
     {
       "id": "cuid123",
-      "caseNumber": "AUS-2025-0042",
+      "missionNumber": "AUS-2025-0042",
       "petName": "Buddy",
       "petSpecies": "DOG",
       "petBreed": "Golden Retriever",
@@ -249,30 +249,30 @@ model LostPetCase {
 ```
 
 **Logging:**
-- Event: `public_case.list_viewed`
+- Event: `public_mission.list_viewed`
 - Metadata: `{ city, state, status, species, results_count }`
 
 **Security:**
-- Only returns cases where `isPublic = true`
+- Only returns missions where `isPublic = true`
 - Does NOT return: `contactName`, `contactPhone`, `contactEmail`, `createdById`, `squadId`, internal notes
 
 ---
 
-### 5.2 GET /api/public/cases/[caseNumber]
+### 5.2 GET /api/public/missions/[missionNumber]
 
-**Purpose:** Get detailed information about a specific public case
+**Purpose:** Get detailed information about a specific public mission
 
 **Authentication:** None required
 
 **Path Parameters:**
-- `caseNumber`: Case number (e.g., "AUS-2025-0042")
+- `missionNumber`: Mission number (e.g., "AUS-2025-0042")
 
 **Response (200 OK):**
 ```json
 {
-  "case": {
+  "mission": {
     "id": "cuid123",
-    "caseNumber": "AUS-2025-0042",
+    "missionNumber": "AUS-2025-0042",
     "petName": "Buddy",
     "petSpecies": "DOG",
     "petBreed": "Golden Retriever",
@@ -299,23 +299,23 @@ model LostPetCase {
 **Response (404 Not Found):**
 ```json
 {
-  "error": "Case not found or not public",
+  "error": "Mission not found or not public",
   "code": "CASE_NOT_FOUND"
 }
 ```
 
 **Logging:**
-- Event: `public_case.detail_viewed`
-- Metadata: `{ case_number, case_id, has_contact_info }`
+- Event: `public_mission.detail_viewed`
+- Metadata: `{ mission_number, mission_id, has_contact_info }`
 
 **Security:**
-- Only returns case if `isPublic = true`
+- Only returns mission if `isPublic = true`
 - Contact fields only included if `publicContactOk = true`
 - Does NOT return: `createdById`, `squadId`, `source`, detailed notes
 
 ---
 
-### 5.3 POST /api/public/cases/report
+### 5.3 POST /api/public/missions/report
 
 **Purpose:** Submit a lost pet report from the public
 
@@ -345,8 +345,8 @@ model LostPetCase {
 {
   "success": true,
   "message": "Your lost pet report has been submitted for review. You will be contacted by our team within 24 hours.",
-  "caseNumber": "AUS-2025-0043",
-  "caseId": "cuid456"
+  "missionNumber": "AUS-2025-0043",
+  "missionId": "cuid456"
 }
 ```
 
@@ -363,18 +363,18 @@ model LostPetCase {
 ```
 
 **Logging:**
-- Success: `public_case.report_submitted`
-- Failure: `public_case.report_failed`
-- Metadata: `{ case_number, city, state, species, has_contact_info }`
+- Success: `public_mission.report_submitted`
+- Failure: `public_mission.report_failed`
+- Metadata: `{ mission_number, city, state, species, has_contact_info }`
 
 **Behavior:**
-- Creates `LostPetCase` with:
+- Creates `LostPetMission` with:
   - `source = "PUBLIC_REPORT"`
   - `isPublic = false` (requires admin approval)
   - `publicContactOk = false` (default)
   - `status = OPEN`
   - `createdById = null` (no user account yet)
-- Generates case number using existing logic
+- Generates mission number using existing logic
 - Validates all required fields
 - Does NOT require waiver acceptance (public doesn't have accounts yet)
 
@@ -387,16 +387,16 @@ model LostPetCase {
 
 ## 6. UI / UX
 
-### 6.1 Public Case List Page (`/cases`)
+### 6.1 Public Mission List Page (`/missions`)
 
-**Route:** `/cases`
+**Route:** `/missions`
 **Access:** Public (no auth required)
 
 **Layout:**
 
 ```
 ┌─────────────────────────────────────────────────┐
-│ Navigation Bar (Home, Browse Cases, Report)     │
+│ Navigation Bar (Home, Browse Missions, Report)     │
 ├─────────────────────────────────────────────────┤
 │                                                 │
 │  🐾 Find Lost Pets Near You                     │
@@ -428,21 +428,21 @@ model LostPetCase {
 **Features:**
 - **Hero section** with clear call-to-action
 - **Filter bar** with city, state, species, status dropdowns
-- **Case cards** showing key info at a glance
+- **Mission cards** showing key info at a glance
 - **Status pills** color-coded (OPEN=yellow, ACTIVE_SEARCH=orange, RESOLVED=green)
 - **Pagination** for browsing multiple pages
-- **Empty state** when no cases match filters
+- **Empty state** when no missions match filters
 
 **Technical:**
-- Calls `GET /api/public/cases` with query params
+- Calls `GET /api/public/missions` with query params
 - Client-side filtering updates URL params
-- Case cards link to `/cases/[caseNumber]`
+- Mission cards link to `/missions/[missionNumber]`
 
 ---
 
-### 6.2 Public Case Detail Page (`/cases/[caseNumber]`)
+### 6.2 Public Mission Detail Page (`/missions/[missionNumber]`)
 
-**Route:** `/cases/AUS-2025-0042`
+**Route:** `/missions/AUS-2025-0042`
 **Access:** Public (no auth required)
 
 **Layout:**
@@ -452,10 +452,10 @@ model LostPetCase {
 │ Navigation Bar                                  │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ← Back to Cases                                │
+│  ← Back to Missions                                │
 │                                                 │
 │  🐕 Buddy                                       │
-│  Case #AUS-2025-0042 • Active Search           │
+│  Mission #AUS-2025-0042 • Active Search           │
 │                                                 │
 │  ┌─────────────────────────────────────────┐   │
 │  │ Pet Information                         │   │
@@ -485,30 +485,30 @@ model LostPetCase {
 │  have information. Do not attempt to capture   │
 │  the pet yourself if it appears dangerous.     │
 │                                                 │
-│  [Share This Case]                             │
+│  [Share This Mission]                             │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
 **Features:**
-- **Clear case header** with pet name, case number, status
+- **Clear mission header** with pet name, mission number, status
 - **Pet information section** with all known details
 - **Last seen section** with location and landmark
 - **Contact section** (only if `publicContactOk = true`)
 - **Legal disclaimer** about community service
 - **Share button** to copy URL to clipboard
-- **404 page** if case not found or not public
+- **404 page** if mission not found or not public
 
 **Technical:**
-- Calls `GET /api/public/cases/[caseNumber]`
+- Calls `GET /api/public/missions/[missionNumber]`
 - Conditionally renders contact section based on API response
 - Static page (could be pre-rendered for SEO in future)
 
 ---
 
-### 6.3 Public Report Form (`/cases/report`)
+### 6.3 Public Report Form (`/missions/report`)
 
-**Route:** `/cases/report`
+**Route:** `/missions/report`
 **Access:** Public (no auth required)
 
 **Layout:**
@@ -562,14 +562,14 @@ model LostPetCase {
 ┌─────────────────────────────────────────────────┐
 │  ✅ Report Submitted Successfully!              │
 │                                                 │
-│  Your case number is: AUS-2025-0043            │
+│  Your mission number is: AUS-2025-0043            │
 │                                                 │
 │  What happens next:                            │
 │  1. Our volunteer team will review your report │
 │  2. You'll be contacted within 24 hours        │
-│  3. Your case will be visible to rescue squads │
+│  3. Your mission will be visible to rescue squads │
 │                                                 │
-│  [View Your Case] [Report Another Pet]         │
+│  [View Your Mission] [Report Another Pet]         │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -578,14 +578,14 @@ model LostPetCase {
 - **Required field indicators** (*)
 - **Validation on submit** with clear error messages
 - **Checkbox disclaimer** about volunteer review
-- **Success state** with case number and next steps
+- **Success state** with mission number and next steps
 - **"Report Another Pet" link** for multiple pets
 
 **Technical:**
-- Posts to `/api/public/cases/report`
+- Posts to `/api/public/missions/report`
 - Client-side validation before submit
 - Shows loading state during submission
-- Displays success message with case number
+- Displays success message with mission number
 - Handles errors gracefully with user-friendly messages
 
 ---
@@ -594,17 +594,17 @@ model LostPetCase {
 
 ### Event Types
 
-All public case interactions emit structured events via `logEvent()`:
+All public mission interactions emit structured events via `logEvent()`:
 
 | Event Type | Trigger | Result | Metadata |
 |------------|---------|--------|----------|
-| `public_case.list_viewed` | GET /api/public/cases succeeds | `success` | `{ city, state, status, species, results_count }` |
-| `public_case.list_failed` | GET /api/public/cases fails | `failure` | `{ error_code, error_message }` |
-| `public_case.detail_viewed` | GET /api/public/cases/[caseNumber] succeeds | `success` | `{ case_number, case_id, has_contact_info }` |
-| `public_case.detail_failed` | GET /api/public/cases/[caseNumber] fails | `failure` | `{ case_number, error_code }` |
-| `public_case.report_attempted` | POST /api/public/cases/report starts | `pending` | `{ city, state, species }` |
-| `public_case.report_submitted` | POST /api/public/cases/report succeeds | `success` | `{ case_number, case_id, city, state, species }` |
-| `public_case.report_failed` | POST /api/public/cases/report fails | `failure` | `{ error_code, error_message, validation_errors }` |
+| `public_mission.list_viewed` | GET /api/public/missions succeeds | `success` | `{ city, state, status, species, results_count }` |
+| `public_mission.list_failed` | GET /api/public/missions fails | `failure` | `{ error_code, error_message }` |
+| `public_mission.detail_viewed` | GET /api/public/missions/[missionNumber] succeeds | `success` | `{ mission_number, mission_id, has_contact_info }` |
+| `public_mission.detail_failed` | GET /api/public/missions/[missionNumber] fails | `failure` | `{ mission_number, error_code }` |
+| `public_mission.report_attempted` | POST /api/public/missions/report starts | `pending` | `{ city, state, species }` |
+| `public_mission.report_submitted` | POST /api/public/missions/report succeeds | `success` | `{ mission_number, mission_id, city, state, species }` |
+| `public_mission.report_failed` | POST /api/public/missions/report fails | `failure` | `{ error_code, error_message, validation_errors }` |
 
 ### Admin Health Integration
 
@@ -615,14 +615,14 @@ const ERROR_IMPACT = {
   // ... existing mappings ...
 
   // Medium severity - public-facing features
-  'public_case.list_failed': { label: 'Public Case List', severity: 'medium' },
-  'public_case.detail_failed': { label: 'Public Case Detail', severity: 'medium' },
-  'public_case.report_failed': { label: 'Public Reports', severity: 'medium' },
+  'public_mission.list_failed': { label: 'Public Mission List', severity: 'medium' },
+  'public_mission.detail_failed': { label: 'Public Mission Detail', severity: 'medium' },
+  'public_mission.report_failed': { label: 'Public Reports', severity: 'medium' },
 
   // Low severity - successful public interactions
-  'public_case.list_viewed': { label: 'Public Browse', severity: 'low' },
-  'public_case.detail_viewed': { label: 'Public Views', severity: 'low' },
-  'public_case.report_submitted': { label: 'Public Reports', severity: 'low' },
+  'public_mission.list_viewed': { label: 'Public Browse', severity: 'low' },
+  'public_mission.detail_viewed': { label: 'Public Views', severity: 'low' },
+  'public_mission.report_submitted': { label: 'Public Reports', severity: 'low' },
 };
 ```
 
@@ -632,7 +632,7 @@ Add to `/api/admin/health/metrics`:
 
 ```json
 {
-  "public_cases_visible": 12,  // Count of isPublic=true cases
+  "public_missions_visible": 12,  // Count of isPublic=true missions
   "public_reports_pending": 5,  // Count of source=PUBLIC_REPORT, isPublic=false
   "public_views_last_24h": 143  // Count of detail_viewed events
 }
@@ -646,19 +646,19 @@ Add to `/api/admin/health/metrics`:
 
 All public pages include static disclaimers:
 
-**On `/cases` List Page:**
+**On `/missions` List Page:**
 > **Community Service Notice:** This is a volunteer-run service. We cannot guarantee the accuracy of information posted. Please exercise caution when contacting pet owners or handling found animals.
 
-**On `/cases/[caseNumber]` Detail Page:**
+**On `/missions/[missionNumber]` Detail Page:**
 > **Privacy Notice:** Contact information is provided with the owner's consent. Please respect their privacy and only contact them if you have relevant information about their lost pet.
 >
 > **Safety Notice:** If you find a lost pet, do not attempt to capture it yourself if it appears injured, sick, or dangerous. Contact your local animal control or rescue squad for assistance.
 
-**On `/cases/report` Form:**
+**On `/missions/report` Form:**
 > **By submitting this report, you acknowledge that:**
 > - Your information will be reviewed by volunteer staff
 > - Your contact information may be shared with rescue squads
-> - Your case may be published publicly to help find your pet
+> - Your mission may be published publicly to help find your pet
 > - This service is provided as-is with no guarantees
 > - You agree to our Terms of Service and Privacy Policy
 
@@ -679,42 +679,42 @@ For MVP, static disclaimers are sufficient.
 ### Manual Testing (Browser)
 
 1. **Public List Page:**
-   - [ ] Navigate to `/cases` without logging in
-   - [ ] Verify only isPublic=true cases appear
+   - [ ] Navigate to `/missions` without logging in
+   - [ ] Verify only isPublic=true missions appear
    - [ ] Test filters: city, state, species, status
    - [ ] Verify pagination works correctly
    - [ ] Check empty state when no results
 
 2. **Public Detail Page:**
-   - [ ] Navigate to `/cases/[caseNumber]` for public case
+   - [ ] Navigate to `/missions/[missionNumber]` for public mission
    - [ ] Verify all pet information displays correctly
    - [ ] Verify contact info shows only if publicContactOk=true
-   - [ ] Try accessing non-public case (should 404)
+   - [ ] Try accessing non-public mission (should 404)
    - [ ] Verify disclaimer text appears
 
 3. **Public Report Form:**
-   - [ ] Navigate to `/cases/report`
+   - [ ] Navigate to `/missions/report`
    - [ ] Submit with missing required fields (should validate)
    - [ ] Submit with valid data (should succeed)
-   - [ ] Verify case created with isPublic=false
-   - [ ] Verify success message shows case number
+   - [ ] Verify mission created with isPublic=false
+   - [ ] Verify success message shows mission number
 
 ### QA Harness Tests (Phase 20-21 Integration)
 
 Add to `/admin/qa` test suite:
 
-**Public Case Tests:**
-- Test 1: Public list returns only isPublic cases
+**Public Mission Tests:**
+- Test 1: Public list returns only isPublic missions
 - Test 2: Public detail shows contact info when allowed
-- Test 3: Public detail returns 404 for non-public cases
-- Test 4: Public report creates case with correct source
+- Test 3: Public detail returns 404 for non-public missions
+- Test 4: Public report creates mission with correct source
 
 ### Data Generators
 
 Update `/admin/qa` generators:
 
-- **Public Case Generator:**
-  - Creates N cases with `isPublic = true`
+- **Public Mission Generator:**
+  - Creates N missions with `isPublic = true`
   - Random mix of publicContactOk values
   - Helps test public list/detail pages
 
@@ -728,7 +728,7 @@ Update `/admin/qa` generators:
 - Pet name, species, breed, color, description
 - City, state, ZIP code (general location)
 - Last seen date/time, landmark (general area)
-- Case number, status, created date
+- Mission number, status, created date
 
 **NEVER expose publicly:**
 - `createdById` (internal user IDs)
@@ -767,9 +767,9 @@ This feature is broken into 6 sequential tasks:
 
 1. **TASK-P01**: Prisma schema changes (add isPublic, publicContactOk, source)
 2. **TASK-P02**: Public API endpoints (GET list, GET detail, POST report)
-3. **TASK-P03**: Public list page UI (`/cases`)
-4. **TASK-P04**: Public detail page UI (`/cases/[caseNumber]`)
-5. **TASK-P05**: Public report form UI (`/cases/report`)
+3. **TASK-P03**: Public list page UI (`/missions`)
+4. **TASK-P04**: Public detail page UI (`/missions/[missionNumber]`)
+5. **TASK-P05**: Public report form UI (`/missions/report`)
 6. **TASK-P06**: QA integration, ERROR_IMPACT, documentation updates
 
 Each task builds on the previous one and can be tested independently.
@@ -785,10 +785,10 @@ Each task builds on the previous one and can be tested independently.
 - [ ] All 3 public API endpoints implemented
 - [ ] Public list page renders and filters work
 - [ ] Public detail page renders with privacy controls
-- [ ] Public report form creates cases correctly
+- [ ] Public report form creates missions correctly
 - [ ] All public interactions emit structured events
 - [ ] Events visible in `/admin/health` Errors tab
-- [ ] ERROR_IMPACT updated with public_case.* events
+- [ ] ERROR_IMPACT updated with public_mission.* events
 - [ ] QA tests added for public endpoints
 - [ ] Admin can toggle isPublic and publicContactOk flags
 - [ ] Phase 15–16 marked COMPLETE in VISION.md
@@ -803,7 +803,7 @@ These are explicitly **out of scope** for Phase 15–16 but can be added later:
 1. **Owner Accounts**
    - Let public reporters create accounts
    - Track report history
-   - Enable direct case editing by owner
+   - Enable direct mission editing by owner
 
 2. **Public Comments**
    - Allow sightings/tips from community
@@ -815,9 +815,9 @@ These are explicitly **out of scope** for Phase 15–16 but can be added later:
    - "Near me" functionality
 
 4. **Email Notifications**
-   - Notify owner when case is published
+   - Notify owner when mission is published
    - Notify owner of new sightings
-   - Daily digest of new cases in area
+   - Daily digest of new missions in area
 
 5. **Advanced Matching**
    - Image recognition for found pets

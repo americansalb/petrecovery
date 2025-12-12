@@ -35,7 +35,7 @@ export default function LocationLandingPage() {
     setLoading(true);
     try {
       // Load cases for this location
-      const casesRes = await fetch(`/api/cases?location=${encodeURIComponent(location.city)}&limit=6`);
+      const casesRes = await fetch(`/api/missions?location=${encodeURIComponent(location.city)}&limit=6`);
       if (casesRes.ok) {
         const data = await casesRes.json();
         setCases(data.cases || []);
@@ -50,7 +50,7 @@ export default function LocationLandingPage() {
 
       // Mock stats for now
       setStats({
-        activeCases: Math.floor(Math.random() * 50) + 10,
+        activeMissions: Math.floor(Math.random() * 50) + 10,
         reunited: Math.floor(Math.random() * 200) + 50,
         activeSearchers: Math.floor(Math.random() * 100) + 20,
       });
@@ -159,8 +159,8 @@ export default function LocationLandingPage() {
         }}>
           <StatCard
             icon={<PawPrint size={24} color="#4f46e5" />}
-            value={stats.activeCases || 0}
-            label="Active Cases"
+            value={stats.activeMissions || 0}
+            label="Active Missions"
           />
           <StatCard
             icon={<Search size={24} color="#10b981" />}
@@ -222,7 +222,7 @@ export default function LocationLandingPage() {
             gap: '1.5rem',
           }}>
             {cases.map((c) => (
-              <CaseCard key={c.id} caseData={c} />
+              <MissionCard key={c.id} missionData={c} />
             ))}
           </div>
         )}
@@ -345,10 +345,10 @@ function StatCard({ icon, value, label }) {
   );
 }
 
-function CaseCard({ caseData }) {
+function MissionCard({ missionData }) {
   return (
     <Link
-      href={`/cases/${caseData.caseNumber}`}
+      href={`/missions/${missionData.missionNumber}`}
       style={{
         display: 'block',
         background: 'white',
@@ -358,10 +358,10 @@ function CaseCard({ caseData }) {
         textDecoration: 'none',
       }}
     >
-      {caseData.petPhotoUrl && (
+      {missionData.petPhotoUrl && (
         <img
-          src={caseData.petPhotoUrl}
-          alt={caseData.petName}
+          src={missionData.petPhotoUrl}
+          alt={missionData.petName}
           style={{
             width: '100%',
             height: '200px',
@@ -383,11 +383,11 @@ function CaseCard({ caseData }) {
             fontSize: '0.75rem',
             fontWeight: 600,
           }}>
-            {caseData.status}
+            {missionData.status}
           </span>
           <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
             <Clock size={12} style={{ display: 'inline', marginRight: '4px' }} />
-            {new Date(caseData.createdAt).toLocaleDateString()}
+            {new Date(missionData.createdAt).toLocaleDateString()}
           </span>
         </div>
         <h3 style={{
@@ -396,10 +396,10 @@ function CaseCard({ caseData }) {
           color: '#0f172a',
           margin: '0 0 0.25rem 0',
         }}>
-          {caseData.petName}
+          {missionData.petName}
         </h3>
         <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>
-          {caseData.petSpecies} • {caseData.lastSeenAddress?.split(',')[0]}
+          {missionData.petSpecies} • {missionData.lastSeenAddress?.split(',')[0]}
         </p>
       </div>
     </Link>

@@ -118,7 +118,7 @@ self.addEventListener('push', (event) => {
     vibrate: data.vibrate || [200, 100, 200],
     data: {
       url: data.url || '/',
-      caseId: data.caseId,
+      missionId: data.missionId,
       type: data.type,
       ...data.data,
     },
@@ -159,8 +159,8 @@ self.addEventListener('notificationclick', (event) => {
   let url = data?.url || '/';
 
   // Handle action buttons
-  if (event.action === 'view' && data?.caseId) {
-    url = `/cases/${data.caseId}`;
+  if (event.action === 'view' && data?.missionId) {
+    url = `/cases/${data.missionId}`;
   } else if (event.action === 'reply' && data?.conversationId) {
     url = `/messages/${data.conversationId}`;
   } else if (event.action === 'dismiss') {

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 
-// GET /api/rescue-squads/[id]/tasks?caseId=xyz
+// GET /api/rescue-squads/[id]/tasks?missionId=xyz
 export async function GET(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
@@ -12,7 +12,7 @@ export async function GET(request, { params }) {
     }
 
     const { searchParams } = new URL(request.url);
-    const caseId = searchParams.get('caseId');
+    const missionId = searchParams.get('missionId');
 
     const squadId = params.id;
 
@@ -33,7 +33,7 @@ export async function GET(request, { params }) {
     const tasks = await prisma.squadTask.findMany({
       where: {
         rescueSquadId: squadId,
-        ...(caseId && { caseId })
+        ...(missionId && { missionId })
       },
       include: {
         assignedTo: {
@@ -85,7 +85,7 @@ export async function POST(request, { params }) {
 
     const squadId = params.id;
     const body = await request.json();
-    const { caseId, title, description, type, priority, assignedTo } = body;
+    const { missionId, title, description, type, priority, assignedTo } = body;
 
     // Verify user is a leader in this squad
     const membership = await prisma.rescueSquadMember.findFirst({
@@ -112,7 +112,7 @@ export async function POST(request, { params }) {
     const task = await prisma.squadTask.create({
       data: {
         rescueSquadId: squadId,
-        caseId: caseId || null,
+        missionId: missionId || null,
         title,
         description: description || null,
         type,
@@ -142,7 +142,7 @@ export async function POST(request, { params }) {
     await prisma.squadActivity.create({
       data: {
         rescueSquadId: squadId,
-        caseId: caseId || null,
+        missionId: missionId || null,
         type: 'TASK_CREATED',
         message: `New task: ${title}`,
         details: `${type} task with ${priority} priority`,

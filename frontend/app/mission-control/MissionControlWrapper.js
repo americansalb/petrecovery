@@ -53,7 +53,7 @@ function MissionControlContent(props) {
       {/* Feedback Widget - floating button in corner */}
       <FeedbackWidget
         feature="mission-control"
-        caseId={props.caseId}
+        missionId={props.missionId}
         variant="floating"
       />
     </div>

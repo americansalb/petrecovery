@@ -185,7 +185,7 @@ export type GeoPoint = {
  */
 export type SearchSession = {
   id: string;
-  caseId: string;
+  missionId: string;
   userId: string;
   startedAt: string;
   endedAt?: string;
@@ -278,7 +278,7 @@ export type ShelterLookupResult = {
  */
 export type ShelterContact = {
   id: string;
-  caseId: string;
+  missionId: string;
   shelterId: string; // External place ID
   shelterName: string;
   shelterAddress: string;
@@ -323,7 +323,7 @@ export type ShelterContactAttempt = {
  */
 export type FlyerPosting = {
   id: string;
-  caseId: string;
+  missionId: string;
   userId: string;
   latitude: number;
   longitude: number;
@@ -405,7 +405,7 @@ export type LeaderboardEntry = {
  * Leaderboard response (per-case)
  */
 export type LeaderboardResponse = {
-  caseId: string;
+  missionId: string;
   entries: LeaderboardEntry[];
   userRank?: number; // Current user's rank
   userPoints?: number; // Current user's points for this case
@@ -455,7 +455,7 @@ export type TaskWithState = TaskDefinition & {
  */
 export type AwardPointsRequest = {
   userId: string;
-  caseId: string;
+  missionId: string;
   actionType: VerifiedActionType;
   basePoints: number;
   isVerified: boolean;

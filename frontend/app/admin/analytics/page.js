@@ -150,13 +150,13 @@ export default function AnalyticsDashboard() {
           <StatCard
             title="Total Cases"
             value={analytics.overview.totalCases}
-            subtitle={`${analytics.overview.recentCases} new in last ${dateRange} days`}
+            subtitle={`${analytics.overview.recentMissions} new in last ${dateRange} days`}
             icon="📋"
             color="blue"
           />
           <StatCard
-            title="Active Cases"
-            value={analytics.overview.activeCases}
+            title="Active Missions"
+            value={analytics.overview.activeMissions}
             subtitle={`${analytics.overview.resolutionRate}% resolution rate`}
             icon="🔍"
             color="yellow"

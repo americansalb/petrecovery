@@ -102,7 +102,7 @@ async function searchRegistry(registry, chipNumber, config) {
  * Register a found pet's microchip for owner notification
  */
 export async function reportFoundMicrochip(options) {
-  const { chipNumber, finderName, finderPhone, finderEmail, location, caseId } = options;
+  const { chipNumber, finderName, finderPhone, finderEmail, location, missionId } = options;
 
   const results = [];
 
@@ -124,7 +124,7 @@ export async function reportFoundMicrochip(options) {
             email: finderEmail,
           },
           foundLocation: location,
-          referenceId: caseId,
+          referenceId: missionId,
         }),
       });
 

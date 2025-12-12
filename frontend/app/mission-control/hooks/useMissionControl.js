@@ -69,7 +69,7 @@ export default function useMissionControl(session) {
   const fetchAvailableMissions = useCallback(async () => {
     try {
       if (!session?.user) return;
-      const res = await fetchWithRetry('/api/cases/my-missions');
+      const res = await fetchWithRetry('/api/missions/my-missions');
       if (res.ok) {
         const data = await res.json();
         setAvailableMissions(data.missions || []);
@@ -93,7 +93,7 @@ export default function useMissionControl(session) {
         return;
       }
 
-      const res = await fetchWithRetry(`/api/cases/${id}`);
+      const res = await fetchWithRetry(`/api/missions/${id}`);
 
       if (!res.ok) {
         if (res.status === 404) {
@@ -149,7 +149,7 @@ export default function useMissionControl(session) {
   const fetchSightings = useCallback(async () => {
     if (!activeMission?.id) return;
     try {
-      const res = await fetch(`/api/cases/${activeMission.id}/sightings`);
+      const res = await fetch(`/api/missions/${activeMission.id}/sightings`);
       if (res.ok) {
         const data = await res.json();
         setSightings(data.sightings || []);

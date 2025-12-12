@@ -33,7 +33,7 @@ const ACTOR_ROLES = ['OWNER', 'VOLUNTEER', 'SHELTER_ADMIN', 'ADMIN', 'SYSTEM', '
  * @param {string} [event.correlation_id] - UUID for tracking related events (auto-generated if missing)
  * @param {string|null} [event.actor_user_id] - ID of user who triggered the event
  * @param {string|null} [event.actor_role] - Role of the actor
- * @param {string} event.resource_type - Type of resource (e.g., "squad", "case", "user")
+ * @param {string} event.resource_type - Type of resource (e.g., "squad", "mission", "user")
  * @param {string|null} [event.resource_id] - ID of the resource
  * @param {string} event.action - Action performed
  * @param {string} event.result - Result of the action ("success" or "failure")

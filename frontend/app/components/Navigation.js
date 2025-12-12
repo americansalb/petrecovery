@@ -33,7 +33,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { Button, Badge, CountBadge } from '@/components/ui';
-import { SURUMAA_AVATAR, LOGO_PRIMARY } from '@/lib/brandAssets';
+import { SARAMA_AVATAR, LOGO_PRIMARY } from '@/lib/brandAssets';
 
 export default function Navigation() {
   const { data: session } = useSession();
@@ -102,7 +102,7 @@ export default function Navigation() {
       <nav className="sticky top-0 z-50 bg-midnight-900 border-b border-midnight-800">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl">
-            <img src={SURUMAA_AVATAR} alt="PetRecovery" className="h-8 w-8 rounded-full" />
+            <img src={SARAMA_AVATAR} alt="PetRecovery" className="h-8 w-8 rounded-full" />
             <span>PetRecovery</span>
           </Link>
 
@@ -136,7 +136,7 @@ export default function Navigation() {
           <div className="h-16 flex items-center justify-between gap-4">
             {/* Logo */}
             <Link href="/dashboard" className="flex items-center gap-2.5 text-white font-bold text-xl shrink-0">
-              <img src={SURUMAA_AVATAR} alt="PetRecovery" className="h-8 w-8 rounded-full" />
+              <img src={SARAMA_AVATAR} alt="PetRecovery" className="h-8 w-8 rounded-full" />
               <span className="hidden sm:inline">PetRecovery</span>
             </Link>
 
@@ -157,10 +157,14 @@ export default function Navigation() {
                 onToggle={() => toggleDropdown('pets')}
               >
                 <DropdownLink href="/pets" icon={PawPrint} title="My Pets" description="View all your pets" />
-                <DropdownLink href="/cases" icon={ClipboardList} title="My Cases" description="Active lost/found reports" />
-                <DropdownDivider />
-                <DropdownLink href="/database" icon={Search} title="Search Database" description="Find lost & found pets" />
+                <DropdownLink href="/missions" icon={ClipboardList} title="My Missions" description="Active lost/found reports" />
               </NavDropdown>
+
+              {/* Database Link - Prominent */}
+              <NavLink href="/database" active={pathname === '/database'}>
+                <Search className="w-4 h-4" />
+                Database
+              </NavLink>
 
               {/* Squads Dropdown */}
               <NavDropdown
@@ -225,9 +229,10 @@ export default function Navigation() {
                   onToggle={() => toggleDropdown('admin')}
                 >
                   <DropdownLink href="/admin" icon={BarChart3} title="Dashboard" description="Overview & stats" />
+                  <DropdownLink href="/admin/users" icon={Users} title="Users" description="Manage all users" />
                   <DropdownLink href="/admin/rescue-squads" icon={Shield} title="Rescue Squads" description="Manage squads" />
                   <DropdownLink href="/admin/divisions" icon={MapPin} title="Divisions" description="Geographic areas" />
-                  <DropdownLink href="/admin/cases" icon={ClipboardList} title="Cases" description="All lost/found cases" />
+                  <DropdownLink href="/admin/missions" icon={ClipboardList} title="Missions" description="All lost pet missions" />
                   <DropdownDivider />
                   <DropdownLink href="/admin/analytics" icon={BarChart3} title="Analytics" description="Reports & metrics" />
                 </NavDropdown>
@@ -374,7 +379,7 @@ export default function Navigation() {
         <div className="py-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
           <MobileNavLink href="/dashboard" icon={Home} label="Dashboard" active={pathname === '/dashboard'} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/pets" icon={PawPrint} label="My Pets" active={pathname.startsWith('/pets')} onClick={() => setMobileMenuOpen(false)} />
-          <MobileNavLink href="/cases" icon={ClipboardList} label="My Cases" active={pathname.startsWith('/cases')} onClick={() => setMobileMenuOpen(false)} />
+          <MobileNavLink href="/missions" icon={ClipboardList} label="My Missions" active={pathname.startsWith('/cases')} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/database" icon={Search} label="Search Database" active={pathname === '/database'} onClick={() => setMobileMenuOpen(false)} />
 
           <div className="border-t border-midnight-100 my-2" />
@@ -415,9 +420,10 @@ export default function Navigation() {
                 Admin
               </div>
               <MobileNavLink href="/admin" icon={BarChart3} label="Admin Dashboard" active={pathname === '/admin'} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/admin/users" icon={Users} label="Manage Users" active={pathname === '/admin/users'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/admin/rescue-squads" icon={Shield} label="Manage Squads" active={pathname === '/admin/rescue-squads'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/admin/divisions" icon={MapPin} label="Manage Divisions" active={pathname === '/admin/divisions'} onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavLink href="/admin/cases" icon={ClipboardList} label="Manage Cases" active={pathname === '/admin/cases'} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/admin/missions" icon={ClipboardList} label="Manage Missions" active={pathname === '/admin/missions'} onClick={() => setMobileMenuOpen(false)} />
             </>
           )}
         </div>

@@ -131,7 +131,7 @@ export default function ReportFoundPetPage() {
             </p>
             <div className="bg-flash-50 border border-flash-200 rounded-lg p-6 mb-6">
               <p className="text-sm text-midnight-600 mb-2">Reference Number:</p>
-              <p className="text-2xl font-bold text-flash-600">{result.caseNumber}</p>
+              <p className="text-2xl font-bold text-flash-600">{result.missionNumber}</p>
             </div>
 
             {result.matches?.length > 0 && (
@@ -147,7 +147,7 @@ export default function ReportFoundPetPage() {
                   {result.matches.map((match, i) => (
                     <li key={i} className="flex items-center justify-between bg-white p-3 rounded border border-green-100">
                       <span className="font-medium text-midnight-800">
-                        {match.petName || match.caseNumber}
+                        {match.petName || match.missionNumber}
                       </span>
                       <span className={`px-2 py-1 rounded text-sm font-medium ${
                         match.quality === 'good'
@@ -174,7 +174,7 @@ export default function ReportFoundPetPage() {
             <div className="flex gap-3 justify-center">
               <Button
                 variant="primary"
-                onClick={() => router.push('/cases')}
+                onClick={() => router.push('/missions')}
               >
                 View Lost Pets
               </Button>
@@ -197,7 +197,7 @@ export default function ReportFoundPetPage() {
         {/* Header */}
         <div className="mb-8">
           <Link
-            href="/cases"
+            href="/missions"
             className="text-flash-500 hover:text-flash-600 mb-4 inline-flex items-center gap-2 transition-colors"
           >
             <ArrowLeft size={18} />
@@ -522,7 +522,7 @@ export default function ReportFoundPetPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.push('/cases')}
+              onClick={() => router.push('/missions')}
               className="text-lg py-4"
             >
               Cancel

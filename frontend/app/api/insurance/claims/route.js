@@ -79,14 +79,14 @@ export async function POST(request) {
 
       case 'document':
         const document = await generateVerificationDocument(
-          body.caseId,
+          body.missionId,
           body.documentType
         );
         return NextResponse.json(document);
 
       case 'estimate':
         const estimate = await calculateClaimEstimate(
-          body.caseId,
+          body.missionId,
           body.expenses
         );
         return NextResponse.json(estimate);

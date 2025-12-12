@@ -29,7 +29,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { type, webhookUrl, caseId, squadId, name } = await request.json();
+    const { type, webhookUrl, missionId, squadId, name } = await request.json();
 
     if (!type || !webhookUrl) {
       return NextResponse.json(
@@ -46,10 +46,10 @@ export async function POST(request) {
     }
 
     // Verify user has access to the case or squad
-    if (caseId) {
+    if (missionId) {
       const caseAccess = await prisma.case.findFirst({
         where: {
-          id: caseId,
+          id: missionId,
           OR: [
             { reporterId: session.user.id },
             { participants: { some: { userId: session.user.id } } },
@@ -86,7 +86,7 @@ export async function POST(request) {
       userId: session.user.id,
       type,
       webhookUrl,
-      caseId,
+      missionId,
       squadId,
       name,
     });

@@ -196,7 +196,7 @@ export async function verifyCaptchaFromRequest(request, options = {}) {
  */
 export function isCaptchaRequired(request) {
   // Always require for sensitive actions
-  const sensitiveActions = ['/api/auth/register', '/api/auth/login', '/api/cases/new'];
+  const sensitiveActions = ['/api/auth/register', '/api/auth/login', '/api/missions/new'];
   const url = new URL(request.url);
 
   if (sensitiveActions.some(path => url.pathname.startsWith(path))) {

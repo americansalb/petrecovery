@@ -15,7 +15,7 @@ const MAX_DURATION = 30; // Max recording duration in seconds
 const MIN_DURATION = 3; // Min recording duration
 
 export default function VoiceRecorder({
-  caseId,
+  missionId,
   petName,
   existingRecording = null,
   onRecordingComplete = null,
@@ -130,10 +130,10 @@ export default function VoiceRecorder({
     try {
       const formData = new FormData();
       formData.append('audio', audioBlob, 'call-mode-recording.webm');
-      formData.append('caseId', caseId);
+      formData.append('missionId', missionId);
       formData.append('duration', duration.toString());
 
-      const res = await fetch(`/api/mission/${caseId}/owner`, {
+      const res = await fetch(`/api/mission/${missionId}/owner`, {
         method: 'POST',
         body: JSON.stringify({
           action: 'UPLOAD_VOICE',

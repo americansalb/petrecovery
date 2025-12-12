@@ -13,7 +13,7 @@ This document breaks down Phase 20-21 (Admin QA Harness MVP) into 6 focused task
 - **TASK-Q01**: Create `/admin/qa` page structure
 - **TASK-Q02**: Implement Legal test suite
 - **TASK-Q03**: Implement Squad test suite
-- **TASK-Q04**: Implement Case test suite
+- **TASK-Q04**: Implement Mission test suite
 - **TASK-Q05**: Implement Data Generators
 - **TASK-Q06**: Integration, ERROR_IMPACT, and Documentation
 
@@ -106,7 +106,7 @@ Match `/admin/health` styling:
             cursor: 'pointer'
           }}
         >
-          {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          {tab.charAt(0).toUpperMission() + tab.slice(1)}
         </button>
       ))}
     </div>
@@ -153,7 +153,7 @@ function ResultsTab() {
 
 ## TASK-Q02: Implement Legal Test Suite
 
-**Goal**: Implement Legal test cases and test execution engine.
+**Goal**: Implement Legal test missions and test execution engine.
 
 **Files to Modify**:
 - `frontend/app/admin/qa/page.js`
@@ -204,7 +204,7 @@ async function runTest(testName, testFn) {
 }
 ```
 
-### Legal Test Cases
+### Legal Test Missions
 
 **Test 1: Accept Waiver Flow**
 
@@ -288,11 +288,11 @@ async function testBlockedSquadCreate() {
 }
 ```
 
-**Test 3: Blocked Action - Case Create**
+**Test 3: Blocked Action - Mission Create**
 
 ```javascript
-async function testBlockedCaseCreate() {
-  const res = await fetch('/api/cases', {
+async function testBlockedMissionCreate() {
+  const res = await fetch('/api/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -311,8 +311,8 @@ async function testBlockedCaseCreate() {
     }
     return { blocked: true, code: error.code };
   } else if (res.status === 201) {
-    const { case: caseData } = await res.json();
-    return { blocked: false, case_id: caseData.id, note: 'User has waiver, case created successfully' };
+    const { mission: missionData } = await res.json();
+    return { blocked: false, mission_id: missionData.id, note: 'User has waiver, mission created successfully' };
   } else {
     throw new Error(`Unexpected status: ${res.status}`);
   }
@@ -326,7 +326,7 @@ function TestsTab() {
   const [legalTests, setLegalTests] = useState([
     { id: 'accept-waiver', name: 'Accept Waiver Flow', status: 'idle', fn: testAcceptWaiver },
     { id: 'blocked-squad', name: 'Blocked Action - Squad Create', status: 'idle', fn: testBlockedSquadCreate },
-    { id: 'blocked-case', name: 'Blocked Action - Case Create', status: 'idle', fn: testBlockedCaseCreate },
+    { id: 'blocked-mission', name: 'Blocked Action - Mission Create', status: 'idle', fn: testBlockedMissionCreate },
   ]);
   const [running, setRunning] = useState(false);
 
@@ -506,14 +506,14 @@ export async function POST(request) {
 
 ## TASK-Q03: Implement Squad Test Suite
 
-**Goal**: Add Squad test cases using the test execution engine from TASK-Q02.
+**Goal**: Add Squad test missions using the test execution engine from TASK-Q02.
 
 **Files to Modify**:
 - `frontend/app/admin/qa/page.js`
 
 **Implementation Details**:
 
-### Squad Test Cases
+### Squad Test Missions
 
 **Test 1: Create Squad - Happy Path**
 
@@ -668,22 +668,22 @@ function TestsTab() {
 
 ---
 
-## TASK-Q04: Implement Case Test Suite
+## TASK-Q04: Implement Mission Test Suite
 
-**Goal**: Add Case test cases to complete test coverage.
+**Goal**: Add Mission test missions to complete test coverage.
 
 **Files to Modify**:
 - `frontend/app/admin/qa/page.js`
 
 **Implementation Details**:
 
-### Case Test Cases
+### Mission Test Missions
 
-**Test 1: Create Case**
+**Test 1: Create Mission**
 
 ```javascript
-async function testCreateCase() {
-  const res = await fetch('/api/cases', {
+async function testCreateMission() {
+  const res = await fetch('/api/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -701,20 +701,20 @@ async function testCreateCase() {
 
   if (!res.ok) {
     const error = await res.json();
-    throw new Error(`Create case failed: ${error.error}`);
+    throw new Error(`Create mission failed: ${error.error}`);
   }
 
-  const { case: caseData } = await res.json();
-  return { case_id: caseData.id, case_number: caseData.caseNumber };
+  const { mission: missionData } = await res.json();
+  return { mission_id: missionData.id, mission_number: missionData.missionNumber };
 }
 ```
 
-**Test 2: Update Case Status**
+**Test 2: Update Mission Status**
 
 ```javascript
-async function testUpdateCaseStatus() {
-  // First, create a test case or find one
-  const createRes = await fetch('/api/cases', {
+async function testUpdateMissionStatus() {
+  // First, create a test mission or find one
+  const createRes = await fetch('/api/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -725,10 +725,10 @@ async function testUpdateCaseStatus() {
     })
   });
 
-  const { case: testCase } = await createRes.json();
+  const { mission: testMission } = await createRes.json();
 
   // Update status
-  const res = await fetch(`/api/cases/${testCase.id}/status`, {
+  const res = await fetch(`/api/missions/${testMission.id}/status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -742,25 +742,25 @@ async function testUpdateCaseStatus() {
     throw new Error(`Status update failed: ${error.error}`);
   }
 
-  const { case: updatedCase } = await res.json();
-  return { case_id: updatedCase.id, new_status: updatedCase.status };
+  const { mission: updatedMission } = await res.json();
+  return { mission_id: updatedMission.id, new_status: updatedMission.status };
 }
 ```
 
-**Test 3: Add Note to Case**
+**Test 3: Add Note to Mission**
 
 ```javascript
-async function testAddCaseNote() {
-  // Find or create a test case
-  const listRes = await fetch('/api/cases?limit=1');
-  const { cases } = await listRes.json();
+async function testAddMissionNote() {
+  // Find or create a test mission
+  const listRes = await fetch('/api/missions?limit=1');
+  const { missions } = await listRes.json();
 
-  let testCaseId;
-  if (cases.length > 0) {
-    testCaseId = cases[0].id;
+  let testMissionId;
+  if (missions.length > 0) {
+    testMissionId = missions[0].id;
   } else {
     // Create one
-    const createRes = await fetch('/api/cases', {
+    const createRes = await fetch('/api/missions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -770,12 +770,12 @@ async function testAddCaseNote() {
         petName: '[TEST QA] Note Test Bird'
       })
     });
-    const { case: newCase } = await createRes.json();
-    testCaseId = newCase.id;
+    const { mission: newMission } = await createRes.json();
+    testMissionId = newMission.id;
   }
 
   // Add note
-  const res = await fetch(`/api/cases/${testCaseId}/notes`, {
+  const res = await fetch(`/api/missions/${testMissionId}/notes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -789,19 +789,19 @@ async function testAddCaseNote() {
   }
 
   const { note } = await res.json();
-  return { case_id: testCaseId, note_id: note.id };
+  return { mission_id: testMissionId, note_id: note.id };
 }
 ```
 
 ### Update TestsTab Component
 
-Add case tests:
+Add mission tests:
 
 ```javascript
-const [caseTests, setCaseTests] = useState([
-  { id: 'create-case', name: 'Create Case', status: 'idle', fn: testCreateCase },
-  { id: 'update-status', name: 'Update Case Status', status: 'idle', fn: testUpdateCaseStatus },
-  { id: 'add-note', name: 'Add Note to Case', status: 'idle', fn: testAddCaseNote },
+const [missionTests, setMissionTests] = useState([
+  { id: 'create-mission', name: 'Create Mission', status: 'idle', fn: testCreateMission },
+  { id: 'update-status', name: 'Update Mission Status', status: 'idle', fn: testUpdateMissionStatus },
+  { id: 'add-note', name: 'Add Note to Mission', status: 'idle', fn: testAddMissionNote },
 ]);
 ```
 
@@ -811,7 +811,7 @@ Add "Run All Tests" button:
 const runAllTests = async () => {
   await runLegalTests();
   await runSquadTests();
-  await runCaseTests();
+  await runMissionTests();
 };
 
 // In render:
@@ -835,10 +835,10 @@ const runAllTests = async () => {
 ```
 
 **Acceptance Criteria**:
-- [ ] Case test suite renders below Squad tests
-- [ ] "Run Case Tests" button executes all 3 tests
-- [ ] Create Case test creates a case
-- [ ] Update Status test changes case status
+- [ ] Mission test suite renders below Squad tests
+- [ ] "Run Mission Tests" button executes all 3 tests
+- [ ] Create Mission test creates a mission
+- [ ] Update Status test changes mission status
 - [ ] Add Note test creates a note
 - [ ] "Run All Tests" button runs all test suites sequentially
 - [ ] All tests log QA events
@@ -846,14 +846,14 @@ const runAllTests = async () => {
 
 **Commit Message**:
 ```
-[Phase 20-21] TASK-Q04: Implement Case test suite (create, status, notes)
+[Phase 20-21] TASK-Q04: Implement Mission test suite (create, status, notes)
 ```
 
 ---
 
 ## TASK-Q05: Implement Data Generators
 
-**Goal**: Build data generator forms for creating demo squads and cases.
+**Goal**: Build data generator forms for creating demo squads and missions.
 
 **Files to Modify**:
 - `frontend/app/admin/qa/page.js`
@@ -867,7 +867,7 @@ function GeneratorsTab() {
   return (
     <div>
       <SquadGenerator />
-      <CaseGenerator />
+      <MissionGenerator />
       <DataCleanup />
     </div>
   );
@@ -1010,10 +1010,10 @@ function SquadGenerator() {
 }
 ```
 
-### CaseGenerator Component
+### MissionGenerator Component
 
 ```javascript
-function CaseGenerator() {
+function MissionGenerator() {
   const [count, setCount] = useState(10);
   const [city, setCity] = useState('Austin');
   const [state, setState] = useState('TX');
@@ -1039,7 +1039,7 @@ function CaseGenerator() {
       const color = colors[Math.floor(Math.random() * colors.length)];
 
       try {
-        const res = await fetch('/api/cases', {
+        const res = await fetch('/api/missions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1049,20 +1049,20 @@ function CaseGenerator() {
             petName,
             petBreed: breed,
             petColor: color,
-            petDescription: `QA test case ${i + 1}`,
+            petDescription: `QA test mission ${i + 1}`,
             contactName: 'QA Test Contact',
             contactPhone: '555-0100'
           })
         });
 
         if (res.ok) {
-          const { case: caseData } = await res.json();
-          created.push(caseData.id);
+          const { mission: missionData } = await res.json();
+          created.push(missionData.id);
 
           // Randomly update status
           const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
           if (randomStatus !== 'OPEN') {
-            await fetch(`/api/cases/${caseData.id}/status`, {
+            await fetch(`/api/missions/${missionData.id}/status`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -1075,17 +1075,17 @@ function CaseGenerator() {
           // Add random notes (0-2)
           const noteCount = Math.floor(Math.random() * 3);
           for (let j = 0; j < noteCount; j++) {
-            await fetch(`/api/cases/${caseData.id}/notes`, {
+            await fetch(`/api/missions/${missionData.id}/notes`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                content: `[QA] Test note ${j + 1} for case`
+                content: `[QA] Test note ${j + 1} for mission`
               })
             });
           }
         }
       } catch (error) {
-        console.error('Failed to create case:', error);
+        console.error('Failed to create mission:', error);
       }
     }
 
@@ -1106,7 +1106,7 @@ function DataCleanup() {
   const [result, setResult] = useState(null);
 
   const cleanup = async () => {
-    if (!confirm('Delete all test squads and cases with [TEST] prefix?\n\nThis action cannot be undone.')) {
+    if (!confirm('Delete all test squads and missions with [TEST] prefix?\n\nThis action cannot be undone.')) {
       return;
     }
 
@@ -1114,7 +1114,7 @@ function DataCleanup() {
     setResult(null);
 
     let squadCount = 0;
-    let caseCount = 0;
+    let missionCount = 0;
 
     // Find and delete test squads
     const squadRes = await fetch('/api/rescue-squads?search=78701');
@@ -1127,15 +1127,15 @@ function DataCleanup() {
       }
     }
 
-    // Find and delete test cases
-    const caseRes = await fetch('/api/cases');
-    const { cases } = await caseRes.json();
+    // Find and delete test missions
+    const missionRes = await fetch('/api/missions');
+    const { missions } = await missionRes.json();
 
-    for (const c of cases) {
+    for (const c of missions) {
       if (c.petName && c.petName.startsWith('[TEST]')) {
         // Note: Need delete endpoint - for MVP, just mark as CLOSED_OTHER
         try {
-          await fetch(`/api/cases/${c.id}/status`, {
+          await fetch(`/api/missions/${c.id}/status`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1143,14 +1143,14 @@ function DataCleanup() {
               statusReason: '[QA] Cleaned up test data'
             })
           });
-          caseCount++;
+          missionCount++;
         } catch (error) {
-          console.error('Failed to close case:', error);
+          console.error('Failed to close mission:', error);
         }
       }
     }
 
-    setResult({ squads: squadCount, cases: caseCount });
+    setResult({ squads: squadCount, missions: missionCount });
     setCleaning(false);
   };
 
@@ -1167,7 +1167,7 @@ function DataCleanup() {
       </h2>
 
       <p style={{ marginBottom: '1rem', color: '#6b7280' }}>
-        This will close all test cases (mark as CLOSED_OTHER) with [TEST] prefix.
+        This will close all test missions (mark as CLOSED_OTHER) with [TEST] prefix.
         This action cannot be undone.
       </p>
 
@@ -1196,7 +1196,7 @@ function DataCleanup() {
           borderRadius: '8px',
           color: '#991b1b'
         }}>
-          Cleaned up: {result.cases} test cases (marked CLOSED_OTHER)
+          Cleaned up: {result.missions} test missions (marked CLOSED_OTHER)
         </div>
       )}
     </div>
@@ -1205,18 +1205,18 @@ function DataCleanup() {
 ```
 
 **Acceptance Criteria**:
-- [ ] Generators tab shows Squad, Case, and Cleanup sections
+- [ ] Generators tab shows Squad, Mission, and Cleanup sections
 - [ ] Squad generator creates N squads with [TEST] prefix
-- [ ] Case generator creates N cases with random data
-- [ ] Cases have mix of statuses and species
-- [ ] Cases include random notes (0-2 per case)
-- [ ] Cleanup marks test cases as CLOSED_OTHER
+- [ ] Mission generator creates N missions with random data
+- [ ] Missions have mix of statuses and species
+- [ ] Missions include random notes (0-2 per mission)
+- [ ] Cleanup marks test missions as CLOSED_OTHER
 - [ ] Success messages show count of items created/cleaned
 - [ ] All operations log QA events
 
 **Commit Message**:
 ```
-[Phase 20-21] TASK-Q05: Implement data generators (squads, cases, cleanup)
+[Phase 20-21] TASK-Q05: Implement data generators (squads, missions, cleanup)
 ```
 
 ---
@@ -1255,8 +1255,8 @@ Mark Phase 20-21 as complete:
 ```markdown
 - **Phase 20-21: Admin QA Harness** ✅ **COMPLETE** (Nov 25, 2025)
   - **QA Page:** Browser-based testing at `/admin/qa`
-  - **Test Suites:** Legal, Squad, Case smoke tests
-  - **Data Generators:** Create demo squads and cases
+  - **Test Suites:** Legal, Squad, Mission smoke tests
+  - **Data Generators:** Create demo squads and missions
   - **Test Data Cleanup:** Remove [TEST] prefixed items
   - **Observability:** All QA actions emit `qa.*` events
   - **See:** `docs/features/admin-qa-harness-mvp.md`
@@ -1268,8 +1268,8 @@ Update Next Tactical Priorities:
 ### 🎯 Next Tactical Priorities
 
 1. **Identify next phase cluster from roadmap**
-   - Candidates: Public case portal, Notifications MVP, Roles/permissions
-   - Build on Phase 0 (observability), Phase 13-14 (cases), Phase 20-21 (QA)
+   - Candidates: Public mission portal, Notifications MVP, Roles/permissions
+   - Build on Phase 0 (observability), Phase 13-14 (missions), Phase 20-21 (QA)
    - All features must emit structured events and respect legal gating
 ```
 
@@ -1294,7 +1294,7 @@ All components of the Admin QA Harness MVP have been fully implemented:
 ### Tests Tab (TASK-Q02, Q03, Q04)
 - ✅ Legal test suite (3 tests)
 - ✅ Squad test suite (4 tests)
-- ✅ Case test suite (3 tests)
+- ✅ Mission test suite (3 tests)
 - ✅ "Run All Tests" button
 - ✅ Real-time test status (idle, running, passed, failed)
 - ✅ Test duration tracking
@@ -1302,8 +1302,8 @@ All components of the Admin QA Harness MVP have been fully implemented:
 
 ### Generators Tab (TASK-Q05)
 - ✅ Squad generator (create N squads with city names)
-- ✅ Case generator (create N cases with random data)
-- ✅ Test data cleanup (mark [TEST] cases as CLOSED_OTHER)
+- ✅ Mission generator (create N missions with random data)
+- ✅ Test data cleanup (mark [TEST] missions as CLOSED_OTHER)
 - ✅ Success/error feedback
 
 ### Observability
@@ -1320,11 +1320,11 @@ Before committing, verify:
 - [ ] Tab navigation works
 - [ ] Legal tests execute and show results
 - [ ] Squad tests execute and show results
-- [ ] Case tests execute and show results
+- [ ] Mission tests execute and show results
 - [ ] "Run All Tests" runs all suites
 - [ ] Squad generator creates squads
-- [ ] Case generator creates cases
-- [ ] Cleanup marks test cases as closed
+- [ ] Mission generator creates missions
+- [ ] Cleanup marks test missions as closed
 - [ ] QA events appear in `/admin/health` Errors tab
 - [ ] No regressions to other pages
 
@@ -1352,8 +1352,8 @@ After completing all tasks, verify:
 - [ ] `/` - Homepage works
 - [ ] `/rescue-squads/search` - Squad search works
 - [ ] `/admin/health` - All tabs load
-- [ ] `/admin/cases` - Case list works
-- [ ] `/admin/cases/new` - Case creation works
+- [ ] `/admin/missions` - Mission list works
+- [ ] `/admin/missions/new` - Mission creation works
 - [ ] `/legal/consent` - Legal acceptance works
 
 **New QA Features:**
@@ -1372,7 +1372,7 @@ Small, focused commits for each task:
 1. `[Phase 20-21] TASK-Q01: Create /admin/qa page structure`
 2. `[Phase 20-21] TASK-Q02: Implement Legal test suite`
 3. `[Phase 20-21] TASK-Q03: Implement Squad test suite`
-4. `[Phase 20-21] TASK-Q04: Implement Case test suite`
+4. `[Phase 20-21] TASK-Q04: Implement Mission test suite`
 5. `[Phase 20-21] TASK-Q05: Implement data generators`
 6. `[Phase 20-21] TASK-Q06: Complete QA harness integration and docs`
 

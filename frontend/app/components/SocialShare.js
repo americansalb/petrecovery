@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
  * Tracks share events and generates shareable links.
  */
 export default function SocialShare({
-  caseId,
+  missionId,
   petName,
   petType,
   description,
@@ -33,8 +33,8 @@ export default function SocialShare({
 
   // Generate shareable URL
   const shareUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/cases/${caseId}`
-    : `/cases/${caseId}`;
+    ? `${window.location.origin}/cases/${missionId}`
+    : `/missions/${missionId}`;
 
   // Generate share text
   const shareTitle = `Help Find ${petName}!`;
@@ -42,14 +42,14 @@ export default function SocialShare({
 
   // Load share counts on mount
   useEffect(() => {
-    if (showCounts && caseId) {
+    if (showCounts && missionId) {
       loadShareCounts();
     }
-  }, [caseId, showCounts]);
+  }, [missionId, showCounts]);
 
   const loadShareCounts = async () => {
     try {
-      const res = await fetch(`/api/cases/${caseId}/share-stats`);
+      const res = await fetch(`/api/missions/${missionId}/share-stats`);
       if (res.ok) {
         const data = await res.json();
         setShareCounts(data.counts || {});
@@ -65,7 +65,7 @@ export default function SocialShare({
     setTracking(true);
 
     try {
-      await fetch(`/api/cases/${caseId}/share`, {
+      await fetch(`/api/missions/${missionId}/share`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ platform })

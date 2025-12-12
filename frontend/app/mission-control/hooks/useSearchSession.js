@@ -54,6 +54,31 @@ function getGridCellId(lat, lng, baseLat, baseLng) {
 }
 
 /**
+ * Determine transportation method based on average speed
+ */
+function getTransportMethod(avgSpeedMph) {
+  if (avgSpeedMph < 0.5) return 'stationary';
+  if (avgSpeedMph < 4) return 'walking';
+  if (avgSpeedMph < 7) return 'jogging';
+  if (avgSpeedMph < 15) return 'cycling';
+  return 'driving';
+}
+
+/**
+ * Get transportation method display info
+ */
+function getTransportInfo(method) {
+  const info = {
+    stationary: { label: 'Stationary', icon: '⏸️', color: 'text-slate-400', thorough: 'N/A' },
+    walking: { label: 'Walking', icon: '🚶', color: 'text-green-400', thorough: 'Excellent' },
+    jogging: { label: 'Jogging', icon: '🏃', color: 'text-amber-400', thorough: 'Good' },
+    cycling: { label: 'Cycling', icon: '🚴', color: 'text-orange-400', thorough: 'Fair' },
+    driving: { label: 'Driving', icon: '🚗', color: 'text-red-400', thorough: 'Low' },
+  };
+  return info[method] || info.stationary;
+}
+
+/**
  * Validate movement between two pings
  */
 function validateMovement(prevPing, currentPing) {
@@ -82,7 +107,7 @@ function validateMovement(prevPing, currentPing) {
   return { valid: true, distance, speed };
 }
 
-export default function useSearchSession(caseId, lastSeenLocation) {
+export default function useSearchSession(missionId, lastSeenLocation) {
   // Session state
   const [session, setSession] = useState(null);
   const [isActive, setIsActive] = useState(false);
@@ -98,6 +123,10 @@ export default function useSearchSession(caseId, lastSeenLocation) {
     validatedDistanceMiles: 0,
     estimatedPoints: 0,
     gridCellsCovered: 0,
+    // Rolling speed tracking (last 30 seconds)
+    recentSpeeds: [], // Array of { speed, timestamp }
+    avgSpeed30s: 0, // Average speed over last 30 seconds (mph)
+    transportMethod: 'stationary', // 'stationary', 'walking', 'jogging', 'cycling', 'driving'
   });
 
   // Path for visualization
@@ -133,11 +162,11 @@ export default function useSearchSession(caseId, lastSeenLocation) {
 
   // Fetch active session on mount
   useEffect(() => {
-    if (!caseId) return;
+    if (!missionId) return;
 
     const fetchSession = async () => {
       try {
-        const res = await fetch(`/api/mission/${caseId}/search`);
+        const res = await fetch(`/api/mission/${missionId}/search`);
         if (res.ok) {
           const data = await res.json();
           if (data.activeSession) {
@@ -170,7 +199,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
     };
 
     fetchSession();
-  }, [caseId]);
+  }, [missionId]);
 
   // Duration timer
   useEffect(() => {
@@ -237,11 +266,14 @@ export default function useSearchSession(caseId, lastSeenLocation) {
                    movementValidation.reason === 'DRIVING' ? 'DRIVING' : null,
     });
 
-    // Add to path
+    // Add to path with timestamp for duration calculation
     setPath(prev => [...prev, {
       lat: currentPing.latitude,
       lng: currentPing.longitude,
       valid: inZone && movementValidation.valid,
+      timestamp: currentPing.timestamp,
+      speed: movementValidation.speed,
+      distance: movementValidation.distance,
     }]);
 
     // Update grid cells
@@ -262,23 +294,41 @@ export default function useSearchSession(caseId, lastSeenLocation) {
       }
     }
 
-    // Update distance stats
-    if (movementValidation.valid) {
-      setStats(prev => ({
+    // Update distance stats and rolling speed
+    setStats(prev => {
+      // Add new speed to recent speeds
+      const now = Date.now();
+      const newSpeeds = [
+        ...prev.recentSpeeds.filter(s => now - s.timestamp < 30000), // Keep last 30 seconds
+        { speed: movementValidation.speed, timestamp: now }
+      ];
+
+      // Calculate average speed over last 30 seconds
+      const avgSpeed30s = newSpeeds.length > 0
+        ? newSpeeds.reduce((sum, s) => sum + s.speed, 0) / newSpeeds.length
+        : 0;
+
+      // Determine transportation method
+      const transportMethod = getTransportMethod(avgSpeed30s);
+
+      return {
         ...prev,
         totalDistanceMiles: prev.totalDistanceMiles + movementValidation.distance,
-        validatedDistanceMiles: inZone
+        validatedDistanceMiles: movementValidation.valid && inZone
           ? prev.validatedDistanceMiles + movementValidation.distance
           : prev.validatedDistanceMiles,
-      }));
-    }
+        recentSpeeds: newSpeeds,
+        avgSpeed30s,
+        transportMethod,
+      };
+    });
 
     // Store as last ping
     lastPingRef.current = currentPing;
 
     // Send ping to server
     try {
-      await fetch(`/api/mission/${caseId}/search`, {
+      await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -299,7 +349,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
     } catch (err) {
       console.error('Error sending ping:', err);
     }
-  }, [session?.id, isActive, caseId, isWithinSearchZone, lastSeenLocation]);
+  }, [session?.id, isActive, missionId, isWithinSearchZone, lastSeenLocation]);
 
   // Start GPS watching
   useEffect(() => {
@@ -336,7 +386,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
 
   // Start a new search session
   const startSearch = useCallback(async () => {
-    if (!caseId) return { success: false, error: 'No case ID' };
+    if (!missionId) return { success: false, error: 'No case ID' };
 
     setIsStarting(true);
     setError(null);
@@ -369,7 +419,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
       }
 
       // Call API to start session
-      const res = await fetch(`/api/mission/${caseId}/search`, {
+      const res = await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -402,7 +452,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
         estimatedPoints: 0,
         gridCellsCovered: 0,
       });
-      setPath([{ lat: latitude, lng: longitude, valid: inZone }]);
+      setPath([{ lat: latitude, lng: longitude, valid: inZone, timestamp: Date.now(), speed: 0, distance: 0 }]);
       visitedCellsRef.current = new Set();
       lastPingRef.current = {
         latitude,
@@ -427,7 +477,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
     } finally {
       setIsStarting(false);
     }
-  }, [caseId, isWithinSearchZone, lastSeenLocation]);
+  }, [missionId, isWithinSearchZone, lastSeenLocation]);
 
   // End the search session
   const endSearch = useCallback(async () => {
@@ -449,7 +499,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
       }
 
       // Call API to end session
-      const res = await fetch(`/api/mission/${caseId}/search`, {
+      const res = await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -480,7 +530,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
     } finally {
       setIsEnding(false);
     }
-  }, [session?.id, caseId]);
+  }, [session?.id, missionId]);
 
   // Cancel search (no points)
   const cancelSearch = useCallback(async () => {
@@ -498,7 +548,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
     }
 
     try {
-      await fetch(`/api/mission/${caseId}/search`, {
+      await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -520,7 +570,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
       gridCellsCovered: 0,
     });
     setPath([]);
-  }, [session?.id, caseId]);
+  }, [session?.id, missionId]);
 
   // Format duration for display
   const formatDuration = useCallback((seconds) => {

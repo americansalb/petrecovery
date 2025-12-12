@@ -10,7 +10,7 @@
 /**
  * Calculate success probability for a case
  */
-export async function calculateSuccessProbability(caseData, historicalData) {
+export async function calculateSuccessProbability(missionData, historicalData) {
   const factors = [];
   let baseScore = 0.5; // 50% base probability
 
@@ -22,11 +22,11 @@ export async function calculateSuccessProbability(caseData, historicalData) {
     RABBIT: 0.50,
     OTHER: 0.45,
   };
-  const speciesFactor = speciesRates[caseData.petSpecies] || 0.5;
+  const speciesFactor = speciesRates[missionData.petSpecies] || 0.5;
   factors.push({ name: 'Species', value: speciesFactor, weight: 0.15 });
 
   // Factor 2: Time elapsed (probability decreases over time)
-  const hoursElapsed = (Date.now() - new Date(caseData.lastSeenAt).getTime()) / (1000 * 60 * 60);
+  const hoursElapsed = (Date.now() - new Date(missionData.lastSeenAt).getTime()) / (1000 * 60 * 60);
   let timeFactor;
   if (hoursElapsed <= 24) {
     timeFactor = 0.9;
@@ -42,15 +42,15 @@ export async function calculateSuccessProbability(caseData, historicalData) {
   factors.push({ name: 'Time Elapsed', value: timeFactor, weight: 0.2 });
 
   // Factor 3: Has microchip
-  const microchipFactor = caseData.hasMicrochip ? 0.85 : 0.5;
+  const microchipFactor = missionData.hasMicrochip ? 0.85 : 0.5;
   factors.push({ name: 'Microchip', value: microchipFactor, weight: 0.1 });
 
   // Factor 4: Collar/ID tags
-  const idFactor = caseData.hasCollar ? 0.8 : 0.5;
+  const idFactor = missionData.hasCollar ? 0.8 : 0.5;
   factors.push({ name: 'ID Tags', value: idFactor, weight: 0.08 });
 
   // Factor 5: Number of sightings
-  const sightingCount = caseData.sightingsCount || 0;
+  const sightingCount = missionData.sightingsCount || 0;
   let sightingFactor;
   if (sightingCount >= 3) {
     sightingFactor = 0.85;
@@ -62,7 +62,7 @@ export async function calculateSuccessProbability(caseData, historicalData) {
   factors.push({ name: 'Sightings', value: sightingFactor, weight: 0.15 });
 
   // Factor 6: Active searchers
-  const searcherCount = caseData.activeSearchers || 0;
+  const searcherCount = missionData.activeSearchers || 0;
   let searcherFactor;
   if (searcherCount >= 10) {
     searcherFactor = 0.9;
@@ -76,11 +76,11 @@ export async function calculateSuccessProbability(caseData, historicalData) {
   factors.push({ name: 'Active Searchers', value: searcherFactor, weight: 0.12 });
 
   // Factor 7: Has reward
-  const rewardFactor = caseData.hasReward ? 0.75 : 0.5;
+  const rewardFactor = missionData.hasReward ? 0.75 : 0.5;
   factors.push({ name: 'Reward Offered', value: rewardFactor, weight: 0.05 });
 
   // Factor 8: Urban vs rural (urban has more eyes)
-  const urbanFactor = caseData.isUrban ? 0.7 : 0.55;
+  const urbanFactor = missionData.isUrban ? 0.7 : 0.55;
   factors.push({ name: 'Urban Area', value: urbanFactor, weight: 0.08 });
 
   // Factor 9: Season (more people outside in good weather)
@@ -105,7 +105,7 @@ export async function calculateSuccessProbability(caseData, historicalData) {
       ...f,
       contribution: Math.round(f.value * f.weight * 100),
     })),
-    recommendations: generateRecommendations(factors, caseData),
+    recommendations: generateRecommendations(factors, missionData),
     estimatedDaysToReunion: estimateDaysToReunion(probability, hoursElapsed),
   };
 }
@@ -113,7 +113,7 @@ export async function calculateSuccessProbability(caseData, historicalData) {
 /**
  * Generate actionable recommendations
  */
-function generateRecommendations(factors, caseData) {
+function generateRecommendations(factors, missionData) {
   const recommendations = [];
 
   // Check each factor and suggest improvements
@@ -144,7 +144,7 @@ function generateRecommendations(factors, caseData) {
   }
 
   // Time-based recommendations
-  const hoursElapsed = (Date.now() - new Date(caseData.lastSeenAt).getTime()) / (1000 * 60 * 60);
+  const hoursElapsed = (Date.now() - new Date(missionData.lastSeenAt).getTime()) / (1000 * 60 * 60);
 
   if (hoursElapsed < 24) {
     recommendations.push({
@@ -154,7 +154,7 @@ function generateRecommendations(factors, caseData) {
     });
   }
 
-  if (hoursElapsed > 72 && !caseData.checkedShelters) {
+  if (hoursElapsed > 72 && !missionData.checkedShelters) {
     recommendations.push({
       priority: 'high',
       action: 'Check local shelters',
@@ -163,7 +163,7 @@ function generateRecommendations(factors, caseData) {
   }
 
   // Species-specific recommendations
-  if (caseData.petSpecies === 'CAT') {
+  if (missionData.petSpecies === 'CAT') {
     recommendations.push({
       priority: 'medium',
       action: 'Search at dawn and dusk',
@@ -313,25 +313,25 @@ export function predictLocationZones(lastSeenLocation, sightings, petSpecies, ho
 /**
  * Calculate case similarity for pattern matching
  */
-export function findSimilarCases(currentCase, historicalCases) {
+export function findSimilarCases(currentMission, historicalCases) {
   const similarities = historicalCases.map(histCase => {
     let score = 0;
     let factors = 0;
 
     // Species match
-    if (histCase.petSpecies === currentCase.petSpecies) {
+    if (histCase.petSpecies === currentMission.petSpecies) {
       score += 3;
     }
     factors += 3;
 
     // Size match
-    if (histCase.petSize === currentCase.petSize) {
+    if (histCase.petSize === currentMission.petSize) {
       score += 1;
     }
     factors += 1;
 
     // Location proximity (same city/area)
-    if (histCase.city === currentCase.city) {
+    if (histCase.city === currentMission.city) {
       score += 2;
     }
     factors += 2;
@@ -345,13 +345,13 @@ export function findSimilarCases(currentCase, historicalCases) {
     factors += 1;
 
     // Similar escape scenario
-    if (histCase.escapeScenario === currentCase.escapeScenario) {
+    if (histCase.escapeScenario === currentMission.escapeScenario) {
       score += 2;
     }
     factors += 2;
 
     return {
-      caseId: histCase.id,
+      missionId: histCase.id,
       similarity: score / factors,
       wasFound: histCase.status === 'REUNITED',
       daysToReunion: histCase.daysToReunion,

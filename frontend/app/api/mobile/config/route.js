@@ -103,10 +103,10 @@ export async function GET(request) {
       scheme: 'petrecovery',
       prefixes: ['https://petrecovery.org', 'petrecovery://'],
       routes: {
-        case: '/cases/:id',
+        case: '/missions/:id',
         squad: '/squads/:id',
         profile: '/users/:id',
-        sighting: '/sighting/:caseId',
+        sighting: '/sighting/:missionId',
         search: '/search',
         report: '/report',
       },

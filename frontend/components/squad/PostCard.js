@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { Heart, MessageCircle, Share2, ThumbsUp, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { SURUMAA_AVATAR, SURUMAA_TAGLINE } from '@/lib/brandAssets';
+import { SARAMA_AVATAR, SARAMA_TAGLINE } from '@/lib/brandAssets';
 
 export default function PostCard({ post, onVote, onComment, currentUserId }) {
   const [showComments, setShowComments] = useState(false);
@@ -58,8 +58,8 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
             {post.isSystemPost ? (
               <>
                 <img
-                  src={SURUMAA_AVATAR}
-                  alt="Surumaa"
+                  src={SARAMA_AVATAR}
+                  alt="Sarama"
                   className="w-14 h-14 rounded-full object-cover shadow-lg ring-2 ring-purple-400/50 bg-gradient-to-br from-purple-500 to-purple-600"
                   onError={(e) => {
                     e.target.style.display = 'none';
@@ -81,11 +81,11 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <span className="font-bold text-white text-base">
-                {post.isSystemPost ? 'Surumaa' : post.authorName}
+                {post.isSystemPost ? 'Sarama' : post.authorName}
               </span>
               {post.isSystemPost ? (
                 <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                  {SURUMAA_TAGLINE}
+                  {SARAMA_TAGLINE}
                 </span>
               ) : (
                 post.authorRole && post.authorRole !== 'MEMBER' && (

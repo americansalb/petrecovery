@@ -514,7 +514,7 @@ function MissionControlV3Content() {
       {/* Sighting Form Modal */}
       {showSightingForm && (
         <SightingFormModal
-          caseId={activeMission?.id}
+          missionId={activeMission?.id}
           onClose={() => setShowSightingForm(false)}
           onSuccess={() => {
             setShowSightingForm(false);

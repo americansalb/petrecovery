@@ -18,9 +18,9 @@ export function Skeleton({ className = '', ...props }) {
 }
 
 /**
- * Case Card Skeleton - matches CasesModeV2 card layout
+ * Case Card Skeleton - matches MissionsModeV2 card layout
  */
-export function CaseCardSkeleton() {
+export function MissionCardSkeleton() {
   return (
     <div className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
       <div className="flex gap-5">
@@ -64,7 +64,7 @@ export function CaseListSkeleton({ count = 3 }) {
   return (
     <div className="grid gap-5">
       {Array.from({ length: count }).map((_, i) => (
-        <CaseCardSkeleton key={i} />
+        <MissionCardSkeleton key={i} />
       ))}
     </div>
   );

@@ -134,7 +134,7 @@ describe('POST /api/sightings', () => {
       expect(data.error).toContain('time');
     });
 
-    it('should return 400 when neither alertId nor caseId is provided', async () => {
+    it('should return 400 when neither alertId nor missionId is provided', async () => {
       const request = createRequest({
         location: '123 Main St',
         details: 'Saw the dog',
@@ -153,7 +153,7 @@ describe('POST /api/sightings', () => {
     it('should create sighting with valid data', async () => {
       mockPrisma.sighting.create.mockResolvedValue({
         id: 'sighting-123',
-        caseId: 'case-123',
+        missionId: 'case-123',
       });
       mockPrisma.case.findUnique.mockResolvedValue(null);
 
@@ -172,15 +172,15 @@ describe('POST /api/sightings', () => {
       expect(data.sighting.id).toBe('sighting-123');
     });
 
-    it('should use caseId when alertId is not provided', async () => {
+    it('should use missionId when alertId is not provided', async () => {
       mockPrisma.sighting.create.mockResolvedValue({
         id: 'sighting-123',
-        caseId: 'case-456',
+        missionId: 'case-456',
       });
       mockPrisma.case.findUnique.mockResolvedValue(null);
 
       const request = createRequest({
-        caseId: 'case-456',
+        missionId: 'case-456',
         location: '123 Main St',
         details: 'Saw the dog',
         timeOfSighting: 'just_now',
@@ -191,7 +191,7 @@ describe('POST /api/sightings', () => {
       expect(mockPrisma.sighting.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            caseId: 'case-456',
+            missionId: 'case-456',
           }),
         })
       );
@@ -200,7 +200,7 @@ describe('POST /api/sightings', () => {
     it('should include behavior in description', async () => {
       mockPrisma.sighting.create.mockResolvedValue({
         id: 'sighting-123',
-        caseId: 'case-123',
+        missionId: 'case-123',
       });
       mockPrisma.case.findUnique.mockResolvedValue(null);
 
@@ -226,7 +226,7 @@ describe('POST /api/sightings', () => {
     it('should include direction in description', async () => {
       mockPrisma.sighting.create.mockResolvedValue({
         id: 'sighting-123',
-        caseId: 'case-123',
+        missionId: 'case-123',
       });
       mockPrisma.case.findUnique.mockResolvedValue(null);
 
@@ -252,7 +252,7 @@ describe('POST /api/sightings', () => {
     it('should set latitude and longitude when provided', async () => {
       mockPrisma.sighting.create.mockResolvedValue({
         id: 'sighting-123',
-        caseId: 'case-123',
+        missionId: 'case-123',
       });
       mockPrisma.case.findUnique.mockResolvedValue(null);
 
@@ -280,7 +280,7 @@ describe('POST /api/sightings', () => {
     it('should default coordinates to 0 when not provided', async () => {
       mockPrisma.sighting.create.mockResolvedValue({
         id: 'sighting-123',
-        caseId: 'case-123',
+        missionId: 'case-123',
       });
       mockPrisma.case.findUnique.mockResolvedValue(null);
 
@@ -308,7 +308,7 @@ describe('POST /api/sightings', () => {
     it('should create CaseSighting when case exists', async () => {
       mockPrisma.sighting.create.mockResolvedValue({
         id: 'sighting-123',
-        caseId: 'case-123',
+        missionId: 'case-123',
       });
       mockPrisma.case.findUnique.mockResolvedValue({
         id: 'case-123',
@@ -334,7 +334,7 @@ describe('POST /api/sightings', () => {
     it('should not fail if CaseSighting creation fails', async () => {
       mockPrisma.sighting.create.mockResolvedValue({
         id: 'sighting-123',
-        caseId: 'case-123',
+        missionId: 'case-123',
       });
       mockPrisma.case.findUnique.mockResolvedValue({
         id: 'case-123',
@@ -359,7 +359,7 @@ describe('POST /api/sightings', () => {
     it('should map behavior to certainty level', async () => {
       mockPrisma.sighting.create.mockResolvedValue({
         id: 'sighting-123',
-        caseId: 'case-123',
+        missionId: 'case-123',
       });
       mockPrisma.case.findUnique.mockResolvedValue({
         id: 'case-123',
@@ -390,7 +390,7 @@ describe('POST /api/sightings', () => {
 
   describe('Time Mapping', () => {
     it('should map "just_now" to about 15 minutes ago', async () => {
-      mockPrisma.sighting.create.mockResolvedValue({ id: 'sighting-123', caseId: 'case-123' });
+      mockPrisma.sighting.create.mockResolvedValue({ id: 'sighting-123', missionId: 'case-123' });
       mockPrisma.case.findUnique.mockResolvedValue({ id: 'case-123' });
       mockPrisma.caseSighting.create.mockResolvedValue({});
 
@@ -420,7 +420,7 @@ describe('POST /api/sightings', () => {
       const { logEvent } = require('@/lib/logging');
       mockPrisma.sighting.create.mockResolvedValue({
         id: 'sighting-123',
-        caseId: 'case-123',
+        missionId: 'case-123',
       });
       mockPrisma.case.findUnique.mockResolvedValue(null);
 

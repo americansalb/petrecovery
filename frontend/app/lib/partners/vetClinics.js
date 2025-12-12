@@ -72,7 +72,7 @@ async function searchPartnerClinics(lat, lng, radiusMiles) {
 /**
  * Send lost pet alert to partner clinics
  */
-export async function sendLostPetAlertToClinics(caseData, clinics) {
+export async function sendLostPetAlertToClinics(missionData, clinics) {
   const results = [];
 
   for (const clinic of clinics) {
@@ -80,7 +80,7 @@ export async function sendLostPetAlertToClinics(caseData, clinics) {
 
     try {
       // Send email alert to clinic
-      const result = await sendClinicAlert(clinic, caseData, 'LOST');
+      const result = await sendClinicAlert(clinic, missionData, 'LOST');
       results.push({ clinicId: clinic.id, success: true });
     } catch (error) {
       results.push({ clinicId: clinic.id, success: false, error: error.message });
@@ -150,8 +150,8 @@ Owner: ${petData.ownerName}
 Phone: ${petData.ownerPhone}
 Email: ${petData.ownerEmail}
 
-Case Reference: ${petData.caseNumber}
-View case online: ${process.env.NEXT_PUBLIC_BASE_URL}/cases/${petData.caseNumber}
+Case Reference: ${petData.missionNumber}
+View case online: ${process.env.NEXT_PUBLIC_BASE_URL}/cases/${petData.missionNumber}
 
 Thank you for your help in reuniting pets with their families!
 
@@ -170,7 +170,7 @@ Color: ${petData.petColor}
 Found Location: ${petData.foundLocation}
 
 If anyone has reported a missing pet matching this description, please direct them to:
-${process.env.NEXT_PUBLIC_BASE_URL}/cases/${petData.caseNumber}
+${process.env.NEXT_PUBLIC_BASE_URL}/cases/${petData.missionNumber}
 
 Thank you!
 PetRecovery.org

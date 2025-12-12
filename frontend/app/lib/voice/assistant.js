@@ -24,7 +24,7 @@ export const VOICE_INTENTS = {
       'Have you found my dog',
       'Status update',
     ],
-    slots: ['petName', 'caseNumber'],
+    slots: ['petName', 'missionNumber'],
   },
   START_SEARCH: {
     id: 'start_search',
@@ -34,7 +34,7 @@ export const VOICE_INTENTS = {
       'I want to help search',
       'Join the search',
     ],
-    slots: ['caseNumber', 'location'],
+    slots: ['missionNumber', 'location'],
   },
   GET_DIRECTIONS: {
     id: 'get_directions',
@@ -43,7 +43,7 @@ export const VOICE_INTENTS = {
       'Get directions to the search',
       'How do I get to the search location',
     ],
-    slots: ['caseNumber'],
+    slots: ['missionNumber'],
   },
   REPORT_FOUND: {
     id: 'report_found',
@@ -53,7 +53,7 @@ export const VOICE_INTENTS = {
       'We found the dog',
       'Mission accomplished',
     ],
-    slots: ['caseNumber', 'location'],
+    slots: ['missionNumber', 'location'],
   },
 };
 
@@ -108,8 +108,8 @@ export function generateVoiceResponse(intent, context = {}) {
       followUp: ['What color was the animal?', 'Where did you see it?'],
     },
     SEARCH_STATUS: {
-      prompt: context.caseStatus
-        ? `Your case ${context.caseNumber} is currently ${context.caseStatus}. ${context.lastUpdate || ''}`
+      prompt: context.missionStatus
+        ? `Your case ${context.missionNumber} is currently ${context.missionStatus}. ${context.lastUpdate || ''}`
         : `I couldn't find your case. Please provide a case number.`,
       followUp: [],
     },
@@ -240,13 +240,13 @@ export class ChatBot {
         suggestions: ['Brown and white', 'Black', 'Gray tabby'],
       },
       CHECK_STATUS: {
-        text: context.caseNumber
-          ? `Case ${context.caseNumber}: ${context.status || 'Active'}. ${context.lastUpdate || 'No recent updates.'}`
+        text: context.missionNumber
+          ? `Case ${context.missionNumber}: ${context.status || 'Active'}. ${context.lastUpdate || 'No recent updates.'}`
           : `I'd be happy to check on your case. What's your case number? You can find it in your email or dashboard.`,
         suggestions: ['Show my cases', 'Latest sightings'],
       },
       JOIN_SEARCH: {
-        text: `That's wonderful that you want to help! There are currently ${context.activeCases || 'several'} active searches near you. Would you like to see nearby cases or join a rescue squad?`,
+        text: `That's wonderful that you want to help! There are currently ${context.activeMissions || 'several'} active searches near you. Would you like to see nearby cases or join a rescue squad?`,
         suggestions: ['Show nearby cases', 'Join a squad', 'How does searching work?'],
         actions: [{ type: 'show_map', filter: 'active_cases' }],
       },
@@ -285,7 +285,7 @@ export function generateAlexaResponse(intent, slots, session) {
       shouldEndSession: false,
     },
     CheckStatusIntent: {
-      speech: `Checking on case ${slots.caseNumber || 'your case'}. Please wait while I retrieve the latest information.`,
+      speech: `Checking on case ${slots.missionNumber || 'your case'}. Please wait while I retrieve the latest information.`,
       shouldEndSession: false,
     },
     HelpIntent: {
