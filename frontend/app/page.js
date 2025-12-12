@@ -21,9 +21,7 @@ import {
   Eye,
   Map,
   Radio,
-  Clock,
-  CheckCircle,
-  Smartphone,
+  FileText,
 } from 'lucide-react';
 
 // Live Reunion Ticker
@@ -252,15 +250,15 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              See What Happens When You Report
+              Everything You Need to Find Them
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              This isn't just a lost pet post. It's a coordinated search operation.
+              Report once. We handle the rest.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Live Map Preview */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Rescue Squads */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -268,91 +266,63 @@ export default function Home() {
               className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-6 border border-blue-200"
             >
               <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mb-4">
-                <Map className="w-6 h-6 text-white" />
+                <Shield className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Live Search Map</h3>
-              <p className="text-gray-600 mb-4">
-                Watch volunteers search in real-time. See their GPS trails, sighting reports, and coverage areas.
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Rescue Squads</h3>
+              <p className="text-gray-600 text-sm">
+                Join your neighborhood squad or start one. Real volunteers ready to search when you need them.
               </p>
-              <div className="bg-white rounded-xl p-3 border border-blue-200 shadow-sm">
-                <div className="aspect-video bg-gradient-to-br from-blue-100 to-green-100 rounded-lg flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 opacity-30">
-                    <div className="absolute top-1/4 left-1/3 w-20 h-20 bg-red-400 rounded-full blur-xl" />
-                    <div className="absolute top-1/2 right-1/4 w-16 h-16 bg-blue-400 rounded-full blur-xl" />
-                  </div>
-                  <div className="relative text-center">
-                    <MapPin className="w-8 h-8 text-red-500 mx-auto mb-1" />
-                    <span className="text-xs text-gray-600 font-medium">Probability Zone</span>
-                  </div>
-                </div>
-              </div>
             </motion.div>
 
-            {/* GPS Tracking Preview */}
+            {/* Auto Flyers */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
-              className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-2xl p-6 border border-green-200"
+              className="bg-gradient-to-br from-amber-50 to-orange-100 rounded-2xl p-6 border border-amber-200"
             >
-              <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center mb-4">
-                <Navigation className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center mb-4">
+                <FileText className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">GPS-Tracked Searches</h3>
-              <p className="text-gray-600 mb-4">
-                Volunteers run verified searches. Every path is logged. No area gets missed.
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Auto-Generated Flyers</h3>
+              <p className="text-gray-600 text-sm">
+                Professional flyers created instantly from your report. Print, share, and post around town.
               </p>
-              <div className="bg-white rounded-xl p-3 border border-green-200 shadow-sm">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3 p-2 bg-green-50 rounded-lg">
-                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold">JM</div>
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-900">Jake M.</div>
-                      <div className="text-xs text-green-600">Searching now • 1.2 mi covered</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-2 bg-green-50 rounded-lg">
-                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">SL</div>
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-900">Sarah L.</div>
-                      <div className="text-xs text-green-600">Searching now • 0.8 mi covered</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </motion.div>
 
-            {/* Sighting Network Preview */}
+            {/* Shelter Finder */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
+              className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-2xl p-6 border border-green-200"
+            >
+              <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center mb-4">
+                <Building2 className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Nearby Shelters</h3>
+              <p className="text-gray-600 text-sm">
+                We find shelters near you automatically. Check if your pet was brought in. Get contact info instantly.
+              </p>
+            </motion.div>
+
+            {/* Coordinated Search */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3 }}
               className="bg-gradient-to-br from-purple-50 to-violet-100 rounded-2xl p-6 border border-purple-200"
             >
               <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center mb-4">
-                <Eye className="w-6 h-6 text-white" />
+                <Map className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Live Sighting Network</h3>
-              <p className="text-gray-600 mb-4">
-                Community reports sightings instantly. Teams converge on hot spots.
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Tracked Searches</h3>
+              <p className="text-gray-600 text-sm">
+                See who's searching where. GPS tracks coverage so no area gets missed. Everyone works together.
               </p>
-              <div className="bg-white rounded-xl p-3 border border-purple-200 shadow-sm">
-                <div className="space-y-2">
-                  <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
-                      <span className="font-medium text-amber-800">New sighting!</span>
-                      <span className="text-amber-600 text-xs">2 min ago</span>
-                    </div>
-                    <div className="text-xs text-gray-600 mt-1">Oak St & Main - Heading north</div>
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded-lg">
-                    <div className="text-xs text-gray-500">Previous: Elm Park • 15 min ago</div>
-                  </div>
-                </div>
-              </div>
             </motion.div>
           </div>
         </div>
@@ -478,7 +448,7 @@ export default function Home() {
                 href="/register"
                 className="inline-flex items-center justify-center gap-2 bg-white hover:bg-gray-100 text-gray-900 px-8 py-4 rounded-2xl font-bold text-lg transition shadow-lg"
               >
-                Join Free <ArrowRight className="w-5 h-5" />
+                Get Started <ArrowRight className="w-5 h-5" />
               </Link>
               <Link
                 href="/patrol/signup"
