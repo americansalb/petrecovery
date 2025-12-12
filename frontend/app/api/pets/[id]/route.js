@@ -234,7 +234,7 @@ export async function DELETE(request, { params }) {
       include: {
         cases: {
           where: {
-            status: { in: ['OPEN', 'ACTIVE_SEARCH'] }
+            status: { in: ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'] }
           }
         }
       }

@@ -254,10 +254,10 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    // Check if case exists
+    // Check if case exists and get associated pet
     const existingCase = await prisma.case.findUnique({
       where: { id: params.id },
-      select: { id: true, caseNumber: true, petName: true }
+      select: { id: true, caseNumber: true, petName: true, petId: true }
     });
 
     if (!existingCase) {
@@ -282,7 +282,7 @@ export async function DELETE(request, { params }) {
       });
 
       // Delete sightings
-      await tx.sighting.deleteMany({
+      await tx.caseSighting.deleteMany({
         where: { missionId: params.id }
       });
 
@@ -295,6 +295,27 @@ export async function DELETE(request, { params }) {
       await tx.case.delete({
         where: { id: params.id }
       });
+
+      // Soft-delete associated pet if it has no other active cases
+      if (existingCase.petId) {
+        const otherActiveCases = await tx.case.count({
+          where: {
+            petId: existingCase.petId,
+            id: { not: params.id },
+            status: { in: ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'] }
+          }
+        });
+
+        if (otherActiveCases === 0) {
+          await tx.pet.update({
+            where: { id: existingCase.petId },
+            data: {
+              isDeleted: true,
+              deletedAt: new Date()
+            }
+          });
+        }
+      }
     });
 
     await logEvent({
