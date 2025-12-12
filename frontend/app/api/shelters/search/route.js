@@ -1,100 +1,119 @@
 import { NextResponse } from 'next/server';
-import { searchPetfinderOrganizations, getConfiguredSources } from '@/app/lib/shelterApi';
+import { appleMapKit } from '@/app/lib/shelters';
 import prisma from '@/app/lib/prisma';
 
 /**
  * GET /api/shelters/search
  *
- * Search for shelters near a location.
+ * Search for shelters near a location using Apple MapKit.
  */
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const location = searchParams.get('location');
-    const name = searchParams.get('name');
     const distance = parseInt(searchParams.get('distance') || '50');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const source = searchParams.get('source'); // 'petfinder', 'local', 'all'
+    const live = searchParams.get('live') !== 'false'; // Default to live search
+
+    if (!location) {
+      return NextResponse.json(
+        { error: 'Location is required' },
+        { status: 400 }
+      );
+    }
 
     const results = {
       shelters: [],
-      pagination: {
-        page,
-        limit,
-        total: 0,
-      },
-      sources: getConfiguredSources(),
+      source: 'APPLE_MAPKIT',
     };
 
-    // Search local database shelters
-    if (!source || source === 'local' || source === 'all') {
-      const localWhere = {};
+    // If Apple MapKit is configured and live search is enabled, search directly
+    if (live && appleMapKit.isConfigured()) {
+      try {
+        // First geocode the location to get coordinates
+        const geocoded = await appleMapKit.geocode(location);
 
-      if (name) {
-        localWhere.name = { contains: name, mode: 'insensitive' };
+        if (geocoded?.coordinate) {
+          // Search shelters near the coordinates
+          const shelters = await appleMapKit.searchSheltersNearLocation(
+            geocoded.coordinate.latitude,
+            geocoded.coordinate.longitude,
+            distance
+          );
+
+          results.shelters = shelters;
+          results.geocodedLocation = {
+            latitude: geocoded.coordinate.latitude,
+            longitude: geocoded.coordinate.longitude,
+            formattedAddress: geocoded.formattedAddressLines?.join(', '),
+          };
+        } else {
+          // Fallback: search by city name
+          const parts = location.split(',').map(p => p.trim());
+          if (parts.length >= 2) {
+            const shelters = await appleMapKit.searchSheltersInCity(parts[0], parts[1]);
+            results.shelters = shelters;
+          }
+        }
+      } catch (error) {
+        console.error('Apple MapKit search error:', error);
+        // Fall back to database search
+        results.error = 'Live search failed, showing cached results';
       }
+    }
 
-      if (location) {
-        // Simple zip code search
-        if (/^\d{5}$/.test(location)) {
-          localWhere.zipCode = location;
+    // If no live results or Apple MapKit not configured, search local database
+    if (results.shelters.length === 0) {
+      const localWhere = { isActive: true };
+
+      // Parse location for database search
+      if (/^\d{5}$/.test(location)) {
+        // Zip code search
+        localWhere.zipCode = location;
+      } else {
+        // City/state search
+        const parts = location.split(',').map(p => p.trim());
+        if (parts.length >= 2) {
+          localWhere.city = { contains: parts[0], mode: 'insensitive' };
+          localWhere.state = { contains: parts[1], mode: 'insensitive' };
         } else {
           localWhere.OR = [
             { city: { contains: location, mode: 'insensitive' } },
             { state: { contains: location, mode: 'insensitive' } },
+            { name: { contains: location, mode: 'insensitive' } },
           ];
         }
       }
 
-      const localShelters = await prisma.shelter.findMany({
+      const dbShelters = await prisma.shelter.findMany({
         where: localWhere,
-        take: limit,
-        skip: (page - 1) * limit,
+        take: 50,
         orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          address: true,
+          city: true,
+          state: true,
+          zipCode: true,
+          phone: true,
+          email: true,
+          website: true,
+          latitude: true,
+          longitude: true,
+          source: true,
+        },
       });
 
-      results.shelters.push(
-        ...localShelters.map((s) => ({
-          ...s,
-          source: 'local',
-        }))
-      );
+      results.shelters = dbShelters;
+      results.source = 'database';
     }
-
-    // Search PetFinder organizations
-    if ((!source || source === 'petfinder' || source === 'all') && location) {
-      try {
-        const petfinderShelters = await searchPetfinderOrganizations({
-          location,
-          distance,
-          name,
-          page,
-          limit,
-        });
-
-        results.shelters.push(...petfinderShelters);
-      } catch (error) {
-        console.error('PetFinder shelter search error:', error);
-        // Continue with local results
-      }
-    }
-
-    // Sort by distance if available
-    results.shelters.sort((a, b) => {
-      if (a.distance !== undefined && b.distance !== undefined) {
-        return a.distance - b.distance;
-      }
-      return 0;
-    });
-
-    results.pagination.total = results.shelters.length;
 
     return NextResponse.json(results);
   } catch (error) {
     console.error('Shelter search error:', error);
     return NextResponse.json(
-      { error: 'Failed to search shelters' },
+      { error: 'Failed to search shelters', details: error.message },
       { status: 500 }
     );
   }

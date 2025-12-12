@@ -252,8 +252,8 @@ function normalizeApplePlace(place) {
 
     // Address components
     address: [
-      place.structuredAddress?.thoroughfare,
       place.structuredAddress?.subThoroughfare,
+      place.structuredAddress?.thoroughfare,
     ].filter(Boolean).join(' ') || place.formattedAddressLines?.[0],
     city: place.structuredAddress?.locality || '',
     state: place.structuredAddress?.administrativeArea || '',
@@ -263,8 +263,11 @@ function normalizeApplePlace(place) {
     latitude: place.coordinate?.latitude,
     longitude: place.coordinate?.longitude,
 
+    // Business hours from Apple Maps
+    hours: place.hoursOfOperation || place.hours || null,
+
     // Additional data
-    categories: place.categories || [],
+    categories: place.pointOfInterestCategory ? [place.pointOfInterestCategory] : (place.categories || []),
     formattedAddress: place.formattedAddressLines?.join(', '),
 
     // Source tracking

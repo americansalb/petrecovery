@@ -42,7 +42,6 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
       const params = new URLSearchParams({
         location: filters.location,
         distance: filters.distance.toString(),
-        source: 'all',
       });
 
       const response = await fetch(`/api/shelters/search?${params}`);
@@ -311,13 +310,11 @@ function ShelterCard({ shelter }) {
         </div>
 
         {/* Source Badge */}
-        {shelter.source && (
-          <div className="mt-3 pt-3 border-t border-midnight-100">
-            <span className="text-xs text-midnight-400">
-              via {shelter.source === 'APPLE_MAPKIT' ? 'Apple Maps' : shelter.source === 'petfinder' ? 'PetFinder' : shelter.source}
-            </span>
-          </div>
-        )}
+        <div className="mt-3 pt-3 border-t border-midnight-100">
+          <span className="text-xs text-midnight-400">
+            via Apple Maps
+          </span>
+        </div>
       </div>
     </div>
   );
