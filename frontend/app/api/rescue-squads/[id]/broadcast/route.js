@@ -70,7 +70,7 @@ export async function POST(request, { params }) {
 
       missions = await prisma.missionControl.findMany({
         where: {
-          missionId: { in: missionIds },
+          caseId: { in: missionIds },
           mode: { in: ['LIVE_SEARCH', 'CONTAINMENT', 'TRAP_OPS'] },
         },
         select: { id: true, missionId: true }

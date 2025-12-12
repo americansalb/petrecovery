@@ -25,7 +25,7 @@ export async function POST(request, { params }) {
 
     // Get mission ID from case
     const mission = await prisma.missionControl.findUnique({
-      where: { missionId },
+      where: { caseId: missionId },
       select: { id: true, mode: true }
     });
 

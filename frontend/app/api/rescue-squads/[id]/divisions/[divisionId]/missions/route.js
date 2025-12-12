@@ -52,7 +52,7 @@ export async function GET(request, { params }) {
     // the division's coverage area using geo-matching
     const missions = await prisma.missionControl.findMany({
       where: {
-        missionId: { in: missionIds },
+        caseId: { in: missionIds },
         mode: { in: ['LIVE_SEARCH', 'CONTAINMENT', 'TRAP_OPS'] },
       },
       include: {

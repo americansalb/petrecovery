@@ -28,7 +28,7 @@ export async function GET(request, { params }) {
     // Get active missions for these cases
     const missions = await prisma.missionControl.findMany({
       where: {
-        missionId: { in: missionIds },
+        caseId: { in: missionIds },
         mode: { in: ['LIVE_SEARCH', 'CONTAINMENT', 'TRAP_OPS'] },
       },
       include: {

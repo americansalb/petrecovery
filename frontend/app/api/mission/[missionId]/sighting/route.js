@@ -23,7 +23,7 @@ export async function GET(request, { params }) {
     const verifiedOnly = searchParams.get('verified') === 'true';
 
     const mission = await prisma.missionControl.findUnique({
-      where: { missionId },
+      where: { caseId: missionId },
       select: { id: true }
     });
 
@@ -77,7 +77,7 @@ export async function POST(request, { params }) {
     const { action, volunteerId, ...data } = body;
 
     const mission = await prisma.missionControl.findUnique({
-      where: { missionId },
+      where: { caseId: missionId },
       select: { id: true }
     });
 
