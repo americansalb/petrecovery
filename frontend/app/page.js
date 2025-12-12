@@ -511,7 +511,7 @@ export default function Home() {
   const displaySquads = searchResults || featuredSquads;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-b from-stone-50 via-white to-slate-50">
       {/* Auth Modal */}
       <AuthModal
         isOpen={showAuthModal}
@@ -544,7 +544,7 @@ export default function Home() {
             {session ? (
               <Link
                 href="/dashboard"
-                className="bg-flash-400 text-gray-900 px-4 py-2 rounded-xl font-semibold hover:bg-flash-500 transition"
+                className="bg-gradient-to-r from-amber-400 to-orange-500 text-white px-4 py-2 rounded-xl font-semibold hover:from-amber-300 hover:to-orange-400 transition shadow-sm"
               >
                 Dashboard
               </Link>
@@ -592,7 +592,7 @@ export default function Home() {
               className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 mb-4"
             >
               Your Neighborhood Searches{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500">
                 Together
               </span>
             </motion.h1>
@@ -642,14 +642,14 @@ export default function Home() {
             >
               <Link
                 href="/report/new"
-                className="inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg shadow-red-200 hover:shadow-red-300 hover:scale-[1.02]"
+                className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg shadow-red-200/50 hover:shadow-red-300/50 hover:scale-[1.02]"
               >
                 <Bell className="w-5 h-5" />
                 Report Lost Pet
               </Link>
               <Link
                 href="/report/found"
-                className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg shadow-emerald-200 hover:shadow-emerald-300 hover:scale-[1.02]"
+                className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg shadow-emerald-200/50 hover:shadow-emerald-300/50 hover:scale-[1.02]"
               >
                 <Heart className="w-5 h-5" />
                 I Found a Pet
@@ -695,9 +695,9 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-6 border border-blue-200"
+              className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-slate-100"
             >
-              <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-indigo-200">
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Rescue Squads</h3>
@@ -712,9 +712,9 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
-              className="bg-gradient-to-br from-amber-50 to-orange-100 rounded-2xl p-6 border border-amber-200"
+              className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-slate-100"
             >
-              <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-rose-500 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-orange-200">
                 <FileText className="w-6 h-6 text-white" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Auto-Generated Flyers</h3>
@@ -729,9 +729,9 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
-              className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-2xl p-6 border border-green-200"
+              className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-slate-100"
             >
-              <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-teal-400 to-emerald-500 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-teal-200">
                 <Building2 className="w-6 h-6 text-white" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Nearby Shelters</h3>
@@ -746,9 +746,9 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.3 }}
-              className="bg-gradient-to-br from-purple-50 to-violet-100 rounded-2xl p-6 border border-purple-200"
+              className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-shadow border border-slate-100"
             >
-              <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-violet-200">
                 <Map className="w-6 h-6 text-white" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Tracked Searches</h3>
@@ -761,12 +761,12 @@ export default function Home() {
       </section>
 
       {/* Find Your Squad - Dynamic Community Section */}
-      <section className="py-16 bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 overflow-hidden relative">
+      <section className="py-16 bg-gradient-to-br from-slate-800 via-indigo-900 to-slate-900 overflow-hidden relative">
         {/* Animated background elements */}
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-10 left-10 w-32 h-32 bg-yellow-300 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-10 right-10 w-40 h-40 bg-amber-300 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-          <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-yellow-200 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-10 left-10 w-32 h-32 bg-rose-400 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-10 right-10 w-40 h-40 bg-orange-400 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-amber-300 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
         </div>
 
         <div className="max-w-6xl mx-auto px-4 relative z-10">
@@ -776,14 +776,14 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-yellow-200 text-sm mb-6 border border-white/30">
+              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full text-amber-200 text-sm mb-6 border border-white/20">
                 <Users className="w-4 h-4" />
                 <span>{metrics.totalVolunteers?.toLocaleString() || 0} volunteers ready to help</span>
               </div>
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
                 Your Neighborhood Has a Rescue Squad
               </h2>
-              <p className="text-blue-100 text-lg max-w-2xl mx-auto">
+              <p className="text-slate-300 text-lg max-w-2xl mx-auto">
                 Real volunteers. Real communities. Ready to mobilize the moment a pet goes missing.
               </p>
             </motion.div>
@@ -799,12 +799,12 @@ export default function Home() {
                     {searchResults.length === 0 ? (
                       'No squads found in this area'
                     ) : (
-                      <>Found <span className="font-bold text-yellow-300">{searchResults.length}</span> squads</>
+                      <>Found <span className="font-bold text-amber-300">{searchResults.length}</span> squads</>
                     )}
                   </p>
                   <button
                     onClick={() => { setSearchResults(null); setLocationQuery(''); }}
-                    className="text-blue-200 hover:text-white text-sm transition"
+                    className="text-slate-300 hover:text-white text-sm transition"
                   >
                     Clear search
                   </button>
@@ -831,20 +831,20 @@ export default function Home() {
                       whileHover={{ scale: 1.02 }}
                       className={`backdrop-blur-sm border rounded-2xl p-4 transition ${
                         squad.exists
-                          ? 'bg-white/10 border-white/20 hover:bg-white/20'
-                          : 'bg-yellow-400/20 border-yellow-300/30 hover:bg-yellow-400/30'
+                          ? 'bg-white/10 border-white/20 hover:bg-white/15'
+                          : 'bg-emerald-500/20 border-emerald-400/30 hover:bg-emerald-500/30'
                       }`}
                     >
                       <div className="flex items-center gap-4 mb-3">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg ${
                           squad.exists
-                            ? 'bg-gradient-to-br from-yellow-400 to-amber-500'
-                            : 'bg-gradient-to-br from-green-400 to-emerald-500'
+                            ? 'bg-gradient-to-br from-amber-400 to-orange-500'
+                            : 'bg-gradient-to-br from-emerald-400 to-teal-500'
                         }`}>
                           {squad.logoUrl ? (
                             <img src={squad.logoUrl} alt={squad.name} className="w-12 h-12 rounded-xl object-cover" />
                           ) : squad.exists ? (
-                            <Shield className="w-6 h-6 text-gray-900" />
+                            <Shield className="w-6 h-6 text-white" />
                           ) : (
                             <UserPlus className="w-6 h-6 text-white" />
                           )}
@@ -853,7 +853,7 @@ export default function Home() {
                           <h3 className="text-white font-bold truncate">
                             {squad.exists ? squad.name : `${squad.city} Rescue Squad`}
                           </h3>
-                          <p className="text-blue-200 text-sm flex items-center gap-1">
+                          <p className="text-slate-300 text-sm flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
                             {squad.city}, {squad.state}
                           </p>
@@ -862,13 +862,13 @@ export default function Home() {
                       <div className="flex items-center justify-between">
                         {squad.exists ? (
                           <>
-                            <div className="text-blue-200 text-sm">
-                              <span className="text-yellow-300 font-bold">{squad.memberCount || 0}</span> members
+                            <div className="text-slate-300 text-sm">
+                              <span className="text-amber-300 font-bold">{squad.memberCount || 0}</span> members
                             </div>
                             <button
                               onClick={() => handleJoinSquad(squad)}
                               disabled={joiningSquad === squad.id}
-                              className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 px-4 py-2 rounded-lg font-bold text-sm transition flex items-center gap-1"
+                              className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-white px-4 py-2 rounded-lg font-bold text-sm transition flex items-center gap-1 shadow-lg"
                             >
                               {joiningSquad === squad.id ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -882,13 +882,13 @@ export default function Home() {
                           </>
                         ) : (
                           <>
-                            <div className="text-yellow-200 text-sm">
+                            <div className="text-emerald-200 text-sm">
                               Be the first!
                             </div>
                             <button
                               onClick={() => handleCreateSquad(squad)}
                               disabled={creatingSquad === `${squad.city}-${squad.state}`}
-                              className="bg-green-500 hover:bg-green-400 text-white px-4 py-2 rounded-lg font-bold text-sm transition flex items-center gap-1"
+                              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white px-4 py-2 rounded-lg font-bold text-sm transition flex items-center gap-1 shadow-lg"
                             >
                               {creatingSquad === `${squad.city}-${squad.state}` ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -907,10 +907,10 @@ export default function Home() {
                 </motion.div>
               ) : searchResults && searchResults.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-blue-200 mb-4">No squads found in this area yet.</p>
+                  <p className="text-slate-300 mb-4">No squads found in this area yet.</p>
                   <Link
                     href="/rescue-squads/create"
-                    className="inline-flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 text-gray-900 px-6 py-3 rounded-xl font-bold transition"
+                    className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-white px-6 py-3 rounded-xl font-bold transition shadow-lg"
                   >
                     <Shield className="w-5 h-5" />
                     Start the First Squad Here
@@ -925,7 +925,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-3xl p-6 md:p-8 max-w-2xl mx-auto"
+            className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-6 md:p-8 max-w-2xl mx-auto"
           >
             <h3 className="text-white font-bold text-xl mb-4 text-center">Find Squads Near You</h3>
             <form id="squad-search-form" onSubmit={handleFindSquad} className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -938,7 +938,7 @@ export default function Home() {
                   onFocus={() => citySuggestions.length > 0 && setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                   placeholder="City or zip code..."
-                  className="w-full pr-4 py-4 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                  className="w-full pr-4 py-4 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-orange-400 focus:outline-none"
                   style={{ paddingLeft: '3rem' }}
                   autoComplete="off"
                 />
@@ -962,7 +962,7 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={searching}
-                className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 px-6 py-4 rounded-xl font-bold transition flex items-center justify-center gap-2 disabled:opacity-70"
+                className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-white px-6 py-4 rounded-xl font-bold transition flex items-center justify-center gap-2 disabled:opacity-70 shadow-lg"
               >
                 {searching ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -982,10 +982,10 @@ export default function Home() {
                 <LocateFixed className={`w-4 h-4 ${locating ? 'animate-spin' : ''}`} />
                 {locating ? 'Locating...' : 'Use my location'}
               </button>
-              <span className="text-blue-200 hidden sm:block">or</span>
+              <span className="text-slate-400 hidden sm:block">or</span>
               <Link
                 href="/rescue-squads/create"
-                className="inline-flex items-center gap-2 text-yellow-300 hover:text-yellow-200 transition"
+                className="inline-flex items-center gap-2 text-amber-300 hover:text-amber-200 transition"
               >
                 <Shield className="w-4 h-4" />
                 Start a squad in your area
@@ -1003,15 +1003,15 @@ export default function Home() {
           >
             <div>
               <div className="text-3xl font-bold text-white">{metrics.activeSquads}</div>
-              <div className="text-blue-200 text-sm">Active Squads</div>
+              <div className="text-slate-400 text-sm">Active Squads</div>
             </div>
             <div>
               <div className="text-3xl font-bold text-white">{metrics.citiesCovered || 0}</div>
-              <div className="text-blue-200 text-sm">Cities Covered</div>
+              <div className="text-slate-400 text-sm">Cities Covered</div>
             </div>
             <div>
               <div className="text-3xl font-bold text-white">{metrics.weeklyReunions || 0}</div>
-              <div className="text-blue-200 text-sm">Reunions This Week</div>
+              <div className="text-slate-400 text-sm">Reunions This Week</div>
             </div>
           </motion.div>
         </div>
@@ -1019,7 +1019,7 @@ export default function Home() {
 
       {/* Pets Needing Help */}
       {!loading && casesNeedingHelp.length > 0 && (
-        <section className="py-16 bg-gradient-to-b from-white to-amber-50">
+        <section className="py-16 bg-gradient-to-b from-white to-stone-50">
           <div className="max-w-6xl mx-auto px-4">
             <div className="flex items-center justify-between mb-8">
               <div>
@@ -1030,7 +1030,7 @@ export default function Home() {
               </div>
               <Link
                 href="/database"
-                className="hidden sm:inline-flex items-center gap-2 text-amber-600 hover:text-amber-700 font-medium"
+                className="hidden sm:inline-flex items-center gap-2 text-rose-600 hover:text-rose-700 font-medium"
               >
                 View all <ArrowRight className="w-4 h-4" />
               </Link>
@@ -1057,7 +1057,7 @@ export default function Home() {
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center text-5xl">
+                        <div className="w-full h-full bg-gradient-to-br from-stone-100 to-slate-200 flex items-center justify-center text-5xl">
                           {pet.petSpecies === 'DOG' ? '🐕' : '🐈'}
                         </div>
                       )}
@@ -1093,10 +1093,10 @@ export default function Home() {
 
           <div className="grid md:grid-cols-4 gap-8">
             {[
-              { icon: Bell, title: 'Report', desc: '2 minutes to create your case', color: 'bg-red-500' },
-              { icon: Radio, title: 'Alert', desc: 'Squad gets notified instantly', color: 'bg-amber-500' },
-              { icon: Navigation, title: 'Search', desc: 'GPS-tracked volunteers mobilize', color: 'bg-blue-500' },
-              { icon: Heart, title: 'Reunite', desc: 'Community brings them home', color: 'bg-green-500' },
+              { icon: Bell, title: 'Report', desc: '2 minutes to create your case', gradient: 'from-red-500 to-rose-600', shadow: 'shadow-red-200' },
+              { icon: Radio, title: 'Alert', desc: 'Squad gets notified instantly', gradient: 'from-orange-400 to-amber-500', shadow: 'shadow-orange-200' },
+              { icon: Navigation, title: 'Search', desc: 'GPS-tracked volunteers mobilize', gradient: 'from-indigo-500 to-blue-600', shadow: 'shadow-indigo-200' },
+              { icon: Heart, title: 'Reunite', desc: 'Community brings them home', gradient: 'from-emerald-500 to-teal-600', shadow: 'shadow-emerald-200' },
             ].map((step, i) => (
               <motion.div
                 key={i}
@@ -1106,7 +1106,7 @@ export default function Home() {
                 transition={{ delay: i * 0.1 }}
                 className="text-center"
               >
-                <div className={`w-14 h-14 ${step.color} rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg`}>
+                <div className={`w-14 h-14 bg-gradient-to-br ${step.gradient} rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg ${step.shadow}`}>
                   <step.icon className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 mb-1">{step.title}</h3>
@@ -1118,7 +1118,7 @@ export default function Home() {
       </section>
 
       {/* Join CTA */}
-      <section className="py-20 bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400">
+      <section className="py-20 bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
