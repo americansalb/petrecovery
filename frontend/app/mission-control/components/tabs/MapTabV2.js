@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 
 // Dynamically import map to avoid SSR issues
-const MapView = dynamic(() => import('@/app/components/case/SARMapView'), {
+const MapView = dynamic(() => import('@/app/components/mission/SARMapView'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full bg-slate-800 flex items-center justify-center">

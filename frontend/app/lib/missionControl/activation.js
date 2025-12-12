@@ -125,7 +125,7 @@ export async function activateMission(missionId, userId, options = {}) {
   });
 
   // Send notifications to squad members
-  await notifySquadActivation(missionId, mission.id);
+  await notifySquadActivation(missionId);
 
   return {
     success: true,
@@ -266,7 +266,7 @@ async function generateSearchZones(missionId, center, radiusMiles) {
 }
 
 // Push notification functions
-async function notifySquadActivation(missionId, missionId) {
+async function notifySquadActivation(missionId) {
   try {
     // Get case and squad info for notification
     const missionData = await prisma.case.findUnique({

@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 
 // Lazy load map
-const SARMapView = dynamic(() => import('@/app/components/case/SARMapView'), {
+const SARMapView = dynamic(() => import('@/app/components/mission/SARMapView'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full bg-slate-900 flex items-center justify-center">
