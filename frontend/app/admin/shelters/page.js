@@ -294,10 +294,10 @@ export default function AdminSheltersPage() {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shelter</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Website</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -318,13 +318,20 @@ export default function AdminSheltersPage() {
                       <div className="text-xs text-gray-500">{shelter.address}</div>
                     </td>
                     <td className="px-4 py-4">
-                      {shelter.phone && (
-                        <div className="text-sm text-gray-900 flex items-center gap-1">
+                      {shelter.phone ? (
+                        <a
+                          href={`tel:${shelter.phone}`}
+                          className="text-sm text-gray-900 hover:text-blue-600 flex items-center gap-1"
+                        >
                           <Phone className="w-3 h-3" />
                           {shelter.phone}
-                        </div>
+                        </a>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
                       )}
-                      {shelter.website && (
+                    </td>
+                    <td className="px-4 py-4">
+                      {shelter.website ? (
                         <a
                           href={shelter.website}
                           target="_blank"
@@ -332,9 +339,11 @@ export default function AdminSheltersPage() {
                           className="text-xs text-blue-600 hover:underline flex items-center gap-1"
                         >
                           <Globe className="w-3 h-3" />
-                          Website
+                          Visit
                           <ExternalLink className="w-3 h-3" />
                         </a>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
                       )}
                     </td>
                     <td className="px-4 py-4">
@@ -353,11 +362,6 @@ export default function AdminSheltersPage() {
                         {shelter.source === 'APPLE_MAPKIT' ? 'Apple Maps' : shelter.source}
                       </span>
                     </td>
-                    <td className="px-4 py-4">
-                      <span className="text-xs text-gray-500">
-                        {shelter.fetchedAt ? new Date(shelter.fetchedAt).toLocaleDateString() : '-'}
-                      </span>
-                    </td>
                     <td className="px-4 py-4 text-right">
                       <button
                         onClick={() => handleDelete(shelter.id)}
@@ -372,7 +376,7 @@ export default function AdminSheltersPage() {
 
                 {shelters.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
+                    <td colSpan={7} className="px-4 py-12 text-center text-gray-500 whitespace-normal">
                       <Building2 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                       <p>No shelters found</p>
                       <p className="text-sm mt-1">Shelters are added when users search on the Find Shelters page</p>

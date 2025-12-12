@@ -114,6 +114,7 @@ export async function GET(request) {
           phone: true,
           email: true,
           website: true,
+          hours: true,
           latitude: true,
           longitude: true,
           source: true,
