@@ -511,7 +511,7 @@ export default function Home() {
   const displaySquads = searchResults || featuredSquads;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-blue-50">
+    <div className="min-h-screen bg-white">
       {/* Auth Modal */}
       <AuthModal
         isOpen={showAuthModal}
@@ -695,13 +695,13 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="bg-midnight-900 rounded-2xl p-6 text-white"
+              className="bg-blue-600 rounded-2xl p-6 text-white"
             >
-              <div className="w-12 h-12 bg-flash-400 rounded-xl flex items-center justify-center mb-4">
-                <Shield className="w-6 h-6 text-midnight-900" />
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center mb-4">
+                <Shield className="w-6 h-6 text-blue-600" />
               </div>
               <h3 className="text-lg font-bold mb-2">Rescue Squads</h3>
-              <p className="text-slate-300 text-sm">
+              <p className="text-blue-100 text-sm">
                 Join your neighborhood squad or start one. Real volunteers ready to search when you need them.
               </p>
             </motion.div>
