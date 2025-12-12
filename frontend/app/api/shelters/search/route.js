@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server';
-import { appleMapKit } from '@/app/lib/shelters';
 import prisma from '@/app/lib/prisma';
+import { searchSheltersWithCache } from '@/app/lib/maps/shelterCacheService';
+import { geocode } from '@/app/lib/maps/appleMapServer';
 
 /**
  * GET /api/shelters/search
  *
- * Search for shelters near a location using Apple MapKit.
- * Results are automatically saved to the database for caching.
+ * Search for shelters near a location.
+ * Uses the same cache service as mission control for consistency.
  */
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const location = searchParams.get('location');
     const distance = parseInt(searchParams.get('distance') || '50');
-    const live = searchParams.get('live') !== 'false'; // Default to live search
 
     if (!location) {
       return NextResponse.json(
@@ -22,68 +22,85 @@ export async function GET(request) {
       );
     }
 
+    console.log('[Shelter Search] Searching for:', location, 'within', distance, 'miles');
+
     const results = {
       shelters: [],
-      source: 'APPLE_MAPKIT',
-      savedToDatabase: 0,
+      source: 'database',
+      location: location,
     };
 
-    // If Apple MapKit is configured and live search is enabled, search directly
-    if (live && appleMapKit.isConfigured()) {
+    // Step 1: Geocode the location to get coordinates
+    let latitude = null;
+    let longitude = null;
+
+    try {
+      const geocoded = await geocode(location);
+      if (geocoded?.lat && geocoded?.lng) {
+        latitude = geocoded.lat;
+        longitude = geocoded.lng;
+        results.geocodedLocation = {
+          latitude,
+          longitude,
+          address: geocoded.address,
+        };
+        console.log('[Shelter Search] Geocoded to:', latitude, longitude);
+      }
+    } catch (geoError) {
+      console.error('[Shelter Search] Geocode failed:', geoError.message);
+    }
+
+    // Step 2: If we have coordinates, use the cache service (same as mission control)
+    if (latitude && longitude) {
       try {
-        // First geocode the location to get coordinates
-        const geocoded = await appleMapKit.geocode(location);
+        const radiusMeters = distance * 1609.34; // Convert miles to meters
+        const cacheResult = await searchSheltersWithCache(latitude, longitude, {
+          radiusMeters,
+          type: 'shelter',
+          forceRefresh: false,
+        });
 
-        if (geocoded?.coordinate) {
-          // Search shelters near the coordinates
-          const shelters = await appleMapKit.searchSheltersNearLocation(
-            geocoded.coordinate.latitude,
-            geocoded.coordinate.longitude,
-            distance
-          );
-
-          results.shelters = shelters;
-          results.geocodedLocation = {
-            latitude: geocoded.coordinate.latitude,
-            longitude: geocoded.coordinate.longitude,
-            formattedAddress: geocoded.formattedAddressLines?.join(', '),
-          };
-
-          // Save results to database in background (don't await)
-          saveSheltersToDatabase(shelters).then(saveResult => {
-            console.log(`Saved ${saveResult.created} new shelters, updated ${saveResult.updated}`);
-          }).catch(err => {
-            console.error('Failed to save shelters to database:', err);
-          });
-
-        } else {
-          // Fallback: search by city name
-          const parts = location.split(',').map(p => p.trim());
-          if (parts.length >= 2) {
-            const shelters = await appleMapKit.searchSheltersInCity(parts[0], parts[1]);
-            results.shelters = shelters;
-
-            // Save to database
-            saveSheltersToDatabase(shelters).catch(err => {
-              console.error('Failed to save shelters to database:', err);
-            });
-          }
+        if (cacheResult.places && cacheResult.places.length > 0) {
+          // Transform to match expected format
+          results.shelters = cacheResult.places.map(place => ({
+            id: place.id,
+            name: place.name,
+            type: place.type || 'SHELTER',
+            address: place.address,
+            city: place.city,
+            state: place.state,
+            zipCode: place.zipCode,
+            phone: place.phone,
+            email: place.email,
+            website: place.website,
+            hours: place.hours,
+            latitude: place.latitude,
+            longitude: place.longitude,
+            distance: place.distance ? Math.round(place.distance / 1609.34 * 10) / 10 : null, // Convert to miles
+            source: place.source,
+          }));
+          results.source = cacheResult.source;
+          results.cacheHit = cacheResult.cacheHit;
+          console.log('[Shelter Search] Found', results.shelters.length, 'shelters from cache');
         }
-      } catch (error) {
-        console.error('Apple MapKit search error:', error);
-        // Fall back to database search
-        results.error = 'Live search failed, showing cached results';
+      } catch (cacheError) {
+        console.error('[Shelter Search] Cache search failed:', cacheError.message);
       }
     }
 
-    // If no live results or Apple MapKit not configured, search local database
+    // Step 3: Fallback to simple database search if no results
     if (results.shelters.length === 0) {
+      console.log('[Shelter Search] Falling back to database search');
+
       const localWhere = { isActive: true };
 
       // Parse location for database search
       if (/^\d{5}$/.test(location)) {
-        // Zip code search
-        localWhere.zipCode = location;
+        // For zip code, search nearby zip codes or city
+        localWhere.OR = [
+          { zipCode: location },
+          { zipCode: { startsWith: location.substring(0, 3) } }, // Same area code
+        ];
       } else {
         // City/state search
         const parts = location.split(',').map(p => p.trim());
@@ -123,6 +140,7 @@ export async function GET(request) {
 
       results.shelters = dbShelters;
       results.source = 'database';
+      console.log('[Shelter Search] Found', dbShelters.length, 'shelters from database');
     }
 
     return NextResponse.json(results);
@@ -133,102 +151,4 @@ export async function GET(request) {
       { status: 500 }
     );
   }
-}
-
-/**
- * Save shelters from Apple Maps to database
- */
-async function saveSheltersToDatabase(shelters) {
-  const results = { created: 0, updated: 0, skipped: 0 };
-
-  for (const shelter of shelters) {
-    try {
-      if (!shelter.name || !shelter.city || !shelter.state) {
-        results.skipped++;
-        continue;
-      }
-
-      // Check if shelter already exists
-      const existing = await prisma.shelter.findFirst({
-        where: {
-          OR: [
-            { appleMapKitId: shelter.appleMapKitId },
-            {
-              AND: [
-                { name: shelter.name },
-                { city: shelter.city },
-                { state: shelter.state },
-              ],
-            },
-          ],
-        },
-      });
-
-      if (existing) {
-        // Update existing shelter with fresh data
-        await prisma.shelter.update({
-          where: { id: existing.id },
-          data: {
-            appleMapKitId: shelter.appleMapKitId || existing.appleMapKitId,
-            phone: shelter.phone || existing.phone,
-            website: shelter.website || existing.website,
-            address: shelter.address || existing.address,
-            latitude: shelter.latitude ?? existing.latitude,
-            longitude: shelter.longitude ?? existing.longitude,
-            hours: shelter.hours || existing.hours,
-            fetchedAt: new Date(),
-            updatedAt: new Date(),
-          },
-        });
-        results.updated++;
-      } else {
-        // Create new shelter
-        await prisma.shelter.create({
-          data: {
-            appleMapKitId: shelter.appleMapKitId,
-            name: shelter.name,
-            phone: shelter.phone,
-            website: shelter.website,
-            address: shelter.address || '',
-            city: shelter.city,
-            state: shelter.state,
-            zipCode: shelter.zipCode || '',
-            latitude: shelter.latitude,
-            longitude: shelter.longitude,
-            hours: shelter.hours,
-            type: determineShelterType(shelter.name),
-            source: 'APPLE_MAPKIT',
-            fetchedAt: new Date(),
-            isActive: true,
-          },
-        });
-        results.created++;
-      }
-    } catch (error) {
-      console.error(`Error saving shelter "${shelter.name}":`, error.message);
-      results.skipped++;
-    }
-  }
-
-  return results;
-}
-
-/**
- * Determine shelter type from name
- */
-function determineShelterType(name) {
-  const nameLower = name.toLowerCase();
-  if (nameLower.includes('animal control') || nameLower.includes('city of') || nameLower.includes('county')) {
-    return 'ANIMAL_CONTROL';
-  }
-  if (nameLower.includes('humane society') || nameLower.includes('spca')) {
-    return 'SHELTER';
-  }
-  if (nameLower.includes('rescue')) {
-    return 'RESCUE';
-  }
-  if (nameLower.includes('vet') || nameLower.includes('veterinary') || nameLower.includes('animal hospital')) {
-    return 'VET';
-  }
-  return 'SHELTER';
 }
