@@ -216,33 +216,37 @@ export default function Home() {
               Your community comes together to bring your pet home.
             </motion.p>
 
-            {/* Stats */}
-            {!loading && metrics.petsReunited > 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="flex items-center gap-6 mb-10 text-white/60"
-              >
-                <div>
-                  <span className="text-2xl font-bold text-white">{metrics.petsReunited.toLocaleString()}</span>
-                  <span className="ml-1">reunited</span>
-                </div>
-                <div className="w-px h-6 bg-white/20" />
-                <div>
-                  <span className="text-2xl font-bold text-white">{metrics.activeSquads}</span>
-                  <span className="ml-1">rescue squads</span>
-                </div>
-                {metrics.weeklyReunions > 0 && (
-                  <>
-                    <div className="w-px h-6 bg-white/20" />
-                    <div className="text-green-400">
-                      +{metrics.weeklyReunions} this week
-                    </div>
-                  </>
-                )}
-              </motion.div>
-            )}
+            {/* Stats - always show for consistent spacing */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="flex flex-wrap items-center gap-4 sm:gap-6 mb-10 text-white/60"
+            >
+              {loading ? (
+                <div className="h-8 w-48 bg-white/10 rounded animate-pulse" />
+              ) : (
+                <>
+                  <div>
+                    <span className="text-2xl font-bold text-white">{metrics.petsReunited.toLocaleString()}</span>
+                    <span className="ml-1">reunited</span>
+                  </div>
+                  <div className="w-px h-6 bg-white/20" />
+                  <div>
+                    <span className="text-2xl font-bold text-white">{metrics.activeSquads}</span>
+                    <span className="ml-1">rescue squads</span>
+                  </div>
+                  {metrics.weeklyReunions > 0 && (
+                    <>
+                      <div className="w-px h-6 bg-white/20" />
+                      <div className="text-green-400">
+                        +{metrics.weeklyReunions} this week
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </motion.div>
 
             {/* Primary Actions */}
             <motion.div
