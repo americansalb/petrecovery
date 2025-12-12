@@ -70,7 +70,7 @@ export async function GET(request) {
                     lastSeenAddress: true,
                     status: true,
                     lastSeenAt: true,
-                    missionNumber: true,
+                    caseNumber: true,
                   }
                 },
                 rescueSquad: {
@@ -186,7 +186,7 @@ export async function GET(request) {
 
       return {
         id: caseItem.id,
-        missionNumber: caseItem.missionNumber,
+        missionNumber: caseItem.caseNumber,
         petName: caseItem.petName,
         petSpecies: caseItem.petSpecies,
         petPhotoUrl: caseItem.petPhotoUrl,
@@ -218,7 +218,7 @@ export async function GET(request) {
 
       missions.push({
         id: caseItem.id,
-        missionNumber: caseItem.missionNumber,
+        missionNumber: caseItem.caseNumber,
         petName: caseItem.petName,
         petSpecies: caseItem.petSpecies,
         petPhotoUrl: null,
@@ -245,7 +245,7 @@ export async function GET(request) {
 
       return {
         id: caseItem.id,
-        missionNumber: caseItem.missionNumber,
+        missionNumber: caseItem.caseNumber,
         petName: caseItem.petName,
         petSpecies: caseItem.petSpecies,
         petPhotoUrl: caseItem.petPhotoUrl,
@@ -344,7 +344,7 @@ export async function GET(request) {
       .filter(p => p.assignment?.case)
       .map(participation => ({
         id: participation.assignment.case.id,
-        missionNumber: participation.assignment.case.missionNumber,
+        missionNumber: participation.assignment.case.caseNumber,
         petName: participation.assignment.case.petName,
         petSpecies: participation.assignment.case.petSpecies,
         location: participation.assignment.case.lastSeenAddress,
