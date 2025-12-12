@@ -533,20 +533,23 @@ export default function Home() {
             <span className="font-bold text-lg text-gray-900 hidden sm:inline">PetRecovery</span>
           </Link>
 
-          <nav className="flex items-center gap-2 sm:gap-4 text-sm">
-            <Link href="/database" className="text-gray-600 hover:text-gray-900 transition px-2 py-1">
-              Search
+          <nav className="flex items-center gap-2 sm:gap-3 text-sm">
+            <Link href="/database" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition">
+              <Search className="w-4 h-4" />
+              <span className="hidden sm:inline">Search</span>
             </Link>
-            <Link href="/rescue-squads/search" className="text-gray-600 hover:text-gray-900 transition px-2 py-1">
-              Squads
+            <Link href="/rescue-squads/search" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition">
+              <Shield className="w-4 h-4" />
+              <span className="hidden sm:inline">Squads</span>
             </Link>
-            <Link href="/shelters" className="text-gray-600 hover:text-gray-900 transition px-2 py-1 hidden sm:block">
+            <Link href="/shelters" className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition">
+              <Building2 className="w-4 h-4" />
               Shelters
             </Link>
             {session ? (
               <Link
                 href="/dashboard"
-                className="bg-flash-400 text-gray-900 px-4 py-2 rounded-xl font-semibold hover:bg-flash-500 transition"
+                className="flex items-center gap-1.5 bg-flash-400 text-gray-900 px-4 py-2 rounded-xl font-bold hover:bg-flash-500 transition shadow-sm"
               >
                 Dashboard
               </Link>
@@ -1405,7 +1408,7 @@ export default function Home() {
               <ul className="space-y-2 text-gray-400 text-sm">
                 <li><Link href="/shelters" className="hover:text-white transition">Shelters</Link></li>
                 <li><Link href="/patrol/signup" className="hover:text-white transition">Volunteer</Link></li>
-                <li><Link href="/about-surumaa" className="hover:text-white transition">About</Link></li>
+                <li><Link href="/about-sarama" className="hover:text-white transition">About Sarama</Link></li>
                 <li><Link href="/contact" className="hover:text-white transition">Contact</Link></li>
               </ul>
             </div>
