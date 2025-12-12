@@ -69,30 +69,30 @@ export async function getImpactSummary(userId) {
     totalAreasSearched += p.areasMarked;
     totalSightings += p.sightingsReported;
 
-    const caseData = p.assignment.case;
+    const missionData = p.assignment.case;
 
-    if (caseData.status === 'REUNITED' || caseData.status === 'FOUND') {
+    if (missionData.status === 'REUNITED' || missionData.status === 'FOUND') {
       reunionsContributed++;
 
-      if (caseData.foundById === userId) {
+      if (missionData.foundById === userId) {
         petDirectlyFound++;
       }
     }
 
     caseDetails.push({
-      caseId: caseData.id,
-      petName: caseData.petName,
-      petSpecies: caseData.petSpecies,
-      petPhotoUrl: caseData.petPhotoUrl,
-      status: caseData.status,
+      missionId: missionData.id,
+      petName: missionData.petName,
+      petSpecies: missionData.petSpecies,
+      petPhotoUrl: missionData.petPhotoUrl,
+      status: missionData.status,
       squadName: p.assignment.rescueSquad?.name,
       myContribution: {
         searchHours: p.searchHours,
         areasMarked: p.areasMarked,
         sightingsReported: p.sightingsReported,
       },
-      wasITheFinder: caseData.foundById === userId,
-      helpedReunite: caseData.status === 'REUNITED' || caseData.status === 'FOUND',
+      wasITheFinder: missionData.foundById === userId,
+      helpedReunite: missionData.status === 'REUNITED' || missionData.status === 'FOUND',
     });
   }
 
@@ -192,30 +192,30 @@ async function getImpactStories(userId, participations) {
   const stories = [];
 
   for (const p of participations) {
-    const caseData = p.assignment.case;
+    const missionData = p.assignment.case;
 
     // Story: You found the pet!
-    if (caseData.foundById === userId && caseData.status === 'REUNITED') {
+    if (missionData.foundById === userId && missionData.status === 'REUNITED') {
       stories.push({
         type: 'HERO_MOMENT',
-        title: `You found ${caseData.petName}!`,
-        body: `Your search efforts led directly to finding ${caseData.petName}. The owner is forever grateful!`,
-        petName: caseData.petName,
-        petPhotoUrl: caseData.petPhotoUrl,
-        timestamp: caseData.foundAt,
+        title: `You found ${missionData.petName}!`,
+        body: `Your search efforts led directly to finding ${missionData.petName}. The owner is forever grateful!`,
+        petName: missionData.petName,
+        petPhotoUrl: missionData.petPhotoUrl,
+        timestamp: missionData.foundAt,
         badge: '🏆',
       });
     }
 
     // Story: Contributed to reunion
-    else if (caseData.status === 'REUNITED' && p.areasMarked > 0) {
+    else if (missionData.status === 'REUNITED' && p.areasMarked > 0) {
       stories.push({
         type: 'CONTRIBUTION',
-        title: `${caseData.petName} is home!`,
-        body: `You searched ${p.areasMarked} areas for ${caseData.petName}. Your effort helped narrow down the search!`,
-        petName: caseData.petName,
-        petPhotoUrl: caseData.petPhotoUrl,
-        timestamp: caseData.foundAt,
+        title: `${missionData.petName} is home!`,
+        body: `You searched ${p.areasMarked} areas for ${missionData.petName}. Your effort helped narrow down the search!`,
+        petName: missionData.petName,
+        petPhotoUrl: missionData.petPhotoUrl,
+        timestamp: missionData.foundAt,
         badge: '🎉',
       });
     }
@@ -225,9 +225,9 @@ async function getImpactStories(userId, participations) {
       stories.push({
         type: 'DEDICATION',
         title: `${Math.round(p.searchHours)} hours searching`,
-        body: `You spent ${Math.round(p.searchHours)} hours looking for ${caseData.petName}. That dedication matters!`,
-        petName: caseData.petName,
-        petPhotoUrl: caseData.petPhotoUrl,
+        body: `You spent ${Math.round(p.searchHours)} hours looking for ${missionData.petName}. That dedication matters!`,
+        petName: missionData.petName,
+        petPhotoUrl: missionData.petPhotoUrl,
         timestamp: p.optedInAt,
         badge: '⏱️',
       });
@@ -238,9 +238,9 @@ async function getImpactStories(userId, participations) {
       stories.push({
         type: 'SIGHTING',
         title: 'Your eyes on the ground',
-        body: `You reported ${p.sightingsReported} sighting${p.sightingsReported > 1 ? 's' : ''} for ${caseData.petName}. Every lead helps!`,
-        petName: caseData.petName,
-        petPhotoUrl: caseData.petPhotoUrl,
+        body: `You reported ${p.sightingsReported} sighting${p.sightingsReported > 1 ? 's' : ''} for ${missionData.petName}. Every lead helps!`,
+        petName: missionData.petName,
+        petPhotoUrl: missionData.petPhotoUrl,
         timestamp: p.optedInAt,
         badge: '👀',
       });
@@ -256,11 +256,11 @@ async function getImpactStories(userId, participations) {
 /**
  * Get case-specific impact for volunteer
  */
-export async function getCaseImpact(caseId, userId) {
+export async function getCaseImpact(missionId, userId) {
   const participation = await prisma.caseParticipant.findFirst({
     where: {
       userId,
-      assignment: { caseId },
+      assignment: { missionId },
     },
     include: {
       assignment: {
@@ -278,12 +278,12 @@ export async function getCaseImpact(caseId, userId) {
     return { success: false, error: 'Not a participant in this case' };
   }
 
-  const caseData = participation.assignment.case;
+  const missionData = participation.assignment.case;
   const totalVolunteers = participation.assignment._count.participants;
 
   // Get grid coverage
   const grid = await prisma.searchGrid.findFirst({
-    where: { caseId },
+    where: { missionId },
   });
 
   // Calculate contribution percentage
@@ -293,17 +293,17 @@ export async function getCaseImpact(caseId, userId) {
 
   // Check proximity if pet was found
   let proximityInfo = null;
-  if (caseData.status === 'FOUND' || caseData.status === 'REUNITED') {
+  if (missionData.status === 'FOUND' || missionData.status === 'REUNITED') {
     // Get where pet was found
     const foundSighting = await prisma.caseSighting.findFirst({
-      where: { caseId, isPetFound: true },
+      where: { missionId, isPetFound: true },
     });
 
     if (foundSighting) {
       // Get areas I searched
       const mySearchedCells = await prisma.gridCell.findMany({
         where: {
-          grid: { caseId },
+          grid: { missionId },
           searchedById: userId,
         },
       });
@@ -337,9 +337,9 @@ export async function getCaseImpact(caseId, userId) {
   return {
     success: true,
     case: {
-      petName: caseData.petName,
-      status: caseData.status,
-      isResolved: caseData.status === 'FOUND' || caseData.status === 'REUNITED',
+      petName: missionData.petName,
+      status: missionData.status,
+      isResolved: missionData.status === 'FOUND' || missionData.status === 'REUNITED',
     },
     myContribution: {
       searchHours: participation.searchHours,
@@ -352,17 +352,17 @@ export async function getCaseImpact(caseId, userId) {
       gridCoverage: grid ? Math.round((grid.cellsSearched / grid.totalCells) * 100) : 0,
     },
     proximityInfo,
-    wasITheFinder: caseData.foundById === userId,
+    wasITheFinder: missionData.foundById === userId,
   };
 }
 
 /**
  * Get thank you message from owner
  */
-export async function getOwnerThankYou(caseId, userId) {
+export async function getOwnerThankYou(missionId, userId) {
   const thankYou = await prisma.ownerThankYou.findFirst({
     where: {
-      caseId,
+      missionId,
       OR: [
         { recipientId: userId },
         { recipientId: null }, // General thank you to all volunteers
@@ -396,21 +396,21 @@ export async function getOwnerThankYou(caseId, userId) {
 /**
  * Create thank you message from owner
  */
-export async function createOwnerThankYou(caseId, ownerId, data) {
+export async function createOwnerThankYou(missionId, ownerId, data) {
   const { message, photoUrl, recipientId } = data;
 
   // Verify owner
-  const caseData = await prisma.case.findUnique({
-    where: { id: caseId },
+  const missionData = await prisma.case.findUnique({
+    where: { id: missionId },
   });
 
-  if (caseData.reporterId !== ownerId) {
+  if (missionData.reporterId !== ownerId) {
     return { success: false, error: 'Only the pet owner can send thank yous' };
   }
 
   const thankYou = await prisma.ownerThankYou.create({
     data: {
-      caseId,
+      missionId,
       message,
       photoUrl,
       recipientId, // null for all volunteers

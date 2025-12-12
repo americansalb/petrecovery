@@ -10,7 +10,7 @@
 import { useState, useEffect } from 'react';
 import { TOUCH_TARGETS, triggerHaptic } from '@/app/lib/missionControl/accessibility';
 
-export default function CommandCenter({ caseId, mission, onUpdate }) {
+export default function CommandCenter({ missionId, mission, onUpdate }) {
   const [commandView, setCommandView] = useState(null);
   const [activeTab, setActiveTab] = useState('OVERVIEW');
   const [broadcastMessage, setBroadcastMessage] = useState('');
@@ -23,7 +23,7 @@ export default function CommandCenter({ caseId, mission, onUpdate }) {
 
   const fetchCommandView = async () => {
     try {
-      const res = await fetch(`/api/mission/${caseId}/command`);
+      const res = await fetch(`/api/mission/${missionId}/command`);
       if (res.ok) {
         const data = await res.json();
         setCommandView(data);
@@ -37,7 +37,7 @@ export default function CommandCenter({ caseId, mission, onUpdate }) {
     if (!broadcastMessage.trim()) return;
 
     try {
-      await fetch(`/api/mission/${caseId}/command`, {
+      await fetch(`/api/mission/${missionId}/command`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -55,7 +55,7 @@ export default function CommandCenter({ caseId, mission, onUpdate }) {
 
   const updateStaleZones = async () => {
     try {
-      await fetch(`/api/mission/${caseId}/command`, {
+      await fetch(`/api/mission/${missionId}/command`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'UPDATE_STALE' }),

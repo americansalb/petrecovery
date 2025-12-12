@@ -10,7 +10,7 @@ import * as discord from './discord';
 /**
  * Send notification to all configured integrations for a case
  */
-export async function broadcastToCaseIntegrations(prisma, caseId, eventType, data) {
+export async function broadcastToCaseIntegrations(prisma, missionId, eventType, data) {
   const results = {
     slack: [],
     discord: [],
@@ -47,11 +47,11 @@ export async function broadcastToCaseIntegrations(prisma, caseId, eventType, dat
     where: {
       isActive: true,
       OR: [
-        { caseId },
+        { missionId },
         {
           rescueSquad: {
             cases: {
-              some: { id: caseId },
+              some: { id: missionId },
             },
           },
         },
@@ -96,7 +96,7 @@ export async function createIntegration(prisma, {
   userId,
   type,
   webhookUrl,
-  caseId,
+  missionId,
   squadId,
   name,
 }) {
@@ -127,7 +127,7 @@ export async function createIntegration(prisma, {
       }),
       isActive: true,
       createdById: userId,
-      caseId: caseId || null,
+      missionId: missionId || null,
       rescueSquadId: squadId || null,
     },
   });
@@ -192,7 +192,7 @@ export async function getUserIntegrations(prisma, userId) {
     },
     include: {
       case: {
-        select: { id: true, petName: true, caseNumber: true },
+        select: { id: true, petName: true, missionNumber: true },
       },
       rescueSquad: {
         select: { id: true, name: true },
@@ -205,15 +205,15 @@ export async function getUserIntegrations(prisma, userId) {
 /**
  * Get integrations for a specific case
  */
-export async function getCaseIntegrations(prisma, caseId) {
+export async function getCaseIntegrations(prisma, missionId) {
   return prisma.integration.findMany({
     where: {
       OR: [
-        { caseId },
+        { missionId },
         {
           rescueSquad: {
             cases: {
-              some: { id: caseId },
+              some: { id: missionId },
             },
           },
         },

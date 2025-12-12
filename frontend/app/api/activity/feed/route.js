@@ -23,7 +23,7 @@ export async function GET(request) {
     const [followedCases, userSquads, userProfile] = await Promise.all([
       prisma.caseFollow.findMany({
         where: { userId: session.user.id },
-        select: { caseId: true },
+        select: { missionId: true },
       }),
       prisma.rescueSquadMember.findMany({
         where: { userId: session.user.id, isActive: true },
@@ -35,7 +35,7 @@ export async function GET(request) {
       }),
     ]);
 
-    const followedCaseIds = followedCases.map(f => f.caseId);
+    const followedCaseIds = followedCases.map(f => f.missionId);
     const squadIds = userSquads.map(s => s.rescueSquadId);
 
     // Build activity feed from multiple sources
@@ -45,14 +45,14 @@ export async function GET(request) {
     if (type === 'all' || type === 'followed') {
       const caseUpdates = await prisma.caseUpdate.findMany({
         where: {
-          caseId: { in: followedCaseIds },
+          missionId: { in: followedCaseIds },
           ...(cursor && { createdAt: { lt: new Date(cursor) } }),
         },
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
           case: {
-            select: { caseNumber: true, petName: true, petPhotoUrl: true },
+            select: { missionNumber: true, petName: true, petPhotoUrl: true },
           },
           author: {
             select: { firstName: true, profileImage: true },
@@ -64,7 +64,7 @@ export async function GET(request) {
         id: `update-${u.id}`,
         type: 'CASE_UPDATE',
         content: u.content,
-        caseNumber: u.case.caseNumber,
+        missionNumber: u.case.missionNumber,
         petName: u.case.petName,
         petPhoto: u.case.petPhotoUrl,
         author: u.author.firstName,
@@ -77,14 +77,14 @@ export async function GET(request) {
     if (type === 'all' || type === 'followed') {
       const sightings = await prisma.caseSighting.findMany({
         where: {
-          caseId: { in: followedCaseIds },
+          missionId: { in: followedCaseIds },
           ...(cursor && { createdAt: { lt: new Date(cursor) } }),
         },
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
           case: {
-            select: { caseNumber: true, petName: true, petPhotoUrl: true },
+            select: { missionNumber: true, petName: true, petPhotoUrl: true },
           },
         },
       });
@@ -93,7 +93,7 @@ export async function GET(request) {
         id: `sighting-${s.id}`,
         type: 'SIGHTING',
         content: `Possible sighting reported near ${s.address}`,
-        caseNumber: s.case.caseNumber,
+        missionNumber: s.case.missionNumber,
         petName: s.case.petName,
         petPhoto: s.case.petPhotoUrl,
         certainty: s.certaintyLevel,
@@ -136,7 +136,7 @@ export async function GET(request) {
     // Nearby new cases (if user has location)
     if ((type === 'all' || type === 'nearby') && userProfile?.latitude) {
       const radiusDegrees = 0.15; // ~10 miles
-      const nearbyCases = await prisma.case.findMany({
+      const nearbyMissions = await prisma.case.findMany({
         where: {
           status: { in: ['ACTIVE', 'IN_PROGRESS'] },
           lastSeenLatitude: {
@@ -153,7 +153,7 @@ export async function GET(request) {
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
-          caseNumber: true,
+          missionNumber: true,
           petName: true,
           petSpecies: true,
           petPhotoUrl: true,
@@ -162,11 +162,11 @@ export async function GET(request) {
         },
       });
 
-      activities.push(...nearbyCases.map(c => ({
+      activities.push(...nearbyMissions.map(c => ({
         id: `case-${c.id}`,
         type: 'NEARBY_CASE',
         content: `${c.petName} (${c.petSpecies}) reported lost near ${c.lastSeenAddress}`,
-        caseNumber: c.caseNumber,
+        missionNumber: c.missionNumber,
         petName: c.petName,
         petPhoto: c.petPhotoUrl,
         createdAt: c.createdAt,
@@ -184,7 +184,7 @@ export async function GET(request) {
       orderBy: { resolvedAt: 'desc' },
       select: {
         id: true,
-        caseNumber: true,
+        missionNumber: true,
         petName: true,
         petSpecies: true,
         petPhotoUrl: true,
@@ -197,7 +197,7 @@ export async function GET(request) {
       id: `reunion-${r.id}`,
       type: 'REUNION',
       content: r.resolutionNotes || `${r.petName} has been reunited with their family!`,
-      caseNumber: r.caseNumber,
+      missionNumber: r.missionNumber,
       petName: r.petName,
       petPhoto: r.petPhotoUrl,
       createdAt: r.resolvedAt,

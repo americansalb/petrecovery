@@ -3,9 +3,9 @@
 > **Last Updated**: November 27, 2025
 > **Status**: Pre-MVP Development Phase (~45% complete)
 > **Honest Assessment**: See [ROADMAP.md](/ROADMAP.md) for accurate project status
-> **Next Steps**: Password reset, image upload, case coordination UI
+> **Next Steps**: Password reset, image upload, mission coordination UI
 
-**IMPORTANT**: This document was previously titled "MVP Complete Reference" which was inaccurate. The project is NOT at MVP status. Critical features like password reset, image upload, and case coordination UI are not implemented. See ROADMAP.md for the comprehensive assessment.
+**IMPORTANT**: This document was previously titled "MVP Complete Reference" which was inaccurate. The project is NOT at MVP status. Critical features like password reset, image upload, and mission coordination UI are not implemented. See ROADMAP.md for the comprehensive assessment.
 
 ---
 
@@ -34,7 +34,7 @@ PetRecovery is a community-driven platform for reuniting lost pets with their fa
 
 - **Pet Owners**: Report lost pets, receive community alerts
 - **Community Members**: Join rescue squads, help search for lost pets
-- **Admins**: Manage cases, squads, and monitor platform health
+- **Admins**: Manage missions, squads, and monitor platform health
 
 ### Tech Stack
 
@@ -57,8 +57,8 @@ frontend/
 ├── app/
 │   ├── api/                    # API routes
 │   │   ├── auth/               # NextAuth
-│   │   ├── cases/              # Case management (authenticated)
-│   │   ├── public/cases/       # Public case portal (no auth)
+│   │   ├── missions/              # Mission management (authenticated)
+│   │   ├── public/missions/       # Public mission portal (no auth)
 │   │   ├── rescue-squads/      # Squad operations
 │   │   ├── divisions/          # Division management
 │   │   ├── admin/              # Admin-only endpoints
@@ -109,16 +109,16 @@ model User {
 
   // Relations
   squadMemberships      SquadMember[]
-  casesCreated          LostPetCase[]     @relation("CreatedBy")
-  coordinatedCases      LostPetCase[]     @relation("Coordinator")
+  missionsCreated          LostPetMission[]     @relation("CreatedBy")
+  coordinatedMissions      LostPetMission[]     @relation("Coordinator")
 }
 ```
 
-#### LostPetCase
+#### LostPetMission
 ```prisma
-model LostPetCase {
+model LostPetMission {
   id              String   @id @default(uuid())
-  caseNumber      String   @unique   // Format: "CHI-2025-0001"
+  missionNumber      String   @unique   // Format: "CHI-2025-0001"
 
   // Location
   city            String
@@ -140,14 +140,14 @@ model LostPetCase {
   contactEmail    String?
 
   // Status
-  status          CaseStatus @default(OPEN)
+  status          MissionStatus @default(OPEN)
   statusReason    String?
   isUrgent        Boolean    @default(false)
 
   // Public Portal
   isPublic        Boolean    @default(false)   // Admin must approve
   publicContactOk Boolean    @default(false)   // Show contact publicly
-  source          CaseSource @default(ADMIN)   // ADMIN or PUBLIC_REPORT
+  source          MissionSource @default(ADMIN)   // ADMIN or PUBLIC_REPORT
 
   // Relations
   squadId         String?
@@ -156,7 +156,7 @@ model LostPetCase {
   coordinator     User?        @relation("Coordinator")
   createdById     String?
   createdBy       User?        @relation("CreatedBy")
-  notes           LostPetCaseNote[]
+  notes           LostPetMissionNote[]
 }
 ```
 
@@ -174,13 +174,13 @@ model RescueSquad {
   isActive          Boolean  @default(true)
 
   // Stats
-  totalCasesAccepted   Int @default(0)
+  totalMissionsAccepted   Int @default(0)
   successfulReunions   Int @default(0)
 
   // Relations
   members           SquadMember[]
   divisions         SquadDivision[]
-  cases             LostPetCase[]
+  missions             LostPetMission[]
 }
 ```
 
@@ -204,14 +204,14 @@ model SquadMember {
 ```prisma
 model EventLog {
   id              String   @id @default(uuid())
-  event_type      String       // e.g., "case.created", "squad.join_failed"
+  event_type      String       // e.g., "mission.created", "squad.join_failed"
   timestamp       DateTime @default(now())
   correlation_id  String?
 
   actor_user_id   String?
   actor_role      String?
 
-  resource_type   String       // "case", "squad", "user", etc.
+  resource_type   String       // "mission", "squad", "user", etc.
   resource_id     String?
 
   action          String       // "create", "update", "delete", "read"
@@ -231,8 +231,8 @@ model EventLog {
 | `RescueLevel` | `NONE`, `SCOUT`, `RANGER`, `HERO`, `LEGEND` |
 | `SquadRole` | `FOUNDER`, `LEADER`, `MEMBER` |
 | `PetSpecies` | `DOG`, `CAT`, `BIRD`, `OTHER` |
-| `CaseStatus` | `OPEN`, `ACTIVE_SEARCH`, `RESOLVED`, `CLOSED_OTHER` |
-| `CaseSource` | `ADMIN`, `PUBLIC_REPORT` |
+| `MissionStatus` | `OPEN`, `ACTIVE_SEARCH`, `RESOLVED`, `CLOSED_OTHER` |
+| `MissionSource` | `ADMIN`, `PUBLIC_REPORT` |
 
 ---
 
@@ -244,23 +244,23 @@ model EventLog {
 | POST | `/api/auth/[...nextauth]` | - | NextAuth handlers |
 | POST | `/api/auth/register` | - | User registration |
 
-### Cases (Authenticated - Admin/Staff Only)
+### Missions (Authenticated - Admin/Staff Only)
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
-| GET | `/api/cases` | Required + Waiver | List cases with filters |
-| POST | `/api/cases` | Required + Waiver + Staff | Create new case |
-| GET | `/api/cases/[id]` | Required + Waiver | Get case detail |
-| POST | `/api/cases/[id]/status` | Required + Staff | Update case status |
-| POST | `/api/cases/[id]/notes` | Required + Waiver | Add note to case |
-| POST | `/api/cases/[id]/assign-coordinator` | Required + Admin | Assign coordinator |
-| POST | `/api/cases/[id]/assign-squad` | Required + Admin | Assign squad |
+| GET | `/api/missions` | Required + Waiver | List missions with filters |
+| POST | `/api/missions` | Required + Waiver + Staff | Create new mission |
+| GET | `/api/missions/[id]` | Required + Waiver | Get mission detail |
+| POST | `/api/missions/[id]/status` | Required + Staff | Update mission status |
+| POST | `/api/missions/[id]/notes` | Required + Waiver | Add note to mission |
+| POST | `/api/missions/[id]/assign-coordinator` | Required + Admin | Assign coordinator |
+| POST | `/api/missions/[id]/assign-squad` | Required + Admin | Assign squad |
 
-### Public Cases (No Auth)
+### Public Missions (No Auth)
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
-| GET | `/api/public/cases` | None | List public cases |
-| GET | `/api/public/cases/[caseNumber]` | None | Get public case detail |
-| POST | `/api/public/cases` | None | Submit lost pet report |
+| GET | `/api/public/missions` | None | List public missions |
+| GET | `/api/public/missions/[missionNumber]` | None | Get public mission detail |
+| POST | `/api/public/missions` | None | Submit lost pet report |
 
 ### Rescue Squads
 | Method | Route | Auth | Description |
@@ -301,9 +301,9 @@ model EventLog {
 | `/` | Homepage with main CTAs |
 | `/login` | Sign in |
 | `/register` | Create account |
-| `/cases` | Public lost pet cases list |
-| `/cases/[caseNumber]` | Public case detail |
-| `/cases/report` | Submit public lost pet report |
+| `/missions` | Public lost pet missions list |
+| `/missions/[missionNumber]` | Public mission detail |
+| `/missions/report` | Submit public lost pet report |
 | `/database` | Pet database search |
 | `/advice` | Pet recovery advice |
 
@@ -323,9 +323,9 @@ model EventLog {
 ### Admin Pages
 | Route | Auth | Description |
 |-------|------|-------------|
-| `/admin/cases` | Admin | List all cases |
-| `/admin/cases/new` | Admin | Create new case |
-| `/admin/cases/[id]` | Admin | Case detail with actions |
+| `/admin/missions` | Admin | List all missions |
+| `/admin/missions/new` | Admin | Create new mission |
+| `/admin/missions/[id]` | Admin | Mission detail with actions |
 | `/admin/rescue-squads` | Admin | Manage squads |
 | `/admin/rescue-squads/create` | Admin | Create squad |
 | `/admin/divisions` | Admin | Manage divisions |
@@ -337,19 +337,19 @@ model EventLog {
 
 ## Core Features
 
-### 1. Lost Pet Cases MVP (Phase 13-14)
+### 1. Lost Pet Missions MVP (Phase 13-14)
 
-**Case Lifecycle:**
-1. `OPEN` - Initial state when case is created
+**Mission Lifecycle:**
+1. `OPEN` - Initial state when mission is created
 2. `ACTIVE_SEARCH` - Rescue squad is actively searching
 3. `RESOLVED` - Pet found and reunited
 4. `CLOSED_OTHER` - Closed for other reasons
 
-**Case Number Format:** `{CITY_PREFIX}-{YEAR}-{SEQUENCE}`
-Example: `CHI-2025-0001` (Chicago, 2025, 1st case)
+**Mission Number Format:** `{CITY_PREFIX}-{YEAR}-{SEQUENCE}`
+Example: `CHI-2025-0001` (Chicago, 2025, 1st mission)
 
 **Key Features:**
-- Case notes timeline
+- Mission notes timeline
 - Coordinator assignment
 - Squad assignment
 - Status transitions with reason
@@ -358,15 +358,15 @@ Example: `CHI-2025-0001` (Chicago, 2025, 1st case)
 ### 2. Public Lost Pet Portal (Phase 15-16)
 
 **Public Report Flow:**
-1. User submits form at `/cases/report`
-2. Case created with `isPublic=false`, `source=PUBLIC_REPORT`
+1. User submits form at `/missions/report`
+2. Mission created with `isPublic=false`, `source=PUBLIC_REPORT`
 3. Confirmation email sent to contact
 4. Admin alerted via email
 5. Admin reviews and sets `isPublic=true` to publish
-6. Case appears on `/cases` public list
+6. Mission appears on `/missions` public list
 
 **Privacy Controls:**
-- `isPublic` - Whether case appears in public list
+- `isPublic` - Whether mission appears in public list
 - `publicContactOk` - Whether contact info is visible publicly
 - Sensitive fields (createdById, squadId, source) never exposed via public API
 
@@ -376,7 +376,7 @@ Example: `CHI-2025-0001` (Chicago, 2025, 1st case)
 - City-based squads (one per city)
 - ZIP code coverage area
 - Member roles: FOUNDER, LEADER, MEMBER
-- Stats: totalCasesAccepted, successfulReunions
+- Stats: totalMissionsAccepted, successfulReunions
 
 **Division System:**
 - Subdivisions within a squad (e.g., by neighborhood)
@@ -391,7 +391,7 @@ Example: `CHI-2025-0001` (Chicago, 2025, 1st case)
 
 **Gated Actions (require waiver acceptance):**
 - Creating/joining rescue squads
-- Creating/viewing cases
+- Creating/viewing missions
 - Participating in rescue operations
 
 **Flow:**
@@ -409,7 +409,7 @@ Example: `CHI-2025-0001` (Chicago, 2025, 1st case)
 
 | Role | Capabilities |
 |------|-------------|
-| `USER` | Join squads, view assigned cases |
+| `USER` | Join squads, view assigned missions |
 | `MODERATOR` | Above + manage assigned squads |
 | `ADMIN` | Full access to all features |
 
@@ -428,11 +428,11 @@ await requireAdmin(session, context)
 // Require staff role (throws PermissionError)
 await requireStaffOrAdmin(session, context)
 
-// Check if user can edit case
-canEditCase(session, caseData) → boolean
+// Check if user can edit mission
+canEditMission(session, missionData) → boolean
 
-// Check if user can assign cases
-canAssignCase(session) → boolean
+// Check if user can assign missions
+canAssignMission(session) → boolean
 ```
 
 ### Protected Routes
@@ -462,15 +462,15 @@ ADMIN_NOTIFICATION_EMAIL=admin@petrecovery.org
 
 | Function | Trigger | Recipient |
 |----------|---------|-----------|
-| `sendCaseReportConfirmation()` | Public report submitted | Report contact |
+| `sendMissionReportConfirmation()` | Public report submitted | Report contact |
 | `sendAdminPublicReportAlert()` | Public report submitted | Admin email |
-| `sendCaseStatusUpdate()` | Case status changes | Case contact |
+| `sendMissionStatusUpdate()` | Mission status changes | Mission contact |
 
 ### Email Templates
 
 All emails use HTML templates with:
 - PetRecovery branding
-- Case details summary
+- Mission details summary
 - Next steps for recipient
 - Links to relevant pages
 
@@ -494,8 +494,8 @@ All emails use HTML templates with:
 - Total users
 - Total squads
 - Active squads
-- Total cases
-- Open cases
+- Total missions
+- Open missions
 - Active searches
 
 ### QA Harness (`/admin/qa`)
@@ -503,14 +503,14 @@ All emails use HTML templates with:
 **Test Suites:**
 1. **Legal Tests** - Waiver acceptance, blocked actions
 2. **Squad Tests** - Create, search, join, leave
-3. **Case Tests** - Create, status update, add note
-4. **Public Case Tests** - List, detail, submit report
+3. **Mission Tests** - Create, status update, add note
+4. **Public Mission Tests** - List, detail, submit report
 5. **Notification Tests** - Confirmation email, admin alert
 6. **Permission Tests** - Role validation, assignment logic
 
 **Data Generators:**
 - Generate demo squads
-- Generate demo cases
+- Generate demo missions
 - Cleanup test data
 
 ---
@@ -591,7 +591,7 @@ npm start
 
 - [ ] Check `/admin/health` for errors
 - [ ] Monitor public report submissions
-- [ ] Review and approve pending cases (`isPublic=false`)
+- [ ] Review and approve pending missions (`isPublic=false`)
 - [ ] Verify email notifications working
 
 ### Key URLs to Test
@@ -599,8 +599,8 @@ npm start
 | URL | Expected Behavior |
 |-----|------------------|
 | `/` | Homepage loads with CTAs |
-| `/cases` | Public case list (may be empty) |
-| `/cases/report` | Public report form works |
+| `/missions` | Public mission list (may be empty) |
+| `/missions/report` | Public report form works |
 | `/login` | Can log in |
 | `/legal/consent` | Waiver acceptance works |
 | `/admin/health` | Shows healthy status |
@@ -614,7 +614,7 @@ npm start
 
 1. **Password Reset Flow** - Users cannot recover accounts. This is a blocker.
 2. **Image Upload** - No actual upload mechanism exists. Pet photos are URL fields only.
-3. **Case Coordination UI** - APIs exist but there is NO frontend UI for squad chat, search areas, or sightings.
+3. **Mission Coordination UI** - APIs exist but there is NO frontend UI for squad chat, search areas, or sightings.
 4. **Fake Statistics** - Home page displays "847 pets reunited" which is hardcoded, not real data.
 
 ### Not Yet Implemented
@@ -649,9 +649,9 @@ The full project roadmap with accurate status, priority phases, and timeline est
 
 | Prefix | Resource | Example |
 |--------|----------|---------|
-| `case.*` | LostPetCase | `case.created`, `case.status_changed` |
+| `mission.*` | LostPetMission | `mission.created`, `mission.status_changed` |
 | `squad.*` | RescueSquad | `squad.created`, `squad.join_failed` |
-| `public_case.*` | Public Portal | `public_case.report_submitted` |
+| `public_mission.*` | Public Portal | `public_mission.report_submitted` |
 | `notification.*` | Email | `notification.send_succeeded` |
 | `auth.*` | Authentication | `auth.permission_denied` |
 | `admin.*` | Admin Actions | `admin.health_check_viewed` |
@@ -662,13 +662,13 @@ The full project roadmap with accurate status, priority phases, and timeline est
 
 ```javascript
 {
-  event_type: "case.created",
+  event_type: "mission.created",
   timestamp: "2025-11-26T10:00:00.000Z",
   correlation_id: "uuid",
   actor_user_id: "user-uuid",
   actor_role: "ADMIN",
-  resource_type: "case",
-  resource_id: "case-uuid",
+  resource_type: "mission",
+  resource_id: "mission-uuid",
   action: "create",
   result: "success",
   error_code: null,

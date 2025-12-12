@@ -9,30 +9,30 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://petrecovery.org';
 /**
  * Generate Lost Pet schema.org JSON-LD
  */
-export function generateLostPetSchema(caseData) {
+export function generateLostPetSchema(missionData) {
   return {
     '@context': 'https://schema.org',
     '@type': 'LoseAction',
     agent: {
       '@type': 'Person',
-      name: caseData.ownerName || 'Pet Owner',
+      name: missionData.ownerName || 'Pet Owner',
     },
     object: {
       '@type': 'Thing',
-      name: caseData.petName,
-      description: caseData.petDescription,
-      image: caseData.petPhotoUrl,
+      name: missionData.petName,
+      description: missionData.petDescription,
+      image: missionData.petPhotoUrl,
     },
     location: {
       '@type': 'Place',
-      name: caseData.lastSeenAddress,
-      geo: caseData.lastSeenLatitude ? {
+      name: missionData.lastSeenAddress,
+      geo: missionData.lastSeenLatitude ? {
         '@type': 'GeoCoordinates',
-        latitude: caseData.lastSeenLatitude,
-        longitude: caseData.lastSeenLongitude,
+        latitude: missionData.lastSeenLatitude,
+        longitude: missionData.lastSeenLongitude,
       } : undefined,
     },
-    startTime: caseData.lastSeenAt,
+    startTime: missionData.lastSeenAt,
   };
 }
 
@@ -164,17 +164,17 @@ export function generateMetaTags({
 /**
  * Generate case-specific meta tags
  */
-export function generateCaseMetaTags(caseData) {
-  const title = `Lost ${caseData.petSpecies}: ${caseData.petName} - ${caseData.lastSeenAddress}`;
-  const description = `Help find ${caseData.petName}! ${caseData.petDescription?.substring(0, 150)}... Last seen: ${caseData.lastSeenAddress}`;
+export function generateCaseMetaTags(missionData) {
+  const title = `Lost ${missionData.petSpecies}: ${missionData.petName} - ${missionData.lastSeenAddress}`;
+  const description = `Help find ${missionData.petName}! ${missionData.petDescription?.substring(0, 150)}... Last seen: ${missionData.lastSeenAddress}`;
 
   return generateMetaTags({
     title,
     description,
-    image: caseData.petPhotoUrl,
-    url: `/cases/${caseData.caseNumber}`,
+    image: missionData.petPhotoUrl,
+    url: `/missions/${missionData.missionNumber}`,
     type: 'article',
-    keywords: `lost ${caseData.petSpecies?.toLowerCase()}, ${caseData.petBreed}, ${caseData.lastSeenAddress}, missing pet`,
+    keywords: `lost ${missionData.petSpecies?.toLowerCase()}, ${missionData.petBreed}, ${missionData.lastSeenAddress}, missing pet`,
   });
 }
 

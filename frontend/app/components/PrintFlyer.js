@@ -9,7 +9,7 @@ import { FLYER_PRESETS, printFlyer, downloadFlyerHTML } from '../lib/flyerGenera
  * Allows users to generate and print lost pet flyers.
  * Supports multiple formats and customization options.
  */
-export default function PrintFlyer({ caseData, onClose }) {
+export default function PrintFlyer({ missionData, onClose }) {
   const [format, setFormat] = useState('LETTER');
   const [options, setOptions] = useState({
     includeQR: true,
@@ -25,7 +25,7 @@ export default function PrintFlyer({ caseData, onClose }) {
   const handlePrint = async () => {
     setGenerating(true);
     try {
-      printFlyer(caseData, { ...options, format });
+      printFlyer(missionData, { ...options, format });
     } finally {
       setGenerating(false);
     }
@@ -34,7 +34,7 @@ export default function PrintFlyer({ caseData, onClose }) {
   const handleDownload = async () => {
     setGenerating(true);
     try {
-      downloadFlyerHTML(caseData, { ...options, format });
+      downloadFlyerHTML(missionData, { ...options, format });
     } finally {
       setGenerating(false);
     }
@@ -90,7 +90,7 @@ export default function PrintFlyer({ caseData, onClose }) {
               Print Flyer
             </h2>
             <p style={{ color: '#6B7280', fontSize: '0.9rem' }}>
-              Create a printable flyer for {caseData.petName}
+              Create a printable flyer for {missionData.petName}
             </p>
           </div>
           <button
@@ -319,13 +319,13 @@ export default function PrintFlyer({ caseData, onClose }) {
                   marginBottom: '0.75rem',
                   borderRadius: '4px'
                 }}>
-                  LOST {caseData.petSpecies?.toUpperCase()}
+                  LOST {missionData.petSpecies?.toUpperCase()}
                 </div>
 
-                {options.includePhoto && caseData.petPhotoUrl && (
+                {options.includePhoto && missionData.petPhotoUrl && (
                   <img
-                    src={caseData.petPhotoUrl}
-                    alt={caseData.petName}
+                    src={missionData.petPhotoUrl}
+                    alt={missionData.petName}
                     style={{
                       width: '120px',
                       height: '90px',
@@ -341,11 +341,11 @@ export default function PrintFlyer({ caseData, onClose }) {
                   color: options.primaryColor,
                   marginBottom: '0.25rem'
                 }}>
-                  "{caseData.petName}"
+                  "{missionData.petName}"
                 </div>
 
                 <div style={{ fontSize: '0.8rem', color: '#6B7280' }}>
-                  {caseData.petBreed || caseData.petSpecies} - {caseData.petColor}
+                  {missionData.petBreed || missionData.petSpecies} - {missionData.petColor}
                 </div>
 
                 {options.customMessage && (
@@ -448,7 +448,7 @@ export default function PrintFlyer({ caseData, onClose }) {
 /**
  * PrintFlyerButton - Simple button to trigger flyer modal
  */
-export function PrintFlyerButton({ caseData, variant = 'primary', size = 'medium' }) {
+export function PrintFlyerButton({ missionData, variant = 'primary', size = 'medium' }) {
   const [showModal, setShowModal] = useState(false);
 
   const sizeStyles = {
@@ -500,7 +500,7 @@ export function PrintFlyerButton({ caseData, variant = 'primary', size = 'medium
       </button>
 
       {showModal && (
-        <PrintFlyer caseData={caseData} onClose={() => setShowModal(false)} />
+        <PrintFlyer missionData={missionData} onClose={() => setShowModal(false)} />
       )}
     </>
   );

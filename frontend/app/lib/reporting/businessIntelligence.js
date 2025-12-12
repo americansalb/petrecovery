@@ -46,8 +46,8 @@ export const REPORT_TYPES = {
 // Metric definitions
 export const METRICS = {
   // Case metrics
-  TOTAL_CASES: { id: 'total_cases', label: 'Total Cases', unit: 'cases' },
-  ACTIVE_CASES: { id: 'active_cases', label: 'Active Cases', unit: 'cases' },
+  TOTAL_CASES: { id: 'total_cases', label: 'Total Cases', unit: 'missions' },
+  ACTIVE_CASES: { id: 'active_cases', label: 'Active Missions', unit: 'missions' },
   REUNION_RATE: { id: 'reunion_rate', label: 'Reunion Rate', unit: '%' },
   AVG_TIME_TO_REUNION: { id: 'avg_reunion_time', label: 'Avg Time to Reunion', unit: 'days' },
 
@@ -95,7 +95,7 @@ export async function generateExecutiveDashboard(prisma, dateRange) {
     period: { startDate, endDate },
     summary: {
       totalCases: caseMetrics.totalCases,
-      activeCases: caseMetrics.activeCases,
+      activeMissions: caseMetrics.activeMissions,
       reunionRate: caseMetrics.reunionRate,
       avgReunionTime: caseMetrics.avgReunionTime,
       totalUsers: userMetrics.totalUsers,
@@ -418,7 +418,7 @@ async function getCaseMetrics(prisma, startDate, endDate) {
 
   return {
     totalCases: cases.length,
-    activeCases: cases.filter(c => c.status === 'ACTIVE' || c.status === 'IN_PROGRESS').length,
+    activeMissions: cases.filter(c => c.status === 'ACTIVE' || c.status === 'IN_PROGRESS').length,
     reunionRate: cases.length > 0 ? (reunited.length / cases.length) * 100 : 0,
     avgReunionTime: calculateAvgReunionTime(reunited),
     byStatus: groupBy(cases, 'status'),
@@ -486,7 +486,7 @@ function generateHighlights(caseMetrics, userMetrics, engagementMetrics) {
 function generateAlerts(caseMetrics, userMetrics) {
   const alerts = [];
 
-  if (caseMetrics.activeCases > 100) {
+  if (caseMetrics.activeMissions > 100) {
     alerts.push({ type: 'warning', message: 'High number of active cases', severity: 'medium' });
   }
 

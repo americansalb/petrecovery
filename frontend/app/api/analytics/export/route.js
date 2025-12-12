@@ -22,7 +22,7 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type') || 'cases';
+    const type = searchParams.get('type') || 'missions';
     const format = searchParams.get('format') || 'csv';
     const range = searchParams.get('range') || '30d';
 
@@ -51,11 +51,11 @@ export async function GET(request) {
     let filename = '';
 
     switch (type) {
-      case 'cases':
+      case 'missions':
         data = await prisma.case.findMany({
           where: { createdAt: { gte: startDate } },
           select: {
-            caseNumber: true,
+            missionNumber: true,
             petName: true,
             petSpecies: true,
             status: true,
@@ -153,9 +153,9 @@ function generateCSV(data, headers, type) {
   for (const item of data) {
     let row = [];
     switch (type) {
-      case 'cases':
+      case 'missions':
         row = [
-          item.caseNumber,
+          item.missionNumber,
           escapeCSV(item.petName),
           item.petSpecies,
           item.status,

@@ -19,14 +19,14 @@ All events MUST conform to this structure (fields can be `null` where allowed):
 type EventResult = "success" | "failure";
 
 interface EventPayload {
-  event_type: string;      // e.g., "case.created", "squad.join_failed"
+  event_type: string;      // e.g., "mission.created", "squad.join_failed"
   timestamp?: string;      // ISO8601; defaulted by logEvent()
   correlation_id?: string; // UUID; ties related events together in a flow
 
   actor_user_id?: string | null;
   actor_role?: "OWNER" | "VOLUNTEER" | "SHELTER_ADMIN" | "ADMIN" | "SYSTEM" | null;
 
-  resource_type: string;   // "user", "city", "squad", "case", "sighting", etc.
+  resource_type: string;   // "user", "city", "squad", "mission", "sighting", etc.
   resource_id?: string | null;
 
   action: "create" | "update" | "delete" | "read" | "transition";
@@ -73,7 +73,7 @@ Responsibilities of `logEvent`:
 
 - `"user.signed_up"`, `"user.login_failed"`
 - `"squad.created"`, `"squad.join_attempt"`, `"squad.join_failed"`
-- `"case.created"`, `"case.status_changed"`
+- `"mission.created"`, `"mission.status_changed"`
 - `"sighting.reported"`
 - `"notification.queued"`, `"notification.sent"`, `"notification.failed"`
 - `"legal.accepted"`, `"legal.blocked_action"`
@@ -81,7 +81,7 @@ Responsibilities of `logEvent`:
 
 `error_code` must be:
 
-- Uppercase, snake_case words.
+- Uppermission, snake_mission words.
 - Stable over time (don't reuse codes for new meanings).
 
 ## Correlation IDs
@@ -108,8 +108,8 @@ At minimum, ensure events for:
 **Squad:**
 - `"squad.created"`, `"squad.join_attempt"`, `"squad.join_failed"`.
 
-**Case (when implemented):**
-- `"case.created"`, `"case.status_changed"`.
+**Mission (when implemented):**
+- `"mission.created"`, `"mission.status_changed"`.
 
 **Sighting (when implemented):**
 - `"sighting.reported"`.

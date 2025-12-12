@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { triggerHaptic, announce } from './accessibility';
 
-export default function useRealtimeUpdates(caseId, options = {}) {
+export default function useRealtimeUpdates(missionId, options = {}) {
   const {
     onVolunteerUpdate,
     onZoneUpdate,
@@ -35,7 +35,7 @@ export default function useRealtimeUpdates(caseId, options = {}) {
   const maxReconnectAttempts = 5;
 
   const connect = useCallback(() => {
-    if (!caseId || !enabled) return;
+    if (!missionId || !enabled) return;
 
     // Close existing connection
     if (eventSourceRef.current) {
@@ -43,7 +43,7 @@ export default function useRealtimeUpdates(caseId, options = {}) {
     }
 
     try {
-      const eventSource = new EventSource(`/api/mission/${caseId}/stream`);
+      const eventSource = new EventSource(`/api/mission/${missionId}/stream`);
       eventSourceRef.current = eventSource;
 
       eventSource.onopen = () => {
@@ -82,7 +82,7 @@ export default function useRealtimeUpdates(caseId, options = {}) {
       console.error('Failed to create EventSource:', err);
       setError('Failed to connect to real-time updates.');
     }
-  }, [caseId, enabled, autoReconnect]);
+  }, [missionId, enabled, autoReconnect]);
 
   const handleEvent = useCallback((data) => {
     switch (data.type) {

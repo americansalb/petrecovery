@@ -36,7 +36,7 @@ This section provides all context needed to understand the existing codebase bef
     │   ├── api/                       # 222 API routes
     │   │   ├── auth/                  # NextAuth endpoints
     │   │   ├── pets/                  # Pet CRUD
-    │   │   ├── cases/                 # Lost/found cases
+    │   │   ├── missions/                 # Lost/found missions
     │   │   ├── upload/                # Bunny.net image upload
     │   │   ├── ai/                    # EXISTING: Basic AI stubs
     │   │   └── admin/                 # Admin endpoints
@@ -53,15 +53,15 @@ This section provides all context needed to understand the existing codebase bef
     │   ├── login/                     # Auth pages
     │   ├── register/
     │   ├── dashboard/                 # User dashboard
-    │   ├── cases/                     # Case management pages
+    │   ├── missions/                     # Mission management pages
     │   ├── rescue-squads/             # Squad pages
     │   └── admin/                     # Admin pages
     │       ├── page.js                # Admin dashboard
     │       ├── health/                # System health
-    │       └── cases/                 # Case management
+    │       └── missions/                 # Mission management
     ├── components/
     │   ├── ui/                        # Reusable UI (Button, Card, etc.)
-    │   ├── case/                      # Case components
+    │   ├── mission/                      # Mission components
     │   └── maps/                      # Leaflet components
     ├── prisma/
     │   ├── schema.prisma              # Database schema (~2500 lines)
@@ -84,7 +84,7 @@ model User {
   rescueLevel     RescueLevel @default(PET_OWNER)
   // ... other fields
   pets            Pet[]
-  cases           Case[]
+  missions           Mission[]
 }
 
 // Pet - existing, will add photos relation
@@ -104,12 +104,12 @@ model Pet {
   // ... other fields
 }
 
-// Case - existing lost/found case
-model Case {
+// Mission - existing lost/found mission
+model Mission {
   id              String   @id @default(cuid())
-  caseNumber      String   @unique  // "CHI-2024-001234"
-  type            CaseType // LOST, FOUND, SIGHTING
-  status          CaseStatus // ACTIVE, REUNITED, CLOSED, etc.
+  missionNumber      String   @unique  // "CHI-2024-001234"
+  type            MissionType // LOST, FOUND, SIGHTING
+  status          MissionStatus // ACTIVE, REUNITED, CLOSED, etc.
   petName         String?
   species         String
   breed           String?
@@ -126,7 +126,7 @@ model Case {
 // PetImageAnalysis - existing stub, will expand
 model PetImageAnalysis {
   id              String   @id @default(cuid())
-  caseId          String?
+  missionId          String?
   petId           String?
   imageUrl        String
   species         String?
@@ -141,7 +141,7 @@ model PetImageAnalysis {
 model PetFacialFeatures {
   id              String   @id @default(cuid())
   petId           String?
-  caseId          String?
+  missionId          String?
   imageUrl        String
   faceRegion      String?
   landmarks       String?
@@ -316,8 +316,8 @@ model PetPhoto {
   // Ownership - EXACTLY ONE of these must be set
   petId           String?
   pet             Pet?     @relation(fields: [petId], references: [id], onDelete: Cascade)
-  caseId          String?
-  case            Case?    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  missionId          String?
+  mission            Mission?    @relation(fields: [missionId], references: [id], onDelete: Cascade)
 
   // Uploader
   uploadedById    String
@@ -368,7 +368,7 @@ model PetPhoto {
   deletedAt       DateTime?
 
   @@index([petId])
-  @@index([caseId])
+  @@index([missionId])
   @@index([uploadedById])
   @@index([processingStatus])
   @@index([hasPetFace])
@@ -662,7 +662,7 @@ model AIMatchResult {
   // Match Information
   matchedPhotoId  String?
   matchedPhoto    PetPhoto? @relation(fields: [matchedPhotoId], references: [id])
-  matchedCaseId   String?
+  matchedMissionId   String?
   matchedPetId    String?
 
   // Scores (all 0.0 to 1.0)
@@ -699,7 +699,7 @@ model AIMatchResult {
 
   @@index([queryPhotoId])
   @@index([matchedPhotoId])
-  @@index([matchedCaseId])
+  @@index([matchedMissionId])
   @@index([combinedScore])
   @@index([isCorrectMatch])
   @@index([createdAt])
@@ -790,8 +790,8 @@ model Pet {
   aiPhotos          PetPhoto[]
 }
 
-// Add to Case model:
-model Case {
+// Add to Mission model:
+model Mission {
   // ... existing fields ...
 
   // AI Photo Relations (add this)
@@ -953,11 +953,11 @@ seedAIData()
 - [ ] Can query TrainingPair records
 - [ ] Relations work (PetPhoto -> Pet, TrainingPair -> PetPhoto)
 
-## 3.4 Edge Cases Handled
+## 3.4 Edge Missions Handled
 
-| Edge Case | Handling |
+| Edge Mission | Handling |
 |-----------|----------|
-| PetPhoto without pet or case | Validation in API - exactly one must be set |
+| PetPhoto without pet or mission | Validation in API - exactly one must be set |
 | Duplicate training pairs | Unique constraint on [photo1Id, photo2Id] |
 | Same photo paired with itself | API validation prevents this |
 | Deleted photo in training pair | onDelete: Cascade removes pairs |
@@ -1662,13 +1662,13 @@ export default function PetPhotoGallery({
   // Get processing status icon
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'PENDING':
-      case 'PROCESSING':
+      mission 'PENDING':
+      mission 'PROCESSING':
         return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />;
-      case 'COMPLETED':
+      mission 'COMPLETED':
         return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'FAILED':
-      case 'SKIPPED':
+      mission 'FAILED':
+      mission 'SKIPPED':
         return <AlertCircle className="w-4 h-4 text-red-500" />;
       default:
         return null;
@@ -1804,9 +1804,9 @@ export default function PetPhotoGallery({
 - [ ] UI shows processing status
 - [ ] Training pairs auto-generated for same pet
 
-## 4.5 Edge Cases Handled
+## 4.5 Edge Missions Handled
 
-| Edge Case | Handling |
+| Edge Mission | Handling |
 |-----------|----------|
 | Upload non-image file | Validation rejects, returns 400 |
 | Upload file > 10MB | Validation rejects, returns 400 |
@@ -2107,13 +2107,13 @@ export async function POST(request) {
 
       if (labelerStats) {
         switch (labelerStats.trustLevel) {
-          case 'NEW': weight = 0.5; break;
-          case 'LEARNING': weight = 0.7; break;
-          case 'REGULAR': weight = 1.0; break;
-          case 'TRUSTED': weight = 1.5; break;
-          case 'EXPERT': weight = 2.0; break;
-          case 'SUSPICIOUS': weight = 0.1; break;
-          case 'BANNED': weight = 0; break;
+          mission 'NEW': weight = 0.5; break;
+          mission 'LEARNING': weight = 0.7; break;
+          mission 'REGULAR': weight = 1.0; break;
+          mission 'TRUSTED': weight = 1.5; break;
+          mission 'EXPERT': weight = 2.0; break;
+          mission 'SUSPICIOUS': weight = 0.1; break;
+          mission 'BANNED': weight = 0; break;
         }
       }
     }
@@ -2334,10 +2334,10 @@ export async function GET(request) {
 
     let orderByField;
     switch (period) {
-      case 'week':
+      mission 'week':
         orderByField = 'pointsThisWeek';
         break;
-      case 'month':
+      mission 'month':
         orderByField = 'labelsThisMonth';
         break;
       default:
@@ -2619,19 +2619,19 @@ export default function MatchGamePage() {
       if (submitting || !pair) return;
 
       switch (e.key) {
-        case '1':
-        case 's':
-        case 'S':
+        mission '1':
+        mission 's':
+        mission 'S':
           handleVote('SAME');
           break;
-        case '2':
-        case 'd':
-        case 'D':
+        mission '2':
+        mission 'd':
+        mission 'D':
           handleVote('DIFFERENT');
           break;
-        case '3':
-        case 'k':
-        case 'K':
+        mission '3':
+        mission 'k':
+        mission 'K':
           handleVote('SKIP');
           break;
       }
@@ -2907,9 +2907,9 @@ export default function MatchGamePage() {
 - [ ] UI keyboard shortcuts work
 - [ ] Points animation displays
 
-## 5.5 Edge Cases Handled
+## 5.5 Edge Missions Handled
 
-| Edge Case | Handling |
+| Edge Mission | Handling |
 |-----------|----------|
 | User labels same pair twice | Unique constraint prevents, returns 400 |
 | Anonymous user | Allowed with reduced weight, no stats tracking |
@@ -2926,7 +2926,7 @@ export default function MatchGamePage() {
 
 # PART 6: PHASE 4 - ADMIN DASHBOARD
 
-*[This section would continue with the same level of detail for the admin dashboard, including exact API endpoints, UI components, and all edge cases]*
+*[This section would continue with the same level of detail for the admin dashboard, including exact API endpoints, UI components, and all edge missions]*
 
 ---
 

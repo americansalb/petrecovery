@@ -91,10 +91,10 @@ export async function requireStaffOrAdmin(session, context = {}) {
  * Future: Also coordinator and squad leaders
  *
  * @param {object} session - NextAuth session object
- * @param {object} caseData - Case data object (optional, for future use)
+ * @param {object} missionData - Case data object (optional, for future use)
  * @returns {boolean} True if user can edit
  */
-export function canEditCase(session, caseData = null) {
+export function canEditCase(session, missionData = null) {
   const role = getUserRole(session);
 
   // ADMIN can edit all cases
@@ -103,12 +103,12 @@ export function canEditCase(session, caseData = null) {
   }
 
   // Future: MODERATOR can edit if they're the coordinator
-  // if (role === 'MODERATOR' && caseData?.coordinatorId === session?.user?.id) {
+  // if (role === 'MODERATOR' && missionData?.coordinatorId === session?.user?.id) {
   //   return true;
   // }
 
   // Future: Squad leaders can edit squad cases
-  // if (caseData?.squadId && isSquadLeader(session.user.id, caseData.squadId)) {
+  // if (missionData?.squadId && isSquadLeader(session.user.id, missionData.squadId)) {
   //   return true;
   // }
 

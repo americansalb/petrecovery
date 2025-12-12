@@ -66,7 +66,7 @@
 
 3. **Don't Punish, Incentivize** - Users without GPS or verification capabilities still earn points, just with daily caps. Verification is a bonus, not a requirement.
 
-4. **Data Feeds the Algorithm** - Every verified action contributes to improving recommendations for future cases. The system gets smarter over time.
+4. **Data Feeds the Algorithm** - Every verified action contributes to improving recommendations for future missions. The system gets smarter over time.
 
 5. **Collaboration Over Competition** - Multiple people can work on tasks together. The goal is finding the pet, not individual glory.
 
@@ -237,7 +237,7 @@ Custom activity logging for anything not covered above.
 
 #### Purpose
 
-1. Capture edge cases the predefined actions don't cover
+1. Capture edge missions the predefined actions don't cover
 2. Data mine for new action types to add
 3. Show engagement even for uncategorized help
 4. Allow creative problem-solving
@@ -464,7 +464,7 @@ Verified actions would still earn unlimited on top.
 {
   id: string;
   userId: string;
-  caseId: string;
+  missionId: string;
 
   startedAt: Date;
   endedAt: Date;
@@ -477,7 +477,7 @@ Verified actions would still earn unlimited on top.
 }
 ```
 
-**Privacy note:** Location data is only used for this case and algorithm improvement. Not sold or shared.
+**Privacy note:** Location data is only used for this mission and algorithm improvement. Not sold or shared.
 
 **Search session lifecycle (`/search/end`):**
 
@@ -501,7 +501,7 @@ When the client calls `/search/end`, the server performs these steps atomically:
 1. User previews templated email
 2. Taps "Send"
 3. We send via Resend/SendGrid
-4. From: `rescue-[caseId]@mail.petrecovery.com`
+4. From: `rescue-[missionId]@mail.petrecovery.com`
 5. Reply-to: Owner's email address
 6. We log send, track opens (pixel), detect replies
 
@@ -797,8 +797,8 @@ DESCRIPTION:
 Please check your intake records and let me know if any
 animals matching this description have been brought in.
 
-📍 View full case with more photos:
-[Link to petrecovery.com/case/xxx]
+📍 View full mission with more photos:
+[Link to petrecovery.com/mission/xxx]
 
 Thank you for your help in bringing [Pet Name] home.
 
@@ -820,7 +820,7 @@ Sent via PetRecovery.com - Helping reunite lost pets
 ### Platform Email Behavior
 
 **Email configuration:**
-- Sent from: `rescue-[caseId]@mail.petrecovery.com`
+- Sent from: `rescue-[missionId]@mail.petrecovery.com`
 - Reply-To header: Owner's email address
 - Body: Fixed template (not editable from UI)
 
@@ -829,7 +829,7 @@ Sent via PetRecovery.com - Helping reunite lost pets
 1. User sees preview screen with:
    - To: [shelter email]
    - Subject: "Lost [Cat/Dog] - [Pet Name] - [City]"
-   - Non-editable body (includes description, photo, case link, owner contact)
+   - Non-editable body (includes description, photo, mission link, owner contact)
    - Notice: "Template cannot be edited to prevent spam and ensure quality"
 
 2. User presses "Send":
@@ -878,7 +878,7 @@ Sent via PetRecovery.com - Helping reunite lost pets
 │ │  • Blue collar with bell            │ │
 │ │  • Microchip: 985112345678          │ │
 │ │                                     │ │
-│ │  [View full case →]                 │ │
+│ │  [View full mission →]                 │ │
 │ │                                     │ │
 │ │  Thank you,                         │ │
 │ │  Sarah Johnson                      │ │
@@ -938,19 +938,19 @@ Sent via PetRecovery.com - Helping reunite lost pets
 Every platform email serves as free advertising:
 
 1. **Footer branding:** "Sent via PetRecovery.com - Helping reunite lost pets"
-2. **Case link:** Shelter clicks through to see the full case on our platform
+2. **Mission link:** Shelter clicks through to see the full mission on our platform
 3. **Invitation CTA:** "Are you a shelter? Create a free account to receive and manage lost pet alerts"
 
 **Shelter Account Benefits (Free Tier):**
 - Receive organized lost pet alerts for their area
-- Dashboard to track incoming cases
+- Dashboard to track incoming missions
 - One-click "No match" / "Possible match" responses
-- Auto-update case status when they respond
+- Auto-update mission status when they respond
 - Featured in our shelter directory
 
 **Value for Us:**
 - Builds shelter network and trust
-- Verified responses update case status automatically
+- Verified responses update mission status automatically
 - Potential for premium shelter features later
 - Shelters become advocates for the platform
 
@@ -1169,7 +1169,7 @@ GPS search sessions always create a `VerifiedAction` with:
 - `metadata.distanceMiles` - Total distance covered
 - `metadata.gridCellsCovered` - Number of discrete map cells traversed
 - `metadata.path` - Array of coordinates (or reference to stored path)
-- `hoursAfterLost` - Hours from case's `lostAt` to search end time
+- `hoursAfterLost` - Hours from mission's `lostAt` to search end time
 
 **Manual search logging (v1):**
 - User taps "I searched this area" (no polygon drawing)
@@ -1248,7 +1248,7 @@ Algorithm identifies areas that need flyers.
 
    **cellId derivation formula:**
    ```typescript
-   // Given case.lastSeenLocation as origin (0,0)
+   // Given mission.lastSeenLocation as origin (0,0)
    // ~0.0009 degrees ≈ 100m at mid-latitudes
    const CELL_SIZE_DEG = 0.0009;
 
@@ -1269,7 +1269,7 @@ Algorithm identifies areas that need flyers.
 
 #### API Response
 
-The `GET /api/mission/[caseId]/flyers` endpoint returns:
+The `GET /api/mission/[missionId]/flyers` endpoint returns:
 
 ```typescript
 {
@@ -1340,7 +1340,7 @@ In-app flyer PDF generation:
 └─────────────────────────────────────────┘
 ```
 
-**QR Code:** Links to case page on petrecovery.com with:
+**QR Code:** Links to mission page on petrecovery.com with:
 - More photos
 - Up-to-date sighting info
 - Easy "I saw this pet" button
@@ -1402,7 +1402,7 @@ Scout is the friendly mascot that provides contextual tips and encouragement. Ti
 // ⚠️ PHASE 5+ - This dynamic tip generation is NOT v1.
 // v1 Scout uses static, hard-coded tips only.
 
-function generateTips(caseData: Case): Tip[] {
+function generateTips(missionData: Mission): Tip[] {
   const tips: Tip[] = [];
   const now = new Date();
   const hour = now.getHours();
@@ -1427,7 +1427,7 @@ function generateTips(caseData: Case): Tip[] {
   }
 
   // Weather-based tips
-  const weather = await getWeather(caseData.lastSeenLocation);
+  const weather = await getWeather(missionData.lastSeenLocation);
   if (weather.willRain) {
     tips.push({
       type: 'WEATHER',
@@ -1438,7 +1438,7 @@ function generateTips(caseData: Case): Tip[] {
   }
 
   // Cold spot tips
-  const coldSpots = detectFlyerColdSpots(caseData.id);
+  const coldSpots = detectFlyerColdSpots(missionData.id);
   if (coldSpots.length > 0) {
     tips.push({
       type: 'COLD_SPOT',
@@ -1448,7 +1448,7 @@ function generateTips(caseData: Case): Tip[] {
   }
 
   // Progress tips
-  const sheltersContacted = await getShelterContactCount(caseData.id);
+  const sheltersContacted = await getShelterContactCount(missionData.id);
   if (sheltersContacted === 5) {
     tips.push({
       type: 'PROGRESS',
@@ -1572,7 +1572,7 @@ That task's priority score gets a **+25% boost** compared to its base score and 
 **4. Messaging/notifications (future phases):**
 
 - A mission chat message is posted summarizing the request
-- Volunteers subscribed to that case receive a notification: "Owner requested help on Contact Shelters"
+- Volunteers subscribed to that mission receive a notification: "Owner requested help on Contact Shelters"
 
 **5. Clearing the request:**
 
@@ -1628,13 +1628,13 @@ That task's priority score gets a **+25% boost** compared to its base score and 
 │              │            ▼                                  │
 │     ┌────────┴───┐  ┌─────────────┐                         │
 │     │ Better     │  │ Data logged │                         │
-│     │ recommend- │  │ with case   │                         │
+│     │ recommend- │  │ with mission   │                         │
 │     │ ations     │  │ context     │                         │
 │     └────────────┘  └──────┬──────┘                         │
 │              ▲            │                                  │
 │              │            ▼                                  │
 │              │     ┌─────────────┐                           │
-│              │     │ Case        │                           │
+│              │     │ Mission        │                           │
 │              │     │ resolves    │                           │
 │              │     │ (or closes) │                           │
 │              │     └──────┬──────┘                           │
@@ -1656,7 +1656,7 @@ For algorithm training, we log:
 ```typescript
 interface VerifiedAction {
   id: string;
-  caseId: string;
+  missionId: string;
   userId: string;
 
   actionType: string;  // 'search_area', 'contact_shelter', etc.
@@ -1678,11 +1678,11 @@ interface VerifiedAction {
 }
 ```
 
-When case resolves:
+When mission resolves:
 
 ```typescript
-interface CaseOutcome {
-  caseId: string;
+interface MissionOutcome {
+  missionId: string;
 
   outcome: 'REUNITED' | 'NOT_FOUND' | 'DECEASED' | 'CLOSED_OTHER';
   timeToReunionHours?: number;
@@ -1691,7 +1691,7 @@ interface CaseOutcome {
   foundMethod?: 'CAME_HOME' | 'SHELTER_INTAKE' | 'NEIGHBOR_FOUND' | 'SIGHTING_LED_TO' | 'TRAP_CAUGHT' | 'FLYER_RESPONSE' | 'SOCIAL_MEDIA' | 'OTHER';
   foundMethodDetails?: string;
 
-  // Case context for ML
+  // Mission context for ML
   petType: 'CAT' | 'DOG';
   petBehavior?: 'INDOOR' | 'OUTDOOR' | 'SKITTISH' | 'FRIENDLY';
   petSize?: 'SMALL' | 'MEDIUM' | 'LARGE';
@@ -1709,16 +1709,16 @@ interface CaseOutcome {
 
 ### Analysis Queries
 
-After accumulating cases:
+After accumulating missions:
 
 ```sql
 -- Which actions correlate with faster reunions?
 SELECT
   va.action_type,
   AVG(co.time_to_reunion_hours) as avg_hours_to_reunion,
-  COUNT(DISTINCT co.case_id) as case_count
+  COUNT(DISTINCT co.mission_id) as mission_count
 FROM verified_actions va
-JOIN case_outcomes co ON va.case_id = co.case_id
+JOIN mission_outcomes co ON va.mission_id = co.mission_id
 WHERE co.outcome = 'REUNITED'
 GROUP BY va.action_type
 ORDER BY avg_hours_to_reunion ASC;
@@ -1731,9 +1731,9 @@ SELECT
     ELSE 'After 24 hours'
   END as contact_timing,
   AVG(co.time_to_reunion_hours) as avg_reunion_time,
-  COUNT(*) as cases
+  COUNT(*) as missions
 FROM verified_actions va
-JOIN case_outcomes co ON va.case_id = co.case_id
+JOIN mission_outcomes co ON va.mission_id = co.mission_id
 WHERE va.action_type = 'contact_shelter'
   AND co.outcome = 'REUNITED'
 GROUP BY contact_timing;
@@ -1747,7 +1747,7 @@ SELECT
   END as search_time,
   SUM(CASE WHEN co.outcome = 'REUNITED' THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as reunion_rate
 FROM verified_actions va
-JOIN case_outcomes co ON va.case_id = co.case_id
+JOIN mission_outcomes co ON va.mission_id = co.mission_id
 WHERE va.action_type = 'search_area'
 GROUP BY search_time;
 ```
@@ -1769,14 +1769,14 @@ const BASE_PRIORITIES = {
 };
 
 // Future: Dynamic based on outcome data
-async function getDynamicPriority(actionType: string, caseContext: CaseContext): Promise<number> {
+async function getDynamicPriority(actionType: string, missionContext: MissionContext): Promise<number> {
   const basePriority = BASE_PRIORITIES[actionType];
 
   // Get effectiveness multiplier from ML model
   const effectiveness = await getActionEffectiveness(actionType, {
-    petType: caseContext.petType,
-    hoursLost: caseContext.hoursLost,
-    locationType: caseContext.locationType,
+    petType: missionContext.petType,
+    hoursLost: missionContext.hoursLost,
+    locationType: missionContext.locationType,
   });
 
   // Adjust base priority by effectiveness
@@ -1827,8 +1827,8 @@ async function getDynamicPriority(actionType: string, caseContext: CaseContext):
 
 model ShelterContact {
   id              String   @id @default(cuid())
-  caseId          String
-  case            LostPetCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  missionId          String
+  mission            LostPetMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
   shelterId       String
   shelter         Shelter  @relation(fields: [shelterId], references: [id])
 
@@ -1839,8 +1839,8 @@ model ShelterContact {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  @@unique([caseId, shelterId])
-  @@index([caseId])
+  @@unique([missionId, shelterId])
+  @@index([missionId])
   @@index([shelterId])
 }
 
@@ -1915,8 +1915,8 @@ enum StaffResponse {
 
 model FlyerPosting {
   id        String   @id @default(cuid())
-  caseId    String
-  case      LostPetCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  missionId    String
+  mission      LostPetMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation(fields: [userId], references: [id])
 
@@ -1931,7 +1931,7 @@ model FlyerPosting {
 
   createdAt DateTime @default(now())
 
-  @@index([caseId])
+  @@index([missionId])
   @@index([userId])
 }
 
@@ -1943,8 +1943,8 @@ model FlyerPosting {
 
 model MascotTip {
   id          String   @id @default(cuid())
-  caseId      String
-  case        LostPetCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  missionId      String
+  mission        LostPetMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
 
   tipType     TipType
   message     String
@@ -1957,7 +1957,7 @@ model MascotTip {
 
   createdAt   DateTime @default(now())
 
-  @@index([caseId])
+  @@index([missionId])
 }
 
 enum TipType {
@@ -1976,8 +1976,8 @@ enum TipType {
 
 model SearchSession {
   id        String   @id @default(cuid())
-  caseId    String
-  case      LostPetCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  missionId    String
+  mission      LostPetMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation(fields: [userId], references: [id])
 
@@ -1995,14 +1995,14 @@ model SearchSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([caseId])
+  @@index([missionId])
   @@index([userId])
 }
 
 // WHY PERSIST SEARCH SESSIONS:
 // - Debugging: "Why did I get these points?"
 // - Map replays: Show team where searches happened
-// - Search history: Per-case activity timeline
+// - Search history: Per-mission activity timeline
 // - Algorithm training: Correlate search patterns with outcomes
 
 // ============================================
@@ -2011,8 +2011,8 @@ model SearchSession {
 
 model VerifiedAction {
   id              String   @id @default(cuid())
-  caseId          String
-  case            LostPetCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  missionId          String
+  mission            LostPetMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
   userId          String
   user            User     @relation(fields: [userId], references: [id])
 
@@ -2028,7 +2028,7 @@ model VerifiedAction {
 
   createdAt       DateTime @default(now())
 
-  @@index([caseId])
+  @@index([missionId])
   @@index([actionType])
 }
 
@@ -2085,7 +2085,7 @@ enum VerificationMethod {
 // 1. After a GPS search session:
 //    actionType = 'search_area'
 //    verificationMethod = 'GPS'
-//    hoursAfterLost = hours from case's lostAt to search end time
+//    hoursAfterLost = hours from mission's lostAt to search end time
 //    metadata = {
 //      distanceMiles: 0.82,
 //      gridCellsCovered: 6,
@@ -2115,10 +2115,10 @@ enum VerificationMethod {
 // CASE OUTCOMES (for algorithm training)
 // ============================================
 
-model CaseOutcome {
+model MissionOutcome {
   id                    String   @id @default(cuid())
-  caseId                String   @unique
-  case                  LostPetCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  missionId                String   @unique
+  mission                  LostPetMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
 
   outcome               OutcomeType
   timeToReunionHours    Float?
@@ -2153,9 +2153,9 @@ model CaseOutcome {
 // Consider migrating to proper enums in a future schema update.
 
 // OWNERSHIP & LIFECYCLE:
-// - Created when the owner or moderator closes a case
+// - Created when the owner or moderator closes a mission
 // - Only admins/moderators can edit after creation (prevent accidental changes)
-// - For v1, can be set manually via internal tool or owner close-case flow
+// - For v1, can be set manually via internal tool or owner close-mission flow
 // - ML training can tolerate some missing outcomes initially
 
 enum OutcomeType {
@@ -2200,7 +2200,7 @@ model DailyPointsLog {
 // TIMESTAMP & TIMEZONE RULES:
 // - All internal timestamps stored as UTC
 // - DailyPointsLog.date = date portion of UTC time (midnight UTC boundary)
-// - hoursAfterLost = (action.createdAt_utc - case.lostAt_utc) / 1 hour
+// - hoursAfterLost = (action.createdAt_utc - mission.lostAt_utc) / 1 hour
 // - Cap resets at midnight UTC
 // - Display times in user's local timezone (from device/profile), but all
 //   caps & analytics calculations use UTC.
@@ -2283,7 +2283,7 @@ model SquadTask {
 
 ```
 ┌─────────────────┐     ┌──────────────────────┐
-│   LostPetCase   │────<│   ShelterContact     │
+│   LostPetMission   │────<│   ShelterContact     │
 └────────┬────────┘     └──────────┬───────────┘
          │                         │
          │              ┌──────────┴───────────┐
@@ -2303,7 +2303,7 @@ model SquadTask {
          │     └──────────────────┘
          │
          │────1┌──────────────────┐
-              │   CaseOutcome    │
+              │   MissionOutcome    │
               └──────────────────┘
 
 ┌─────────────────┐     ┌──────────────────────┐
@@ -2318,26 +2318,26 @@ model SquadTask {
 ### Tasks
 
 ```
-GET    /api/mission/[caseId]/tasks
+GET    /api/mission/[missionId]/tasks
        → List all tasks with status, participants, progress
 
-POST   /api/mission/[caseId]/tasks/[taskId]/join
+POST   /api/mission/[missionId]/tasks/[taskId]/join
        → Add current user as participant
 
-POST   /api/mission/[caseId]/tasks/[taskId]/leave
+POST   /api/mission/[missionId]/tasks/[taskId]/leave
        → Remove current user as participant
 
-POST   /api/mission/[caseId]/tasks/[taskId]/complete
+POST   /api/mission/[missionId]/tasks/[taskId]/complete
        → Mark task complete with outcome
 
-POST   /api/mission/[caseId]/tasks/[taskId]/request-help
+POST   /api/mission/[missionId]/tasks/[taskId]/request-help
        → Owner requests help (body: { message?: string })
 ```
 
 ### Shelter Contacts
 
 ```
-GET    /api/mission/[caseId]/shelters
+GET    /api/mission/[missionId]/shelters
        → List shelters with contact status
        → Query params: radius=25, type=shelter|vet|animal_control
 
@@ -2345,11 +2345,11 @@ GET    /api/places/search
        → Apple Maps proxy
        → Query params: query, lat, lng, radius
 
-POST   /api/mission/[caseId]/shelters/[shelterId]/call
+POST   /api/mission/[missionId]/shelters/[shelterId]/call
        → Log a call attempt
        → Body: { outcome, staffResponse?, notes? }
 
-POST   /api/mission/[caseId]/shelters/[shelterId]/email
+POST   /api/mission/[missionId]/shelters/[shelterId]/email
        → Send email via platform
        → Returns: { success, emailId, pointsEarned }
 ```
@@ -2357,20 +2357,20 @@ POST   /api/mission/[caseId]/shelters/[shelterId]/email
 ### Search Tracking
 
 ```
-POST   /api/mission/[caseId]/search/start
+POST   /api/mission/[missionId]/search/start
        → Start GPS-tracked session
        → Returns: { sessionId }
 
-POST   /api/mission/[caseId]/search/ping
+POST   /api/mission/[missionId]/search/ping
        → Update location during search
        → Body: { sessionId, lat, lng }
 
-POST   /api/mission/[caseId]/search/end
+POST   /api/mission/[missionId]/search/end
        → End search session
        → Body: { sessionId }
        → Returns: { distanceMiles, pointsEarned }
 
-POST   /api/mission/[caseId]/search/log
+POST   /api/mission/[missionId]/search/log
        → Manual search log ("I searched this area")
        → Body: { note?: string, approximateLocation?: { lat, lng } }
        → Returns: { pointsEarned }
@@ -2381,16 +2381,16 @@ POST   /api/mission/[caseId]/search/log
 ### Flyers
 
 ```
-GET    /api/mission/[caseId]/flyers
+GET    /api/mission/[missionId]/flyers
        → List all flyer locations
        → Returns: { flyers, coldSpots }
 
-POST   /api/mission/[caseId]/flyers
+POST   /api/mission/[missionId]/flyers
        → Mark flyer location
        → Body: { lat, lng, photoUrl? }
        → Returns: { id, pointsEarned }
 
-GET    /api/mission/[caseId]/flyers/generate
+GET    /api/mission/[missionId]/flyers/generate
        → Generate flyer PDF
        → Query params: template, size
        → Returns: PDF stream
@@ -2399,24 +2399,24 @@ GET    /api/mission/[caseId]/flyers/generate
 ### Tips
 
 ```
-GET    /api/mission/[caseId]/tips
+GET    /api/mission/[missionId]/tips
        → Get active mascot tips
        → Returns: { tips: Tip[] }
 
-POST   /api/mission/[caseId]/tips/[tipId]/dismiss
+POST   /api/mission/[missionId]/tips/[tipId]/dismiss
        → Dismiss a tip for current user
 ```
 
 ### Points
 
 ```
-GET    /api/mission/[caseId]/points
-       → Get leaderboard for this case (per-mission points only)
+GET    /api/mission/[missionId]/points
+       → Get leaderboard for this mission (per-mission points only)
        → Returns: { users: { id, name, points, verifiedPoints?, selfReportedPoints? }[] }
-       → NOTE: This is case-specific. Global/all-time leaderboards use
+       → NOTE: This is mission-specific. Global/all-time leaderboards use
          /api/users/me/points and separate analytics queries.
        → LEADERBOARD SEMANTICS (v1): points = verifiedPoints + selfReportedPoints
-         for that case. Future: may add "verified %" badge or filter toggle.
+         for that mission. Future: may add "verified %" badge or filter toggle.
 
 GET    /api/users/me/points
        → Get current user's points
@@ -2625,7 +2625,7 @@ For each event with a known `emailId`:
 
 **Goal:** Data collection for self-improvement
 
-- [ ] Create `CaseOutcome` model
+- [ ] Create `MissionOutcome` model
 - [ ] Outcome recording flow
 - [ ] Verified actions aggregation
 - [ ] Basic analytics queries
@@ -3009,7 +3009,7 @@ See `taskPriority.js` for full implementation.
 | **Self-Reported Action** | An action the user claims to have done without verification |
 | **Cold Spot** | An area with no flyer coverage that should have flyers |
 | **Scout** | The mascot that provides tips and encouragement |
-| **Case Outcome** | The final resolution of a lost pet case |
+| **Mission Outcome** | The final resolution of a lost pet mission |
 | **Points Cap** | The 100 pts/day limit on self-reported actions |
 | **Owner Request** | When the pet owner asks volunteers to prioritize a specific task |
 
@@ -3027,19 +3027,19 @@ Push notifications to keep volunteers and owners informed.
 
 | Trigger | Title | Body | Priority |
 |---------|-------|------|----------|
-| New case nearby | "🚨 Lost pet near you" | "{Name} went missing 0.3mi away" | High |
+| New mission nearby | "🚨 Lost pet near you" | "{Name} went missing 0.3mi away" | High |
 | Owner requests help | "👑 Help requested!" | "Owner needs backup on {task}" | High |
 | Sighting reported | "👁 New sighting!" | "{Name} spotted at {location}" | High |
 | Optimal search time | "🌅 Great time to search" | "Dawn is the best time to find cats" | Medium |
 | Task needs help | "🆘 Volunteer needs backup" | "{User} needs help with {task}" | Medium |
-| Case update | "📢 Case update" | "{Name}: {update summary}" | Medium |
+| Mission update | "📢 Mission update" | "{Name}: {update summary}" | Medium |
 | Points milestone | "🎉 Achievement!" | "You earned {badge}!" | Low |
-| Weekly summary | "📊 Your impact" | "You helped on {n} cases this week" | Low |
+| Weekly summary | "📊 Your impact" | "You helped on {n} missions this week" | Low |
 
 **Implementation Notes:**
 - Push notification service (Firebase, OneSignal, or native)
 - User notification preferences (opt-in/out per type)
-- Subscription management per case
+- Subscription management per mission
 
 ### Real-Time Updates (Phase 5+)
 
@@ -3060,15 +3060,15 @@ type MissionEvent =
   | { type: 'SHELTER_CONTACTED'; shelterId: string; status: ContactStatus }
   | { type: 'TIP_GENERATED'; tip: MascotTip }
   | { type: 'SIGHTING_REPORTED'; sighting: Sighting }
-  | { type: 'CASE_UPDATE'; update: CaseUpdate }
+  | { type: 'CASE_UPDATE'; update: MissionUpdate }
   | { type: 'PET_FOUND'; resolution: Resolution };
 ```
 
 **Implementation Notes:**
-- Clients subscribe to `mission_events` for a specific caseId
+- Clients subscribe to `mission_events` for a specific missionId
 - Server broadcasts events to all subscribed clients
 - Consider Redis pub/sub for multi-instance support
-- Existing SSE infrastructure at `/api/mission/[caseId]/stream` can be extended
+- Existing SSE infrastructure at `/api/mission/[missionId]/stream` can be extended
 
 ### Offline Support (Phase 6+)
 
@@ -3170,8 +3170,8 @@ Track events for algorithm improvement and business metrics.
 | Category | Events |
 |----------|--------|
 | User Behavior | Task views, joins, completions; search sessions; flyer posts; call/email actions |
-| Algorithm Data | VerifiedAction creation; CaseOutcome recording |
-| Business Metrics | Cases created, active volunteers per case, time to reunion, reunion rate, verified vs self-reported ratio |
+| Algorithm Data | VerifiedAction creation; MissionOutcome recording |
+| Business Metrics | Missions created, active volunteers per mission, time to reunion, reunion rate, verified vs self-reported ratio |
 
 **Data Pipeline:**
 
@@ -3182,7 +3182,7 @@ User Action → Event Logged → Analytics DB →
 
 **Key Insight:**
 
-The `VerifiedAction` and `CaseOutcome` tables are the primary sources for training or tuning any recommendation logic. Self-reported actions are logged (and can be included as separate features) but must NOT be treated as ground truth.
+The `VerifiedAction` and `MissionOutcome` tables are the primary sources for training or tuning any recommendation logic. Self-reported actions are logged (and can be included as separate features) but must NOT be treated as ground truth.
 
 ---
 

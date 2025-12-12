@@ -310,7 +310,7 @@ async function testBlockedSquadCreate() {
 }
 
 async function testBlockedCaseCreate() {
-  const res = await fetch('/api/cases', {
+  const res = await fetch('/api/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -329,8 +329,8 @@ async function testBlockedCaseCreate() {
     }
     return { blocked: true, code: error.code };
   } else if (res.status === 201) {
-    const { case: caseData } = await res.json();
-    return { blocked: false, case_id: caseData.id, note: 'User has waiver, case created successfully' };
+    const { case: missionData } = await res.json();
+    return { blocked: false, case_id: missionData.id, note: 'User has waiver, case created successfully' };
   } else {
     const errorData = await res.json();
     throw new Error(`Unexpected status ${res.status}: ${errorData.error || 'Unknown error'}`);
@@ -427,7 +427,7 @@ async function testLeaveSquad() {
 // ============================================================================
 
 async function testCreateCase() {
-  const res = await fetch('/api/cases', {
+  const res = await fetch('/api/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -448,13 +448,13 @@ async function testCreateCase() {
     throw new Error(`Create case failed: ${error.error}`);
   }
 
-  const { case: caseData } = await res.json();
-  return { case_id: caseData.id, case_number: caseData.caseNumber };
+  const { case: missionData } = await res.json();
+  return { case_id: missionData.id, case_number: missionData.missionNumber };
 }
 
 async function testUpdateCaseStatus() {
   // First, create a test case
-  const createRes = await fetch('/api/cases', {
+  const createRes = await fetch('/api/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -474,7 +474,7 @@ async function testUpdateCaseStatus() {
   const { case: testCase } = await createRes.json();
 
   // Update status
-  const res = await fetch(`/api/cases/${testCase.id}/status`, {
+  const res = await fetch(`/api/missions/${testCase.id}/status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -488,13 +488,13 @@ async function testUpdateCaseStatus() {
     throw new Error(`Status update failed: ${error.error}`);
   }
 
-  const { case: updatedCase } = await res.json();
-  return { case_id: updatedCase.id, new_status: updatedCase.status };
+  const { case: updatedMission } = await res.json();
+  return { case_id: updatedMission.id, new_status: updatedMission.status };
 }
 
 async function testAddCaseNote() {
   // Find or create a test case
-  const listRes = await fetch('/api/cases?limit=1');
+  const listRes = await fetch('/api/missions?limit=1');
   if (!listRes.ok) {
     throw new Error(`Failed to list cases: ${listRes.status}`);
   }
@@ -506,7 +506,7 @@ async function testAddCaseNote() {
     testCaseId = cases[0].id;
   } else {
     // Create one
-    const createRes = await fetch('/api/cases', {
+    const createRes = await fetch('/api/missions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -528,7 +528,7 @@ async function testAddCaseNote() {
   }
 
   // Add note
-  const res = await fetch(`/api/cases/${testCaseId}/notes`, {
+  const res = await fetch(`/api/missions/${testCaseId}/notes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -550,8 +550,8 @@ async function testAddCaseNote() {
 // ============================================================================
 
 async function testListPublicCases() {
-  // Test GET /api/public/cases - list with filters
-  const res = await fetch('/api/public/cases?limit=10');
+  // Test GET /api/public/missions - list with filters
+  const res = await fetch('/api/public/missions?limit=10');
 
   if (!res.ok) {
     throw new Error(`List public cases failed: ${res.status}`);
@@ -591,7 +591,7 @@ async function testListPublicCases() {
 
 async function testPublicCaseDetail() {
   // First, find a public case
-  const listRes = await fetch('/api/public/cases?limit=1');
+  const listRes = await fetch('/api/public/missions?limit=1');
   if (!listRes.ok) {
     throw new Error('Failed to find public cases');
   }
@@ -605,41 +605,41 @@ async function testPublicCaseDetail() {
 
   const testCase = cases[0];
 
-  // Test GET /api/public/cases/[caseNumber]
-  const res = await fetch(`/api/public/cases/${testCase.caseNumber}`);
+  // Test GET /api/public/missions/[missionNumber]
+  const res = await fetch(`/api/public/missions/${testCase.missionNumber}`);
 
   if (!res.ok) {
     throw new Error(`Get case detail failed: ${res.status}`);
   }
 
-  const caseData = await res.json();
+  const missionData = await res.json();
 
   // Verify case data
-  if (caseData.caseNumber !== testCase.caseNumber) {
-    throw new Error('Case number mismatch');
+  if (missionData.missionNumber !== testCase.missionNumber) {
+    throw new Error('Mission number mismatch');
   }
 
   // Verify contact privacy controls
-  if (!caseData.contact) {
+  if (!missionData.contact) {
     throw new Error('Missing contact field in response');
   }
 
   // Verify sensitive fields are NOT exposed
-  if (caseData.createdById || caseData.squadId || caseData.source) {
+  if (missionData.createdById || missionData.squadId || missionData.source) {
     throw new Error('Sensitive fields exposed in public detail');
   }
 
   return {
-    case_number: caseData.caseNumber,
+    case_number: missionData.missionNumber,
     has_contact_field: true,
     no_sensitive_data: true
   };
 }
 
 async function testSubmitPublicReport() {
-  // Test POST /api/public/cases - submit report
+  // Test POST /api/public/missions - submit report
   const timestamp = Date.now();
-  const res = await fetch('/api/public/cases', {
+  const res = await fetch('/api/public/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -665,8 +665,8 @@ async function testSubmitPublicReport() {
 
   const data = await res.json();
 
-  if (!data.caseNumber) {
-    throw new Error('Missing caseNumber in response');
+  if (!data.missionNumber) {
+    throw new Error('Missing missionNumber in response');
   }
 
   if (!data.success) {
@@ -677,7 +677,7 @@ async function testSubmitPublicReport() {
   // (isPublic=false, source=PUBLIC_REPORT - these should not be visible via public API)
 
   return {
-    case_number: data.caseNumber,
+    case_number: data.missionNumber,
     success: data.success,
     message: data.message
   };
@@ -690,7 +690,7 @@ async function testSubmitPublicReport() {
 async function testReportConfirmationEmail() {
   // Submit public report and verify confirmation email attempt was logged
   const timestamp = Date.now();
-  const res = await fetch('/api/public/cases', {
+  const res = await fetch('/api/public/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -722,7 +722,7 @@ async function testReportConfirmationEmail() {
   // We can't directly verify email was sent without checking the actual inbox,
   // but we can verify the API succeeded and the case was created
   return {
-    case_number: data.caseNumber,
+    case_number: data.missionNumber,
     success: data.success,
     note: 'Email send attempted (check EventLog or /admin/health for notification.send_* events)'
   };
@@ -732,7 +732,7 @@ async function testAdminAlertEmail() {
   // Submit public report and verify admin alert was attempted
   // This test verifies the admin notification flow
   const timestamp = Date.now();
-  const res = await fetch('/api/public/cases', {
+  const res = await fetch('/api/public/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -760,7 +760,7 @@ async function testAdminAlertEmail() {
   await new Promise(resolve => setTimeout(resolve, 500));
 
   return {
-    case_number: data.caseNumber,
+    case_number: data.missionNumber,
     success: data.success,
     note: 'Admin alert sent (if ADMIN_NOTIFICATION_EMAIL configured). Check EventLog for notification events.'
   };
@@ -771,7 +771,7 @@ async function testStatusUpdateEmail() {
   const timestamp = Date.now();
 
   // 1. Create a test case
-  const createRes = await fetch('/api/cases', {
+  const createRes = await fetch('/api/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -793,7 +793,7 @@ async function testStatusUpdateEmail() {
   const { case: testCase } = await createRes.json();
 
   // 2. Update status to ACTIVE_SEARCH (should trigger email)
-  const updateRes = await fetch(`/api/cases/${testCase.id}/status`, {
+  const updateRes = await fetch(`/api/missions/${testCase.id}/status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -807,14 +807,14 @@ async function testStatusUpdateEmail() {
     throw new Error(`Status update failed: ${error.error}`);
   }
 
-  const { case: updatedCase } = await updateRes.json();
+  const { case: updatedMission } = await updateRes.json();
 
   // Wait briefly for async notification to process
   await new Promise(resolve => setTimeout(resolve, 500));
 
   return {
-    case_id: updatedCase.id,
-    new_status: updatedCase.status,
+    case_id: updatedMission.id,
+    new_status: updatedMission.status,
     note: 'Status update email sent. Check EventLog for notification.send_* events.'
   };
 }
@@ -846,7 +846,7 @@ async function testAssignCoordinator() {
   const timestamp = Date.now();
 
   // 1. Create a test case
-  const createRes = await fetch('/api/cases', {
+  const createRes = await fetch('/api/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -880,7 +880,7 @@ async function testAssignCoordinator() {
   }
 
   // 3. Assign coordinator
-  const assignRes = await fetch(`/api/cases/${testCase.id}/assign-coordinator`, {
+  const assignRes = await fetch(`/api/missions/${testCase.id}/assign-coordinator`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ coordinatorId: coordinator.id })
@@ -905,7 +905,7 @@ async function testUnassignCoordinator() {
   const timestamp = Date.now();
 
   // 1. Create a test case
-  const createRes = await fetch('/api/cases', {
+  const createRes = await fetch('/api/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -926,7 +926,7 @@ async function testUnassignCoordinator() {
   const { case: testCase } = await createRes.json();
 
   // 2. Unassign coordinator (set to null)
-  const unassignRes = await fetch(`/api/cases/${testCase.id}/assign-coordinator`, {
+  const unassignRes = await fetch(`/api/missions/${testCase.id}/assign-coordinator`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ coordinatorId: null })
@@ -951,7 +951,7 @@ async function testAssignSquad() {
   const timestamp = Date.now();
 
   // 1. Create a test case
-  const createRes = await fetch('/api/cases', {
+  const createRes = await fetch('/api/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -985,7 +985,7 @@ async function testAssignSquad() {
   }
 
   // 3. Assign squad
-  const assignRes = await fetch(`/api/cases/${testCase.id}/assign-squad`, {
+  const assignRes = await fetch(`/api/missions/${testCase.id}/assign-squad`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ squadId: activeSquad.id })
@@ -1010,7 +1010,7 @@ async function testInvalidCoordinatorRole() {
   const timestamp = Date.now();
 
   // 1. Create a test case
-  const createRes = await fetch('/api/cases', {
+  const createRes = await fetch('/api/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1041,7 +1041,7 @@ async function testInvalidCoordinatorRole() {
 
   if (!regularUser) {
     // If no USER found, create a fake ID to test validation
-    const assignRes = await fetch(`/api/cases/${testCase.id}/assign-coordinator`, {
+    const assignRes = await fetch(`/api/missions/${testCase.id}/assign-coordinator`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ coordinatorId: 'fake-user-id-12345' })
@@ -1058,7 +1058,7 @@ async function testInvalidCoordinatorRole() {
   }
 
   // 3. Try to assign USER role as coordinator (should fail)
-  const assignRes = await fetch(`/api/cases/${testCase.id}/assign-coordinator`, {
+  const assignRes = await fetch(`/api/missions/${testCase.id}/assign-coordinator`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ coordinatorId: regularUser.id })
@@ -1086,7 +1086,7 @@ async function testInactiveSquad() {
   const timestamp = Date.now();
 
   // 1. Create a test case
-  const createRes = await fetch('/api/cases', {
+  const createRes = await fetch('/api/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1117,7 +1117,7 @@ async function testInactiveSquad() {
 
   if (!inactiveSquad) {
     // If no inactive squad exists, test with fake ID instead
-    const assignRes = await fetch(`/api/cases/${testCase.id}/assign-squad`, {
+    const assignRes = await fetch(`/api/missions/${testCase.id}/assign-squad`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ squadId: 'fake-squad-id-12345' })
@@ -1134,7 +1134,7 @@ async function testInactiveSquad() {
   }
 
   // 3. Try to assign inactive squad (should fail)
-  const assignRes = await fetch(`/api/cases/${testCase.id}/assign-squad`, {
+  const assignRes = await fetch(`/api/missions/${testCase.id}/assign-squad`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ squadId: inactiveSquad.id })
@@ -1182,7 +1182,7 @@ function TestsPanel({ onTestComplete }) {
   // Case tests state
   const [caseTests, setCaseTests] = useState([
     { id: 'create-case', name: 'Create Case', status: 'idle', fn: testCreateCase },
-    { id: 'update-status', name: 'Update Case Status', status: 'idle', fn: testUpdateCaseStatus },
+    { id: 'update-status', name: 'Update Mission Status', status: 'idle', fn: testUpdateCaseStatus },
     { id: 'add-note', name: 'Add Note to Case', status: 'idle', fn: testAddCaseNote },
   ]);
   const [runningCase, setRunningCase] = useState(false);
@@ -1724,7 +1724,7 @@ function CaseGenerator({ onDataGenerated }) {
       const color = colors[Math.floor(Math.random() * colors.length)];
 
       try {
-        const res = await fetch('/api/cases', {
+        const res = await fetch('/api/missions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1742,14 +1742,14 @@ function CaseGenerator({ onDataGenerated }) {
         });
 
         if (res.ok) {
-          const { case: caseData } = await res.json();
-          created.push(caseData.id);
+          const { case: missionData } = await res.json();
+          created.push(missionData.id);
 
           // Randomly update status (30% chance)
           if (Math.random() < 0.3) {
             const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
             if (randomStatus !== 'OPEN') {
-              await fetch(`/api/cases/${caseData.id}/status`, {
+              await fetch(`/api/missions/${missionData.id}/status`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1763,7 +1763,7 @@ function CaseGenerator({ onDataGenerated }) {
           // Add random notes (0-2)
           const noteCount = Math.floor(Math.random() * 3);
           for (let j = 0; j < noteCount; j++) {
-            await fetch(`/api/cases/${caseData.id}/notes`, {
+            await fetch(`/api/missions/${missionData.id}/notes`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -1894,13 +1894,13 @@ function DataCleanup({ onDataGenerated }) {
 
     try {
       // Find and close test cases
-      const caseRes = await fetch('/api/cases');
+      const caseRes = await fetch('/api/missions');
       const { cases } = await caseRes.json();
 
       for (const c of cases) {
         if (c.petName && c.petName.startsWith('[TEST]')) {
           try {
-            await fetch(`/api/cases/${c.id}/status`, {
+            await fetch(`/api/missions/${c.id}/status`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

@@ -1,4 +1,4 @@
-# Phase 22-24: Roles, Permissions & Case Assignment MVP - Task Breakdown
+# Phase 22-24: Roles, Permissions & Mission Assignment MVP - Task Breakdown
 
 **Feature Spec:** `docs/features/roles-and-assignment-mvp.md`
 **Status:** ✅ Fully Implemented
@@ -14,8 +14,8 @@ This document breaks Phase 22-24 into **6 sequential tasks**:
 - **TASK-R01**: Role Model Audit & VISION Update
 - **TASK-R02**: Permission Helper Module
 - **TASK-R03**: Gate Admin Surfaces
-- **TASK-R04**: Case Assignment Schema & APIs
-- **TASK-R05**: Admin Case UI for Assignment
+- **TASK-R04**: Mission Assignment Schema & APIs
+- **TASK-R05**: Admin Mission UI for Assignment
 - **TASK-R06**: QA Integration, ERROR_IMPACT & Docs
 
 Each task includes:
@@ -53,11 +53,11 @@ Each task includes:
 2. **Update VISION.md:**
    - Add new section after Phase 25-26:
    ```markdown
-   - **🎯 Phase 22-24: Roles, Permissions & Case Assignment MVP** ❌ **IN PROGRESS** (Nov 25, 2025)
-     - **Scope**: Explicit global role enforcement and case coordinator tracking
+   - **🎯 Phase 22-24: Roles, Permissions & Mission Assignment MVP** ❌ **IN PROGRESS** (Nov 25, 2025)
+     - **Scope**: Explicit global role enforcement and mission coordinator tracking
      - **Permission Model**: ADMIN, MODERATOR, PATROL, USER with clear access rules
      - **Admin Gating**: All /admin/* surfaces require ADMIN role
-     - **Case Assignment**: Optional coordinatorId and squadId fields on LostPetCase
+     - **Mission Assignment**: Optional coordinatorId and squadId fields on LostPetMission
      - **Assignment APIs**: Endpoints to assign coordinator and owning squad
      - **Permission Helper**: Centralized lib/permissions.js module
      - **Observability**: All permission failures emit auth.permission_denied events
@@ -77,7 +77,7 @@ Each task includes:
 ### Commit Message
 
 ```
-[Phase 22-24] Add Roles & Case Assignment MVP to VISION
+[Phase 22-24] Add Roles & Mission Assignment MVP to VISION
 
 - Added Phase 22-24 entry to VISION.md (marked in progress)
 - Verified UserRole enum: USER, PATROL, MODERATOR, ADMIN
@@ -197,29 +197,29 @@ export async function requireStaffOrAdmin(session, context = {}) {
 }
 
 /**
- * Check if user can edit case
- * MVP: Only ADMIN can edit all cases
+ * Check if user can edit mission
+ * MVP: Only ADMIN can edit all missions
  * Future: Also coordinator and squad leaders
  *
  * @param {object} session - NextAuth session object
- * @param {object} caseData - Case data object (optional, for future use)
+ * @param {object} missionData - Mission data object (optional, for future use)
  * @returns {boolean} True if user can edit
  */
-export function canEditCase(session, caseData = null) {
+export function canEditMission(session, missionData = null) {
   const role = getUserRole(session);
 
-  // ADMIN can edit all cases
+  // ADMIN can edit all missions
   if (role === 'ADMIN') {
     return true;
   }
 
   // Future: MODERATOR can edit if they're the coordinator
-  // if (role === 'MODERATOR' && caseData?.coordinatorId === session?.user?.id) {
+  // if (role === 'MODERATOR' && missionData?.coordinatorId === session?.user?.id) {
   //   return true;
   // }
 
-  // Future: Squad leaders can edit squad cases
-  // if (caseData?.squadId && isSquadLeader(session.user.id, caseData.squadId)) {
+  // Future: Squad leaders can edit squad missions
+  // if (missionData?.squadId && isSquadLeader(session.user.id, missionData.squadId)) {
   //   return true;
   // }
 
@@ -227,13 +227,13 @@ export function canEditCase(session, caseData = null) {
 }
 
 /**
- * Check if user can assign case coordinator or squad
+ * Check if user can assign mission coordinator or squad
  * MVP: Only ADMIN
  *
  * @param {object} session - NextAuth session object
  * @returns {boolean} True if user can assign
  */
-export function canAssignCase(session) {
+export function canAssignMission(session) {
   return getUserRole(session) === 'ADMIN';
 }
 
@@ -281,8 +281,8 @@ export class PermissionError extends Error {
   - `getUserRole(session)`
   - `requireAdmin(session, context)`
   - `requireStaffOrAdmin(session, context)`
-  - `canEditCase(session, caseData)`
-  - `canAssignCase(session)`
+  - `canEditMission(session, missionData)`
+  - `canAssignMission(session)`
   - `isAdmin(session)`
   - `isStaff(session)`
 - [ ] `PermissionError` class defined
@@ -295,7 +295,7 @@ export class PermissionError extends Error {
 [Phase 22-24] TASK-R02: Create permission helper module
 
 - Created lib/permissions.js with centralized permission checks
-- Functions: requireAdmin, requireStaffOrAdmin, canEditCase, canAssignCase
+- Functions: requireAdmin, requireStaffOrAdmin, canEditMission, canAssignMission
 - All permission failures log auth.permission_denied events
 - Includes PermissionError class for consistent error handling
 - Designed for MVP (ADMIN-only) with hooks for future roles
@@ -315,12 +315,12 @@ export class PermissionError extends Error {
 **Modify:**
 - `frontend/app/admin/health/page.jsx` – Add permission check
 - `frontend/app/admin/qa/page.js` – Replace inline check with helper
-- `frontend/app/admin/cases/page.js` – Add permission check
-- `frontend/app/admin/cases/[id]/page.js` – Add permission check
-- `frontend/app/admin/cases/new/page.js` – Add permission check
-- `frontend/app/api/cases/route.js` – Add permission check to POST
-- `frontend/app/api/cases/[id]/status/route.js` – Add permission check
-- `frontend/app/api/cases/[id]/notes/route.js` – Add permission check
+- `frontend/app/admin/missions/page.js` – Add permission check
+- `frontend/app/admin/missions/[id]/page.js` – Add permission check
+- `frontend/app/admin/missions/new/page.js` – Add permission check
+- `frontend/app/api/missions/route.js` – Add permission check to POST
+- `frontend/app/api/missions/[id]/status/route.js` – Add permission check
+- `frontend/app/api/missions/[id]/notes/route.js` – Add permission check
 
 ### Implementation
 
@@ -398,7 +398,7 @@ export async function POST(request, { params }) {
     // Check permission (choose requireAdmin or requireStaffOrAdmin)
     try {
       await requireAdmin(session, {
-        resource_type: 'case',
+        resource_type: 'mission',
         resource_id: params?.id,
         action: 'update_status'
       });
@@ -430,27 +430,27 @@ export async function POST(request, { params }) {
 - Replace existing `if (session.user.role !== 'ADMIN')` check with `if (!isAdmin(session))`
 - Add "🔒 ADMIN ONLY" badge to header
 
-**3. `/admin/cases/page.js`**
+**3. `/admin/missions/page.js`**
 - Add permission check using `isAdmin(session)`
 - Add "🔒 ADMIN ONLY" badge
 
-**4. `/admin/cases/[id]/page.js`**
+**4. `/admin/missions/[id]/page.js`**
 - Add permission check using `isAdmin(session)`
 - Add "🔒 ADMIN ONLY" badge
 
-**5. `/admin/cases/new/page.js`**
+**5. `/admin/missions/new/page.js`**
 - Add permission check using `isAdmin(session)`
 - Add "🔒 ADMIN ONLY" badge
 
-**6. `/api/cases/route.js` (POST handler)**
+**6. `/api/missions/route.js` (POST handler)**
 - Add `requireStaffOrAdmin` check after authentication
-- This allows both ADMIN and MODERATOR to create cases
+- This allows both ADMIN and MODERATOR to create missions
 
-**7. `/api/cases/[id]/status/route.js`**
+**7. `/api/missions/[id]/status/route.js`**
 - Add `requireStaffOrAdmin` check after waiver check
 - Allows staff to update status
 
-**8. `/api/cases/[id]/notes/route.js`**
+**8. `/api/missions/[id]/notes/route.js`**
 - Add `requireStaffOrAdmin` check after authentication
 - Allows staff to add notes
 
@@ -458,7 +458,7 @@ export async function POST(request, { params }) {
 
 - [ ] All `/admin/*` client pages check `isAdmin(session)` and redirect non-admins
 - [ ] All admin pages show "🔒 ADMIN ONLY" badge
-- [ ] Case APIs use `requireStaffOrAdmin` for write operations
+- [ ] Mission APIs use `requireStaffOrAdmin` for write operations
 - [ ] Non-admin users redirected to `/dashboard` with clear message
 - [ ] Permission failures log `auth.permission_denied` events
 - [ ] No regressions to existing functionality
@@ -470,12 +470,12 @@ export async function POST(request, { params }) {
 [Phase 22-24] TASK-R03: Gate admin surfaces with permission checks
 
 Client-Side Changes:
-- Updated /admin/health, /admin/qa, /admin/cases/* to use isAdmin() helper
+- Updated /admin/health, /admin/qa, /admin/missions/* to use isAdmin() helper
 - Added "🔒 ADMIN ONLY" badges to all admin page headers
 - Non-admins redirected to /dashboard with clear access denied behavior
 
 Server-Side Changes:
-- Added requireStaffOrAdmin() checks to case APIs (create, status, notes)
+- Added requireStaffOrAdmin() checks to mission APIs (create, status, notes)
 - Permission failures return 403 with clear error messages
 - All failures logged as auth.permission_denied events
 
@@ -484,12 +484,12 @@ Testing:
 - Verified non-ADMIN users redirected from admin pages
 - Verified permission failures logged in EventLog
 
-No regressions to existing case workflows
+No regressions to existing mission workflows
 ```
 
 ---
 
-## TASK-R04: Case Assignment Schema & APIs
+## TASK-R04: Mission Assignment Schema & APIs
 
 **Goal:** Add coordinator field to schema and create assignment endpoints.
 
@@ -501,8 +501,8 @@ No regressions to existing case workflows
 - `frontend/prisma/schema.prisma` – Add coordinatorId field and relation
 
 **Create:**
-- `frontend/app/api/cases/[id]/assign-coordinator/route.js` – New API endpoint
-- `frontend/app/api/cases/[id]/assign-squad/route.js` – New API endpoint (or modify existing update)
+- `frontend/app/api/missions/[id]/assign-coordinator/route.js` – New API endpoint
+- `frontend/app/api/missions/[id]/assign-squad/route.js` – New API endpoint (or modify existing update)
 
 ### Implementation
 
@@ -511,12 +511,12 @@ No regressions to existing case workflows
 Update `prisma/schema.prisma`:
 
 ```prisma
-model LostPetCase {
+model LostPetMission {
   // ... existing fields ...
 
-  // NEW: Case Assignment (Phase 22-24)
+  // NEW: Mission Assignment (Phase 22-24)
   coordinatorId   String?
-  coordinator     User?         @relation("CaseCoordinator", fields: [coordinatorId], references: [id])
+  coordinator     User?         @relation("MissionCoordinator", fields: [coordinatorId], references: [id])
 
   // EXISTING: Owning squad (already present, keeping as-is)
   squadId         String?
@@ -530,8 +530,8 @@ model LostPetCase {
 model User {
   // ... existing relations ...
 
-  // NEW: Cases coordinated by this user
-  coordinatedCases  LostPetCase[]  @relation("CaseCoordinator")
+  // NEW: Missions coordinated by this user
+  coordinatedMissions  LostPetMission[]  @relation("MissionCoordinator")
 }
 ```
 
@@ -539,24 +539,24 @@ model User {
 
 ```bash
 cd frontend
-npx prisma migrate dev --name add_case_coordinator
+npx prisma migrate dev --name add_mission_coordinator
 ```
 
 **Migration file will:**
-- Add `coordinatorId` column to `LostPetCase` (nullable, indexed)
+- Add `coordinatorId` column to `LostPetMission` (nullable, indexed)
 - Add foreign key constraint to `User`
-- Existing cases will have `coordinatorId = null`
+- Existing missions will have `coordinatorId = null`
 
 #### 2. Assign Coordinator API
 
-Create `/frontend/app/api/cases/[id]/assign-coordinator/route.js`:
+Create `/frontend/app/api/missions/[id]/assign-coordinator/route.js`:
 
 ```javascript
 /**
- * Case Coordinator Assignment API
+ * Mission Coordinator Assignment API
  * Phase 22-24: Roles & Permissions MVP (TASK-R04)
  *
- * POST /api/cases/[id]/assign-coordinator - Assign or change coordinator
+ * POST /api/missions/[id]/assign-coordinator - Assign or change coordinator
  */
 
 import { NextResponse } from 'next/server';
@@ -569,8 +569,8 @@ import { requireAdmin, PermissionError } from '@/app/lib/permissions';
 export const dynamic = 'force-dynamic';
 
 /**
- * POST /api/cases/[id]/assign-coordinator
- * Assign or change the case coordinator
+ * POST /api/missions/[id]/assign-coordinator
+ * Assign or change the mission coordinator
  */
 export async function POST(request, { params }) {
   const startTime = Date.now();
@@ -587,7 +587,7 @@ export async function POST(request, { params }) {
     // Permission check (ADMIN only for MVP)
     try {
       await requireAdmin(session, {
-        resource_type: 'case',
+        resource_type: 'mission',
         resource_id: params.id,
         action: 'assign_coordinator'
       });
@@ -615,8 +615,8 @@ export async function POST(request, { params }) {
 
       if (!coordinator) {
         await logEvent({
-          event_type: 'case.assign_coordinator_failed',
-          resource_type: 'case',
+          event_type: 'mission.assign_coordinator_failed',
+          resource_type: 'mission',
           resource_id: params.id,
           action: 'update',
           result: 'failure',
@@ -624,7 +624,7 @@ export async function POST(request, { params }) {
           error_message: 'Coordinator user not found: ' + coordinatorId,
           actor_user_id: session.user.id,
           actor_role: session.user.role || 'USER',
-          metadata: { caseId: params.id, coordinatorId }
+          metadata: { missionId: params.id, coordinatorId }
         });
 
         return NextResponse.json({
@@ -636,8 +636,8 @@ export async function POST(request, { params }) {
       // Validate coordinator has appropriate role (ADMIN or MODERATOR)
       if (coordinator.role !== 'ADMIN' && coordinator.role !== 'MODERATOR') {
         await logEvent({
-          event_type: 'case.assign_coordinator_failed',
-          resource_type: 'case',
+          event_type: 'mission.assign_coordinator_failed',
+          resource_type: 'mission',
           resource_id: params.id,
           action: 'update',
           result: 'failure',
@@ -645,7 +645,7 @@ export async function POST(request, { params }) {
           error_message: `User ${coordinatorId} has role ${coordinator.role}, must be ADMIN or MODERATOR`,
           actor_user_id: session.user.id,
           actor_role: session.user.role || 'USER',
-          metadata: { caseId: params.id, coordinatorId, coordinatorRole: coordinator.role }
+          metadata: { missionId: params.id, coordinatorId, coordinatorRole: coordinator.role }
         });
 
         return NextResponse.json({
@@ -655,12 +655,12 @@ export async function POST(request, { params }) {
       }
     }
 
-    // Fetch current case
-    const currentCase = await prisma.lostPetCase.findUnique({
+    // Fetch current mission
+    const currentMission = await prisma.lostPetMission.findUnique({
       where: { id: params.id },
       select: {
         id: true,
-        caseNumber: true,
+        missionNumber: true,
         coordinatorId: true,
         coordinator: {
           select: { id: true, firstName: true, role: true }
@@ -668,27 +668,27 @@ export async function POST(request, { params }) {
       }
     });
 
-    if (!currentCase) {
+    if (!currentMission) {
       await logEvent({
-        event_type: 'case.assign_coordinator_failed',
-        resource_type: 'case',
+        event_type: 'mission.assign_coordinator_failed',
+        resource_type: 'mission',
         resource_id: params.id,
         action: 'update',
         result: 'failure',
         error_code: 'NOT_FOUND',
-        error_message: 'Case not found: ' + params.id,
+        error_message: 'Mission not found: ' + params.id,
         actor_user_id: session.user.id,
         actor_role: session.user.role || 'USER',
-        metadata: { caseId: params.id }
+        metadata: { missionId: params.id }
       });
 
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
-    const previousCoordinatorId = currentCase.coordinatorId;
+    const previousCoordinatorId = currentMission.coordinatorId;
 
-    // Update case
-    const updatedCase = await prisma.lostPetCase.update({
+    // Update mission
+    const updatedMission = await prisma.lostPetMission.update({
       where: { id: params.id },
       data: { coordinatorId: coordinatorId || null },
       include: {
@@ -715,16 +715,16 @@ export async function POST(request, { params }) {
 
     // Log assignment change
     await logEvent({
-      event_type: 'case.assignment_changed',
-      resource_type: 'case',
+      event_type: 'mission.assignment_changed',
+      resource_type: 'mission',
       resource_id: params.id,
       action: 'update',
       result: 'success',
       actor_user_id: session.user.id,
       actor_role: session.user.role || 'USER',
       metadata: {
-        case_id: params.id,
-        case_number: currentCase.caseNumber,
+        mission_id: params.id,
+        mission_number: currentMission.missionNumber,
         field_changed: 'coordinator',
         previous_value: previousCoordinatorId,
         new_value: coordinatorId,
@@ -735,7 +735,7 @@ export async function POST(request, { params }) {
 
     return NextResponse.json({
       success: true,
-      case: updatedCase,
+      mission: updatedMission,
       message: coordinatorId ? 'Coordinator assigned successfully' : 'Coordinator unassigned successfully'
     });
 
@@ -743,8 +743,8 @@ export async function POST(request, { params }) {
     console.error('Error assigning coordinator:', error);
 
     await logEvent({
-      event_type: 'case.assign_coordinator_failed',
-      resource_type: 'case',
+      event_type: 'mission.assign_coordinator_failed',
+      resource_type: 'mission',
       resource_id: params.id,
       action: 'update',
       result: 'failure',
@@ -753,7 +753,7 @@ export async function POST(request, { params }) {
       actor_user_id: session?.user?.id || null,
       actor_role: session?.user?.role || 'USER',
       metadata: {
-        caseId: params.id,
+        missionId: params.id,
         error_stack: error.stack?.substring(0, 500)
       }
     });
@@ -768,14 +768,14 @@ export async function POST(request, { params }) {
 
 #### 3. Assign Squad API
 
-Create `/frontend/app/api/cases/[id]/assign-squad/route.js`:
+Create `/frontend/app/api/missions/[id]/assign-squad/route.js`:
 
 ```javascript
 /**
- * Case Squad Assignment API
+ * Mission Squad Assignment API
  * Phase 22-24: Roles & Permissions MVP (TASK-R04)
  *
- * POST /api/cases/[id]/assign-squad - Assign or change owning squad
+ * POST /api/missions/[id]/assign-squad - Assign or change owning squad
  */
 
 import { NextResponse } from 'next/server';
@@ -788,7 +788,7 @@ import { requireAdmin, PermissionError } from '@/app/lib/permissions';
 export const dynamic = 'force-dynamic';
 
 /**
- * POST /api/cases/[id]/assign-squad
+ * POST /api/missions/[id]/assign-squad
  * Assign or change the owning squad
  */
 export async function POST(request, { params }) {
@@ -805,7 +805,7 @@ export async function POST(request, { params }) {
     // Permission check (ADMIN only for MVP)
     try {
       await requireAdmin(session, {
-        resource_type: 'case',
+        resource_type: 'mission',
         resource_id: params.id,
         action: 'assign_squad'
       });
@@ -832,8 +832,8 @@ export async function POST(request, { params }) {
 
       if (!squad) {
         await logEvent({
-          event_type: 'case.assign_squad_failed',
-          resource_type: 'case',
+          event_type: 'mission.assign_squad_failed',
+          resource_type: 'mission',
           resource_id: params.id,
           action: 'update',
           result: 'failure',
@@ -841,7 +841,7 @@ export async function POST(request, { params }) {
           error_message: 'Squad not found: ' + squadId,
           actor_user_id: session.user.id,
           actor_role: session.user.role || 'USER',
-          metadata: { caseId: params.id, squadId }
+          metadata: { missionId: params.id, squadId }
         });
 
         return NextResponse.json({
@@ -852,8 +852,8 @@ export async function POST(request, { params }) {
 
       if (!squad.isActive) {
         await logEvent({
-          event_type: 'case.assign_squad_failed',
-          resource_type: 'case',
+          event_type: 'mission.assign_squad_failed',
+          resource_type: 'mission',
           resource_id: params.id,
           action: 'update',
           result: 'failure',
@@ -861,7 +861,7 @@ export async function POST(request, { params }) {
           error_message: 'Cannot assign inactive squad: ' + squadId,
           actor_user_id: session.user.id,
           actor_role: session.user.role || 'USER',
-          metadata: { caseId: params.id, squadId, squadName: squad.name }
+          metadata: { missionId: params.id, squadId, squadName: squad.name }
         });
 
         return NextResponse.json({
@@ -871,33 +871,33 @@ export async function POST(request, { params }) {
       }
     }
 
-    // Fetch current case
-    const currentCase = await prisma.lostPetCase.findUnique({
+    // Fetch current mission
+    const currentMission = await prisma.lostPetMission.findUnique({
       where: { id: params.id },
-      select: { id: true, caseNumber: true, squadId: true }
+      select: { id: true, missionNumber: true, squadId: true }
     });
 
-    if (!currentCase) {
+    if (!currentMission) {
       await logEvent({
-        event_type: 'case.assign_squad_failed',
-        resource_type: 'case',
+        event_type: 'mission.assign_squad_failed',
+        resource_type: 'mission',
         resource_id: params.id,
         action: 'update',
         result: 'failure',
         error_code: 'NOT_FOUND',
-        error_message: 'Case not found: ' + params.id,
+        error_message: 'Mission not found: ' + params.id,
         actor_user_id: session.user.id,
         actor_role: session.user.role || 'USER',
-        metadata: { caseId: params.id }
+        metadata: { missionId: params.id }
       });
 
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
-    const previousSquadId = currentCase.squadId;
+    const previousSquadId = currentMission.squadId;
 
-    // Update case
-    const updatedCase = await prisma.lostPetCase.update({
+    // Update mission
+    const updatedMission = await prisma.lostPetMission.update({
       where: { id: params.id },
       data: { squadId: squadId || null },
       include: {
@@ -914,16 +914,16 @@ export async function POST(request, { params }) {
 
     // Log assignment change
     await logEvent({
-      event_type: 'case.squad_assigned',
-      resource_type: 'case',
+      event_type: 'mission.squad_assigned',
+      resource_type: 'mission',
       resource_id: params.id,
       action: 'update',
       result: 'success',
       actor_user_id: session.user.id,
       actor_role: session.user.role || 'USER',
       metadata: {
-        case_id: params.id,
-        case_number: currentCase.caseNumber,
+        mission_id: params.id,
+        mission_number: currentMission.missionNumber,
         field_changed: 'squad',
         previous_value: previousSquadId,
         new_value: squadId,
@@ -934,7 +934,7 @@ export async function POST(request, { params }) {
 
     return NextResponse.json({
       success: true,
-      case: updatedCase,
+      mission: updatedMission,
       message: squadId ? 'Squad assigned successfully' : 'Squad unassigned successfully'
     });
 
@@ -942,8 +942,8 @@ export async function POST(request, { params }) {
     console.error('Error assigning squad:', error);
 
     await logEvent({
-      event_type: 'case.assign_squad_failed',
-      resource_type: 'case',
+      event_type: 'mission.assign_squad_failed',
+      resource_type: 'mission',
       resource_id: params.id,
       action: 'update',
       result: 'failure',
@@ -952,7 +952,7 @@ export async function POST(request, { params }) {
       actor_user_id: session?.user?.id || null,
       actor_role: session?.user?.role || 'USER',
       metadata: {
-        caseId: params.id,
+        missionId: params.id,
         error_stack: error.stack?.substring(0, 500)
       }
     });
@@ -967,37 +967,37 @@ export async function POST(request, { params }) {
 
 ### Acceptance Criteria
 
-- [ ] Schema updated with `coordinatorId` field and `CaseCoordinator` relation
+- [ ] Schema updated with `coordinatorId` field and `MissionCoordinator` relation
 - [ ] Migration created and applied successfully
-- [ ] Existing cases have `coordinatorId = null`
-- [ ] `POST /api/cases/[id]/assign-coordinator` endpoint created
-- [ ] `POST /api/cases/[id]/assign-squad` endpoint created
+- [ ] Existing missions have `coordinatorId = null`
+- [ ] `POST /api/missions/[id]/assign-coordinator` endpoint created
+- [ ] `POST /api/missions/[id]/assign-squad` endpoint created
 - [ ] Both endpoints require ADMIN role
 - [ ] Coordinator validation: must exist and have ADMIN/MODERATOR role
 - [ ] Squad validation: must exist and be active
-- [ ] Assignment changes emit proper events (`case.assignment_changed`, `case.squad_assigned`)
+- [ ] Assignment changes emit proper events (`mission.assignment_changed`, `mission.squad_assigned`)
 - [ ] Invalid inputs return 400 with clear error messages
 - [ ] Manual testing: Assign coordinator, assign squad, verify events logged
 
 ### Commit Message
 
 ```
-[Phase 22-24] TASK-R04: Add case assignment schema and APIs
+[Phase 22-24] TASK-R04: Add mission assignment schema and APIs
 
 Schema Changes:
-- Added coordinatorId field to LostPetCase (nullable, indexed)
-- Added CaseCoordinator relation between User and LostPetCase
-- Migration: add_case_coordinator
+- Added coordinatorId field to LostPetMission (nullable, indexed)
+- Added MissionCoordinator relation between User and LostPetMission
+- Migration: add_mission_coordinator
 
 New API Endpoints:
-- POST /api/cases/[id]/assign-coordinator - Assign/change coordinator
-- POST /api/cases/[id]/assign-squad - Assign/change owning squad
+- POST /api/missions/[id]/assign-coordinator - Assign/change coordinator
+- POST /api/missions/[id]/assign-squad - Assign/change owning squad
 
 Features:
 - ADMIN-only access (enforced via requireAdmin helper)
 - Coordinator validation (must be ADMIN or MODERATOR role)
 - Squad validation (must exist and be active)
-- Assignment changes emit case.assignment_changed and case.squad_assigned events
+- Assignment changes emit mission.assignment_changed and mission.squad_assigned events
 - All failures logged with structured events
 
 Testing:
@@ -1006,12 +1006,12 @@ Testing:
 - Tested squad assignment (valid, invalid, unassign)
 - Verified events logged correctly
 
-No regressions to existing case functionality
+No regressions to existing mission functionality
 ```
 
 ---
 
-## TASK-R05: Admin Case UI for Assignment
+## TASK-R05: Admin Mission UI for Assignment
 
 **Goal:** Add coordinator and squad assignment controls to admin UI.
 
@@ -1020,14 +1020,14 @@ No regressions to existing case functionality
 ### Files
 
 **Modify:**
-- `frontend/app/admin/cases/[id]/page.js` – Add assignment controls to case detail
-- Optionally: `frontend/app/admin/cases/page.js` – Add coordinator column to list
+- `frontend/app/admin/missions/[id]/page.js` – Add assignment controls to mission detail
+- Optionally: `frontend/app/admin/missions/page.js` – Add coordinator column to list
 
 ### Implementation
 
-#### 1. Case Detail Assignment Section
+#### 1. Mission Detail Assignment Section
 
-In `/admin/cases/[id]/page.js`, add assignment UI after case details:
+In `/admin/missions/[id]/page.js`, add assignment UI after mission details:
 
 ```javascript
 'use client';
@@ -1037,11 +1037,11 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { isAdmin } from '@/app/lib/permissions';
 
-export default function AdminCaseDetailPage({ params }) {
+export default function AdminMissionDetailPage({ params }) {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const [caseData, setCaseData] = useState(null);
+  const [missionData, setMissionData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // NEW: Assignment state
@@ -1056,19 +1056,19 @@ export default function AdminCaseDetailPage({ params }) {
 
   useEffect(() => {
     if (status === 'authenticated' && isAdmin(session)) {
-      // Fetch case data (existing)
-      fetchCase();
+      // Fetch mission data (existing)
+      fetchMission();
 
       // NEW: Fetch assignment options
       fetchAssignmentOptions();
     }
   }, [status, session]);
 
-  async function fetchCase() {
-    // ... existing case fetch ...
-    const res = await fetch(`/api/cases/${params.id}`);
+  async function fetchMission() {
+    // ... existing mission fetch ...
+    const res = await fetch(`/api/missions/${params.id}`);
     const data = await res.json();
-    setCaseData(data);
+    setMissionData(data);
 
     // Set initial selection
     setSelectedCoordinatorId(data.coordinatorId || '');
@@ -1099,8 +1099,8 @@ export default function AdminCaseDetailPage({ params }) {
 
     try {
       // Update coordinator if changed
-      if (selectedCoordinatorId !== (caseData.coordinatorId || '')) {
-        const coordRes = await fetch(`/api/cases/${params.id}/assign-coordinator`, {
+      if (selectedCoordinatorId !== (missionData.coordinatorId || '')) {
+        const coordRes = await fetch(`/api/missions/${params.id}/assign-coordinator`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1115,8 +1115,8 @@ export default function AdminCaseDetailPage({ params }) {
       }
 
       // Update squad if changed
-      if (selectedSquadId !== (caseData.squadId || '')) {
-        const squadRes = await fetch(`/api/cases/${params.id}/assign-squad`, {
+      if (selectedSquadId !== (missionData.squadId || '')) {
+        const squadRes = await fetch(`/api/missions/${params.id}/assign-squad`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1132,8 +1132,8 @@ export default function AdminCaseDetailPage({ params }) {
 
       setSaveMessage({ type: 'success', text: 'Assignment updated successfully' });
 
-      // Refresh case data
-      await fetchCase();
+      // Refresh mission data
+      await fetchMission();
     } catch (error) {
       console.error('Save error:', error);
       setSaveMessage({ type: 'error', text: error.message });
@@ -1143,8 +1143,8 @@ export default function AdminCaseDetailPage({ params }) {
   }
 
   const hasChanges =
-    selectedCoordinatorId !== (caseData?.coordinatorId || '') ||
-    selectedSquadId !== (caseData?.squadId || '');
+    selectedCoordinatorId !== (missionData?.coordinatorId || '') ||
+    selectedSquadId !== (missionData?.squadId || '');
 
   if (loading) {
     return <div>Loading...</div>;
@@ -1152,7 +1152,7 @@ export default function AdminCaseDetailPage({ params }) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* Existing case detail sections ... */}
+      {/* Existing mission detail sections ... */}
 
       {/* NEW: Assignment Section */}
       <div className="mt-6 bg-white border border-gray-200 rounded-lg p-6">
@@ -1237,40 +1237,40 @@ export default function AdminCaseDetailPage({ params }) {
 
 **Note:** You'll need to create `/api/users` endpoint to fetch ADMIN/MODERATOR users, or inline the user fetch logic.
 
-#### 2. Case List Coordinator Column (Optional)
+#### 2. Mission List Coordinator Column (Optional)
 
-In `/admin/cases/page.js`, add coordinator column to table:
+In `/admin/missions/page.js`, add coordinator column to table:
 
 ```javascript
 <table className="min-w-full divide-y divide-gray-200">
   <thead className="bg-gray-50">
     <tr>
-      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-        Case Number
+      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppermission">
+        Mission Number
       </th>
       {/* ... other columns ... */}
-      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppermission">
         Coordinator
       </th>
-      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppermission">
         Squad
       </th>
     </tr>
   </thead>
   <tbody>
-    {cases.map(caseItem => (
-      <tr key={caseItem.id}>
-        <td className="px-6 py-4">{caseItem.caseNumber}</td>
+    {missions.map(missionItem => (
+      <tr key={missionItem.id}>
+        <td className="px-6 py-4">{missionItem.missionNumber}</td>
         {/* ... other cells ... */}
         <td className="px-6 py-4 text-sm text-gray-600">
-          {caseItem.coordinator
-            ? `${caseItem.coordinator.firstName} ${caseItem.coordinator.lastName || ''}`
+          {missionItem.coordinator
+            ? `${missionItem.coordinator.firstName} ${missionItem.coordinator.lastName || ''}`
             : <span className="text-gray-400 italic">Unassigned</span>
           }
         </td>
         <td className="px-6 py-4 text-sm text-gray-600">
-          {caseItem.squad
-            ? caseItem.squad.name
+          {missionItem.squad
+            ? missionItem.squad.name
             : <span className="text-gray-400 italic">No squad</span>
           }
         </td>
@@ -1280,10 +1280,10 @@ In `/admin/cases/page.js`, add coordinator column to table:
 </table>
 ```
 
-**Update API response** in `/api/cases/route.js` GET handler to include coordinator and squad:
+**Update API response** in `/api/missions/route.js` GET handler to include coordinator and squad:
 
 ```javascript
-const cases = await prisma.lostPetCase.findMany({
+const missions = await prisma.lostPetMission.findMany({
   where,
   include: {
     coordinator: {
@@ -1303,34 +1303,34 @@ const cases = await prisma.lostPetCase.findMany({
 
 ### Acceptance Criteria
 
-- [ ] Case detail page shows Assignment section
+- [ ] Mission detail page shows Assignment section
 - [ ] Coordinator dropdown lists ADMIN/MODERATOR users
 - [ ] Squad dropdown lists active squads
 - [ ] "Save Assignment" button appears when changes made
 - [ ] Successful save shows success message and refreshes data
 - [ ] Failed save shows error message
-- [ ] Case list shows coordinator and squad columns
+- [ ] Mission list shows coordinator and squad columns
 - [ ] "Unassigned" shown in gray when no coordinator
 - [ ] UI is responsive and matches existing design
-- [ ] No regressions to existing case detail functionality
+- [ ] No regressions to existing mission detail functionality
 
 ### Commit Message
 
 ```
-[Phase 22-24] TASK-R05: Add assignment controls to admin case UI
+[Phase 22-24] TASK-R05: Add assignment controls to admin mission UI
 
-Case Detail Page Changes:
+Mission Detail Page Changes:
 - Added Assignment section with coordinator and squad dropdowns
 - Coordinator dropdown lists ADMIN/MODERATOR users only
 - Squad dropdown lists all active squads
 - "Save Assignment" button enabled when changes made
 - Success/error feedback via toast messages
-- Auto-refresh case data after successful save
+- Auto-refresh mission data after successful save
 
-Case List Page Changes (Optional):
+Mission List Page Changes (Optional):
 - Added Coordinator column showing assigned user or "Unassigned"
 - Added Squad column showing squad name or "No squad"
-- Updated GET /api/cases to include coordinator and squad relations
+- Updated GET /api/missions to include coordinator and squad relations
 
 Testing:
 - Verified assignment dropdowns populate correctly
@@ -1339,7 +1339,7 @@ Testing:
 - Verified success/error messages display properly
 - Confirmed EventLog shows assignment_changed events
 
-No regressions to existing admin case UI
+No regressions to existing admin mission UI
 ```
 
 ---
@@ -1388,7 +1388,7 @@ async function testAdminCanAccessHealth() {
 
 async function testNonAdminBlockedFromHealth() {
   // This test requires creating a non-admin session, which is tricky in browser tests
-  // For MVP, we can document this as a manual test case
+  // For MVP, we can document this as a manual test mission
   // Or implement by checking if non-admin redirect logic exists in the page code
 
   return {
@@ -1396,9 +1396,9 @@ async function testNonAdminBlockedFromHealth() {
   };
 }
 
-async function testAssignCaseCoordinator() {
-  // Create a test case
-  const createRes = await fetch('/api/cases', {
+async function testAssignMissionCoordinator() {
+  // Create a test mission
+  const createRes = await fetch('/api/missions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1412,10 +1412,10 @@ async function testAssignCaseCoordinator() {
 
   if (!createRes.ok) {
     const error = await createRes.json();
-    throw new Error(`Create case failed: ${error.error}`);
+    throw new Error(`Create mission failed: ${error.error}`);
   }
 
-  const { case: testCase } = await createRes.json();
+  const { mission: testMission } = await createRes.json();
 
   // Fetch list of coordinators
   const usersRes = await fetch('/api/users?roles=ADMIN,MODERATOR');
@@ -1423,7 +1423,7 @@ async function testAssignCaseCoordinator() {
 
   if (!users || users.length === 0) {
     return {
-      case_id: testCase.id,
+      mission_id: testMission.id,
       note: 'No ADMIN/MODERATOR users available for assignment test'
     };
   }
@@ -1431,7 +1431,7 @@ async function testAssignCaseCoordinator() {
   const coordinatorId = users[0].id;
 
   // Assign coordinator
-  const assignRes = await fetch(`/api/cases/${testCase.id}/assign-coordinator`, {
+  const assignRes = await fetch(`/api/missions/${testMission.id}/assign-coordinator`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ coordinatorId })
@@ -1442,32 +1442,32 @@ async function testAssignCaseCoordinator() {
     throw new Error(`Assign coordinator failed: ${error.message || error.error}`);
   }
 
-  const { case: updatedCase } = await assignRes.json();
+  const { mission: updatedMission } = await assignRes.json();
 
   return {
-    case_id: updatedCase.id,
-    case_number: updatedCase.caseNumber,
-    coordinator_id: updatedCase.coordinatorId,
-    coordinator_name: updatedCase.coordinator?.firstName,
-    note: 'Coordinator assigned successfully. Check EventLog for case.assignment_changed event.'
+    mission_id: updatedMission.id,
+    mission_number: updatedMission.missionNumber,
+    coordinator_id: updatedMission.coordinatorId,
+    coordinator_name: updatedMission.coordinator?.firstName,
+    note: 'Coordinator assigned successfully. Check EventLog for mission.assignment_changed event.'
   };
 }
 
-async function testAssignCaseSquad() {
-  // Find or create a test case
-  const listRes = await fetch('/api/cases?limit=1');
+async function testAssignMissionSquad() {
+  // Find or create a test mission
+  const listRes = await fetch('/api/missions?limit=1');
   if (!listRes.ok) {
-    throw new Error('Failed to list cases');
+    throw new Error('Failed to list missions');
   }
 
-  const { cases } = await listRes.json();
-  let testCaseId;
+  const { missions } = await listRes.json();
+  let testMissionId;
 
-  if (cases.length > 0) {
-    testCaseId = cases[0].id;
+  if (missions.length > 0) {
+    testMissionId = missions[0].id;
   } else {
     // Create one
-    const createRes = await fetch('/api/cases', {
+    const createRes = await fetch('/api/missions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1481,11 +1481,11 @@ async function testAssignCaseSquad() {
 
     if (!createRes.ok) {
       const error = await createRes.json();
-      throw new Error(`Create case failed: ${error.error}`);
+      throw new Error(`Create mission failed: ${error.error}`);
     }
 
-    const { case: newCase } = await createRes.json();
-    testCaseId = newCase.id;
+    const { mission: newMission } = await createRes.json();
+    testMissionId = newMission.id;
   }
 
   // Find an active squad
@@ -1495,7 +1495,7 @@ async function testAssignCaseSquad() {
   const testSquad = cities.find(c => c.squad);
   if (!testSquad) {
     return {
-      case_id: testCaseId,
+      mission_id: testMissionId,
       note: 'No active squads available for assignment test'
     };
   }
@@ -1503,7 +1503,7 @@ async function testAssignCaseSquad() {
   const squadId = testSquad.squad.id;
 
   // Assign squad
-  const assignRes = await fetch(`/api/cases/${testCaseId}/assign-squad`, {
+  const assignRes = await fetch(`/api/missions/${testMissionId}/assign-squad`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ squadId })
@@ -1514,30 +1514,30 @@ async function testAssignCaseSquad() {
     throw new Error(`Assign squad failed: ${error.message || error.error}`);
   }
 
-  const { case: updatedCase } = await assignRes.json();
+  const { mission: updatedMission } = await assignRes.json();
 
   return {
-    case_id: updatedCase.id,
-    case_number: updatedCase.caseNumber,
-    squad_id: updatedCase.squadId,
-    squad_name: updatedCase.squad?.name,
-    note: 'Squad assigned successfully. Check EventLog for case.squad_assigned event.'
+    mission_id: updatedMission.id,
+    mission_number: updatedMission.missionNumber,
+    squad_id: updatedMission.squadId,
+    squad_name: updatedMission.squad?.name,
+    note: 'Squad assigned successfully. Check EventLog for mission.squad_assigned event.'
   };
 }
 
 async function testInvalidCoordinatorAssignment() {
   // Test assigning invalid coordinator (should fail with validation error)
-  const listRes = await fetch('/api/cases?limit=1');
-  const { cases } = await listRes.json();
+  const listRes = await fetch('/api/missions?limit=1');
+  const { missions } = await listRes.json();
 
-  if (cases.length === 0) {
-    return { note: 'No cases available for invalid assignment test' };
+  if (missions.length === 0) {
+    return { note: 'No missions available for invalid assignment test' };
   }
 
-  const testCaseId = cases[0].id;
+  const testMissionId = missions[0].id;
   const invalidCoordinatorId = 'clx-invalid-id-999';
 
-  const assignRes = await fetch(`/api/cases/${testCaseId}/assign-coordinator`, {
+  const assignRes = await fetch(`/api/missions/${testMissionId}/assign-coordinator`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ coordinatorId: invalidCoordinatorId })
@@ -1582,8 +1582,8 @@ async function testPermissionDeniedLogging() {
 
 const [permissionTests, setPermissionTests] = useState([
   { id: 'admin-access-health', name: 'Admin Can Access Health', status: 'idle', fn: testAdminCanAccessHealth },
-  { id: 'assign-coordinator', name: 'Assign Case Coordinator', status: 'idle', fn: testAssignCaseCoordinator },
-  { id: 'assign-squad', name: 'Assign Case Squad', status: 'idle', fn: testAssignCaseSquad },
+  { id: 'assign-coordinator', name: 'Assign Mission Coordinator', status: 'idle', fn: testAssignMissionCoordinator },
+  { id: 'assign-squad', name: 'Assign Mission Squad', status: 'idle', fn: testAssignMissionSquad },
   { id: 'invalid-coordinator', name: 'Invalid Coordinator Rejected', status: 'idle', fn: testInvalidCoordinatorAssignment },
 ]);
 const [runningPermission, setRunningPermission] = useState(false);
@@ -1614,14 +1614,14 @@ const runPermissionTests = async () => {
 const runAllTests = async () => {
   await runLegalTests();
   await runSquadTests();
-  await runCaseTests();
-  await runPublicCaseTests();
+  await runMissionTests();
+  await runPublicMissionTests();
   await runNotificationTests();
   await runPermissionTests(); // NEW
 };
 
 // Update isAnyRunning
-const isAnyRunning = runningLegal || runningSquad || runningCase || runningPublicCase || runningNotification || runningPermission;
+const isAnyRunning = runningLegal || runningSquad || runningMission || runningPublicMission || runningNotification || runningPermission;
 ```
 
 **Add UI:**
@@ -1646,10 +1646,10 @@ const ERROR_IMPACT = {
 
   // Permission & Assignment (Phase 22-24)
   'auth.permission_denied': { label: 'Permission Denied', severity: 'medium' },
-  'case.assignment_changed': { label: 'Case Assignment', severity: 'low' },
-  'case.assign_coordinator_failed': { label: 'Case Assignment', severity: 'medium' },
-  'case.squad_assigned': { label: 'Squad Assignment', severity: 'low' },
-  'case.assign_squad_failed': { label: 'Squad Assignment', severity: 'medium' },
+  'mission.assignment_changed': { label: 'Mission Assignment', severity: 'low' },
+  'mission.assign_coordinator_failed': { label: 'Mission Assignment', severity: 'medium' },
+  'mission.squad_assigned': { label: 'Squad Assignment', severity: 'low' },
+  'mission.assign_squad_failed': { label: 'Squad Assignment', severity: 'medium' },
 };
 ```
 
@@ -1667,15 +1667,15 @@ Change status line:
 Change Phase 22-24 entry to ✅ COMPLETE:
 
 ```markdown
-- **🎉 Phase 22-24: Roles, Permissions & Case Assignment MVP** ✅ **COMPLETE** (Nov 25, 2025)
+- **🎉 Phase 22-24: Roles, Permissions & Mission Assignment MVP** ✅ **COMPLETE** (Nov 25, 2025)
   - **Permission Model**: Clear roles (ADMIN, MODERATOR, PATROL, USER) with explicit access rules
   - **Admin Gating**: All /admin/* surfaces require ADMIN role with consistent enforcement
   - **Permission Helper**: Centralized lib/permissions.js module with requireAdmin/requireStaffOrAdmin
-  - **Case Assignment Schema**: Added coordinatorId (User relation) to LostPetCase
+  - **Mission Assignment Schema**: Added coordinatorId (User relation) to LostPetMission
   - **Assignment APIs**: 2 endpoints (assign-coordinator, assign-squad) with validation
-  - **Admin UI**: Assignment section on case detail with coordinator/squad dropdowns
+  - **Admin UI**: Assignment section on mission detail with coordinator/squad dropdowns
   - **Observability**: All permission failures emit auth.permission_denied events
-  - **Assignment Logging**: case.assignment_changed and case.squad_assigned events
+  - **Assignment Logging**: mission.assignment_changed and mission.squad_assigned events
   - **QA Integration**: 6 new permission & assignment tests in QA harness
   - **ERROR_IMPACT**: New event types mapped to medium/low severity
   - **See:** `docs/features/roles-and-assignment-mvp.md`
@@ -1689,10 +1689,10 @@ In VISION.md, update the "Next Tactical Priorities" section:
 ### 🎯 Next Tactical Priorities
 
 1. **Identify and implement next phase cluster from roadmap**
-   - Build on Phase 0 (observability), Phase 13-14 (cases), Phase 15-16 (public portal), Phase 20-21 (QA), Phase 25-26 (notifications), Phase 22-24 (roles & assignment) foundations
+   - Build on Phase 0 (observability), Phase 13-14 (missions), Phase 15-16 (public portal), Phase 20-21 (QA), Phase 25-26 (notifications), Phase 22-24 (roles & assignment) foundations
    - Continue 108-phase roadmap with same discipline
    - All features must emit structured events and respect legal gating
-   - Candidate phases: sighting reports, case matching algorithm, coordinator notifications, workload metrics
+   - Candidate phases: sighting reports, mission matching algorithm, coordinator notifications, workload metrics
 ```
 
 ### Acceptance Criteria
@@ -1714,8 +1714,8 @@ In VISION.md, update the "Next Tactical Priorities" section:
 QA Harness Integration:
 - Added 6 permission & assignment tests to /admin/qa page
   1. Admin Can Access Health test
-  2. Assign Case Coordinator test
-  3. Assign Case Squad test
+  2. Assign Mission Coordinator test
+  3. Assign Mission Squad test
   4. Invalid Coordinator Rejected test
   5. Permission denied logging verification
   6. Non-admin access blocked (manual test documented)
@@ -1723,10 +1723,10 @@ QA Harness Integration:
 
 ERROR_IMPACT Updates:
 - Added auth.permission_denied (medium severity)
-- Added case.assignment_changed (low severity)
-- Added case.assign_coordinator_failed (medium severity)
-- Added case.squad_assigned (low severity)
-- Added case.assign_squad_failed (medium severity)
+- Added mission.assignment_changed (low severity)
+- Added mission.assign_coordinator_failed (medium severity)
+- Added mission.squad_assigned (low severity)
+- Added mission.assign_squad_failed (medium severity)
 
 Documentation:
 - Updated roles-and-assignment-mvp.md status to "✅ Fully Implemented"
@@ -1745,8 +1745,8 @@ Phase 22-24 delivers:
 1. **Clear Permission Model** – ADMIN, MODERATOR, PATROL, USER with explicit rules
 2. **Centralized Permission Helpers** – `lib/permissions.js` with requireAdmin/requireStaffOrAdmin
 3. **Admin Surface Gating** – All `/admin/*` pages and APIs properly protected
-4. **Case Assignment** – `coordinatorId` and `squadId` fields with assignment APIs
-5. **Admin UI** – Assignment controls on case detail page
+4. **Mission Assignment** – `coordinatorId` and `squadId` fields with assignment APIs
+5. **Admin UI** – Assignment controls on mission detail page
 6. **Full Observability** – Permission failures and assignment changes logged
 7. **QA Integration** – 6 tests validating permissions and assignment
 8. **Complete Documentation** – Feature spec, task breakdown, VISION entry

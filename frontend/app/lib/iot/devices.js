@@ -266,7 +266,7 @@ export async function handleCameraMotion(event) {
     if (matches.length > 0) {
       // Alert case owners
       for (const match of matches) {
-        await sendPotentialSightingAlert(match.caseId, {
+        await sendPotentialSightingAlert(match.missionId, {
           cameraId,
           location: event.location,
           imageUrl,
@@ -375,7 +375,7 @@ export async function handleTrapTrigger(event) {
 /**
  * Stream live location for search coordination
  */
-export async function startLiveTracking(deviceId, providerId, caseId) {
+export async function startLiveTracking(deviceId, providerId, missionId) {
   const provider = DEVICE_PROVIDERS[providerId.toUpperCase()];
 
   // Enable live tracking mode (higher update frequency)
@@ -385,7 +385,7 @@ export async function startLiveTracking(deviceId, providerId, caseId) {
   const session = {
     id: `track-${Date.now()}`,
     deviceId,
-    caseId,
+    missionId,
     startedAt: new Date().toISOString(),
     status: 'active',
     updateInterval: 10, // seconds
@@ -458,8 +458,8 @@ async function matchAgainstActiveCases(imageUrl, detections) {
   return [];
 }
 
-async function sendPotentialSightingAlert(caseId, data) {
-  console.log(`Sending sighting alert for case ${caseId}`);
+async function sendPotentialSightingAlert(missionId, data) {
+  console.log(`Sending sighting alert for case ${missionId}`);
 }
 
 async function getTrapInfo(trapId) {

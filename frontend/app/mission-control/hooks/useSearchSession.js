@@ -107,7 +107,7 @@ function validateMovement(prevPing, currentPing) {
   return { valid: true, distance, speed };
 }
 
-export default function useSearchSession(caseId, lastSeenLocation) {
+export default function useSearchSession(missionId, lastSeenLocation) {
   // Session state
   const [session, setSession] = useState(null);
   const [isActive, setIsActive] = useState(false);
@@ -162,11 +162,11 @@ export default function useSearchSession(caseId, lastSeenLocation) {
 
   // Fetch active session on mount
   useEffect(() => {
-    if (!caseId) return;
+    if (!missionId) return;
 
     const fetchSession = async () => {
       try {
-        const res = await fetch(`/api/mission/${caseId}/search`);
+        const res = await fetch(`/api/mission/${missionId}/search`);
         if (res.ok) {
           const data = await res.json();
           if (data.activeSession) {
@@ -199,7 +199,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
     };
 
     fetchSession();
-  }, [caseId]);
+  }, [missionId]);
 
   // Duration timer
   useEffect(() => {
@@ -328,7 +328,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
 
     // Send ping to server
     try {
-      await fetch(`/api/mission/${caseId}/search`, {
+      await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -349,7 +349,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
     } catch (err) {
       console.error('Error sending ping:', err);
     }
-  }, [session?.id, isActive, caseId, isWithinSearchZone, lastSeenLocation]);
+  }, [session?.id, isActive, missionId, isWithinSearchZone, lastSeenLocation]);
 
   // Start GPS watching
   useEffect(() => {
@@ -386,7 +386,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
 
   // Start a new search session
   const startSearch = useCallback(async () => {
-    if (!caseId) return { success: false, error: 'No case ID' };
+    if (!missionId) return { success: false, error: 'No case ID' };
 
     setIsStarting(true);
     setError(null);
@@ -419,7 +419,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
       }
 
       // Call API to start session
-      const res = await fetch(`/api/mission/${caseId}/search`, {
+      const res = await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -477,7 +477,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
     } finally {
       setIsStarting(false);
     }
-  }, [caseId, isWithinSearchZone, lastSeenLocation]);
+  }, [missionId, isWithinSearchZone, lastSeenLocation]);
 
   // End the search session
   const endSearch = useCallback(async () => {
@@ -499,7 +499,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
       }
 
       // Call API to end session
-      const res = await fetch(`/api/mission/${caseId}/search`, {
+      const res = await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -530,7 +530,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
     } finally {
       setIsEnding(false);
     }
-  }, [session?.id, caseId]);
+  }, [session?.id, missionId]);
 
   // Cancel search (no points)
   const cancelSearch = useCallback(async () => {
@@ -548,7 +548,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
     }
 
     try {
-      await fetch(`/api/mission/${caseId}/search`, {
+      await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -570,7 +570,7 @@ export default function useSearchSession(caseId, lastSeenLocation) {
       gridCellsCovered: 0,
     });
     setPath([]);
-  }, [session?.id, caseId]);
+  }, [session?.id, missionId]);
 
   // Format duration for display
   const formatDuration = useCallback((seconds) => {

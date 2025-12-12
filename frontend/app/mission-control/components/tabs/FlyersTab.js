@@ -17,7 +17,7 @@ const FLYER_BASE_POINTS = 8;
 const PHOTO_BONUS_POINTS = 3;
 
 export default function FlyersTab({ mission, session }) {
-  const caseId = mission?.id;
+  const missionId = mission?.id;
   const lastSeenLocation = mission?.lastSeenLatitude && mission?.lastSeenLongitude
     ? { lat: mission.lastSeenLatitude, lng: mission.lastSeenLongitude }
     : null;
@@ -38,7 +38,7 @@ export default function FlyersTab({ mission, session }) {
     hasLocation,
     canPost,
     fetchFlyers,
-  } = useFlyerTracking(caseId);
+  } = useFlyerTracking(missionId);
 
   // Local UI state
   const [showPhotoCapture, setShowPhotoCapture] = useState(false);
@@ -86,7 +86,7 @@ export default function FlyersTab({ mission, session }) {
     );
   }
 
-  if (!caseId) {
+  if (!missionId) {
     return (
       <div style={styles.emptyState}>
         <span style={styles.emptyIcon}>{"0x1F4CC"}</span>

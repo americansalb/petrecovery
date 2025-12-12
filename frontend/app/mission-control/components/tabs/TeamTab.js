@@ -79,7 +79,7 @@ function ActionsContent({ mission, showNotification, session, isOwner, isAdmin }
   const [scoreBreakdown, setScoreBreakdown] = useState(null);
 
   // Build case data for algorithm
-  const caseData = useMemo(() => {
+  const missionData = useMemo(() => {
     const realData = {
       petType: mission?.petSpecies || 'CAT',
       petName: mission?.petName,
@@ -122,13 +122,13 @@ function ActionsContent({ mission, showNotification, session, isOwner, isAdmin }
       petType: actionDef.petType,
       phase: actionDef.phase,
       status: 'AVAILABLE',
-      latitude: caseData.lastSeenLatitude,
-      longitude: caseData.lastSeenLongitude,
+      latitude: missionData.lastSeenLatitude,
+      longitude: missionData.lastSeenLongitude,
     }));
 
     // Calculate scores
     const scoredTasks = generatedTasks.map(task => {
-      const { score, breakdown } = calculatePriorityScoreWithBreakdown(task, caseData, context);
+      const { score, breakdown } = calculatePriorityScoreWithBreakdown(task, missionData, context);
       return { ...task, priorityScore: score, _breakdown: breakdown };
     });
 
@@ -136,12 +136,12 @@ function ActionsContent({ mission, showNotification, session, isOwner, isAdmin }
     const filteredTasks = scoredTasks
       .filter(t => {
         const actionDef = ACTION_TYPES[t.actionId];
-        return actionDef.petType === 'BOTH' || actionDef.petType === caseData.petType;
+        return actionDef.petType === 'BOTH' || actionDef.petType === missionData.petType;
       })
       .sort((a, b) => b.priorityScore - a.priorityScore);
 
     setTasks(filteredTasks);
-  }, [caseData, context]);
+  }, [missionData, context]);
 
   // Split tasks by role
   const { ownerTasks, squadTasks } = useMemo(() => {
@@ -187,7 +187,7 @@ function ActionsContent({ mission, showNotification, session, isOwner, isAdmin }
         break;
 
       case 'copy_script':
-        const script = generateCallScript(task, caseData);
+        const script = generateCallScript(task, missionData);
         if (script) {
           await navigator.clipboard?.writeText(script);
           showNotification?.('success', 'Script copied!');
@@ -201,7 +201,7 @@ function ActionsContent({ mission, showNotification, session, isOwner, isAdmin }
     return (
       <TaskDetailView
         task={selectedTask}
-        caseData={caseData}
+        missionData={missionData}
         context={context}
         onBack={() => setSelectedTask(null)}
         onAction={handleTaskAction}
@@ -212,8 +212,8 @@ function ActionsContent({ mission, showNotification, session, isOwner, isAdmin }
   }
 
   // Calculate hours missing for display
-  const hoursMissing = caseData.missingAt
-    ? (new Date() - new Date(caseData.missingAt)) / (1000 * 60 * 60)
+  const hoursMissing = missionData.missingAt
+    ? (new Date() - new Date(missionData.missingAt)) / (1000 * 60 * 60)
     : 0;
 
   // Get top priority task from each category for "DO FIRST" section
@@ -266,7 +266,7 @@ function ActionsContent({ mission, showNotification, session, isOwner, isAdmin }
             Debug Mode Active
           </div>
           <div className="text-yellow-300/70 text-xs mt-1">
-            Simulating: {caseData.petType} missing {hoursMissing.toFixed(1)}h,
+            Simulating: {missionData.petType} missing {hoursMissing.toFixed(1)}h,
             role: {effectiveRole}, time: {context.currentTime?.getHours()}:00
           </div>
         </div>
@@ -277,7 +277,7 @@ function ActionsContent({ mission, showNotification, session, isOwner, isAdmin }
         <div>
           <h2 className="text-lg font-bold text-white">Actions</h2>
           <p className="text-sm text-slate-400">
-            Sorted by priority for {caseData.petType?.toLowerCase() || 'pet'}
+            Sorted by priority for {missionData.petType?.toLowerCase() || 'pet'}
           </p>
         </div>
         <div className="text-right">
@@ -579,14 +579,14 @@ function TaskRow({ task, rank, onSelect, showScore, isTopPriority, showRoleBadge
 }
 
 // Full-screen task detail view
-function TaskDetailView({ task, caseData, context, onBack, onAction, showNotification, debug }) {
+function TaskDetailView({ task, missionData, context, onBack, onAction, showNotification, debug }) {
   const actionDef = ACTION_TYPES[task.actionId] || {};
-  const whyReasons = generateWhyExplanation(task, caseData, context);
-  const callScript = generateCallScript(task, caseData);
+  const whyReasons = generateWhyExplanation(task, missionData, context);
+  const callScript = generateCallScript(task, missionData);
 
   // Get breakdown for debug
   const { breakdown } = debug.isEnabled
-    ? calculatePriorityScoreWithBreakdown(task, caseData, context)
+    ? calculatePriorityScoreWithBreakdown(task, missionData, context)
     : { breakdown: [] };
 
   return (

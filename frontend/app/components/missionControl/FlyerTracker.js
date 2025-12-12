@@ -42,7 +42,7 @@ const FlyerMapView = dynamic(() => import('./FlyerMapView'), {
 const FLYER_BASE_POINTS = 8;
 const PHOTO_BONUS_POINTS = 3;
 
-export default function FlyerTracker({ caseId, lastSeenLocation, petName, onClose }) {
+export default function FlyerTracker({ missionId, lastSeenLocation, petName, onClose }) {
   const {
     flyers,
     coldSpots,
@@ -58,7 +58,7 @@ export default function FlyerTracker({ caseId, lastSeenLocation, petName, onClos
     getNearestColdSpot,
     hasLocation,
     canPost,
-  } = useFlyerTracking(caseId);
+  } = useFlyerTracking(missionId);
 
   // Local UI state
   const [showPhotoOption, setShowPhotoOption] = useState(false);

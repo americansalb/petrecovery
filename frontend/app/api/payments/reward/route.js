@@ -15,9 +15,9 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { caseId, amount } = await request.json();
+    const { missionId, amount } = await request.json();
 
-    if (!caseId || !amount) {
+    if (!missionId || !amount) {
       return NextResponse.json({ error: 'Case ID and amount required' }, { status: 400 });
     }
 
@@ -30,31 +30,31 @@ export async function POST(request) {
     }
 
     // Verify case ownership
-    const caseData = await prisma.case.findUnique({
-      where: { id: caseId },
+    const missionData = await prisma.case.findUnique({
+      where: { id: missionId },
       select: { reporterId: true, petName: true, status: true },
     });
 
-    if (!caseData) {
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+    if (!missionData) {
+      return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
-    if (caseData.reporterId !== session.user.id) {
+    if (missionData.reporterId !== session.user.id) {
       return NextResponse.json({ error: 'Only case owner can set reward' }, { status: 403 });
     }
 
-    if (caseData.status === 'REUNITED') {
+    if (missionData.status === 'REUNITED') {
       return NextResponse.json({ error: 'Case already reunited' }, { status: 400 });
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const successUrl = `${baseUrl}/cases/${caseId}?reward=success`;
-    const cancelUrl = `${baseUrl}/cases/${caseId}?reward=cancel`;
+    const successUrl = `${baseUrl}/cases/${missionId}?reward=success`;
+    const cancelUrl = `${baseUrl}/cases/${missionId}?reward=cancel`;
 
     const checkoutSession = await createRewardEscrow({
       amount,
-      caseId,
-      caseName: caseData.petName,
+      missionId,
+      caseName: missionData.petName,
       ownerEmail: session.user.email,
       successUrl,
       cancelUrl,
@@ -63,7 +63,7 @@ export async function POST(request) {
     // Record reward escrow
     await prisma.rewardEscrow.create({
       data: {
-        caseId,
+        missionId,
         ownerId: session.user.id,
         amount,
         stripeSessionId: checkoutSession.sessionId,
@@ -151,7 +151,7 @@ export async function PUT(request) {
     }
 
     if (action === 'release') {
-      // Case closed without finding - release funds back to owner
+      // Mission closed without finding - release funds back to owner
       const result = await releaseEscrow(escrow.stripePaymentIntentId);
 
       if (result.success) {
@@ -184,15 +184,15 @@ export async function PUT(request) {
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const caseId = searchParams.get('caseId');
+    const missionId = searchParams.get('missionId');
 
-    if (!caseId) {
+    if (!missionId) {
       return NextResponse.json({ error: 'Case ID required' }, { status: 400 });
     }
 
     const escrow = await prisma.rewardEscrow.findFirst({
       where: {
-        caseId,
+        missionId,
         status: { in: ['HELD', 'CAPTURED'] },
       },
       select: {

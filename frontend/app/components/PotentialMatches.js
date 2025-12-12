@@ -16,7 +16,7 @@ const MATCH_STATUSES = {
   CONFIRMED: { label: 'Confirmed!', color: 'bg-blue-100 text-blue-800' },
 };
 
-export default function PotentialMatches({ caseId, className = '' }) {
+export default function PotentialMatches({ missionId, className = '' }) {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -25,14 +25,14 @@ export default function PotentialMatches({ caseId, className = '' }) {
 
   useEffect(() => {
     fetchMatches();
-  }, [caseId]);
+  }, [missionId]);
 
   const fetchMatches = async () => {
     try {
       setLoading(true);
       setError('');
 
-      const response = await fetch(`/api/cases/${caseId}/matches`);
+      const response = await fetch(`/api/missions/${missionId}/matches`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -56,7 +56,7 @@ export default function PotentialMatches({ caseId, className = '' }) {
 
   const updateMatchStatus = async (match, status) => {
     try {
-      const response = await fetch(`/api/cases/${caseId}/matches`, {
+      const response = await fetch(`/api/missions/${missionId}/matches`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

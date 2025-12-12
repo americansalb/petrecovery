@@ -72,7 +72,7 @@ export function analyzeContent(content) {
  */
 export async function reportContent({
   reporterId,
-  contentType, // 'post', 'comment', 'message', 'case'
+  contentType, // 'post', 'comment', 'message', 'mission'
   contentId,
   reason,
   details,
@@ -181,7 +181,7 @@ async function removeContent(contentType, contentId) {
         // Messages are typically not deleted but could be marked
         break;
 
-      case 'case':
+      case 'mission':
         await prisma.case.update({
           where: { id: contentId },
           data: { status: 'CLOSED_OTHER' },
@@ -211,12 +211,12 @@ async function warnUser(contentType, contentId, reason) {
         userId = post?.authorId;
         break;
 
-      case 'case':
-        const caseData = await prisma.case.findUnique({
+      case 'mission':
+        const missionData = await prisma.case.findUnique({
           where: { id: contentId },
           select: { reporterId: true },
         });
-        userId = caseData?.reporterId;
+        userId = missionData?.reporterId;
         break;
     }
 
@@ -252,12 +252,12 @@ async function banUser(contentType, contentId, reason) {
         userId = post?.authorId;
         break;
 
-      case 'case':
-        const caseData = await prisma.case.findUnique({
+      case 'mission':
+        const missionData = await prisma.case.findUnique({
           where: { id: contentId },
           select: { reporterId: true },
         });
-        userId = caseData?.reporterId;
+        userId = missionData?.reporterId;
         break;
     }
 

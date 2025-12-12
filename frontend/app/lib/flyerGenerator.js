@@ -68,7 +68,7 @@ export const FLYER_PRESETS = {
 /**
  * Generate flyer HTML for printing or PDF conversion
  */
-export function generateFlyerHTML(caseData, options = {}) {
+export function generateFlyerHTML(missionData, options = {}) {
   const {
     format = 'LETTER',
     includeQR = true,
@@ -82,7 +82,7 @@ export function generateFlyerHTML(caseData, options = {}) {
 
   const preset = FLYER_PRESETS[format] || FLYER_PRESETS.LETTER;
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://petrecovery.org';
-  const caseUrl = `${baseUrl}/cases/${caseData.id}`;
+  const caseUrl = `${baseUrl}/cases/${missionData.id}`;
 
   // Format phone number
   const formatPhone = (phone) => {
@@ -110,7 +110,7 @@ export function generateFlyerHTML(caseData, options = {}) {
     <html>
     <head>
       <meta charset="UTF-8">
-      <title>LOST: ${caseData.petName} - Missing ${caseData.petSpecies}</title>
+      <title>LOST: ${missionData.petName} - Missing ${missionData.petSpecies}</title>
       <style>
         @page {
           size: ${preset.width}pt ${preset.height}pt;
@@ -316,61 +316,61 @@ export function generateFlyerHTML(caseData, options = {}) {
     <body>
       <div class="flyer">
         <div class="header">
-          <h1>LOST ${caseData.petSpecies?.toUpperCase() || 'PET'}</h1>
+          <h1>LOST ${missionData.petSpecies?.toUpperCase() || 'PET'}</h1>
           <h2>Please Help Us Find Our Family Member!</h2>
         </div>
 
         <div class="content">
-          ${includePhoto && caseData.petPhotoUrl ? `
+          ${includePhoto && missionData.petPhotoUrl ? `
             <div class="photo-section">
-              <img src="${caseData.petPhotoUrl}" alt="${caseData.petName}" class="photo" />
+              <img src="${missionData.petPhotoUrl}" alt="${missionData.petName}" class="photo" />
             </div>
           ` : ''}
 
           <div class="details-section">
-            <div class="pet-name">"${caseData.petName || 'Unknown'}"</div>
+            <div class="pet-name">"${missionData.petName || 'Unknown'}"</div>
 
             <div class="pet-info">
               <div class="info-row">
                 <span class="info-label">Species:</span>
-                <span>${caseData.petSpecies || 'Unknown'}</span>
+                <span>${missionData.petSpecies || 'Unknown'}</span>
               </div>
-              ${caseData.petBreed ? `
+              ${missionData.petBreed ? `
                 <div class="info-row">
                   <span class="info-label">Breed:</span>
-                  <span>${caseData.petBreed}</span>
+                  <span>${missionData.petBreed}</span>
                 </div>
               ` : ''}
               <div class="info-row">
                 <span class="info-label">Color:</span>
-                <span>${caseData.petColor || 'Unknown'}</span>
+                <span>${missionData.petColor || 'Unknown'}</span>
               </div>
-              ${caseData.petSize ? `
+              ${missionData.petSize ? `
                 <div class="info-row">
                   <span class="info-label">Size:</span>
-                  <span>${caseData.petSize}</span>
+                  <span>${missionData.petSize}</span>
                 </div>
               ` : ''}
               <div class="info-row">
                 <span class="info-label">Last Seen:</span>
-                <span>${formatDate(caseData.lastSeenAt)}</span>
+                <span>${formatDate(missionData.lastSeenAt)}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Location:</span>
-                <span>${caseData.lastSeenAddress || 'Unknown'}</span>
+                <span>${missionData.lastSeenAddress || 'Unknown'}</span>
               </div>
             </div>
 
-            ${caseData.petDescription ? `
+            ${missionData.petDescription ? `
               <div class="description">
-                <strong>Description:</strong> ${caseData.petDescription.substring(0, 300)}${caseData.petDescription.length > 300 ? '...' : ''}
+                <strong>Description:</strong> ${missionData.petDescription.substring(0, 300)}${missionData.petDescription.length > 300 ? '...' : ''}
               </div>
             ` : ''}
 
-            ${includeReward && caseData.hasReward && caseData.rewardAmount ? `
+            ${includeReward && missionData.hasReward && missionData.rewardAmount ? `
               <div class="reward-banner">
                 <div>REWARD OFFERED</div>
-                <div class="amount">$${caseData.rewardAmount.toLocaleString()}</div>
+                <div class="amount">$${missionData.rewardAmount.toLocaleString()}</div>
               </div>
             ` : ''}
 
@@ -390,14 +390,14 @@ export function generateFlyerHTML(caseData, options = {}) {
         ${includeContact ? `
           <div class="contact-section">
             <h3>IF FOUND, PLEASE CONTACT:</h3>
-            <div class="contact-phone">${formatPhone(caseData.ownerPhone) || caseData.ownerEmail || 'Contact through website'}</div>
-            ${caseData.ownerEmail && caseData.ownerPhone ? `
+            <div class="contact-phone">${formatPhone(missionData.ownerPhone) || missionData.ownerEmail || 'Contact through website'}</div>
+            ${missionData.ownerEmail && missionData.ownerPhone ? `
               <div style="margin-top: 8pt; font-size: ${preset.bodySize}pt;">
-                or email: ${caseData.ownerEmail}
+                or email: ${missionData.ownerEmail}
               </div>
             ` : ''}
             <div style="margin-top: 8pt; font-size: ${Math.round(preset.bodySize * 0.9)}pt;">
-              Case #${caseData.caseNumber || caseData.id?.substring(0, 8).toUpperCase()}
+              Case #${missionData.missionNumber || missionData.id?.substring(0, 8).toUpperCase()}
             </div>
           </div>
         ` : ''}
@@ -407,8 +407,8 @@ export function generateFlyerHTML(caseData, options = {}) {
         <div class="tear-strips" style="position: absolute; bottom: 0; left: 24pt; right: 24pt;">
           ${Array(7).fill(0).map(() => `
             <div class="tear-strip">
-              ${caseData.petName}<br/>
-              ${formatPhone(caseData.ownerPhone) || ''}
+              ${missionData.petName}<br/>
+              ${formatPhone(missionData.ownerPhone) || ''}
             </div>
           `).join('')}
         </div>
@@ -423,8 +423,8 @@ export function generateFlyerHTML(caseData, options = {}) {
 /**
  * Generate flyer and trigger print dialog
  */
-export function printFlyer(caseData, options = {}) {
-  const html = generateFlyerHTML(caseData, options);
+export function printFlyer(missionData, options = {}) {
+  const html = generateFlyerHTML(missionData, options);
 
   const printWindow = window.open('', '_blank');
   if (printWindow) {
@@ -444,14 +444,14 @@ export function printFlyer(caseData, options = {}) {
 /**
  * Download flyer as HTML file (can be converted to PDF)
  */
-export function downloadFlyerHTML(caseData, options = {}) {
-  const html = generateFlyerHTML(caseData, options);
+export function downloadFlyerHTML(missionData, options = {}) {
+  const html = generateFlyerHTML(missionData, options);
   const blob = new Blob([html], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement('a');
   a.href = url;
-  a.download = `lost-pet-flyer-${caseData.petName?.replace(/\s+/g, '-').toLowerCase() || 'pet'}.html`;
+  a.download = `lost-pet-flyer-${missionData.petName?.replace(/\s+/g, '-').toLowerCase() || 'pet'}.html`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -461,15 +461,15 @@ export function downloadFlyerHTML(caseData, options = {}) {
 /**
  * Generate multiple flyers per page (for economical printing)
  */
-export function generateMultipleFlyersHTML(caseData, count = 4, options = {}) {
-  const singleFlyer = generateFlyerHTML(caseData, { ...options, format: 'QUARTER' });
+export function generateMultipleFlyersHTML(missionData, count = 4, options = {}) {
+  const singleFlyer = generateFlyerHTML(missionData, { ...options, format: 'QUARTER' });
 
   const html = `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="UTF-8">
-      <title>Lost Pet Flyers - ${caseData.petName}</title>
+      <title>Lost Pet Flyers - ${missionData.petName}</title>
       <style>
         @page {
           size: letter;

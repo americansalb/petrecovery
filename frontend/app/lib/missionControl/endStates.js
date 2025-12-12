@@ -39,7 +39,7 @@ export async function resolvePetFound(missionId, resolveData, resolvedBy) {
 
   // Update case
   await prisma.case.update({
-    where: { id: mission.caseId },
+    where: { id: mission.missionId },
     data: {
       status: 'RESOLVED',
       foundAt: new Date(),
@@ -108,7 +108,7 @@ export async function resolvePetDeceased(missionId, resolveData, resolvedBy) {
 
   // Update case - minimal public info
   await prisma.case.update({
-    where: { id: mission.caseId },
+    where: { id: mission.missionId },
     data: {
       status: 'CLOSED_OTHER', // Generic closure, respects privacy
       closedAt: new Date(),
@@ -167,7 +167,7 @@ export async function pauseToColdCase(missionId, pauseData, pausedBy) {
 
   // Update case status
   await prisma.case.update({
-    where: { id: mission.caseId },
+    where: { id: mission.missionId },
     data: {
       status: 'OPEN', // Still open, but search paused
     }
@@ -298,7 +298,7 @@ async function generateVictoryCard(mission, stats, reunionPhotoUrl) {
     },
     photoUrl: reunionPhotoUrl || mission.case.petPhotoUrl,
     shareText: `${mission.case.petName} is home safe! Thank you to the ${stats.totalVolunteers} volunteers who searched for ${Math.round(stats.durationHours)} hours. Community makes miracles happen! #PetRecovery`,
-    shareUrl: `https://petrecovery.org/cases/${mission.case.caseNumber}/success`,
+    shareUrl: `https://petrecovery.org/cases/${mission.case.missionNumber}/success`,
   };
 }
 

@@ -10,9 +10,9 @@ import { quickJoinCase, getVolunteerStatus } from '@/app/lib/volunteer/quickJoin
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { caseId, location, deviceId, name, phone } = body;
+    const { missionId, location, deviceId, name, phone } = body;
 
-    if (!caseId) {
+    if (!missionId) {
       return NextResponse.json(
         { error: 'Case ID required' },
         { status: 400 }
@@ -23,7 +23,7 @@ export async function POST(request) {
     const session = await getServerSession();
     const userId = session?.user?.id;
 
-    const result = await quickJoinCase(caseId, {
+    const result = await quickJoinCase(missionId, {
       userId,
       deviceId,
       location,
@@ -51,9 +51,9 @@ export async function POST(request) {
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const caseId = searchParams.get('caseId');
+    const missionId = searchParams.get('missionId');
 
-    if (!caseId) {
+    if (!missionId) {
       return NextResponse.json(
         { error: 'Case ID required' },
         { status: 400 }
@@ -65,7 +65,7 @@ export async function GET(request) {
       return NextResponse.json({ isVolunteering: false });
     }
 
-    const status = await getVolunteerStatus(caseId, session.user.id);
+    const status = await getVolunteerStatus(missionId, session.user.id);
     return NextResponse.json(status);
   } catch (error) {
     console.error('Volunteer status error:', error);

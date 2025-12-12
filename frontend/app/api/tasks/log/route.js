@@ -18,7 +18,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { caseId, taskId, actionType, notes } = await request.json();
+    const { missionId, taskId, actionType, notes } = await request.json();
 
     if (!taskId && !actionType) {
       return NextResponse.json(
@@ -37,11 +37,11 @@ export async function POST(request) {
       points: basePoints,
     });
 
-    // Create a case update if caseId provided
-    if (caseId) {
+    // Create a case update if missionId provided
+    if (missionId) {
       await prisma.caseUpdate.create({
         data: {
-          caseId,
+          missionId,
           authorId: session.user.id,
           content: `Logged action: ${taskType}${notes ? ` - ${notes}` : ''}`,
           isUpdate: true,

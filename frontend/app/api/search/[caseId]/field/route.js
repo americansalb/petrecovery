@@ -13,7 +13,7 @@ import {
 
 export async function GET(request, { params }) {
   try {
-    const { caseId } = params;
+    const { missionId } = params;
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get('sessionId');
 

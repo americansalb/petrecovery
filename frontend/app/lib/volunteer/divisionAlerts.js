@@ -12,7 +12,7 @@ import { sendPushToMany } from '@/app/lib/push';
  * Send alert to specific division
  */
 export async function sendDivisionAlert(divisionId, alert) {
-  const { type, title, body, caseId, priority = 'NORMAL' } = alert;
+  const { type, title, body, missionId, priority = 'NORMAL' } = alert;
 
   const division = await prisma.division.findUnique({
     where: { id: divisionId },
@@ -50,7 +50,7 @@ export async function sendDivisionAlert(divisionId, alert) {
   const alertRecord = await prisma.divisionAlert.create({
     data: {
       divisionId,
-      caseId,
+      missionId,
       type,
       title,
       body,
@@ -65,13 +65,13 @@ export async function sendDivisionAlert(divisionId, alert) {
     title: `📍 ${division.name}: ${title}`,
     body,
     icon: '/icons/alert-icon.png',
-    tag: `division-${divisionId}-${caseId || 'general'}`,
+    tag: `division-${divisionId}-${missionId || 'general'}`,
     data: {
       type: 'DIVISION_ALERT',
       divisionId,
-      caseId,
+      missionId,
       alertId: alertRecord.id,
-      url: caseId ? `/search/${caseId}` : `/divisions/${divisionId}`,
+      url: missionId ? `/search/${missionId}` : `/divisions/${divisionId}`,
     },
     requireInteraction: priority === 'URGENT',
   };
@@ -98,7 +98,7 @@ export async function sendDivisionAlert(divisionId, alert) {
 /**
  * Alert all divisions in a squad about a new case
  */
-export async function alertSquadNewCase(squadId, caseData) {
+export async function alertSquadNewCase(squadId, missionData) {
   const squad = await prisma.rescueSquad.findUnique({
     where: { id: squadId },
     include: {
@@ -117,8 +117,8 @@ export async function alertSquadNewCase(squadId, caseData) {
   // Find which division(s) are closest to the case
   const nearestDivisions = findNearestDivisions(
     squad.divisions,
-    caseData.lastSeenLatitude,
-    caseData.lastSeenLongitude,
+    missionData.lastSeenLatitude,
+    missionData.lastSeenLongitude,
     2 // Get top 2 nearest
   );
 
@@ -126,9 +126,9 @@ export async function alertSquadNewCase(squadId, caseData) {
   for (const division of nearestDivisions) {
     const result = await sendDivisionAlert(division.id, {
       type: 'NEW_CASE',
-      title: `Lost ${caseData.petSpecies}: ${caseData.petName}`,
-      body: `Lost near ${caseData.lastSeenAddress || 'your area'}. Help search!`,
-      caseId: caseData.id,
+      title: `Lost ${missionData.petSpecies}: ${missionData.petName}`,
+      body: `Lost near ${missionData.lastSeenAddress || 'your area'}. Help search!`,
+      missionId: missionData.id,
       priority: 'URGENT',
     });
     results.push({ divisionId: division.id, ...result });
@@ -143,8 +143,8 @@ export async function alertSquadNewCase(squadId, caseData) {
     const result = await sendDivisionAlert(division.id, {
       type: 'NEW_CASE',
       title: `New case in ${squad.name}`,
-      body: `${caseData.petName} (${caseData.petSpecies}) lost nearby`,
-      caseId: caseData.id,
+      body: `${missionData.petName} (${missionData.petSpecies}) lost nearby`,
+      missionId: missionData.id,
       priority: 'NORMAL',
     });
     results.push({ divisionId: division.id, ...result });
@@ -171,16 +171,16 @@ export async function alertDivisionSighting(sighting) {
     return { success: false, error: 'No division covers this area' };
   }
 
-  const caseData = await prisma.case.findUnique({
-    where: { id: sighting.caseId },
+  const missionData = await prisma.case.findUnique({
+    where: { id: sighting.missionId },
     select: { petName: true, petSpecies: true }
   });
 
   return sendDivisionAlert(division.id, {
     type: 'SIGHTING',
-    title: `Possible ${caseData.petName} sighting!`,
+    title: `Possible ${missionData.petName} sighting!`,
     body: `Near ${sighting.address || 'your area'}. Check it out!`,
-    caseId: sighting.caseId,
+    missionId: sighting.missionId,
     priority: sighting.confidence === 'HIGH' ? 'URGENT' : 'NORMAL',
   });
 }
@@ -221,7 +221,7 @@ export async function alertDivisionHelpRequest(helpRequest) {
       type: 'HELP_REQUEST',
       title: '🆘 Volunteer needs help!',
       body: helpRequest.message || 'A volunteer is requesting assistance',
-      caseId: helpRequest.caseId,
+      missionId: helpRequest.missionId,
       priority: 'URGENT',
     });
   }
@@ -230,7 +230,7 @@ export async function alertDivisionHelpRequest(helpRequest) {
     type: 'HELP_REQUEST',
     title: '🆘 Volunteer needs help!',
     body: helpRequest.message || 'A volunteer is requesting assistance',
-    caseId: helpRequest.caseId,
+    missionId: helpRequest.missionId,
     priority: 'URGENT',
   });
 }
@@ -238,14 +238,14 @@ export async function alertDivisionHelpRequest(helpRequest) {
 /**
  * Send coverage gap alert
  */
-export async function alertCoverageGap(divisionId, caseId, gapInfo) {
+export async function alertCoverageGap(divisionId, missionId, gapInfo) {
   const { uncoveredCells, hoursWithoutActivity } = gapInfo;
 
   return sendDivisionAlert(divisionId, {
     type: 'COVERAGE_GAP',
     title: 'Search coverage needed',
     body: `${uncoveredCells} areas still need searching. Can you help?`,
-    caseId,
+    missionId,
     priority: hoursWithoutActivity > 2 ? 'URGENT' : 'NORMAL',
   });
 }
@@ -253,14 +253,14 @@ export async function alertCoverageGap(divisionId, caseId, gapInfo) {
 /**
  * Send reunion celebration alert
  */
-export async function alertDivisionReunion(divisionId, caseData, finderName) {
+export async function alertDivisionReunion(divisionId, missionData, finderName) {
   return sendDivisionAlert(divisionId, {
     type: 'REUNION',
-    title: `🎉 ${caseData.petName} found!`,
+    title: `🎉 ${missionData.petName} found!`,
     body: finderName
-      ? `${finderName} found ${caseData.petName}! Reunion in progress.`
-      : `${caseData.petName} has been found! Thank you for helping!`,
-    caseId: caseData.id,
+      ? `${finderName} found ${missionData.petName}! Reunion in progress.`
+      : `${missionData.petName} has been found! Thank you for helping!`,
+    missionId: missionData.id,
     priority: 'NORMAL',
   });
 }

@@ -16,7 +16,7 @@ export async function POST(request, { params }) {
     }
 
     const squadId = params.id;
-    const { title, body, divisionId, caseId } = await request.json();
+    const { title, body, divisionId, missionId } = await request.json();
 
     if (!title || !body) {
       return NextResponse.json({ error: 'Title and body are required' }, { status: 400 });
@@ -46,14 +46,14 @@ export async function POST(request, { params }) {
         priority: 'NORMAL',
         creatorId: session.user.id,
         divisionId: divisionId || null,
-        caseId: caseId || null,
+        missionId: missionId || null,
       },
       include: {
         createdBy: {
           select: { id: true, firstName: true, lastName: true },
         },
         case: {
-          select: { id: true, caseNumber: true },
+          select: { id: true, missionNumber: true },
         },
       },
     });
@@ -67,8 +67,8 @@ export async function POST(request, { params }) {
         title: task.title,
         body: task.description,
         divisionId: task.divisionId,
-        caseId: task.caseId,
-        caseCode: task.case?.caseNumber || null,
+        missionId: task.missionId,
+        caseCode: task.case?.missionNumber || null,
         authorId: task.creatorId,
         authorName: `${task.createdBy.firstName} ${lastInitial}.`,
         createdAt: task.createdAt.toISOString(),

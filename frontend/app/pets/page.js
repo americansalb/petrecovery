@@ -225,8 +225,8 @@ export default function MyPetsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {pets.map((pet) => {
-              const caseStatus = getCaseStatus(pet);
-              const badgeInfo = caseStatus ? getCaseStatusBadge(caseStatus) : null;
+              const missionStatus = getCaseStatus(pet);
+              const badgeInfo = missionStatus ? getCaseStatusBadge(missionStatus) : null;
               const SpeciesIcon = getSpeciesIcon(pet.species);
 
               return (
@@ -290,7 +290,7 @@ export default function MyPetsPage() {
                         <Edit2 size={14} />
                         Edit
                       </Button>
-                      {!caseStatus || caseStatus === 'RESOLVED' || caseStatus === 'CLOSED_OTHER' ? (
+                      {!missionStatus || missionStatus === 'RESOLVED' || missionStatus === 'CLOSED_OTHER' ? (
                         <Button
                           variant="danger"
                           href={`/report/new?petId=${pet.id}`}
@@ -303,7 +303,7 @@ export default function MyPetsPage() {
                       ) : (
                         <Button
                           variant="primary"
-                          href={`/cases/${pet.cases[0].caseNumber}`}
+                          href={`/missions/${pet.cases[0].missionNumber}`}
                           size="sm"
                           className="flex-[2]"
                         >

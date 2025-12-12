@@ -83,12 +83,12 @@ export async function GET(request) {
 
     // Count open/active cases
     console.log('[PUBLIC-METRICS] Counting open cases...');
-    const openCases = await prisma.case.count({
+    const openMissions = await prisma.case.count({
       where: {
         status: { in: ['ACTIVE', 'IN_PROGRESS'] }
       }
     });
-    console.log(`[PUBLIC-METRICS] Open cases: ${openCases}`);
+    console.log(`[PUBLIC-METRICS] Open cases: ${openMissions}`);
 
     // Count cities with squads
     console.log('[PUBLIC-METRICS] Counting cities with squads...');
@@ -106,7 +106,7 @@ export async function GET(request) {
       total_users: totalUsers,
       active_squads: activeSquads,
       total_volunteers: totalSquadMembers,
-      open_cases: openCases,
+      open_cases: openMissions,
       cities_covered: uniqueCities,
       timestamp: new Date().toISOString()
     };

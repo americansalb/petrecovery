@@ -19,7 +19,7 @@ import LoadingSpinner from '@/app/components/LoadingSpinner';
 export default function SearchAreaMap({
   assignmentId,
   isParticipant,
-  caseData,
+  missionData,
   currentUserId,
 }) {
   const [searchAreas, setSearchAreas] = useState([]);
@@ -103,8 +103,8 @@ export default function SearchAreaMap({
       }
 
       // Default center (use case location if available)
-      const center = caseData?.lastSeenLatitude && caseData?.lastSeenLongitude
-        ? [caseData.lastSeenLatitude, caseData.lastSeenLongitude]
+      const center = missionData?.lastSeenLatitude && missionData?.lastSeenLongitude
+        ? [missionData.lastSeenLatitude, missionData.lastSeenLongitude]
         : [41.8781, -87.6298]; // Chicago default
 
       console.log(`[SEARCH-MAP] Map center: ${center}`);
@@ -122,7 +122,7 @@ export default function SearchAreaMap({
       }).addTo(map);
 
       // Add marker for last seen location
-      if (caseData?.lastSeenLatitude && caseData?.lastSeenLongitude) {
+      if (missionData?.lastSeenLatitude && missionData?.lastSeenLongitude) {
         const lastSeenIcon = L.divIcon({
           className: 'custom-marker',
           html: `<div style="
@@ -145,7 +145,7 @@ export default function SearchAreaMap({
 
         L.marker(center, { icon: lastSeenIcon })
           .addTo(map)
-          .bindPopup(`<b>Last Seen Location</b><br/>${caseData.lastSeenAddress || 'Unknown address'}`);
+          .bindPopup(`<b>Last Seen Location</b><br/>${missionData.lastSeenAddress || 'Unknown address'}`);
       }
 
       // Create layer group for search areas
@@ -175,7 +175,7 @@ export default function SearchAreaMap({
         mapInstanceRef.current = null;
       }
     };
-  }, [caseData, fetchSearchAreas, isDrawing]);
+  }, [missionData, fetchSearchAreas, isDrawing]);
 
   // Render existing search areas
   useEffect(() => {

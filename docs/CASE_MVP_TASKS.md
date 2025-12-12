@@ -1,20 +1,20 @@
-# Lost Pet Cases MVP - Task Breakdown
+# Lost Pet Missions MVP - Task Breakdown
 
-**Feature Spec**: `docs/features/lost-pet-cases-mvp.md`
-**Phase**: 13-14 (Pet Profiles + Lost-Pet Case MVP)
+**Feature Spec**: `docs/features/lost-pet-missions-mvp.md`
+**Phase**: 13-14 (Pet Profiles + Lost-Pet Mission MVP)
 **Status**: Ready for Implementation
 
 ---
 
 ## Task Overview
 
-Breaking down the Lost Pet Cases MVP into focused, sequential tasks following the Phase 0 pattern.
+Breaking down the Lost Pet Missions MVP into focused, sequential tasks following the Phase 0 pattern.
 
 ---
 
 ## TASK-C01: Add Prisma Models & Database Migration
 
-**Goal**: Add `LostPetCase` and `LostPetCaseNote` models to database schema with proper enums and indexes.
+**Goal**: Add `LostPetMission` and `LostPetMissionNote` models to database schema with proper enums and indexes.
 
 **Files to Modify**:
 - `frontend/prisma/schema.prisma`
@@ -30,7 +30,7 @@ enum PetSpecies {
   OTHER
 }
 
-enum LostPetCaseStatus {
+enum LostPetMissionStatus {
   OPEN
   ACTIVE_SEARCH
   RESOLVED
@@ -38,14 +38,14 @@ enum LostPetCaseStatus {
 }
 ```
 
-2. **Add LostPetCase Model**:
+2. **Add LostPetMission Model**:
 ```prisma
-model LostPetCase {
+model LostPetMission {
   id            String            @id @default(cuid())
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
-  caseNumber    String            @unique
+  missionNumber    String            @unique
 
   // Pet info
   petName       String?
@@ -62,7 +62,7 @@ model LostPetCase {
   lastSeenAt    DateTime?
 
   // Status
-  status        LostPetCaseStatus @default(OPEN)
+  status        LostPetMissionStatus @default(OPEN)
   statusReason  String?
   isUrgent      Boolean           @default(false)
 
@@ -78,19 +78,19 @@ model LostPetCase {
   squadId       String?
   squad         RescueSquad?      @relation(fields: [squadId], references: [id])
 
-  notes         LostPetCaseNote[]
+  notes         LostPetMissionNote[]
 
   @@index([city, state])
   @@index([status])
   @@index([squadId])
 }
 
-model LostPetCaseNote {
+model LostPetMissionNote {
   id         String      @id @default(cuid())
   createdAt  DateTime    @default(now())
 
-  caseId     String
-  case       LostPetCase @relation(fields: [caseId], references: [id])
+  missionId     String
+  mission       LostPetMission @relation(fields: [missionId], references: [id])
 
   authorId   String
   author     User        @relation(fields: [authorId], references: [id])
@@ -99,7 +99,7 @@ model LostPetCaseNote {
   content    String
   metadata   String      @default("{}")
 
-  @@index([caseId])
+  @@index([missionId])
 }
 ```
 
@@ -108,9 +108,9 @@ model LostPetCaseNote {
 model User {
   // ... existing fields ...
 
-  // Case relations
-  createdCases    LostPetCase[]
-  caseNotes       LostPetCaseNote[]
+  // Mission relations
+  createdMissions    LostPetMission[]
+  missionNotes       LostPetMissionNote[]
 }
 ```
 
@@ -119,102 +119,102 @@ model User {
 model RescueSquad {
   // ... existing fields ...
 
-  // Case relation
-  cases           LostPetCase[]
+  // Mission relation
+  missions           LostPetMission[]
 }
 ```
 
 **Migration**:
-- Run: `npx prisma migrate dev --name add_lost_pet_cases`
+- Run: `npx prisma migrate dev --name add_lost_pet_missions`
 - OR manually create migration SQL if Prisma CLI has issues (like Phase 0 legal migration)
 
 **Acceptance Criteria**:
-- [x] Enums added: `PetSpecies`, `LostPetCaseStatus`
-- [x] `LostPetCase` model added with all fields and indexes
-- [x] `LostPetCaseNote` model added with indexes
+- [x] Enums added: `PetSpecies`, `LostPetMissionStatus`
+- [x] `LostPetMission` model added with all fields and indexes
+- [x] `LostPetMissionNote` model added with indexes
 - [x] User and RescueSquad relations updated
 - [x] Migration applied successfully
 - [x] No breaking changes to existing models
 
 ---
 
-## TASK-C02: Implement Case API Endpoints
+## TASK-C02: Implement Mission API Endpoints
 
-**Goal**: Create all 5 API endpoints for case management with legal gating and structured logging.
+**Goal**: Create all 5 API endpoints for mission management with legal gating and structured logging.
 
 **Files to Create**:
-1. `frontend/app/api/cases/route.js` (GET list, POST create)
-2. `frontend/app/api/cases/[id]/route.js` (GET single case)
-3. `frontend/app/api/cases/[id]/status/route.js` (POST update status)
-4. `frontend/app/api/cases/[id]/notes/route.js` (POST add note)
+1. `frontend/app/api/missions/route.js` (GET list, POST create)
+2. `frontend/app/api/missions/[id]/route.js` (GET single mission)
+3. `frontend/app/api/missions/[id]/status/route.js` (POST update status)
+4. `frontend/app/api/missions/[id]/notes/route.js` (POST add note)
 
 **Implementation Pattern**:
 - Import: `{ logEvent } from '@/lib/logging'`
 - Import: `{ getServerSession }` for auth
 - Check waiver acceptance before all mutations
-- Emit events: `case.create_attempted`, `case.created`, `case.create_failed`, etc.
+- Emit events: `mission.create_attempted`, `mission.created`, `mission.create_failed`, etc.
 - Return 403 with `code: 'WAIVER_NOT_ACCEPTED'` when legal gating triggers
 
-### TASK-C02.1: GET /api/cases (List)
+### TASK-C02.1: GET /api/missions (List)
 
-**File**: `frontend/app/api/cases/route.js`
+**File**: `frontend/app/api/missions/route.js`
 
 **GET Handler**:
 - Requires authentication
 - Requires waiver accepted
 - Query params: `status`, `city`, `state`, `squadId`, `limit` (default 20, max 100)
-- Returns: Array of cases with squad name joined
+- Returns: Array of missions with squad name joined
 - MVP: Simple pagination with limit, no cursor yet
 
 **Events**:
-- `case.list_failed` if unauthorized or waiver not accepted
+- `mission.list_failed` if unauthorized or waiver not accepted
 
-### TASK-C02.2: POST /api/cases (Create)
+### TASK-C02.2: POST /api/missions (Create)
 
-**File**: `frontend/app/api/cases/route.js`
+**File**: `frontend/app/api/missions/route.js`
 
 **POST Handler**:
 - Requires authentication
 - Requires waiver accepted → 403 + `WAIVER_NOT_ACCEPTED` if not
 - Validate required fields: `city`, `state`, `petSpecies`
-- Generate `caseNumber`: `${city.substring(0,3).toUpperCase()}-${year}-${sequence}`
-- Create case with status `OPEN`
-- Create initial note: "Case created"
+- Generate `missionNumber`: `${city.substring(0,3).toUpperMission()}-${year}-${sequence}`
+- Create mission with status `OPEN`
+- Create initial note: "Mission created"
 
 **Events**:
-- `case.create_attempted` (after validation, before DB write)
-- `case.created` (on success)
-- `case.create_failed` (on errors: UNAUTHORIZED, VALIDATION_ERROR, WAIVER_NOT_ACCEPTED, DB_WRITE_FAILED)
+- `mission.create_attempted` (after validation, before DB write)
+- `mission.created` (on success)
+- `mission.create_failed` (on errors: UNAUTHORIZED, VALIDATION_ERROR, WAIVER_NOT_ACCEPTED, DB_WRITE_FAILED)
 - `legal.blocked_action` (if waiver not accepted)
 
-### TASK-C02.3: GET /api/cases/[id] (Get Single)
+### TASK-C02.3: GET /api/missions/[id] (Get Single)
 
-**File**: `frontend/app/api/cases/[id]/route.js`
+**File**: `frontend/app/api/missions/[id]/route.js`
 
 **GET Handler**:
 - Requires authentication
 - Requires waiver accepted
-- Include: case details + notes with author info
-- Return 404 if case not found
+- Include: mission details + notes with author info
+- Return 404 if mission not found
 
-### TASK-C02.4: POST /api/cases/[id]/status (Update Status)
+### TASK-C02.4: POST /api/missions/[id]/status (Update Status)
 
-**File**: `frontend/app/api/cases/[id]/status/route.js`
+**File**: `frontend/app/api/missions/[id]/status/route.js`
 
 **POST Handler**:
 - Requires authentication + waiver
 - Admin only (check `session.user.role === 'ADMIN'`)
 - Validate status transition
-- Update case status
+- Update mission status
 - Create note with type "STATUS_CHANGE"
 
 **Events**:
-- `case.status_changed` (on success)
-- `case.status_change_failed` (on errors)
+- `mission.status_changed` (on success)
+- `mission.status_change_failed` (on errors)
 
-### TASK-C02.5: POST /api/cases/[id]/notes (Add Note)
+### TASK-C02.5: POST /api/missions/[id]/notes (Add Note)
 
-**File**: `frontend/app/api/cases/[id]/notes/route.js`
+**File**: `frontend/app/api/missions/[id]/notes/route.js`
 
 **POST Handler**:
 - Requires authentication + waiver
@@ -222,47 +222,47 @@ model RescueSquad {
 - Create note with type (default "NOTE")
 
 **Events**:
-- `case.note_added` (on success)
-- `case.note_add_failed` (on errors)
+- `mission.note_added` (on success)
+- `mission.note_add_failed` (on errors)
 
 **Acceptance Criteria**:
 - [x] All 5 endpoints implemented
 - [x] Legal gating works (403 + WAIVER_NOT_ACCEPTED)
 - [x] All success events emitted
 - [x] All failure events emitted
-- [x] Case number generation works
+- [x] Mission number generation works
 - [x] Status transitions validated
-- [x] Notes appear in case detail response
+- [x] Notes appear in mission detail response
 
 ---
 
-## TASK-C03: Build Admin Cases UI
+## TASK-C03: Build Admin Missions UI
 
-**Goal**: Create admin-facing UI for case list, detail, and creation.
+**Goal**: Create admin-facing UI for mission list, detail, and creation.
 
 **Files to Create**:
-1. `frontend/app/admin/cases/page.js` (List view)
-2. `frontend/app/admin/cases/[id]/page.js` (Detail view)
-3. `frontend/app/admin/cases/new/page.js` (Create form)
+1. `frontend/app/admin/missions/page.js` (List view)
+2. `frontend/app/admin/missions/[id]/page.js` (Detail view)
+3. `frontend/app/admin/missions/new/page.js` (Create form)
 
-### TASK-C03.1: Admin Cases List
+### TASK-C03.1: Admin Missions List
 
-**File**: `frontend/app/admin/cases/page.js`
+**File**: `frontend/app/admin/missions/page.js`
 
 **Features**:
-- Fetch from `GET /api/cases`
-- Table with columns: Case #, Pet (name + species), City/State, Status (pill), Squad, Created At
+- Fetch from `GET /api/missions`
+- Table with columns: Mission #, Pet (name + species), City/State, Status (pill), Squad, Created At
 - Filters: Status dropdown, City/State text inputs
-- Click row → navigate to `/admin/cases/[id]`
-- "Create New Case" button → `/admin/cases/new`
+- Click row → navigate to `/admin/missions/[id]`
+- "Create New Mission" button → `/admin/missions/new`
 - Legal error banner if user tries to access without waiver
 
-### TASK-C03.2: Case Detail Page
+### TASK-C03.2: Mission Detail Page
 
-**File**: `frontend/app/admin/cases/[id]/page.js`
+**File**: `frontend/app/admin/missions/[id]/page.js`
 
 **Sections**:
-1. **Header**: Case number, status pill, urgent badge
+1. **Header**: Mission number, status pill, urgent badge
 2. **Pet Info**: Name, species, breed, color, description
 3. **Location**: City, state, zip, last seen landmark, last seen time
 4. **Contact**: Name, phone, email
@@ -276,13 +276,13 @@ model RescueSquad {
    - "Add Note" form at top
 
 **State Management**:
-- `useState` for case, notes, loading, error
+- `useState` for mission, notes, loading, error
 - `useSession` for auth check
 - Legal error banner if waiver not accepted
 
-### TASK-C03.3: Create Case Form
+### TASK-C03.3: Create Mission Form
 
-**File**: `frontend/app/admin/cases/new/page.js`
+**File**: `frontend/app/admin/missions/new/page.js`
 
 **Form Sections**:
 1. **Location**:
@@ -306,14 +306,14 @@ model RescueSquad {
    - Urgent checkbox
 
 **Behavior**:
-- On submit → `POST /api/cases`
+- On submit → `POST /api/missions`
 - On 403 + WAIVER_NOT_ACCEPTED → show legal banner with "Review & Accept Now" button
-- On success → redirect to `/admin/cases/[id]`
+- On success → redirect to `/admin/missions/[id]`
 - Validation: City, State, Species required
 
 **Acceptance Criteria**:
-- [x] List page shows cases with filters
-- [x] Detail page shows all case info + notes
+- [x] List page shows missions with filters
+- [x] Detail page shows all mission info + notes
 - [x] Status can be updated (admins only)
 - [x] Notes can be added
 - [x] Create form works with validation
@@ -334,34 +334,34 @@ model RescueSquad {
 - "Review & Accept Now" button → `/legal/consent?returnUrl=<current-page>`
 
 **Files to Update**:
-- `frontend/app/admin/cases/page.js`
-- `frontend/app/admin/cases/[id]/page.js`
-- `frontend/app/admin/cases/new/page.js`
+- `frontend/app/admin/missions/page.js`
+- `frontend/app/admin/missions/[id]/page.js`
+- `frontend/app/admin/missions/new/page.js`
 
 ### TASK-C04.2: Admin Dashboard Visibility
 
 **Verify Events Appear**:
 - Navigate to `/admin/health` → Errors tab
 - Should see new event types:
-  - `case.created`, `case.create_failed`
-  - `case.status_changed`, `case.status_change_failed`
-  - `case.note_added`
-  - `legal.blocked_action` with `blocked_action = 'case_create'`
+  - `mission.created`, `mission.create_failed`
+  - `mission.status_changed`, `mission.status_change_failed`
+  - `mission.note_added`
+  - `legal.blocked_action` with `blocked_action = 'mission_create'`
 
 **Test Scenarios**:
-1. Create case without waiver → see `legal.blocked_action` + `case.create_failed`
-2. Create case with waiver → see `case.create_attempted` + `case.created`
-3. Update status → see `case.status_changed`
-4. Add note → see `case.note_added`
+1. Create mission without waiver → see `legal.blocked_action` + `mission.create_failed`
+2. Create mission with waiver → see `mission.create_attempted` + `mission.created`
+3. Update status → see `mission.status_changed`
+4. Add note → see `mission.note_added`
 
 **Acceptance Criteria**:
 - [x] Legal banners display correctly on all 3 pages
 - [x] Banner redirect to /legal/consent works
-- [x] All case events visible in /admin/health/errors
+- [x] All mission events visible in /admin/health/errors
 - [x] Event metadata includes useful debugging info
 - [x] Error codes are distinct and meaningful
-- [x] Case metrics added to admin health dashboard
-- [x] Cases displayed in overview metrics (cases_total, cases_open, cases_active_search)
+- [x] Mission metrics added to admin health dashboard
+- [x] Missions displayed in overview metrics (missions_total, missions_open, missions_active_search)
 
 ---
 
@@ -379,22 +379,22 @@ model RescueSquad {
   ```markdown
   ### 🔨 In Progress
 
-  - **Phase 13-14: Lost Pet Cases MVP** 🔨 **IN PROGRESS** (Nov 2025)
-    - LostPetCase + LostPetCaseNote models
+  - **Phase 13-14: Lost Pet Missions MVP** 🔨 **IN PROGRESS** (Nov 2025)
+    - LostPetMission + LostPetMissionNote models
     - 5 API endpoints with legal gating
     - Admin UI: list, detail, create
-    - Structured logging for all case actions
-    - **See:** `docs/features/lost-pet-cases-mvp.md`
+    - Structured logging for all mission actions
+    - **See:** `docs/features/lost-pet-missions-mvp.md`
   ```
 
 ### TASK-C05.2: Optional Seed Data
 
 **File**: `frontend/prisma/seed.js`
 
-**Add Sample Cases** (optional, for staging/demo):
-- 2-3 sample cases with different statuses
+**Add Sample Missions** (optional, for staging/demo):
+- 2-3 sample missions with different statuses
 - Attached to existing squads from seed
-- Example: Austin case (OPEN), Denver case (ACTIVE_SEARCH), Chicago case (RESOLVED)
+- Example: Austin mission (OPEN), Denver mission (ACTIVE_SEARCH), Chicago mission (RESOLVED)
 
 ### TASK-C05.3: Update Phase 0 Checklist
 
@@ -404,16 +404,16 @@ model RescueSquad {
 - Update "Next Phase" section to reflect work started on Phase 13-14:
   ```markdown
   **Next Phase:**
-  - 🔨 Phase 13-14: Pet Profiles + Lost-Pet Case MVP (IN PROGRESS)
+  - 🔨 Phase 13-14: Pet Profiles + Lost-Pet Mission MVP (IN PROGRESS)
   - ✅ Migrate rescue squad endpoints to logEvent() (COMPLETE)
   ```
 
 **Acceptance Criteria**:
-- [x] Feature spec committed: `docs/features/lost-pet-cases-mvp.md`
+- [x] Feature spec committed: `docs/features/lost-pet-missions-mvp.md`
 - [x] VISION.md updated with Phase 13-14 status
 - [ ] PHASE_0_CHECKLIST.md updated (not needed - using VISION.md)
-- [ ] Optional seed data added for demo cases
-- [ ] Commit message: "[Phase 13-14] TASK-C05: Update documentation for Cases MVP"
+- [ ] Optional seed data added for demo missions
+- [ ] Commit message: "[Phase 13-14] TASK-C05: Update documentation for Missions MVP"
 
 ---
 
@@ -428,11 +428,11 @@ Follow this sequence for best results:
 5. **TASK-C05** (Docs) - Finish documentation
 
 Each task can be committed independently with clear commit messages:
-- `[Phase 13-14] TASK-C01: Add LostPetCase models and migration`
-- `[Phase 13-14] TASK-C02: Implement case API endpoints with logging`
-- `[Phase 13-14] TASK-C03: Build admin cases UI (list, detail, create)`
+- `[Phase 13-14] TASK-C01: Add LostPetMission models and migration`
+- `[Phase 13-14] TASK-C02: Implement mission API endpoints with logging`
+- `[Phase 13-14] TASK-C03: Build admin missions UI (list, detail, create)`
 - `[Phase 13-14] TASK-C04: Wire legal gating and dashboard integration`
-- `[Phase 13-14] TASK-C05: Update documentation for Cases MVP`
+- `[Phase 13-14] TASK-C05: Update documentation for Missions MVP`
 
 ---
 
@@ -441,21 +441,21 @@ Each task can be committed independently with clear commit messages:
 After completing all tasks, verify:
 
 **Core Functionality**:
-- [ ] Admin can create a new case
-- [ ] Cases appear in list with correct filters
-- [ ] Case detail shows all information
+- [ ] Admin can create a new mission
+- [ ] Missions appear in list with correct filters
+- [ ] Mission detail shows all information
 - [ ] Status can be updated (with note created)
 - [ ] Notes can be added manually
-- [ ] Case numbers are unique and sequential per city
+- [ ] Mission numbers are unique and sequential per city
 
 **Legal Gating**:
-- [ ] User without waiver cannot create case (403 error)
+- [ ] User without waiver cannot create mission (403 error)
 - [ ] Legal banner shows with redirect button
-- [ ] After accepting legal docs, can create case
-- [ ] All case actions respect legal requirements
+- [ ] After accepting legal docs, can create mission
+- [ ] All mission actions respect legal requirements
 
 **Observability**:
-- [ ] All case events appear in Admin Health Dashboard
+- [ ] All mission events appear in Admin Health Dashboard
 - [ ] Event metadata is useful for debugging
 - [ ] Error codes help identify specific failures
 - [ ] Legal compliance events traceable

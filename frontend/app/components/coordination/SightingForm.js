@@ -20,7 +20,7 @@ import ImageUpload from '@/app/components/ImageUpload';
 export default function SightingForm({
   assignmentId,
   isParticipant,
-  caseData,
+  missionData,
   currentUserId,
 }) {
   const [sightings, setSightings] = useState([]);
@@ -81,8 +81,8 @@ export default function SightingForm({
       }
 
       // Default center
-      const center = caseData?.lastSeenLatitude && caseData?.lastSeenLongitude
-        ? [caseData.lastSeenLatitude, caseData.lastSeenLongitude]
+      const center = missionData?.lastSeenLatitude && missionData?.lastSeenLongitude
+        ? [missionData.lastSeenLatitude, missionData.lastSeenLongitude]
         : [41.8781, -87.6298];
 
       // Create map
@@ -98,7 +98,7 @@ export default function SightingForm({
       }).addTo(map);
 
       // Add last seen marker
-      if (caseData?.lastSeenLatitude && caseData?.lastSeenLongitude) {
+      if (missionData?.lastSeenLatitude && missionData?.lastSeenLongitude) {
         const lastSeenIcon = L.divIcon({
           className: 'custom-marker',
           html: `<div style="
@@ -172,7 +172,7 @@ export default function SightingForm({
         mapInstanceRef.current = null;
       }
     };
-  }, [caseData, fetchSightings, isReporting]);
+  }, [missionData, fetchSightings, isReporting]);
 
   // Render sightings on map
   useEffect(() => {

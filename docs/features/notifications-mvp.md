@@ -3,15 +3,15 @@
 **Status:** ✅ Fully Implemented
 **Owner:** Product + Engineering
 **Last Updated:** November 25, 2025
-**Phase:** 25–26 (Notifications MVP - Case Alerts & Admin Signals)
+**Phase:** 25–26 (Notifications MVP - Mission Alerts & Admin Signals)
 
 ---
 
 ## 0. Summary
 
-We're building a **transactional notifications layer** that automatically sends email alerts for key case lifecycle events. This MVP focuses on:
+We're building a **transactional notifications layer** that automatically sends email alerts for key mission lifecycle events. This MVP focuses on:
 
-- **Owner/contact notifications**: Email confirmations when public reports are submitted, and updates when case status changes.
+- **Owner/contact notifications**: Email confirmations when public reports are submitted, and updates when mission status changes.
 - **Admin notifications**: Immediate alerts when public reports are submitted for review.
 - **Full observability**: All notification attempts emit structured events visible in `/admin/health`.
 
@@ -19,20 +19,20 @@ This is a **minimal, safe, transactional-only** implementation:
 - No SMS (email only for MVP)
 - No subscriptions or preferences UI (hard-coded triggers)
 - No marketing or newsletters
-- Built entirely on existing infrastructure (nodemailer, event logging, case system)
+- Built entirely on existing infrastructure (nodemailer, event logging, mission system)
 
 **Key Principles:**
 
-- **Transactional only**: Critical case lifecycle events, not marketing
-- **Privacy-respecting**: Only send to case contact emails, no third parties
+- **Transactional only**: Critical mission lifecycle events, not marketing
+- **Privacy-respecting**: Only send to mission contact emails, no third parties
 - **Observable**: Every send attempt logged with structured events
 - **Non-blocking**: Email failures don't break API responses
 - **Simple**: Minimal new models, leverage existing email utility
 
 This phase builds directly on:
 - **Phase 0**: Observability + event logging
-- **Phase 13–14**: Internal case management system
-- **Phase 15–16**: Public case portal (public reports)
+- **Phase 13–14**: Internal mission management system
+- **Phase 15–16**: Public mission portal (public reports)
 - **Phase 20–21**: QA harness for testing
 
 Future phases will add: SMS, subscription preferences, in-app notifications, and advanced templates.
@@ -43,28 +43,28 @@ Future phases will add: SMS, subscription preferences, in-app notifications, and
 
 ### Current State
 
-After Phase 15–16, we have a **public lost pet case portal** where:
-- The public can submit lost pet reports via `/cases/report`
-- Admins can create and manage cases via `/admin/cases`
-- Cases can transition through statuses: OPEN → ACTIVE_SEARCH → RESOLVED
+After Phase 15–16, we have a **public lost pet mission portal** where:
+- The public can submit lost pet reports via `/missions/report`
+- Admins can create and manage missions via `/admin/missions`
+- Missions can transition through statuses: OPEN → ACTIVE_SEARCH → RESOLVED
 
 However:
 - **Reporters get no confirmation** when they submit a public report
-- **Pet owners get no updates** when their case status changes
-- **Admins must poll `/admin/cases`** to discover new public reports
-- **No way to proactively inform stakeholders** of critical case events
+- **Pet owners get no updates** when their mission status changes
+- **Admins must poll `/admin/missions`** to discover new public reports
+- **No way to proactively inform stakeholders** of critical mission events
 
 ### Problems Solved
 
 **For Pet Owners/Reporters:**
 - "I submitted a report but don't know if it went through"
-- "My case status changed but I had no idea"
+- "My mission status changed but I had no idea"
 - "I want updates without checking the website every day"
 
 **For Admins:**
 - "I don't know when new public reports arrive"
 - "I have to refresh the admin page constantly"
-- "I miss urgent cases because I'm not always logged in"
+- "I miss urgent missions because I'm not always logged in"
 
 **For Platform Operations:**
 - "Email delivery failures go unnoticed"
@@ -79,17 +79,17 @@ However:
 
 **MVP Notification Triggers (Email Only):**
 
-1. **Public Report Submitted** (when `POST /api/public/cases` succeeds):
-   - Send confirmation email to case contact
+1. **Public Report Submitted** (when `POST /api/public/missions` succeeds):
+   - Send confirmation email to mission contact
    - Send admin alert email to configured admin address
 
-2. **Case Status Changed** (when `POST /api/cases/[id]/status` succeeds):
+2. **Mission Status Changed** (when `POST /api/missions/[id]/status` succeeds):
    - If status transitions to `ACTIVE_SEARCH`, `RESOLVED`, or `CLOSED_OTHER`:
-     - Send status update email to case contact (if `contactEmail` present)
+     - Send status update email to mission contact (if `contactEmail` present)
 
-3. **Case Made Public** (optional for MVP, if easy):
+3. **Mission Made Public** (optional for MVP, if easy):
    - When admin toggles `isPublic` from false → true:
-     - Send notification to case contact that their case is now visible
+     - Send notification to mission contact that their mission is now visible
 
 **Observability:**
 - All notification send attempts emit `notification.*` events
@@ -105,7 +105,7 @@ However:
 - ❌ **No SMS** - Email only for MVP
 - ❌ **No subscription management** - No opt-in/opt-out UI
 - ❌ **No user notification preferences** - Hard-coded triggers
-- ❌ **No "follow city" or area subscriptions** - Only case-specific notifications
+- ❌ **No "follow city" or area subscriptions** - Only mission-specific notifications
 - ❌ **No marketing campaigns** - Transactional only
 - ❌ **No rich templates** - Simple HTML emails
 - ❌ **No in-app notifications** - Email only
@@ -124,18 +124,18 @@ However:
 
 **Acceptance:**
 - Email arrives within 1 minute of submission
-- Email contains case number, pet name, and review timeline
-- Email is sent even if case is not yet public (isPublic=false)
+- Email contains mission number, pet name, and review timeline
+- Email is sent even if mission is not yet public (isPublic=false)
 
 **Story 2: Status Update Notifications**
-> As a pet owner whose case is being managed,
-> I want to receive email updates when the case status changes,
+> As a pet owner whose mission is being managed,
+> I want to receive email updates when the mission status changes,
 > So I know when volunteers start searching or when my pet is found.
 
 **Acceptance:**
 - Email sent when status changes to ACTIVE_SEARCH, RESOLVED, or CLOSED_OTHER
 - Email explains what the new status means
-- Email includes case number and link to public case page (if public)
+- Email includes mission number and link to public mission page (if public)
 
 ### Admin
 
@@ -146,7 +146,7 @@ However:
 
 **Acceptance:**
 - Email arrives within 1 minute of public report submission
-- Email includes pet details, location, and direct link to `/admin/cases/[id]`
+- Email includes pet details, location, and direct link to `/admin/missions/[id]`
 - Email subject clearly indicates it's a new public report
 
 **Story 4: Configure Notification Email**
@@ -177,30 +177,30 @@ However:
 
 ### MVP: Email Only
 
-For this MVP, we support **only email notifications**. All notifications are **transactional** (critical case lifecycle events).
+For this MVP, we support **only email notifications**. All notifications are **transactional** (critical mission lifecycle events).
 
 ### Trigger 1: Public Report Submitted
 
-**Event:** `POST /api/public/cases` succeeds
+**Event:** `POST /api/public/missions` succeeds
 
 **Notification 1A: Owner/Contact Confirmation**
 - **To:** `contactEmail` from request body
-- **Subject:** `"✅ We received your lost pet report: {PetName or CaseNumber}"`
+- **Subject:** `"✅ We received your lost pet report: {PetName or MissionNumber}"`
 - **Body:**
   ```
   Hi {ContactName},
 
   Thank you for submitting a lost pet report to PetRecovery.org.
 
-  Case Details:
-  - Case Number: {CaseNumber}
+  Mission Details:
+  - Mission Number: {MissionNumber}
   - Pet: {PetName} ({PetSpecies})
   - Location: {City}, {State}
   - Submitted: {Timestamp}
 
   What happens next:
   1. Our admin team will review your report within 24-48 hours.
-  2. Once approved, your case will be visible on the public portal.
+  2. Once approved, your mission will be visible on the public portal.
   3. You'll receive email updates when the status changes.
 
   Important: Your contact information is NOT publicly visible by default.
@@ -217,44 +217,44 @@ For this MVP, we support **only email notifications**. All notifications are **t
   ```
   A new public lost pet report requires review:
 
-  Case Number: {CaseNumber}
+  Mission Number: {MissionNumber}
   Pet: {PetName} ({PetSpecies}, {PetBreed})
   Location: {City}, {State} ({ZipCode})
   Landmark: {LastSeenLandmark}
   Contact: {ContactName} ({ContactEmail}, {ContactPhone})
   Submitted: {Timestamp}
 
-  Review and approve this case:
-  {BASE_URL}/admin/cases/{CaseId}
+  Review and approve this mission:
+  {BASE_URL}/admin/missions/{MissionId}
 
-  This case is currently NOT public (requires approval).
+  This mission is currently NOT public (requires approval).
   ```
 
-### Trigger 2: Case Status Changed
+### Trigger 2: Mission Status Changed
 
-**Event:** `POST /api/cases/[id]/status` succeeds **AND** new status is one of:
+**Event:** `POST /api/missions/[id]/status` succeeds **AND** new status is one of:
 - `ACTIVE_SEARCH`
 - `RESOLVED`
 - `CLOSED_OTHER`
 
 **Notification 2: Status Update to Contact**
-- **To:** `contactEmail` from case record (if present)
-- **Subject:** `"📢 Update on your lost pet case {CaseNumber}: {NewStatus}"`
+- **To:** `contactEmail` from mission record (if present)
+- **Subject:** `"📢 Update on your lost pet mission {MissionNumber}: {NewStatus}"`
 - **Body (example for ACTIVE_SEARCH):**
   ```
   Hi {ContactName},
 
-  Your lost pet case has been updated:
+  Your lost pet mission has been updated:
 
-  Case Number: {CaseNumber}
+  Mission Number: {MissionNumber}
   Pet: {PetName}
   New Status: ACTIVE SEARCH
 
   This means:
   Rescue squad volunteers are actively searching for {PetName} in {City}.
 
-  You can view your case online:
-  {BASE_URL}/cases/{CaseNumber}
+  You can view your mission online:
+  {BASE_URL}/missions/{MissionNumber}
 
   We'll notify you of any further updates.
 
@@ -265,9 +265,9 @@ For this MVP, we support **only email notifications**. All notifications are **t
   ```
   Hi {ContactName},
 
-  Great news! Your lost pet case has been marked as RESOLVED:
+  Great news! Your lost pet mission has been marked as RESOLVED:
 
-  Case Number: {CaseNumber}
+  Mission Number: {MissionNumber}
   Pet: {PetName}
   Status: RESOLVED
   Reason: {StatusReason}
@@ -277,22 +277,22 @@ For this MVP, we support **only email notifications**. All notifications are **t
   Thank you for using PetRecovery.org.
   ```
 
-### Trigger 3 (Optional): Case Made Public
+### Trigger 3 (Optional): Mission Made Public
 
 **Event:** Admin toggles `isPublic` from `false` → `true` (via future admin UI or manual DB update)
 
-**Notification 3: Case Now Public**
-- **To:** `contactEmail` from case record
-- **Subject:** `"✅ Your lost pet case is now visible: {CaseNumber}"`
+**Notification 3: Mission Now Public**
+- **To:** `contactEmail` from mission record
+- **Subject:** `"✅ Your lost pet mission is now visible: {MissionNumber}"`
 - **Body:**
   ```
   Hi {ContactName},
 
-  Your lost pet case has been approved and is now visible on the public portal:
+  Your lost pet mission has been approved and is now visible on the public portal:
 
-  View your case: {BASE_URL}/cases/{CaseNumber}
+  View your mission: {BASE_URL}/missions/{MissionNumber}
 
-  Community members can now see your case and help search for {PetName}.
+  Community members can now see your mission and help search for {PetName}.
 
   Your contact information is {ContactPrivacyMessage}.
 
@@ -316,7 +316,7 @@ For this MVP, we are choosing **Option A: No new database tables**.
 - Simpler implementation, faster delivery
 
 **What This Means:**
-- Email addresses come directly from case records (`contactEmail` field)
+- Email addresses come directly from mission records (`contactEmail` field)
 - Admin notification email comes from app config (env var or simple settings)
 - No opt-in/opt-out UI
 - No notification history table (events are already logged via `EventLog`)
@@ -332,8 +332,8 @@ For this MVP, we are choosing **Option A: No new database tables**.
 |---------|----------------|-------------|
 | Public report submitted | Contact | `contactEmail` from POST body |
 | Public report submitted | Admin | Config (`ADMIN_NOTIFICATION_EMAIL` env var) |
-| Status changed | Contact | `case.contactEmail` from DB |
-| Case made public | Contact | `case.contactEmail` from DB |
+| Status changed | Contact | `mission.contactEmail` from DB |
+| Mission made public | Contact | `mission.contactEmail` from DB |
 
 **No New Models Required**
 
@@ -398,32 +398,32 @@ This module will provide high-level notification functions that:
 /**
  * Send confirmation email to contact when public report is submitted
  */
-export async function sendCaseReportConfirmation(caseData, options = {}) {
-  // caseData: { caseNumber, petName, petSpecies, city, state, contactName, contactEmail, createdAt }
+export async function sendMissionReportConfirmation(missionData, options = {}) {
+  // missionData: { missionNumber, petName, petSpecies, city, state, contactName, contactEmail, createdAt }
   // options: { isPublicReport: true/false }
 }
 
 /**
  * Send alert to admin when public report is submitted
  */
-export async function sendAdminPublicReportAlert(caseData) {
-  // caseData: { caseNumber, petName, petSpecies, petBreed, city, state, zipCode, lastSeenLandmark, contactName, contactEmail, contactPhone, createdAt, id }
+export async function sendAdminPublicReportAlert(missionData) {
+  // missionData: { missionNumber, petName, petSpecies, petBreed, city, state, zipCode, lastSeenLandmark, contactName, contactEmail, contactPhone, createdAt, id }
 }
 
 /**
- * Send status update to contact when case status changes
+ * Send status update to contact when mission status changes
  */
-export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) {
-  // caseData: { caseNumber, petName, contactName, contactEmail, city, statusReason, isPublic }
+export async function sendMissionStatusUpdate(missionData, previousStatus, newStatus) {
+  // missionData: { missionNumber, petName, contactName, contactEmail, city, statusReason, isPublic }
   // previousStatus: "OPEN", "ACTIVE_SEARCH", etc.
   // newStatus: "ACTIVE_SEARCH", "RESOLVED", "CLOSED_OTHER"
 }
 
 /**
- * Send notification when case becomes public (optional for MVP)
+ * Send notification when mission becomes public (optional for MVP)
  */
-export async function sendCaseNowPublicNotification(caseData) {
-  // caseData: { caseNumber, petName, contactName, contactEmail, publicContactOk }
+export async function sendMissionNowPublicNotification(missionData) {
+  // missionData: { missionNumber, petName, contactName, contactEmail, publicContactOk }
 }
 ```
 
@@ -434,13 +434,13 @@ export async function sendCaseNowPublicNotification(caseData) {
 await logEvent({
   event_type: 'notification.send_attempted',
   resource_type: 'notification',
-  resource_id: caseData.caseNumber,
+  resource_id: missionData.missionNumber,
   action: 'create',
   result: 'success',
   metadata: {
-    notification_type: 'case_report_confirmation',
-    recipient: caseData.contactEmail,
-    case_number: caseData.caseNumber
+    notification_type: 'mission_report_confirmation',
+    recipient: missionData.contactEmail,
+    mission_number: missionData.missionNumber
   }
 });
 
@@ -448,13 +448,13 @@ await logEvent({
 await logEvent({
   event_type: 'notification.send_succeeded',
   resource_type: 'notification',
-  resource_id: caseData.caseNumber,
+  resource_id: missionData.missionNumber,
   action: 'create',
   result: 'success',
   metadata: {
-    notification_type: 'case_report_confirmation',
-    recipient: caseData.contactEmail,
-    case_number: caseData.caseNumber,
+    notification_type: 'mission_report_confirmation',
+    recipient: missionData.contactEmail,
+    mission_number: missionData.missionNumber,
     response_time_ms: responseTime
   }
 });
@@ -463,15 +463,15 @@ await logEvent({
 await logEvent({
   event_type: 'notification.send_failed',
   resource_type: 'notification',
-  resource_id: caseData.caseNumber,
+  resource_id: missionData.missionNumber,
   action: 'create',
   result: 'failure',
   error_code: 'EMAIL_SEND_FAILED',
   error_message: error.message,
   metadata: {
-    notification_type: 'case_report_confirmation',
-    recipient: caseData.contactEmail,
-    case_number: caseData.caseNumber
+    notification_type: 'mission_report_confirmation',
+    recipient: missionData.contactEmail,
+    mission_number: missionData.missionNumber
   }
 });
 ```
@@ -482,40 +482,40 @@ await logEvent({
 
 ### Integration Point 1: Public Report Submission
 
-**File:** `frontend/app/api/public/cases/route.js`
-**Endpoint:** `POST /api/public/cases`
+**File:** `frontend/app/api/public/missions/route.js`
+**Endpoint:** `POST /api/public/missions`
 
 **Current Behavior (Phase 15-16):**
 - Validates input
-- Creates case with `isPublic=false`, `source=PUBLIC_REPORT`
-- Emits `public_case.report_submitted` event
-- Returns success with case number
+- Creates mission with `isPublic=false`, `source=PUBLIC_REPORT`
+- Emits `public_mission.report_submitted` event
+- Returns success with mission number
 
 **New Behavior (Phase 25-26):**
 
-After successful case creation:
+After successful mission creation:
 
 ```javascript
-// Existing code creates newCase...
+// Existing code creates newMission...
 
 const responseTime = Date.now() - startTime;
 
 // Existing event logging...
-await logEvent({ event_type: 'public_case.report_submitted', ... });
+await logEvent({ event_type: 'public_mission.report_submitted', ... });
 
 // NEW: Send notifications (non-blocking)
 try {
   // 1. Send confirmation to contact
-  if (newCase.contactEmail) {
-    await sendCaseReportConfirmation({
-      caseNumber: newCase.caseNumber,
-      petName: newCase.petName,
-      petSpecies: newCase.petSpecies,
-      city: newCase.city,
-      state: newCase.state,
-      contactName: newCase.contactName,
-      contactEmail: newCase.contactEmail,
-      createdAt: newCase.createdAt
+  if (newMission.contactEmail) {
+    await sendMissionReportConfirmation({
+      missionNumber: newMission.missionNumber,
+      petName: newMission.petName,
+      petSpecies: newMission.petSpecies,
+      city: newMission.city,
+      state: newMission.state,
+      contactName: newMission.contactName,
+      contactEmail: newMission.contactEmail,
+      createdAt: newMission.createdAt
     }, { isPublicReport: true });
   }
 
@@ -523,19 +523,19 @@ try {
   const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
   if (adminEmail) {
     await sendAdminPublicReportAlert({
-      id: newCase.id,
-      caseNumber: newCase.caseNumber,
-      petName: newCase.petName,
-      petSpecies: newCase.petSpecies,
-      petBreed: newCase.petBreed,
-      city: newCase.city,
-      state: newCase.state,
-      zipCode: newCase.zipCode,
-      lastSeenLandmark: newCase.lastSeenLandmark,
-      contactName: newCase.contactName,
-      contactEmail: newCase.contactEmail,
-      contactPhone: newCase.contactPhone,
-      createdAt: newCase.createdAt
+      id: newMission.id,
+      missionNumber: newMission.missionNumber,
+      petName: newMission.petName,
+      petSpecies: newMission.petSpecies,
+      petBreed: newMission.petBreed,
+      city: newMission.city,
+      state: newMission.state,
+      zipCode: newMission.zipCode,
+      lastSeenLandmark: newMission.lastSeenLandmark,
+      contactName: newMission.contactName,
+      contactEmail: newMission.contactEmail,
+      contactPhone: newMission.contactPhone,
+      createdAt: newMission.createdAt
     });
   }
 } catch (notificationError) {
@@ -548,55 +548,55 @@ try {
     result: 'failure',
     error_code: 'NOTIFICATION_ERROR',
     error_message: notificationError.message,
-    metadata: { case_number: newCase.caseNumber }
+    metadata: { mission_number: newMission.missionNumber }
   });
 }
 
 // Return the original successful response
-return NextResponse.json({ success: true, caseNumber: newCase.caseNumber, ... });
+return NextResponse.json({ success: true, missionNumber: newMission.missionNumber, ... });
 ```
 
 **Error Handling:**
 - Email failures are caught and logged
-- API still returns 201 Created if case creation succeeded
+- API still returns 201 Created if mission creation succeeded
 - Failures visible in `/admin/health` Errors tab
 
-### Integration Point 2: Case Status Update
+### Integration Point 2: Mission Status Update
 
-**File:** `frontend/app/api/cases/[id]/status/route.js`
-**Endpoint:** `POST /api/cases/[id]/status`
+**File:** `frontend/app/api/missions/[id]/status/route.js`
+**Endpoint:** `POST /api/missions/[id]/status`
 
 **Current Behavior (Phase 13-14):**
 - Validates status transition
-- Updates case status
+- Updates mission status
 - Creates status change note
-- Emits `case.status_changed` event
-- Returns updated case
+- Emits `mission.status_changed` event
+- Returns updated mission
 
 **New Behavior (Phase 25-26):**
 
 After successful status update:
 
 ```javascript
-// Existing code updates case status...
+// Existing code updates mission status...
 
 const responseTime = Date.now() - startTime;
 
 // Existing event logging...
-await logEvent({ event_type: 'case.status_changed', ... });
+await logEvent({ event_type: 'mission.status_changed', ... });
 
 // NEW: Send notification if relevant status
 const notifiableStatuses = ['ACTIVE_SEARCH', 'RESOLVED', 'CLOSED_OTHER'];
-if (notifiableStatuses.includes(newStatus) && updatedCase.contactEmail) {
+if (notifiableStatuses.includes(newStatus) && updatedMission.contactEmail) {
   try {
-    await sendCaseStatusUpdate({
-      caseNumber: updatedCase.caseNumber,
-      petName: updatedCase.petName,
-      contactName: updatedCase.contactName,
-      contactEmail: updatedCase.contactEmail,
-      city: updatedCase.city,
-      statusReason: updatedCase.statusReason,
-      isPublic: updatedCase.isPublic
+    await sendMissionStatusUpdate({
+      missionNumber: updatedMission.missionNumber,
+      petName: updatedMission.petName,
+      contactName: updatedMission.contactName,
+      contactEmail: updatedMission.contactEmail,
+      city: updatedMission.city,
+      statusReason: updatedMission.statusReason,
+      isPublic: updatedMission.isPublic
     }, previousStatus, newStatus);
   } catch (notificationError) {
     console.error('Status notification error:', notificationError);
@@ -605,7 +605,7 @@ if (notifiableStatuses.includes(newStatus) && updatedCase.contactEmail) {
 }
 
 // Return the original successful response
-return NextResponse.json({ case: updatedCase });
+return NextResponse.json({ mission: updatedMission });
 ```
 
 **Important:**
@@ -614,7 +614,7 @@ return NextResponse.json({ case: updatedCase });
 - Don't send duplicate emails if status is updated to same value repeatedly
   - (Can add simple check: `if (previousStatus !== newStatus)`)
 
-### Integration Point 3 (Optional): Case Made Public
+### Integration Point 3 (Optional): Mission Made Public
 
 **File:** Future admin UI or manual process
 **Trigger:** `isPublic` toggled from `false` → `true`
@@ -623,9 +623,9 @@ This can be deferred to a later task or phase if admin doesn't have a UI for tog
 
 If implemented:
 ```javascript
-// When admin approves case and sets isPublic=true
-if (previousIsPublic === false && newIsPublic === true && caseData.contactEmail) {
-  await sendCaseNowPublicNotification(caseData);
+// When admin approves mission and sets isPublic=true
+if (previousIsPublic === false && newIsPublic === true && missionData.contactEmail) {
+  await sendMissionNowPublicNotification(missionData);
 }
 ```
 
@@ -700,7 +700,7 @@ All notification attempts must emit structured events via `logEvent()`:
 | `notification.send_failed` | After failed email delivery | failure | medium |
 
 **Additional context events** (optional, for granularity):
-- `notification.case_report_confirmation_sent`
+- `notification.mission_report_confirmation_sent`
 - `notification.admin_alert_sent`
 - `notification.status_update_sent`
 
@@ -709,10 +709,10 @@ All notification attempts must emit structured events via `logEvent()`:
 All notification events should include:
 ```javascript
 {
-  notification_type: 'case_report_confirmation' | 'admin_alert' | 'status_update' | 'case_now_public',
+  notification_type: 'mission_report_confirmation' | 'admin_alert' | 'status_update' | 'mission_now_public',
   recipient: 'email@example.com',
-  case_number: 'CHI-2025-0001',
-  case_id: 'cuid123',
+  mission_number: 'CHI-2025-0001',
+  mission_id: 'cuid123',
   response_time_ms: 1234 // for success/failure
 }
 ```
@@ -743,7 +743,7 @@ const ERROR_IMPACT = {
 ```
 
 **Severity Justification:**
-- **medium** for `send_failed` - Notifications are important but not as critical as core case creation
+- **medium** for `send_failed` - Notifications are important but not as critical as core mission creation
 - **low** for attempts/success - These are informational, not errors
 
 ### Example Event Logs
@@ -760,10 +760,10 @@ const ERROR_IMPACT = {
   "action": "create",
   "result": "success",
   "metadata": {
-    "notification_type": "case_report_confirmation",
+    "notification_type": "mission_report_confirmation",
     "recipient": "owner@example.com",
-    "case_number": "CHI-2025-0042",
-    "case_id": "cuid456",
+    "mission_number": "CHI-2025-0042",
+    "mission_id": "cuid456",
     "response_time_ms": 234
   }
 }
@@ -785,7 +785,7 @@ const ERROR_IMPACT = {
   "metadata": {
     "notification_type": "admin_alert",
     "recipient": "admin@petrecovery.org",
-    "case_number": "CHI-2025-0042"
+    "mission_number": "CHI-2025-0042"
   }
 }
 ```
@@ -798,7 +798,7 @@ const ERROR_IMPACT = {
 
 All notifications in this MVP are **transactional** (not marketing):
 - Report confirmations: Acknowledge user-initiated action
-- Status updates: Service-related updates about user's case
+- Status updates: Service-related updates about user's mission
 - Admin alerts: Operational notifications for platform management
 
 **Legal Classification:** Transactional emails are **exempt from CAN-SPAM unsubscribe requirements** when they facilitate a transaction or provide information about an account/service.
@@ -810,10 +810,10 @@ All notifications in this MVP are **transactional** (not marketing):
 - Contact email (`contactEmail`)
 - Pet name (`petName`)
 - Location (city, state, landmark)
-- Case details (species, breed, color)
+- Mission details (species, breed, color)
 
 **Data NOT Included:**
-- Internal case notes (from `LostPetCaseNote`)
+- Internal mission notes (from `LostPetMissionNote`)
 - Rescue squad member names or IDs
 - Admin user information
 - IP addresses or tracking data (for MVP)
@@ -827,8 +827,8 @@ All notifications in this MVP are **transactional** (not marketing):
 - Emails are plain text/HTML only (no tracking pixels for MVP)
 
 **Public Links:**
-- Emails to contacts include public-safe links only: `/cases/[caseNumber]`
-- Emails to admins include authenticated admin links: `/admin/cases/[id]`
+- Emails to contacts include public-safe links only: `/missions/[missionNumber]`
+- Emails to admins include authenticated admin links: `/admin/missions/[id]`
 - All URLs use `BASE_URL` environment variable (configured per environment)
 
 ### Future Enhancements (Post-MVP)
@@ -859,14 +859,14 @@ All notifications in this MVP are **transactional** (not marketing):
 **Test Scenarios:**
 
 **Test 1: Public Report Confirmation**
-- Submit a lost pet report via `/cases/report`
+- Submit a lost pet report via `/missions/report`
 - Verify two emails are sent:
-  - [ ] Contact receives confirmation email with case number
-  - [ ] Admin receives alert email with case details
+  - [ ] Contact receives confirmation email with mission number
+  - [ ] Admin receives alert email with mission details
 - Check `/admin/health` for `notification.*` events
 
 **Test 2: Status Change Notification**
-- Create a case with `contactEmail` in `/admin/cases`
+- Create a mission with `contactEmail` in `/admin/missions`
 - Update status to `ACTIVE_SEARCH`
 - Verify contact receives status update email
 - Update status to `RESOLVED`
@@ -877,14 +877,14 @@ All notifications in this MVP are **transactional** (not marketing):
 - Configure invalid SMTP credentials
 - Submit public report
 - Verify:
-  - [ ] API still returns success (case created)
+  - [ ] API still returns success (mission created)
   - [ ] `notification.send_failed` event logged
   - [ ] Error appears in `/admin/health` Errors tab
 
 **Test 4: Missing Contact Email**
 - Submit public report with no email
 - Verify:
-  - [ ] Case created successfully
+  - [ ] Mission created successfully
   - [ ] No contact email sent (gracefully skipped)
   - [ ] Admin email still sent
   - [ ] No errors logged
@@ -896,7 +896,7 @@ Add to `/admin/qa` page:
 **Test Suite: "Notification Tests"**
 
 **Test 1: Public Report Notification Events**
-- Calls `POST /api/public/cases` with test data
+- Calls `POST /api/public/missions` with test data
 - Verifies API returns success
 - Checks event logs for:
   - [ ] `notification.send_attempted` (2x: contact + admin)
@@ -904,7 +904,7 @@ Add to `/admin/qa` page:
 - Returns: Event counts, success rate
 
 **Test 2: Status Change Notification Events**
-- Creates a test case with contact email
+- Creates a test mission with contact email
 - Updates status to `ACTIVE_SEARCH`
 - Checks event logs for:
   - [ ] `notification.send_attempted`
@@ -923,12 +923,12 @@ Add to `/admin/qa` page:
 ### Browser Testing
 
 **Smoke Test Checklist:**
-1. Navigate to `/cases/report`
+1. Navigate to `/missions/report`
 2. Submit a report with your real email
 3. Check your inbox for confirmation email (within 1 minute)
 4. Check admin inbox for alert email
-5. Navigate to `/admin/cases`
-6. Update case status to `ACTIVE_SEARCH`
+5. Navigate to `/admin/missions`
+6. Update mission status to `ACTIVE_SEARCH`
 7. Check inbox for status update email
 8. Navigate to `/admin/health`
 9. Verify `notification.*` events appear in Errors tab (if any failures)
@@ -970,7 +970,7 @@ Add to `/admin/qa` page:
   - All notification attempts emit `notification.*` events
   - Failures appear in `/admin/health` Errors tab
   - `notification.send_failed` added to `ERROR_IMPACT` mapping
-  - Event metadata includes notification type, recipient, case number
+  - Event metadata includes notification type, recipient, mission number
 
 - [ ] **QA Harness Integration**
   - 3 notification tests added to `/admin/qa`
@@ -1017,16 +1017,16 @@ Add to `/admin/qa` page:
 - Webhook notifications for integrations
 
 **Advanced Triggers:**
-- New sighting reported on case
-- Case comment added
-- Case assigned to rescue squad
-- Rescue squad member joins case
-- Follow city/area subscriptions (notify on new cases in area)
+- New sighting reported on mission
+- Mission comment added
+- Mission assigned to rescue squad
+- Rescue squad member joins mission
+- Follow city/area subscriptions (notify on new missions in area)
 
 **Rich Templates:**
 - HTML email templates with branding
 - Pet photos in emails (if available)
-- Interactive buttons (CTA: "View Case", "Update Status")
+- Interactive buttons (CTA: "View Mission", "Update Status")
 - Digest emails (daily/weekly summaries)
 
 **Analytics:**

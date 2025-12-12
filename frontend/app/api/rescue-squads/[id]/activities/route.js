@@ -12,7 +12,7 @@ export async function GET(request, { params }) {
 
     const { searchParams } = new URL(request.url);
     const filter = searchParams.get('filter') || 'all';
-    const caseId = searchParams.get('caseId');
+    const missionId = searchParams.get('missionId');
 
     const squadId = params.id;
 
@@ -33,11 +33,11 @@ export async function GET(request, { params }) {
     let whereClause = { rescueSquadId: squadId };
 
     // Filter by specific case if provided
-    if (caseId) {
-      whereClause.caseId = caseId;
+    if (missionId) {
+      whereClause.missionId = missionId;
     }
 
-    if (filter === 'cases') {
+    if (filter === 'missions') {
       whereClause.type = {
         in: ['CASE_ACCEPTED', 'CASE_UPDATED', 'CASE_RESOLVED', 'SIGHTING_REPORTED']
       };
@@ -81,7 +81,7 @@ export async function GET(request, { params }) {
       message: activity.message,
       details: activity.details,
       actorName: activity.actor ? `${activity.actor.firstName} ${activity.actor.lastName}` : null,
-      caseId: activity.caseId,
+      missionId: activity.missionId,
       caseName: activity.case?.petName,
       createdAt: activity.createdAt
     }));

@@ -34,16 +34,16 @@ export async function POST(request) {
       select: { id: true, city: true },
     });
 
-    // Find or create a system user for Surumaa
+    // Find or create a system user for Sarama
     let systemUser = await prisma.user.findFirst({
-      where: { email: 'surumaa@petrecovery.app' },
+      where: { email: 'sarama@petrecovery.app' },
     });
 
     if (!systemUser) {
       systemUser = await prisma.user.create({
         data: {
-          email: 'surumaa@petrecovery.app',
-          firstName: 'Surumaa',
+          email: 'sarama@petrecovery.app',
+          firstName: 'Sarama',
           lastName: '',
           role: 'ADMIN',
         },

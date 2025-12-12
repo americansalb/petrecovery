@@ -35,17 +35,17 @@ import {
 // ============================================================================
 // SURAMAA TIP BANNER
 // ============================================================================
-function SuramaaTipBanner({ caseId, onDismiss }) {
+function SuramaaTipBanner({ missionId, onDismiss }) {
   const [tip, setTip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dismissing, setDismissing] = useState(false);
 
   useEffect(() => {
-    if (!caseId) return;
+    if (!missionId) return;
 
     const fetchTips = async () => {
       try {
-        const res = await fetch(`/api/mission/${caseId}/tips`);
+        const res = await fetch(`/api/mission/${missionId}/tips`);
         if (res.ok) {
           const data = await res.json();
           if (data.tips && data.tips.length > 0) {
@@ -60,13 +60,13 @@ function SuramaaTipBanner({ caseId, onDismiss }) {
     };
 
     fetchTips();
-  }, [caseId]);
+  }, [missionId]);
 
   const handleDismiss = async () => {
     if (!tip) return;
     setDismissing(true);
     try {
-      await fetch(`/api/mission/${caseId}/tips/${tip.id}`, { method: 'DELETE' });
+      await fetch(`/api/mission/${missionId}/tips/${tip.id}`, { method: 'DELETE' });
       setTip(null);
       if (onDismiss) onDismiss(tip.id);
     } catch (err) {
@@ -120,16 +120,16 @@ function SuramaaTipBanner({ caseId, onDismiss }) {
 // ============================================================================
 // POINTS CARD
 // ============================================================================
-function PointsCard({ caseId, userId }) {
+function PointsCard({ missionId, userId }) {
   const [points, setPoints] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!caseId) return;
+    if (!missionId) return;
 
     const fetchPoints = async () => {
       try {
-        const res = await fetch(`/api/mission/${caseId}/points`);
+        const res = await fetch(`/api/mission/${missionId}/points`);
         if (res.ok) {
           const data = await res.json();
           // Find current user in leaderboard
@@ -151,7 +151,7 @@ function PointsCard({ caseId, userId }) {
     };
 
     fetchPoints();
-  }, [caseId, userId]);
+  }, [missionId, userId]);
 
   if (loading) {
     return (
@@ -307,7 +307,7 @@ function QuickActionsGrid({ mission, onNavigate, onReportSighting, showNotificat
 // ============================================================================
 // ACTIVITY FEED
 // ============================================================================
-function ActivityFeed({ caseId, sightings }) {
+function ActivityFeed({ missionId, sightings }) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -433,11 +433,11 @@ export default function DashboardTab({
 
         {/* Suramaa Tip */}
         {!isReunited && (
-          <SuramaaTipBanner caseId={mission?.id} />
+          <SuramaaTipBanner missionId={mission?.id} />
         )}
 
         {/* Points Card */}
-        <PointsCard caseId={mission?.id} userId={userId} />
+        <PointsCard missionId={mission?.id} userId={userId} />
 
         {/* Quick Actions */}
         {!isReunited && (
@@ -470,7 +470,7 @@ export default function DashboardTab({
               <ChevronRight size={16} />
             </button>
           </div>
-          <ActivityFeed caseId={mission?.id} sightings={sightings} />
+          <ActivityFeed missionId={mission?.id} sightings={sightings} />
         </div>
       </div>
     </div>

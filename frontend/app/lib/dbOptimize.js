@@ -11,14 +11,14 @@ import { cacheWrap, cacheKeys, cacheTTL, cacheDelete } from './cache';
  * Get case with optimized includes
  * Uses select to minimize data transfer
  */
-export async function getCaseOptimized(caseId, options = {}) {
+export async function getCaseOptimized(missionId, options = {}) {
   const { includeParticipants = false, includeSightings = false } = options;
 
   return prisma.case.findUnique({
-    where: { id: caseId },
+    where: { id: missionId },
     select: {
       id: true,
-      caseNumber: true,
+      missionNumber: true,
       petName: true,
       petSpecies: true,
       petBreed: true,
@@ -86,12 +86,12 @@ export async function getCaseOptimized(caseId, options = {}) {
 /**
  * Get cached case
  */
-export async function getCaseCached(caseId, options = {}) {
-  const key = cacheKeys.case(caseId);
+export async function getCaseCached(missionId, options = {}) {
+  const key = cacheKeys.case(missionId);
 
   return cacheWrap(
     key,
-    () => getCaseOptimized(caseId, options),
+    () => getCaseOptimized(missionId, options),
     cacheTTL.MEDIUM
   );
 }
@@ -143,7 +143,7 @@ export async function getCasesWithCursor(options = {}) {
     orderBy: { [sortBy]: sortOrder },
     select: {
       id: true,
-      caseNumber: true,
+      missionNumber: true,
       petName: true,
       petSpecies: true,
       petBreed: true,
@@ -255,7 +255,7 @@ export async function getNearbyCases(lat, lng, radiusMiles = 10, limit = 50) {
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
-      caseNumber: true,
+      missionNumber: true,
       petName: true,
       petSpecies: true,
       petPhotoUrl: true,
@@ -313,7 +313,7 @@ export async function getAggregatedStats() {
     async () => {
       const [
         totalCases,
-        activeCases,
+        activeMissions,
         reunions,
         totalUsers,
         totalSquads,
@@ -327,7 +327,7 @@ export async function getAggregatedStats() {
 
       return {
         totalCases,
-        activeCases,
+        activeMissions,
         reunions,
         reunionRate: totalCases > 0 ? (reunions / totalCases * 100).toFixed(1) : 0,
         totalUsers,
@@ -342,9 +342,9 @@ export async function getAggregatedStats() {
 /**
  * Invalidate case-related caches
  */
-export async function invalidateCaseCache(caseId) {
-  await cacheDelete(cacheKeys.case(caseId));
-  await cacheDelete(cacheKeys.caseSightings(caseId));
+export async function invalidateCaseCache(missionId) {
+  await cacheDelete(cacheKeys.case(missionId));
+  await cacheDelete(cacheKeys.caseSightings(missionId));
   await cacheDelete(cacheKeys.dashboardStats());
 }
 

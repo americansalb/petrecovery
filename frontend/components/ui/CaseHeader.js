@@ -11,25 +11,25 @@ import { Clock, MapPin, DollarSign, Users, ChevronLeft, MoreHorizontal } from 'l
 import { normalizePhotoUrl } from '@/app/lib/utils';
 
 export default function CaseHeader({
-  caseData,
+  missionData,
   onBack,
   onActionsClick,
   showBackButton = true,
   className = '',
 }) {
-  if (!caseData) return null;
+  if (!missionData) return null;
 
   const {
     petName,
     petSpecies,
     petBreed,
     petPhotoUrl,
-    caseNumber,
+    missionNumber,
     lastSeenAt,
     lastSeenAddress,
     rewardAmount,
     status,
-  } = caseData;
+  } = missionData;
 
   // Calculate time missing
   const getTimeMissing = () => {
@@ -106,9 +106,9 @@ export default function CaseHeader({
             )}
           </div>
 
-          {/* Case number and time */}
+          {/* Mission number and time */}
           <div className="flex items-center gap-3 text-sm mb-2">
-            <span className="text-slate-500">#{caseNumber}</span>
+            <span className="text-slate-500">#{missionNumber}</span>
             {timeMissing && (
               <span className={`flex items-center gap-1 font-semibold ${
                 isReunited ? 'text-green-400' :
@@ -169,10 +169,10 @@ export default function CaseHeader({
 /**
  * CaseHeaderMini - Even more compact version for mobile
  */
-export function CaseHeaderMini({ caseData, onBack, className = '' }) {
-  if (!caseData) return null;
+export function CaseHeaderMini({ missionData, onBack, className = '' }) {
+  if (!missionData) return null;
 
-  const { petName, petSpecies, lastSeenAt, status } = caseData;
+  const { petName, petSpecies, lastSeenAt, status } = missionData;
 
   const hoursNum = lastSeenAt ? Math.floor((Date.now() - new Date(lastSeenAt).getTime()) / 3600000) : 999;
   const isUrgent = hoursNum < 4;

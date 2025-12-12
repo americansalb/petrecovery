@@ -138,7 +138,7 @@ export async function submitInsuranceClaim(claimData) {
     policyNumber,
     provider,
     claimType,
-    caseId,
+    missionId,
     amount,
     description,
     receipts,
@@ -153,7 +153,7 @@ export async function submitInsuranceClaim(claimData) {
     policyNumber,
     provider: providerConfig.id,
     type: claimType,
-    caseReference: caseId,
+    caseReference: missionId,
     claimedAmount: amount,
     description,
     documents: [
@@ -195,13 +195,13 @@ export async function submitInsuranceClaim(claimData) {
 /**
  * Generate verification document for insurance
  */
-export async function generateVerificationDocument(caseId, documentType) {
-  const caseData = await getCaseData(caseId);
+export async function generateVerificationDocument(missionId, documentType) {
+  const missionData = await getCaseData(missionId);
 
   const document = {
     id: `DOC-${Date.now()}`,
     type: documentType,
-    caseNumber: caseData.caseNumber,
+    missionNumber: missionData.missionNumber,
     generatedAt: new Date().toISOString(),
     validFor: '30 days',
     content: {},
@@ -212,23 +212,23 @@ export async function generateVerificationDocument(caseId, documentType) {
       document.content = {
         title: 'Certificate of Lost Pet Report',
         petInfo: {
-          name: caseData.petName,
-          species: caseData.petSpecies,
-          breed: caseData.petBreed,
-          color: caseData.petColor,
-          microchipId: caseData.microchipId,
+          name: missionData.petName,
+          species: missionData.petSpecies,
+          breed: missionData.petBreed,
+          color: missionData.petColor,
+          microchipId: missionData.microchipId,
         },
         incidentDetails: {
-          dateReported: caseData.createdAt,
-          lastSeenDate: caseData.lastSeenAt,
-          lastSeenLocation: caseData.lastSeenAddress,
-          circumstances: caseData.escapeScenario,
+          dateReported: missionData.createdAt,
+          lastSeenDate: missionData.lastSeenAt,
+          lastSeenLocation: missionData.lastSeenAddress,
+          circumstances: missionData.escapeScenario,
         },
         verification: {
           platform: 'PetRecovery.org',
-          caseNumber: caseData.caseNumber,
-          verificationCode: generateVerificationCode(caseId),
-          verifyUrl: `https://petrecovery.org/verify/${caseData.caseNumber}`,
+          missionNumber: missionData.missionNumber,
+          verificationCode: generateVerificationCode(missionId),
+          verifyUrl: `https://petrecovery.org/verify/${missionData.missionNumber}`,
         },
       };
       break;
@@ -236,8 +236,8 @@ export async function generateVerificationDocument(caseId, documentType) {
     case 'SEARCH_EXPENSES':
       document.content = {
         title: 'Search Expense Summary',
-        caseNumber: caseData.caseNumber,
-        expenses: await getSearchExpenses(caseId),
+        missionNumber: missionData.missionNumber,
+        expenses: await getSearchExpenses(missionId),
         totalAmount: 0, // Calculate from expenses
         receiptCount: 0,
       };
@@ -246,12 +246,12 @@ export async function generateVerificationDocument(caseId, documentType) {
     case 'REWARD_PAYMENT':
       document.content = {
         title: 'Reward Payment Confirmation',
-        caseNumber: caseData.caseNumber,
-        rewardAmount: caseData.rewardAmount,
-        paidTo: caseData.finderName,
-        paymentDate: caseData.rewardPaidAt,
-        paymentMethod: caseData.rewardPaymentMethod,
-        transactionId: caseData.rewardTransactionId,
+        missionNumber: missionData.missionNumber,
+        rewardAmount: missionData.rewardAmount,
+        paidTo: missionData.finderName,
+        paymentDate: missionData.rewardPaidAt,
+        paymentMethod: missionData.rewardPaymentMethod,
+        transactionId: missionData.rewardTransactionId,
       };
       break;
 
@@ -259,14 +259,14 @@ export async function generateVerificationDocument(caseId, documentType) {
       document.content = {
         title: 'Pet Reunion Confirmation',
         petInfo: {
-          name: caseData.petName,
-          species: caseData.petSpecies,
+          name: missionData.petName,
+          species: missionData.petSpecies,
         },
         timeline: {
-          reportedLost: caseData.createdAt,
-          reunited: caseData.resolvedAt,
+          reportedLost: missionData.createdAt,
+          reunited: missionData.resolvedAt,
           daysLost: Math.ceil(
-            (new Date(caseData.resolvedAt) - new Date(caseData.createdAt)) / (1000 * 60 * 60 * 24)
+            (new Date(missionData.resolvedAt) - new Date(missionData.createdAt)) / (1000 * 60 * 60 * 24)
           ),
         },
         verifiedBy: 'PetRecovery.org',
@@ -310,8 +310,8 @@ export async function trackClaimStatus(claimId, provider) {
 /**
  * Calculate potential claim amounts
  */
-export async function calculateClaimEstimate(caseId, expenses) {
-  const caseData = await getCaseData(caseId);
+export async function calculateClaimEstimate(missionId, expenses) {
+  const missionData = await getCaseData(missionId);
 
   const estimate = {
     categories: [],
@@ -450,9 +450,9 @@ async function submitToProvider(provider, claim) {
   };
 }
 
-async function getCaseData(caseId) {
+async function getCaseData(missionId) {
   return {
-    caseNumber: 'CHI-2024-001234',
+    missionNumber: 'CHI-2024-001234',
     petName: 'Buddy',
     petSpecies: 'DOG',
     petBreed: 'Golden Retriever',
@@ -466,12 +466,12 @@ async function getCaseData(caseId) {
   };
 }
 
-async function getSearchExpenses(caseId) {
+async function getSearchExpenses(missionId) {
   return [];
 }
 
-function generateVerificationCode(caseId) {
-  return `VRF-${caseId.substring(0, 8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+function generateVerificationCode(missionId) {
+  return `VRF-${missionId.substring(0, 8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
 }
 
 async function fetchClaimStatus(provider, claimId) {

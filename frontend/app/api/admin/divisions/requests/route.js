@@ -54,7 +54,7 @@ export async function GET(request) {
             name: true,
             isActive: true,
             totalMembers: true,
-            activeCases: true,
+            activeMissions: true,
           },
         },
       },

@@ -14,14 +14,14 @@ const METERS_PER_DEGREE_LAT = 111320;
 /**
  * Generate search grid for a case
  */
-export async function generateSearchGrid(caseId, options = {}) {
+export async function generateSearchGrid(missionId, options = {}) {
   const {
     radiusMiles = 0.5, // Default half-mile radius
     cellSizeMeters = CELL_SIZE_METERS,
   } = options;
 
-  const caseData = await prisma.case.findUnique({
-    where: { id: caseId },
+  const missionData = await prisma.case.findUnique({
+    where: { id: missionId },
     select: {
       id: true,
       lastSeenLatitude: true,
@@ -30,11 +30,11 @@ export async function generateSearchGrid(caseId, options = {}) {
     }
   });
 
-  if (!caseData?.lastSeenLatitude || !caseData?.lastSeenLongitude) {
+  if (!missionData?.lastSeenLatitude || !missionData?.lastSeenLongitude) {
     return { success: false, error: 'Case location not available' };
   }
 
-  const { lastSeenLatitude: centerLat, lastSeenLongitude: centerLng } = caseData;
+  const { lastSeenLatitude: centerLat, lastSeenLongitude: centerLng } = missionData;
 
   // Convert radius to degrees
   const radiusMeters = radiusMiles * 1609.34;
@@ -50,13 +50,13 @@ export async function generateSearchGrid(caseId, options = {}) {
 
   // Create or get search grid
   let grid = await prisma.searchGrid.findFirst({
-    where: { caseId }
+    where: { missionId }
   });
 
   if (!grid) {
     grid = await prisma.searchGrid.create({
       data: {
-        caseId,
+        missionId,
         centerLatitude: centerLat,
         centerLongitude: centerLng,
         radiusMiles,
@@ -129,12 +129,12 @@ export async function generateSearchGrid(caseId, options = {}) {
  * Get suggested search area for a volunteer
  * Finds the best unclaimed cell based on location and priority
  */
-export async function getSuggestedArea(caseId, volunteerLocation) {
+export async function getSuggestedArea(missionId, volunteerLocation) {
   const { lat, lng } = volunteerLocation;
 
   // Get grid and unclaimed cells
   const grid = await prisma.searchGrid.findFirst({
-    where: { caseId },
+    where: { missionId },
     include: {
       cells: {
         where: {
@@ -323,7 +323,7 @@ export async function markCellSearched(cellId, userId, result) {
   // Update participant stats
   const participant = await prisma.caseParticipant.findFirst({
     where: {
-      assignment: { case: { id: cell.grid.caseId } },
+      assignment: { case: { id: cell.grid.missionId } },
       userId,
       isActive: true,
     }
@@ -345,7 +345,7 @@ export async function markCellSearched(cellId, userId, result) {
         ? 'Clue noted! Team notified.'
         : 'Area marked as searched. Thank you!',
     nextAction: foundPet
-      ? { type: 'REPORT_SIGHTING', url: `/search/${cell.grid.caseId}/found` }
+      ? { type: 'REPORT_SIGHTING', url: `/search/${cell.grid.missionId}/found` }
       : { type: 'GET_NEXT_AREA', prompt: 'Search another area?' },
   };
 }
@@ -353,9 +353,9 @@ export async function markCellSearched(cellId, userId, result) {
 /**
  * Get grid status for live ops view
  */
-export async function getGridStatus(caseId) {
+export async function getGridStatus(missionId) {
   const grid = await prisma.searchGrid.findFirst({
-    where: { caseId },
+    where: { missionId },
     include: {
       cells: {
         select: {

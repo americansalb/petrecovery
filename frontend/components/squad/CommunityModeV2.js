@@ -15,8 +15,8 @@
 import { useState, useEffect } from 'react';
 import { Pin } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import FeaturedCases from './FeaturedCasesCarousel';
-import { SURUMAA_AVATAR, SURUMAA_TAGLINE } from '@/lib/brandAssets';
+import FeaturedMissions from './FeaturedMissionsCarousel';
+import { SARAMA_AVATAR, SARAMA_TAGLINE } from '@/lib/brandAssets';
 import PostFeed from './PostFeed';
 import CreatePostModal from './CreatePostModal';
 import MembersModal from './MembersModal';
@@ -31,7 +31,7 @@ export default function CommunityModeV2({
   divisions = [],
   cases = [],
   squadName = '',
-  mascotName = 'Surumaa',
+  mascotName = 'Sarama',
   stats = {},
 }) {
   const [showCreatePost, setShowCreatePost] = useState(false);
@@ -60,7 +60,7 @@ export default function CommunityModeV2({
   return (
     <div className="space-y-6">
       {/* Featured Cases */}
-      <FeaturedCases cases={cases} />
+      <FeaturedMissions cases={cases} />
 
       {/* Pinned Announcements */}
       {announcements.length > 0 && (
@@ -88,8 +88,8 @@ export default function CommunityModeV2({
                     {isMascot ? (
                       <div className="flex-shrink-0">
                         <img
-                          src={SURUMAA_AVATAR}
-                          alt="Surumaa"
+                          src={SARAMA_AVATAR}
+                          alt="Sarama"
                           className="w-14 h-14 rounded-full object-cover border-2 border-purple-400/50 shadow-lg bg-gradient-to-br from-purple-500 to-purple-600"
                           onError={(e) => {
                             e.target.style.display = 'none';
@@ -110,7 +110,7 @@ export default function CommunityModeV2({
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="text-lg font-bold text-purple-200">{mascotName}</h3>
                           <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                            {SURUMAA_TAGLINE}
+                            {SARAMA_TAGLINE}
                           </span>
                         </div>
                       )}

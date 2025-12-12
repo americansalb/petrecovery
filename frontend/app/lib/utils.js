@@ -154,7 +154,7 @@ export function getPrimaryPhotoUrl(data, fallbackUrl = null) {
  * @returns {Promise<Response>} - Fetch response
  *
  * @example
- * const data = await fetchWithRetry('/api/cases')
+ * const data = await fetchWithRetry('/api/missions')
  *   .then(res => res.json())
  *   .catch(err => console.error(err));
  */

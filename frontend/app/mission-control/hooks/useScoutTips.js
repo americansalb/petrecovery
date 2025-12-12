@@ -34,7 +34,7 @@ export const TIP_TYPE_LABELS = {
   SIGHTING: 'Sighting Alert',
 };
 
-export default function useScoutTips(caseId, options = {}) {
+export default function useScoutTips(missionId, options = {}) {
   const {
     autoRefresh = true,
     refreshInterval = 60000, // 1 minute
@@ -63,10 +63,10 @@ export default function useScoutTips(caseId, options = {}) {
   // FETCH TIPS
   // ==========================================================================
   const fetchTips = useCallback(async () => {
-    if (!caseId) return;
+    if (!missionId) return;
 
     try {
-      const res = await fetchWithRetry(`/api/mission/${caseId}/tips`);
+      const res = await fetchWithRetry(`/api/mission/${missionId}/tips`);
       if (!res.ok) {
         throw new Error('Failed to fetch tips');
       }
@@ -81,13 +81,13 @@ export default function useScoutTips(caseId, options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [caseId]);
+  }, [missionId]);
 
   // ==========================================================================
   // GENERATE TIPS
   // ==========================================================================
   const generateTips = useCallback(async (forceRefresh = false) => {
-    if (!caseId) return;
+    if (!missionId) return;
 
     // Throttle generation to once per 5 minutes unless forced
     const now = Date.now();
@@ -98,7 +98,7 @@ export default function useScoutTips(caseId, options = {}) {
     setGenerating(true);
 
     try {
-      const res = await fetchWithRetry(`/api/mission/${caseId}/tips`, {
+      const res = await fetchWithRetry(`/api/mission/${missionId}/tips`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ coldSpotsCount }),
@@ -118,18 +118,18 @@ export default function useScoutTips(caseId, options = {}) {
     } finally {
       setGenerating(false);
     }
-  }, [caseId, coldSpotsCount]);
+  }, [missionId, coldSpotsCount]);
 
   // ==========================================================================
   // DISMISS TIP
   // ==========================================================================
   const dismissTip = useCallback(async (tipId) => {
-    if (!caseId || !tipId) return;
+    if (!missionId || !tipId) return;
 
     setDismissing(tipId);
 
     try {
-      const res = await fetchWithRetry(`/api/mission/${caseId}/tips/${tipId}`, {
+      const res = await fetchWithRetry(`/api/mission/${missionId}/tips/${tipId}`, {
         method: 'DELETE',
       });
 
@@ -147,16 +147,16 @@ export default function useScoutTips(caseId, options = {}) {
     } finally {
       setDismissing(null);
     }
-  }, [caseId, tips.length]);
+  }, [missionId, tips.length]);
 
   // ==========================================================================
   // POST TO CHAT
   // ==========================================================================
   const postToChat = useCallback(async (tipId) => {
-    if (!caseId || !tipId) return { success: false };
+    if (!missionId || !tipId) return { success: false };
 
     try {
-      const res = await fetchWithRetry(`/api/mission/${caseId}/tips/${tipId}`, {
+      const res = await fetchWithRetry(`/api/mission/${missionId}/tips/${tipId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'post_to_chat' }),
@@ -172,7 +172,7 @@ export default function useScoutTips(caseId, options = {}) {
       console.error('Error posting tip to chat:', err);
       return { success: false, error: err.message };
     }
-  }, [caseId]);
+  }, [missionId]);
 
   // ==========================================================================
   // NAVIGATION
@@ -208,17 +208,17 @@ export default function useScoutTips(caseId, options = {}) {
 
   // Initial fetch
   useEffect(() => {
-    if (caseId) {
+    if (missionId) {
       fetchTips();
       if (autoGenerate) {
         generateTips();
       }
     }
-  }, [caseId, fetchTips, generateTips, autoGenerate]);
+  }, [missionId, fetchTips, generateTips, autoGenerate]);
 
   // Auto-refresh
   useEffect(() => {
-    if (autoRefresh && caseId) {
+    if (autoRefresh && missionId) {
       refreshIntervalRef.current = setInterval(() => {
         fetchTips();
       }, refreshInterval);
@@ -229,7 +229,7 @@ export default function useScoutTips(caseId, options = {}) {
         }
       };
     }
-  }, [autoRefresh, refreshInterval, caseId, fetchTips]);
+  }, [autoRefresh, refreshInterval, missionId, fetchTips]);
 
   // ==========================================================================
   // RETURN HOOK API

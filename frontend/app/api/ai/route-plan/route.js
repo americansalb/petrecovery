@@ -20,19 +20,19 @@ export async function POST(request) {
     }
 
     const {
-      caseNumber,
+      missionNumber,
       startLocation,
       searcherCount = 1,
       includeGrid = false,
     } = await request.json();
 
-    if (!caseNumber) {
-      return NextResponse.json({ error: 'Case number required' }, { status: 400 });
+    if (!missionNumber) {
+      return NextResponse.json({ error: 'Mission number required' }, { status: 400 });
     }
 
     // Get case and sightings
-    const caseData = await prisma.case.findUnique({
-      where: { caseNumber },
+    const missionData = await prisma.case.findUnique({
+      where: { missionNumber },
       include: {
         sightings: {
           orderBy: { sightedAt: 'desc' },
@@ -41,20 +41,20 @@ export async function POST(request) {
       },
     });
 
-    if (!caseData) {
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+    if (!missionData) {
+      return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
     const lastSeenLocation = {
-      lat: caseData.lastSeenLatitude,
-      lng: caseData.lastSeenLongitude,
+      lat: missionData.lastSeenLatitude,
+      lng: missionData.lastSeenLongitude,
     };
 
-    const hoursElapsed = (Date.now() - new Date(caseData.lastSeenAt).getTime()) / 3600000;
+    const hoursElapsed = (Date.now() - new Date(missionData.lastSeenAt).getTime()) / 3600000;
 
     // Calculate probability zones
     const zones = calculateProbabilityZones(
-      caseData.sightings.map((s) => ({
+      missionData.sightings.map((s) => ({
         latitude: s.latitude,
         longitude: s.longitude,
         spottedAt: s.sightedAt,
@@ -64,7 +64,7 @@ export async function POST(request) {
     );
 
     // Build waypoints from sightings and POIs
-    const waypoints = caseData.sightings.map((s) => ({
+    const waypoints = missionData.sightings.map((s) => ({
       lat: s.latitude,
       lng: s.longitude,
       address: s.address,
@@ -77,9 +77,9 @@ export async function POST(request) {
     waypoints.unshift({
       lat: lastSeenLocation.lat,
       lng: lastSeenLocation.lng,
-      address: caseData.lastSeenAddress,
+      address: missionData.lastSeenAddress,
       type: 'last_seen',
-      date: caseData.lastSeenAt,
+      date: missionData.lastSeenAt,
     });
 
     // Optimize route
@@ -96,7 +96,7 @@ export async function POST(request) {
 
       // Get previously searched areas
       const assignment = await prisma.caseAssignment.findFirst({
-        where: { caseId: caseData.id },
+        where: { missionId: missionData.id },
         include: { searchAreas: true },
       });
 
@@ -124,11 +124,11 @@ export async function POST(request) {
     }
 
     return NextResponse.json({
-      caseNumber,
-      petName: caseData.petName,
+      missionNumber,
+      petName: missionData.petName,
       lastSeen: {
         location: lastSeenLocation,
-        address: caseData.lastSeenAddress,
+        address: missionData.lastSeenAddress,
         hoursAgo: Math.round(hoursElapsed),
       },
       zones,
@@ -139,7 +139,7 @@ export async function POST(request) {
       distribution,
       stats: {
         totalWaypoints: waypoints.length,
-        totalSightings: caseData.sightings.length,
+        totalSightings: missionData.sightings.length,
         estimatedSearchAreaSqMiles: Math.PI * Math.pow(zones[1]?.radiusMiles || 2, 2),
       },
     });

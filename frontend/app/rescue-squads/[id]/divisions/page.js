@@ -303,7 +303,7 @@ export default function DivisionsManagementPage() {
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-midnight-900">
-                    {division.activeCases || 0}
+                    {division.activeMissions || 0}
                   </div>
                   <div className="text-xs text-midnight-400">Active Cases</div>
                 </div>

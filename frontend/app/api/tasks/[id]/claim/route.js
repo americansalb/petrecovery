@@ -64,7 +64,7 @@ export async function POST(request, { params }) {
     await prisma.squadActivity.create({
       data: {
         rescueSquadId: task.rescueSquadId,
-        caseId: task.caseId,
+        missionId: task.missionId,
         type: 'TASK_ASSIGNED',
         message: `${session.user.firstName} ${session.user.lastName} claimed: ${task.title}`,
         actorId: session.user.id

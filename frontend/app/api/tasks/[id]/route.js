@@ -219,10 +219,10 @@ export async function PATCH(request, { params }) {
     });
 
     // Create activity log if there's a case
-    if (task.caseId && logMessage) {
+    if (task.missionId && logMessage) {
       await prisma.caseUpdate.create({
         data: {
-          caseId: task.caseId,
+          missionId: task.missionId,
           authorId: session.user.id,
           content: logMessage,
           isUpdate: true,

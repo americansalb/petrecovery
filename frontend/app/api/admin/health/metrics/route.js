@@ -156,7 +156,7 @@ export async function GET(request) {
         squad_members_total: squadMembersTotal,
         squad_members_active: activeSquadMembers,
 
-        // Phase 13-14: Lost Pet Cases
+        // Phase 13-14: Lost Pet Missions
         cases_total: casesTotal,
         cases_open: casesOpen,
         cases_active_search: casesActiveSearch,

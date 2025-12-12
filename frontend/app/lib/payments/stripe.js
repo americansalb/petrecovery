@@ -37,7 +37,7 @@ async function getStripe() {
  * Create a donation checkout session
  */
 export async function createDonationSession(options) {
-  const { amount, caseId, caseName, donorEmail, successUrl, cancelUrl } = options;
+  const { amount, missionId, caseName, donorEmail, successUrl, cancelUrl } = options;
   const stripeClient = await getStripe();
 
   if (!stripeClient) {
@@ -53,8 +53,8 @@ export async function createDonationSession(options) {
         price_data: {
           currency: 'usd',
           product_data: {
-            name: caseId ? `Donation for ${caseName}'s Search` : 'PetRecovery Donation',
-            description: caseId
+            name: missionId ? `Donation for ${caseName}'s Search` : 'PetRecovery Donation',
+            description: missionId
               ? 'Support the search effort'
               : 'Support PetRecovery.org operations',
           },
@@ -65,7 +65,7 @@ export async function createDonationSession(options) {
     ],
     metadata: {
       type: 'donation',
-      caseId: caseId || '',
+      missionId: missionId || '',
     },
     success_url: successUrl,
     cancel_url: cancelUrl,
@@ -81,7 +81,7 @@ export async function createDonationSession(options) {
  * Create reward escrow (hold funds until reunion)
  */
 export async function createRewardEscrow(options) {
-  const { amount, caseId, caseName, ownerEmail, successUrl, cancelUrl } = options;
+  const { amount, missionId, caseName, ownerEmail, successUrl, cancelUrl } = options;
   const stripeClient = await getStripe();
 
   if (!stripeClient) {
@@ -97,7 +97,7 @@ export async function createRewardEscrow(options) {
       capture_method: 'manual', // Authorization only, capture later
       metadata: {
         type: 'reward_escrow',
-        caseId,
+        missionId,
       },
     },
     line_items: [
@@ -115,7 +115,7 @@ export async function createRewardEscrow(options) {
     ],
     metadata: {
       type: 'reward_escrow',
-      caseId,
+      missionId,
     },
     success_url: successUrl,
     cancel_url: cancelUrl,
@@ -244,7 +244,7 @@ export async function getSubscription(subscriptionId) {
  * Create payout to finder (Stripe Connect)
  */
 export async function createPayout(options) {
-  const { amount, recipientAccountId, caseId, description } = options;
+  const { amount, recipientAccountId, missionId, description } = options;
   const stripeClient = await getStripe();
 
   if (!stripeClient) {
@@ -255,9 +255,9 @@ export async function createPayout(options) {
     amount: Math.round(amount * 100),
     currency: 'usd',
     destination: recipientAccountId,
-    description: description || `Reward payout for case ${caseId}`,
+    description: description || `Reward payout for case ${missionId}`,
     metadata: {
-      caseId,
+      missionId,
       type: 'reward_payout',
     },
   });

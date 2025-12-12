@@ -12,9 +12,9 @@ import { sendPushToMany, PUSH_TEMPLATES } from '@/app/lib/push';
 /**
  * Check if user can activate live operation
  */
-export async function canActivate(caseId, userId) {
-  const caseData = await prisma.case.findUnique({
-    where: { id: caseId },
+export async function canActivate(missionId, userId) {
+  const missionData = await prisma.case.findUnique({
+    where: { id: missionId },
     include: {
       reporter: true,
       assignment: {
@@ -31,15 +31,15 @@ export async function canActivate(caseId, userId) {
     }
   });
 
-  if (!caseData) return { allowed: false, reason: 'Case not found' };
+  if (!missionData) return { allowed: false, reason: 'Mission not found' };
 
   // Owner can always activate
-  if (caseData.reporterId === userId) {
+  if (missionData.reporterId === userId) {
     return { allowed: true, role: 'OWNER' };
   }
 
   // Squad/Division leaders can activate
-  const squadLeaders = caseData.assignment?.rescueSquad?.members || [];
+  const squadLeaders = missionData.assignment?.rescueSquad?.members || [];
   const isLeader = squadLeaders.some(m => m.userId === userId);
   if (isLeader) {
     return { allowed: true, role: 'LEADER' };
@@ -61,14 +61,14 @@ export async function canActivate(caseId, userId) {
 /**
  * Activate live operation mode
  */
-export async function activateMission(caseId, userId, options = {}) {
-  const canAct = await canActivate(caseId, userId);
+export async function activateMission(missionId, userId, options = {}) {
+  const canAct = await canActivate(missionId, userId);
   if (!canAct.allowed) {
     return { success: false, error: canAct.reason };
   }
 
-  const caseData = await prisma.case.findUnique({
-    where: { id: caseId },
+  const missionData = await prisma.case.findUnique({
+    where: { id: missionId },
     select: {
       lastSeenLat: true,
       lastSeenLng: true,
@@ -78,14 +78,14 @@ export async function activateMission(caseId, userId, options = {}) {
 
   // Create or update mission control
   const mission = await prisma.missionControl.upsert({
-    where: { caseId },
+    where: { missionId },
     create: {
-      caseId,
+      missionId,
       mode: OPERATION_MODES.LIVE_SEARCH,
       activatedAt: new Date(),
       activatedById: userId,
       activatorRole: canAct.role,
-      initialRadius: options.radiusMiles || getDefaultRadius(caseData?.petSpecies),
+      initialRadius: options.radiusMiles || getDefaultRadius(missionData?.petSpecies),
     },
     update: {
       mode: OPERATION_MODES.LIVE_SEARCH,
@@ -96,17 +96,17 @@ export async function activateMission(caseId, userId, options = {}) {
   });
 
   // Generate search zones around last seen location
-  if (caseData?.lastSeenLat && caseData?.lastSeenLng) {
+  if (missionData?.lastSeenLat && missionData?.lastSeenLng) {
     await generateSearchZones(
       mission.id,
-      { lat: caseData.lastSeenLat, lng: caseData.lastSeenLng },
-      options.radiusMiles || getDefaultRadius(caseData?.petSpecies)
+      { lat: missionData.lastSeenLat, lng: missionData.lastSeenLng },
+      options.radiusMiles || getDefaultRadius(missionData?.petSpecies)
     );
   }
 
   // Update case status
   await prisma.case.update({
-    where: { id: caseId },
+    where: { id: missionId },
     data: { status: 'ACTIVE_SEARCH' }
   });
 
@@ -125,7 +125,7 @@ export async function activateMission(caseId, userId, options = {}) {
   });
 
   // Send notifications to squad members
-  await notifySquadActivation(caseId, mission.id);
+  await notifySquadActivation(missionId, mission.id);
 
   return {
     success: true,
@@ -266,14 +266,14 @@ async function generateSearchZones(missionId, center, radiusMiles) {
 }
 
 // Push notification functions
-async function notifySquadActivation(caseId, missionId) {
+async function notifySquadActivation(missionId, missionId) {
   try {
     // Get case and squad info for notification
-    const caseData = await prisma.case.findUnique({
-      where: { id: caseId },
+    const missionData = await prisma.case.findUnique({
+      where: { id: missionId },
       select: {
         petName: true,
-        caseNumber: true,
+        missionNumber: true,
         lastSeenAddress: true,
         assignment: {
           select: {
@@ -292,12 +292,12 @@ async function notifySquadActivation(caseId, missionId) {
       }
     });
 
-    if (!caseData?.assignment?.rescueSquad) {
-      console.log(`No squad assigned to case ${caseId}`);
+    if (!missionData?.assignment?.rescueSquad) {
+      console.log(`No squad assigned to case ${missionId}`);
       return;
     }
 
-    const squad = caseData.assignment.rescueSquad;
+    const squad = missionData.assignment.rescueSquad;
     const userIds = squad.members.map(m => m.userId);
 
     if (userIds.length === 0) {
@@ -329,12 +329,12 @@ async function notifySquadActivation(caseId, missionId) {
 
     const payload = PUSH_TEMPLATES.SQUAD_ACTIVITY(
       squad.name,
-      `🔴 LIVE SEARCH activated for ${caseData.petName}! Tap to join.`,
+      `🔴 LIVE SEARCH activated for ${missionData.petName}! Tap to join.`,
       squad.id
     );
 
     // Override URL to go directly to case
-    payload.url = `/cases/${caseData.caseNumber}`;
+    payload.url = `/cases/${missionData.missionNumber}`;
     payload.tag = `mission-${missionId}`;
     payload.requireInteraction = true;
 

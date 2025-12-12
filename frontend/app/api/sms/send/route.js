@@ -23,7 +23,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { to, template, templateData, message, userId, caseId } = body;
+    const { to, template, templateData, message, userId, missionId } = body;
 
     // Validate recipient
     if (!to) {
@@ -54,7 +54,7 @@ export async function POST(request) {
     await prisma.smsLog.create({
       data: {
         userId: userId || session.user.id,
-        caseId: caseId || null,
+        missionId: missionId || null,
         toNumber: to,
         message: messageBody,
         template: template || null,

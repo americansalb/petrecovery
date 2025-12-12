@@ -11,7 +11,7 @@
 
 We're building a **browser-based Admin QA Harness** at `/admin/qa` that allows admins to:
 
-- **Run smoke tests** against key platform features (legal, squads, cases) from the browser
+- **Run smoke tests** against key platform features (legal, squads, missions) from the browser
 - **Generate test data** via existing APIs (no shell scripts needed)
 - **View test results** with pass/fail status and detailed logging
 - **Diagnose issues** in deployed environments (especially Render) without SSH access
@@ -26,7 +26,7 @@ This is **not** automated CI/CD testing - it's a **manual QA tool** for:
 
 **Current Pain:**
 - User deploys on Render where seed scripts are difficult
-- Need to manually test squad creation, case creation, legal flows
+- Need to manually test squad creation, mission creation, legal flows
 - Hard to create test data for feature development
 - No easy way to verify deployment health beyond `/admin/health` service checks
 
@@ -49,9 +49,9 @@ We have excellent observability via `/admin/health`:
 
 But we lack **proactive functional testing**:
 - Can the platform actually create squads?
-- Can cases be created with proper waiver enforcement?
+- Can missions be created with proper waiver enforcement?
 - Do legal flows work end-to-end?
-- How do I create 10 demo cases for testing the case list page?
+- How do I create 10 demo missions for testing the mission list page?
 
 ### Problems
 
@@ -62,7 +62,7 @@ But we lack **proactive functional testing**:
 
 2. **Test data creation requires shell access**
    - Seed scripts don't work well on Render
-   - Creating demo squads/cases requires manual form filling
+   - Creating demo squads/missions requires manual form filling
    - Time-consuming to set up scenarios
 
 3. **Debugging production issues is slow**
@@ -74,7 +74,7 @@ But we lack **proactive functional testing**:
 
 **As an admin**, I want to:
 - Click "Test Squad Creation" and see if it passes/fails
-- Generate 5 demo cases in different cities for testing
+- Generate 5 demo missions in different cities for testing
 - Verify legal waiver gating works before announcing feature
 - Debug why a specific operation failed in production
 
@@ -94,10 +94,10 @@ But we lack **proactive functional testing**:
 ✅ **Test suites** for:
   - Legal flows (waiver acceptance, blocked actions)
   - Squad operations (create, search, join, leave)
-  - Case operations (create, status updates, notes)
+  - Mission operations (create, status updates, notes)
 ✅ **Test data generators**:
   - Generate N demo squads
-  - Generate N demo cases
+  - Generate N demo missions
   - Clear test data (mark as test/delete)
 ✅ **Structured logging**: All QA actions emit `qa.*` events
 ✅ **Results display**: Show pass/fail with error details
@@ -119,7 +119,7 @@ But we lack **proactive functional testing**:
 ### Story 1: Post-Deployment Smoke Test
 **As an admin**, after deploying to Render:
 1. I navigate to `/admin/qa`
-2. I see test suites: Legal, Squads, Cases
+2. I see test suites: Legal, Squads, Missions
 3. I click "Run All Tests" button
 4. Tests execute sequentially, showing progress
 5. I see results: ✅ 12 passed, ❌ 1 failed
@@ -129,15 +129,15 @@ But we lack **proactive functional testing**:
 ### Story 2: Generate Demo Data
 **As an admin**, before demoing the platform:
 1. I go to `/admin/qa` → Data Generators tab
-2. I enter: "Generate 5 demo cases in Austin, TX"
+2. I enter: "Generate 5 demo missions in Austin, TX"
 3. I click "Generate"
-4. System creates 5 cases with realistic data:
+4. System creates 5 missions with realistic data:
    - Different pet species
    - Mix of statuses (OPEN, ACTIVE_SEARCH, RESOLVED)
    - Random timestamps
    - Test notes added
-5. I see "Generated 5 cases" with links to each
-6. I can now demo `/admin/cases` with realistic data
+5. I see "Generated 5 missions" with links to each
+6. I can now demo `/admin/missions` with realistic data
 
 ### Story 3: Debug Waiver Flow
 **As an admin**, investigating why waiver gating isn't working:
@@ -158,7 +158,7 @@ But we lack **proactive functional testing**:
 All QA operations use existing models:
 - `User` (for creating test users)
 - `RescueSquad`, `RescueSquadMember`
-- `LostPetCase`, `LostPetCaseNote`
+- `LostPetMission`, `LostPetMissionNote`
 - `EventLog` (for logging QA events)
 
 ### Optional: Mark Test Data
@@ -170,7 +170,7 @@ model RescueSquad {
   tags String[] @default([]) // ["test", "demo", "qa"]
 }
 
-model LostPetCase {
+model LostPetMission {
   // ... existing fields
   tags String[] @default([]) // ["test", "demo", "qa"]
 }
@@ -178,7 +178,7 @@ model LostPetCase {
 
 **Option B (Deferred)**: Just use naming convention
 - Test squads: Name starts with "[TEST]"
-- Test cases: Case number starts with "TEST-"
+- Test missions: Mission number starts with "TEST-"
 - Clean up manually when needed
 
 **Decision**: Use Option B for MVP (no migration needed)
@@ -193,9 +193,9 @@ QA harness uses existing endpoints:
 - `POST /api/rescue-squads` (create squad)
 - `GET /api/rescue-squads` (search)
 - `POST /api/rescue-squads/[id]/join` (join)
-- `POST /api/cases` (create case)
-- `POST /api/cases/[id]/status` (update)
-- `POST /api/cases/[id]/notes` (add note)
+- `POST /api/missions` (create mission)
+- `POST /api/missions/[id]/status` (update)
+- `POST /api/missions/[id]/notes` (add note)
 - `GET /api/legal/documents` (fetch legal docs)
 - `POST /api/legal/accept` (accept waiver)
 
@@ -224,7 +224,7 @@ await logEvent({
 Event types follow pattern: `qa.<category>_<action>_test`
 - `qa.squad_create_test`
 - `qa.squad_search_test`
-- `qa.case_create_test`
+- `qa.mission_create_test`
 - `qa.legal_accept_test`
 - `qa.test_data_generated`
 
@@ -249,7 +249,7 @@ TAB: Tests
 ┌─ Legal Tests ────────────────────────────────────┐
 │ ✅ Accept Waiver Flow                            │
 │ ✅ Blocked Action - Squad Create                 │
-│ ✅ Blocked Action - Case Create                  │
+│ ✅ Blocked Action - Mission Create                  │
 │                                                   │
 │ [Run Legal Tests]                                │
 └───────────────────────────────────────────────────┘
@@ -263,12 +263,12 @@ TAB: Tests
 │ [Run Squad Tests]                                │
 └───────────────────────────────────────────────────┘
 
-┌─ Case Tests ─────────────────────────────────────┐
-│ ⏹️ Create Case                                   │
+┌─ Mission Tests ─────────────────────────────────────┐
+│ ⏹️ Create Mission                                   │
 │ ⏹️ Update Status                                 │
 │ ⏹️ Add Note                                      │
 │                                                   │
-│ [Run Case Tests]                                 │
+│ [Run Mission Tests]                                 │
 └───────────────────────────────────────────────────┘
 
 [Run All Tests]
@@ -284,17 +284,17 @@ TAB: Data Generators
 │ [Generate Squads]                                │
 └───────────────────────────────────────────────────┘
 
-┌─ Generate Demo Cases ────────────────────────────┐
-│ Number of cases: [10]                            │
+┌─ Generate Demo Missions ────────────────────────────┐
+│ Number of missions: [10]                            │
 │ City: [Austin]  State: [TX]                      │
 │ Status mix: [☑ Open ☑ Active ☑ Resolved]        │
 │ Pet types: [☑ Dog ☑ Cat ☑ Bird]                 │
 │                                                   │
-│ [Generate Cases]                                 │
+│ [Generate Missions]                                 │
 └───────────────────────────────────────────────────┘
 
 ┌─ Cleanup Test Data ──────────────────────────────┐
-│ ⚠️ Delete all squads/cases with [TEST] prefix   │
+│ ⚠️ Delete all squads/missions with [TEST] prefix   │
 │                                                   │
 │ [Delete Test Data]                               │
 └───────────────────────────────────────────────────┘
@@ -309,7 +309,7 @@ Recent Test Runs:
 │ ✅ 15 passed  ❌ 2 failed  ⏱️ 3.4s             │
 │                                                 │
 │ Failed Tests:                                   │
-│ ❌ Case Create - Missing Waiver                │
+│ ❌ Mission Create - Missing Waiver                │
 │    Expected 403, got 500                        │
 │    [View Details] [Retry]                       │
 │                                                 │
@@ -346,9 +346,9 @@ Match existing `/admin/health` design:
    - Attempt `POST /api/rescue-squads`
    - **Pass criteria**: 403 status, `code: WAIVER_NOT_ACCEPTED`, `redirectTo` present
 
-3. **Test: Blocked Action - Case Create**
+3. **Test: Blocked Action - Mission Create**
    - Use test user without waiver
-   - Attempt `POST /api/cases`
+   - Attempt `POST /api/missions`
    - **Pass criteria**: 403 status, `code: WAIVER_NOT_ACCEPTED`
 
 ### Squad Test Suite
@@ -372,19 +372,19 @@ Match existing `/admin/health` design:
    - Leave: `POST /api/rescue-squads/[id]/leave`
    - **Pass criteria**: 200 status, success: true
 
-### Case Test Suite
+### Mission Test Suite
 
-1. **Test: Create Case**
-   - Create: `POST /api/cases` with required fields + `petName: "[TEST] Fluffy"`
-   - **Pass criteria**: 201 status, case returned with caseNumber
+1. **Test: Create Mission**
+   - Create: `POST /api/missions` with required fields + `petName: "[TEST] Fluffy"`
+   - **Pass criteria**: 201 status, mission returned with missionNumber
 
-2. **Test: Update Case Status**
-   - Create test case if needed
-   - Update: `POST /api/cases/[id]/status` with `{ status: "ACTIVE_SEARCH" }`
-   - **Pass criteria**: 200 status, case status updated
+2. **Test: Update Mission Status**
+   - Create test mission if needed
+   - Update: `POST /api/missions/[id]/status` with `{ status: "ACTIVE_SEARCH" }`
+   - **Pass criteria**: 200 status, mission status updated
 
-3. **Test: Add Note to Case**
-   - Add: `POST /api/cases/[id]/notes` with `{ content: "[TEST] Note added by QA harness" }`
+3. **Test: Add Note to Mission**
+   - Add: `POST /api/missions/[id]/notes` with `{ content: "[TEST] Note added by QA harness" }`
    - **Pass criteria**: 201 status, note created
 
 ---
@@ -407,7 +407,7 @@ Match existing `/admin/health` design:
 - Array of created squad IDs
 - Success message: "Created N demo squads"
 
-### Generate Demo Cases
+### Generate Demo Missions
 
 **Inputs:**
 - `count`: number (1-50)
@@ -417,7 +417,7 @@ Match existing `/admin/health` design:
 - `petTypes`: array of species to include
 
 **Process:**
-1. For each case:
+1. For each mission:
    - Random pet species from selected types
    - Random status from selected statuses
    - Random pet name from list: ["[TEST] Max", "[TEST] Bella", "[TEST] Charlie", "[TEST] Luna"]
@@ -426,14 +426,14 @@ Match existing `/admin/health` design:
    - Add 0-3 random notes
 
 **Output:**
-- Array of created case IDs
-- Success message: "Created N demo cases in {city}, {state}"
+- Array of created mission IDs
+- Success message: "Created N demo missions in {city}, {state}"
 
 ### Cleanup Test Data
 
 **Process:**
 1. Find all squads with name starting with "[TEST]"
-2. Find all cases with petName starting with "[TEST]"
+2. Find all missions with petName starting with "[TEST]"
 3. Soft-delete or mark as inactive
 4. Show count of deleted items
 
@@ -455,10 +455,10 @@ All QA operations emit `qa.*` events:
 | `qa.test_run_started` | Test suite started | `suite_name`, `test_count` |
 | `qa.test_run_completed` | Test suite finished | `passed`, `failed`, `duration_ms` |
 | `qa.squad_create_test` | Squad creation tested | `result`, `squad_id`, `error` |
-| `qa.case_create_test` | Case creation tested | `result`, `case_id`, `error` |
+| `qa.mission_create_test` | Mission creation tested | `result`, `mission_id`, `error` |
 | `qa.legal_accept_test` | Waiver acceptance tested | `result`, `user_id` |
 | `qa.test_data_generated` | Demo data created | `type`, `count`, `ids` |
-| `qa.test_data_cleanup` | Test data deleted | `squads_deleted`, `cases_deleted` |
+| `qa.test_data_cleanup` | Test data deleted | `squads_deleted`, `missions_deleted` |
 
 ### Admin Health Integration
 
@@ -508,23 +508,23 @@ QA events appear in Errors tab (even successes) for debugging.
 - Basic layout matching `/admin/health`
 
 ### Phase 2: Legal Tests (TASK-Q02)
-- Implement 3 legal test cases
+- Implement 3 legal test missions
 - Test execution engine
 - Results display
 - Event logging
 
 ### Phase 3: Squad Tests (TASK-Q03)
-- Implement 4 squad test cases
+- Implement 4 squad test missions
 - Reuse test execution engine
 - Add to results display
 
-### Phase 4: Case Tests (TASK-Q04)
-- Implement 3 case test cases
+### Phase 4: Mission Tests (TASK-Q04)
+- Implement 3 mission test missions
 - Complete test suite coverage
 
 ### Phase 5: Data Generators (TASK-Q05)
 - Squad generator
-- Case generator
+- Mission generator
 - Test data cleanup
 - Form validation
 
@@ -547,7 +547,7 @@ QA events appear in Errors tab (even successes) for debugging.
 **Legal Tests:**
 - [ ] "Accept Waiver Flow" passes when user accepts
 - [ ] "Blocked Action - Squad Create" passes when returns 403
-- [ ] "Blocked Action - Case Create" passes when returns 403
+- [ ] "Blocked Action - Mission Create" passes when returns 403
 - [ ] Test results display correctly
 - [ ] Events logged to EventLog
 
@@ -557,15 +557,15 @@ QA events appear in Errors tab (even successes) for debugging.
 - [ ] "Join Squad" creates membership
 - [ ] "Leave Squad" marks member inactive
 
-**Case Tests:**
-- [ ] "Create Case" creates case with [TEST] petName
-- [ ] "Update Status" changes case status
+**Mission Tests:**
+- [ ] "Create Mission" creates mission with [TEST] petName
+- [ ] "Update Status" changes mission status
 - [ ] "Add Note" creates note
 
 **Data Generators:**
 - [ ] Generate 5 demo squads creates 5 squads
-- [ ] Generate 10 demo cases creates 10 cases
-- [ ] Cases have varied statuses and species
+- [ ] Generate 10 demo missions creates 10 missions
+- [ ] Missions have varied statuses and species
 - [ ] Cleanup deletes only [TEST] prefixed items
 
 **Results Display:**
@@ -584,9 +584,9 @@ QA events appear in Errors tab (even successes) for debugging.
 - [x] `/admin/qa` page created and accessible to admins only
 - [ ] 3 legal tests implemented and passing
 - [ ] 4 squad tests implemented and passing
-- [ ] 3 case tests implemented and passing
+- [ ] 3 mission tests implemented and passing
 - [ ] Squad data generator creates realistic demo data
-- [ ] Case data generator creates realistic demo data
+- [ ] Mission data generator creates realistic demo data
 - [ ] Test data cleanup removes [TEST] prefixed items
 - [ ] All QA operations emit `qa.*` events
 - [ ] Events visible in `/admin/health` Errors tab

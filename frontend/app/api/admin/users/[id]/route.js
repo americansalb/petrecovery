@@ -30,7 +30,7 @@ export async function GET(request, { params }) {
         cases: {
           take: 10,
           orderBy: { createdAt: 'desc' },
-          select: { id: true, caseNumber: true, petName: true, status: true },
+          select: { id: true, missionNumber: true, petName: true, status: true },
         },
         _count: {
           select: {

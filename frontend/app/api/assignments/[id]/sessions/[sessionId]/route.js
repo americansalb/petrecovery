@@ -179,7 +179,7 @@ export async function PATCH(request, { params }) {
     if (logMessage) {
       await prisma.caseUpdate.create({
         data: {
-          caseId: searchSession.participant.assignment.case.id,
+          missionId: searchSession.participant.assignment.case.id,
           authorId: session.user.id,
           content: logMessage,
           isUpdate: true,

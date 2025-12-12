@@ -13,7 +13,7 @@
 import { useState } from 'react';
 import { Map as MapIcon, List } from 'lucide-react';
 import MapModeV2 from './MapModeV2';
-import CasesModeV2 from './CasesModeV2';
+import MissionsModeV2 from './MissionsModeV2';
 
 export default function MissionsModeV2({
   cases,
@@ -70,7 +70,7 @@ export default function MissionsModeV2({
             squad={squad}
           />
         ) : (
-          <CasesModeV2
+          <MissionsModeV2
             cases={cases}
             selectedStatus={selectedStatus}
             onStatusChange={onStatusChange}

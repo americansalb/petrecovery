@@ -70,7 +70,7 @@ export async function GET(request) {
                     lastSeenAddress: true,
                     status: true,
                     lastSeenAt: true,
-                    caseNumber: true,
+                    missionNumber: true,
                   }
                 },
                 rescueSquad: {
@@ -99,21 +99,21 @@ export async function GET(request) {
     console.log('📊 Dashboard: Raw memberships:', JSON.stringify(user.rescueSquadMemberships || [], null, 2));
 
     // Get sighting counts for each case
-    const caseIds = user.cases.map(c => c.id);
+    const missionIds = user.cases.map(c => c.id);
     const sightingCounts = await prisma.caseSighting.groupBy({
-      by: ['caseId'],
-      where: { caseId: { in: caseIds } },
+      by: ['missionId'],
+      where: { missionId: { in: missionIds } },
       _count: { id: true }
     });
     const sightingMap = Object.fromEntries(
-      sightingCounts.map(s => [s.caseId, s._count.id])
+      sightingCounts.map(s => [s.missionId, s._count.id])
     );
 
     // Get Mission Control status for each case
     const missionStatuses = await prisma.missionControl.findMany({
-      where: { caseId: { in: caseIds } },
+      where: { missionId: { in: missionIds } },
       select: {
-        caseId: true,
+        missionId: true,
         mode: true,
         activatedAt: true,
         activeVolunteers: {
@@ -123,7 +123,7 @@ export async function GET(request) {
       }
     });
     const missionMap = Object.fromEntries(
-      missionStatuses.map(m => [m.caseId, {
+      missionStatuses.map(m => [m.missionId, {
         isLive: ['LIVE_SEARCH', 'CONTAINMENT', 'TRAP_OPS'].includes(m.mode),
         mode: m.mode,
         activeVolunteers: m.activeVolunteers?.length || 0,
@@ -145,7 +145,7 @@ export async function GET(request) {
     // Fetch squad assignments for all involved cases
     const caseAssignments = await prisma.caseAssignment.findMany({
       where: {
-        caseId: { in: allInvolvedCaseIds },
+        missionId: { in: allInvolvedCaseIds },
         status: 'ACCEPTED'
       },
       include: {
@@ -166,10 +166,10 @@ export async function GET(request) {
     // Group assignments by case
     const assignmentsByCaseId = {};
     for (const assignment of caseAssignments) {
-      if (!assignmentsByCaseId[assignment.caseId]) {
-        assignmentsByCaseId[assignment.caseId] = [];
+      if (!assignmentsByCaseId[assignment.missionId]) {
+        assignmentsByCaseId[assignment.missionId] = [];
       }
-      assignmentsByCaseId[assignment.caseId].push({
+      assignmentsByCaseId[assignment.missionId].push({
         squadId: assignment.rescueSquad.id,
         squadName: assignment.rescueSquad.name,
         volunteerCount: assignment._count.participants,
@@ -186,7 +186,7 @@ export async function GET(request) {
 
       return {
         id: caseItem.id,
-        caseNumber: caseItem.caseNumber,
+        missionNumber: caseItem.missionNumber,
         petName: caseItem.petName,
         petSpecies: caseItem.petSpecies,
         petPhotoUrl: caseItem.petPhotoUrl,
@@ -218,7 +218,7 @@ export async function GET(request) {
 
       missions.push({
         id: caseItem.id,
-        caseNumber: caseItem.caseNumber,
+        missionNumber: caseItem.missionNumber,
         petName: caseItem.petName,
         petSpecies: caseItem.petSpecies,
         petPhotoUrl: null,
@@ -245,7 +245,7 @@ export async function GET(request) {
 
       return {
         id: caseItem.id,
-        caseNumber: caseItem.caseNumber,
+        missionNumber: caseItem.missionNumber,
         petName: caseItem.petName,
         petSpecies: caseItem.petSpecies,
         petPhotoUrl: caseItem.petPhotoUrl,
@@ -340,11 +340,11 @@ export async function GET(request) {
     }));
 
     // Format active case participations
-    const activeCases = user.caseParticipations
+    const activeMissions = user.caseParticipations
       .filter(p => p.assignment?.case)
       .map(participation => ({
         id: participation.assignment.case.id,
-        caseNumber: participation.assignment.case.caseNumber,
+        missionNumber: participation.assignment.case.missionNumber,
         petName: participation.assignment.case.petName,
         petSpecies: participation.assignment.case.petSpecies,
         location: participation.assignment.case.lastSeenAddress,
@@ -430,7 +430,7 @@ export async function GET(request) {
       nearbyAlerts, // Nearby LOST pets from others - Will be [] if none
       foundByMe, // FOUND pets I reported - Will be [] if none
       squads, // Squads user belongs to
-      activeCases, // Cases user is actively helping with
+      activeMissions, // Cases user is actively helping with
       missions, // Unified list: all cases user is involved with (owner or volunteer)
       // Admin-only data
       ...(isAdmin && { allMembers }),

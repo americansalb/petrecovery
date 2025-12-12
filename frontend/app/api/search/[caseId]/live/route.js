@@ -12,23 +12,23 @@ import {
 
 export async function GET(request, { params }) {
   try {
-    const { caseId } = params;
+    const { missionId } = params;
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'full';
 
     switch (type) {
       case 'positions':
         // Lightweight endpoint for frequent polling
-        const positions = await getVolunteerPositions(caseId);
+        const positions = await getVolunteerPositions(missionId);
         return NextResponse.json({ success: true, positions });
 
       case 'stats':
-        const stats = await getCaseStats(caseId);
+        const stats = await getCaseStats(missionId);
         return NextResponse.json({ success: true, stats });
 
       case 'full':
       default:
-        const result = await getLiveOpsData(caseId);
+        const result = await getLiveOpsData(missionId);
         if (!result.success) {
           return NextResponse.json(
             { error: result.error },

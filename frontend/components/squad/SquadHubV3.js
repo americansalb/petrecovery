@@ -57,13 +57,13 @@ export default function SquadHubV3({ initialData, squadId }) {
 
   // Calculate stats
   const stats = useMemo(() => {
-    const activeCases = allCases.filter(c =>
+    const activeMissions = allCases.filter(c =>
       c.status === 'PENDING' || c.status === 'IN_PROGRESS' || c.status === 'ACTIVE'
     ).length;
     const reunitedCases = allCases.filter(c => c.status === 'REUNITED').length;
 
     return {
-      active: activeCases,
+      active: activeMissions,
       reunited: reunitedCases,
       members: squad.memberCount || 0,
       onDuty: squad.onDutyCount || 0,
@@ -87,19 +87,19 @@ export default function SquadHubV3({ initialData, squadId }) {
   }, [allCases, squad]);
 
   // Handle case click - go to Mission Control
-  const handleCaseClick = (caseData) => {
-    router.push(`/mission-control?mission=${caseData.caseNumber || caseData.id}`);
+  const handleMissionClick = (missionData) => {
+    router.push(`/mission-control?mission=${missionData.missionNumber || missionData.id}`);
   };
 
   // Handle join case
-  const handleJoinCase = async (caseData, e) => {
+  const handleJoinCase = async (missionData, e) => {
     e.stopPropagation();
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/cases/${caseData.id}/help`, {
+      const res = await fetch(`/api/rescue-squads/${squadId}/cases/${missionData.id}/help`, {
         method: 'POST',
       });
       if (res.ok) {
-        router.push(`/mission-control?mission=${caseData.caseNumber || caseData.id}`);
+        router.push(`/mission-control?mission=${missionData.missionNumber || missionData.id}`);
       }
     } catch (err) {
       console.error('Error joining case:', err);
@@ -176,7 +176,7 @@ export default function SquadHubV3({ initialData, squadId }) {
           zoom={11} // Zoomed out to show city
           cases={allCases}
           showCaseMarkers={true}
-          onCaseClick={handleCaseClick}
+          onCaseClick={handleMissionClick}
         />
 
         {/* Case count badge */}
@@ -195,13 +195,13 @@ export default function SquadHubV3({ initialData, squadId }) {
             summary={`${stats.active} active, ${stats.reunited} reunited`}
             badge={stats.active > 0 ? `${stats.active} need help` : null}
             badgeColor="red"
-            isExpanded={expandedPanel === 'cases'}
-            onToggle={(expanded) => setExpandedPanel(expanded ? 'cases' : null)}
+            isExpanded={expandedPanel === 'missions'}
+            onToggle={(expanded) => setExpandedPanel(expanded ? 'missions' : null)}
           >
             <CasesPanel
               cases={allCases}
               squadId={squadId}
-              onCaseClick={handleCaseClick}
+              onCaseClick={handleMissionClick}
               onJoinCase={handleJoinCase}
             />
           </ExpandablePanel>
@@ -297,45 +297,45 @@ function CasesPanel({ cases, squadId, onCaseClick, onJoinCase }) {
         </div>
       ) : (
         <div className="space-y-2">
-          {filteredCases.map((caseData) => (
+          {filteredCases.map((missionData) => (
             <button
-              key={caseData.id}
-              onClick={() => onCaseClick(caseData)}
+              key={missionData.id}
+              onClick={() => onCaseClick(missionData)}
               className="w-full text-left p-3 bg-slate-800/50 rounded-xl border border-slate-700/50 hover:border-flash-500/30 transition flex items-center gap-3"
             >
               {/* Pet photo or emoji */}
-              {caseData.photoUrl ? (
+              {missionData.photoUrl ? (
                 <img
-                  src={caseData.photoUrl}
-                  alt={caseData.petName}
+                  src={missionData.photoUrl}
+                  alt={missionData.petName}
                   className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
                 />
               ) : (
                 <div className="w-12 h-12 rounded-lg bg-slate-700 flex items-center justify-center text-xl flex-shrink-0">
-                  {getSpeciesEmoji(caseData.species)}
+                  {getSpeciesEmoji(missionData.species)}
                 </div>
               )}
 
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-white text-sm">{caseData.petName}</span>
+                  <span className="font-bold text-white text-sm">{missionData.petName}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    caseData.status === 'REUNITED'
+                    missionData.status === 'REUNITED'
                       ? 'bg-green-500/20 text-green-400'
                       : 'bg-red-500/20 text-red-400'
                   }`}>
-                    {caseData.status === 'REUNITED' ? 'Reunited' : 'Missing'}
+                    {missionData.status === 'REUNITED' ? 'Reunited' : 'Missing'}
                   </span>
                 </div>
-                <p className="text-slate-500 text-xs truncate">{caseData.lastSeenAddress}</p>
-                <p className="text-slate-500 text-xs">{getTimeMissing(caseData.lastSeenAt)}</p>
+                <p className="text-slate-500 text-xs truncate">{missionData.lastSeenAddress}</p>
+                <p className="text-slate-500 text-xs">{getTimeMissing(missionData.lastSeenAt)}</p>
               </div>
 
               {/* Join button for active cases */}
-              {caseData.status !== 'REUNITED' && (
+              {missionData.status !== 'REUNITED' && (
                 <button
-                  onClick={(e) => onJoinCase(caseData, e)}
+                  onClick={(e) => onJoinCase(missionData, e)}
                   className="px-3 py-1.5 bg-flash-500 text-midnight-900 text-xs font-bold rounded-lg flex-shrink-0"
                 >
                   Join

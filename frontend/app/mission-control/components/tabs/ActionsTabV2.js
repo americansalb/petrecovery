@@ -203,16 +203,16 @@ const CATEGORY_CONFIG = {
 // ============================================================================
 // POINTS HEADER
 // ============================================================================
-function PointsHeader({ caseId, userId }) {
+function PointsHeader({ missionId, userId }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!caseId) return;
+    if (!missionId) return;
 
     const fetchPoints = async () => {
       try {
-        const res = await fetch(`/api/mission/${caseId}/points`);
+        const res = await fetch(`/api/mission/${missionId}/points`);
         if (res.ok) {
           const result = await res.json();
           const userEntry = result.leaderboard?.find(e => e.userId === userId);
@@ -231,7 +231,7 @@ function PointsHeader({ caseId, userId }) {
     };
 
     fetchPoints();
-  }, [caseId, userId]);
+  }, [missionId, userId]);
 
   if (loading) {
     return (
@@ -424,15 +424,15 @@ function CategorySection({ category, tasks, expanded, onToggle, onTaskAction, is
 // ============================================================================
 // SHELTER QUICK ACCESS
 // ============================================================================
-function ShelterQuickAccess({ caseId, onOpenShelters }) {
+function ShelterQuickAccess({ missionId, onOpenShelters }) {
   const [shelterCount, setShelterCount] = useState({ total: 0, notContacted: 0 });
 
   useEffect(() => {
-    if (!caseId) return;
+    if (!missionId) return;
 
     const fetchShelters = async () => {
       try {
-        const res = await fetch(`/api/mission/${caseId}/shelters`);
+        const res = await fetch(`/api/mission/${missionId}/shelters`);
         if (res.ok) {
           const data = await res.json();
           const shelters = data.shelters || [];
@@ -447,7 +447,7 @@ function ShelterQuickAccess({ caseId, onOpenShelters }) {
     };
 
     fetchShelters();
-  }, [caseId]);
+  }, [missionId]);
 
   return (
     <button
@@ -475,7 +475,7 @@ function ShelterQuickAccess({ caseId, onOpenShelters }) {
 // ============================================================================
 // FLYER QUICK ACCESS
 // ============================================================================
-function FlyerQuickAccess({ caseId, onGenerateFlyer }) {
+function FlyerQuickAccess({ missionId, onGenerateFlyer }) {
   return (
     <button
       onClick={onGenerateFlyer}
@@ -496,17 +496,17 @@ function FlyerQuickAccess({ caseId, onGenerateFlyer }) {
 // ============================================================================
 // LEADERBOARD
 // ============================================================================
-function Leaderboard({ caseId, userId }) {
+function Leaderboard({ missionId, userId }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
-    if (!caseId) return;
+    if (!missionId) return;
 
     const fetchLeaderboard = async () => {
       try {
-        const res = await fetch(`/api/mission/${caseId}/points`);
+        const res = await fetch(`/api/mission/${missionId}/points`);
         if (res.ok) {
           const data = await res.json();
           setEntries(data.leaderboard || []);
@@ -519,7 +519,7 @@ function Leaderboard({ caseId, userId }) {
     };
 
     fetchLeaderboard();
-  }, [caseId]);
+  }, [missionId]);
 
   if (loading) {
     return (
@@ -707,12 +707,12 @@ export default function ActionsTabV2({ mission, userId, isOwner, showNotificatio
     <div className="h-full overflow-y-auto">
       <div className="p-4 space-y-4 pb-24">
         {/* Points Header */}
-        <PointsHeader caseId={mission?.id} userId={userId} />
+        <PointsHeader missionId={mission?.id} userId={userId} />
 
         {/* Quick Access: Shelters & Flyers */}
         <div className="grid grid-cols-2 gap-3">
-          <ShelterQuickAccess caseId={mission?.id} onOpenShelters={handleOpenShelters} />
-          <FlyerQuickAccess caseId={mission?.id} onGenerateFlyer={handleGenerateFlyer} />
+          <ShelterQuickAccess missionId={mission?.id} onOpenShelters={handleOpenShelters} />
+          <FlyerQuickAccess missionId={mission?.id} onGenerateFlyer={handleGenerateFlyer} />
         </div>
 
         {/* Task Categories */}
@@ -750,7 +750,7 @@ export default function ActionsTabV2({ mission, userId, isOwner, showNotificatio
         </div>
 
         {/* Leaderboard */}
-        <Leaderboard caseId={mission?.id} userId={userId} />
+        <Leaderboard missionId={mission?.id} userId={userId} />
 
         {/* Other Activity Modal */}
         <OtherActivityModal

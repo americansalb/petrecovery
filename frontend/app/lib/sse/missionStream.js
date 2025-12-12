@@ -8,8 +8,8 @@
 export const connections = new Map();
 
 // Broadcast to all connections for a mission
-export function broadcast(caseId, event) {
-  const missionConnections = connections.get(caseId);
+export function broadcast(missionId, event) {
+  const missionConnections = connections.get(missionId);
   if (!missionConnections || missionConnections.size === 0) {
     return;
   }

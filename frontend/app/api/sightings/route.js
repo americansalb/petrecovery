@@ -38,7 +38,7 @@ export async function POST(request) {
     const body = await request.json();
     const {
       alertId,
-      caseId,
+      missionId,
       location,
       details,
       timeOfSighting,
@@ -56,8 +56,8 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Need either alertId or caseId
-    const targetCaseId = caseId || alertId;
+    // Need either alertId or missionId
+    const targetCaseId = missionId || alertId;
     if (!targetCaseId) {
       return NextResponse.json({
         error: 'Please specify which pet this sighting is for'
@@ -70,7 +70,7 @@ export async function POST(request) {
     // Create the sighting record
     const sighting = await prisma.sighting.create({
       data: {
-        caseId: targetCaseId,
+        missionId: targetCaseId,
         userId: session.user.id,
         latitude: latitude || 0,
         longitude: longitude || 0,
@@ -89,7 +89,7 @@ export async function POST(request) {
       if (caseExists) {
         await prisma.caseSighting.create({
           data: {
-            caseId: targetCaseId,
+            missionId: targetCaseId,
             reportedById: session.user.id,
             sightedAt,
             latitude: latitude || caseExists.lastSeenLatitude,
@@ -115,7 +115,7 @@ export async function POST(request) {
       action: 'create',
       result: 'success',
       metadata: {
-        caseId: targetCaseId,
+        missionId: targetCaseId,
         timeOfSighting,
         behavior,
         contactForFollowUp
@@ -130,7 +130,7 @@ export async function POST(request) {
       message: 'Sighting reported successfully! The owner has been notified.',
       sighting: {
         id: sighting.id,
-        caseId: targetCaseId
+        missionId: targetCaseId
       }
     });
 

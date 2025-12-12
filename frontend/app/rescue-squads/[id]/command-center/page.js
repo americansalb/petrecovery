@@ -5,11 +5,11 @@
  *
  * Per spec: There are only TWO top-level pages:
  * 1. Squad Hub at /rescue-squads/[id] - city-level multi-case overview
- * 2. Case Command Center at /cases/[caseNumber] - single case tactical page
+ * 2. Mission Command Center at /cases/[missionNumber] - single case tactical page
  *
  * There should be no third "command center" route at the squad level.
  * Squad-level coordination happens within the Squad Hub.
- * Case-level coordination happens within the Case Command Center.
+ * Case-level coordination happens within the Mission Command Center.
  *
  * This route is deprecated and redirects to the Squad Hub.
  */

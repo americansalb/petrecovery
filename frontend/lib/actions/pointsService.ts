@@ -194,7 +194,7 @@ export class PointsService {
    */
   async awardVerifiedPoints(params: {
     userId: string;
-    caseId: string;
+    missionId: string;
     actionType: ActionType;
     verificationMethod: VerificationMethod;
     basePoints: number;
@@ -211,7 +211,7 @@ export class PointsService {
   }): Promise<PointsAwardResult> {
     const {
       userId,
-      caseId,
+      missionId,
       actionType,
       verificationMethod,
       basePoints,
@@ -281,7 +281,7 @@ export class PointsService {
       const verifiedAction = await tx.verifiedAction.create({
         data: {
           userId,
-          caseId,
+          missionId,
           actionType,
           verificationMethod,
           hoursAfterLost,
@@ -404,7 +404,7 @@ export class PointsService {
   /**
    * Get points summary for a user
    */
-  async getPointsSummary(userId: string, caseId?: string): Promise<PointsSummary> {
+  async getPointsSummary(userId: string, missionId?: string): Promise<PointsSummary> {
     const dateString = getUTCDateString();
 
     // Get today's points
@@ -423,9 +423,9 @@ export class PointsService {
 
     // Get case-specific total if requested
     let caseTotal: number | undefined;
-    if (caseId) {
+    if (missionId) {
       const caseAgg = await this.prisma.verifiedAction.aggregate({
-        where: { userId, caseId },
+        where: { userId, missionId },
         _sum: { totalPoints: true },
       });
       caseTotal = caseAgg._sum.totalPoints ?? 0;
@@ -456,7 +456,7 @@ export class PointsService {
    * Get leaderboard for a case
    */
   async getCaseLeaderboard(
-    caseId: string,
+    missionId: string,
     limit: number = 10
   ): Promise<{
     entries: Array<{
@@ -469,7 +469,7 @@ export class PointsService {
     // Aggregate verified points by user for this case
     const results = await this.prisma.verifiedAction.groupBy({
       by: ['userId'],
-      where: { caseId },
+      where: { missionId },
       _sum: { totalPoints: true },
       orderBy: { _sum: { totalPoints: 'desc' } },
       take: limit,

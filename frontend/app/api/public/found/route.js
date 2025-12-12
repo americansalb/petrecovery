@@ -3,7 +3,7 @@
  *
  * This endpoint has been deprecated. Please use:
  * - POST /api/reports/create with reportType: 'FOUND' for reporting found pets
- * - GET /api/cases with type=FOUND for listing found pet reports
+ * - GET /api/missions with type=FOUND for listing found pet reports
  */
 
 import { NextResponse } from 'next/server';
@@ -11,7 +11,7 @@ import { NextResponse } from 'next/server';
 export async function GET(request) {
   return NextResponse.json({
     error: 'This endpoint has been deprecated',
-    message: 'Please use GET /api/cases?type=FOUND to list found pet reports',
+    message: 'Please use GET /api/missions?type=FOUND to list found pet reports',
     deprecatedAt: '2024-01-01'
   }, { status: 410 }); // 410 Gone
 }

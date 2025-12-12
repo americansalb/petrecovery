@@ -49,7 +49,7 @@
 │                                        │
 │  ┌──────────┐  ┌──────────┐            │
 │  │ 👁 Report│  │ 📤 Share │            │  ◄── Secondary actions
-│  │ Sighting │  │  Case    │            │
+│  │ Sighting │  │  Mission    │            │
 │  └──────────┘  └──────────┘            │
 │                                        │
 └────────────────────────────────────────┘
@@ -222,7 +222,7 @@ Tips appear contextually during the search:
 
 ```javascript
 // Only count distance within the search zone
-const SEARCH_RADIUS_MILES = 2; // Configurable per case
+const SEARCH_RADIUS_MILES = 2; // Configurable per mission
 
 function isWithinSearchZone(userLat, userLng, lastSeenLat, lastSeenLng) {
   const distance = haversineDistance(userLat, userLng, lastSeenLat, lastSeenLng);
@@ -406,7 +406,7 @@ function calculatePoints(session) {
 
 ---
 
-## 8. Edge Cases & Error Handling
+## 8. Edge Missions & Error Handling
 
 ### 8.1 GPS Signal Lost
 
@@ -503,15 +503,15 @@ If app crashes or phone restarts:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/mission/[caseId]/search` | POST | Start/ping/end session |
-| `/api/mission/[caseId]/search` | GET | Get active session |
-| `/api/mission/[caseId]/search/coverage` | GET | Get team coverage map |
-| `/api/mission/[caseId]/search/history` | GET | User's search history |
+| `/api/mission/[missionId]/search` | POST | Start/ping/end session |
+| `/api/mission/[missionId]/search` | GET | Get active session |
+| `/api/mission/[missionId]/search/coverage` | GET | Get team coverage map |
+| `/api/mission/[missionId]/search/history` | GET | User's search history |
 
 ### 9.2 Start Search Request
 
 ```json
-POST /api/mission/[caseId]/search
+POST /api/mission/[missionId]/search
 {
   "action": "start",
   "latitude": 41.8781,
@@ -527,7 +527,7 @@ POST /api/mission/[caseId]/search
 ### 9.3 Location Ping Request
 
 ```json
-POST /api/mission/[caseId]/search
+POST /api/mission/[missionId]/search
 {
   "action": "ping",
   "sessionId": "sess_123",
@@ -543,7 +543,7 @@ POST /api/mission/[caseId]/search
 ### 9.4 End Search Request
 
 ```json
-POST /api/mission/[caseId]/search
+POST /api/mission/[missionId]/search
 {
   "action": "end",
   "sessionId": "sess_123",
@@ -589,7 +589,7 @@ POST /api/mission/[caseId]/search
 ```prisma
 model SearchSession {
   id                String   @id @default(cuid())
-  caseId            String
+  missionId            String
   userId            String
   status            String   // ACTIVE, COMPLETED, ABANDONED
 
@@ -617,7 +617,7 @@ model SearchSession {
 
   // Relations
   locationPings     LocationPing[]
-  case              Case     @relation(fields: [caseId], references: [id])
+  mission              Mission     @relation(fields: [missionId], references: [id])
   user              User     @relation(fields: [userId], references: [id])
 
   createdAt         DateTime @default(now())
@@ -652,7 +652,7 @@ model LocationPing {
 ```prisma
 model SearchCoverage {
   id          String   @id @default(cuid())
-  caseId      String
+  missionId      String
   gridCellId  String   // e.g., "12_-5"
 
   firstSearchedAt DateTime
@@ -663,7 +663,7 @@ model SearchCoverage {
   totalTimeMinutes Int    @default(0)
   uniqueSearchers  Int    @default(1)
 
-  @@unique([caseId, gridCellId])
+  @@unique([missionId, gridCellId])
 }
 ```
 
@@ -699,7 +699,7 @@ MissionControl
 
 ```javascript
 // useSearchSession hook
-const useSearchSession = (caseId) => {
+const useSearchSession = (missionId) => {
   const [session, setSession] = useState(null);
   const [stats, setStats] = useState({ distance: 0, time: 0, points: 0 });
   const [path, setPath] = useState([]);
@@ -786,9 +786,9 @@ const useSearchSession = (caseId) => {
 
 | Metric | Target |
 |--------|--------|
-| Searches per case | > 5 sessions |
+| Searches per mission | > 5 sessions |
 | Avg search duration | > 15 minutes |
 | Distance per search | > 0.3 miles |
 | Return searches | > 30% search again within 24h |
 | Sightings during search | Track correlation |
-| Reunion rate with GPS searches | Compare to cases without |
+| Reunion rate with GPS searches | Compare to missions without |

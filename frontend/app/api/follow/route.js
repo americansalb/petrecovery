@@ -20,7 +20,7 @@ export async function GET(request) {
         case: {
           select: {
             id: true,
-            caseNumber: true,
+            missionNumber: true,
             petName: true,
             petSpecies: true,
             petPhotoUrl: true,
@@ -58,34 +58,34 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { caseId, notifications = true } = await request.json();
+    const { missionId, notifications = true } = await request.json();
 
-    if (!caseId) {
+    if (!missionId) {
       return NextResponse.json({ error: 'Case ID required' }, { status: 400 });
     }
 
     // Check case exists
-    const caseData = await prisma.case.findUnique({
-      where: { id: caseId },
+    const missionData = await prisma.case.findUnique({
+      where: { id: missionId },
       select: { id: true, petName: true },
     });
 
-    if (!caseData) {
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+    if (!missionData) {
+      return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
     // Create or update follow
     const follow = await prisma.caseFollow.upsert({
       where: {
-        userId_caseId: {
+        userId_missionId: {
           userId: session.user.id,
-          caseId,
+          missionId,
         },
       },
       update: { notifications },
       create: {
         userId: session.user.id,
-        caseId,
+        missionId,
         notifications,
       },
     });
@@ -93,7 +93,7 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       follow,
-      message: `Now following ${caseData.petName}'s case`,
+      message: `Now following ${missionData.petName}'s case`,
     });
   } catch (error) {
     console.error('Follow case error:', error);
@@ -113,16 +113,16 @@ export async function DELETE(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const caseId = searchParams.get('caseId');
+    const missionId = searchParams.get('missionId');
 
-    if (!caseId) {
+    if (!missionId) {
       return NextResponse.json({ error: 'Case ID required' }, { status: 400 });
     }
 
     await prisma.caseFollow.deleteMany({
       where: {
         userId: session.user.id,
-        caseId,
+        missionId,
       },
     });
 

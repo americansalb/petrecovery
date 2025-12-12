@@ -72,7 +72,7 @@ const HomeHeader = ({ session }) => {
     <div className="absolute top-0 left-0 right-0 z-50">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 text-white font-bold text-xl">
-          <img src="https://petrescue.b-cdn.net/Logos.svg" alt="Surumaa" className="h-10 w-auto drop-shadow-lg" />
+          <img src="https://petrescue.b-cdn.net/Logos.svg" alt="Sarama" className="h-10 w-auto drop-shadow-lg" />
           <span className="drop-shadow-lg">PetRecovery</span>
         </Link>
         <div className="flex items-center gap-3">
@@ -120,7 +120,7 @@ const HeroSection = ({ session }) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          {/* Surumaa mascot */}
+          {/* Sarama mascot */}
           <motion.div
             initial={{ opacity: 0, scale: 0.5, y: 50 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -129,7 +129,7 @@ const HeroSection = ({ session }) => {
           >
             <img
               src="https://petrescue.b-cdn.net/Logos%20(1).svg"
-              alt="Surumaa"
+              alt="Sarama"
               className="h-36 w-auto drop-shadow-2xl"
             />
           </motion.div>
@@ -336,17 +336,17 @@ export default function Home() {
             <div className="flex items-center gap-4">
               <img
                 src="https://petrescue.b-cdn.net/Logos.svg"
-                alt="Surumaa"
+                alt="Sarama"
                 className="h-14 w-auto"
               />
               <div>
-                <p className="text-white font-semibold text-lg">Meet Surumaa</p>
+                <p className="text-white font-semibold text-lg">Meet Sarama</p>
                 <p className="text-midnight-400 text-sm">Your guide on the journey home</p>
               </div>
             </div>
-            <Link href="/about-surumaa">
+            <Link href="/about-sarama">
               <Button variant="outline" className="border-flash-500/50 text-flash-400 hover:bg-flash-500/10">
-                Learn About Surumaa <ArrowRight className="w-4 h-4 ml-2" />
+                Learn About Sarama <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
           </div>

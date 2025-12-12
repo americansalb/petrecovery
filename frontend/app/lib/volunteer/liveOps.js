@@ -10,9 +10,9 @@ import prisma from '@/app/lib/prisma';
 /**
  * Get complete live operations data for a case
  */
-export async function getLiveOpsData(caseId) {
-  const caseData = await prisma.case.findUnique({
-    where: { id: caseId },
+export async function getLiveOpsData(missionId) {
+  const missionData = await prisma.case.findUnique({
+    where: { id: missionId },
     include: {
       assignments: {
         where: { status: 'ACCEPTED' },
@@ -40,13 +40,13 @@ export async function getLiveOpsData(caseId) {
     }
   });
 
-  if (!caseData) {
-    return { success: false, error: 'Case not found' };
+  if (!missionData) {
+    return { success: false, error: 'Mission not found' };
   }
 
   // Get search grid
   const grid = await prisma.searchGrid.findFirst({
-    where: { caseId },
+    where: { missionId },
     include: {
       cells: {
         select: {
@@ -71,7 +71,7 @@ export async function getLiveOpsData(caseId) {
   // Get active search sessions with live locations
   const activeSessions = await prisma.searchSession.findMany({
     where: {
-      caseId,
+      missionId,
       status: 'ACTIVE',
     },
     include: {
@@ -118,26 +118,26 @@ export async function getLiveOpsData(caseId) {
   const gridStats = calculateGridStats(grid?.cells || []);
 
   // Get recent activity
-  const recentActivity = await getRecentActivity(caseId, 20);
+  const recentActivity = await getRecentActivity(missionId, 20);
 
   // Calculate time stats
-  const timeSinceReport = Date.now() - new Date(caseData.createdAt).getTime();
+  const timeSinceReport = Date.now() - new Date(missionData.createdAt).getTime();
   const hoursActive = Math.round(timeSinceReport / (1000 * 60 * 60));
 
   return {
     success: true,
     case: {
-      id: caseData.id,
-      caseNumber: caseData.caseNumber,
-      petName: caseData.petName,
-      petSpecies: caseData.petSpecies,
-      petPhotoUrl: caseData.petPhotoUrl,
-      status: caseData.status,
-      lastSeenAt: caseData.lastSeenAt,
+      id: missionData.id,
+      missionNumber: missionData.missionNumber,
+      petName: missionData.petName,
+      petSpecies: missionData.petSpecies,
+      petPhotoUrl: missionData.petPhotoUrl,
+      status: missionData.status,
+      lastSeenAt: missionData.lastSeenAt,
       lastSeenLocation: {
-        lat: caseData.lastSeenLatitude,
-        lng: caseData.lastSeenLongitude,
-        address: caseData.lastSeenAddress,
+        lat: missionData.lastSeenLatitude,
+        lng: missionData.lastSeenLongitude,
+        address: missionData.lastSeenAddress,
       },
       hoursActive,
     },
@@ -150,12 +150,12 @@ export async function getLiveOpsData(caseId) {
     } : null,
     volunteers: {
       active: activeVolunteers,
-      total: caseData.assignments.reduce((sum, a) => sum + a.participants.length, 0),
-      totalSearchHours: caseData.assignments.reduce((sum, a) =>
+      total: missionData.assignments.reduce((sum, a) => sum + a.participants.length, 0),
+      totalSearchHours: missionData.assignments.reduce((sum, a) =>
         sum + a.participants.reduce((h, p) => h + p.searchHours, 0), 0
       ),
     },
-    sightings: caseData.sightings.map(s => ({
+    sightings: missionData.sightings.map(s => ({
       id: s.id,
       location: { lat: s.latitude, lng: s.longitude },
       confidence: s.confidence,
@@ -201,12 +201,12 @@ function calculateGridStats(cells) {
 /**
  * Get recent activity feed for a case
  */
-async function getRecentActivity(caseId, limit = 20) {
+async function getRecentActivity(missionId, limit = 20) {
   const activities = [];
 
   // Get recent sightings
   const sightings = await prisma.caseSighting.findMany({
-    where: { caseId },
+    where: { missionId },
     orderBy: { createdAt: 'desc' },
     take: limit,
     include: {
@@ -232,7 +232,7 @@ async function getRecentActivity(caseId, limit = 20) {
   // Get recent cell completions
   const recentCells = await prisma.gridCell.findMany({
     where: {
-      grid: { caseId },
+      grid: { missionId },
       searchedAt: { not: null },
     },
     orderBy: { searchedAt: 'desc' },
@@ -259,7 +259,7 @@ async function getRecentActivity(caseId, limit = 20) {
   // Get recent joins
   const recentJoins = await prisma.caseParticipant.findMany({
     where: {
-      assignment: { caseId },
+      assignment: { missionId },
     },
     orderBy: { optedInAt: 'desc' },
     take: limit,
@@ -288,10 +288,10 @@ async function getRecentActivity(caseId, limit = 20) {
 /**
  * Get real-time volunteer positions for map
  */
-export async function getVolunteerPositions(caseId) {
+export async function getVolunteerPositions(missionId) {
   const sessions = await prisma.searchSession.findMany({
     where: {
-      caseId,
+      missionId,
       status: 'ACTIVE',
       lastLocationUpdate: {
         gte: new Date(Date.now() - 5 * 60 * 1000), // Active in last 5 min
@@ -333,9 +333,9 @@ export async function getVolunteerPositions(caseId) {
 /**
  * Get case statistics for dashboard
  */
-export async function getCaseStats(caseId) {
-  const caseData = await prisma.case.findUnique({
-    where: { id: caseId },
+export async function getCaseStats(missionId) {
+  const missionData = await prisma.case.findUnique({
+    where: { id: missionId },
     include: {
       _count: {
         select: {
@@ -361,7 +361,7 @@ export async function getCaseStats(caseId) {
     }
   });
 
-  if (!caseData) {
+  if (!missionData) {
     return null;
   }
 
@@ -371,7 +371,7 @@ export async function getCaseStats(caseId) {
   let totalAreasSearched = 0;
   let totalSightings = 0;
 
-  for (const assignment of caseData.assignments) {
+  for (const assignment of missionData.assignments) {
     totalVolunteers += assignment._count.participants;
     for (const p of assignment.participants) {
       totalSearchHours += p.searchHours;
@@ -382,7 +382,7 @@ export async function getCaseStats(caseId) {
 
   // Get grid coverage
   const grid = await prisma.searchGrid.findFirst({
-    where: { caseId },
+    where: { missionId },
   });
 
   return {
@@ -394,7 +394,7 @@ export async function getCaseStats(caseId) {
       ? Math.round((grid.cellsSearched / grid.totalCells) * 100)
       : 0,
     hoursActive: Math.round(
-      (Date.now() - new Date(caseData.createdAt).getTime()) / (1000 * 60 * 60)
+      (Date.now() - new Date(missionData.createdAt).getTime()) / (1000 * 60 * 60)
     ),
   };
 }

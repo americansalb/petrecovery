@@ -597,7 +597,7 @@ function MetricsGrid({ metrics }) {
     { label: 'Active Squads', value: metrics.rescue_squads_active, key: 'active_squads' },
     { label: 'Squad Members', value: metrics.squad_members_total, key: 'members' },
     { label: 'Active Members', value: metrics.squad_members_active, key: 'active_members' },
-    { label: 'Total Cases', value: metrics.cases_total, key: 'cases', highlight: true },
+    { label: 'Total Cases', value: metrics.cases_total, key: 'missions', highlight: true },
     { label: 'Open Cases', value: metrics.cases_open, key: 'cases_open', highlight: true },
     { label: 'Active Search', value: metrics.cases_active_search, key: 'cases_active', highlight: true }
   ];
@@ -685,7 +685,7 @@ function getErrorImpact(eventType) {
   const prefixMap = {
     'squad': { label: 'Squad Operations', severity: 'medium' },
     'user': { label: 'User Operations', severity: 'medium' },
-    'case': { label: 'Case Operations', severity: 'medium' },
+    'mission': { label: 'Case Operations', severity: 'medium' },
     'admin': { label: 'Admin Operations', severity: 'low' },
     'system': { label: 'System Operations', severity: 'medium' }
   };

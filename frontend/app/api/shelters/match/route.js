@@ -13,21 +13,21 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const caseNumber = searchParams.get('caseNumber');
+    const missionNumber = searchParams.get('missionNumber');
     const location = searchParams.get('location');
     const radius = parseInt(searchParams.get('radius') || '50', 10);
 
-    if (!caseNumber) {
-      return NextResponse.json({ error: 'Case number required' }, { status: 400 });
+    if (!missionNumber) {
+      return NextResponse.json({ error: 'Mission number required' }, { status: 400 });
     }
 
     // Get the case
     const lostCase = await prisma.case.findUnique({
-      where: { caseNumber },
+      where: { missionNumber },
     });
 
     if (!lostCase) {
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
     // Build location string
@@ -51,7 +51,7 @@ export async function GET(request) {
     );
 
     return NextResponse.json({
-      caseNumber,
+      missionNumber,
       matches,
       searchLocation,
       searchRadius: radius,

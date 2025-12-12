@@ -109,11 +109,11 @@ export async function POST(request) {
 
       // Create case
       const lastSeenAt = calculateLastSeenTime(timeElapsed);
-      const caseNumber = `CASE-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+      const missionNumber = `CASE-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
       const report = await tx.case.create({
         data: {
-          caseNumber,
+          missionNumber,
           petId: pet.id,
           reporterId: user.id,
           reportType: 'LOST',
@@ -171,7 +171,7 @@ export async function POST(request) {
     if (nearbyPatrol.length > 0) {
       await prisma.alert.createMany({
         data: nearbyPatrol.map(member => ({
-          caseId: report.id,
+          missionId: report.id,
           userId: member.id,
           method: member.patrolProfile.alertMethod,
         }))
@@ -278,13 +278,13 @@ export async function POST(request) {
           console.log('[Report Debug] Creating assignment for squad:', { id: squad.id, name: squad.name, city: squad.city, distance: squad.distance });
           const assignment = await prisma.caseAssignment.create({
             data: {
-              caseId: report.id,
+              missionId: report.id,
               rescueSquadId: squad.id,
               status: 'ACCEPTED',
               acceptedById: user.id, // Required field - use reporter as initial accepter
             },
           });
-          console.log('[Report Debug] Created assignment:', { id: assignment.id, caseId: assignment.caseId, rescueSquadId: assignment.rescueSquadId });
+          console.log('[Report Debug] Created assignment:', { id: assignment.id, missionId: assignment.missionId, rescueSquadId: assignment.rescueSquadId });
 
           // Create automatic mascot post about the new case
           try {
@@ -292,7 +292,7 @@ export async function POST(request) {
               data: {
                 rescueSquadId: squad.id,
                 authorId: user.id, // Use reporter as author for now (TODO: create system mascot user)
-                content: `🚨 **New Case Alert!** 🚨\n\n${petName}, a ${color} ${petType}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nIf you're in the area, please keep an eye out and report any sightings. Every pair of eyes helps! 👀`,
+                content: `🚨 **New Case Alert!** 🚨\n\n${petName}, a ${color} ${petType}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${missionNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nIf you're in the area, please keep an eye out and report any sightings. Every pair of eyes helps! 👀`,
                 isSystemPost: true, // Mark as system/mascot post
                 isPinned: false,
               }
@@ -354,7 +354,7 @@ export async function POST(request) {
     await logEvent({
       event_type: 'case.created',
       correlation_id: correlationId,
-      resource_type: 'case',
+      resource_type: 'mission',
       resource_id: report.id,
       actor_user_id: user.id,
       action: 'create',
@@ -398,7 +398,7 @@ export async function POST(request) {
     await logEvent({
       event_type: 'case.create_failed',
       correlation_id: correlationId,
-      resource_type: 'case',
+      resource_type: 'mission',
       action: 'create',
       result: 'failure',
       error_code: 'INTERNAL_ERROR',

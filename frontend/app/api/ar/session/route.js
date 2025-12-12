@@ -27,7 +27,7 @@ export async function POST(request) {
     switch (action) {
       case 'init':
         const arSession = await initARSession({
-          caseId: body.caseId,
+          missionId: body.missionId,
           userId: session.user.id,
           enablePosterRecognition: body.enablePosterRecognition,
           enableAnimalDetection: body.enableAnimalDetection,
@@ -35,7 +35,7 @@ export async function POST(request) {
         return NextResponse.json(arSession);
 
       case 'markers':
-        const markers = await generateARMarkers(body.caseData);
+        const markers = await generateARMarkers(body.missionData);
         return NextResponse.json({ markers });
 
       case 'model':
@@ -54,7 +54,7 @@ export async function POST(request) {
         return NextResponse.json(detections);
 
       case 'generate_poster':
-        const poster = await generateARPoster(body.caseData);
+        const poster = await generateARPoster(body.missionData);
         return NextResponse.json(poster);
 
       default:

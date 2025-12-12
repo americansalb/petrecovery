@@ -224,8 +224,8 @@ Version: 1.0.0
 PetRecovery.org collects and uses your data as follows:
 
 1. **What We Collect**: Email, name, location (for squad matching), search activity
-2. **How We Use It**: To coordinate pet searches and notify you of nearby cases
-3. **Who We Share With**: Only rescue squad members for active cases
+2. **How We Use It**: To coordinate pet searches and notify you of nearby missions
+3. **Who We Share With**: Only rescue squad members for active missions
 4. **Your Rights**: Access, update, or delete your data at any time
 5. **Security**: We use industry-standard encryption and security practices
 

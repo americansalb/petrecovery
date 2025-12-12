@@ -18,20 +18,20 @@ const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL;
 /**
  * Send confirmation email to contact when public report is submitted
  *
- * @param {Object} caseData - Case details
- * @param {string} caseData.caseNumber - Case number (e.g., "CHI-2025-0001")
- * @param {string} caseData.petName - Pet name
- * @param {string} caseData.petSpecies - Pet species (DOG, CAT, etc.)
- * @param {string} caseData.city - City
- * @param {string} caseData.state - State
- * @param {string} caseData.contactName - Contact name
- * @param {string} caseData.contactEmail - Contact email
- * @param {Date} caseData.createdAt - Submission timestamp
+ * @param {Object} missionData - Mission details
+ * @param {string} missionData.missionNumber - Mission number (e.g., "CHI-2025-0001")
+ * @param {string} missionData.petName - Pet name
+ * @param {string} missionData.petSpecies - Pet species (DOG, CAT, etc.)
+ * @param {string} missionData.city - City
+ * @param {string} missionData.state - State
+ * @param {string} missionData.contactName - Contact name
+ * @param {string} missionData.contactEmail - Contact email
+ * @param {Date} missionData.createdAt - Submission timestamp
  * @param {Object} options - Additional options
  * @param {boolean} options.isPublicReport - Whether this is a public report
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-export async function sendCaseReportConfirmation(caseData, options = {}) {
+export async function sendCaseReportConfirmation(missionData, options = {}) {
   const startTime = Date.now();
   const notificationType = 'case_report_confirmation';
 
@@ -40,13 +40,13 @@ export async function sendCaseReportConfirmation(caseData, options = {}) {
     await logEvent({
       event_type: 'notification.send_attempted',
       resource_type: 'notification',
-      resource_id: caseData.caseNumber,
+      resource_id: missionData.missionNumber,
       action: 'create',
       result: 'success',
       metadata: {
         notification_type: notificationType,
-        recipient: caseData.contactEmail,
-        case_number: caseData.caseNumber
+        recipient: missionData.contactEmail,
+        case_number: missionData.missionNumber
       }
     });
 
@@ -59,17 +59,17 @@ export async function sendCaseReportConfirmation(caseData, options = {}) {
           </div>
 
           <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-            <p>Hi ${caseData.contactName || 'there'},</p>
+            <p>Hi ${missionData.contactName || 'there'},</p>
 
             <p>Thank you for submitting a lost pet report to PetRecovery.org.</p>
 
             <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
               <h3 style="margin-top: 0; color: #1f2937;">Case Details:</h3>
               <ul style="margin: 0; padding-left: 20px;">
-                <li><strong>Case Number:</strong> ${caseData.caseNumber}</li>
-                <li><strong>Pet:</strong> ${caseData.petName || 'Unknown'} (${caseData.petSpecies})</li>
-                <li><strong>Location:</strong> ${caseData.city}, ${caseData.state}</li>
-                <li><strong>Submitted:</strong> ${new Date(caseData.createdAt).toLocaleString()}</li>
+                <li><strong>Case Number:</strong> ${missionData.missionNumber}</li>
+                <li><strong>Pet:</strong> ${missionData.petName || 'Unknown'} (${missionData.petSpecies})</li>
+                <li><strong>Location:</strong> ${missionData.city}, ${missionData.state}</li>
+                <li><strong>Submitted:</strong> ${new Date(missionData.createdAt).toLocaleString()}</li>
               </ul>
             </div>
 
@@ -98,8 +98,8 @@ export async function sendCaseReportConfirmation(caseData, options = {}) {
 
     // Send email
     const result = await sendEmail({
-      to: caseData.contactEmail,
-      subject: `✅ We received your lost pet report: ${caseData.petName || caseData.caseNumber}`,
+      to: missionData.contactEmail,
+      subject: `✅ We received your lost pet report: ${missionData.petName || missionData.missionNumber}`,
       html
     });
 
@@ -110,13 +110,13 @@ export async function sendCaseReportConfirmation(caseData, options = {}) {
       await logEvent({
         event_type: 'notification.send_succeeded',
         resource_type: 'notification',
-        resource_id: caseData.caseNumber,
+        resource_id: missionData.missionNumber,
         action: 'create',
         result: 'success',
         metadata: {
           notification_type: notificationType,
-          recipient: caseData.contactEmail,
-          case_number: caseData.caseNumber,
+          recipient: missionData.contactEmail,
+          case_number: missionData.missionNumber,
           response_time_ms: responseTime
         }
       });
@@ -125,15 +125,15 @@ export async function sendCaseReportConfirmation(caseData, options = {}) {
       await logEvent({
         event_type: 'notification.send_failed',
         resource_type: 'notification',
-        resource_id: caseData.caseNumber,
+        resource_id: missionData.missionNumber,
         action: 'create',
         result: 'failure',
         error_code: 'EMAIL_SEND_FAILED',
         error_message: result.error,
         metadata: {
           notification_type: notificationType,
-          recipient: caseData.contactEmail,
-          case_number: caseData.caseNumber,
+          recipient: missionData.contactEmail,
+          case_number: missionData.missionNumber,
           response_time_ms: responseTime
         }
       });
@@ -146,15 +146,15 @@ export async function sendCaseReportConfirmation(caseData, options = {}) {
     await logEvent({
       event_type: 'notification.send_failed',
       resource_type: 'notification',
-      resource_id: caseData.caseNumber,
+      resource_id: missionData.missionNumber,
       action: 'create',
       result: 'failure',
       error_code: 'NOTIFICATION_ERROR',
       error_message: error.message,
       metadata: {
         notification_type: notificationType,
-        recipient: caseData.contactEmail,
-        case_number: caseData.caseNumber
+        recipient: missionData.contactEmail,
+        case_number: missionData.missionNumber
       }
     });
 
@@ -165,10 +165,10 @@ export async function sendCaseReportConfirmation(caseData, options = {}) {
 /**
  * Send alert to admin when public report is submitted
  *
- * @param {Object} caseData - Case details
+ * @param {Object} missionData - Mission details
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-export async function sendAdminPublicReportAlert(caseData) {
+export async function sendAdminPublicReportAlert(missionData) {
   const startTime = Date.now();
   const notificationType = 'admin_alert';
 
@@ -182,13 +182,13 @@ export async function sendAdminPublicReportAlert(caseData) {
     await logEvent({
       event_type: 'notification.send_attempted',
       resource_type: 'notification',
-      resource_id: caseData.caseNumber,
+      resource_id: missionData.missionNumber,
       action: 'create',
       result: 'success',
       metadata: {
         notification_type: notificationType,
         recipient: ADMIN_EMAIL,
-        case_number: caseData.caseNumber
+        case_number: missionData.missionNumber
       }
     });
 
@@ -206,25 +206,25 @@ export async function sendAdminPublicReportAlert(caseData) {
             <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
               <h3 style="margin-top: 0; color: #1f2937;">Case Information:</h3>
               <ul style="margin: 0; padding-left: 20px;">
-                <li><strong>Case Number:</strong> ${caseData.caseNumber}</li>
-                <li><strong>Pet:</strong> ${caseData.petName || 'Unknown'} (${caseData.petSpecies}${caseData.petBreed ? ', ' + caseData.petBreed : ''})</li>
-                <li><strong>Location:</strong> ${caseData.city}, ${caseData.state} ${caseData.zipCode ? '(' + caseData.zipCode + ')' : ''}</li>
-                ${caseData.lastSeenLandmark ? `<li><strong>Landmark:</strong> ${caseData.lastSeenLandmark}</li>` : ''}
-                <li><strong>Submitted:</strong> ${new Date(caseData.createdAt).toLocaleString()}</li>
+                <li><strong>Case Number:</strong> ${missionData.missionNumber}</li>
+                <li><strong>Pet:</strong> ${missionData.petName || 'Unknown'} (${missionData.petSpecies}${missionData.petBreed ? ', ' + missionData.petBreed : ''})</li>
+                <li><strong>Location:</strong> ${missionData.city}, ${missionData.state} ${missionData.zipCode ? '(' + missionData.zipCode + ')' : ''}</li>
+                ${missionData.lastSeenLandmark ? `<li><strong>Landmark:</strong> ${missionData.lastSeenLandmark}</li>` : ''}
+                <li><strong>Submitted:</strong> ${new Date(missionData.createdAt).toLocaleString()}</li>
               </ul>
             </div>
 
             <div style="background: #fef3c7; padding: 15px; border-radius: 6px; margin: 20px 0;">
               <h3 style="margin-top: 0; color: #1f2937;">Contact Information:</h3>
               <ul style="margin: 0; padding-left: 20px;">
-                <li><strong>Name:</strong> ${caseData.contactName}</li>
-                ${caseData.contactEmail ? `<li><strong>Email:</strong> ${caseData.contactEmail}</li>` : ''}
-                ${caseData.contactPhone ? `<li><strong>Phone:</strong> ${caseData.contactPhone}</li>` : ''}
+                <li><strong>Name:</strong> ${missionData.contactName}</li>
+                ${missionData.contactEmail ? `<li><strong>Email:</strong> ${missionData.contactEmail}</li>` : ''}
+                ${missionData.contactPhone ? `<li><strong>Phone:</strong> ${missionData.contactPhone}</li>` : ''}
               </ul>
             </div>
 
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${BASE_URL}/admin/cases/${caseData.id}"
+              <a href="${BASE_URL}/admin/missions/${missionData.id}"
                  style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
                 Review Case in Admin Panel →
               </a>
@@ -247,7 +247,7 @@ export async function sendAdminPublicReportAlert(caseData) {
     // Send email
     const result = await sendEmail({
       to: ADMIN_EMAIL,
-      subject: `🚨 New Public Report: ${caseData.city}, ${caseData.state} – ${caseData.petName || caseData.caseNumber}`,
+      subject: `🚨 New Public Report: ${missionData.city}, ${missionData.state} – ${missionData.petName || missionData.missionNumber}`,
       html
     });
 
@@ -257,13 +257,13 @@ export async function sendAdminPublicReportAlert(caseData) {
       await logEvent({
         event_type: 'notification.send_succeeded',
         resource_type: 'notification',
-        resource_id: caseData.caseNumber,
+        resource_id: missionData.missionNumber,
         action: 'create',
         result: 'success',
         metadata: {
           notification_type: notificationType,
           recipient: ADMIN_EMAIL,
-          case_number: caseData.caseNumber,
+          case_number: missionData.missionNumber,
           response_time_ms: responseTime
         }
       });
@@ -271,7 +271,7 @@ export async function sendAdminPublicReportAlert(caseData) {
       await logEvent({
         event_type: 'notification.send_failed',
         resource_type: 'notification',
-        resource_id: caseData.caseNumber,
+        resource_id: missionData.missionNumber,
         action: 'create',
         result: 'failure',
         error_code: 'EMAIL_SEND_FAILED',
@@ -279,7 +279,7 @@ export async function sendAdminPublicReportAlert(caseData) {
         metadata: {
           notification_type: notificationType,
           recipient: ADMIN_EMAIL,
-          case_number: caseData.caseNumber,
+          case_number: missionData.missionNumber,
           response_time_ms: responseTime
         }
       });
@@ -291,7 +291,7 @@ export async function sendAdminPublicReportAlert(caseData) {
     await logEvent({
       event_type: 'notification.send_failed',
       resource_type: 'notification',
-      resource_id: caseData.caseNumber,
+      resource_id: missionData.missionNumber,
       action: 'create',
       result: 'failure',
       error_code: 'NOTIFICATION_ERROR',
@@ -299,7 +299,7 @@ export async function sendAdminPublicReportAlert(caseData) {
       metadata: {
         notification_type: notificationType,
         recipient: ADMIN_EMAIL,
-        case_number: caseData.caseNumber
+        case_number: missionData.missionNumber
       }
     });
 
@@ -310,16 +310,16 @@ export async function sendAdminPublicReportAlert(caseData) {
 /**
  * Send status update to contact when case status changes
  *
- * @param {Object} caseData - Case details
+ * @param {Object} missionData - Mission details
  * @param {string} previousStatus - Previous status
  * @param {string} newStatus - New status
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) {
+export async function sendCaseStatusUpdate(missionData, previousStatus, newStatus) {
   const startTime = Date.now();
   const notificationType = 'status_update';
 
-  if (!caseData.contactEmail) {
+  if (!missionData.contactEmail) {
     return { success: false, error: 'No contact email provided' };
   }
 
@@ -328,13 +328,13 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
     await logEvent({
       event_type: 'notification.send_attempted',
       resource_type: 'notification',
-      resource_id: caseData.caseNumber,
+      resource_id: missionData.missionNumber,
       action: 'create',
       result: 'success',
       metadata: {
         notification_type: notificationType,
-        recipient: caseData.contactEmail,
-        case_number: caseData.caseNumber,
+        recipient: missionData.contactEmail,
+        case_number: missionData.missionNumber,
         previous_status: previousStatus,
         new_status: newStatus
       }
@@ -345,19 +345,19 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
       'ACTIVE_SEARCH': {
         title: 'Active Search Started',
         icon: '🔍',
-        message: `Rescue squad volunteers are actively searching for ${caseData.petName || 'your pet'} in ${caseData.city}.`,
+        message: `Rescue squad volunteers are actively searching for ${missionData.petName || 'your pet'} in ${missionData.city}.`,
         color: '#f59e0b'
       },
       'RESOLVED': {
         title: 'Case Resolved',
         icon: '🎉',
-        message: `Great news! Your lost pet case has been marked as RESOLVED. ${caseData.statusReason || 'We hope your pet is safe!'}`,
+        message: `Great news! Your lost pet case has been marked as RESOLVED. ${missionData.statusReason || 'We hope your pet is safe!'}`,
         color: '#10b981'
       },
       'CLOSED_OTHER': {
-        title: 'Case Closed',
+        title: 'Mission Closed',
         icon: 'ℹ️',
-        message: `Your case has been closed. ${caseData.statusReason || 'If you need further assistance, please contact us.'}`,
+        message: `Your case has been closed. ${missionData.statusReason || 'If you need further assistance, please contact us.'}`,
         color: '#6b7280'
       }
     };
@@ -378,24 +378,24 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
           </div>
 
           <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-            <p>Hi ${caseData.contactName || 'there'},</p>
+            <p>Hi ${missionData.contactName || 'there'},</p>
 
             <p>${content.message}</p>
 
             <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
               <h3 style="margin-top: 0; color: #1f2937;">Case Information:</h3>
               <ul style="margin: 0; padding-left: 20px;">
-                <li><strong>Case Number:</strong> ${caseData.caseNumber}</li>
-                <li><strong>Pet:</strong> ${caseData.petName || 'Unknown'}</li>
+                <li><strong>Case Number:</strong> ${missionData.missionNumber}</li>
+                <li><strong>Pet:</strong> ${missionData.petName || 'Unknown'}</li>
                 <li><strong>Previous Status:</strong> ${previousStatus}</li>
                 <li><strong>New Status:</strong> <strong>${newStatus}</strong></li>
                 <li><strong>Updated:</strong> ${new Date().toLocaleString()}</li>
               </ul>
             </div>
 
-            ${caseData.isPublic ? `
+            ${missionData.isPublic ? `
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${BASE_URL}/cases/${caseData.caseNumber}"
+              <a href="${BASE_URL}/cases/${missionData.missionNumber}"
                  style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
                 View Your Case Online →
               </a>
@@ -416,8 +416,8 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
 
     // Send email
     const result = await sendEmail({
-      to: caseData.contactEmail,
-      subject: `📢 Update on your lost pet case ${caseData.caseNumber}: ${content.title}`,
+      to: missionData.contactEmail,
+      subject: `📢 Update on your lost pet case ${missionData.missionNumber}: ${content.title}`,
       html
     });
 
@@ -427,13 +427,13 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
       await logEvent({
         event_type: 'notification.send_succeeded',
         resource_type: 'notification',
-        resource_id: caseData.caseNumber,
+        resource_id: missionData.missionNumber,
         action: 'create',
         result: 'success',
         metadata: {
           notification_type: notificationType,
-          recipient: caseData.contactEmail,
-          case_number: caseData.caseNumber,
+          recipient: missionData.contactEmail,
+          case_number: missionData.missionNumber,
           previous_status: previousStatus,
           new_status: newStatus,
           response_time_ms: responseTime
@@ -443,15 +443,15 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
       await logEvent({
         event_type: 'notification.send_failed',
         resource_type: 'notification',
-        resource_id: caseData.caseNumber,
+        resource_id: missionData.missionNumber,
         action: 'create',
         result: 'failure',
         error_code: 'EMAIL_SEND_FAILED',
         error_message: result.error,
         metadata: {
           notification_type: notificationType,
-          recipient: caseData.contactEmail,
-          case_number: caseData.caseNumber,
+          recipient: missionData.contactEmail,
+          case_number: missionData.missionNumber,
           previous_status: previousStatus,
           new_status: newStatus,
           response_time_ms: responseTime
@@ -465,15 +465,15 @@ export async function sendCaseStatusUpdate(caseData, previousStatus, newStatus) 
     await logEvent({
       event_type: 'notification.send_failed',
       resource_type: 'notification',
-      resource_id: caseData.caseNumber,
+      resource_id: missionData.missionNumber,
       action: 'create',
       result: 'failure',
       error_code: 'NOTIFICATION_ERROR',
       error_message: error.message,
       metadata: {
         notification_type: notificationType,
-        recipient: caseData.contactEmail,
-        case_number: caseData.caseNumber,
+        recipient: missionData.contactEmail,
+        case_number: missionData.missionNumber,
         previous_status: previousStatus,
         new_status: newStatus
       }
@@ -656,7 +656,7 @@ export async function sendFoundPetNotification(data) {
  * @param {string} data.ownerEmail - Pet owner's email
  * @param {string} data.ownerName - Pet owner's name
  * @param {string} data.petName - Name of the pet
- * @param {string} data.caseNumber - Case number
+ * @param {string} data.missionNumber - Mission number
  * @param {string} data.sightingLocation - Where the pet was sighted
  * @param {string} data.sightingTime - When the pet was sighted
  * @param {string} data.sightingDescription - Description of the sighting
@@ -671,7 +671,7 @@ export async function sendSightingNotification(data) {
     ownerEmail,
     ownerName,
     petName,
-    caseNumber,
+    missionNumber,
     sightingLocation,
     sightingTime,
     sightingDescription,
@@ -686,13 +686,13 @@ export async function sendSightingNotification(data) {
     await logEvent({
       event_type: 'notification.send_attempted',
       resource_type: 'notification',
-      resource_id: caseNumber,
+      resource_id: missionNumber,
       action: 'create',
       result: 'success',
       metadata: {
         notification_type: notificationType,
         recipient: ownerEmail,
-        case_number: caseNumber
+        case_number: missionNumber
       }
     });
 
@@ -729,7 +729,7 @@ export async function sendSightingNotification(data) {
             </div>
 
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${BASE_URL}/cases/${caseNumber}"
+              <a href="${BASE_URL}/cases/${missionNumber}"
                  style="display: inline-block; background: #2563eb; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
                 View Sighting on Map
               </a>
@@ -761,13 +761,13 @@ export async function sendSightingNotification(data) {
       await logEvent({
         event_type: 'notification.send_succeeded',
         resource_type: 'notification',
-        resource_id: caseNumber,
+        resource_id: missionNumber,
         action: 'create',
         result: 'success',
         metadata: {
           notification_type: notificationType,
           recipient: ownerEmail,
-          case_number: caseNumber,
+          case_number: missionNumber,
           response_time_ms: responseTime
         }
       });
@@ -779,7 +779,7 @@ export async function sendSightingNotification(data) {
     await logEvent({
       event_type: 'notification.send_failed',
       resource_type: 'notification',
-      resource_id: caseNumber,
+      resource_id: missionNumber,
       action: 'create',
       result: 'failure',
       error_code: 'NOTIFICATION_ERROR',
@@ -787,7 +787,7 @@ export async function sendSightingNotification(data) {
       metadata: {
         notification_type: notificationType,
         recipient: ownerEmail,
-        case_number: caseNumber
+        case_number: missionNumber
       }
     });
 
@@ -803,7 +803,7 @@ export async function sendSightingNotification(data) {
  * @param {string} data.squadName - Name of the rescue squad
  * @param {string} data.petName - Name of the pet
  * @param {string} data.petSpecies - Species of the pet
- * @param {string} data.caseNumber - Case number
+ * @param {string} data.missionNumber - Mission number
  * @param {string} data.location - Location of the lost pet
  * @returns {Promise<{success: boolean, sent: number, failed: number}>}
  */
@@ -813,7 +813,7 @@ export async function sendCaseAssignmentNotification(data) {
     squadName,
     petName,
     petSpecies,
-    caseNumber,
+    missionNumber,
     location
   } = data;
 
@@ -840,7 +840,7 @@ export async function sendCaseAssignmentNotification(data) {
             <h3 style="margin: 0 0 15px 0; color: #1e40af;">Case Details:</h3>
             <ul style="margin: 0; padding-left: 20px;">
               <li><strong>Pet:</strong> ${petName || 'Unknown'} (${petSpecies})</li>
-              <li><strong>Case Number:</strong> ${caseNumber}</li>
+              <li><strong>Case Number:</strong> ${missionNumber}</li>
               <li><strong>Location:</strong> ${location}</li>
             </ul>
           </div>
@@ -848,7 +848,7 @@ export async function sendCaseAssignmentNotification(data) {
           <p>As a member of ${squadName}, you can join this search effort!</p>
 
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${BASE_URL}/cases/${caseNumber}/coordinate"
+            <a href="${BASE_URL}/cases/${missionNumber}/coordinate"
                style="display: inline-block; background: #10b981; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
               Join the Search
             </a>
@@ -891,7 +891,7 @@ export async function sendCaseAssignmentNotification(data) {
   await logEvent({
     event_type: 'notification.batch_sent',
     resource_type: 'notification',
-    resource_id: caseNumber,
+    resource_id: missionNumber,
     action: 'create',
     result: sent > 0 ? 'success' : 'failure',
     metadata: {
@@ -1088,41 +1088,41 @@ export async function createBulkNotifications(userIds, notification) {
 /**
  * Notify a user about a case update
  */
-export async function notifyUserCaseUpdate({ userId, caseNumber, petName, updateType, message, caseId }) {
+export async function notifyUserCaseUpdate({ userId, missionNumber, petName, updateType, message, missionId }) {
   return createInAppNotification({
     userId,
     type: 'CASE_UPDATE',
-    title: `Case ${caseNumber}: ${updateType}`,
+    title: `Case ${missionNumber}: ${updateType}`,
     message,
-    data: { caseNumber, petName, updateType },
-    actionUrl: caseId ? `/cases/${caseNumber}` : null,
+    data: { missionNumber, petName, updateType },
+    actionUrl: missionId ? `/cases/${missionNumber}` : null,
   });
 }
 
 /**
  * Notify a user about a new sighting
  */
-export async function notifyUserSighting({ userId, petName, caseNumber, location, confidence }) {
+export async function notifyUserSighting({ userId, petName, missionNumber, location, confidence }) {
   return createInAppNotification({
     userId,
     type: 'SIGHTING',
     title: `New sighting of ${petName}!`,
     message: `Someone reported seeing ${petName} near ${location}. Confidence: ${confidence}/10`,
-    data: { caseNumber, location, confidence },
-    actionUrl: `/cases/${caseNumber}`,
+    data: { missionNumber, location, confidence },
+    actionUrl: `/missions/${missionNumber}`,
   });
 }
 
 /**
  * Notify squad members about a case assignment
  */
-export async function notifySquadCaseAssignment({ memberIds, squadName, petName, caseNumber, location }) {
+export async function notifySquadCaseAssignment({ memberIds, squadName, petName, missionNumber, location }) {
   return createBulkNotifications(memberIds, {
     type: 'SQUAD_MESSAGE',
     title: `${squadName}: New case assigned`,
     message: `Your squad has taken on a new case: ${petName} in ${location}. Join the search effort!`,
-    data: { squadName, caseNumber, petName, location },
-    actionUrl: `/cases/${caseNumber}/coordinate`,
+    data: { squadName, missionNumber, petName, location },
+    actionUrl: `/missions/${missionNumber}/coordinate`,
   });
 }
 

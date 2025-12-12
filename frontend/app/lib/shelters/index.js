@@ -259,8 +259,8 @@ export async function matchIntakesWithCases() {
       if (score > 0.5) {
         matches.push({
           intakeId: intake.id,
-          caseId: lostCase.id,
-          caseNumber: lostCase.caseNumber,
+          missionId: lostCase.id,
+          missionNumber: lostCase.missionNumber,
           score,
           intake,
           case: lostCase,
