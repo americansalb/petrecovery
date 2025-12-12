@@ -50,7 +50,7 @@ export async function GET(
     }
 
     // Build query
-    const where: any = { missionId };
+    const where: any = { caseId: missionId };
     if (statusFilter) {
       where.status = statusFilter;
     }
@@ -114,7 +114,7 @@ export async function GET(
     // Count by status
     const statusCounts = await prisma.shelterContact.groupBy({
       by: ['status'],
-      where: { missionId },
+      where: { caseId: missionId },
       _count: true,
     });
 
@@ -185,7 +185,7 @@ export async function POST(
 
     // Check if shelter already exists for this case
     const existing = await prisma.shelterContact.findUnique({
-      where: { missionId_placeId: { missionId, placeId } },
+      where: { caseId_placeId: { caseId: missionId, placeId } },
     });
 
     if (existing) {
@@ -199,7 +199,7 @@ export async function POST(
     // Create shelter contact
     const shelter = await prisma.shelterContact.create({
       data: {
-        missionId,
+        caseId: missionId,
         placeId,
         shelterName: name,
         shelterAddress: address,
