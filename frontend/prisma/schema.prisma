@@ -537,8 +537,8 @@ enum AlertResponse {
 // CASE SIGHTINGS (was Sighting)
 model CaseSighting {
   id              String   @id @default(cuid())
-  caseId          String
-  case            Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  missionId       String   @map("caseId")
+  case            Case     @relation(fields: [missionId], references: [id], onDelete: Cascade)
   reportedById    String
   reportedBy      User     @relation(fields: [reportedById], references: [id], onDelete: Cascade)
 
@@ -560,7 +560,7 @@ model CaseSighting {
 
   createdAt       DateTime @default(now())
 
-  @@index([caseId])
+  @@index([missionId])
   @@index([latitude, longitude])
 }
 
@@ -3900,8 +3900,8 @@ enum FoundMethod {
 // - ML training can tolerate some missing outcomes initially
 model CaseOutcome {
   id                    String      @id @default(cuid())
-  caseId                String      @unique
-  case                  Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  missionId             String      @unique @map("caseId")
+  case                  Case        @relation(fields: [missionId], references: [id], onDelete: Cascade)
 
   // Resolution details
   outcome               OutcomeType
