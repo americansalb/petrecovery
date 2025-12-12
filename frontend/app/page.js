@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bell,
@@ -19,12 +19,206 @@ import {
   ArrowRight,
   Building2,
   Navigation,
-  Eye,
   Map,
   Radio,
   FileText,
   LocateFixed,
+  X,
+  Mail,
+  Lock,
+  UserPlus,
+  Loader2,
 } from 'lucide-react';
+
+// Auth Modal Component
+const AuthModal = ({ isOpen, onClose, squadToJoin, onAuthSuccess }) => {
+  const [mode, setMode] = useState('login');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    firstName: '',
+  });
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      if (mode === 'register') {
+        // Register first
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+            firstName: formData.firstName,
+            acceptedTerms: true,
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          setError(data.error || 'Registration failed');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Sign in
+      const result = await signIn('credentials', {
+        redirect: false,
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (result?.error) {
+        setError(mode === 'login' ? 'Invalid email or password' : 'Account created but login failed');
+        setLoading(false);
+        return;
+      }
+
+      // Success - trigger callback
+      onAuthSuccess();
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 z-10"
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition"
+        >
+          <X className="w-6 h-6" />
+        </button>
+
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Shield className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {mode === 'login' ? 'Sign In to Join' : 'Create Account to Join'}
+          </h2>
+          {squadToJoin && (
+            <p className="text-gray-600">
+              Join <span className="font-semibold text-blue-600">{squadToJoin.name}</span>
+            </p>
+          )}
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          {mode === 'register' && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+              <input
+                type="text"
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                placeholder="Jane"
+                required
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
+              />
+            </div>
+          )}
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="you@example.com"
+                required
+                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
+              />
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <div className="relative">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+              <input
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="••••••••"
+                required
+                minLength={mode === 'register' ? 8 : undefined}
+                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-4 rounded-xl font-bold transition flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : mode === 'login' ? (
+              <>Sign In & Join</>
+            ) : (
+              <>
+                <UserPlus className="w-5 h-5" />
+                Create Account & Join
+              </>
+            )}
+          </button>
+        </form>
+
+        <div className="text-center mt-6 pt-6 border-t border-gray-100">
+          {mode === 'login' ? (
+            <p className="text-gray-600">
+              Don't have an account?{' '}
+              <button
+                onClick={() => setMode('register')}
+                className="text-blue-600 font-semibold hover:underline"
+              >
+                Create one
+              </button>
+            </p>
+          ) : (
+            <p className="text-gray-600">
+              Already have an account?{' '}
+              <button
+                onClick={() => setMode('login')}
+                className="text-blue-600 font-semibold hover:underline"
+              >
+                Sign in
+              </button>
+            </p>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+};
 
 // Live Reunion Ticker
 const ReunionTicker = ({ reunions = [], loading }) => {
@@ -64,11 +258,16 @@ const ReunionTicker = ({ reunions = [], loading }) => {
 };
 
 export default function Home() {
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [locationQuery, setLocationQuery] = useState('');
   const [locating, setLocating] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [squadToJoin, setSquadToJoin] = useState(null);
+  const [joiningSquad, setJoiningSquad] = useState(null);
   const [data, setData] = useState({
     metrics: { petsReunited: 0, openCases: 0, activeSquads: 0, totalVolunteers: 0, weeklyReunions: 0 },
     ticker: [],
@@ -90,23 +289,47 @@ export default function Home() {
     fetchData();
   }, []);
 
-  const handleFindSquad = (e) => {
+  // Search for squads inline
+  const handleFindSquad = async (e) => {
     e.preventDefault();
-    if (locationQuery.trim()) {
-      router.push(`/rescue-squads/search?q=${encodeURIComponent(locationQuery.trim())}`);
+    if (!locationQuery.trim()) return;
+
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/rescue-squads/search?q=${encodeURIComponent(locationQuery.trim())}`);
+      if (res.ok) {
+        const results = await res.json();
+        setSearchResults(results.squads || results);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSearching(false);
     }
   };
 
-  const handleUseLocation = () => {
+  const handleUseLocation = async () => {
     if (!navigator.geolocation) {
       alert('Geolocation is not supported by your browser');
       return;
     }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords;
-        router.push(`/rescue-squads/search?lat=${latitude}&lng=${longitude}`);
+        setSearching(true);
+        try {
+          const res = await fetch(`/api/rescue-squads/search?lat=${latitude}&lng=${longitude}`);
+          if (res.ok) {
+            const results = await res.json();
+            setSearchResults(results.squads || results);
+          }
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setSearching(false);
+          setLocating(false);
+        }
       },
       (error) => {
         setLocating(false);
@@ -115,10 +338,64 @@ export default function Home() {
     );
   };
 
+  // Handle joining a squad
+  const handleJoinSquad = async (squad) => {
+    if (!session) {
+      // Not logged in - show auth modal
+      setSquadToJoin(squad);
+      setShowAuthModal(true);
+      return;
+    }
+
+    // Already logged in - join directly
+    await joinSquadDirectly(squad);
+  };
+
+  const joinSquadDirectly = async (squad) => {
+    setJoiningSquad(squad.id);
+    try {
+      const res = await fetch(`/api/rescue-squads/${squad.id}/join`, {
+        method: 'POST',
+      });
+
+      if (res.ok) {
+        // Redirect to the squad page
+        router.push(`/rescue-squads/${squad.id}?joined=true`);
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to join squad');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Failed to join squad');
+    } finally {
+      setJoiningSquad(null);
+    }
+  };
+
+  const handleAuthSuccess = async () => {
+    setShowAuthModal(false);
+    await updateSession();
+    if (squadToJoin) {
+      await joinSquadDirectly(squadToJoin);
+    }
+  };
+
   const { metrics, ticker, casesNeedingHelp, featuredSquads } = data;
+
+  // Display squads - either search results or featured
+  const displaySquads = searchResults || featuredSquads;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-blue-50">
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => { setShowAuthModal(false); setSquadToJoin(null); }}
+        squadToJoin={squadToJoin}
+        onAuthSuccess={handleAuthSuccess}
+      />
+
       {/* Reunion Ticker */}
       <ReunionTicker reunions={ticker} loading={loading} />
 
@@ -388,53 +665,101 @@ export default function Home() {
             </motion.div>
           </div>
 
-          {/* Featured Squads Grid */}
-          {featuredSquads.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10"
-            >
-              {featuredSquads.slice(0, 6).map((squad, i) => (
-                <motion.div
-                  key={squad.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  whileHover={{ scale: 1.02 }}
-                >
-                  <Link
-                    href={`/rescue-squads/${squad.id}`}
-                    className="block bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 hover:bg-white/20 transition group"
+          {/* Squads Grid - Shows search results or featured squads */}
+          {(searching || displaySquads.length > 0) && (
+            <div className="mb-10">
+              {/* Results header */}
+              {searchResults && (
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-white/90">
+                    {searchResults.length === 0 ? (
+                      'No squads found in this area'
+                    ) : (
+                      <>Found <span className="font-bold text-amber-300">{searchResults.length}</span> squads</>
+                    )}
+                  </p>
+                  <button
+                    onClick={() => { setSearchResults(null); setLocationQuery(''); }}
+                    className="text-blue-200 hover:text-white text-sm transition"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-lg">
-                        {squad.logoUrl ? (
-                          <img src={squad.logoUrl} alt={squad.name} className="w-10 h-10 rounded-lg object-cover" />
-                        ) : (
-                          <Shield className="w-7 h-7 text-white" />
-                        )}
+                    Clear search
+                  </button>
+                </div>
+              )}
+
+              {searching ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 text-white animate-spin" />
+                  <span className="ml-3 text-white">Searching nearby squads...</span>
+                </div>
+              ) : displaySquads.length > 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                >
+                  {displaySquads.slice(0, 6).map((squad, i) => (
+                    <motion.div
+                      key={squad.id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: i * 0.05 }}
+                      whileHover={{ scale: 1.02 }}
+                      className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 hover:bg-white/20 transition"
+                    >
+                      <div className="flex items-center gap-4 mb-3">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-lg">
+                          {squad.logoUrl ? (
+                            <img src={squad.logoUrl} alt={squad.name} className="w-8 h-8 rounded-lg object-cover" />
+                          ) : (
+                            <Shield className="w-6 h-6 text-white" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-white font-bold truncate">
+                            {squad.name}
+                          </h3>
+                          <p className="text-blue-200 text-sm flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {squad.city}, {squad.state}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-bold truncate group-hover:text-amber-200 transition">
-                          {squad.name}
-                        </h3>
-                        <p className="text-blue-200 text-sm flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {squad.city}, {squad.state}
-                        </p>
+                      <div className="flex items-center justify-between">
+                        <div className="text-blue-200 text-sm">
+                          <span className="text-amber-300 font-bold">{squad.memberCount || squad._count?.members || 0}</span> members
+                        </div>
+                        <button
+                          onClick={() => handleJoinSquad(squad)}
+                          disabled={joiningSquad === squad.id}
+                          className="bg-amber-400 hover:bg-amber-300 text-gray-900 px-4 py-2 rounded-lg font-bold text-sm transition flex items-center gap-1"
+                        >
+                          {joiningSquad === squad.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <UserPlus className="w-4 h-4" />
+                              Join
+                            </>
+                          )}
+                        </button>
                       </div>
-                      <div className="text-right">
-                        <div className="text-amber-300 font-bold">{squad.memberCount}</div>
-                        <div className="text-blue-200 text-xs">members</div>
-                      </div>
-                    </div>
-                  </Link>
+                    </motion.div>
+                  ))}
                 </motion.div>
-              ))}
-            </motion.div>
+              ) : searchResults && searchResults.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-blue-200 mb-4">No squads found in this area yet.</p>
+                  <Link
+                    href="/rescue-squads/create"
+                    className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-gray-900 px-6 py-3 rounded-xl font-bold transition"
+                  >
+                    <Shield className="w-5 h-5" />
+                    Start the First Squad Here
+                  </Link>
+                </div>
+              ) : null}
+            </div>
           )}
 
           {/* Search Your Area */}
@@ -447,23 +772,26 @@ export default function Home() {
             <h3 className="text-white font-bold text-xl mb-4 text-center">Find Squads Near You</h3>
             <form onSubmit={handleFindSquad} className="flex flex-col sm:flex-row gap-3 mb-4">
               <div className="flex-1 relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <MapPin className="w-5 h-5 text-gray-400" />
-                </div>
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                 <input
                   type="text"
                   value={locationQuery}
                   onChange={(e) => setLocationQuery(e.target.value)}
                   placeholder="City or zip code..."
-                  className="w-full pl-12 pr-4 py-4 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-amber-400 focus:outline-none"
+                  className="w-full pl-14 pr-4 py-4 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-amber-400 focus:outline-none"
                 />
               </div>
               <button
                 type="submit"
-                className="bg-amber-400 hover:bg-amber-300 text-gray-900 px-6 py-4 rounded-xl font-bold transition flex items-center justify-center gap-2"
+                disabled={searching}
+                className="bg-amber-400 hover:bg-amber-300 text-gray-900 px-6 py-4 rounded-xl font-bold transition flex items-center justify-center gap-2 disabled:opacity-70"
               >
-                <Search className="w-5 h-5" />
-                Search
+                {searching ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Search className="w-5 h-5" />
+                )}
+                {searching ? 'Searching...' : 'Search'}
               </button>
             </form>
 
