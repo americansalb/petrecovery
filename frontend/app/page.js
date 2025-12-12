@@ -21,7 +21,6 @@ import {
   Building2,
   Navigation,
   Eye,
-  ChevronDown,
 } from 'lucide-react';
 
 // Live Reunion Ticker - celebrates recent reunions
@@ -155,7 +154,7 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center">
+      <section className="relative min-h-[85vh] flex items-center">
         {/* Background Image */}
         <div className="absolute inset-0">
           <img
@@ -168,7 +167,7 @@ export default function Home() {
         </div>
 
         {/* Content */}
-        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 pt-32 pb-20">
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 pt-24 pb-12">
           <div className="max-w-2xl">
             {/* Mascot */}
             <motion.img
@@ -293,16 +292,6 @@ export default function Home() {
             </motion.div>
           </div>
         </div>
-
-        {/* Scroll indicator */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/40"
-        >
-          <ChevronDown className="w-6 h-6 animate-bounce" />
-        </motion.div>
       </section>
 
       {/* Pets Needing Help */}
