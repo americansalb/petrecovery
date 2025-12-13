@@ -7,9 +7,115 @@
  * Helps lost pet owners find shelters to check for their pets.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Search, MapPin, Phone, Globe, Building2, ExternalLink, Navigation, Clock, Mail, Loader2 } from 'lucide-react';
-import { enrichSheltersWithDetails } from '@/app/lib/maps/appleMapKit';
+import { enrichSheltersWithDetails, initializeMapKit } from '@/app/lib/maps/appleMapKit';
+
+/**
+ * PlaceDetail Test Component - renders Apple's PlaceDetail card
+ * to verify if it displays hours
+ */
+function PlaceDetailTest({ placeId, placeName }) {
+  const containerRef = useRef(null);
+  const [status, setStatus] = useState('initializing');
+  const [hoursFound, setHoursFound] = useState(null);
+
+  useEffect(() => {
+    if (!placeId || !containerRef.current) return;
+
+    let mounted = true;
+
+    async function renderPlaceDetail() {
+      try {
+        const mapkit = await initializeMapKit();
+        if (!mounted) return;
+
+        console.log('[PlaceDetailTest] MapKit ready, looking up place:', placeId);
+
+        // Use PlaceLookup to get the place object
+        const lookup = new mapkit.PlaceLookup();
+        lookup.getPlace(placeId, (error, place) => {
+          if (!mounted) return;
+
+          if (error) {
+            console.error('[PlaceDetailTest] Lookup error:', error);
+            setStatus('error: ' + error.message);
+            return;
+          }
+
+          console.log('[PlaceDetailTest] Got place:', place?.name);
+          console.log('[PlaceDetailTest] Place has hours?', 'hours' in place, place.hours);
+
+          // Check all place properties for hours-related data
+          const keys = Object.keys(place);
+          console.log('[PlaceDetailTest] Place keys:', keys);
+          for (const key of keys) {
+            if (key.toLowerCase().includes('hour') || key.toLowerCase().includes('open')) {
+              console.log('[PlaceDetailTest] FOUND hours key:', key, '=', place[key]);
+              setHoursFound({ key, value: place[key] });
+            }
+          }
+
+          // Create PlaceDetail
+          if (mapkit.PlaceDetail) {
+            try {
+              const detail = new mapkit.PlaceDetail(containerRef.current, place, {
+                colorScheme: mapkit.PlaceDetail.ColorSchemes.Adaptive,
+              });
+              console.log('[PlaceDetailTest] PlaceDetail created');
+              setStatus('rendered');
+
+              // Check for hours in the rendered HTML after a delay
+              setTimeout(() => {
+                if (!mounted) return;
+                const html = containerRef.current?.innerHTML || '';
+                console.log('[PlaceDetailTest] Rendered HTML length:', html.length);
+                console.log('[PlaceDetailTest] HTML preview:', html.substring(0, 500));
+
+                // Look for hours patterns
+                if (html.includes('AM') || html.includes('PM') || html.includes('hour')) {
+                  console.log('[PlaceDetailTest] Hours-related text found in HTML!');
+                }
+              }, 2000);
+            } catch (e) {
+              console.error('[PlaceDetailTest] PlaceDetail error:', e);
+              setStatus('PlaceDetail error: ' + e.message);
+            }
+          } else {
+            setStatus('PlaceDetail not available');
+          }
+        });
+      } catch (err) {
+        console.error('[PlaceDetailTest] Init error:', err);
+        if (mounted) setStatus('error: ' + err.message);
+      }
+    }
+
+    renderPlaceDetail();
+
+    return () => {
+      mounted = false;
+    };
+  }, [placeId]);
+
+  return (
+    <div className="border-2 border-blue-500 p-2 mb-4 bg-blue-50">
+      <div className="text-xs text-blue-700 mb-1">
+        PlaceDetail Test for: {placeName} (ID: {placeId})
+      </div>
+      <div className="text-xs text-blue-600 mb-2">Status: {status}</div>
+      {hoursFound && (
+        <div className="text-xs text-green-600 mb-2">
+          HOURS FOUND: {hoursFound.key} = {JSON.stringify(hoursFound.value)}
+        </div>
+      )}
+      <div
+        ref={containerRef}
+        style={{ minHeight: '200px', background: 'white' }}
+      />
+    </div>
+  );
+}
 
 const DISTANCE_OPTIONS = [
   { value: 10, label: '10 miles' },
@@ -160,6 +266,14 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
               </span>
             )}
           </div>
+
+          {/* DEBUG: Test PlaceDetail rendering for first shelter with Apple ID */}
+          {shelters[0]?.appleMapKitId && (
+            <PlaceDetailTest
+              placeId={shelters[0].appleMapKitId}
+              placeName={shelters[0].name}
+            />
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {shelters.map((shelter) => (
