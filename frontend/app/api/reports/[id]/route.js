@@ -31,7 +31,7 @@ export async function GET(request, { params }) {
           }
         },
         missionControl: true,
-        caseAssignments: {
+        assignments: {
           where: {
             status: { in: ['ACCEPTED', 'ACTIVE'] }
           },
@@ -171,7 +171,7 @@ export async function GET(request, { params }) {
       potentialMatches, // Empty array for LOST pets, populated for FOUND pets
       isOwner,
       missionControl: report.missionControl,
-      rescueSquads: report.caseAssignments?.map(a => ({
+      rescueSquads: report.assignments?.map(a => ({
         id: a.rescueSquad.id,
         name: a.rescueSquad.name,
         avatarUrl: a.rescueSquad.avatarUrl,
