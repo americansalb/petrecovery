@@ -193,17 +193,26 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
               phone: s.phone,
               website: s.website,
               hours: s.hours,
-              name: s.name, // for logging
+              name: s.name,
             }));
 
+          console.log('[ShelterSearch] Shelters with data to save:', sheltersToSave.length);
           if (sheltersToSave.length > 0) {
-            fetch('/api/shelters/enrich', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ shelters: sheltersToSave }),
-            }).then(res => res.json())
-              .then(data => console.log('[ShelterSearch] Saved enriched data:', data))
-              .catch(err => console.warn('[ShelterSearch] Failed to save enriched data:', err));
+            console.log('[ShelterSearch] First shelter to save:', JSON.stringify(sheltersToSave[0]));
+          }
+
+          if (sheltersToSave.length > 0) {
+            try {
+              const enrichRes = await fetch('/api/shelters/enrich', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ shelters: sheltersToSave }),
+              });
+              const enrichResult = await enrichRes.json();
+              console.log('[ShelterSearch] Enrich save result:', enrichRes.status, enrichResult);
+            } catch (saveErr) {
+              console.error('[ShelterSearch] Enrich save error:', saveErr);
+            }
           }
         } catch (enrichErr) {
           console.error('[ShelterSearch] Enrichment error:', enrichErr);
