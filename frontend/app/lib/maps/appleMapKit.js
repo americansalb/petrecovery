@@ -469,81 +469,147 @@ async function extractHoursFromPlaceDetail(mapkit, place) {
   return new Promise((resolve) => {
     try {
       // Create a container for PlaceDetail
+      // Must be visible (but can be transparent) for iframe to render
       const container = document.createElement('div');
       container.id = 'mapkit-place-detail-' + Date.now();
-      container.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:400px;height:600px;';
+      // Position at bottom right corner, small size, low z-index, nearly invisible
+      container.style.cssText = `
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        width: 400px;
+        height: 600px;
+        z-index: -9999;
+        opacity: 0.01;
+        pointer-events: none;
+        overflow: hidden;
+      `;
       document.body.appendChild(container);
+
+      console.log('[PlaceDetail] Creating for:', place.name, 'with place ID:', place.id || place.muid);
 
       // Create PlaceDetail
       const detail = new mapkit.PlaceDetail(container, place, {
         colorScheme: mapkit.PlaceDetail.ColorSchemes.Light,
       });
 
-      console.log('[PlaceDetail] Created for:', place.name);
+      console.log('[PlaceDetail] Instance created, waiting for content to load...');
 
-      // Wait for content to load, then extract hours from DOM
-      setTimeout(() => {
+      // Use MutationObserver to detect when content is added
+      let resolved = false;
+      const observer = new MutationObserver((mutations) => {
+        if (resolved) return;
+
+        const html = container.innerHTML;
+        console.log('[PlaceDetail] Content changed, HTML length:', html.length);
+
+        // Check if we have meaningful content (more than just wrapper divs)
+        if (html.length > 500) {
+          resolved = true;
+          observer.disconnect();
+          const hours = extractHoursFromHTML(container, html);
+          cleanup();
+          resolve(hours);
+        }
+      });
+
+      observer.observe(container, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+
+      const cleanup = () => {
         try {
-          // Look for hours in the rendered HTML
-          const html = container.innerHTML;
-          console.log('[PlaceDetail] HTML length:', html.length);
-
-          // Try to find hours text - Apple typically shows it in the card
-          // Look for common patterns like "Open until", "Closed", "Hours:", etc.
-          let hoursText = null;
-
-          // Check for hours-related elements
-          const hoursPatterns = [
-            /Open\s+until\s+[\d:]+\s*(?:AM|PM)?/gi,
-            /Closed\s*(?:until\s+[\d:]+\s*(?:AM|PM)?)?/gi,
-            /Hours?:?\s*[\d:]+\s*(?:AM|PM)?\s*[-–]\s*[\d:]+\s*(?:AM|PM)?/gi,
-            /(\d{1,2}:\d{2}\s*(?:AM|PM)?\s*[-–]\s*\d{1,2}:\d{2}\s*(?:AM|PM)?)/gi,
-          ];
-
-          for (const pattern of hoursPatterns) {
-            const match = html.match(pattern);
-            if (match) {
-              hoursText = match[0];
-              console.log('[PlaceDetail] Found hours:', hoursText);
-              break;
-            }
-          }
-
-          // Also try to find any element with hours-related class or aria-label
-          const allElements = container.querySelectorAll('*');
-          for (const el of allElements) {
-            const text = el.textContent?.trim();
-            const className = el.className || '';
-            const ariaLabel = el.getAttribute('aria-label') || '';
-
-            if (
-              className.toLowerCase().includes('hour') ||
-              ariaLabel.toLowerCase().includes('hour') ||
-              (text && (text.includes('AM') || text.includes('PM')) && text.length < 50)
-            ) {
-              console.log('[PlaceDetail] Possible hours element:', text);
-              if (!hoursText && text) {
-                hoursText = text;
-              }
-            }
-          }
-
-          // Cleanup
+          observer.disconnect();
           document.body.removeChild(container);
+        } catch (e) {}
+      };
 
-          resolve(hoursText);
-        } catch (e) {
-          console.error('[PlaceDetail] Error parsing:', e);
-          document.body.removeChild(container);
+      // Fallback: try after 3 seconds even if observer didn't trigger
+      setTimeout(() => {
+        if (resolved) return;
+        resolved = true;
+        observer.disconnect();
+
+        const html = container.innerHTML;
+        console.log('[PlaceDetail] Timeout reached, HTML length:', html.length);
+        console.log('[PlaceDetail] HTML sample:', html.substring(0, 500));
+
+        if (html.length > 100) {
+          const hours = extractHoursFromHTML(container, html);
+          cleanup();
+          resolve(hours);
+        } else {
+          console.log('[PlaceDetail] No content rendered - PlaceDetail may not be available for this place');
+          cleanup();
           resolve(null);
         }
-      }, 2000); // Wait 2 seconds for content to load
+      }, 3000);
 
     } catch (e) {
       console.error('[PlaceDetail] Creation error:', e);
       resolve(null);
     }
   });
+}
+
+/**
+ * Extract hours text from PlaceDetail HTML
+ */
+function extractHoursFromHTML(container, html) {
+  try {
+    console.log('[PlaceDetail] Extracting hours from HTML...');
+
+    // Try to find hours text - Apple typically shows it in the card
+    // Look for common patterns like "Open until", "Closed", "Hours:", etc.
+    let hoursText = null;
+
+    // Check for hours-related elements
+    const hoursPatterns = [
+      /Open\s+until\s+[\d:]+\s*(?:AM|PM)?/gi,
+      /Opens?\s+at\s+[\d:]+\s*(?:AM|PM)?/gi,
+      /Closed\s*(?:until\s+[\d:]+\s*(?:AM|PM)?)?/gi,
+      /Hours?:?\s*[\d:]+\s*(?:AM|PM)?\s*[-–]\s*[\d:]+\s*(?:AM|PM)?/gi,
+      /(\d{1,2}:\d{2}\s*(?:AM|PM)?\s*[-–]\s*\d{1,2}:\d{2}\s*(?:AM|PM)?)/gi,
+      /Mon(?:day)?.*?[-–]\s*\d{1,2}:\d{2}/gi,
+      /Open\s+24\s+hours/gi,
+    ];
+
+    for (const pattern of hoursPatterns) {
+      const match = html.match(pattern);
+      if (match) {
+        hoursText = match[0];
+        console.log('[PlaceDetail] Found hours via regex:', hoursText);
+        break;
+      }
+    }
+
+    // Also try to find any element with hours-related class or aria-label
+    const allElements = container.querySelectorAll('*');
+    for (const el of allElements) {
+      const text = el.textContent?.trim();
+      const className = el.className || '';
+      const ariaLabel = el.getAttribute('aria-label') || '';
+
+      if (
+        className.toLowerCase().includes('hour') ||
+        ariaLabel.toLowerCase().includes('hour') ||
+        ariaLabel.toLowerCase().includes('open') ||
+        (text && (text.includes('AM') || text.includes('PM')) && text.length < 100)
+      ) {
+        console.log('[PlaceDetail] Possible hours element found:', text?.substring(0, 100));
+        if (!hoursText && text) {
+          hoursText = text;
+        }
+      }
+    }
+
+    return hoursText;
+  } catch (e) {
+    console.error('[PlaceDetail] Error parsing HTML:', e);
+    return null;
+  }
 }
 
 /**
