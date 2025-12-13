@@ -286,6 +286,7 @@ async function fetchAndStoreShelters(cityCache, lat, lng, type, db) {
             hours: place.hours ? JSON.stringify(place.hours) : null,
             fetchedAt: now,
             cityCacheId: cityCache.id,
+            isActive: true, // Re-activate if previously soft-deleted
           },
         });
         storedCount++;

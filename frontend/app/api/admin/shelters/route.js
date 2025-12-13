@@ -132,6 +132,11 @@ export async function DELETE(request) {
         data: { isActive: false },
       });
       deletedCount = result.count;
+
+      // Also invalidate all city caches so fresh data will be fetched on next search
+      await prisma.cityCache.updateMany({
+        data: { lastFetchedAt: null },
+      });
     } else if (Array.isArray(ids) && ids.length > 0) {
       // Delete specific shelters (soft delete)
       const result = await prisma.shelter.updateMany({
