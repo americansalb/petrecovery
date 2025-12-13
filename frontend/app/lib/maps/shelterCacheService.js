@@ -351,6 +351,7 @@ async function getSheltersInRadius(lat, lng, radiusMeters, type, db) {
       hours: true,
       source: true,
       fetchedAt: true,
+      appleMapKitId: true, // Include for PlaceDetail button
     },
     orderBy: {
       name: 'asc',

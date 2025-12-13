@@ -78,6 +78,7 @@ export async function GET(request) {
             longitude: place.longitude,
             distance: place.distance ? Math.round(place.distance / 1609.34 * 10) / 10 : null, // Convert to miles
             source: place.source,
+            appleMapKitId: place.appleMapKitId, // Include Apple Maps ID for PlaceDetail
           }));
           results.source = cacheResult.source;
           results.cacheHit = cacheResult.cacheHit;
@@ -135,6 +136,7 @@ export async function GET(request) {
           latitude: true,
           longitude: true,
           source: true,
+          appleMapKitId: true, // Include for PlaceDetail button
         },
       });
 
