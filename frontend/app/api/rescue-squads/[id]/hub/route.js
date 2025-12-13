@@ -276,7 +276,7 @@ export async function GET(request, { params }) {
 
       return {
         id: c.id,
-        missionNumber: c.missionNumber,
+        missionNumber: c.caseNumber,
         divisionId: assignCaseToDivision(c, squad.divisions),
         petName: c.petName,
         species: c.petSpecies,
@@ -373,7 +373,7 @@ export async function GET(request, { params }) {
     const activityCaseIds = [...new Set(activities.map(a => a.missionId).filter(Boolean))];
     const activityCases = activityCaseIds.length > 0 ? await prisma.case.findMany({
       where: { id: { in: activityCaseIds } },
-      select: { id: true, petName: true, missionNumber: true },
+      select: { id: true, petName: true, caseNumber: true },
     }) : [];
     const activityCaseMap = new Map(activityCases.map(c => [c.id, c]));
 
@@ -386,7 +386,7 @@ export async function GET(request, { params }) {
         payload: {
           memberName: a.actor ? `${a.actor.firstName} ${a.actor.lastName?.[0] || ''}.` : null,
           petName: linkedCase?.petName,
-          missionNumber: linkedCase?.missionNumber,
+          missionNumber: linkedCase?.caseNumber,
           ...JSON.parse(a.details || '{}'),
         },
       };
@@ -547,7 +547,7 @@ Every share, every search, every kind word makes a difference. Together, we brin
     const taskCaseIds = [...new Set(tasks.map(t => t.missionId).filter(Boolean))];
     const taskCases = taskCaseIds.length > 0 ? await prisma.case.findMany({
       where: { id: { in: taskCaseIds } },
-      select: { id: true, missionNumber: true },
+      select: { id: true, caseNumber: true },
     }) : [];
     const taskCaseMap = new Map(taskCases.map(c => [c.id, c]));
 
@@ -559,7 +559,7 @@ Every share, every search, every kind word makes a difference. Together, we brin
         body: t.description || '',
         divisionId: null, // SquadTask doesn't have divisionId field
         missionId: t.missionId,
-        caseCode: linkedCase?.missionNumber,
+        caseCode: linkedCase?.caseNumber,
         authorId: t.createdById,
         authorName: t.createdBy ? `${t.createdBy.firstName} ${t.createdBy.lastName?.[0] || ''}.` : 'Unknown',
         createdAt: t.createdAt.toISOString(),

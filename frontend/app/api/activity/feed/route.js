@@ -52,7 +52,7 @@ export async function GET(request) {
         orderBy: { createdAt: 'desc' },
         include: {
           case: {
-            select: { missionNumber: true, petName: true, petPhotoUrl: true },
+            select: { caseNumber: true, petName: true, petPhotoUrl: true },
           },
           author: {
             select: { firstName: true, profileImage: true },
@@ -64,7 +64,7 @@ export async function GET(request) {
         id: `update-${u.id}`,
         type: 'CASE_UPDATE',
         content: u.content,
-        missionNumber: u.case.missionNumber,
+        missionNumber: u.case.caseNumber,
         petName: u.case.petName,
         petPhoto: u.case.petPhotoUrl,
         author: u.author.firstName,
@@ -84,7 +84,7 @@ export async function GET(request) {
         orderBy: { createdAt: 'desc' },
         include: {
           case: {
-            select: { missionNumber: true, petName: true, petPhotoUrl: true },
+            select: { caseNumber: true, petName: true, petPhotoUrl: true },
           },
         },
       });
@@ -93,7 +93,7 @@ export async function GET(request) {
         id: `sighting-${s.id}`,
         type: 'SIGHTING',
         content: `Possible sighting reported near ${s.address}`,
-        missionNumber: s.case.missionNumber,
+        missionNumber: s.case.caseNumber,
         petName: s.case.petName,
         petPhoto: s.case.petPhotoUrl,
         certainty: s.certaintyLevel,
@@ -153,7 +153,7 @@ export async function GET(request) {
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
-          missionNumber: true,
+          caseNumber: true,
           petName: true,
           petSpecies: true,
           petPhotoUrl: true,
@@ -166,7 +166,7 @@ export async function GET(request) {
         id: `case-${c.id}`,
         type: 'NEARBY_CASE',
         content: `${c.petName} (${c.petSpecies}) reported lost near ${c.lastSeenAddress}`,
-        missionNumber: c.missionNumber,
+        missionNumber: c.caseNumber,
         petName: c.petName,
         petPhoto: c.petPhotoUrl,
         createdAt: c.createdAt,
@@ -184,7 +184,7 @@ export async function GET(request) {
       orderBy: { resolvedAt: 'desc' },
       select: {
         id: true,
-        missionNumber: true,
+        caseNumber: true,
         petName: true,
         petSpecies: true,
         petPhotoUrl: true,
@@ -197,7 +197,7 @@ export async function GET(request) {
       id: `reunion-${r.id}`,
       type: 'REUNION',
       content: r.resolutionNotes || `${r.petName} has been reunited with their family!`,
-      missionNumber: r.missionNumber,
+      missionNumber: r.caseNumber,
       petName: r.petName,
       petPhoto: r.petPhotoUrl,
       createdAt: r.resolvedAt,

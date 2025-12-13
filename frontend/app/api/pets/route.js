@@ -29,13 +29,13 @@ export async function GET(request) {
     }
 
     const pets = await prisma.pet.findMany({
-      where: { ownerId: user.id },
+      where: { ownerId: user.id, isDeleted: false },
       orderBy: { createdAt: 'desc' },
       include: {
         cases: {
           select: {
             id: true,
-            missionNumber: true,
+            caseNumber: true,
             status: true,
             createdAt: true
           },

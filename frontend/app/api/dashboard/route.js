@@ -70,7 +70,7 @@ export async function GET(request) {
                     lastSeenAddress: true,
                     status: true,
                     lastSeenAt: true,
-                    missionNumber: true,
+                    caseNumber: true,
                   }
                 },
                 rescueSquad: {
@@ -111,9 +111,9 @@ export async function GET(request) {
 
     // Get Mission Control status for each case
     const missionStatuses = await prisma.missionControl.findMany({
-      where: { missionId: { in: missionIds } },
+      where: { caseId: { in: missionIds } },
       select: {
-        missionId: true,
+        caseId: true,
         mode: true,
         activatedAt: true,
         activeVolunteers: {
@@ -123,7 +123,7 @@ export async function GET(request) {
       }
     });
     const missionMap = Object.fromEntries(
-      missionStatuses.map(m => [m.missionId, {
+      missionStatuses.map(m => [m.caseId, {
         isLive: ['LIVE_SEARCH', 'CONTAINMENT', 'TRAP_OPS'].includes(m.mode),
         mode: m.mode,
         activeVolunteers: m.activeVolunteers?.length || 0,
@@ -186,7 +186,7 @@ export async function GET(request) {
 
       return {
         id: caseItem.id,
-        missionNumber: caseItem.missionNumber,
+        missionNumber: caseItem.caseNumber,
         petName: caseItem.petName,
         petSpecies: caseItem.petSpecies,
         petPhotoUrl: caseItem.petPhotoUrl,
@@ -218,7 +218,7 @@ export async function GET(request) {
 
       missions.push({
         id: caseItem.id,
-        missionNumber: caseItem.missionNumber,
+        missionNumber: caseItem.caseNumber,
         petName: caseItem.petName,
         petSpecies: caseItem.petSpecies,
         petPhotoUrl: null,
@@ -245,7 +245,7 @@ export async function GET(request) {
 
       return {
         id: caseItem.id,
-        missionNumber: caseItem.missionNumber,
+        missionNumber: caseItem.caseNumber,
         petName: caseItem.petName,
         petSpecies: caseItem.petSpecies,
         petPhotoUrl: caseItem.petPhotoUrl,
@@ -344,7 +344,7 @@ export async function GET(request) {
       .filter(p => p.assignment?.case)
       .map(participation => ({
         id: participation.assignment.case.id,
-        missionNumber: participation.assignment.case.missionNumber,
+        missionNumber: participation.assignment.case.caseNumber,
         petName: participation.assignment.case.petName,
         petSpecies: participation.assignment.case.petSpecies,
         location: participation.assignment.case.lastSeenAddress,

@@ -50,6 +50,10 @@ export async function POST(request) {
         result = await cleanupOldCases(params);
         break;
 
+      case 'cleanup_orphaned_pets':
+        result = await cleanupOrphanedPets();
+        break;
+
       default:
         return NextResponse.json({ error: 'Unknown operation' }, { status: 400 });
     }
@@ -195,4 +199,35 @@ async function cleanupOldCases(params) {
   });
 
   return { closed: result.count };
+}
+
+async function cleanupOrphanedPets() {
+  // Find pets that have no associated cases and are not already deleted
+  const orphanedPets = await prisma.pet.findMany({
+    where: {
+      isDeleted: false,
+      cases: { none: {} }
+    },
+    select: { id: true, name: true }
+  });
+
+  if (orphanedPets.length === 0) {
+    return { deleted: 0, message: 'No orphaned pets found' };
+  }
+
+  // Soft-delete all orphaned pets
+  const result = await prisma.pet.updateMany({
+    where: {
+      id: { in: orphanedPets.map(p => p.id) }
+    },
+    data: {
+      isDeleted: true,
+      deletedAt: new Date()
+    }
+  });
+
+  return {
+    deleted: result.count,
+    petNames: orphanedPets.map(p => p.name)
+  };
 }

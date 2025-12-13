@@ -36,8 +36,8 @@ export async function GET(request, { params }) {
     const missionData = await prisma.case.findFirst({
       where: isId
         ? { id: params.id }
-        : { missionNumber: params.id },
-      select: { id: true, missionNumber: true }
+        : { caseNumber: params.id },
+      select: { id: true, caseNumber: true }
     });
 
     if (!missionData) {
@@ -118,8 +118,8 @@ export async function POST(request, { params }) {
     const missionData = await prisma.case.findFirst({
       where: isId
         ? { id: params.id }
-        : { missionNumber: params.id },
-      select: { id: true, missionNumber: true, status: true }
+        : { caseNumber: params.id },
+      select: { id: true, caseNumber: true, status: true }
     });
 
     if (!missionData) {
@@ -195,7 +195,7 @@ export async function POST(request, { params }) {
       result: 'success',
       actor_user_id: reportedById,
       metadata: {
-        missionNumber: missionData.missionNumber,
+        missionNumber: missionData.caseNumber,
         sightingId: sighting.id,
         confidence,
         behavior,

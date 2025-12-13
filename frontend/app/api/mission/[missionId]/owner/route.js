@@ -33,7 +33,7 @@ export async function GET(request, { params }) {
     const view = searchParams.get('view');
 
     const mission = await prisma.missionControl.findUnique({
-      where: { missionId },
+      where: { caseId: missionId },
       select: { id: true }
     });
 
@@ -86,7 +86,7 @@ export async function POST(request, { params }) {
     const { action, ...data } = body;
 
     const mission = await prisma.missionControl.findUnique({
-      where: { missionId },
+      where: { caseId: missionId },
       select: { id: true }
     });
 

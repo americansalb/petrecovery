@@ -37,7 +37,7 @@ export async function GET(request, { params }) {
         cases: {
           select: {
             id: true,
-            missionNumber: true,
+            caseNumber: true,
             status: true,
             createdAt: true,
             resolvedAt: true
@@ -234,7 +234,7 @@ export async function DELETE(request, { params }) {
       include: {
         cases: {
           where: {
-            status: { in: ['OPEN', 'ACTIVE_SEARCH'] }
+            status: { in: ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'] }
           }
         }
       }

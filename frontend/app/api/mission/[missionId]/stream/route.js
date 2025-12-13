@@ -23,7 +23,7 @@ export async function GET(request, { params }) {
 
   // Verify mission exists
   const mission = await prisma.missionControl.findUnique({
-    where: { missionId },
+    where: { caseId: missionId },
     select: { id: true, mode: true },
   });
 

@@ -13,7 +13,7 @@ const MAPKIT_JS_URL = 'https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.js';
 // Token - In production, this should come from an environment variable
 // or be fetched from a secure backend endpoint
 const MAPKIT_TOKEN = process.env.NEXT_PUBLIC_APPLE_MAPKIT_TOKEN ||
-  'eyJraWQiOiJCV0NHMjc3WTVTIiwidHlwIjoiSldUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJCRjIzTjRINjdWIiwiaWF0IjoxNzY1MjE0NjYyLCJvcmlnaW4iOiJwcm9wZXJ0eW1hbmFnZXItMS5vbnJlbmRlci5jb20ifQ.l6gETvYOkfVpd9JzQciyQvcvfNWI2FZ3Y1VeDcLMyltyDnGEyBl2l8HEs5FKubwOTI2Rx8Ztpch8hWmjy6KPkg';
+  'eyJraWQiOiJWM0xWNVNMNEJBIiwidHlwIjoiSldUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJCRjIzTjRINjdWIiwiaWF0IjoxNzY1MzEyNDI3LCJvcmlnaW4iOiJwZXRyZWNvdmVyeS5vbnJlbmRlci5jb20ifQ.UTZplSiKmf2hhBbGtCpaQ-50F2tRuCbrpSXuorelsS9wxvp--hl3n5qFMgL_RHxOcigAPWfRVA0hkazq2uuaFA';
 
 // Track initialization state
 let mapkitInitialized = false;
@@ -302,6 +302,220 @@ export const DefaultMapOptions = {
   padding: { top: 20, right: 20, bottom: 20, left: 20 },
 };
 
+/**
+ * Search for a place by name and location to get full details including phone/hours
+ * Uses two-step process: Search to find place, then PlaceLookup to get rich details
+ */
+export async function searchPlaceDetails(name, latitude, longitude) {
+  const mapkit = await initializeMapKit();
+
+  return new Promise((resolve, reject) => {
+    const search = new mapkit.Search({
+      region: new mapkit.CoordinateRegion(
+        new mapkit.Coordinate(latitude, longitude),
+        new mapkit.CoordinateSpan(0.1, 0.1)
+      ),
+      includePointsOfInterest: true,
+    });
+
+    search.search(name, async (error, data) => {
+      if (error) {
+        console.error('[MapKit Search] Error:', error);
+        resolve(null);
+        return;
+      }
+
+      if (data?.places?.length > 0) {
+        const place = data.places[0];
+
+        // If place has an ID, use PlaceLookup to get full details
+        if (place.id && mapkit.PlaceLookup) {
+          try {
+            const lookup = new mapkit.PlaceLookup();
+            lookup.getPlace(place.id, async (lookupError, fullPlace) => {
+              if (lookupError) {
+                console.error('[MapKit PlaceLookup] Error:', lookupError);
+                resolve(extractPlaceDetails(place));
+                return;
+              }
+
+              // Try to get hours by rendering PlaceDetail and extracting from DOM
+              let hoursFromCard = null;
+              if (mapkit.PlaceDetail && fullPlace) {
+                try {
+                  hoursFromCard = await extractHoursFromPlaceDetail(mapkit, fullPlace);
+                } catch (e) {
+                  console.error('[MapKit] Error extracting hours:', e);
+                }
+              }
+
+              const details = extractPlaceDetails(fullPlace || place);
+              if (hoursFromCard) {
+                details.hours = hoursFromCard;
+              }
+              resolve(details);
+            });
+          } catch (err) {
+            console.error('[MapKit PlaceLookup] Exception:', err);
+            resolve(extractPlaceDetails(place));
+          }
+        } else {
+          // No PlaceLookup available, use search result directly
+          resolve(extractPlaceDetails(place));
+        }
+      } else {
+        console.log('[MapKit Search] No places found for:', name);
+        resolve(null);
+      }
+    });
+  });
+}
+
+/**
+ * Extract hours from PlaceDetail by rendering it and scraping the DOM
+ */
+async function extractHoursFromPlaceDetail(mapkit, place) {
+  return new Promise((resolve) => {
+    try {
+      // Create a container for PlaceDetail
+      const container = document.createElement('div');
+      container.id = 'mapkit-place-detail-' + Date.now();
+      container.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:400px;height:600px;';
+      document.body.appendChild(container);
+
+      // Create PlaceDetail
+      const detail = new mapkit.PlaceDetail(container, place, {
+        colorScheme: mapkit.PlaceDetail.ColorSchemes.Light,
+      });
+
+      console.log('[PlaceDetail] Created for:', place.name);
+
+      // Wait for content to load, then extract hours from DOM
+      setTimeout(() => {
+        try {
+          // Look for hours in the rendered HTML
+          const html = container.innerHTML;
+          console.log('[PlaceDetail] HTML length:', html.length);
+
+          // Try to find hours text - Apple typically shows it in the card
+          // Look for common patterns like "Open until", "Closed", "Hours:", etc.
+          let hoursText = null;
+
+          // Check for hours-related elements
+          const hoursPatterns = [
+            /Open\s+until\s+[\d:]+\s*(?:AM|PM)?/gi,
+            /Closed\s*(?:until\s+[\d:]+\s*(?:AM|PM)?)?/gi,
+            /Hours?:?\s*[\d:]+\s*(?:AM|PM)?\s*[-–]\s*[\d:]+\s*(?:AM|PM)?/gi,
+            /(\d{1,2}:\d{2}\s*(?:AM|PM)?\s*[-–]\s*\d{1,2}:\d{2}\s*(?:AM|PM)?)/gi,
+          ];
+
+          for (const pattern of hoursPatterns) {
+            const match = html.match(pattern);
+            if (match) {
+              hoursText = match[0];
+              console.log('[PlaceDetail] Found hours:', hoursText);
+              break;
+            }
+          }
+
+          // Also try to find any element with hours-related class or aria-label
+          const allElements = container.querySelectorAll('*');
+          for (const el of allElements) {
+            const text = el.textContent?.trim();
+            const className = el.className || '';
+            const ariaLabel = el.getAttribute('aria-label') || '';
+
+            if (
+              className.toLowerCase().includes('hour') ||
+              ariaLabel.toLowerCase().includes('hour') ||
+              (text && (text.includes('AM') || text.includes('PM')) && text.length < 50)
+            ) {
+              console.log('[PlaceDetail] Possible hours element:', text);
+              if (!hoursText && text) {
+                hoursText = text;
+              }
+            }
+          }
+
+          // Cleanup
+          document.body.removeChild(container);
+
+          resolve(hoursText);
+        } catch (e) {
+          console.error('[PlaceDetail] Error parsing:', e);
+          document.body.removeChild(container);
+          resolve(null);
+        }
+      }, 2000); // Wait 2 seconds for content to load
+
+    } catch (e) {
+      console.error('[PlaceDetail] Creation error:', e);
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * Extract contact details from a place object
+ */
+function extractPlaceDetails(place) {
+  if (!place) return null;
+
+  // Get URL from urls array (MapKit JS uses plural 'urls')
+  let websiteUrl = null;
+  if (place.urls && Array.isArray(place.urls) && place.urls.length > 0) {
+    websiteUrl = place.urls[0];
+  } else if (place.url) {
+    websiteUrl = place.url;
+  }
+
+  return {
+    telephone: place.telephone || null,
+    url: websiteUrl,
+    hours: null, // Will be populated from PlaceDetail if available
+  };
+}
+
+/**
+ * Enrich an array of shelters with phone/hours from MapKit JS client-side
+ */
+export async function enrichSheltersWithDetails(shelters, maxToEnrich = 10) {
+  const mapkit = await initializeMapKit();
+
+  const enriched = await Promise.all(
+    shelters.slice(0, maxToEnrich).map(async (shelter) => {
+      // Skip if already has phone
+      if (shelter.phone) {
+        return shelter;
+      }
+
+      try {
+        const details = await searchPlaceDetails(
+          shelter.name,
+          shelter.latitude || shelter.lat,
+          shelter.longitude || shelter.lng
+        );
+
+        if (details) {
+          return {
+            ...shelter,
+            phone: details.telephone || shelter.phone,
+            website: details.url || shelter.website,
+            hours: details.hours || shelter.hours,
+          };
+        }
+      } catch (err) {
+        console.error('[MapKit Enrich] Error for', shelter.name, err);
+      }
+
+      return shelter;
+    })
+  );
+
+  // Return enriched shelters plus any remaining (not enriched)
+  return [...enriched, ...shelters.slice(maxToEnrich)];
+}
+
 export default {
   initializeMapKit,
   isMapKitInitialized,
@@ -314,6 +528,8 @@ export default {
   createCircleOverlay,
   createPolylineOverlay,
   createPolygonOverlay,
+  searchPlaceDetails,
+  enrichSheltersWithDetails,
   MapTypes,
   MapColors,
   DefaultMapOptions,

@@ -53,7 +53,7 @@ export async function POST(request, { params }) {
           select: { id: true, firstName: true, lastName: true },
         },
         case: {
-          select: { id: true, missionNumber: true },
+          select: { id: true, caseNumber: true },
         },
       },
     });
@@ -68,7 +68,7 @@ export async function POST(request, { params }) {
         body: task.description,
         divisionId: task.divisionId,
         missionId: task.missionId,
-        caseCode: task.case?.missionNumber || null,
+        caseCode: task.case?.caseNumber || null,
         authorId: task.creatorId,
         authorName: `${task.createdBy.firstName} ${lastInitial}.`,
         createdAt: task.createdAt.toISOString(),

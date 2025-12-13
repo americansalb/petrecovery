@@ -1,117 +1,82 @@
 'use client';
 
 /**
- * Phase 9: Shelter Search Component
+ * Shelter Search Component
  *
- * Search and browse shelter animals from integrated APIs.
+ * Search and browse nearby animal shelters using Apple MapKit.
+ * Helps lost pet owners find shelters to check for their pets.
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
+import { useState, useCallback } from 'react';
+import { Search, MapPin, Phone, Globe, Building2, ExternalLink, Navigation, Clock, Mail, Loader2 } from 'lucide-react';
+import { enrichSheltersWithDetails } from '@/app/lib/maps/appleMapKit';
 
-const PET_TYPES = [
-  { value: '', label: 'All Types' },
-  { value: 'dog', label: 'Dogs' },
-  { value: 'cat', label: 'Cats' },
-  { value: 'bird', label: 'Birds' },
-  { value: 'rabbit', label: 'Rabbits' },
-  { value: 'small-furry', label: 'Small & Furry' },
-  { value: 'scales-fins-other', label: 'Scales, Fins & Other' },
-];
-
-const SIZES = [
-  { value: '', label: 'Any Size' },
-  { value: 'small', label: 'Small' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'large', label: 'Large' },
-  { value: 'xlarge', label: 'Extra Large' },
-];
-
-const AGES = [
-  { value: '', label: 'Any Age' },
-  { value: 'baby', label: 'Baby' },
-  { value: 'young', label: 'Young' },
-  { value: 'adult', label: 'Adult' },
-  { value: 'senior', label: 'Senior' },
-];
-
-const GENDERS = [
-  { value: '', label: 'Any Gender' },
-  { value: 'male', label: 'Male' },
-  { value: 'female', label: 'Female' },
+const DISTANCE_OPTIONS = [
+  { value: 10, label: '10 miles' },
+  { value: 25, label: '25 miles' },
+  { value: 50, label: '50 miles' },
+  { value: 100, label: '100 miles' },
 ];
 
 export default function ShelterSearch({ defaultLocation = '', className = '' }) {
-  const [animals, setAnimals] = useState([]);
+  const [shelters, setShelters] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [enriching, setEnriching] = useState(false);
   const [error, setError] = useState('');
-  const [sources, setSources] = useState([]);
+  const [searched, setSearched] = useState(false);
 
   const [filters, setFilters] = useState({
     location: defaultLocation,
     distance: 50,
-    type: '',
-    size: '',
-    age: '',
-    gender: '',
-    breed: '',
-    status: 'adoptable',
   });
 
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-
-  const searchAnimals = useCallback(async (resetPage = false) => {
+  const searchShelters = useCallback(async () => {
     if (!filters.location) {
-      setError('Please enter a location');
+      setError('Please enter a location (city, state or zip code)');
       return;
     }
 
     setLoading(true);
     setError('');
-
-    if (resetPage) {
-      setPage(1);
-      setAnimals([]);
-    }
+    setSearched(true);
 
     try {
-      const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.set(key, value);
+      const params = new URLSearchParams({
+        location: filters.location,
+        distance: filters.distance.toString(),
       });
-      params.set('page', resetPage ? '1' : page.toString());
-      params.set('limit', '20');
 
-      const response = await fetch(`/api/shelters/animals?${params}`);
+      const response = await fetch(`/api/shelters/search?${params}`);
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || 'Search failed');
       }
 
-      if (resetPage) {
-        setAnimals(data.animals);
-      } else {
-        setAnimals((prev) => [...prev, ...data.animals]);
-      }
+      const initialShelters = data.shelters || [];
+      setShelters(initialShelters);
+      setLoading(false);
 
-      setSources(data.sources || []);
-      setHasMore(data.animals.length === 20);
+      // Now enrich with phone/hours using client-side MapKit JS
+      if (initialShelters.length > 0) {
+        setEnriching(true);
+        try {
+          const enrichedShelters = await enrichSheltersWithDetails(initialShelters, 15);
+          setShelters(enrichedShelters);
+          console.log('[ShelterSearch] Enriched shelters:', enrichedShelters);
+        } catch (enrichErr) {
+          console.error('[ShelterSearch] Enrichment error:', enrichErr);
+          // Keep original shelters if enrichment fails
+        } finally {
+          setEnriching(false);
+        }
+      }
     } catch (err) {
       setError(err.message);
-    } finally {
+      setShelters([]);
       setLoading(false);
     }
-  }, [filters, page]);
-
-  // Initial search on mount if location provided
-  useEffect(() => {
-    if (defaultLocation) {
-      searchAnimals(true);
-    }
-  }, []);
+  }, [filters]);
 
   const handleFilterChange = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -119,126 +84,59 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
 
   const handleSearch = (e) => {
     e.preventDefault();
-    searchAnimals(true);
-  };
-
-  const loadMore = () => {
-    setPage((p) => p + 1);
-    searchAnimals(false);
+    searchShelters();
   };
 
   return (
     <div className={className}>
       {/* Search Form */}
-      <form onSubmit={handleSearch} className="bg-white rounded-lg shadow-md p-6 mb-6">
+      <form onSubmit={handleSearch} className="bg-white rounded-xl shadow-md p-6 mb-6 border border-midnight-100">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           {/* Location */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-midnight-700 mb-1">
               Location
             </label>
-            <input
-              type="text"
-              value={filters.location}
-              onChange={(e) => handleFilterChange('location', e.target.value)}
-              placeholder="City, State or Zip"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400" />
+              <input
+                type="text"
+                value={filters.location}
+                onChange={(e) => handleFilterChange('location', e.target.value)}
+                placeholder="Enter city, state or zip code"
+                className="w-full pl-10 pr-4 py-3 border border-midnight-200 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-flash-400 text-midnight-900"
+              />
+            </div>
           </div>
 
           {/* Distance */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-midnight-700 mb-1">
               Distance
             </label>
             <select
               value={filters.distance}
-              onChange={(e) => handleFilterChange('distance', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              onChange={(e) => handleFilterChange('distance', parseInt(e.target.value))}
+              className="w-full px-4 py-3 border border-midnight-200 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-flash-400 text-midnight-900"
             >
-              <option value="10">10 miles</option>
-              <option value="25">25 miles</option>
-              <option value="50">50 miles</option>
-              <option value="100">100 miles</option>
-            </select>
-          </div>
-
-          {/* Pet Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Pet Type
-            </label>
-            <select
-              value={filters.type}
-              onChange={(e) => handleFilterChange('type', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {PET_TYPES.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
+              {DISTANCE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
                 </option>
               ))}
             </select>
           </div>
         </div>
 
-        {/* Additional Filters */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <select
-            value={filters.size}
-            onChange={(e) => handleFilterChange('size', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-          >
-            {SIZES.map((s) => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
-
-          <select
-            value={filters.age}
-            onChange={(e) => handleFilterChange('age', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-          >
-            {AGES.map((a) => (
-              <option key={a.value} value={a.value}>{a.label}</option>
-            ))}
-          </select>
-
-          <select
-            value={filters.gender}
-            onChange={(e) => handleFilterChange('gender', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-          >
-            {GENDERS.map((g) => (
-              <option key={g.value} value={g.value}>{g.label}</option>
-            ))}
-          </select>
-
-          <input
-            type="text"
-            value={filters.breed}
-            onChange={(e) => handleFilterChange('breed', e.target.value)}
-            placeholder="Breed"
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-          />
-        </div>
-
         {/* Search Button */}
-        <div className="flex items-center justify-between">
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-6 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {loading ? 'Searching...' : 'Search Shelters'}
-          </button>
-
-          {sources.length > 0 && (
-            <p className="text-sm text-gray-500">
-              Searching: {sources.map((s) => s.name).join(', ')}
-            </p>
-          )}
-        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full md:w-auto px-8 py-3 bg-flash-400 text-midnight-900 font-bold rounded-lg hover:bg-flash-300 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+        >
+          <Search className="w-5 h-5" />
+          {loading ? 'Searching...' : 'Find Shelters'}
+        </button>
       </form>
 
       {/* Error Message */}
@@ -249,54 +147,50 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
       )}
 
       {/* Results */}
-      {animals.length > 0 && (
+      {shelters.length > 0 && (
         <div>
-          <p className="text-gray-600 mb-4">
-            Found {animals.length} animals
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {animals.map((animal) => (
-              <AnimalCard key={animal.id} animal={animal} />
-            ))}
+          <div className="flex items-center gap-3 mb-4">
+            <p className="text-midnight-600 font-medium">
+              Found {shelters.length} shelter{shelters.length !== 1 ? 's' : ''} near {filters.location}
+            </p>
+            {enriching && (
+              <span className="inline-flex items-center gap-2 text-sm text-flash-600 bg-flash-50 px-3 py-1 rounded-full">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Getting contact info...
+              </span>
+            )}
           </div>
 
-          {/* Load More */}
-          {hasMore && (
-            <div className="text-center mt-8">
-              <button
-                onClick={loadMore}
-                disabled={loading}
-                className="px-6 py-2 bg-gray-100 text-gray-700 font-medium rounded-md hover:bg-gray-200 disabled:opacity-50 transition-colors"
-              >
-                {loading ? 'Loading...' : 'Load More'}
-              </button>
-            </div>
-          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {shelters.map((shelter) => (
+              <ShelterCard key={shelter.id || shelter.externalId} shelter={shelter} />
+            ))}
+          </div>
         </div>
       )}
 
       {/* Empty State */}
-      {!loading && animals.length === 0 && filters.location && (
-        <div className="text-center py-12">
-          <svg
-            className="w-16 h-16 mx-auto text-gray-300 mb-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-            />
-          </svg>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            No animals found
+      {!loading && searched && shelters.length === 0 && !error && (
+        <div className="text-center py-12 bg-white rounded-xl border border-midnight-100">
+          <Building2 className="w-16 h-16 mx-auto text-midnight-300 mb-4" />
+          <h3 className="text-lg font-semibold text-midnight-900 mb-2">
+            No shelters found
           </h3>
-          <p className="text-gray-500">
-            Try adjusting your filters or searching a different location
+          <p className="text-midnight-500 max-w-md mx-auto">
+            We couldn't find any shelters in this area. Try expanding your search distance or searching a nearby city.
+          </p>
+        </div>
+      )}
+
+      {/* Initial State */}
+      {!searched && !loading && (
+        <div className="text-center py-12 bg-white rounded-xl border border-midnight-100">
+          <Search className="w-16 h-16 mx-auto text-midnight-300 mb-4" />
+          <h3 className="text-lg font-semibold text-midnight-900 mb-2">
+            Search for nearby shelters
+          </h3>
+          <p className="text-midnight-500 max-w-md mx-auto">
+            Enter your location to find animal shelters, humane societies, and rescue organizations in your area.
           </p>
         </div>
       )}
@@ -305,83 +199,148 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
 }
 
 /**
- * Animal Card Component
+ * Shelter Card Component
+ * Handles both local database format (flat) and PetFinder format (nested address)
  */
-function AnimalCard({ animal }) {
-  const primaryPhoto = animal.photos?.[0]?.medium || animal.photos?.[0]?.full;
-  const breedText = animal.breeds?.mixed
-    ? `${animal.breeds.primary} Mix`
-    : animal.breeds?.primary || 'Unknown breed';
+function ShelterCard({ shelter }) {
+  const typeLabel = {
+    SHELTER: 'Shelter',
+    ANIMAL_CONTROL: 'Animal Control',
+    RESCUE: 'Rescue',
+    VET: 'Veterinary',
+  };
+
+  const typeColor = {
+    SHELTER: 'bg-emerald-100 text-emerald-700',
+    ANIMAL_CONTROL: 'bg-blue-100 text-blue-700',
+    RESCUE: 'bg-purple-100 text-purple-700',
+    VET: 'bg-amber-100 text-amber-700',
+  };
+
+  // Handle both flat (local DB) and nested (PetFinder) address formats
+  const streetAddress = shelter.address?.address1 || shelter.address?.street || shelter.address;
+  const city = shelter.address?.city || shelter.city;
+  const state = shelter.address?.state || shelter.state;
+  const zipCode = shelter.address?.postcode || shelter.zipCode;
+
+  const fullAddress = [streetAddress, city, state, zipCode].filter(Boolean).join(', ');
+  const mapsUrl = `https://maps.apple.com/?q=${encodeURIComponent(fullAddress || shelter.name)}`;
+
+  // Get contact info (handles both formats)
+  const phone = shelter.phone;
+  const email = shelter.email;
+  const website = shelter.website || shelter.url;
+
+  // Format hours if available
+  const formatHours = (hours) => {
+    if (!hours) return null;
+    if (typeof hours === 'string') return hours;
+
+    // PetFinder returns hours as object with days
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const today = days[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+
+    if (hours[today]) {
+      return `Today: ${hours[today]}`;
+    }
+
+    // Return first available day's hours
+    for (const day of days) {
+      if (hours[day]) {
+        return `${day.charAt(0).toUpperCase() + day.slice(1)}: ${hours[day]}`;
+      }
+    }
+    return null;
+  };
+
+  const hoursDisplay = formatHours(shelter.hours);
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-      {/* Photo */}
-      <div className="aspect-square relative bg-gray-100">
-        {primaryPhoto ? (
-          <img
-            src={primaryPhoto}
-            alt={animal.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-400">
-            <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-        )}
-
-        {/* Source Badge */}
-        <div className="absolute top-2 right-2">
-          <span className="px-2 py-1 text-xs font-medium bg-white/90 text-gray-700 rounded-full">
-            {animal.source === 'petfinder' ? 'PetFinder' : animal.source}
+    <div className="bg-white rounded-xl shadow-sm border border-midnight-100 overflow-hidden hover:shadow-md transition-shadow">
+      <div className="p-5">
+        {/* Type Badge */}
+        {shelter.type && (
+          <span className={`inline-block px-2.5 py-1 text-xs font-medium rounded-full mb-3 ${typeColor[shelter.type] || 'bg-gray-100 text-gray-700'}`}>
+            {typeLabel[shelter.type] || shelter.type}
           </span>
-        </div>
-
-        {/* Distance Badge */}
-        {animal.distance !== undefined && (
-          <div className="absolute bottom-2 left-2">
-            <span className="px-2 py-1 text-xs font-medium bg-blue-600 text-white rounded-full">
-              {animal.distance < 1 ? '< 1' : Math.round(animal.distance)} mi
-            </span>
-          </div>
         )}
-      </div>
 
-      {/* Info */}
-      <div className="p-4">
-        <h3 className="font-semibold text-lg text-gray-900">{animal.name}</h3>
-        <p className="text-sm text-gray-600 mb-2">{breedText}</p>
+        {/* Name */}
+        <h3 className="font-bold text-lg text-midnight-900 mb-2 line-clamp-2">
+          {shelter.name}
+        </h3>
 
-        <div className="flex flex-wrap gap-2 mb-3">
-          {animal.age && (
-            <span className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
-              {animal.age}
-            </span>
-          )}
-          {animal.gender && (
-            <span className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
-              {animal.gender}
-            </span>
-          )}
-          {animal.size && (
-            <span className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
-              {animal.size}
-            </span>
-          )}
-        </div>
-
-        {/* Contact/Link */}
-        {animal.url && (
+        {/* Address */}
+        {fullAddress && (
           <a
-            href={animal.url}
+            href={mapsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="block w-full text-center px-4 py-2 text-sm font-medium text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 transition-colors"
+            className="flex items-start gap-2 text-sm text-midnight-600 hover:text-flash-600 mb-2 group"
           >
-            View on {animal.source === 'petfinder' ? 'PetFinder' : animal.source}
+            <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span className="group-hover:underline">{fullAddress}</span>
           </a>
         )}
+
+        {/* Distance */}
+        {shelter.distance !== undefined && (
+          <div className="flex items-center gap-2 text-sm text-midnight-500 mb-2">
+            <Navigation className="w-4 h-4" />
+            <span>{shelter.distance < 1 ? '< 1' : Math.round(shelter.distance)} miles away</span>
+          </div>
+        )}
+
+        {/* Hours */}
+        {hoursDisplay && (
+          <div className="flex items-center gap-2 text-sm text-midnight-600 mb-2">
+            <Clock className="w-4 h-4" />
+            <span>{hoursDisplay}</span>
+          </div>
+        )}
+
+        {/* Contact Info */}
+        <div className="space-y-2 pt-3 border-t border-midnight-100">
+          {phone && (
+            <a
+              href={`tel:${phone}`}
+              className="flex items-center gap-2 text-sm text-midnight-700 hover:text-flash-600"
+            >
+              <Phone className="w-4 h-4" />
+              <span>{phone}</span>
+            </a>
+          )}
+
+          {email && (
+            <a
+              href={`mailto:${email}`}
+              className="flex items-center gap-2 text-sm text-midnight-700 hover:text-flash-600"
+            >
+              <Mail className="w-4 h-4" />
+              <span className="truncate">{email}</span>
+            </a>
+          )}
+
+          {website && (
+            <a
+              href={website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-sm text-flash-600 hover:text-flash-700"
+            >
+              <Globe className="w-4 h-4" />
+              <span className="truncate">Visit Website</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+        </div>
+
+        {/* Source Badge */}
+        <div className="mt-3 pt-3 border-t border-midnight-100">
+          <span className="text-xs text-midnight-400">
+            via Apple Maps
+          </span>
+        </div>
       </div>
     </div>
   );

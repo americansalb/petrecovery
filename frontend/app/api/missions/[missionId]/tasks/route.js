@@ -21,7 +21,7 @@ export async function GET(request, { params }) {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
     const missionData = await prisma.case.findFirst({
-      where: isUuid ? { id } : { missionNumber: id },
+      where: isUuid ? { id } : { caseNumber: id },
       include: {
         assignments: {
           take: 1,
@@ -117,7 +117,7 @@ export async function POST(request, { params }) {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
     const missionData = await prisma.case.findFirst({
-      where: isUuid ? { id } : { missionNumber: id },
+      where: isUuid ? { id } : { caseNumber: id },
       include: {
         assignments: {
           take: 1,

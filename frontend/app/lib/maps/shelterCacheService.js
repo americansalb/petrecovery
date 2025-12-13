@@ -19,6 +19,7 @@ import {
   searchShelters as searchSheltersApple,
   searchVets as searchVetsApple,
   searchAnimalControl as searchAnimalControlApple,
+  enrichPlacesWithDetails,
 } from './appleMapServer';
 
 // Cache expiry: 60 days in milliseconds
@@ -237,6 +238,18 @@ async function fetchAndStoreShelters(cityCache, lat, lng, type, db) {
     }
 
     console.log('[ShelterCache] Apple Maps returned', results.length, 'results for', cityCache.city);
+
+    // Enrich top results with phone/hours from Place Details API
+    // Only enrich first 15 to avoid too many API calls
+    if (results.length > 0) {
+      try {
+        console.log('[ShelterCache] Enriching places with phone/hours details...');
+        results = await enrichPlacesWithDetails(results, 15);
+        console.log('[ShelterCache] Enrichment complete');
+      } catch (enrichError) {
+        console.warn('[ShelterCache] Enrichment failed, continuing with basic data:', enrichError.message);
+      }
+    }
 
     // Store each shelter in database
     let storedCount = 0;

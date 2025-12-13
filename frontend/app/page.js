@@ -28,6 +28,8 @@ import {
   Lock,
   UserPlus,
   Loader2,
+  CheckCircle,
+  Eye,
 } from 'lucide-react';
 
 // Auth Modal Component
@@ -531,20 +533,23 @@ export default function Home() {
             <span className="font-bold text-lg text-gray-900 hidden sm:inline">PetRecovery</span>
           </Link>
 
-          <nav className="flex items-center gap-2 sm:gap-4 text-sm">
-            <Link href="/database" className="text-gray-600 hover:text-gray-900 transition px-2 py-1">
-              Search
+          <nav className="flex items-center gap-2 sm:gap-3 text-sm">
+            <Link href="/database" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition">
+              <Search className="w-4 h-4" />
+              <span className="hidden sm:inline">Search</span>
             </Link>
-            <Link href="/rescue-squads/search" className="text-gray-600 hover:text-gray-900 transition px-2 py-1">
-              Squads
+            <Link href="/rescue-squads/search" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition">
+              <Shield className="w-4 h-4" />
+              <span className="hidden sm:inline">Squads</span>
             </Link>
-            <Link href="/shelters" className="text-gray-600 hover:text-gray-900 transition px-2 py-1 hidden sm:block">
+            <Link href="/shelters" className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition">
+              <Building2 className="w-4 h-4" />
               Shelters
             </Link>
             {session ? (
               <Link
                 href="/dashboard"
-                className="bg-flash-400 text-gray-900 px-4 py-2 rounded-xl font-semibold hover:bg-flash-500 transition"
+                className="flex items-center gap-1.5 bg-flash-400 text-gray-900 px-4 py-2 rounded-xl font-bold hover:bg-flash-500 transition shadow-sm"
               >
                 Dashboard
               </Link>
@@ -568,9 +573,15 @@ export default function Home() {
         <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-amber-100 rounded-full blur-3xl opacity-30 -translate-x-1/2 -translate-y-1/2" />
 
         {/* Subtle paw prints decoration */}
-        <div className="absolute top-20 left-[10%] text-flash-300/20 text-6xl transform -rotate-12">🐾</div>
-        <div className="absolute bottom-32 right-[15%] text-flash-300/20 text-5xl transform rotate-12">🐾</div>
-        <div className="absolute top-1/3 right-[8%] text-amber-200/30 text-4xl transform rotate-45">🐾</div>
+        <svg className="absolute top-20 left-[10%] w-16 h-16 text-flash-300/20 transform -rotate-12" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 6c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z"/>
+        </svg>
+        <svg className="absolute bottom-32 right-[15%] w-14 h-14 text-flash-300/20 transform rotate-12" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 6c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z"/>
+        </svg>
+        <svg className="absolute top-1/3 right-[8%] w-12 h-12 text-amber-200/30 transform rotate-45" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 6c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z"/>
+        </svg>
 
         <div className="max-w-6xl mx-auto px-4 relative z-10">
           <div className="text-center mb-12">
@@ -698,52 +709,157 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Heartwarming Testimonial */}
+      {/* Live Search Preview */}
       <section className="py-16 bg-gradient-to-b from-amber-50/50 to-white relative overflow-hidden">
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-10 left-1/4 text-8xl">🐕</div>
-          <div className="absolute bottom-10 right-1/4 text-8xl">🐈</div>
-        </div>
-        <div className="max-w-4xl mx-auto px-4 relative z-10">
+        <div className="max-w-6xl mx-auto px-4 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-white rounded-3xl p-8 md:p-12 shadow-xl border border-flash-100 relative"
+            className="text-center mb-8"
           >
-            {/* Quote mark decoration */}
-            <div className="absolute -top-4 left-8 text-6xl text-flash-300 font-serif">"</div>
+            <span className="inline-block bg-rose-100 text-rose-700 px-4 py-1.5 rounded-full text-sm font-medium mb-4">
+              Coordinated Search & Rescue
+            </span>
+            <h2 className="text-3xl md:text-4xl font-bold text-midnight-900 mb-3">
+              See Your Community in Action
+            </h2>
+            <p className="text-midnight-600 max-w-2xl mx-auto">
+              When a pet goes missing, the entire neighborhood mobilizes. Here's what coordinated search looks like.
+            </p>
+          </motion.div>
 
-            <div className="flex flex-col md:flex-row gap-8 items-center">
-              <div className="flex-shrink-0">
-                <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-flash-200 to-amber-100 flex items-center justify-center text-5xl md:text-6xl shadow-lg">
-                  🐕
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-flash-100 relative overflow-hidden"
+          >
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Mini Map Preview */}
+              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-5 relative overflow-hidden">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
+                      <Map className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="font-bold text-midnight-900">Live Search Map</span>
+                  </div>
+                  <span className="text-xs bg-emerald-500 text-white px-2 py-1 rounded-full animate-pulse">LIVE</span>
+                </div>
+
+                {/* Simulated map with search areas */}
+                <div className="relative h-48 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl overflow-hidden">
+                  {/* Grid lines */}
+                  <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+
+                  {/* Search areas - colored zones */}
+                  <div className="absolute top-4 left-4 w-16 h-14 bg-emerald-400/40 rounded-lg border-2 border-emerald-500 flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div className="absolute top-4 left-24 w-14 h-16 bg-emerald-400/40 rounded-lg border-2 border-emerald-500 flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div className="absolute top-6 right-8 w-20 h-12 bg-amber-400/40 rounded-lg border-2 border-amber-500 border-dashed flex items-center justify-center">
+                    <Users className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div className="absolute bottom-8 left-8 w-18 h-14 bg-blue-400/30 rounded-lg border-2 border-blue-400 border-dashed" />
+                  <div className="absolute bottom-4 right-4 w-16 h-16 bg-rose-400/30 rounded-lg border-2 border-rose-400" />
+
+                  {/* Pet last seen marker */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <div className="relative">
+                      <div className="w-10 h-10 bg-rose-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                        <MapPin className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap bg-midnight-900 text-white text-xs px-2 py-0.5 rounded">
+                        Last seen
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Volunteer markers */}
+                  <div className="absolute top-8 left-10 w-6 h-6 bg-flash-400 rounded-full border-2 border-white shadow flex items-center justify-center text-xs font-bold text-midnight-900">M</div>
+                  <div className="absolute top-10 right-16 w-6 h-6 bg-flash-400 rounded-full border-2 border-white shadow flex items-center justify-center text-xs font-bold text-midnight-900">J</div>
+                  <div className="absolute bottom-12 left-20 w-6 h-6 bg-flash-400 rounded-full border-2 border-white shadow flex items-center justify-center text-xs font-bold text-midnight-900">S</div>
+                </div>
+
+                {/* Map legend */}
+                <div className="mt-4 flex flex-wrap gap-3 text-xs text-midnight-600">
+                  <div className="flex items-center gap-1"><div className="w-3 h-3 bg-emerald-400 rounded" /> Searched</div>
+                  <div className="flex items-center gap-1"><div className="w-3 h-3 bg-amber-400 rounded" /> In Progress</div>
+                  <div className="flex items-center gap-1"><div className="w-3 h-3 bg-blue-400 rounded" /> Assigned</div>
                 </div>
               </div>
-              <div className="flex-1 text-center md:text-left">
-                <p className="text-xl md:text-2xl text-midnight-700 leading-relaxed mb-6">
-                  When Max escaped during a thunderstorm, I was devastated. Within <span className="text-amber-600 font-semibold">two hours</span>,
-                  12 neighbors from my local Rescue Squad were out searching. They found him hiding under a porch
-                  three blocks away. I'll never forget the moment they brought him home.
-                </p>
-                <div className="flex items-center justify-center md:justify-start gap-3">
-                  <div className="flex -space-x-2">
-                    <div className="w-8 h-8 rounded-full bg-flash-400 border-2 border-white flex items-center justify-center text-xs">👩</div>
-                    <div className="w-8 h-8 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center text-xs">👨</div>
-                    <div className="w-8 h-8 rounded-full bg-rose-400 border-2 border-white flex items-center justify-center text-xs">👩</div>
+
+              {/* Live Activity Feed */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-8 h-8 bg-midnight-900 rounded-lg flex items-center justify-center">
+                    <Bell className="w-4 h-4 text-flash-400" />
                   </div>
-                  <div>
-                    <p className="font-bold text-midnight-900">Sarah & Max</p>
-                    <p className="text-sm text-midnight-500">Reunited in Portland, OR</p>
+                  <span className="font-bold text-midnight-900">Live Activity</span>
+                </div>
+
+                <div className="space-y-3">
+                  {/* Activity items */}
+                  <div className="flex items-start gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                    <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <CheckCircle className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-midnight-900 text-sm">Maria completed Oak Street sector</p>
+                      <p className="text-xs text-midnight-500">2 min ago - 0.3 acres searched</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                    <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Eye className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-midnight-900 text-sm">Possible sighting reported!</p>
+                      <p className="text-xs text-midnight-500">5 min ago - Near Elm Park</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <UserPlus className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-midnight-900 text-sm">James joined the search</p>
+                      <p className="text-xs text-midnight-500">8 min ago - 12 searchers now active</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-3 bg-flash-50 rounded-xl border border-flash-100">
+                    <div className="w-8 h-8 bg-flash-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Map className="w-4 h-4 text-midnight-900" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-midnight-900 text-sm">Search radius expanded</p>
+                      <p className="text-xs text-midnight-500">12 min ago - Now covering 2 miles</p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-8 pt-6 border-t border-flash-100 flex items-center justify-center gap-2 text-amber-600">
-              <Heart className="w-5 h-5 fill-amber-500" />
-              <span className="font-medium">One of thousands of happy reunions</span>
-              <Heart className="w-5 h-5 fill-amber-500" />
+            {/* Bottom stats bar */}
+            <div className="mt-6 pt-6 border-t border-flash-100 grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-2xl font-bold text-midnight-900">12</p>
+                <p className="text-sm text-midnight-500">Active Searchers</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-emerald-600">4.2 mi</p>
+                <p className="text-sm text-midnight-500">Area Covered</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-amber-600">47 min</p>
+                <p className="text-sm text-midnight-500">Search Duration</p>
+              </div>
             </div>
           </motion.div>
         </div>
@@ -845,21 +961,42 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Find Your Squad - Warmer Community Section */}
-      <section className="py-20 bg-gradient-to-br from-midnight-900 via-midnight-800 to-midnight-900 overflow-hidden relative">
-        {/* Warm glowing background elements */}
+      {/* Find Your Squad - Midnight Starry Sky Section */}
+      <section className="py-20 bg-gradient-to-b from-[#0a1628] via-[#0f1d32] to-[#162544] overflow-hidden relative">
+        {/* Starry sky background */}
         <div className="absolute inset-0">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-flash-400/20 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-amber-400/15 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 right-10 w-64 h-64 bg-flash-300/10 rounded-full blur-3xl" />
+          {/* Distant nebula glow */}
+          <div className="absolute top-0 left-1/3 w-[500px] h-[400px] bg-indigo-600/10 rounded-full blur-[100px]" />
+          <div className="absolute bottom-0 right-1/4 w-[400px] h-[300px] bg-purple-600/8 rounded-full blur-[80px]" />
+          <div className="absolute top-1/2 left-10 w-[300px] h-[300px] bg-blue-500/10 rounded-full blur-[60px]" />
+
+          {/* Bright stars */}
+          <div className="absolute top-[10%] left-[15%] w-1 h-1 bg-white rounded-full shadow-[0_0_6px_2px_rgba(255,255,255,0.6)]" />
+          <div className="absolute top-[20%] right-[25%] w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_3px_rgba(255,255,255,0.7)]" />
+          <div className="absolute top-[15%] right-[10%] w-1 h-1 bg-blue-200 rounded-full shadow-[0_0_6px_2px_rgba(191,219,254,0.6)]" />
+          <div className="absolute bottom-[30%] left-[8%] w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_3px_rgba(255,255,255,0.5)]" />
+          <div className="absolute bottom-[20%] right-[15%] w-1 h-1 bg-amber-100 rounded-full shadow-[0_0_6px_2px_rgba(254,243,199,0.5)]" />
+          <div className="absolute top-[40%] left-[25%] w-0.5 h-0.5 bg-white rounded-full shadow-[0_0_4px_1px_rgba(255,255,255,0.4)]" />
+          <div className="absolute top-[60%] right-[35%] w-1 h-1 bg-white rounded-full shadow-[0_0_6px_2px_rgba(255,255,255,0.5)]" />
+          <div className="absolute top-[25%] left-[45%] w-0.5 h-0.5 bg-blue-100 rounded-full shadow-[0_0_4px_1px_rgba(219,234,254,0.4)]" />
+          <div className="absolute bottom-[40%] left-[35%] w-1 h-1 bg-white rounded-full shadow-[0_0_6px_2px_rgba(255,255,255,0.5)]" />
+          <div className="absolute top-[50%] right-[8%] w-1.5 h-1.5 bg-amber-200 rounded-full shadow-[0_0_8px_3px_rgba(253,230,138,0.4)]" />
+          <div className="absolute bottom-[15%] left-[50%] w-0.5 h-0.5 bg-white rounded-full shadow-[0_0_4px_1px_rgba(255,255,255,0.3)]" />
+          <div className="absolute top-[8%] left-[60%] w-1 h-1 bg-white rounded-full shadow-[0_0_6px_2px_rgba(255,255,255,0.6)]" />
+          <div className="absolute bottom-[25%] right-[45%] w-0.5 h-0.5 bg-blue-200 rounded-full shadow-[0_0_4px_1px_rgba(191,219,254,0.4)]" />
+          <div className="absolute top-[35%] right-[18%] w-1 h-1 bg-white rounded-full shadow-[0_0_6px_2px_rgba(255,255,255,0.5)]" />
+          <div className="absolute bottom-[45%] left-[18%] w-0.5 h-0.5 bg-white rounded-full shadow-[0_0_4px_1px_rgba(255,255,255,0.3)]" />
+
+          {/* Featured bright star with cross-glow */}
+          <div className="absolute top-[12%] right-[40%]">
+            <div className="w-2 h-2 bg-white rounded-full shadow-[0_0_10px_4px_rgba(255,255,255,0.8)]" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-0.5 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-6 bg-gradient-to-b from-transparent via-white/60 to-transparent" />
+          </div>
         </div>
 
-        {/* Subtle pattern overlay */}
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-20 left-[5%] text-7xl">🐾</div>
-          <div className="absolute bottom-20 right-[10%] text-6xl">🐾</div>
-          <div className="absolute top-1/3 right-[20%] text-5xl">❤️</div>
-        </div>
+        {/* Subtle star dust overlay */}
+        <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(1px 1px at 20px 30px, white, transparent), radial-gradient(1px 1px at 40px 70px, rgba(255,255,255,0.5), transparent), radial-gradient(1px 1px at 50px 160px, white, transparent), radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.7), transparent), radial-gradient(1px 1px at 130px 80px, white, transparent), radial-gradient(1px 1px at 160px 120px, rgba(255,255,255,0.5), transparent)', backgroundSize: '200px 200px' }} />
 
         <div className="max-w-6xl mx-auto px-4 relative z-10">
           <div className="text-center mb-12">
@@ -1151,8 +1288,8 @@ export default function Home() {
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center text-5xl">
-                          {pet.petSpecies === 'DOG' ? '🐕' : '🐈'}
+                        <div className="w-full h-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
+                          <Search className="w-12 h-12 text-amber-400" />
                         </div>
                       )}
                       <div className="absolute top-3 right-3">
@@ -1271,7 +1408,7 @@ export default function Home() {
               <ul className="space-y-2 text-gray-400 text-sm">
                 <li><Link href="/shelters" className="hover:text-white transition">Shelters</Link></li>
                 <li><Link href="/patrol/signup" className="hover:text-white transition">Volunteer</Link></li>
-                <li><Link href="/about-surumaa" className="hover:text-white transition">About</Link></li>
+                <li><Link href="/about-sarama" className="hover:text-white transition">About Sarama</Link></li>
                 <li><Link href="/contact" className="hover:text-white transition">Contact</Link></li>
               </ul>
             </div>

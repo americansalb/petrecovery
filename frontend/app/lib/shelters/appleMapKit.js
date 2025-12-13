@@ -252,8 +252,8 @@ function normalizeApplePlace(place) {
 
     // Address components
     address: [
-      place.structuredAddress?.thoroughfare,
       place.structuredAddress?.subThoroughfare,
+      place.structuredAddress?.thoroughfare,
     ].filter(Boolean).join(' ') || place.formattedAddressLines?.[0],
     city: place.structuredAddress?.locality || '',
     state: place.structuredAddress?.administrativeArea || '',
@@ -263,8 +263,11 @@ function normalizeApplePlace(place) {
     latitude: place.coordinate?.latitude,
     longitude: place.coordinate?.longitude,
 
+    // Business hours from Apple Maps
+    hours: place.hoursOfOperation || place.hours || null,
+
     // Additional data
-    categories: place.categories || [],
+    categories: place.pointOfInterestCategory ? [place.pointOfInterestCategory] : (place.categories || []),
     formattedAddress: place.formattedAddressLines?.join(', '),
 
     // Source tracking
@@ -316,8 +319,10 @@ export async function saveSheltersToDatabase(shelters) {
             appleMapKitId: shelter.appleMapKitId,
             phone: shelter.phone || existing.phone,
             website: shelter.website || existing.website,
+            address: shelter.address || existing.address,
             latitude: shelter.latitude ?? existing.latitude,
             longitude: shelter.longitude ?? existing.longitude,
+            hours: shelter.hours || existing.hours,
             fetchedAt: shelter.fetchedAt,
             updatedAt: new Date(),
           },
@@ -337,6 +342,7 @@ export async function saveSheltersToDatabase(shelters) {
             zipCode: shelter.zipCode || '',
             latitude: shelter.latitude,
             longitude: shelter.longitude,
+            hours: shelter.hours,
             type: determineShelterType(shelter.name, shelter.categories),
             source: 'APPLE_MAPKIT',
             fetchedAt: shelter.fetchedAt,

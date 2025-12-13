@@ -573,7 +573,7 @@ export async function POST(request) {
           lastSeenLatitude: true,
           lastSeenLongitude: true,
           petName: true,
-          missionNumber: true,
+          caseNumber: true,
         },
       });
 
@@ -613,7 +613,7 @@ export async function POST(request) {
             },
           });
           assignedCasesCount++;
-          console.log(`[Squad Create] Auto-assigned case ${missionData.missionNumber} (${missionData.petName}) to new squad`);
+          console.log(`[Squad Create] Auto-assigned case ${missionData.caseNumber} (${missionData.petName}) to new squad`);
         }
       }
 

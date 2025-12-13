@@ -83,7 +83,7 @@ export async function POST(request) {
       // Send to all users who have interacted with this case
       // (volunteers, squad members assigned, etc.)
       const mission = await prisma.missionControl.findFirst({
-        where: { missionId },
+        where: { caseId: missionId },
         include: {
           volunteers: { select: { userId: true } },
         },
@@ -109,7 +109,7 @@ export async function POST(request) {
     if (missionId) {
       caseInfo = await prisma.case.findUnique({
         where: { id: missionId },
-        select: { missionNumber: true, petName: true },
+        select: { caseNumber: true, petName: true },
       });
     }
 
@@ -123,7 +123,7 @@ export async function POST(request) {
       data: {
         type,
         missionId,
-        missionNumber: caseInfo?.missionNumber,
+        missionNumber: caseInfo?.caseNumber,
         squadId,
         missionId,
         urgent,

@@ -20,7 +20,7 @@ export async function GET(request) {
         case: {
           select: {
             id: true,
-            missionNumber: true,
+            caseNumber: true,
             petName: true,
             petSpecies: true,
             petPhotoUrl: true,

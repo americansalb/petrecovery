@@ -57,7 +57,7 @@ export async function GET(request, { params }) {
       },
       select: {
         id: true,
-        missionNumber: true,
+        caseNumber: true,
         petName: true,
         petSpecies: true,
         petBreed: true,

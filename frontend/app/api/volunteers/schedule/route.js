@@ -53,7 +53,7 @@ export async function GET(request) {
           select: { id: true, firstName: true, lastName: true, profileImage: true },
         },
         case: {
-          select: { id: true, petName: true, missionNumber: true },
+          select: { id: true, petName: true, caseNumber: true },
         },
         squad: {
           select: { id: true, name: true },

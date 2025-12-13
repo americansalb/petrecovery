@@ -48,7 +48,7 @@ export async function GET(request, { params }) {
         orderBy: { resolvedAt: 'desc' },
         select: {
           id: true,
-          missionNumber: true,
+          caseNumber: true,
           petName: true,
           petSpecies: true,
           resolvedAt: true,
@@ -62,7 +62,7 @@ export async function GET(request, { params }) {
           id: true,
           createdAt: true,
           case: {
-            select: { petName: true, missionNumber: true },
+            select: { petName: true, caseNumber: true },
           },
         },
       }),
