@@ -6,7 +6,7 @@ export async function GET(request, { params }) {
   try {
     const { id } = params;
 
-    const report = await prisma.lostReport.findUnique({
+    const report = await prisma.case.findUnique({
       where: { id },
       include: {
         pet: true,
@@ -30,6 +30,7 @@ export async function GET(request, { params }) {
             sightedAt: 'desc',
           }
         },
+        missionControl: true,
       }
     });
 
@@ -43,18 +44,23 @@ export async function GET(request, { params }) {
     const session = await getServerSession();
     const isOwner = session?.user?.email === report.reporter.email;
 
-    // Parse photos from JSON string
+    // Parse photos from pet if available, or use denormalized petPhotoUrl
     let photos = [];
-    try {
-      photos = JSON.parse(report.pet.photos || '[]');
-    } catch (e) {
-      photos = [];
+    if (report.pet?.photos) {
+      try {
+        photos = JSON.parse(report.pet.photos || '[]');
+      } catch (e) {
+        photos = [];
+      }
+    }
+    if (photos.length === 0 && report.petPhotoUrl) {
+      photos = [report.petPhotoUrl];
     }
 
     // If this is a FOUND pet, find potential matches (nearby LOST pets)
     let potentialMatches = [];
     if (report.reportType === 'FOUND') {
-      const lostReports = await prisma.lostReport.findMany({
+      const lostCases = await prisma.case.findMany({
         where: {
           status: 'ACTIVE',
           reportType: 'LOST',
@@ -71,38 +77,39 @@ export async function GET(request, { params }) {
       });
 
       // Filter by species match and distance
-      potentialMatches = lostReports
-        .filter(lostReport => lostReport.pet.species === report.pet.species)
-        .map(lostReport => {
+      potentialMatches = lostCases
+        .filter(lostCase => lostCase.petSpecies === report.petSpecies)
+        .map(lostCase => {
           const distance = calculateDistance(
             report.lastSeenLatitude,
             report.lastSeenLongitude,
-            lostReport.lastSeenLatitude,
-            lostReport.lastSeenLongitude
+            lostCase.lastSeenLatitude,
+            lostCase.lastSeenLongitude
           );
-          return { ...lostReport, distance };
+          return { ...lostCase, distance };
         })
-        .filter(lostReport => lostReport.distance <= 10) // Within 10 miles
+        .filter(lostCase => lostCase.distance <= 10) // Within 10 miles
         .sort((a, b) => a.distance - b.distance)
         .slice(0, 5)
-        .map(lostReport => ({
-          id: lostReport.id,
-          petName: lostReport.pet.name,
-          species: lostReport.pet.species,
-          breed: lostReport.pet.breed,
-          color: lostReport.pet.color,
-          size: lostReport.pet.size,
-          primaryPhotoUrl: lostReport.pet.primaryPhotoUrl,
-          lastSeenAddress: lostReport.lastSeenAddress,
-          distance: lostReport.distance.toFixed(1),
-          reporterName: lostReport.reporter.firstName,
-          reporterPhone: lostReport.reporter.phone,
+        .map(lostCase => ({
+          id: lostCase.id,
+          petName: lostCase.petName,
+          species: lostCase.petSpecies,
+          breed: lostCase.petBreed,
+          color: lostCase.petColor,
+          size: lostCase.petSize,
+          primaryPhotoUrl: lostCase.petPhotoUrl,
+          lastSeenAddress: lostCase.lastSeenAddress,
+          distance: lostCase.distance.toFixed(1),
+          reporterName: lostCase.reporter.firstName,
+          reporterPhone: lostCase.reporter.phone,
         }));
     }
 
     return NextResponse.json({
       report: {
         id: report.id,
+        caseNumber: report.caseNumber,
         reportType: report.reportType,
         status: report.status,
         lastSeenAt: report.lastSeenAt,
@@ -113,24 +120,27 @@ export async function GET(request, { params }) {
         hasReward: report.hasReward,
         rewardAmount: report.rewardAmount,
         createdAt: report.createdAt,
+        escapeScenario: report.escapeScenario,
+        escapeDetails: report.escapeDetails,
       },
       pet: {
-        id: report.pet.id,
-        name: report.pet.name,
-        species: report.pet.species,
-        breed: report.pet.breed,
-        color: report.pet.color,
-        size: report.pet.size,
-        distinctiveMarks: report.pet.distinctiveMarks,
+        id: report.pet?.id || report.id,
+        name: report.petName,
+        species: report.petSpecies,
+        breed: report.petBreed,
+        color: report.petColor,
+        size: report.petSize,
+        distinctiveMarks: report.pet?.distinctiveMarks || null,
+        description: report.petDescription,
         photos: photos,
-        primaryPhotoUrl: report.pet.primaryPhotoUrl,
+        primaryPhotoUrl: report.petPhotoUrl,
       },
       reporter: isOwner ? {
-        firstName: report.reporter.firstName,
-        email: report.reporter.email,
-        phone: report.reporter.phone,
+        firstName: report.ownerName || report.reporter.firstName,
+        email: report.ownerEmail || report.reporter.email,
+        phone: report.ownerPhone || report.reporter.phone,
       } : {
-        firstName: report.reporter.firstName,
+        firstName: report.ownerName || report.reporter.firstName,
         // Don't expose full contact info to non-owners
       },
       sightings: report.sightings.map(s => ({
@@ -140,9 +150,13 @@ export async function GET(request, { params }) {
         description: s.description,
         certaintyLevel: s.certaintyLevel,
         reportedBy: s.reportedBy.firstName,
+        latitude: s.latitude,
+        longitude: s.longitude,
+        isVerified: s.isVerified,
       })),
       potentialMatches, // Empty array for LOST pets, populated for FOUND pets
       isOwner,
+      missionControl: report.missionControl,
     }, { status: 200 });
 
   } catch (error) {
