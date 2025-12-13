@@ -183,6 +183,28 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
           const enrichedShelters = await enrichSheltersWithDetails(initialShelters, 15);
           setShelters(enrichedShelters);
           console.log('[ShelterSearch] Enriched shelters:', enrichedShelters);
+
+          // Save enriched data back to database so we don't waste API calls next time
+          const sheltersToSave = enrichedShelters
+            .filter(s => s.phone || s.website || s.hours)
+            .map(s => ({
+              id: s.id,
+              appleMapKitId: s.appleMapKitId,
+              phone: s.phone,
+              website: s.website,
+              hours: s.hours,
+              name: s.name, // for logging
+            }));
+
+          if (sheltersToSave.length > 0) {
+            fetch('/api/shelters/enrich', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ shelters: sheltersToSave }),
+            }).then(res => res.json())
+              .then(data => console.log('[ShelterSearch] Saved enriched data:', data))
+              .catch(err => console.warn('[ShelterSearch] Failed to save enriched data:', err));
+          }
         } catch (enrichErr) {
           console.error('[ShelterSearch] Enrichment error:', enrichErr);
           // Keep original shelters if enrichment fails
