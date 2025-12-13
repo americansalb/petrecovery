@@ -2946,6 +2946,14 @@ model SearchSession {
   userId          String?  // Direct user link for points attribution
   verifiedActionId String? @unique  // Link to VerifiedAction record
 
+  // GPS Search Tracking (v2)
+  totalDistanceMiles     Float    @default(0)  // Total distance traveled (all movement)
+  validatedDistanceMiles Float    @default(0)  // Distance that counts (within zone, walking)
+  gridCellsCovered       Int      @default(0)  // Number of unique grid cells visited
+  lastSeenLat            Float?   // Cached last seen latitude for zone validation
+  lastSeenLng            Float?   // Cached last seen longitude for zone validation
+  notes                  String?  // Notes for manual search logs
+
   // Location History
   locationPings   LocationPing[]
 
@@ -2966,6 +2974,12 @@ model LocationPing {
   longitude   Float
   accuracy    Float?
   heading     Float?
+  speed       Float?      // Speed in mph at this point
+
+  // Validation
+  isValid       Boolean  @default(true)   // Whether this ping counts toward points
+  invalidReason String?  // Why it didn't count: OUTSIDE_ZONE, DRIVING, STATIONARY, etc.
+  gridCellId    String?  // Grid cell ID for this location
 
   @@index([sessionId])
   @@index([createdAt])
