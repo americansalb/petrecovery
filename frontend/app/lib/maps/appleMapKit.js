@@ -340,6 +340,17 @@ export async function searchPlaceDetails(name, latitude, longitude) {
                 return;
               }
 
+              // Debug: log _wpURL and check for hours-related properties
+              console.log('[MapKit PlaceLookup] _wpURL:', fullPlace?._wpURL);
+              console.log('[MapKit PlaceLookup] All props:', JSON.stringify(Object.keys(fullPlace || {})));
+              // Check if there are any getter methods or hidden properties
+              if (fullPlace) {
+                const proto = Object.getPrototypeOf(fullPlace);
+                if (proto) {
+                  console.log('[MapKit PlaceLookup] Proto methods:', Object.getOwnPropertyNames(proto));
+                }
+              }
+
               resolve(extractPlaceDetails(fullPlace || place));
             });
           } catch (err) {
