@@ -135,7 +135,7 @@ function addSecurityHeaders(response) {
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https: http:",
       "connect-src 'self' https: wss: http://localhost:* http://127.0.0.1:* https://*.apple-mapkit.com https://*.ls.apple.com",
-      "frame-src 'self' https://www.google.com",
+      "frame-src 'self' https://www.google.com https://*.apple.com https://*.apple-mapkit.com https://maps.apple.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",

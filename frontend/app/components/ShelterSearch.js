@@ -7,9 +7,119 @@
  * Helps lost pet owners find shelters to check for their pets.
  */
 
-import { useState, useCallback } from 'react';
-import { Search, MapPin, Phone, Globe, Building2, ExternalLink, Navigation, Clock, Mail, Loader2 } from 'lucide-react';
-import { enrichSheltersWithDetails } from '@/app/lib/maps/appleMapKit';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { Search, MapPin, Phone, Globe, Building2, ExternalLink, Navigation, Clock, Mail, Loader2, X, Info } from 'lucide-react';
+import { enrichSheltersWithDetails, initializeMapKit } from '@/app/lib/maps/appleMapKit';
+
+/**
+ * PlaceDetail Modal - Shows Apple's native Place Card with hours, photos, etc.
+ */
+function PlaceDetailModal({ placeId, placeName, onClose }) {
+  const containerRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!placeId || !containerRef.current) return;
+
+    let mounted = true;
+
+    async function renderPlaceDetail() {
+      try {
+        const mapkit = await initializeMapKit();
+        if (!mounted) return;
+
+        const lookup = new mapkit.PlaceLookup();
+        lookup.getPlace(placeId, (lookupError, place) => {
+          if (!mounted) return;
+
+          if (lookupError) {
+            setError('Could not load place details');
+            setLoading(false);
+            return;
+          }
+
+          if (mapkit.PlaceDetail && containerRef.current) {
+            try {
+              new mapkit.PlaceDetail(containerRef.current, place, {
+                colorScheme: mapkit.PlaceDetail.ColorSchemes.Adaptive,
+              });
+              setLoading(false);
+            } catch (e) {
+              setError('Could not display place card');
+              setLoading(false);
+            }
+          } else {
+            setError('Place details not available');
+            setLoading(false);
+          }
+        });
+      } catch (err) {
+        if (mounted) {
+          setError('Failed to load details');
+          setLoading(false);
+        }
+      }
+    }
+
+    renderPlaceDetail();
+
+    return () => {
+      mounted = false;
+    };
+  }, [placeId]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 className="font-semibold text-lg text-gray-900 truncate pr-4">{placeName}</h3>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="overflow-y-auto" style={{ maxHeight: 'calc(80vh - 60px)' }}>
+          {loading && (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="w-8 h-8 animate-spin text-flash-500" />
+              <span className="ml-3 text-gray-600">Loading details...</span>
+            </div>
+          )}
+
+          {error && (
+            <div className="p-8 text-center">
+              <p className="text-red-600 mb-4">{error}</p>
+              <a
+                href={`https://maps.apple.com/?q=${encodeURIComponent(placeName)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-flash-600 hover:text-flash-700"
+              >
+                <ExternalLink className="w-4 h-4" />
+                View in Apple Maps
+              </a>
+            </div>
+          )}
+
+          {/* Apple PlaceDetail renders here */}
+          <div
+            ref={containerRef}
+            style={{ minHeight: loading || error ? '0' : '400px' }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const DISTANCE_OPTIONS = [
   { value: 10, label: '10 miles' },
@@ -24,6 +134,7 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
   const [enriching, setEnriching] = useState(false);
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
+  const [selectedShelter, setSelectedShelter] = useState(null); // For PlaceDetail modal
 
   const [filters, setFilters] = useState({
     location: defaultLocation,
@@ -61,9 +172,33 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
       if (initialShelters.length > 0) {
         setEnriching(true);
         try {
-          const enrichedShelters = await enrichSheltersWithDetails(initialShelters, 15);
+          // Enrich ALL returned shelters to maximize data capture
+          const enrichedShelters = await enrichSheltersWithDetails(initialShelters, initialShelters.length);
           setShelters(enrichedShelters);
-          console.log('[ShelterSearch] Enriched shelters:', enrichedShelters);
+
+          // Save enriched data back to database so we don't waste API calls next time
+          const sheltersToSave = enrichedShelters
+            .filter(s => s.phone || s.website || s.hours)
+            .map(s => ({
+              id: s.id,
+              appleMapKitId: s.appleMapKitId,
+              phone: s.phone,
+              website: s.website,
+              hours: s.hours,
+              name: s.name,
+            }));
+
+          if (sheltersToSave.length > 0) {
+            try {
+              await fetch('/api/shelters/enrich', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ shelters: sheltersToSave }),
+              });
+            } catch (saveErr) {
+              // Silently fail - enrichment save is best-effort
+            }
+          }
         } catch (enrichErr) {
           console.error('[ShelterSearch] Enrichment error:', enrichErr);
           // Keep original shelters if enrichment fails
@@ -163,7 +298,11 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {shelters.map((shelter) => (
-              <ShelterCard key={shelter.id || shelter.externalId} shelter={shelter} />
+              <ShelterCard
+                key={shelter.id || shelter.externalId}
+                shelter={shelter}
+                onViewDetails={() => setSelectedShelter(shelter)}
+              />
             ))}
           </div>
         </div>
@@ -194,6 +333,15 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
           </p>
         </div>
       )}
+
+      {/* PlaceDetail Modal - Shows Apple's native Place Card with hours */}
+      {selectedShelter?.appleMapKitId && (
+        <PlaceDetailModal
+          placeId={selectedShelter.appleMapKitId}
+          placeName={selectedShelter.name}
+          onClose={() => setSelectedShelter(null)}
+        />
+      )}
     </div>
   );
 }
@@ -202,7 +350,7 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
  * Shelter Card Component
  * Handles both local database format (flat) and PetFinder format (nested address)
  */
-function ShelterCard({ shelter }) {
+function ShelterCard({ shelter, onViewDetails }) {
   const typeLabel = {
     SHELTER: 'Shelter',
     ANIMAL_CONTROL: 'Animal Control',
@@ -335,11 +483,33 @@ function ShelterCard({ shelter }) {
           )}
         </div>
 
+        {/* View Details Button - Shows Apple PlaceDetail with hours */}
+        {shelter.appleMapKitId && onViewDetails && (
+          <button
+            onClick={onViewDetails}
+            className="w-full mt-3 py-2 px-4 bg-flash-100 text-flash-700 font-medium rounded-lg hover:bg-flash-200 transition-colors flex items-center justify-center gap-2"
+          >
+            <Info className="w-4 h-4" />
+            View Hours & Details
+          </button>
+        )}
+
         {/* Source Badge */}
-        <div className="mt-3 pt-3 border-t border-midnight-100">
+        <div className="mt-3 pt-3 border-t border-midnight-100 flex items-center justify-between">
           <span className="text-xs text-midnight-400">
             via Apple Maps
           </span>
+          {!shelter.appleMapKitId && (
+            <a
+              href={`https://maps.apple.com/?q=${encodeURIComponent(shelter.name)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-flash-600 hover:text-flash-700 flex items-center gap-1"
+            >
+              View in Maps
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
         </div>
       </div>
     </div>

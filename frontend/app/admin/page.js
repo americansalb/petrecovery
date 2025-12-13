@@ -113,8 +113,14 @@ export default function AdminDashboard() {
             icon="👥"
           />
           <AdminCard
-            title="Cases"
-            description="Moderate cases, review reports, and manage status"
+            title="Pets"
+            description="View and manage all pet profiles"
+            href="/admin/pets"
+            icon="🐾"
+          />
+          <AdminCard
+            title="Missions"
+            description="Moderate missions, review reports, and manage status"
             href="/admin/missions"
             icon="📋"
           />
@@ -168,7 +174,7 @@ export default function AdminDashboard() {
           <div className="space-y-4">
             <ActivityItem
               icon="📋"
-              text="New case reported: Missing golden retriever in Los Angeles"
+              text="New mission reported: Missing golden retriever in Los Angeles"
               time="5 minutes ago"
             />
             <ActivityItem
@@ -188,7 +194,7 @@ export default function AdminDashboard() {
             />
             <ActivityItem
               icon="🔔"
-              text="Sighting reported for case #12345"
+              text="Sighting reported for mission #12345"
               time="3 hours ago"
             />
           </div>

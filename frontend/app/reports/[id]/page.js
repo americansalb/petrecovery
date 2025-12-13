@@ -192,7 +192,7 @@ export default function ReportDetailPage() {
     );
   }
 
-  const { report, pet, reporter, sightings, potentialMatches, isOwner } = data;
+  const { report, pet, reporter, sightings, potentialMatches, isOwner, missionControl, rescueSquads } = data;
 
   return (
     <div style={{
@@ -366,6 +366,82 @@ export default function ReportDetailPage() {
             {report.reportType === 'LOST' ? '🚨 LOST PET' : '🎉 FOUND PET'}
           </div>
         </div>
+
+        {/* Mission Control Banner */}
+        {(missionControl || rescueSquads?.length > 0) && (
+          <Link
+            href={`/mission-control?caseId=${report.id}`}
+            style={{
+              display: 'block',
+              background: 'linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%)',
+              borderRadius: theme.radius.xl,
+              padding: '1.5rem 2rem',
+              marginBottom: '2rem',
+              textDecoration: 'none',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+              border: '2px solid rgba(255, 206, 71, 0.3)',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 8px 30px rgba(0, 0, 0, 0.2)';
+              e.currentTarget.style.borderColor = 'rgba(255, 206, 71, 0.6)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.15)';
+              e.currentTarget.style.borderColor = 'rgba(255, 206, 71, 0.3)';
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+              {/* Icon */}
+              <div style={{
+                width: '56px',
+                height: '56px',
+                background: 'linear-gradient(135deg, #FFCE47 0%, #f59e0b 100%)',
+                borderRadius: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.75rem',
+                flexShrink: 0,
+              }}>
+                🎯
+              </div>
+
+              {/* Content */}
+              <div style={{ flex: 1 }}>
+                <div style={{
+                  fontSize: '1.25rem',
+                  fontWeight: '800',
+                  color: 'white',
+                  marginBottom: '0.25rem',
+                }}>
+                  Mission Control Active
+                </div>
+                <div style={{
+                  fontSize: '0.95rem',
+                  color: 'rgba(255, 255, 255, 0.7)',
+                }}>
+                  {rescueSquads?.length > 0 ? (
+                    <>Managed by <strong style={{ color: '#FFCE47' }}>{rescueSquads.map(s => s.name).join(', ')}</strong></>
+                  ) : (
+                    'Coordinate the search effort'
+                  )}
+                </div>
+              </div>
+
+              {/* Arrow */}
+              <div style={{
+                fontSize: '1.5rem',
+                color: '#FFCE47',
+                fontWeight: 'bold',
+              }}>
+                →
+              </div>
+            </div>
+          </Link>
+        )}
 
         <div style={{
           display: 'grid',

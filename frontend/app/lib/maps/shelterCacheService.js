@@ -137,7 +137,7 @@ export async function searchSheltersWithCache(lat, lng, options = {}) {
     })).sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
 
     return {
-      places: results.slice(0, 25),
+      places: results, // Return ALL shelters, let UI handle display
       total: results.length,
       source: 'database',
       citiesSearched: citiesInRadius.length,
@@ -239,12 +239,11 @@ async function fetchAndStoreShelters(cityCache, lat, lng, type, db) {
 
     console.log('[ShelterCache] Apple Maps returned', results.length, 'results for', cityCache.city);
 
-    // Enrich top results with phone/hours from Place Details API
-    // Only enrich first 15 to avoid too many API calls
+    // Enrich ALL results with phone/hours from Place Details API
     if (results.length > 0) {
       try {
-        console.log('[ShelterCache] Enriching places with phone/hours details...');
-        results = await enrichPlacesWithDetails(results, 15);
+        console.log('[ShelterCache] Enriching', results.length, 'places with phone/hours details...');
+        results = await enrichPlacesWithDetails(results, results.length);
         console.log('[ShelterCache] Enrichment complete');
       } catch (enrichError) {
         console.warn('[ShelterCache] Enrichment failed, continuing with basic data:', enrichError.message);
@@ -286,6 +285,7 @@ async function fetchAndStoreShelters(cityCache, lat, lng, type, db) {
             hours: place.hours ? JSON.stringify(place.hours) : null,
             fetchedAt: now,
             cityCacheId: cityCache.id,
+            isActive: true, // Re-activate if previously soft-deleted
           },
         });
         storedCount++;
@@ -351,6 +351,7 @@ async function getSheltersInRadius(lat, lng, radiusMeters, type, db) {
       hours: true,
       source: true,
       fetchedAt: true,
+      appleMapKitId: true, // Include for PlaceDetail button
     },
     orderBy: {
       name: 'asc',

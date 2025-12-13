@@ -101,6 +101,11 @@ const nextConfig = {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=(self)',
           },
+          {
+            // Allow Apple Maps to render PlaceDetail component
+            key: 'Content-Security-Policy',
+            value: "frame-src 'self' https://*.apple.com https://*.apple-mapkit.com https://maps.apple.com; frame-ancestors 'self'",
+          },
         ],
       },
     ];

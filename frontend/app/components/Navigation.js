@@ -31,6 +31,8 @@ import {
   Menu,
   X,
   Settings,
+  Building2,
+  Database,
 } from 'lucide-react';
 import { Button, Badge, CountBadge } from '@/components/ui';
 import { SARAMA_AVATAR, LOGO_PRIMARY } from '@/lib/brandAssets';
@@ -107,11 +109,15 @@ export default function Navigation() {
           </Link>
 
           <div className="flex items-center gap-2">
-            <Link href="/database" className="hidden sm:flex items-center gap-2 px-4 py-2 text-midnight-300 hover:text-white font-medium text-sm rounded-lg hover:bg-midnight-800 transition">
-              <Search className="w-4 h-4" />
+            <Link href="/database" className="hidden md:flex items-center gap-2 px-4 py-2 text-midnight-300 hover:text-white font-medium text-sm rounded-lg hover:bg-midnight-800 transition">
+              <Database className="w-4 h-4" />
               Search Pets
             </Link>
-            <Link href="/rescue-squads/search" className="hidden sm:flex items-center gap-2 px-4 py-2 text-midnight-300 hover:text-white font-medium text-sm rounded-lg hover:bg-midnight-800 transition">
+            <Link href="/shelters" className="hidden lg:flex items-center gap-2 px-4 py-2 text-midnight-300 hover:text-white font-medium text-sm rounded-lg hover:bg-midnight-800 transition">
+              <Building2 className="w-4 h-4" />
+              Find Shelters
+            </Link>
+            <Link href="/rescue-squads/search" className="hidden lg:flex items-center gap-2 px-4 py-2 text-midnight-300 hover:text-white font-medium text-sm rounded-lg hover:bg-midnight-800 transition">
               <Users className="w-4 h-4" />
               Find Squads
             </Link>
@@ -160,64 +166,48 @@ export default function Navigation() {
                 <DropdownLink href="/missions" icon={ClipboardList} title="My Missions" description="Active lost/found reports" />
               </NavDropdown>
 
-              {/* Database Link - Prominent */}
-              <NavLink href="/database" active={pathname === '/database'}>
-                <Search className="w-4 h-4" />
-                Database
-              </NavLink>
-
-              {/* Squads Dropdown */}
+              {/* Search Dropdown - Database, Shelters, Squads */}
               <NavDropdown
-                label="Squads"
+                label="Search"
+                icon={Search}
+                active={pathname === '/database' || pathname.includes('/shelters') || pathname === '/rescue-squads/search'}
+                isOpen={activeDropdown === 'search'}
+                onToggle={() => toggleDropdown('search')}
+              >
+                <DropdownLink href="/database" icon={Database} title="Pet Database" description="Search lost & found pets" />
+                <DropdownLink href="/shelters" icon={Building2} title="Find Shelters" description="Animal shelters near you" />
+                <DropdownLink href="/rescue-squads/search" icon={Users} title="Find Rescue Squads" description="Volunteer groups near you" />
+              </NavDropdown>
+
+              {/* My Squads Dropdown - Only shows if user has squads */}
+              {userSquads.length > 0 && (
+              <NavDropdown
+                label="My Squads"
                 icon={Shield}
-                active={pathname.includes('/rescue-squads')}
+                active={pathname.includes('/rescue-squads') && pathname !== '/rescue-squads/search'}
                 isOpen={activeDropdown === 'squads'}
                 onToggle={() => toggleDropdown('squads')}
-                badge={userSquads.length > 0 ? userSquads.length : null}
+                badge={userSquads.length}
               >
-                <DropdownLink
-                  href="/rescue-squads/search"
-                  icon={Search}
-                  title="Find Rescue Squads"
-                  description="Join a squad near you"
-                  iconBg="bg-midnight-800"
-                />
-
-                {userSquads.length > 0 && (
-                  <>
-                    <DropdownDivider />
-                    <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
-                      My Squads
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      {userSquads.map(squad => (
-                        <Link
-                          key={squad.id}
-                          href={`/rescue-squads/${squad.id}`}
-                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-midnight-50 transition"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-midnight-900 text-white flex items-center justify-center text-sm font-bold">
-                            {squad.name?.[0] || '?'}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-midnight-900 truncate">{squad.name}</div>
-                            <div className="text-xs text-midnight-500">{squad.city}, {squad.state}</div>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                {userSquads.length === 0 && (
-                  <div className="px-4 py-4 text-center text-midnight-500 text-sm">
-                    <div className="mb-2">You haven't joined any squads yet</div>
-                    <Link href="/rescue-squads/search" className="text-midnight-900 font-semibold hover:text-flash-600">
-                      Find one near you →
+                <div className="max-h-64 overflow-y-auto">
+                  {userSquads.map(squad => (
+                    <Link
+                      key={squad.id}
+                      href={`/rescue-squads/${squad.id}`}
+                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-midnight-50 transition"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-midnight-900 text-white flex items-center justify-center text-sm font-bold">
+                        {squad.name?.[0] || '?'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-midnight-900 truncate">{squad.name}</div>
+                        <div className="text-xs text-midnight-500">{squad.city}, {squad.state}</div>
+                      </div>
                     </Link>
-                  </div>
-                )}
+                  ))}
+                </div>
               </NavDropdown>
+              )}
 
               {/* Admin Dropdown */}
               {session?.user?.role === 'ADMIN' && (
@@ -230,6 +220,7 @@ export default function Navigation() {
                 >
                   <DropdownLink href="/admin" icon={BarChart3} title="Dashboard" description="Overview & stats" />
                   <DropdownLink href="/admin/users" icon={Users} title="Users" description="Manage all users" />
+                  <DropdownLink href="/admin/pets" icon={PawPrint} title="Pets" description="All pet profiles" />
                   <DropdownLink href="/admin/rescue-squads" icon={Shield} title="Rescue Squads" description="Manage squads" />
                   <DropdownLink href="/admin/divisions" icon={MapPin} title="Divisions" description="Geographic areas" />
                   <DropdownLink href="/admin/missions" icon={ClipboardList} title="Missions" description="All lost pet missions" />
@@ -380,17 +371,19 @@ export default function Navigation() {
           <MobileNavLink href="/dashboard" icon={Home} label="Dashboard" active={pathname === '/dashboard'} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/pets" icon={PawPrint} label="My Pets" active={pathname.startsWith('/pets')} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/missions" icon={ClipboardList} label="My Missions" active={pathname.startsWith('/cases')} onClick={() => setMobileMenuOpen(false)} />
-          <MobileNavLink href="/database" icon={Search} label="Search Database" active={pathname === '/database'} onClick={() => setMobileMenuOpen(false)} />
 
           <div className="border-t border-midnight-100 my-2" />
           <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
-            Rescue Squads
+            Search
           </div>
 
-          <MobileNavLink href="/rescue-squads/search" icon={Search} label="Find Squads" active={pathname === '/rescue-squads/search'} onClick={() => setMobileMenuOpen(false)} />
+          <MobileNavLink href="/database" icon={Database} label="Pet Database" active={pathname === '/database'} onClick={() => setMobileMenuOpen(false)} />
+          <MobileNavLink href="/shelters" icon={Building2} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
+          <MobileNavLink href="/rescue-squads/search" icon={Users} label="Find Rescue Squads" active={pathname === '/rescue-squads/search'} onClick={() => setMobileMenuOpen(false)} />
 
           {userSquads.length > 0 && (
             <>
+              <div className="border-t border-midnight-100 my-2" />
               <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
                 My Squads
               </div>
@@ -421,6 +414,7 @@ export default function Navigation() {
               </div>
               <MobileNavLink href="/admin" icon={BarChart3} label="Admin Dashboard" active={pathname === '/admin'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/admin/users" icon={Users} label="Manage Users" active={pathname === '/admin/users'} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/admin/pets" icon={PawPrint} label="Manage Pets" active={pathname === '/admin/pets'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/admin/rescue-squads" icon={Shield} label="Manage Squads" active={pathname === '/admin/rescue-squads'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/admin/divisions" icon={MapPin} label="Manage Divisions" active={pathname === '/admin/divisions'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/admin/missions" icon={ClipboardList} label="Manage Missions" active={pathname === '/admin/missions'} onClick={() => setMobileMenuOpen(false)} />

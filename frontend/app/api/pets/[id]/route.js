@@ -220,7 +220,7 @@ export async function DELETE(request, { params }) {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true }
+      select: { id: true, role: true }
     });
 
     if (!user) {
@@ -228,6 +228,7 @@ export async function DELETE(request, { params }) {
     }
 
     const { id } = await params;
+    const isAdmin = user.role === 'ADMIN';
 
     const existingPet = await prisma.pet.findUnique({
       where: { id, isDeleted: false },
@@ -244,15 +245,29 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Pet not found' }, { status: 404 });
     }
 
-    if (existingPet.ownerId !== user.id) {
+    // Check ownership (admins can delete any pet)
+    if (existingPet.ownerId !== user.id && !isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    // Check for active cases
-    if (existingPet.cases.length > 0) {
+    // Check for active cases (admins can bypass this)
+    if (existingPet.cases.length > 0 && !isAdmin) {
       return NextResponse.json({
         error: 'Cannot delete pet with active cases. Please close active cases first.'
       }, { status: 400 });
+    }
+
+    // If admin is force-deleting a pet with active cases, close those cases first
+    if (existingPet.cases.length > 0 && isAdmin) {
+      await prisma.case.updateMany({
+        where: { petId: id, status: { in: ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'] } },
+        data: {
+          status: 'CLOSED_OTHER',
+          resolution: 'SEARCH_CEASED',
+          resolutionNotes: 'Closed by admin when deleting pet',
+          resolvedAt: new Date(),
+        }
+      });
     }
 
     // Soft delete - set isDeleted flag instead of hard delete
@@ -271,6 +286,7 @@ export async function DELETE(request, { params }) {
         petId: id,
         petName: existingPet.name,
         softDelete: true,
+        deletedByAdmin: isAdmin && existingPet.ownerId !== user.id,
       }
     });
 

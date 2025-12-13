@@ -47,6 +47,13 @@ export async function POST(request) {
     if (action === 'delete') {
       // Bulk delete
       await prisma.$transaction(async (tx) => {
+        // Get the petIds associated with these cases (for cleanup)
+        const casesWithPets = await tx.case.findMany({
+          where: { id: { in: ids } },
+          select: { petId: true }
+        });
+        const petIds = [...new Set(casesWithPets.map(c => c.petId).filter(Boolean))];
+
         // Delete related records first
         await tx.caseParticipant.deleteMany({
           where: { assignment: { missionId: { in: ids } } }
@@ -74,6 +81,27 @@ export async function POST(request) {
         });
 
         result.affected = deleted.count;
+
+        // Soft-delete any pets that now have no cases
+        if (petIds.length > 0) {
+          // Find pets with no remaining cases
+          const petsWithCases = await tx.pet.findMany({
+            where: { id: { in: petIds }, isDeleted: false },
+            include: { cases: { select: { id: true } } }
+          });
+
+          const orphanedPetIds = petsWithCases
+            .filter(p => p.cases.length === 0)
+            .map(p => p.id);
+
+          if (orphanedPetIds.length > 0) {
+            await tx.pet.updateMany({
+              where: { id: { in: orphanedPetIds } },
+              data: { isDeleted: true, deletedAt: new Date() }
+            });
+            result.petsDeleted = orphanedPetIds.length;
+          }
+        }
       });
 
       await logEvent({

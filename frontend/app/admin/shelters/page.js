@@ -26,6 +26,9 @@ import {
   ExternalLink,
   Database,
   Mail,
+  CheckSquare,
+  Square,
+  AlertTriangle,
 } from 'lucide-react';
 
 const SHELTER_TYPES = [
@@ -52,6 +55,11 @@ export default function AdminSheltersPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [syncLocation, setSyncLocation] = useState('');
+  const [syncing, setSyncing] = useState(false);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -135,6 +143,122 @@ export default function AdminSheltersPage() {
     }
   };
 
+  const handleSelectAll = () => {
+    if (selectedIds.size === shelters.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(shelters.map(s => s.id)));
+    }
+  };
+
+  const handleSelectOne = (id) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    if (!confirm(`Are you sure you want to delete ${selectedIds.size} selected shelter(s)?`)) return;
+
+    setBulkLoading(true);
+    try {
+      const response = await fetch('/api/admin/shelters', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete shelters');
+      }
+
+      alert(`Successfully deleted ${data.deletedCount} shelter(s)`);
+      setSelectedIds(new Set());
+      fetchShelters();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!confirm('⚠️ WARNING: This will delete ALL shelters from the database. Are you sure?')) return;
+    if (!confirm('This action cannot be undone easily. Type "DELETE ALL" in the next prompt to confirm.')) return;
+
+    const confirmation = prompt('Type "DELETE ALL" to confirm:');
+    if (confirmation !== 'DELETE ALL') {
+      alert('Deletion cancelled.');
+      return;
+    }
+
+    setBulkLoading(true);
+    try {
+      const response = await fetch('/api/admin/shelters', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all: true }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete shelters');
+      }
+
+      alert(`Successfully deleted ${data.deletedCount} shelter(s)`);
+      setSelectedIds(new Set());
+      fetchShelters();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleSync = async () => {
+    if (!syncLocation.trim()) {
+      alert('Please enter a location (e.g., "Los Angeles, CA" or "90210")');
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const response = await fetch('/api/admin/shelters/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: syncLocation.trim(),
+          radius: 50,
+          syncType: 'shelters',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Sync failed');
+      }
+
+      alert(`Sync complete! Found ${data.results?.shelters?.count || 0} shelters near ${syncLocation}`);
+      setShowSyncModal(false);
+      setSyncLocation('');
+      fetchShelters();
+    } catch (err) {
+      alert('Sync error: ' + err.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (status === 'loading' || (session?.user?.role === 'ADMIN' && loading && !shelters.length)) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -164,14 +288,42 @@ export default function AdminSheltersPage() {
                 Shelter Database
               </h1>
             </div>
-            <button
-              onClick={fetchShelters}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
+            <div className="flex items-center gap-3">
+              {selectedIds.size > 0 && (
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={bulkLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Selected ({selectedIds.size})
+                </button>
+              )}
+              <button
+                onClick={handleDeleteAll}
+                disabled={bulkLoading || loading}
+                className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 disabled:opacity-50"
+              >
+                <AlertTriangle className="w-4 h-4" />
+                Delete All
+              </button>
+              <button
+                onClick={() => setShowSyncModal(true)}
+                disabled={syncing}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+              >
+                <MapPin className="w-4 h-4" />
+                Sync New Data
+              </button>
+              <button
+                onClick={fetchShelters}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -317,6 +469,19 @@ export default function AdminSheltersPage() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <button
+                      onClick={handleSelectAll}
+                      className="flex items-center gap-2 hover:text-gray-700"
+                      disabled={shelters.length === 0}
+                    >
+                      {selectedIds.size === shelters.length && shelters.length > 0 ? (
+                        <CheckSquare className="w-4 h-4 text-blue-600" />
+                      ) : (
+                        <Square className="w-4 h-4" />
+                      )}
+                    </button>
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shelter</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
@@ -331,7 +496,19 @@ export default function AdminSheltersPage() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {shelters.map((shelter) => (
-                  <tr key={shelter.id} className="hover:bg-gray-50">
+                  <tr key={shelter.id} className={`hover:bg-gray-50 ${selectedIds.has(shelter.id) ? 'bg-blue-50' : ''}`}>
+                    <td className="px-4 py-4">
+                      <button
+                        onClick={() => handleSelectOne(shelter.id)}
+                        className="flex items-center"
+                      >
+                        {selectedIds.has(shelter.id) ? (
+                          <CheckSquare className="w-4 h-4 text-blue-600" />
+                        ) : (
+                          <Square className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+                        )}
+                      </button>
+                    </td>
                     <td className="px-4 py-4">
                       <div className="font-medium text-gray-900">{shelter.name}</div>
                       {shelter.hours && (
@@ -431,7 +608,7 @@ export default function AdminSheltersPage() {
 
                 {shelters.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={10} className="px-4 py-12 text-center text-gray-500 whitespace-normal">
+                    <td colSpan={11} className="px-4 py-12 text-center text-gray-500 whitespace-normal">
                       <Building2 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                       <p>No shelters found</p>
                       <p className="text-sm mt-1">Shelters are added when users search on the Find Shelters page</p>
@@ -468,6 +645,59 @@ export default function AdminSheltersPage() {
           )}
         </div>
       </div>
+
+      {/* Sync Modal */}
+      {showSyncModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-emerald-600" />
+              Sync Shelter Data
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Enter a location to fetch fresh shelter data from Apple Maps. This will add new shelters to your database.
+            </p>
+            <input
+              type="text"
+              value={syncLocation}
+              onChange={(e) => setSyncLocation(e.target.value)}
+              placeholder="e.g., Los Angeles, CA or 90210"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 mb-4"
+              onKeyDown={(e) => e.key === 'Enter' && handleSync()}
+              autoFocus
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowSyncModal(false);
+                  setSyncLocation('');
+                }}
+                disabled={syncing}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSync}
+                disabled={syncing || !syncLocation.trim()}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {syncing ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    Sync Data
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

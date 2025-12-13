@@ -1,11 +1,13 @@
 'use client';
 
 /**
- * Global Loading Component - Phase 0.3
+ * Global Loading Component
  *
  * Shows while page content is loading.
  * This is a Next.js convention for loading states.
  */
+
+import { SARAMA_AVATAR } from '@/lib/brandAssets';
 
 export default function Loading() {
   return (
@@ -20,21 +22,24 @@ export default function Loading() {
       <div style={{
         textAlign: 'center',
       }}>
-        {/* Animated paw print */}
-        <div style={{
-          fontSize: '3rem',
-          marginBottom: '1rem',
-          animation: 'pulse 1.5s ease-in-out infinite',
-        }}>
-          &#128062;
-        </div>
+        {/* Sarama mascot */}
+        <img
+          src={SARAMA_AVATAR}
+          alt="Sarama"
+          style={{
+            width: '64px',
+            height: '64px',
+            marginBottom: '1rem',
+            animation: 'pulse 1.5s ease-in-out infinite',
+          }}
+        />
 
         {/* Spinner */}
         <div style={{
           width: '40px',
           height: '40px',
           border: '3px solid #e5e7eb',
-          borderTop: '3px solid #2563eb',
+          borderTop: '3px solid #FFCE47',
           borderRadius: '50%',
           margin: '0 auto 1rem',
           animation: 'spin 1s linear infinite',
@@ -53,8 +58,8 @@ export default function Loading() {
             to { transform: rotate(360deg); }
           }
           @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(0.95); }
           }
         `}</style>
       </div>
