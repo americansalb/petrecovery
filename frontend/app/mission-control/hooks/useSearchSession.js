@@ -80,12 +80,17 @@ function getTransportInfo(method) {
 
 /**
  * Validate movement between two pings
+ * Also detects GPS glitches (teleportation) when connection drops
  */
 function validateMovement(prevPing, currentPing) {
-  if (!prevPing) return { valid: true, distance: 0, speed: 0 };
+  if (!prevPing) return { valid: true, distance: 0, speed: 0, isGpsGlitch: false };
 
   const timeDeltaHours = (currentPing.timestamp - prevPing.timestamp) / 3600000;
-  if (timeDeltaHours <= 0) return { valid: false, reason: 'INVALID_TIME', distance: 0, speed: 0 };
+  const timeDeltaSeconds = (currentPing.timestamp - prevPing.timestamp) / 1000;
+
+  if (timeDeltaHours <= 0) {
+    return { valid: false, reason: 'INVALID_TIME', distance: 0, speed: 0, isGpsGlitch: false };
+  }
 
   const distance = haversineDistance(
     prevPing.latitude,
@@ -96,15 +101,26 @@ function validateMovement(prevPing, currentPing) {
 
   const speed = distance / timeDeltaHours;
 
+  // GPS glitch detection: If moved > 0.2 miles in < 30 seconds, it's a GPS jump
+  // (0.2 miles in 30 seconds = 24 mph, impossible for walking)
+  if (distance > 0.2 && timeDeltaSeconds < 30) {
+    return { valid: false, reason: 'GPS_GLITCH', distance, speed, isGpsGlitch: true };
+  }
+
+  // Also check for poor GPS accuracy (> 100 meters = unreliable)
+  if (currentPing.accuracy && currentPing.accuracy > 100) {
+    return { valid: false, reason: 'LOW_ACCURACY', distance, speed, isGpsGlitch: true };
+  }
+
   if (speed > CONFIG.MAX_WALKING_SPEED_MPH) {
-    return { valid: false, reason: 'DRIVING', distance, speed };
+    return { valid: false, reason: 'DRIVING', distance, speed, isGpsGlitch: false };
   }
 
   if (speed < CONFIG.MIN_MOVEMENT_SPEED_MPH && distance < 0.001) {
-    return { valid: false, reason: 'STATIONARY', distance: 0, speed: 0 };
+    return { valid: false, reason: 'STATIONARY', distance: 0, speed: 0, isGpsGlitch: false };
   }
 
-  return { valid: true, distance, speed };
+  return { valid: true, distance, speed, isGpsGlitch: false };
 }
 
 export default function useSearchSession(missionId, lastSeenLocation) {
@@ -265,6 +281,13 @@ export default function useSearchSession(missionId, lastSeenLocation) {
       lastWarning: !inZone ? 'OUTSIDE_ZONE' :
                    movementValidation.reason === 'DRIVING' ? 'DRIVING' : null,
     });
+
+    // Skip GPS glitches entirely - don't add them to the visual path
+    // This prevents "teleportation" lines when connection drops and reconnects
+    if (movementValidation.isGpsGlitch) {
+      console.log('GPS glitch detected, skipping point:', movementValidation.reason);
+      return; // Don't add to path, don't update stats, don't send to server
+    }
 
     // Add to path with timestamp for duration calculation
     setPath(prev => [...prev, {
