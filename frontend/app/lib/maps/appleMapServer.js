@@ -140,7 +140,21 @@ async function appleMapsFetch(endpoint, params = {}) {
 
   const responseText = await response.text();
   console.log('[AppleMapsServer] <<< RESPONSE STATUS:', response.status);
-  console.log('[AppleMapsServer] <<< RESPONSE BODY (first 2000 chars):', responseText.substring(0, 2000));
+  console.log('[AppleMapsServer] <<< RESPONSE BODY (first 5000 chars):', responseText.substring(0, 5000));
+
+  // DEBUG: Check for hours-related fields in response
+  const hoursKeywords = ['hour', 'open', 'close', 'schedule', 'operation', 'time'];
+  for (const keyword of hoursKeywords) {
+    if (responseText.toLowerCase().includes(keyword)) {
+      console.log(`[AppleMapsServer] FOUND "${keyword}" in response!`);
+      // Find and log the context around the keyword
+      const lowerText = responseText.toLowerCase();
+      const idx = lowerText.indexOf(keyword);
+      if (idx !== -1) {
+        console.log(`[AppleMapsServer] Context: ...${responseText.substring(Math.max(0, idx - 50), idx + 100)}...`);
+      }
+    }
+  }
 
   if (!response.ok) {
     console.error('[AppleMapsServer] API error:', response.status, responseText);
