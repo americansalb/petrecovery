@@ -339,6 +339,66 @@ export async function searchPlaceDetails(name, latitude, longitude) {
                 return;
               }
 
+              // DEBUG: Log ALL properties on the Place object to find hours
+              if (fullPlace) {
+                console.log('[MapKit DEBUG] ========== FULL PLACE OBJECT INSPECTION ==========');
+                console.log('[MapKit DEBUG] Place name:', fullPlace.name);
+
+                // Get all own properties
+                const ownKeys = Object.keys(fullPlace);
+                console.log('[MapKit DEBUG] Own keys:', JSON.stringify(ownKeys));
+
+                // Get all properties including prototype chain
+                const allProps = [];
+                for (let key in fullPlace) {
+                  allProps.push(key);
+                }
+                console.log('[MapKit DEBUG] All enumerable props:', JSON.stringify(allProps));
+
+                // Get property names using Object.getOwnPropertyNames
+                try {
+                  const propNames = Object.getOwnPropertyNames(fullPlace);
+                  console.log('[MapKit DEBUG] getOwnPropertyNames:', JSON.stringify(propNames));
+                } catch (e) {}
+
+                // Log each property value
+                for (const key of ownKeys) {
+                  try {
+                    const val = fullPlace[key];
+                    const valType = typeof val;
+                    if (valType === 'function') {
+                      console.log(`[MapKit DEBUG] ${key}: [function]`);
+                    } else if (valType === 'object' && val !== null) {
+                      console.log(`[MapKit DEBUG] ${key}:`, JSON.stringify(val).substring(0, 200));
+                    } else {
+                      console.log(`[MapKit DEBUG] ${key}:`, val);
+                    }
+                  } catch (e) {
+                    console.log(`[MapKit DEBUG] ${key}: [error reading]`);
+                  }
+                }
+
+                // Specifically check for hours-related properties (case insensitive)
+                const hoursKeywords = ['hour', 'open', 'close', 'time', 'schedule', 'operation'];
+                for (const key of ownKeys) {
+                  const lowerKey = key.toLowerCase();
+                  for (const keyword of hoursKeywords) {
+                    if (lowerKey.includes(keyword)) {
+                      console.log(`[MapKit DEBUG] POSSIBLE HOURS FIELD: ${key} =`, fullPlace[key]);
+                    }
+                  }
+                }
+
+                // Check for underscore-prefixed private properties
+                for (const key of ownKeys) {
+                  if (key.startsWith('_')) {
+                    console.log(`[MapKit DEBUG] PRIVATE PROP ${key}:`, fullPlace[key]);
+                  }
+                }
+
+                console.log('[MapKit DEBUG] ========== END INSPECTION ==========');
+              }
+
               // Try to get hours by rendering PlaceDetail and extracting from DOM
               let hoursFromCard = null;
               if (mapkit.PlaceDetail && fullPlace) {
