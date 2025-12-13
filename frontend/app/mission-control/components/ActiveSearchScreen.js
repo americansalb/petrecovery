@@ -173,16 +173,15 @@ export default function ActiveSearchScreen({
       <div className="flex-1 relative">
         <SARMapView
           center={mapCenter}
-          zoom={17}
           lastSeen={mission?.lastSeenLatitude ? {
             lat: mission.lastSeenLatitude,
             lng: mission.lastSeenLongitude,
             address: mission.lastSeenAddress,
           } : null}
           gpsPath={path}
-          showUserLocation={true}
           petSpecies={mission?.petSpecies}
           showControls={false}
+          showLegend={false}
           interactive={true}
         />
 

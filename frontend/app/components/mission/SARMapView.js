@@ -109,12 +109,9 @@ export default function SARMapView({
     };
   }, []);
 
-  // Update map center when it changes
-  useEffect(() => {
-    if (mapInstance.current && center) {
-      mapInstance.current.setView(center, 15);
-    }
-  }, [center]);
+  // Note: We intentionally don't auto-pan on center changes during GPS tracking
+  // This was causing constant zooming/panning. Users can manually pan the map.
+  // Initial center is set during map initialization above.
 
   // Handle layer switching
   useEffect(() => {
@@ -433,8 +430,8 @@ export default function SARMapView({
         .addTo(mapInstance.current);
       gpsLayersRef.current.push(endMarker);
 
-      // Fit bounds to show entire GPS path
-      mapInstance.current.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+      // Note: We don't fitBounds here to avoid constant zooming during active tracking
+      // Users can manually pan/zoom. The map stays centered on last seen location.
     }
 
     // Add search coverage heatmap
