@@ -335,43 +335,8 @@ export async function searchPlaceDetails(name, latitude, longitude) {
             lookup.getPlace(place.id, (lookupError, fullPlace) => {
               if (lookupError) {
                 console.error('[MapKit PlaceLookup] Error:', lookupError);
-                // Fall back to search result data
                 resolve(extractPlaceDetails(place));
                 return;
-              }
-
-              // Try to get extended data via PlaceDetail
-              if (mapkit.PlaceDetail && fullPlace) {
-                try {
-                  // Create a hidden div to render PlaceDetail
-                  const hiddenDiv = document.createElement('div');
-                  hiddenDiv.style.display = 'none';
-                  document.body.appendChild(hiddenDiv);
-
-                  const detail = new mapkit.PlaceDetail(hiddenDiv, fullPlace, {});
-                  console.log('[MapKit PlaceDetail] Created:', detail);
-                  console.log('[MapKit PlaceDetail] place:', detail.place);
-                  console.log('[MapKit PlaceDetail] place keys:', Object.keys(detail.place || {}));
-
-                  // Check for hours on the detail's place object
-                  if (detail.place) {
-                    console.log('[MapKit PlaceDetail] place.hours:', detail.place.hours);
-                    console.log('[MapKit PlaceDetail] place.openingHours:', detail.place.openingHours);
-                    // Try all possible property names
-                    for (const key of Object.keys(detail.place)) {
-                      if (key.toLowerCase().includes('hour')) {
-                        console.log(`[MapKit PlaceDetail] FOUND HOURS: ${key} =`, detail.place[key]);
-                      }
-                    }
-                  }
-
-                  // Clean up
-                  setTimeout(() => {
-                    document.body.removeChild(hiddenDiv);
-                  }, 1000);
-                } catch (e) {
-                  console.error('[MapKit PlaceDetail] Error:', e);
-                }
               }
 
               resolve(extractPlaceDetails(fullPlace || place));
