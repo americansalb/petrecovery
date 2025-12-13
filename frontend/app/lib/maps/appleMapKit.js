@@ -464,91 +464,92 @@ export async function searchPlaceDetails(name, latitude, longitude) {
 
 /**
  * Extract hours from PlaceDetail by rendering it and scraping the DOM
+ * Note: Based on testing, MapKit JS Place objects do NOT include hours as a property.
+ * Hours are only available when PlaceDetail renders as a UI component.
  */
 async function extractHoursFromPlaceDetail(mapkit, place) {
   return new Promise((resolve) => {
     try {
-      // Create a container for PlaceDetail
-      // Must be visible (but can be transparent) for iframe to render
+      // Debug: Check what PlaceDetail actually is
+      console.log('[PlaceDetail] mapkit.PlaceDetail type:', typeof mapkit.PlaceDetail);
+      console.log('[PlaceDetail] mapkit.PlaceDetail.ColorSchemes:', mapkit.PlaceDetail?.ColorSchemes);
+
+      if (!mapkit.PlaceDetail) {
+        console.log('[PlaceDetail] PlaceDetail API not available in this MapKit version');
+        resolve(null);
+        return;
+      }
+
+      // Create a visible container - PlaceDetail requires visibility
       const container = document.createElement('div');
       container.id = 'mapkit-place-detail-' + Date.now();
-      // Position at bottom right corner, small size, low z-index, nearly invisible
+      // Use transform to move off-screen while keeping it "visible" to the renderer
       container.style.cssText = `
         position: fixed;
-        bottom: 0;
-        right: 0;
+        top: 100px;
+        left: 100px;
         width: 400px;
         height: 600px;
-        z-index: -9999;
-        opacity: 0.01;
-        pointer-events: none;
-        overflow: hidden;
+        z-index: 99999;
+        background: white;
+        border: 2px solid red;
+        transform: translateX(-10000px);
       `;
       document.body.appendChild(container);
 
-      console.log('[PlaceDetail] Creating for:', place.name, 'with place ID:', place.id || place.muid);
+      console.log('[PlaceDetail] Creating for:', place.name);
+      console.log('[PlaceDetail] Place ID:', place.id);
+      console.log('[PlaceDetail] Container in DOM:', document.body.contains(container));
 
       // Create PlaceDetail
-      const detail = new mapkit.PlaceDetail(container, place, {
-        colorScheme: mapkit.PlaceDetail.ColorSchemes.Light,
-      });
+      let detail;
+      try {
+        detail = new mapkit.PlaceDetail(container, place, {
+          colorScheme: mapkit.PlaceDetail.ColorSchemes.Light,
+        });
+        console.log('[PlaceDetail] Created instance:', !!detail);
+      } catch (err) {
+        console.error('[PlaceDetail] Constructor error:', err);
+        document.body.removeChild(container);
+        resolve(null);
+        return;
+      }
 
-      console.log('[PlaceDetail] Instance created, waiting for content to load...');
+      // Check immediately
+      console.log('[PlaceDetail] Immediate innerHTML length:', container.innerHTML.length);
 
-      // Use MutationObserver to detect when content is added
-      let resolved = false;
-      const observer = new MutationObserver((mutations) => {
-        if (resolved) return;
-
-        const html = container.innerHTML;
-        console.log('[PlaceDetail] Content changed, HTML length:', html.length);
-
-        // Check if we have meaningful content (more than just wrapper divs)
-        if (html.length > 500) {
-          resolved = true;
-          observer.disconnect();
-          const hours = extractHoursFromHTML(container, html);
-          cleanup();
-          resolve(hours);
-        }
-      });
-
-      observer.observe(container, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-      });
-
-      const cleanup = () => {
-        try {
-          observer.disconnect();
-          document.body.removeChild(container);
-        } catch (e) {}
-      };
-
-      // Fallback: try after 3 seconds even if observer didn't trigger
+      // Check after short delay
       setTimeout(() => {
-        if (resolved) return;
-        resolved = true;
-        observer.disconnect();
+        console.log('[PlaceDetail] After 500ms - innerHTML:', container.innerHTML.length);
+        console.log('[PlaceDetail] After 500ms - children:', container.children.length);
+        if (container.children.length > 0) {
+          console.log('[PlaceDetail] First child:', container.children[0].tagName);
+        }
+      }, 500);
 
+      // Give it time to render
+      setTimeout(() => {
         const html = container.innerHTML;
-        console.log('[PlaceDetail] Timeout reached, HTML length:', html.length);
-        console.log('[PlaceDetail] HTML sample:', html.substring(0, 500));
+        console.log('[PlaceDetail] Final check - HTML length:', html.length);
 
-        if (html.length > 100) {
+        if (html.length > 0) {
+          console.log('[PlaceDetail] HTML preview:', html.substring(0, 500));
           const hours = extractHoursFromHTML(container, html);
-          cleanup();
+          document.body.removeChild(container);
           resolve(hours);
         } else {
-          console.log('[PlaceDetail] No content rendered - PlaceDetail may not be available for this place');
-          cleanup();
+          console.log('[PlaceDetail] No content rendered');
+          // Check if there's a shadow DOM
+          if (container.shadowRoot) {
+            console.log('[PlaceDetail] Has shadow root!');
+          }
+          document.body.removeChild(container);
           resolve(null);
         }
-      }, 3000);
+      }, 4000);
 
     } catch (e) {
-      console.error('[PlaceDetail] Creation error:', e);
+      console.error('[PlaceDetail] Error:', e);
       resolve(null);
     }
   });
