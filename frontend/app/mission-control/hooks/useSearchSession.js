@@ -296,10 +296,11 @@ export default function useSearchSession(missionId, lastSeenLocation) {
 
     // Update distance stats and rolling speed
     setStats(prev => {
-      // Add new speed to recent speeds
+      // Add new speed to recent speeds (with safeguard for undefined)
       const now = Date.now();
+      const previousSpeeds = prev.recentSpeeds || [];
       const newSpeeds = [
-        ...prev.recentSpeeds.filter(s => now - s.timestamp < 30000), // Keep last 30 seconds
+        ...previousSpeeds.filter(s => now - s.timestamp < 30000), // Keep last 30 seconds
         { speed: movementValidation.speed, timestamp: now }
       ];
 
@@ -451,6 +452,9 @@ export default function useSearchSession(missionId, lastSeenLocation) {
         validatedDistanceMiles: 0,
         estimatedPoints: 0,
         gridCellsCovered: 0,
+        recentSpeeds: [],
+        avgSpeed30s: 0,
+        transportMethod: 'stationary',
       });
       setPath([{ lat: latitude, lng: longitude, valid: inZone, timestamp: Date.now(), speed: 0, distance: 0 }]);
       visitedCellsRef.current = new Set();
@@ -568,6 +572,9 @@ export default function useSearchSession(missionId, lastSeenLocation) {
       validatedDistanceMiles: 0,
       estimatedPoints: 0,
       gridCellsCovered: 0,
+      recentSpeeds: [],
+      avgSpeed30s: 0,
+      transportMethod: 'stationary',
     });
     setPath([]);
   }, [session?.id, missionId]);
