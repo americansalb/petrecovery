@@ -396,6 +396,37 @@ export async function searchPlaceDetails(name, latitude, longitude) {
                   }
                 }
 
+                // Specifically check known iOS private property names that might exist in JS
+                const knownHoursProps = [
+                  '_businessHours', 'businessHours', '_messageBusinessHours',
+                  '_openingHoursOptions', 'openingHoursOptions',
+                  '_hours', 'hours', '_openingHours', 'openingHours',
+                  '_hoursOfOperation', 'hoursOfOperation',
+                  '_schedule', 'schedule', '_operatingHours', 'operatingHours',
+                  '_isOpen', 'isOpen', '_open', 'open',
+                  '_openNow', 'openNow', '_currentlyOpen', 'currentlyOpen'
+                ];
+                console.log('[MapKit DEBUG] Checking known hours properties:');
+                for (const prop of knownHoursProps) {
+                  try {
+                    const val = fullPlace[prop];
+                    if (val !== undefined) {
+                      console.log(`[MapKit DEBUG] FOUND ${prop}:`, val);
+                    }
+                  } catch (e) {}
+                }
+
+                // Try to access via prototype
+                if (fullPlace.__proto__) {
+                  const protoKeys = Object.getOwnPropertyNames(fullPlace.__proto__);
+                  console.log('[MapKit DEBUG] Prototype keys:', JSON.stringify(protoKeys.slice(0, 50)));
+                  for (const prop of knownHoursProps) {
+                    if (protoKeys.includes(prop)) {
+                      console.log(`[MapKit DEBUG] PROTO ${prop}:`, fullPlace[prop]);
+                    }
+                  }
+                }
+
                 console.log('[MapKit DEBUG] ========== END INSPECTION ==========');
               }
 
