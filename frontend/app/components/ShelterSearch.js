@@ -29,30 +29,23 @@ function PlaceDetailModal({ placeId, placeName, onClose }) {
         const mapkit = await initializeMapKit();
         if (!mounted) return;
 
-        console.log('[PlaceDetailModal] Looking up place:', placeId);
-
         const lookup = new mapkit.PlaceLookup();
         lookup.getPlace(placeId, (lookupError, place) => {
           if (!mounted) return;
 
           if (lookupError) {
-            console.error('[PlaceDetailModal] Lookup error:', lookupError);
             setError('Could not load place details');
             setLoading(false);
             return;
           }
-
-          console.log('[PlaceDetailModal] Got place:', place?.name);
 
           if (mapkit.PlaceDetail && containerRef.current) {
             try {
               new mapkit.PlaceDetail(containerRef.current, place, {
                 colorScheme: mapkit.PlaceDetail.ColorSchemes.Adaptive,
               });
-              console.log('[PlaceDetailModal] PlaceDetail rendered');
               setLoading(false);
             } catch (e) {
-              console.error('[PlaceDetailModal] Render error:', e);
               setError('Could not display place card');
               setLoading(false);
             }
@@ -62,7 +55,6 @@ function PlaceDetailModal({ placeId, placeName, onClose }) {
           }
         });
       } catch (err) {
-        console.error('[PlaceDetailModal] Init error:', err);
         if (mounted) {
           setError('Failed to load details');
           setLoading(false);
@@ -180,10 +172,9 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
       if (initialShelters.length > 0) {
         setEnriching(true);
         try {
-          // Enrich ALL returned shelters (not just 15) to maximize data capture
+          // Enrich ALL returned shelters to maximize data capture
           const enrichedShelters = await enrichSheltersWithDetails(initialShelters, initialShelters.length);
           setShelters(enrichedShelters);
-          console.log('[ShelterSearch] Enriched shelters:', enrichedShelters);
 
           // Save enriched data back to database so we don't waste API calls next time
           const sheltersToSave = enrichedShelters
@@ -197,22 +188,15 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
               name: s.name,
             }));
 
-          console.log('[ShelterSearch] Shelters with data to save:', sheltersToSave.length);
-          if (sheltersToSave.length > 0) {
-            console.log('[ShelterSearch] First shelter to save:', JSON.stringify(sheltersToSave[0]));
-          }
-
           if (sheltersToSave.length > 0) {
             try {
-              const enrichRes = await fetch('/api/shelters/enrich', {
+              await fetch('/api/shelters/enrich', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ shelters: sheltersToSave }),
               });
-              const enrichResult = await enrichRes.json();
-              console.log('[ShelterSearch] Enrich save result:', enrichRes.status, enrichResult);
             } catch (saveErr) {
-              console.error('[ShelterSearch] Enrich save error:', saveErr);
+              // Silently fail - enrichment save is best-effort
             }
           }
         } catch (enrichErr) {
