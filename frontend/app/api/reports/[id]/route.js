@@ -31,6 +31,20 @@ export async function GET(request, { params }) {
           }
         },
         missionControl: true,
+        caseAssignments: {
+          where: {
+            status: { in: ['ACCEPTED', 'ACTIVE'] }
+          },
+          include: {
+            rescueSquad: {
+              select: {
+                id: true,
+                name: true,
+                avatarUrl: true,
+              }
+            }
+          }
+        }
       }
     });
 
@@ -157,6 +171,12 @@ export async function GET(request, { params }) {
       potentialMatches, // Empty array for LOST pets, populated for FOUND pets
       isOwner,
       missionControl: report.missionControl,
+      rescueSquads: report.caseAssignments?.map(a => ({
+        id: a.rescueSquad.id,
+        name: a.rescueSquad.name,
+        avatarUrl: a.rescueSquad.avatarUrl,
+        status: a.status,
+      })) || [],
     }, { status: 200 });
 
   } catch (error) {
