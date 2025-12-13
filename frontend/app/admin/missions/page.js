@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * Admin Cases List Page
+ * Admin Missions List Page
  * Phase 13-14: Lost Pet Missions MVP (TASK-C03)
  *
- * List of all lost pet cases with filters and bulk actions
+ * List of all lost pet missions with filters and bulk actions
  */
 
 import { useState, useEffect } from 'react';
@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { isAdmin } from '@/app/lib/permissions';
 
-export default function AdminCasesPage() {
+export default function AdminMissionsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -45,7 +45,7 @@ export default function AdminCasesPage() {
     }
   }, [status, session, router]);
 
-  // Fetch cases
+  // Fetch missions
   useEffect(() => {
     if (status === 'authenticated' && isAdmin(session)) {
       fetchMissions();
@@ -78,7 +78,7 @@ export default function AdminCasesPage() {
           });
           return;
         }
-        throw new Error(data.error || 'Failed to fetch cases');
+        throw new Error(data.error || 'Failed to fetch missions');
       }
 
       setCases(data.cases || []);
@@ -127,7 +127,7 @@ export default function AdminCasesPage() {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to delete cases');
+        throw new Error(data.error || 'Failed to delete missions');
       }
 
       setShowDeleteConfirm(false);
@@ -157,7 +157,7 @@ export default function AdminCasesPage() {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to update cases');
+        throw new Error(data.error || 'Failed to update missions');
       }
 
       setBulkStatusChange('');
@@ -169,7 +169,7 @@ export default function AdminCasesPage() {
     }
   };
 
-  // Single case delete handler
+  // Single mission delete handler
   const handleSingleDelete = async (id) => {
     if (!id) return;
     setDeletingId(id);
@@ -182,7 +182,7 @@ export default function AdminCasesPage() {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to delete case');
+        throw new Error(data.error || 'Failed to delete mission');
       }
 
       fetchMissions(); // Refresh list
@@ -204,7 +204,7 @@ export default function AdminCasesPage() {
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📋</div>
-          <div style={{ color: '#64748b' }}>Loading cases...</div>
+          <div style={{ color: '#64748b' }}>Loading missions...</div>
         </div>
       </div>
     );
@@ -240,10 +240,10 @@ export default function AdminCasesPage() {
             boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
           }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#0f172a' }}>
-              Delete {selectedIds.size} Case{selectedIds.size !== 1 ? 's' : ''}?
+              Delete {selectedIds.size} Mission{selectedIds.size !== 1 ? 's' : ''}?
             </h3>
             <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-              This action cannot be undone. All case data, updates, and sightings will be permanently deleted.
+              This action cannot be undone. All mission data, updates, and sightings will be permanently deleted.
             </p>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button
@@ -316,7 +316,7 @@ export default function AdminCasesPage() {
               </span>
             </h1>
             <p style={{ color: '#64748b' }}>
-              Manage and track all lost pet cases
+              Manage and track all lost pet missions
             </p>
           </div>
           <Link
@@ -332,7 +332,7 @@ export default function AdminCasesPage() {
               cursor: 'pointer'
             }}
           >
-            + Create New Case
+            + Create New Mission
           </Link>
         </div>
 
@@ -550,7 +550,7 @@ export default function AdminCasesPage() {
             flexWrap: 'wrap'
           }}>
             <div style={{ fontWeight: '600', color: '#4338ca' }}>
-              {selectedIds.size} case{selectedIds.size !== 1 ? 's' : ''} selected
+              {selectedIds.size} mission{selectedIds.size !== 1 ? 's' : ''} selected
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -644,8 +644,8 @@ export default function AdminCasesPage() {
               color: '#6b7280'
             }}>
               <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📋</div>
-              <div style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No cases found</div>
-              <div>Try adjusting your filters or create a new case</div>
+              <div style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No missions found</div>
+              <div>Try adjusting your filters or create a new mission</div>
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -659,7 +659,7 @@ export default function AdminCasesPage() {
                       style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                     />
                   </th>
-                  <th style={headerStyle}>Case #</th>
+                  <th style={headerStyle}>Mission #</th>
                   <th style={headerStyle}>Pet</th>
                   <th style={headerStyle}>Location</th>
                   <th style={headerStyle}>Status</th>
@@ -764,7 +764,7 @@ export default function AdminCasesPage() {
                       <td style={{ ...cellStyle, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => {
-                            if (window.confirm(`Are you sure you want to delete case ${caseItem.missionNumber}? This cannot be undone.`)) {
+                            if (window.confirm(`Are you sure you want to delete mission ${caseItem.missionNumber}? This cannot be undone.`)) {
                               handleSingleDelete(caseItem.id);
                             }
                           }}
