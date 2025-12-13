@@ -140,20 +140,38 @@ async function appleMapsFetch(endpoint, params = {}) {
 
   const responseText = await response.text();
   console.log('[AppleMapsServer] <<< RESPONSE STATUS:', response.status);
-  console.log('[AppleMapsServer] <<< RESPONSE BODY (first 5000 chars):', responseText.substring(0, 5000));
 
-  // DEBUG: Check for hours-related fields in response
-  const hoursKeywords = ['hour', 'open', 'close', 'schedule', 'operation', 'time'];
-  for (const keyword of hoursKeywords) {
-    if (responseText.toLowerCase().includes(keyword)) {
-      console.log(`[AppleMapsServer] FOUND "${keyword}" in response!`);
-      // Find and log the context around the keyword
-      const lowerText = responseText.toLowerCase();
-      const idx = lowerText.indexOf(keyword);
-      if (idx !== -1) {
-        console.log(`[AppleMapsServer] Context: ...${responseText.substring(Math.max(0, idx - 50), idx + 100)}...`);
+  // Log FULL response - don't truncate!
+  console.log('[AppleMapsServer] <<< FULL RESPONSE LENGTH:', responseText.length);
+  console.log('[AppleMapsServer] <<< FULL RESPONSE:', responseText);
+
+  // Parse and deeply inspect the response
+  try {
+    const parsed = JSON.parse(responseText);
+    if (parsed.results?.[0]) {
+      const firstResult = parsed.results[0];
+      console.log('[AppleMapsServer] FIRST RESULT ALL KEYS:', Object.keys(firstResult));
+
+      // Check for any property with "hour", "open", "business" in the name
+      const allKeys = Object.keys(firstResult);
+      for (const key of allKeys) {
+        const keyLower = key.toLowerCase();
+        if (keyLower.includes('hour') || keyLower.includes('open') || keyLower.includes('business') ||
+            keyLower.includes('schedule') || keyLower.includes('operation')) {
+          console.log(`[AppleMapsServer] FOUND HOURS-RELATED KEY: ${key} =`, JSON.stringify(firstResult[key]));
+        }
       }
+
+      // Log ALL properties with their values (for any we might have missed)
+      console.log('[AppleMapsServer] === ALL PROPERTIES OF FIRST RESULT ===');
+      for (const key of allKeys) {
+        const val = firstResult[key];
+        console.log(`[AppleMapsServer]   ${key}:`, typeof val === 'object' ? JSON.stringify(val) : val);
+      }
+      console.log('[AppleMapsServer] === END ALL PROPERTIES ===');
     }
+  } catch (e) {
+    // Ignore parse errors for this debug block
   }
 
   if (!response.ok) {
@@ -192,12 +210,18 @@ export async function searchPlaces(query, lat, lng, options = {}) {
   } = options;
 
   try {
+    // Try requesting additional data with various undocumented parameters
     const data = await appleMapsFetch('/search', {
       q: query,
       searchLocation: `${lat},${lng}`,
       resultTypeFilter: 'Poi', // Points of Interest only
       lang,
       limitToCountries: 'US',
+      // Try undocumented parameters that might return hours
+      includeAddressDetails: true,
+      includePoiDetails: true,
+      includeBusinessInfo: true,
+      fields: 'hours,telephone,urls,openingHours,businessHours',
     });
 
     // Log first result to see ALL available fields
@@ -370,12 +394,17 @@ export async function geocode(address) {
 export async function getPlaceDetails(placeId) {
   if (!placeId) return null;
 
+  console.log('[AppleMapsServer] getPlaceDetails called with placeId:', placeId);
+
   try {
     // Try the /place endpoint (may not exist in Server API)
+    // According to Apple docs, this might need different endpoint
     const data = await appleMapsFetch(`/place/${placeId}`, {
       lang: 'en-US',
     });
 
+    console.log('[AppleMapsServer] Place details response received');
+    console.log('[AppleMapsServer] Place details ALL KEYS:', data ? Object.keys(data) : 'null');
     console.log('[AppleMapsServer] Place details full response:', JSON.stringify(data, null, 2));
 
     if (!data) return null;
@@ -397,7 +426,8 @@ export async function getPlaceDetails(placeId) {
     };
   } catch (error) {
     // The /place/{id} endpoint might not exist in Apple Maps Server API
-    console.log('[AppleMapsServer] Place details endpoint not available:', error.message);
+    console.log('[AppleMapsServer] Place details endpoint error:', error.message);
+    console.log('[AppleMapsServer] Will try alternative approach...');
     return null;
   }
 }
