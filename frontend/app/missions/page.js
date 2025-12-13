@@ -267,7 +267,7 @@ function CasesContent() {
               {cases.map((caseItem) => (
                 <Link
                   key={caseItem.id}
-                  href={`/missions/${caseItem.missionNumber}`}
+                  href={`/missions/${caseItem.caseNumber}`}
                   className="block group"
                 >
                   <Card className="overflow-hidden hover:shadow-card-hover transition-all duration-300 h-full">
@@ -295,7 +295,7 @@ function CasesContent() {
                           <h3 className="font-bold text-midnight-900 text-lg group-hover:text-flash-600 transition">
                             {caseItem.petName || 'Unknown Pet'}
                           </h3>
-                          <p className="text-xs text-midnight-400 font-mono">{caseItem.missionNumber}</p>
+                          <p className="text-xs text-midnight-400 font-mono">{caseItem.caseNumber}</p>
                         </div>
                         <Badge variant={getStatusVariant(caseItem.status)} size="sm">
                           {getStatusLabel(caseItem.status)}
