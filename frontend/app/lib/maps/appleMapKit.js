@@ -304,7 +304,7 @@ export const DefaultMapOptions = {
 
 /**
  * Search for a place by name and location to get full details including phone/hours
- * This uses MapKit JS client-side which has access to more data than the Server API
+ * Uses two-step process: Search to find place, then PlaceLookup to get rich details
  */
 export async function searchPlaceDetails(name, latitude, longitude) {
   const mapkit = await initializeMapKit();
@@ -318,7 +318,7 @@ export async function searchPlaceDetails(name, latitude, longitude) {
       includePointsOfInterest: true,
     });
 
-    search.search(name, (error, data) => {
+    search.search(name, async (error, data) => {
       if (error) {
         console.error('[MapKit Search] Error:', error);
         resolve(null);
@@ -327,39 +327,87 @@ export async function searchPlaceDetails(name, latitude, longitude) {
 
       if (data?.places?.length > 0) {
         const place = data.places[0];
-        // Log all available properties to see what MapKit JS provides
         console.log('[MapKit Search] Found place:', place.name);
+        console.log('[MapKit Search] Place ID:', place.id);
         console.log('[MapKit Search] Place keys:', Object.keys(place));
-        console.log('[MapKit Search] telephone:', place.telephone);
-        console.log('[MapKit Search] url:', place.url);
-        console.log('[MapKit Search] hours:', place.hours);
-        console.log('[MapKit Search] pointOfInterestCategory:', place.pointOfInterestCategory);
 
-        // MapKit JS may return hours as a structured object or not at all
-        let formattedHours = null;
-        if (place.hours) {
-          // Try to extract today's hours if structured
-          if (typeof place.hours === 'object' && place.hours.hoursText) {
-            formattedHours = place.hours.hoursText;
-          } else if (typeof place.hours === 'string') {
-            formattedHours = place.hours;
-          } else {
-            // Just stringify for now to see what we get
-            formattedHours = JSON.stringify(place.hours);
+        // If place has an ID, use PlaceLookup to get full details
+        if (place.id && mapkit.PlaceLookup) {
+          try {
+            const lookup = new mapkit.PlaceLookup();
+            lookup.getPlace(place.id, (lookupError, fullPlace) => {
+              if (lookupError) {
+                console.error('[MapKit PlaceLookup] Error:', lookupError);
+                // Fall back to search result data
+                resolve(extractPlaceDetails(place));
+                return;
+              }
+
+              console.log('[MapKit PlaceLookup] Full place data:', fullPlace);
+              console.log('[MapKit PlaceLookup] Keys:', Object.keys(fullPlace || {}));
+              console.log('[MapKit PlaceLookup] telephone:', fullPlace?.telephone);
+              console.log('[MapKit PlaceLookup] url:', fullPlace?.url);
+              console.log('[MapKit PlaceLookup] hours:', fullPlace?.hours);
+              console.log('[MapKit PlaceLookup] openingHours:', fullPlace?.openingHours);
+              console.log('[MapKit PlaceLookup] website:', fullPlace?.website);
+
+              resolve(extractPlaceDetails(fullPlace || place));
+            });
+          } catch (err) {
+            console.error('[MapKit PlaceLookup] Exception:', err);
+            resolve(extractPlaceDetails(place));
           }
+        } else {
+          // No PlaceLookup available, use search result directly
+          console.log('[MapKit Search] No PlaceLookup, using search data');
+          console.log('[MapKit Search] telephone:', place.telephone);
+          console.log('[MapKit Search] url:', place.url);
+          console.log('[MapKit Search] hours:', place.hours);
+          resolve(extractPlaceDetails(place));
         }
-
-        resolve({
-          telephone: place.telephone || null,
-          url: place.url || null,
-          hours: formattedHours,
-        });
       } else {
         console.log('[MapKit Search] No places found for:', name);
         resolve(null);
       }
     });
   });
+}
+
+/**
+ * Extract contact details from a place object
+ */
+function extractPlaceDetails(place) {
+  if (!place) return null;
+
+  // Format hours - could be string, object, or structured data
+  let formattedHours = null;
+  const hoursData = place.hours || place.openingHours;
+
+  if (hoursData) {
+    if (typeof hoursData === 'string') {
+      formattedHours = hoursData;
+    } else if (hoursData.hoursText) {
+      formattedHours = hoursData.hoursText;
+    } else if (Array.isArray(hoursData)) {
+      // Array of day/hours objects
+      formattedHours = hoursData.map(h => `${h.day}: ${h.hours}`).join(', ');
+    } else if (typeof hoursData === 'object') {
+      // Try to get today's hours
+      const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const today = days[new Date().getDay()];
+      if (hoursData[today]) {
+        formattedHours = `Today: ${hoursData[today]}`;
+      } else {
+        formattedHours = JSON.stringify(hoursData);
+      }
+    }
+  }
+
+  return {
+    telephone: place.telephone || place.phone || null,
+    url: place.url || place.website || null,
+    hours: formattedHours,
+  };
 }
 
 /**
