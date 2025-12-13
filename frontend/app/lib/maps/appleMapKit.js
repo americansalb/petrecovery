@@ -327,9 +327,6 @@ export async function searchPlaceDetails(name, latitude, longitude) {
 
       if (data?.places?.length > 0) {
         const place = data.places[0];
-        console.log('[MapKit Search] Found place:', place.name);
-        console.log('[MapKit Search] Place ID:', place.id);
-        console.log('[MapKit Search] Place keys:', Object.keys(place));
 
         // If place has an ID, use PlaceLookup to get full details
         if (place.id && mapkit.PlaceLookup) {
@@ -343,22 +340,6 @@ export async function searchPlaceDetails(name, latitude, longitude) {
                 return;
               }
 
-              console.log('[MapKit PlaceLookup] Full place object:', fullPlace);
-              // Log ALL keys to find hours/url properties
-              const allKeys = Object.keys(fullPlace || {});
-              console.log('[MapKit PlaceLookup] ALL KEYS:', JSON.stringify(allKeys));
-              // Log every single property
-              if (fullPlace) {
-                for (const key of allKeys) {
-                  try {
-                    const val = fullPlace[key];
-                    if (val !== undefined && typeof val !== 'function') {
-                      console.log(`[MapKit PlaceLookup] PROP ${key}:`, val);
-                    }
-                  } catch (e) {}
-                }
-              }
-
               resolve(extractPlaceDetails(fullPlace || place));
             });
           } catch (err) {
@@ -367,10 +348,6 @@ export async function searchPlaceDetails(name, latitude, longitude) {
           }
         } else {
           // No PlaceLookup available, use search result directly
-          console.log('[MapKit Search] No PlaceLookup, using search data');
-          console.log('[MapKit Search] telephone:', place.telephone);
-          console.log('[MapKit Search] url:', place.url);
-          console.log('[MapKit Search] hours:', place.hours);
           resolve(extractPlaceDetails(place));
         }
       } else {
@@ -387,34 +364,21 @@ export async function searchPlaceDetails(name, latitude, longitude) {
 function extractPlaceDetails(place) {
   if (!place) return null;
 
-  // Format hours - could be string, object, or structured data
-  let formattedHours = null;
-  const hoursData = place.hours || place.openingHours;
-
-  if (hoursData) {
-    if (typeof hoursData === 'string') {
-      formattedHours = hoursData;
-    } else if (hoursData.hoursText) {
-      formattedHours = hoursData.hoursText;
-    } else if (Array.isArray(hoursData)) {
-      // Array of day/hours objects
-      formattedHours = hoursData.map(h => `${h.day}: ${h.hours}`).join(', ');
-    } else if (typeof hoursData === 'object') {
-      // Try to get today's hours
-      const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      const today = days[new Date().getDay()];
-      if (hoursData[today]) {
-        formattedHours = `Today: ${hoursData[today]}`;
-      } else {
-        formattedHours = JSON.stringify(hoursData);
-      }
-    }
+  // Get URL from urls array (MapKit JS uses plural 'urls')
+  let websiteUrl = null;
+  if (place.urls && Array.isArray(place.urls) && place.urls.length > 0) {
+    websiteUrl = place.urls[0];
+  } else if (place.url) {
+    websiteUrl = place.url;
   }
 
+  // Note: MapKit JS does not provide hours/openingHours data
+  // Hours are only available through the PlaceDetail UI component
+
   return {
-    telephone: place.telephone || place.phone || null,
-    url: place.url || place.website || null,
-    hours: formattedHours,
+    telephone: place.telephone || null,
+    url: websiteUrl,
+    hours: null, // Not available in MapKit JS PlaceLookup API
   };
 }
 
