@@ -180,7 +180,8 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
       if (initialShelters.length > 0) {
         setEnriching(true);
         try {
-          const enrichedShelters = await enrichSheltersWithDetails(initialShelters, 15);
+          // Enrich ALL returned shelters (not just 15) to maximize data capture
+          const enrichedShelters = await enrichSheltersWithDetails(initialShelters, initialShelters.length);
           setShelters(enrichedShelters);
           console.log('[ShelterSearch] Enriched shelters:', enrichedShelters);
 
