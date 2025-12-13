@@ -343,13 +343,21 @@ export async function searchPlaceDetails(name, latitude, longitude) {
                 return;
               }
 
-              console.log('[MapKit PlaceLookup] Full place data:', fullPlace);
-              console.log('[MapKit PlaceLookup] Keys:', Object.keys(fullPlace || {}));
-              console.log('[MapKit PlaceLookup] telephone:', fullPlace?.telephone);
-              console.log('[MapKit PlaceLookup] url:', fullPlace?.url);
-              console.log('[MapKit PlaceLookup] hours:', fullPlace?.hours);
-              console.log('[MapKit PlaceLookup] openingHours:', fullPlace?.openingHours);
-              console.log('[MapKit PlaceLookup] website:', fullPlace?.website);
+              console.log('[MapKit PlaceLookup] Full place object:', fullPlace);
+              // Log ALL keys to find hours/url properties
+              const allKeys = Object.keys(fullPlace || {});
+              console.log('[MapKit PlaceLookup] ALL KEYS:', JSON.stringify(allKeys));
+              // Log every single property
+              if (fullPlace) {
+                for (const key of allKeys) {
+                  try {
+                    const val = fullPlace[key];
+                    if (val !== undefined && typeof val !== 'function') {
+                      console.log(`[MapKit PlaceLookup] PROP ${key}:`, val);
+                    }
+                  } catch (e) {}
+                }
+              }
 
               resolve(extractPlaceDetails(fullPlace || place));
             });
