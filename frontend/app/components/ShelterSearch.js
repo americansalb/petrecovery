@@ -8,17 +8,16 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Search, MapPin, Phone, Globe, Building2, ExternalLink, Navigation, Clock, Mail, Loader2 } from 'lucide-react';
+import { Search, MapPin, Phone, Globe, Building2, ExternalLink, Navigation, Clock, Mail, Loader2, X, Info } from 'lucide-react';
 import { enrichSheltersWithDetails, initializeMapKit } from '@/app/lib/maps/appleMapKit';
 
 /**
- * PlaceDetail Test Component - renders Apple's PlaceDetail card
- * to verify if it displays hours
+ * PlaceDetail Modal - Shows Apple's native Place Card with hours, photos, etc.
  */
-function PlaceDetailTest({ placeId, placeName }) {
+function PlaceDetailModal({ placeId, placeName, onClose }) {
   const containerRef = useRef(null);
-  const [status, setStatus] = useState('initializing');
-  const [hoursFound, setHoursFound] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!placeId || !containerRef.current) return;
@@ -30,64 +29,44 @@ function PlaceDetailTest({ placeId, placeName }) {
         const mapkit = await initializeMapKit();
         if (!mounted) return;
 
-        console.log('[PlaceDetailTest] MapKit ready, looking up place:', placeId);
+        console.log('[PlaceDetailModal] Looking up place:', placeId);
 
-        // Use PlaceLookup to get the place object
         const lookup = new mapkit.PlaceLookup();
-        lookup.getPlace(placeId, (error, place) => {
+        lookup.getPlace(placeId, (lookupError, place) => {
           if (!mounted) return;
 
-          if (error) {
-            console.error('[PlaceDetailTest] Lookup error:', error);
-            setStatus('error: ' + error.message);
+          if (lookupError) {
+            console.error('[PlaceDetailModal] Lookup error:', lookupError);
+            setError('Could not load place details');
+            setLoading(false);
             return;
           }
 
-          console.log('[PlaceDetailTest] Got place:', place?.name);
-          console.log('[PlaceDetailTest] Place has hours?', 'hours' in place, place.hours);
+          console.log('[PlaceDetailModal] Got place:', place?.name);
 
-          // Check all place properties for hours-related data
-          const keys = Object.keys(place);
-          console.log('[PlaceDetailTest] Place keys:', keys);
-          for (const key of keys) {
-            if (key.toLowerCase().includes('hour') || key.toLowerCase().includes('open')) {
-              console.log('[PlaceDetailTest] FOUND hours key:', key, '=', place[key]);
-              setHoursFound({ key, value: place[key] });
-            }
-          }
-
-          // Create PlaceDetail
-          if (mapkit.PlaceDetail) {
+          if (mapkit.PlaceDetail && containerRef.current) {
             try {
-              const detail = new mapkit.PlaceDetail(containerRef.current, place, {
+              new mapkit.PlaceDetail(containerRef.current, place, {
                 colorScheme: mapkit.PlaceDetail.ColorSchemes.Adaptive,
               });
-              console.log('[PlaceDetailTest] PlaceDetail created');
-              setStatus('rendered');
-
-              // Check for hours in the rendered HTML after a delay
-              setTimeout(() => {
-                if (!mounted) return;
-                const html = containerRef.current?.innerHTML || '';
-                console.log('[PlaceDetailTest] Rendered HTML length:', html.length);
-                console.log('[PlaceDetailTest] HTML preview:', html.substring(0, 500));
-
-                // Look for hours patterns
-                if (html.includes('AM') || html.includes('PM') || html.includes('hour')) {
-                  console.log('[PlaceDetailTest] Hours-related text found in HTML!');
-                }
-              }, 2000);
+              console.log('[PlaceDetailModal] PlaceDetail rendered');
+              setLoading(false);
             } catch (e) {
-              console.error('[PlaceDetailTest] PlaceDetail error:', e);
-              setStatus('PlaceDetail error: ' + e.message);
+              console.error('[PlaceDetailModal] Render error:', e);
+              setError('Could not display place card');
+              setLoading(false);
             }
           } else {
-            setStatus('PlaceDetail not available');
+            setError('Place details not available');
+            setLoading(false);
           }
         });
       } catch (err) {
-        console.error('[PlaceDetailTest] Init error:', err);
-        if (mounted) setStatus('error: ' + err.message);
+        console.error('[PlaceDetailModal] Init error:', err);
+        if (mounted) {
+          setError('Failed to load details');
+          setLoading(false);
+        }
       }
     }
 
@@ -99,20 +78,53 @@ function PlaceDetailTest({ placeId, placeName }) {
   }, [placeId]);
 
   return (
-    <div className="border-2 border-blue-500 p-2 mb-4 bg-blue-50">
-      <div className="text-xs text-blue-700 mb-1">
-        PlaceDetail Test for: {placeName} (ID: {placeId})
-      </div>
-      <div className="text-xs text-blue-600 mb-2">Status: {status}</div>
-      {hoursFound && (
-        <div className="text-xs text-green-600 mb-2">
-          HOURS FOUND: {hoursFound.key} = {JSON.stringify(hoursFound.value)}
-        </div>
-      )}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div
-        ref={containerRef}
-        style={{ minHeight: '200px', background: 'white' }}
-      />
+        className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 className="font-semibold text-lg text-gray-900 truncate pr-4">{placeName}</h3>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="overflow-y-auto" style={{ maxHeight: 'calc(80vh - 60px)' }}>
+          {loading && (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="w-8 h-8 animate-spin text-flash-500" />
+              <span className="ml-3 text-gray-600">Loading details...</span>
+            </div>
+          )}
+
+          {error && (
+            <div className="p-8 text-center">
+              <p className="text-red-600 mb-4">{error}</p>
+              <a
+                href={`https://maps.apple.com/?q=${encodeURIComponent(placeName)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-flash-600 hover:text-flash-700"
+              >
+                <ExternalLink className="w-4 h-4" />
+                View in Apple Maps
+              </a>
+            </div>
+          )}
+
+          {/* Apple PlaceDetail renders here */}
+          <div
+            ref={containerRef}
+            style={{ minHeight: loading || error ? '0' : '400px' }}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -130,6 +142,7 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
   const [enriching, setEnriching] = useState(false);
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
+  const [selectedShelter, setSelectedShelter] = useState(null); // For PlaceDetail modal
 
   const [filters, setFilters] = useState({
     location: defaultLocation,
@@ -267,17 +280,13 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
             )}
           </div>
 
-          {/* DEBUG: Test PlaceDetail rendering for first shelter with Apple ID */}
-          {shelters[0]?.appleMapKitId && (
-            <PlaceDetailTest
-              placeId={shelters[0].appleMapKitId}
-              placeName={shelters[0].name}
-            />
-          )}
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {shelters.map((shelter) => (
-              <ShelterCard key={shelter.id || shelter.externalId} shelter={shelter} />
+              <ShelterCard
+                key={shelter.id || shelter.externalId}
+                shelter={shelter}
+                onViewDetails={() => setSelectedShelter(shelter)}
+              />
             ))}
           </div>
         </div>
@@ -308,6 +317,15 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
           </p>
         </div>
       )}
+
+      {/* PlaceDetail Modal - Shows Apple's native Place Card with hours */}
+      {selectedShelter?.appleMapKitId && (
+        <PlaceDetailModal
+          placeId={selectedShelter.appleMapKitId}
+          placeName={selectedShelter.name}
+          onClose={() => setSelectedShelter(null)}
+        />
+      )}
     </div>
   );
 }
@@ -316,7 +334,7 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
  * Shelter Card Component
  * Handles both local database format (flat) and PetFinder format (nested address)
  */
-function ShelterCard({ shelter }) {
+function ShelterCard({ shelter, onViewDetails }) {
   const typeLabel = {
     SHELTER: 'Shelter',
     ANIMAL_CONTROL: 'Animal Control',
@@ -449,11 +467,33 @@ function ShelterCard({ shelter }) {
           )}
         </div>
 
+        {/* View Details Button - Shows Apple PlaceDetail with hours */}
+        {shelter.appleMapKitId && onViewDetails && (
+          <button
+            onClick={onViewDetails}
+            className="w-full mt-3 py-2 px-4 bg-flash-100 text-flash-700 font-medium rounded-lg hover:bg-flash-200 transition-colors flex items-center justify-center gap-2"
+          >
+            <Info className="w-4 h-4" />
+            View Hours & Details
+          </button>
+        )}
+
         {/* Source Badge */}
-        <div className="mt-3 pt-3 border-t border-midnight-100">
+        <div className="mt-3 pt-3 border-t border-midnight-100 flex items-center justify-between">
           <span className="text-xs text-midnight-400">
             via Apple Maps
           </span>
+          {!shelter.appleMapKitId && (
+            <a
+              href={`https://maps.apple.com/?q=${encodeURIComponent(shelter.name)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-flash-600 hover:text-flash-700 flex items-center gap-1"
+            >
+              View in Maps
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
         </div>
       </div>
     </div>
