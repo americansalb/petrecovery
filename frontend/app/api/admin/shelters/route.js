@@ -105,3 +105,59 @@ export async function GET(request) {
     );
   }
 }
+
+/**
+ * DELETE /api/admin/shelters
+ *
+ * Bulk delete shelters.
+ * Supports: { ids: [...] } for specific shelters or { all: true } for all.
+ * Admin only.
+ */
+export async function DELETE(request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { ids, all } = body;
+
+    let deletedCount = 0;
+
+    if (all === true) {
+      // Delete all shelters (soft delete)
+      const result = await prisma.shelter.updateMany({
+        where: { isActive: true },
+        data: { isActive: false },
+      });
+      deletedCount = result.count;
+    } else if (Array.isArray(ids) && ids.length > 0) {
+      // Delete specific shelters (soft delete)
+      const result = await prisma.shelter.updateMany({
+        where: {
+          id: { in: ids },
+          isActive: true,
+        },
+        data: { isActive: false },
+      });
+      deletedCount = result.count;
+    } else {
+      return NextResponse.json(
+        { error: 'Must provide either ids array or all: true' },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      deletedCount,
+    });
+  } catch (error) {
+    console.error('Bulk delete shelters error:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete shelters', details: error.message },
+      { status: 500 }
+    );
+  }
+}
