@@ -89,8 +89,9 @@ export default function SARMapView({
     baseLayersRef.current[mapLayer].addTo(mapInstance.current);
 
     // Track user location
+    let watchId = null;
     if ('geolocation' in navigator) {
-      const watchId = navigator.geolocation.watchPosition(
+      watchId = navigator.geolocation.watchPosition(
         (pos) => {
           const loc = [pos.coords.latitude, pos.coords.longitude];
           setUserLocation(loc);
@@ -98,10 +99,13 @@ export default function SARMapView({
         () => {},
         { enableHighAccuracy: true, maximumAge: 10000 }
       );
-      return () => navigator.geolocation.clearWatch(watchId);
     }
 
+    // Cleanup both geolocation watcher AND map on unmount
     return () => {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
       if (mapInstance.current) {
         mapInstance.current.remove();
         mapInstance.current = null;

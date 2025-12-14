@@ -23,7 +23,21 @@ const CONFIG = {
   MIN_SESSION_MILES: 0.1,
   POINTS_PER_MILE: 100,
   GRID_CELL_SIZE_METERS: 100,
+  PING_RETRY_ATTEMPTS: 3,
+  PING_RETRY_DELAY_MS: 2000,
 };
+
+// Geolocation error codes
+const GEO_ERROR = {
+  PERMISSION_DENIED: 1,
+  POSITION_UNAVAILABLE: 2,
+  TIMEOUT: 3,
+};
+
+// Check if browser is online
+function isOnline() {
+  return typeof navigator !== 'undefined' && navigator.onLine !== false;
+}
 
 /**
  * Calculate distance between two points using Haversine formula
@@ -350,29 +364,51 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     // Store as last ping
     lastPingRef.current = currentPing;
 
-    // Send ping to server
-    try {
-      await fetch(`/api/mission/${missionId}/search`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'ping',
-          sessionId: session.id,
-          latitude: currentPing.latitude,
-          longitude: currentPing.longitude,
-          accuracy: currentPing.accuracy,
-          heading: currentPing.heading,
-          speed: currentPing.speed,
-          isValid: inZone && movementValidation.valid,
-          invalidReason: !inZone ? 'OUTSIDE_ZONE' : movementValidation.reason,
-          gridCellId: lastSeenLocation
-            ? getGridCellId(currentPing.latitude, currentPing.longitude, lastSeenLocation.lat, lastSeenLocation.lng)
-            : null,
-        }),
-      });
-    } catch (err) {
-      console.error('Error sending ping:', err);
-    }
+    // Send ping to server with retry logic
+    const sendPingWithRetry = async (attempts = 0) => {
+      // Check if online first
+      if (!isOnline()) {
+        console.warn('Offline - ping will be retried when online');
+        setValidation(prev => ({ ...prev, lastWarning: 'OFFLINE' }));
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/mission/${missionId}/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'ping',
+            sessionId: session.id,
+            latitude: currentPing.latitude,
+            longitude: currentPing.longitude,
+            accuracy: currentPing.accuracy,
+            heading: currentPing.heading,
+            speed: currentPing.speed,
+            isValid: inZone && movementValidation.valid,
+            invalidReason: !inZone ? 'OUTSIDE_ZONE' : movementValidation.reason,
+            gridCellId: lastSeenLocation
+              ? getGridCellId(currentPing.latitude, currentPing.longitude, lastSeenLocation.lat, lastSeenLocation.lng)
+              : null,
+          }),
+        });
+
+        if (!res.ok && attempts < CONFIG.PING_RETRY_ATTEMPTS) {
+          // Retry on server error
+          setTimeout(() => sendPingWithRetry(attempts + 1), CONFIG.PING_RETRY_DELAY_MS);
+        }
+      } catch (err) {
+        console.error('Error sending ping:', err);
+        if (attempts < CONFIG.PING_RETRY_ATTEMPTS) {
+          // Retry on network error
+          setTimeout(() => sendPingWithRetry(attempts + 1), CONFIG.PING_RETRY_DELAY_MS);
+        } else {
+          setValidation(prev => ({ ...prev, lastWarning: 'SYNC_ERROR' }));
+        }
+      }
+    };
+
+    sendPingWithRetry();
   }, [session?.id, isActive, missionId, isWithinSearchZone, lastSeenLocation]);
 
   // Start GPS watching
@@ -389,10 +425,31 @@ export default function useSearchSession(missionId, lastSeenLocation) {
       processLocationUpdate,
       (err) => {
         console.error('Geolocation error:', err);
+        // Handle specific error codes
+        let warningType = 'GPS_ERROR';
+        let errorMessage = 'GPS error occurred';
+
+        switch (err.code) {
+          case GEO_ERROR.PERMISSION_DENIED:
+            warningType = 'GPS_PERMISSION_DENIED';
+            errorMessage = 'Location permission denied. Please enable in settings.';
+            break;
+          case GEO_ERROR.POSITION_UNAVAILABLE:
+            warningType = 'GPS_UNAVAILABLE';
+            errorMessage = 'GPS signal unavailable. Try moving to an open area.';
+            break;
+          case GEO_ERROR.TIMEOUT:
+            warningType = 'GPS_TIMEOUT';
+            errorMessage = 'GPS timed out. Retrying...';
+            break;
+        }
+
         setValidation(prev => ({
           ...prev,
-          lastWarning: 'GPS_ERROR',
+          lastWarning: warningType,
+          errorMessage,
         }));
+        setError(errorMessage);
       },
       {
         enableHighAccuracy: true,
@@ -496,9 +553,17 @@ export default function useSearchSession(missionId, lastSeenLocation) {
 
       return { success: true, sessionId: data.sessionId };
     } catch (err) {
-      const errorMsg = err.message === 'User denied Geolocation'
-        ? 'Please enable location access to track your search'
-        : err.message || 'Failed to start search';
+      // Handle specific geolocation error codes
+      let errorMsg = err.message || 'Failed to start search';
+
+      if (err.code === GEO_ERROR.PERMISSION_DENIED || err.message === 'User denied Geolocation') {
+        errorMsg = 'Location permission denied. Please enable in your device settings.';
+      } else if (err.code === GEO_ERROR.POSITION_UNAVAILABLE) {
+        errorMsg = 'GPS unavailable. Please move to an open area and try again.';
+      } else if (err.code === GEO_ERROR.TIMEOUT) {
+        errorMsg = 'GPS timed out. Please wait a moment and try again.';
+      }
+
       setError(errorMsg);
       return { success: false, error: errorMsg };
     } finally {
@@ -546,10 +611,15 @@ export default function useSearchSession(missionId, lastSeenLocation) {
       setSession(null);
       setIsActive(false);
 
+      // Include meetsMinimum for summary screen
+      const meetsMinimum = (data.stats?.durationMinutes >= CONFIG.MIN_SESSION_MINUTES) &&
+                           (data.stats?.validatedDistanceMiles >= CONFIG.MIN_SESSION_MILES);
+
       return {
         success: true,
-        stats: data.stats,
-        points: data.points,
+        stats: data.stats || stats,
+        points: data.points || { total: stats.estimatedPoints, distance: 0, gridBonus: 0, timeBonus: 0, multiplier: 1 },
+        meetsMinimum,
       };
     } catch (err) {
       setError(err.message || 'Failed to end search');
