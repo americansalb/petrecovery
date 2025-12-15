@@ -597,10 +597,11 @@ model RescueSquad {
   slogan          String?  // Custom slogan for the squad
   zipCode         String?  // Primary ZIP code (for display)
 
-  // Location (for browsing/filtering nationally)
-  city            String?  // "Chicago", "Los Angeles"
-  state           String?  // "IL", "CA", "TX" (2-letter abbreviation)
-  zipCodes        String   @default("[]") // JSON array of ZIP codes served
+  // Location (for browsing/filtering nationally and internationally)
+  city            String?  // "Chicago", "Los Angeles", "Ciudad de México"
+  state           String?  // "IL", "CA", "TX", "CDMX", "JAL" (abbreviation)
+  country         String   @default("US") // "US", "MX", etc.
+  zipCodes        String   @default("[]") // JSON array of ZIP/postal codes served
 
   // Coverage & Specialization
   coverageType    CoverageType @default(RADIUS)
@@ -660,7 +661,9 @@ model RescueSquad {
   @@index([centerLatitude, centerLongitude])
   @@index([state])
   @@index([city])
-  @@index([state, city])
+  @@index([country])
+  @@index([country, state])
+  @@index([country, state, city])
   @@index([isDeleted])
 }
 
