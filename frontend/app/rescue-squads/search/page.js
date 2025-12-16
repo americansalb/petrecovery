@@ -266,6 +266,12 @@ export default function RescueSquadSearchPage() {
           <p className="text-midnight-500">
             Enter a city name or postal code to find or create a rescue squad
           </p>
+          <div className="mt-3 inline-flex items-center gap-2 text-sm text-midnight-400">
+            <span>🇺🇸</span>
+            <span>+</span>
+            <span>🇲🇽</span>
+            <span className="ml-1">United States & México</span>
+          </div>
         </div>
 
         {/* Search Form */}
@@ -287,7 +293,7 @@ export default function RescueSquadSearchPage() {
                   onBlur={() => {
                     setTimeout(() => setShowSuggestions(false), 200);
                   }}
-                  placeholder="e.g., Acapulco, Chicago, 60411, 68000"
+                  placeholder="e.g., Los Angeles, Ciudad de México, 90210"
                   className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition ${
                     validationError ? 'border-red-500' : inputType === 'zip' ? 'border-midnight-400' : inputType === 'city' ? 'border-green-500' : 'border-midnight-200'
                   }`}
