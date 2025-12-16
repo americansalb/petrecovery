@@ -8,13 +8,15 @@
 import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Search, MapPin, Users, ChevronDown, ChevronRight, Plus, ArrowLeft, Shield } from 'lucide-react';
+import { Search, MapPin, Users, ChevronDown, ChevronRight, Plus, ArrowLeft, Shield, Globe } from 'lucide-react';
 import { Button, Card, Badge } from '@/components/ui';
+import { COUNTRIES } from '@/app/lib/states';
 
 export default function RescueSquadSearchPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
+  const [country, setCountry] = useState('US');
   const [radius, setRadius] = useState(25);
   const [cities, setCities] = useState([]);
   const [searchLocation, setSearchLocation] = useState(null);
@@ -27,7 +29,7 @@ export default function RescueSquadSearchPage() {
   const [validationError, setValidationError] = useState('');
   const [isValidInput, setIsValidInput] = useState(false);
 
-  const fetchSuggestions = useCallback(async (value) => {
+  const fetchSuggestions = useCallback(async (value, selectedCountry) => {
     if (!value || value.trim().length < 2) {
       setSuggestions([]);
       setShowSuggestions(false);
@@ -35,7 +37,7 @@ export default function RescueSquadSearchPage() {
     }
 
     try {
-      const res = await fetch(`/api/cities/suggest?q=${encodeURIComponent(value.trim())}&limit=10`);
+      const res = await fetch(`/api/cities/suggest?q=${encodeURIComponent(value.trim())}&country=${selectedCountry}&limit=10`);
       const data = await res.json();
       setSuggestions(data.suggestions || []);
       setIsValidInput(data.isValid);
@@ -52,12 +54,22 @@ export default function RescueSquadSearchPage() {
     const isZip = /^\d{0,5}$/.test(value);
     setInputType(isZip ? 'zip' : 'city');
 
-    if (!isZip && value.trim().length >= 2) {
-      fetchSuggestions(value);
+    if (value.trim().length >= 2) {
+      fetchSuggestions(value, country);
     } else {
       setSuggestions([]);
       setShowSuggestions(false);
     }
+  };
+
+  const handleCountryChange = (newCountry) => {
+    setCountry(newCountry);
+    setSearchTerm('');
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setValidationError('');
+    setCities([]);
+    setSearched(false);
   };
 
   const selectSuggestion = (city) => {
@@ -72,22 +84,24 @@ export default function RescueSquadSearchPage() {
     if (!searchTerm.trim()) return;
 
     const isZip = /^\d{5}$/.test(searchTerm.trim());
-    if (!isZip) {
-      try {
-        const validateRes = await fetch(`/api/cities/suggest?q=${encodeURIComponent(searchTerm.trim())}`);
-        const validateData = await validateRes.json();
-        if (!validateData.isValid && (!validateData.suggestions || validateData.suggestions.length === 0)) {
-          setValidationError('Please enter a valid US city name or 5-digit ZIP code');
-          return;
-        }
-      } catch (error) {
-        console.error('Validation error:', error);
+    const countryData = COUNTRIES.find(c => c.code === country);
+    const locationLabel = country === 'MX' ? 'Mexican city or postal code' : 'US city name or 5-digit ZIP code';
+
+    // Validate the input
+    try {
+      const validateRes = await fetch(`/api/cities/suggest?q=${encodeURIComponent(searchTerm.trim())}&country=${country}`);
+      const validateData = await validateRes.json();
+      if (!validateData.isValid && (!validateData.suggestions || validateData.suggestions.length === 0)) {
+        setValidationError(`Please enter a valid ${locationLabel}`);
+        return;
       }
+    } catch (error) {
+      console.error('Validation error:', error);
     }
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/rescue-squads?search=${encodeURIComponent(searchTerm)}&radius=${radius}`);
+      const res = await fetch(`/api/rescue-squads?search=${encodeURIComponent(searchTerm)}&radius=${radius}&country=${country}`);
       const data = await res.json();
 
       if (!res.ok) {
@@ -181,27 +195,29 @@ export default function RescueSquadSearchPage() {
     }
   };
 
-  const handleCreate = async (city, state, zipCode = null) => {
+  const handleCreate = async (city, state, zipCode = null, cityCountry = null) => {
     if (!session) {
       router.push('/login?callbackUrl=' + window.location.pathname);
       return;
     }
 
+    const selectedCountry = cityCountry || country;
+
     if (!state) {
-      setValidationError(`No squad found for "${city}". Please search by ZIP code to create a new squad for your area.`);
+      setValidationError(`No squad found for "${city}". Please search by postal code to create a new squad for your area.`);
       return;
     }
 
     try {
       if (!zipCode || !/^\d{5}$/.test(zipCode)) {
-        setValidationError('Unable to create squad: valid ZIP code required. Please search by ZIP code instead.');
+        setValidationError('Unable to create squad: valid postal code required. Please search by postal code instead.');
         return;
       }
 
       const res = await fetch('/api/rescue-squads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, state, zipCode }),
+        body: JSON.stringify({ city, state, zipCode, country: selectedCountry }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -243,11 +259,35 @@ export default function RescueSquadSearchPage() {
         {/* Search Form */}
         <Card className="mb-8">
           <form onSubmit={handleSearch}>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              {/* Country Selector */}
+              <div>
+                <label className="block font-semibold mb-2 text-midnight-700 text-sm">
+                  Country
+                </label>
+                <div className="flex gap-2">
+                  {COUNTRIES.map((c) => (
+                    <button
+                      key={c.code}
+                      type="button"
+                      onClick={() => handleCountryChange(c.code)}
+                      className={`flex-1 px-3 py-3 rounded-xl border-2 text-center transition font-medium ${
+                        country === c.code
+                          ? 'border-flash-400 bg-flash-50 text-midnight-900'
+                          : 'border-midnight-200 hover:border-midnight-300 text-midnight-600'
+                      }`}
+                    >
+                      <span className="text-lg">{c.flag}</span>
+                      <span className="ml-1 text-sm">{c.code}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* City/ZIP Input */}
               <div className="relative md:col-span-2">
                 <label className="block font-semibold mb-2 text-midnight-700 text-sm">
-                  City Name or ZIP Code
+                  {country === 'MX' ? 'City or Código Postal' : 'City Name or ZIP Code'}
                 </label>
                 <input
                   type="text"
@@ -259,7 +299,7 @@ export default function RescueSquadSearchPage() {
                   onBlur={() => {
                     setTimeout(() => setShowSuggestions(false), 200);
                   }}
-                  placeholder="e.g., Lynwood or 60411"
+                  placeholder={country === 'MX' ? 'ej. Oaxaca o 68000' : 'e.g., Lynwood or 60411'}
                   className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition ${
                     validationError ? 'border-red-500' : inputType === 'zip' ? 'border-midnight-400' : inputType === 'city' ? 'border-green-500' : 'border-midnight-200'
                   }`}
