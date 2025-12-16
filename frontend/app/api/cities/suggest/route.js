@@ -17,12 +17,36 @@ export async function GET(request) {
 
     // Search both US and Mexico in parallel
     const [usResults, mxResults] = await Promise.all([
-      searchUSLocations(trimmed, isZip, limit),
+      searchUSLocations(trimmed, isZip, limit * 2), // Get more results for sorting
       searchMexicanLocations(trimmed, isZip, limit)
     ]);
 
-    // Combine results - US first, then Mexico
-    const allSuggestions = [...usResults, ...mxResults].slice(0, limit);
+    // Combine and sort by relevance
+    const allResults = [...usResults, ...mxResults];
+    const queryLower = trimmed.toLowerCase();
+
+    // Sort by relevance: exact match > starts with > contains
+    allResults.sort((a, b) => {
+      const aName = a.city.toLowerCase();
+      const bName = b.city.toLowerCase();
+
+      // Exact match gets highest priority
+      const aExact = aName === queryLower;
+      const bExact = bName === queryLower;
+      if (aExact && !bExact) return -1;
+      if (bExact && !aExact) return 1;
+
+      // Starts with gets second priority
+      const aStarts = aName.startsWith(queryLower);
+      const bStarts = bName.startsWith(queryLower);
+      if (aStarts && !bStarts) return -1;
+      if (bStarts && !aStarts) return 1;
+
+      // For equal relevance, sort alphabetically by city name
+      return aName.localeCompare(bName);
+    });
+
+    const allSuggestions = allResults.slice(0, limit);
 
     return NextResponse.json({
       suggestions: allSuggestions,

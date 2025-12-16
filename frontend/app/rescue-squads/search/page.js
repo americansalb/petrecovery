@@ -5,7 +5,7 @@
  * Uses: Midnight Blue + Flashlight Yellow color palette
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Search, MapPin, Users, ChevronDown, ChevronRight, Plus, ArrowLeft, Shield } from 'lucide-react';
@@ -26,6 +26,9 @@ export default function RescueSquadSearchPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [inputType, setInputType] = useState(null);
   const [validationError, setValidationError] = useState('');
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const debounceRef = useRef(null);
+  const currentQueryRef = useRef('');
 
   const fetchSuggestions = useCallback(async (value) => {
     if (!value || value.trim().length < 2) {
@@ -34,31 +37,61 @@ export default function RescueSquadSearchPage() {
       return;
     }
 
+    const query = value.trim();
+    currentQueryRef.current = query;
+    setIsLoadingSuggestions(true);
+
     try {
-      const res = await fetch(`/api/cities/suggest?q=${encodeURIComponent(value.trim())}&limit=10`);
+      const res = await fetch(`/api/cities/suggest?q=${encodeURIComponent(query)}&limit=15`);
       const data = await res.json();
-      setSuggestions(data.suggestions || []);
-      setShowSuggestions(data.suggestions && data.suggestions.length > 0);
+
+      // Only update if this is still the current query (prevents race conditions)
+      if (currentQueryRef.current === query) {
+        setSuggestions(data.suggestions || []);
+        setShowSuggestions(data.suggestions && data.suggestions.length > 0);
+      }
     } catch (error) {
       console.error('Failed to fetch suggestions:', error);
-      setSuggestions([]);
+      if (currentQueryRef.current === query) {
+        setSuggestions([]);
+      }
+    } finally {
+      if (currentQueryRef.current === query) {
+        setIsLoadingSuggestions(false);
+      }
     }
   }, []);
 
   const handleInputChange = (value) => {
     setSearchTerm(value);
     setValidationError('');
-    setSelectedLocation(null); // Clear selected location when typing
+    setSelectedLocation(null);
     const isZip = /^\d{0,5}$/.test(value);
     setInputType(isZip ? 'zip' : 'city');
 
+    // Debounce the API call to prevent flickering
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
     if (value.trim().length >= 2) {
-      fetchSuggestions(value);
+      debounceRef.current = setTimeout(() => {
+        fetchSuggestions(value);
+      }, 300); // 300ms debounce
     } else {
       setSuggestions([]);
       setShowSuggestions(false);
     }
   };
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
 
   const selectSuggestion = (city) => {
     const countryFlag = city.country === 'MX' ? '🇲🇽' : '🇺🇸';
@@ -291,8 +324,15 @@ export default function RescueSquadSearchPage() {
                   </div>
                 )}
 
-                {showSuggestions && suggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 bg-white border border-midnight-200 rounded-xl mt-2 max-h-48 overflow-y-auto z-50 shadow-lg">
+                {/* Loading indicator */}
+                {isLoadingSuggestions && searchTerm.trim().length >= 2 && (
+                  <div className="absolute top-full left-0 right-0 bg-white border border-midnight-200 rounded-xl mt-2 p-4 z-50 shadow-lg text-center">
+                    <div className="text-midnight-500 text-sm">Searching...</div>
+                  </div>
+                )}
+
+                {showSuggestions && suggestions.length > 0 && !isLoadingSuggestions && (
+                  <div className="absolute top-full left-0 right-0 bg-white border border-midnight-200 rounded-xl mt-2 max-h-64 overflow-y-auto z-50 shadow-lg">
                     {suggestions.map((city, idx) => (
                       <div
                         key={`${city.city}-${city.state_id}-${city.country}-${idx}`}
