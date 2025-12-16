@@ -95,8 +95,8 @@ async function searchMexicanLocations(query, isPostalCode, limit) {
     if (isPostalCode) {
       nominatimUrl = `https://nominatim.openstreetmap.org/search?postalcode=${query}&country=MX&format=json&limit=${limit}&addressdetails=1`;
     } else {
-      // Use free-text search with country filter - works better for partial matches like "pach" -> "Pachuca"
-      nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&countrycodes=mx&format=json&limit=${limit * 2}&addressdetails=1&featuretype=city`;
+      // Use free-text search - no featuretype restriction for better partial matching
+      nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}, Mexico&format=json&limit=${limit * 3}&addressdetails=1`;
     }
 
     // Add 2 second timeout for Mexican search
