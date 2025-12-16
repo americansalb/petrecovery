@@ -81,7 +81,7 @@ function searchUSLocations(query, isZip, limit) {
   }
 }
 
-// Search Mexican locations using Nominatim
+// Search Mexican locations using Nominatim with timeout
 async function searchMexicanLocations(query, isPostalCode, limit) {
   try {
     let nominatimUrl;
@@ -92,9 +92,16 @@ async function searchMexicanLocations(query, isPostalCode, limit) {
       nominatimUrl = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(query)}&country=MX&format=json&limit=${limit}&addressdetails=1`;
     }
 
+    // Add 2 second timeout for Mexican search
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+
     const response = await fetch(nominatimUrl, {
-      headers: { 'User-Agent': 'PetRecovery.org' }
+      headers: { 'User-Agent': 'PetRecovery.org' },
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       return [];

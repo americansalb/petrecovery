@@ -34,6 +34,7 @@ export default function RescueSquadSearchPage() {
     if (!value || value.trim().length < 2) {
       setSuggestions([]);
       setShowSuggestions(false);
+      setIsLoadingSuggestions(false);
       return;
     }
 
@@ -48,15 +49,14 @@ export default function RescueSquadSearchPage() {
       // Only update if this is still the current query (prevents race conditions)
       if (currentQueryRef.current === query) {
         setSuggestions(data.suggestions || []);
-        setShowSuggestions(data.suggestions && data.suggestions.length > 0);
+        setShowSuggestions(true); // Always show dropdown after search completes
+        setIsLoadingSuggestions(false);
       }
     } catch (error) {
       console.error('Failed to fetch suggestions:', error);
       if (currentQueryRef.current === query) {
         setSuggestions([]);
-      }
-    } finally {
-      if (currentQueryRef.current === query) {
+        setShowSuggestions(true); // Show "no results" message
         setIsLoadingSuggestions(false);
       }
     }
@@ -69,29 +69,13 @@ export default function RescueSquadSearchPage() {
     const isZip = /^\d{0,5}$/.test(value);
     setInputType(isZip ? 'zip' : 'city');
 
-    // Debounce the API call to prevent flickering
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
     if (value.trim().length >= 2) {
-      debounceRef.current = setTimeout(() => {
-        fetchSuggestions(value);
-      }, 300); // 300ms debounce
+      fetchSuggestions(value);
     } else {
       setSuggestions([]);
       setShowSuggestions(false);
     }
   };
-
-  // Cleanup debounce on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, []);
 
   const selectSuggestion = (city) => {
     const countryFlag = city.country === 'MX' ? '🇲🇽' : '🇺🇸';
@@ -328,6 +312,13 @@ export default function RescueSquadSearchPage() {
                 {isLoadingSuggestions && searchTerm.trim().length >= 2 && (
                   <div className="absolute top-full left-0 right-0 bg-white border border-midnight-200 rounded-xl mt-2 p-4 z-50 shadow-lg text-center">
                     <div className="text-midnight-500 text-sm">Searching...</div>
+                  </div>
+                )}
+
+                {/* No results message */}
+                {showSuggestions && suggestions.length === 0 && !isLoadingSuggestions && searchTerm.trim().length >= 2 && (
+                  <div className="absolute top-full left-0 right-0 bg-white border border-midnight-200 rounded-xl mt-2 p-4 z-50 shadow-lg text-center">
+                    <div className="text-midnight-500 text-sm">No cities found matching "{searchTerm.trim()}"</div>
                   </div>
                 )}
 
