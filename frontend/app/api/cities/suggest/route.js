@@ -87,19 +87,88 @@ function searchUSLocations(query, isZip, limit) {
   }
 }
 
-// Search Mexican locations using Nominatim with timeout
+// Search Mexican locations using Photon (OSM autocomplete service)
 async function searchMexicanLocations(query, isPostalCode, limit) {
   try {
-    let nominatimUrl;
-
+    // For postal codes, use Nominatim (Photon doesn't support postal code search well)
     if (isPostalCode) {
-      nominatimUrl = `https://nominatim.openstreetmap.org/search?postalcode=${query}&country=MX&format=json&limit=${limit}&addressdetails=1`;
-    } else {
-      // Use free-text search - no featuretype restriction for better partial matching
-      nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}, Mexico&format=json&limit=${limit * 3}&addressdetails=1`;
+      return searchMexicanByPostalCode(query, limit);
     }
 
-    // Add 2 second timeout for Mexican search
+    // Use Photon for autocomplete - it supports prefix matching unlike Nominatim
+    // bbox: Mexico's approximate bounding box (west, south, east, north)
+    const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&lang=es&limit=${limit * 3}&bbox=-118.5,14.5,-86.5,32.8`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+    const response = await fetch(photonUrl, {
+      headers: { 'User-Agent': 'PetRecovery.org' },
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const data = await response.json();
+    const features = data.features || [];
+
+    if (features.length === 0) {
+      return [];
+    }
+
+    // Filter to only Mexican places and transform to our format
+    const suggestions = features
+      .filter(f => {
+        const props = f.properties || {};
+        // Only include Mexican results
+        return props.country === 'Mexico' || props.country === 'México';
+      })
+      .filter(f => {
+        const props = f.properties || {};
+        // Only include cities, towns, villages, municipalities
+        const validTypes = ['city', 'town', 'village', 'municipality', 'district', 'locality'];
+        return validTypes.includes(props.type) || props.name;
+      })
+      .map(f => {
+        const props = f.properties || {};
+        const coords = f.geometry?.coordinates || [0, 0];
+        const city = props.name || props.city || props.town || props.village || query;
+        const stateCode = getMexicanStateCodeFromName(props.state);
+
+        return {
+          city: city,
+          state_id: stateCode,
+          state_name: props.state || 'México',
+          zips: props.postcode ? [props.postcode] : [],
+          lat: coords[1],
+          lng: coords[0],
+          country: 'MX'
+        };
+      });
+
+    // Deduplicate by city+state
+    const seen = new Set();
+    return suggestions.filter(s => {
+      const key = `${s.city}-${s.state_id}`.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  } catch (error) {
+    console.error('Photon search error:', error);
+    return [];
+  }
+}
+
+// Fallback to Nominatim for postal code searches
+async function searchMexicanByPostalCode(postalCode, limit) {
+  try {
+    const nominatimUrl = `https://nominatim.openstreetmap.org/search?postalcode=${postalCode}&country=MX&format=json&limit=${limit}&addressdetails=1`;
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2000);
 
@@ -116,38 +185,23 @@ async function searchMexicanLocations(query, isPostalCode, limit) {
 
     const data = await response.json();
 
-    if (data.length === 0) {
-      return [];
-    }
-
-    // Transform Nominatim results to match our format
-    const suggestions = data.map(place => {
+    return data.map(place => {
       const address = place.address || {};
-      const city = address.city || address.town || address.village || address.municipality || address.county || query;
+      const city = address.city || address.town || address.village || address.municipality || address.county || postalCode;
       const stateCode = getMexicanStateCodeFromName(address.state);
-      const postalCode = address.postcode || (isPostalCode ? query : null);
 
       return {
         city: city,
         state_id: stateCode,
         state_name: address.state || 'México',
-        zips: postalCode ? [postalCode] : [],
+        zips: [postalCode],
         lat: parseFloat(place.lat),
         lng: parseFloat(place.lon),
         country: 'MX'
       };
     });
-
-    // Deduplicate by city+state
-    const seen = new Set();
-    return suggestions.filter(s => {
-      const key = `${s.city}-${s.state_id}`.toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
   } catch (error) {
-    console.error('Nominatim search error:', error);
+    console.error('Nominatim postal code search error:', error);
     return [];
   }
 }
