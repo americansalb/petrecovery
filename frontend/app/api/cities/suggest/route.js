@@ -21,12 +21,18 @@ export async function GET(request) {
       searchMexicanLocations(trimmed, isZip, limit)
     ]);
 
-    // Combine and sort by relevance
+    // Combine and filter by relevance
     const allResults = [...usResults, ...mxResults];
     const queryLower = trimmed.toLowerCase();
 
+    // Filter out results that don't actually match the query
+    const filteredResults = allResults.filter(r => {
+      const cityLower = r.city.toLowerCase();
+      return cityLower.startsWith(queryLower) || cityLower.includes(queryLower);
+    });
+
     // Sort by relevance: exact match > starts with > contains
-    allResults.sort((a, b) => {
+    filteredResults.sort((a, b) => {
       const aName = a.city.toLowerCase();
       const bName = b.city.toLowerCase();
 
@@ -46,7 +52,7 @@ export async function GET(request) {
       return aName.localeCompare(bName);
     });
 
-    const allSuggestions = allResults.slice(0, limit);
+    const allSuggestions = filteredResults.slice(0, limit);
 
     return NextResponse.json({
       suggestions: allSuggestions,
@@ -89,7 +95,8 @@ async function searchMexicanLocations(query, isPostalCode, limit) {
     if (isPostalCode) {
       nominatimUrl = `https://nominatim.openstreetmap.org/search?postalcode=${query}&country=MX&format=json&limit=${limit}&addressdetails=1`;
     } else {
-      nominatimUrl = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(query)}&country=MX&format=json&limit=${limit}&addressdetails=1`;
+      // Use free-text search with country filter - works better for partial matches like "pach" -> "Pachuca"
+      nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&countrycodes=mx&format=json&limit=${limit * 2}&addressdetails=1&featuretype=city`;
     }
 
     // Add 2 second timeout for Mexican search
