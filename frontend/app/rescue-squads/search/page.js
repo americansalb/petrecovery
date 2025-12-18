@@ -78,7 +78,7 @@ export default function RescueSquadSearchPage() {
   };
 
   const selectSuggestion = (city) => {
-    const countryFlag = city.country === 'MX' ? '🇲🇽' : '🇺🇸';
+    const countryFlag = city.country === 'MX' ? '🇲🇽' : city.country === 'CA' ? '🇨🇦' : '🇺🇸';
     setSearchTerm(`${city.city}, ${city.state_id} ${countryFlag}`);
     setSelectedLocation(city); // Store full location data
     setShowSuggestions(false);
@@ -270,7 +270,9 @@ export default function RescueSquadSearchPage() {
             <span>🇺🇸</span>
             <span>+</span>
             <span>🇲🇽</span>
-            <span className="ml-1">United States & México</span>
+            <span>+</span>
+            <span>🇨🇦</span>
+            <span className="ml-1">United States, México & Canada</span>
           </div>
         </div>
 
@@ -337,7 +339,7 @@ export default function RescueSquadSearchPage() {
                         className="px-4 py-3 cursor-pointer hover:bg-midnight-50 border-b border-midnight-100 last:border-b-0"
                       >
                         <div className="font-semibold text-midnight-900 flex items-center gap-2">
-                          <span>{city.country === 'MX' ? '🇲🇽' : '🇺🇸'}</span>
+                          <span>{city.country === 'MX' ? '🇲🇽' : city.country === 'CA' ? '🇨🇦' : '🇺🇸'}</span>
                           {city.city}, {city.state_id}
                         </div>
                         <div className="text-sm text-midnight-500">
@@ -385,7 +387,7 @@ export default function RescueSquadSearchPage() {
                     ? `Rescue Squads for ${searchLocation.cities.join(', ')}, ${searchLocation.state}`
                     : `Rescue Squads near ${searchLocation.cities?.[0] || searchLocation.city}, ${searchLocation.state}`
                   }
-                  {searchLocation.country === 'MX' && ' 🇲🇽'}
+                  {searchLocation.country === 'MX' ? ' 🇲🇽' : searchLocation.country === 'CA' ? ' 🇨🇦' : ''}
                 </h2>
                 <p className="text-sm text-midnight-500">
                   Found {cities.filter(c => c.exists).length} rescue squad{cities.filter(c => c.exists).length !== 1 ? 's' : ''} within {radius} miles
