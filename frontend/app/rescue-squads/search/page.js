@@ -27,8 +27,48 @@ export default function RescueSquadSearchPage() {
   const [inputType, setInputType] = useState(null);
   const [validationError, setValidationError] = useState('');
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [showCountriesModal, setShowCountriesModal] = useState(false);
   const debounceRef = useRef(null);
   const currentQueryRef = useRef('');
+
+  // Supported countries with flags
+  const supportedCountries = [
+    { flag: '🇺🇸', name: 'United States', cities: '~29,000' },
+    { flag: '🇨🇦', name: 'Canada', cities: '1,079' },
+    { flag: '🇲🇽', name: 'Mexico', cities: '9,321' },
+    { flag: '🇨🇴', name: 'Colombia', cities: '1,122' },
+    { flag: '🇬🇹', name: 'Guatemala', cities: '382' },
+    { flag: '🇭🇳', name: 'Honduras', cities: '545' },
+    { flag: '🇸🇻', name: 'El Salvador', cities: '100' },
+    { flag: '🇳🇮', name: 'Nicaragua', cities: '155' },
+    { flag: '🇨🇷', name: 'Costa Rica', cities: '159' },
+    { flag: '🇵🇦', name: 'Panama', cities: '551' },
+    { flag: '🇧🇿', name: 'Belize', cities: '13' },
+    { flag: '🇨🇺', name: 'Cuba', cities: '187' },
+    { flag: '🇯🇲', name: 'Jamaica', cities: '837' },
+    { flag: '🇭🇹', name: 'Haiti', cities: '124' },
+    { flag: '🇩🇴', name: 'Dominican Republic', cities: '207' },
+    { flag: '🇧🇸', name: 'Bahamas', cities: '21' },
+    { flag: '🇹🇹', name: 'Trinidad and Tobago', cities: '25' },
+    { flag: '🇧🇧', name: 'Barbados', cities: '7' },
+    { flag: '🇦🇬', name: 'Antigua and Barbuda', cities: '9' },
+    { flag: '🇩🇲', name: 'Dominica', cities: '17' },
+    { flag: '🇬🇩', name: 'Grenada', cities: '7' },
+    { flag: '🇰🇳', name: 'Saint Kitts and Nevis', cities: '13' },
+    { flag: '🇱🇨', name: 'Saint Lucia', cities: '479' },
+    { flag: '🇻🇨', name: 'Saint Vincent', cities: '9' },
+    { flag: '🇦🇮', name: 'Anguilla', cities: '12' },
+    { flag: '🇦🇼', name: 'Aruba', cities: '12' },
+    { flag: '🇧🇲', name: 'Bermuda', cities: '9' },
+    { flag: '🇰🇾', name: 'Cayman Islands', cities: '7' },
+    { flag: '🇹🇨', name: 'Turks and Caicos', cities: '8' },
+    { flag: '🇻🇬', name: 'British Virgin Islands', cities: '5' },
+    { flag: '🇻🇮', name: 'US Virgin Islands', cities: '20' },
+    { flag: '🇬🇵', name: 'Guadeloupe', cities: '32' },
+    { flag: '🇲🇶', name: 'Martinique', cities: '34' },
+    { flag: '🇨🇼', name: 'Curaçao', cities: '12' },
+    { flag: '🇬🇱', name: 'Greenland', cities: '18' },
+  ];
 
   const fetchSuggestions = useCallback(async (value) => {
     if (!value || value.trim().length < 2) {
@@ -288,12 +328,15 @@ export default function RescueSquadSearchPage() {
             Enter a city name or postal code to find or create a rescue squad
           </p>
           <div className="mt-3 inline-flex items-center gap-2 text-sm text-midnight-400">
-            <span>🇺🇸</span>
-            <span>🇲🇽</span>
-            <span>🇨🇦</span>
-            <span>🇨🇴</span>
-            <span>🌎</span>
-            <span className="ml-1">USA, Canada, México, Colombia & Caribbean</span>
+            <span className="text-lg">🌎</span>
+            <span>35+ countries supported</span>
+            <button
+              type="button"
+              onClick={() => setShowCountriesModal(true)}
+              className="text-flash-600 hover:text-flash-700 underline"
+            >
+              See list
+            </button>
           </div>
         </div>
 
@@ -360,7 +403,7 @@ export default function RescueSquadSearchPage() {
                         className="px-4 py-3 cursor-pointer hover:bg-midnight-50 border-b border-midnight-100 last:border-b-0"
                       >
                         <div className="font-semibold text-midnight-900 flex items-center gap-2">
-                          <span>{city.country === 'MX' ? '🇲🇽' : city.country === 'CA' ? '🇨🇦' : city.country === 'PR' ? '🇵🇷' : '🇺🇸'}</span>
+                          <span className="text-lg">{getCountryFlag(city.country)}</span>
                           {city.city}, {city.state_id}
                         </div>
                         <div className="text-sm text-midnight-500">
@@ -532,6 +575,47 @@ export default function RescueSquadSearchPage() {
           </div>
         )}
       </div>
+
+      {/* Supported Countries Modal */}
+      {showCountriesModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden shadow-xl">
+            <div className="p-6 border-b border-midnight-100 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-midnight-900">🌎 Supported Countries</h2>
+              <button
+                onClick={() => setShowCountriesModal(false)}
+                className="text-midnight-400 hover:text-midnight-600 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <p className="text-midnight-500 mb-4">
+                Search for rescue squads in any of these {supportedCountries.length} countries and territories:
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {supportedCountries.map((country) => (
+                  <div
+                    key={country.name}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-midnight-50"
+                  >
+                    <span className="text-2xl">{country.flag}</span>
+                    <div>
+                      <div className="font-medium text-midnight-900">{country.name}</div>
+                      <div className="text-xs text-midnight-400">{country.cities} cities</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="p-4 border-t border-midnight-100 bg-midnight-50">
+              <Button fullWidth onClick={() => setShowCountriesModal(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
