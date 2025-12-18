@@ -195,6 +195,25 @@ async function appleMapsFetch(endpoint, params = {}) {
 }
 
 /**
+ * Detect language based on coordinates
+ * - Mexico: Spanish
+ * - Quebec (French Canada): French
+ * - Rest of North America: English
+ */
+function detectLanguage(lat, lng) {
+  // Mexico: roughly south of US border (lat < 32) and within Mexico's longitude range
+  if (lat < 32 && lng > -118 && lng < -86) {
+    return 'es-MX';
+  }
+  // Quebec: roughly lat 45-62, lng -80 to -57
+  if (lat > 45 && lat < 62 && lng > -80 && lng < -57) {
+    return 'fr-CA';
+  }
+  // Default to English
+  return 'en-US';
+}
+
+/**
  * Search for places near a location
  *
  * @param {string} query - Search query (e.g., "animal shelter", "veterinary")
@@ -206,8 +225,12 @@ async function appleMapsFetch(endpoint, params = {}) {
 export async function searchPlaces(query, lat, lng, options = {}) {
   const {
     limit = 25,
-    lang = 'en-US',
+    lang = null, // Auto-detect if not specified
+    countries = 'US,CA,MX', // All of North America
   } = options;
+
+  // Auto-detect language based on location
+  const searchLang = lang || detectLanguage(lat, lng);
 
   try {
     // Try requesting additional data with various undocumented parameters
@@ -215,8 +238,8 @@ export async function searchPlaces(query, lat, lng, options = {}) {
       q: query,
       searchLocation: `${lat},${lng}`,
       resultTypeFilter: 'Poi', // Points of Interest only
-      lang,
-      limitToCountries: 'US',
+      lang: searchLang,
+      limitToCountries: countries,
       // Try undocumented parameters that might return hours
       includeAddressDetails: true,
       includePoiDetails: true,
@@ -256,21 +279,38 @@ export async function searchPlaces(query, lat, lng, options = {}) {
 }
 
 /**
+ * Get localized search terms based on language
+ */
+function getLocalizedShelterTerms(lang) {
+  const terms = {
+    // English terms (US, English Canada)
+    'en-US': ['animal shelter', 'pet shelter', 'animal rescue', 'humane society', 'SPCA'],
+    'en-CA': ['animal shelter', 'pet shelter', 'animal rescue', 'humane society', 'SPCA'],
+    // Spanish terms (Mexico)
+    'es-MX': ['refugio de animales', 'albergue animal', 'rescate animal', 'protectora de animales', 'antirrábico'],
+    // French terms (Quebec)
+    'fr-CA': ['refuge animalier', 'refuge pour animaux', 'SPA', 'société protectrice des animaux', 'SPCA'],
+  };
+  return terms[lang] || terms['en-US'];
+}
+
+/**
  * Search specifically for animal shelters
  */
 export async function searchShelters(lat, lng, options = {}) {
-  // Try multiple search terms to get better results
-  const searchTerms = [
-    'animal shelter',
-    'pet shelter',
-    'animal rescue',
-    'humane society',
-  ];
+  // Detect language and get localized search terms
+  const lang = options.lang || detectLanguage(lat, lng);
+  const searchTerms = getLocalizedShelterTerms(lang);
+
+  // Also include English terms as fallback (many places indexed in English)
+  const allTerms = lang !== 'en-US'
+    ? [...searchTerms, 'animal shelter', 'pet shelter']
+    : searchTerms;
 
   const allResults = [];
   const seenIds = new Set();
 
-  for (const term of searchTerms) {
+  for (const term of allTerms) {
     try {
       const results = await searchPlaces(term, lat, lng, { ...options, limit: 10 });
       for (const place of results) {
@@ -291,20 +331,47 @@ export async function searchShelters(lat, lng, options = {}) {
 }
 
 /**
+ * Get localized vet search terms
+ */
+function getLocalizedVetTerms(lang) {
+  const terms = {
+    'en-US': ['veterinary clinic', 'veterinarian', 'animal hospital', 'pet clinic'],
+    'en-CA': ['veterinary clinic', 'veterinarian', 'animal hospital', 'pet clinic'],
+    'es-MX': ['veterinaria', 'clínica veterinaria', 'hospital veterinario', 'médico veterinario'],
+    'fr-CA': ['clinique vétérinaire', 'vétérinaire', 'hôpital vétérinaire', 'clinique animale'],
+  };
+  return terms[lang] || terms['en-US'];
+}
+
+/**
+ * Get localized animal control terms
+ */
+function getLocalizedAnimalControlTerms(lang) {
+  const terms = {
+    'en-US': ['animal control', 'animal services', 'animal regulation'],
+    'en-CA': ['animal control', 'animal services', 'bylaw enforcement'],
+    'es-MX': ['control animal', 'centro antirrábico', 'servicios animales', 'zoonosis'],
+    'fr-CA': ['contrôle animalier', 'services animaliers', 'fourrière municipale'],
+  };
+  return terms[lang] || terms['en-US'];
+}
+
+/**
  * Search specifically for veterinary clinics
  */
 export async function searchVets(lat, lng, options = {}) {
-  const searchTerms = [
-    'veterinary clinic',
-    'veterinarian',
-    'animal hospital',
-    'pet clinic',
-  ];
+  const lang = options.lang || detectLanguage(lat, lng);
+  const searchTerms = getLocalizedVetTerms(lang);
+
+  // Include English fallback
+  const allTerms = lang !== 'en-US'
+    ? [...searchTerms, 'veterinary', 'vet clinic']
+    : searchTerms;
 
   const allResults = [];
   const seenIds = new Set();
 
-  for (const term of searchTerms) {
+  for (const term of allTerms) {
     try {
       const results = await searchPlaces(term, lat, lng, { ...options, limit: 10 });
       for (const place of results) {
@@ -328,16 +395,18 @@ export async function searchVets(lat, lng, options = {}) {
  * Search for animal control offices
  */
 export async function searchAnimalControl(lat, lng, options = {}) {
-  const searchTerms = [
-    'animal control',
-    'animal services',
-    'animal regulation',
-  ];
+  const lang = options.lang || detectLanguage(lat, lng);
+  const searchTerms = getLocalizedAnimalControlTerms(lang);
+
+  // Include English fallback
+  const allTerms = lang !== 'en-US'
+    ? [...searchTerms, 'animal control']
+    : searchTerms;
 
   const allResults = [];
   const seenIds = new Set();
 
-  for (const term of searchTerms) {
+  for (const term of allTerms) {
     try {
       const results = await searchPlaces(term, lat, lng, { ...options, limit: 10 });
       for (const place of results) {
@@ -359,12 +428,16 @@ export async function searchAnimalControl(lat, lng, options = {}) {
 
 /**
  * Geocode an address to coordinates
+ * @param {string} address - Address to geocode
+ * @param {Object} options - Options including countries to limit search
  */
-export async function geocode(address) {
+export async function geocode(address, options = {}) {
+  const { countries = 'US,CA,MX' } = options;
+
   try {
     const data = await appleMapsFetch('/geocode', {
       q: address,
-      limitToCountries: 'US',
+      limitToCountries: countries,
     });
 
     if (!data.results || data.results.length === 0) {
