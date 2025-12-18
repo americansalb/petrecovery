@@ -90,59 +90,15 @@ function searchUSLocations(query, isZip, limit) {
   }
 }
 
-// Major Mexican cities by population (approx) for relevance sorting
-const MX_CITY_POPULATION = {
-  'ciudad de méxico-cdmx': 9000000,
-  'guadalajara-jal': 1500000,
-  'monterrey-nl': 1100000,
-  'puebla-pue': 1500000,
-  'tijuana-bc': 1800000,
-  'león-gto': 1600000,
-  'juárez-chih': 1400000,
-  'zapopan-jal': 1400000,
-  'mérida-yuc': 900000,
-  'san luis potosí-slp': 850000,
-  'aguascalientes-ags': 900000,
-  'hermosillo-son': 850000,
-  'saltillo-coah': 800000,
-  'mexicali-bc': 1000000,
-  'culiacán-sin': 900000,
-  'querétaro-qro': 900000,
-  'chihuahua-chih': 900000,
-  'morelia-mich': 800000,
-  'cancún-qroo': 750000,
-  'acapulco-gro': 800000,
-  'toluca-mex': 900000,
-  'veracruz-ver': 600000,
-  'oaxaca-oax': 270000,
-  'durango-dgo': 600000,
-  'mazatlán-sin': 500000,
-  'cuernavaca-mor': 400000,
-  'tampico-tamps': 300000,
-  'reynosa-tamps': 700000,
-  'torreón-coah': 700000,
-  'villahermosa-tab': 400000,
-  'tuxtla gutiérrez-chis': 600000,
-  'pachuca-hgo': 300000,
-  'tepic-nay': 400000,
-  'campeche-cam': 260000,
-  'colima-col': 150000,
-  'tlaxcala-tlax': 100000,
-  'zacatecas-zac': 150000,
-  'chilpancingo-gro': 270000,
-  'chetumal-qroo': 170000,
-  'la paz-bcs': 300000,
-  'guanajuato-gto': 180000,
-};
-
-// Check if city is a state capital (city name similar to state name)
-function isStateCapital(city, stateId, stateName) {
-  const cityLower = city.toLowerCase();
-  const stateNameLower = (stateName || '').toLowerCase();
-  // Direct match or city contains state name
-  return cityLower === stateNameLower ||
-         stateNameLower.includes(cityLower) ||
-         cityLower.includes(stateNameLower.split(' ')[0]);
+// Check if city name matches its state (likely the capital/main city)
+function matchesStateName(city, stateName) {
+  if (!city || !stateName) return false;
+  const cityLower = city.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const stateLower = stateName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  // Exact match, or state contains city name, or city is first word of state
+  return cityLower === stateLower ||
+         stateLower.startsWith(cityLower) ||
+         stateLower.split(' ')[0] === cityLower;
 }
 
 // Search Mexican locations using local database (9,321 cities)
@@ -156,7 +112,7 @@ function searchMexicanLocations(query, limit) {
       return cityLower.startsWith(queryLower) || cityLower.includes(queryLower);
     });
 
-    // Sort by relevance: starts with > population > state capital > alphabetical
+    // Sort by relevance: starts with > matches state name > alphabetical
     matches.sort((a, b) => {
       const aName = a.city.toLowerCase();
       const bName = b.city.toLowerCase();
@@ -167,18 +123,11 @@ function searchMexicanLocations(query, limit) {
       if (aStarts && !bStarts) return -1;
       if (bStarts && !aStarts) return 1;
 
-      // Check population
-      const aKey = `${a.city.toLowerCase()}-${a.state_id.toLowerCase()}`;
-      const bKey = `${b.city.toLowerCase()}-${b.state_id.toLowerCase()}`;
-      const aPop = MX_CITY_POPULATION[aKey] || 0;
-      const bPop = MX_CITY_POPULATION[bKey] || 0;
-      if (aPop !== bPop) return bPop - aPop;
-
-      // State capitals get priority
-      const aCapital = isStateCapital(a.city, a.state_id, a.state_name);
-      const bCapital = isStateCapital(b.city, b.state_id, b.state_name);
-      if (aCapital && !bCapital) return -1;
-      if (bCapital && !aCapital) return 1;
+      // City that matches its state name gets priority (it's the main city)
+      const aMatchesState = matchesStateName(a.city, a.state_name);
+      const bMatchesState = matchesStateName(b.city, b.state_name);
+      if (aMatchesState && !bMatchesState) return -1;
+      if (bMatchesState && !aMatchesState) return 1;
 
       return aName.localeCompare(bName);
     });
