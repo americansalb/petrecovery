@@ -15,6 +15,11 @@ const naCities = naCitiesData || [];
 const coCities = coCitiesData || [];
 console.log(`[Cities API] Loaded ${mxCities.length} MX + ${caCities.length} CA + ${prCities.length} PR + ${naCities.length} NA + ${coCities.length} CO cities`);
 
+// Normalize text for accent-insensitive search (Bogotá -> bogota, São Paulo -> sao paulo)
+function normalizeText(text) {
+  return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 // GET /api/cities/suggest?q=search_term - Unified search for North & South America
 export async function GET(request) {
   try {
@@ -40,28 +45,28 @@ export async function GET(request) {
 
     // Combine results
     const allResults = [...usResults, ...mxResults, ...caResults, ...prResults, ...naResults, ...coResults];
-    const queryLower = trimmed.toLowerCase();
+    const queryNorm = normalizeText(trimmed);
 
-    // Filter results that match the query
+    // Filter results that match the query (accent-insensitive)
     const filteredResults = allResults.filter(r => {
-      const cityLower = r.city.toLowerCase();
-      return cityLower.startsWith(queryLower) || cityLower.includes(queryLower);
+      const cityNorm = normalizeText(r.city);
+      return cityNorm.startsWith(queryNorm) || cityNorm.includes(queryNorm);
     });
 
     // Sort by relevance: exact > starts with > population > state match > alphabetical
     filteredResults.sort((a, b) => {
-      const aName = a.city.toLowerCase();
-      const bName = b.city.toLowerCase();
+      const aName = normalizeText(a.city);
+      const bName = normalizeText(b.city);
 
       // Exact match gets highest priority
-      const aExact = aName === queryLower;
-      const bExact = bName === queryLower;
+      const aExact = aName === queryNorm;
+      const bExact = bName === queryNorm;
       if (aExact && !bExact) return -1;
       if (bExact && !aExact) return 1;
 
       // Starts with gets second priority
-      const aStarts = aName.startsWith(queryLower);
-      const bStarts = bName.startsWith(queryLower);
+      const aStarts = aName.startsWith(queryNorm);
+      const bStarts = bName.startsWith(queryNorm);
       if (aStarts && !bStarts) return -1;
       if (bStarts && !aStarts) return 1;
 
@@ -132,15 +137,15 @@ function searchUSLocations(query, isZip, limit) {
   }
 }
 
-// Search locations in a country database (MX or CA)
+// Search locations in a country database (MX, CA, CO, etc.)
 function searchLocations(cities, query, country, limit) {
   try {
-    const queryLower = query.toLowerCase();
+    const queryNorm = normalizeText(query);
 
-    // Search for cities that start with or contain the query
+    // Search for cities that start with or contain the query (accent-insensitive)
     const matches = cities.filter(c => {
-      const cityLower = c.city.toLowerCase();
-      return cityLower.startsWith(queryLower) || cityLower.includes(queryLower);
+      const cityNorm = normalizeText(c.city);
+      return cityNorm.startsWith(queryNorm) || cityNorm.includes(queryNorm);
     });
 
     // Deduplicate by city+state
@@ -172,12 +177,12 @@ function searchLocations(cities, query, country, limit) {
 // These cities already have their country field set in the JSON
 function searchNACities(cities, query, limit) {
   try {
-    const queryLower = query.toLowerCase();
+    const queryNorm = normalizeText(query);
 
-    // Search for cities that start with or contain the query
+    // Search for cities that start with or contain the query (accent-insensitive)
     const matches = cities.filter(c => {
-      const cityLower = c.city.toLowerCase();
-      return cityLower.startsWith(queryLower) || cityLower.includes(queryLower);
+      const cityNorm = normalizeText(c.city);
+      return cityNorm.startsWith(queryNorm) || cityNorm.includes(queryNorm);
     });
 
     // Deduplicate by city+state+country

@@ -291,8 +291,9 @@ export default function RescueSquadSearchPage() {
             <span>🇺🇸</span>
             <span>🇲🇽</span>
             <span>🇨🇦</span>
-            <span>🇵🇷</span>
-            <span className="ml-1">US, México, Canada & Puerto Rico</span>
+            <span>🇨🇴</span>
+            <span>🌎</span>
+            <span className="ml-1">USA, Canada, México, Colombia & Caribbean</span>
           </div>
         </div>
 
