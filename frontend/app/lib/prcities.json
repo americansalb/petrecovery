@@ -1,0 +1,2042 @@
+[
+  {
+    "city": "Adjuntas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.16277778,
+    "lng": -66.72222222,
+    "pop": 18020
+  },
+  {
+    "city": "Aguada",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.37944444,
+    "lng": -67.18833333,
+    "pop": 0
+  },
+  {
+    "city": "Aguadilla",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.42745,
+    "lng": -67.15407,
+    "pop": 55101
+  },
+  {
+    "city": "Aguas Buenas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.256944,
+    "lng": -66.103056,
+    "pop": 24223
+  },
+  {
+    "city": "Aguas Claras",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.24417,
+    "lng": -65.66278,
+    "pop": 2239
+  },
+  {
+    "city": "Aguilita",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.02333333,
+    "lng": -66.53472222,
+    "pop": 3936
+  },
+  {
+    "city": "Aibonito",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.14,
+    "lng": -66.266111,
+    "pop": 24637
+  },
+  {
+    "city": "Añasco",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.31611111,
+    "lng": -67.13972222,
+    "pop": 25596
+  },
+  {
+    "city": "Animas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.44555556,
+    "lng": -66.635,
+    "pop": 1261
+  },
+  {
+    "city": "Antón Ruiz",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.18527778,
+    "lng": -65.80861111,
+    "pop": 1362
+  },
+  {
+    "city": "Arecibo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.47055556,
+    "lng": -66.72083333,
+    "pop": 87754
+  },
+  {
+    "city": "Arroyo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.965833,
+    "lng": -66.061389,
+    "pop": 15843
+  },
+  {
+    "city": "Bairoa",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.25916667,
+    "lng": -66.04055556,
+    "pop": 2365
+  },
+  {
+    "city": "Bajadero",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.42666667,
+    "lng": -66.68333333,
+    "pop": 3522
+  },
+  {
+    "city": "Bajandas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.16278,
+    "lng": -65.78167,
+    "pop": 966
+  },
+  {
+    "city": "Barahona",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.35138889,
+    "lng": -66.44555556,
+    "pop": 2147
+  },
+  {
+    "city": "Barceloneta",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.45633,
+    "lng": -66.54128,
+    "pop": 22657
+  },
+  {
+    "city": "Barranquitas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.20357,
+    "lng": -66.31211,
+    "pop": 28983
+  },
+  {
+    "city": "Bartolo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.36138889,
+    "lng": -65.83861111,
+    "pop": 1170
+  },
+  {
+    "city": "Bayamon",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.17777778,
+    "lng": -66.11333333,
+    "pop": 185187
+  },
+  {
+    "city": "Benitez",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.27361111,
+    "lng": -65.87916667,
+    "pop": 1089
+  },
+  {
+    "city": "Betances",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.02861111,
+    "lng": -67.135,
+    "pop": 764
+  },
+  {
+    "city": "Boqueron",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.2075,
+    "lng": -65.84861111,
+    "pop": 0
+  },
+  {
+    "city": "Boquerón Cabo Rojo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.02691,
+    "lng": -67.16907,
+    "pop": 0
+  },
+  {
+    "city": "Brenas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.46722222,
+    "lng": -66.34111111,
+    "pop": 3860
+  },
+  {
+    "city": "Buena Vista",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.99638889,
+    "lng": -66.05194444,
+    "pop": 2855
+  },
+  {
+    "city": "Bufalo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.41833333,
+    "lng": -66.57333333,
+    "pop": 1060
+  },
+  {
+    "city": "Caban",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.44333333,
+    "lng": -67.13611111,
+    "pop": 2729
+  },
+  {
+    "city": "Cabo Rojo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.08666667,
+    "lng": -67.14583333,
+    "pop": 47158
+  },
+  {
+    "city": "Cabo Rojo Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.05635,
+    "lng": -67.14685,
+    "pop": 0
+  },
+  {
+    "city": "Cacao",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.44028,
+    "lng": -66.93861,
+    "pop": 0
+  },
+  {
+    "city": "Caguas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.23333333,
+    "lng": -66.03333333,
+    "pop": 127244
+  },
+  {
+    "city": "Campanilla",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.42138889,
+    "lng": -66.23694444,
+    "pop": 4243
+  },
+  {
+    "city": "Campo Rico",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.33722222,
+    "lng": -65.89805556,
+    "pop": 2321
+  },
+  {
+    "city": "Camuy",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.483889,
+    "lng": -66.845,
+    "pop": 32827
+  },
+  {
+    "city": "Candelaria",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.40416667,
+    "lng": -66.20888889,
+    "pop": 0
+  },
+  {
+    "city": "Candelaria Arenas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.41722222,
+    "lng": -66.2175,
+    "pop": 3934
+  },
+  {
+    "city": "Candelero Arriba",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.1056,
+    "lng": -65.8342,
+    "pop": 1040
+  },
+  {
+    "city": "Canóvanas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.379167,
+    "lng": -65.901389,
+    "pop": 42337
+  },
+  {
+    "city": "Capitanejo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.01454,
+    "lng": -66.53372,
+    "pop": 3175
+  },
+  {
+    "city": "Carolina",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.38888889,
+    "lng": -65.96666667,
+    "pop": 286
+  },
+  {
+    "city": "Carrizales",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.48194444,
+    "lng": -66.79,
+    "pop": 2417
+  },
+  {
+    "city": "Cataño",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.44134,
+    "lng": -66.11822,
+    "pop": 23155
+  },
+  {
+    "city": "Cayey",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.115,
+    "lng": -66.16139,
+    "pop": 41652
+  },
+  {
+    "city": "Cayuco",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.29194,
+    "lng": -66.73528,
+    "pop": 909
+  },
+  {
+    "city": "Ceiba",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.44638889,
+    "lng": -66.35083333,
+    "pop": 11307
+  },
+  {
+    "city": "Ceiba Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.26051,
+    "lng": -65.67183,
+    "pop": 0
+  },
+  {
+    "city": "Celada",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.27166667,
+    "lng": -65.96611111,
+    "pop": 3650
+  },
+  {
+    "city": "Central Aguirre",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.95472,
+    "lng": -66.22611,
+    "pop": 1155
+  },
+  {
+    "city": "Ciales",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.336111,
+    "lng": -66.468889,
+    "pop": 16984
+  },
+  {
+    "city": "Ciales Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.29162,
+    "lng": -66.51628,
+    "pop": 0
+  },
+  {
+    "city": "Cidra",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.17583333,
+    "lng": -66.16138889,
+    "pop": 39970
+  },
+  {
+    "city": "Coamo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.08,
+    "lng": -66.35805556,
+    "pop": 34668
+  },
+  {
+    "city": "Coco",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.00722222,
+    "lng": -66.25944444,
+    "pop": 4667
+  },
+  {
+    "city": "Comerío",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.21801,
+    "lng": -66.226,
+    "pop": 18883
+  },
+  {
+    "city": "Comerío Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.22718,
+    "lng": -66.22183,
+    "pop": 0
+  },
+  {
+    "city": "Comunas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.08722222,
+    "lng": -65.84388889,
+    "pop": 3018
+  },
+  {
+    "city": "Coquí",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.97416667,
+    "lng": -66.22722222,
+    "pop": 2336
+  },
+  {
+    "city": "Corazón",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.99277778,
+    "lng": -66.085,
+    "pop": 1515
+  },
+  {
+    "city": "Corcovado",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.45861111,
+    "lng": -66.77638889,
+    "pop": 1245
+  },
+  {
+    "city": "Corozal",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.34166667,
+    "lng": -66.31694444,
+    "pop": 34571
+  },
+  {
+    "city": "Corozal Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.30912,
+    "lng": -66.326,
+    "pop": 0
+  },
+  {
+    "city": "Coto Laurel",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.04969,
+    "lng": -66.55128,
+    "pop": 0
+  },
+  {
+    "city": "Coto Norte",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.43078,
+    "lng": -66.43989,
+    "pop": 1395
+  },
+  {
+    "city": "Culebra",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.31666667,
+    "lng": -65.29027778,
+    "pop": 1792
+  },
+  {
+    "city": "Culebra barrio-pueblo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.3064695,
+    "lng": -65.30258,
+    "pop": 1486
+  },
+  {
+    "city": "Daguao",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.22638889,
+    "lng": -65.68333333,
+    "pop": 1379
+  },
+  {
+    "city": "Dorado",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.458889,
+    "lng": -66.267778,
+    "pop": 35879
+  },
+  {
+    "city": "Dorado Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.43967,
+    "lng": -66.28295,
+    "pop": 0
+  },
+  {
+    "city": "El Mangó",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.23416667,
+    "lng": -65.87972222,
+    "pop": 1338
+  },
+  {
+    "city": "El Negro",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.0375,
+    "lng": -65.85138889,
+    "pop": 791
+  },
+  {
+    "city": "El Ojo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.00388889,
+    "lng": -66.39166667,
+    "pop": 1118
+  },
+  {
+    "city": "Emajagua",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.00055556,
+    "lng": -65.88277778,
+    "pop": 2469
+  },
+  {
+    "city": "Esperanza",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.09722222,
+    "lng": -65.47083333,
+    "pop": 947
+  },
+  {
+    "city": "Espino",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.27638889,
+    "lng": -67.11944444,
+    "pop": 1779
+  },
+  {
+    "city": "Estancias de Florida",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.36666667,
+    "lng": -66.56972222,
+    "pop": 5972
+  },
+  {
+    "city": "Fajardo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.32579,
+    "lng": -65.65238,
+    "pop": 32124
+  },
+  {
+    "city": "Fajardo Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.31051,
+    "lng": -65.676,
+    "pop": 0
+  },
+  {
+    "city": "Florida",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.364953,
+    "lng": -66.566161,
+    "pop": 694
+  },
+  {
+    "city": "Franquez",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.34027778,
+    "lng": -66.42777778,
+    "pop": 1725
+  },
+  {
+    "city": "Fuig",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.98777778,
+    "lng": -66.91611111,
+    "pop": 712
+  },
+  {
+    "city": "G. L. Garcia",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.1275,
+    "lng": -66.10416667,
+    "pop": 1543
+  },
+  {
+    "city": "Galateo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.3625,
+    "lng": -66.25888889,
+    "pop": 2224
+  },
+  {
+    "city": "Garrochales",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.45361111,
+    "lng": -66.56638889,
+    "pop": 919
+  },
+  {
+    "city": "Guánica",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.97166667,
+    "lng": -66.90805556,
+    "pop": 13787
+  },
+  {
+    "city": "Guánica Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.9883,
+    "lng": -66.91212,
+    "pop": 0
+  },
+  {
+    "city": "Guayabal",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.08138889,
+    "lng": -66.50138889,
+    "pop": 1613
+  },
+  {
+    "city": "Guayama",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.99361111,
+    "lng": -66.13083333,
+    "pop": 36614
+  },
+  {
+    "city": "Guayama Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.01663,
+    "lng": -66.13072,
+    "pop": 0
+  },
+  {
+    "city": "Guayanilla",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.01916667,
+    "lng": -66.79194444,
+    "pop": 17784
+  },
+  {
+    "city": "Guaynabo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.36666667,
+    "lng": -66.1,
+    "pop": 89780
+  },
+  {
+    "city": "Gurabo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.2544,
+    "lng": -65.97294,
+    "pop": 40622
+  },
+  {
+    "city": "Gurabo Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.27162,
+    "lng": -65.97183,
+    "pop": 0
+  },
+  {
+    "city": "H. Rivera Colon",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.34777778,
+    "lng": -66.27388889,
+    "pop": 1955
+  },
+  {
+    "city": "Hatillo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.48633,
+    "lng": -66.82545,
+    "pop": 38486
+  },
+  {
+    "city": "Hatillo Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.40773,
+    "lng": -66.79323,
+    "pop": 0
+  },
+  {
+    "city": "Hato Arriba",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.35583333,
+    "lng": -67.03416667,
+    "pop": 764
+  },
+  {
+    "city": "Hato Candal",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.37444444,
+    "lng": -65.78722222,
+    "pop": 1715
+  },
+  {
+    "city": "Hormigueros",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.13968,
+    "lng": -67.1274,
+    "pop": 15654
+  },
+  {
+    "city": "Hormigueros Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.14162,
+    "lng": -67.11629,
+    "pop": 0
+  },
+  {
+    "city": "Humacao",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.149722,
+    "lng": -65.8275,
+    "pop": 50896
+  },
+  {
+    "city": "Imbery",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.43694444,
+    "lng": -66.5525,
+    "pop": 3636
+  },
+  {
+    "city": "Indios",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.99416667,
+    "lng": -66.81944444,
+    "pop": 1303
+  },
+  {
+    "city": "Ingenio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.44222222,
+    "lng": -66.22611111,
+    "pop": 2720
+  },
+  {
+    "city": "Isabel Segunda",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.14916667,
+    "lng": -65.44277778,
+    "pop": 0
+  },
+  {
+    "city": "Isabela",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.51305556,
+    "lng": -67.07,
+    "pop": 42943
+  },
+  {
+    "city": "Jagual",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.16166667,
+    "lng": -65.99555556,
+    "pop": 864
+  },
+  {
+    "city": "Jauca",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.96916667,
+    "lng": -66.36583333,
+    "pop": 1688
+  },
+  {
+    "city": "Jayuya",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.218611,
+    "lng": -66.591667,
+    "pop": 14779
+  },
+  {
+    "city": "Jobos",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.95527778,
+    "lng": -66.16555556,
+    "pop": 1761
+  },
+  {
+    "city": "Juana Díaz",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.05246,
+    "lng": -66.50656,
+    "pop": 46538
+  },
+  {
+    "city": "Juana Díaz Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.04802,
+    "lng": -66.49267,
+    "pop": 0
+  },
+  {
+    "city": "Juncal",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.31388889,
+    "lng": -66.91916667,
+    "pop": 994
+  },
+  {
+    "city": "Juncos",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.2275,
+    "lng": -65.921111,
+    "pop": 37012
+  },
+  {
+    "city": "La Alianza",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.3975,
+    "lng": -66.6025,
+    "pop": 2265
+  },
+  {
+    "city": "La Dolores",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.37555556,
+    "lng": -65.85583333,
+    "pop": 2792
+  },
+  {
+    "city": "La Fermina",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.17417,
+    "lng": -65.85139,
+    "pop": 2187
+  },
+  {
+    "city": "La Luisa",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.44888889,
+    "lng": -66.51,
+    "pop": 2425
+  },
+  {
+    "city": "La Parguera",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.97497,
+    "lng": -67.04657,
+    "pop": 973
+  },
+  {
+    "city": "La Playa",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.2875,
+    "lng": -67.18694444,
+    "pop": 1359
+  },
+  {
+    "city": "La Plena",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.04663,
+    "lng": -66.20461,
+    "pop": 583
+  },
+  {
+    "city": "Lajas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.05193889,
+    "lng": -67.05971944,
+    "pop": 23334
+  },
+  {
+    "city": "Lajas Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.0133,
+    "lng": -67.0399,
+    "pop": 0
+  },
+  {
+    "city": "Lamboglia",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.98136,
+    "lng": -65.98572,
+    "pop": 688
+  },
+  {
+    "city": "Lares",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.29467,
+    "lng": -66.87712,
+    "pop": 28105
+  },
+  {
+    "city": "Las Marias",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.29333333,
+    "lng": -67.14638889,
+    "pop": 8874
+  },
+  {
+    "city": "Las Marías Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.25087,
+    "lng": -66.9924,
+    "pop": 0
+  },
+  {
+    "city": "Las Ochenta",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.98469,
+    "lng": -66.31795,
+    "pop": 709
+  },
+  {
+    "city": "Las Ollas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.03305556,
+    "lng": -66.42444444,
+    "pop": 1202
+  },
+  {
+    "city": "Las Piedras",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.18301,
+    "lng": -65.86627,
+    "pop": 35180
+  },
+  {
+    "city": "Las Piedras Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.18829,
+    "lng": -65.87044,
+    "pop": 0
+  },
+  {
+    "city": "Levittown",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.44861111,
+    "lng": -66.18027778,
+    "pop": 29785
+  },
+  {
+    "city": "Liborio Negron Torres",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.04305556,
+    "lng": -66.9425,
+    "pop": 1001
+  },
+  {
+    "city": "Lluveras",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.03833333,
+    "lng": -66.90472222,
+    "pop": 1486
+  },
+  {
+    "city": "Loíza",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.43134,
+    "lng": -65.88016,
+    "pop": 23693
+  },
+  {
+    "city": "Lomas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.26861111,
+    "lng": -65.90888889,
+    "pop": 785
+  },
+  {
+    "city": "Los Llanos",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.05527778,
+    "lng": -66.40583333,
+    "pop": 1814
+  },
+  {
+    "city": "Luis Lloréns Torres",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.05691,
+    "lng": -66.52684,
+    "pop": 2696
+  },
+  {
+    "city": "Luis M. Cintron",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.29972222,
+    "lng": -65.63861111,
+    "pop": 1699
+  },
+  {
+    "city": "Luquillo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.3725,
+    "lng": -65.71666667,
+    "pop": 17781
+  },
+  {
+    "city": "Luquillo Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.33967,
+    "lng": -65.72461,
+    "pop": 0
+  },
+  {
+    "city": "Luyando",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.36444444,
+    "lng": -67.1575,
+    "pop": 2458
+  },
+  {
+    "city": "Magas Arriba",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.0175,
+    "lng": -66.76916667,
+    "pop": 948
+  },
+  {
+    "city": "Manatí",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.4325,
+    "lng": -66.48444444,
+    "pop": 39492
+  },
+  {
+    "city": "Maria Antonia",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.97833333,
+    "lng": -66.88944444,
+    "pop": 1599
+  },
+  {
+    "city": "Mariano Colón",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.02333333,
+    "lng": -66.3325,
+    "pop": 1749
+  },
+  {
+    "city": "Maricao",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.180833,
+    "lng": -66.98,
+    "pop": 0
+  },
+  {
+    "city": "Maricao Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.17301,
+    "lng": -66.94546,
+    "pop": 0
+  },
+  {
+    "city": "Martorell",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.07472,
+    "lng": -65.89861,
+    "pop": 1868
+  },
+  {
+    "city": "Marueño",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.05772,
+    "lng": -66.65603,
+    "pop": 936
+  },
+  {
+    "city": "Maunabo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.00719,
+    "lng": -65.89933,
+    "pop": 10589
+  },
+  {
+    "city": "Maunabo Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.01691,
+    "lng": -65.92738,
+    "pop": 0
+  },
+  {
+    "city": "Mayagüez",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.20111111,
+    "lng": -67.13972222,
+    "pop": 73077
+  },
+  {
+    "city": "Miranda",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.38666667,
+    "lng": -66.38388889,
+    "pop": 1486
+  },
+  {
+    "city": "Moca",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.39467,
+    "lng": -67.11324,
+    "pop": 37460
+  },
+  {
+    "city": "Moca Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.3855,
+    "lng": -67.08435,
+    "pop": 0
+  },
+  {
+    "city": "Monserrate",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.43694,
+    "lng": -66.35639,
+    "pop": 2331
+  },
+  {
+    "city": "Monte Grande",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.0875,
+    "lng": -67.1075,
+    "pop": 2775
+  },
+  {
+    "city": "Mora",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.46305556,
+    "lng": -67.03277778,
+    "pop": 1453
+  },
+  {
+    "city": "Morovis",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.33333333,
+    "lng": -66.41666667,
+    "pop": 28727
+  },
+  {
+    "city": "Mucarabones",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.39083333,
+    "lng": -66.21611111,
+    "pop": 1246
+  },
+  {
+    "city": "Naguabo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.21944444,
+    "lng": -65.73666667,
+    "pop": 23386
+  },
+  {
+    "city": "Naguabo Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.23135,
+    "lng": -65.75988,
+    "pop": 0
+  },
+  {
+    "city": "Naranjito",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.300833,
+    "lng": -66.245,
+    "pop": 0
+  },
+  {
+    "city": "Naranjito Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.28968,
+    "lng": -66.25517,
+    "pop": 0
+  },
+  {
+    "city": "Olimpo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.00194444,
+    "lng": -66.10833333,
+    "pop": 1709
+  },
+  {
+    "city": "Orocovis",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.226944,
+    "lng": -66.391111,
+    "pop": 0
+  },
+  {
+    "city": "Orocovis Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.21885,
+    "lng": -66.43712,
+    "pop": 0
+  },
+  {
+    "city": "Pájaros",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.3759206,
+    "lng": -66.186255,
+    "pop": 0
+  },
+  {
+    "city": "Pajonal",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.38222222,
+    "lng": -66.55583333,
+    "pop": 674
+  },
+  {
+    "city": "Palmarejo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.04027778,
+    "lng": -67.07694444,
+    "pop": 970
+  },
+  {
+    "city": "Palmas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.98722222,
+    "lng": -66.02555556,
+    "pop": 1568
+  },
+  {
+    "city": "Palmer",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.37055556,
+    "lng": -65.77416667,
+    "pop": 216
+  },
+  {
+    "city": "Palo Seco",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.00747,
+    "lng": -65.93683,
+    "pop": 782
+  },
+  {
+    "city": "Palomas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.01361111,
+    "lng": -66.87333333,
+    "pop": 1416
+  },
+  {
+    "city": "Parcelas La Milagrosa",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.17083333,
+    "lng": -66.18833333,
+    "pop": 948
+  },
+  {
+    "city": "Parcelas Nuevas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.14027778,
+    "lng": -66.1725,
+    "pop": 1351
+  },
+  {
+    "city": "Parcelas Peñuelas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.99888889,
+    "lng": -66.34138889,
+    "pop": 665
+  },
+  {
+    "city": "Pastos",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.11777778,
+    "lng": -66.25888889,
+    "pop": 1137
+  },
+  {
+    "city": "Patillas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.00635,
+    "lng": -66.01572,
+    "pop": 15985
+  },
+  {
+    "city": "Patillas Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.04163,
+    "lng": -66.01766,
+    "pop": 0
+  },
+  {
+    "city": "Peña Pobre",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.21555556,
+    "lng": -65.82222222,
+    "pop": 890
+  },
+  {
+    "city": "Peñuelas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.059375,
+    "lng": -66.722544,
+    "pop": 20399
+  },
+  {
+    "city": "Piedra Gorda",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.43416667,
+    "lng": -66.88777778,
+    "pop": 1758
+  },
+  {
+    "city": "Playa Fortuna",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.37972222,
+    "lng": -65.74527778,
+    "pop": 1396
+  },
+  {
+    "city": "Playita",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.96055556,
+    "lng": -66.28972222,
+    "pop": 1302
+  },
+  {
+    "city": "Playita Cortada",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.985,
+    "lng": -66.43916667,
+    "pop": 1475
+  },
+  {
+    "city": "Pole Ojea",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.975,
+    "lng": -67.18527778,
+    "pop": 1399
+  },
+  {
+    "city": "Ponce",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.0,
+    "lng": -66.61666667,
+    "pop": 137491
+  },
+  {
+    "city": "Potala Pastillo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.99138889,
+    "lng": -66.49666667,
+    "pop": 2455
+  },
+  {
+    "city": "Pueblito del Rio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.22805556,
+    "lng": -65.86305556,
+    "pop": 1118
+  },
+  {
+    "city": "Puerto Real",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.075,
+    "lng": -67.18722222,
+    "pop": 5383
+  },
+  {
+    "city": "Punta Santiago",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.16638889,
+    "lng": -65.74833333,
+    "pop": 3524
+  },
+  {
+    "city": "Quebrada",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.35666667,
+    "lng": -66.83222222,
+    "pop": 730
+  },
+  {
+    "city": "Quebradillas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.47388889,
+    "lng": -66.93861111,
+    "pop": 23638
+  },
+  {
+    "city": "Quebradillas Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.43967,
+    "lng": -66.92462,
+    "pop": 0
+  },
+  {
+    "city": "Rafael Capo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.40722222,
+    "lng": -66.78222222,
+    "pop": 1639
+  },
+  {
+    "city": "Rafael Gonzalez",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.4275,
+    "lng": -66.78694444,
+    "pop": 1983
+  },
+  {
+    "city": "Rafael Hernandez",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.47138889,
+    "lng": -67.07916667,
+    "pop": 1152
+  },
+  {
+    "city": "Ramos",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.33972222,
+    "lng": -65.71277778,
+    "pop": 1497
+  },
+  {
+    "city": "Rincón",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.34023,
+    "lng": -67.2499,
+    "pop": 10934
+  },
+  {
+    "city": "Rincón Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.33967,
+    "lng": -67.23713,
+    "pop": 0
+  },
+  {
+    "city": "Río Blanco",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.21833333,
+    "lng": -65.78861111,
+    "pop": 1505
+  },
+  {
+    "city": "Río Cañas Abajo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.03833333,
+    "lng": -66.46777778,
+    "pop": 1364
+  },
+  {
+    "city": "Río Grande",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.38023,
+    "lng": -65.83127,
+    "pop": 724
+  },
+  {
+    "city": "Río Grande Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.34162,
+    "lng": -65.81766,
+    "pop": 0
+  },
+  {
+    "city": "Rio Lajas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.3971915,
+    "lng": -66.264539,
+    "pop": 1778
+  },
+  {
+    "city": "Río Piedras",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.39972222,
+    "lng": -66.05,
+    "pop": 332344
+  },
+  {
+    "city": "Rosa Sanchez",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.06166667,
+    "lng": -65.91361111,
+    "pop": 963
+  },
+  {
+    "city": "Sabana",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.46083333,
+    "lng": -66.35861111,
+    "pop": 0
+  },
+  {
+    "city": "Sabana Eneas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.08611111,
+    "lng": -67.08111111,
+    "pop": 1283
+  },
+  {
+    "city": "Sabana Grande",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.07972222,
+    "lng": -66.96083333,
+    "pop": 0
+  },
+  {
+    "city": "Sabana Grande Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.09385,
+    "lng": -66.94962,
+    "pop": 0
+  },
+  {
+    "city": "Sabana Hoyos",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.43388889,
+    "lng": -66.61388889,
+    "pop": 3239
+  },
+  {
+    "city": "Sabana Seca",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.42694444,
+    "lng": -66.18472222,
+    "pop": 0
+  },
+  {
+    "city": "Salinas",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.01746,
+    "lng": -66.25378,
+    "pop": 163542
+  },
+  {
+    "city": "San Antonio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.45166667,
+    "lng": -66.94972222,
+    "pop": 1434625
+  },
+  {
+    "city": "San Germán Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.11468,
+    "lng": -67.03573,
+    "pop": 0
+  },
+  {
+    "city": "San Isidro",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.39222222,
+    "lng": -65.88555556,
+    "pop": 6976
+  },
+  {
+    "city": "San José",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.39833333,
+    "lng": -66.25583333,
+    "pop": 1013240
+  },
+  {
+    "city": "San Juan",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.45,
+    "lng": -66.06666667,
+    "pop": 35294
+  },
+  {
+    "city": "San Lorenzo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.189889,
+    "lng": -65.968694,
+    "pop": 37693
+  },
+  {
+    "city": "San Sebastián",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.33722222,
+    "lng": -66.99055556,
+    "pop": 39345
+  },
+  {
+    "city": "Santa Barbara",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.39361111,
+    "lng": -65.91888889,
+    "pop": 88665
+  },
+  {
+    "city": "Santa Clara",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.1956409,
+    "lng": -65.9715713,
+    "pop": 778
+  },
+  {
+    "city": "Santa Isabel",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.966111,
+    "lng": -66.405,
+    "pop": 20281
+  },
+  {
+    "city": "Santa Isabel Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.99663,
+    "lng": -66.38711,
+    "pop": 0
+  },
+  {
+    "city": "Santo Domingo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.06333333,
+    "lng": -66.7525,
+    "pop": 2957
+  },
+  {
+    "city": "Santurce",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.44083333,
+    "lng": -66.04722222,
+    "pop": 94067
+  },
+  {
+    "city": "Stella",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.32194444,
+    "lng": -67.24694444,
+    "pop": 145
+  },
+  {
+    "city": "Suárez",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.43027778,
+    "lng": -65.85361111,
+    "pop": 1535
+  },
+  {
+    "city": "Sumidero",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.2264624,
+    "lng": -66.127602,
+    "pop": 1145
+  },
+  {
+    "city": "Tallaboa",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 17.995,
+    "lng": -66.71638889,
+    "pop": 950
+  },
+  {
+    "city": "Tallaboa Alta",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.05111111,
+    "lng": -66.70027778,
+    "pop": 0
+  },
+  {
+    "city": "Tiburones",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.43166667,
+    "lng": -66.58083333,
+    "pop": 1349
+  },
+  {
+    "city": "Tierras Nuevas Poniente",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.46189,
+    "lng": -66.4885,
+    "pop": 2366
+  },
+  {
+    "city": "Toa Alta",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.38828,
+    "lng": -66.24822,
+    "pop": 66852
+  },
+  {
+    "city": "Toa Alta Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.36606,
+    "lng": -66.25378,
+    "pop": 0
+  },
+  {
+    "city": "Toa Baja",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.443889,
+    "lng": -66.259722,
+    "pop": 75293
+  },
+  {
+    "city": "Trujillo Alto",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.362778,
+    "lng": -66.0175,
+    "pop": 67740
+  },
+  {
+    "city": "Trujillo Alto Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.34162,
+    "lng": -66.00517,
+    "pop": 0
+  },
+  {
+    "city": "Utuado",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.27301,
+    "lng": -66.69962,
+    "pop": 28287
+  },
+  {
+    "city": "Utuado barrio-pueblo",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.2658,
+    "lng": -66.7064,
+    "pop": 9844
+  },
+  {
+    "city": "Vázquez",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.06583333,
+    "lng": -66.23861111,
+    "pop": 1710
+  },
+  {
+    "city": "Vega Alta",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.41217,
+    "lng": -66.33128,
+    "pop": 35395
+  },
+  {
+    "city": "Vega Alta Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.4105,
+    "lng": -66.33295,
+    "pop": 0
+  },
+  {
+    "city": "Vega Baja",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.44611111,
+    "lng": -66.3875,
+    "pop": 54414
+  },
+  {
+    "city": "Vieques",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.425,
+    "lng": -65.83305556,
+    "pop": 2433
+  },
+  {
+    "city": "Vieques Municipality",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.12913,
+    "lng": -65.4371,
+    "pop": 0
+  },
+  {
+    "city": "Villalba",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.127222,
+    "lng": -66.492222,
+    "pop": 22093
+  },
+  {
+    "city": "Villalba Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.12913,
+    "lng": -66.47739,
+    "pop": 0
+  },
+  {
+    "city": "Yabucoa",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.05052,
+    "lng": -65.87933,
+    "pop": 30426
+  },
+  {
+    "city": "Yabucoa Municipio",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.07302,
+    "lng": -65.88711,
+    "pop": 0
+  },
+  {
+    "city": "Yauco",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.03694444,
+    "lng": -66.85027778,
+    "pop": 34172
+  },
+  {
+    "city": "Yaurel",
+    "state_id": "PR",
+    "state_name": "Puerto Rico",
+    "lat": 18.02694444,
+    "lng": -66.05722222,
+    "pop": 769
+  }
+]

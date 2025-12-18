@@ -2,14 +2,18 @@ import { NextResponse } from 'next/server';
 import { getCitySuggestions, getCitiesByZip } from '@/app/lib/cities';
 import mxCitiesData from '@/app/lib/mxcities.json';
 import caCitiesData from '@/app/lib/cacities.json';
+import prCitiesData from '@/app/lib/prcities.json';
+import naCitiesData from '@/app/lib/nacities.json';
 import cityPopulations from '@/app/lib/city-populations.json';
 
 // Load cities data
 const mxCities = mxCitiesData || [];
 const caCities = caCitiesData || [];
-console.log(`[Cities API] Loaded ${mxCities.length} Mexican + ${caCities.length} Canadian cities`);
+const prCities = prCitiesData || [];
+const naCities = naCitiesData || [];
+console.log(`[Cities API] Loaded ${mxCities.length} MX + ${caCities.length} CA + ${prCities.length} PR + ${naCities.length} other NA cities`);
 
-// GET /api/cities/suggest?q=search_term - Unified search for US, Mexico, and Canada
+// GET /api/cities/suggest?q=search_term - Unified search for all of North America
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -24,13 +28,15 @@ export async function GET(request) {
     const isZip = /^\d{5}$/.test(trimmed);
     const isCanadianPostal = /^[A-Za-z]\d[A-Za-z]/.test(trimmed);
 
-    // Search all three countries
+    // Search all countries/territories in North America
     const usResults = searchUSLocations(trimmed, isZip, limit * 2);
     const mxResults = searchLocations(mxCities, trimmed, 'MX', limit * 2);
     const caResults = searchLocations(caCities, trimmed, 'CA', limit * 2);
+    const prResults = searchLocations(prCities, trimmed, 'US', limit * 2); // PR is a US territory
+    const naResults = searchNACities(naCities, trimmed, limit * 2); // Caribbean, Central America, etc.
 
     // Combine results
-    const allResults = [...usResults, ...mxResults, ...caResults];
+    const allResults = [...usResults, ...mxResults, ...caResults, ...prResults, ...naResults];
     const queryLower = trimmed.toLowerCase();
 
     // Filter results that match the query
@@ -155,6 +161,43 @@ function searchLocations(cities, query, country, limit) {
     }));
   } catch (error) {
     console.error(`${country} search error:`, error);
+    return [];
+  }
+}
+
+// Search North American cities (Caribbean, Central America, US territories, etc.)
+// These cities already have their country field set in the JSON
+function searchNACities(cities, query, limit) {
+  try {
+    const queryLower = query.toLowerCase();
+
+    // Search for cities that start with or contain the query
+    const matches = cities.filter(c => {
+      const cityLower = c.city.toLowerCase();
+      return cityLower.startsWith(queryLower) || cityLower.includes(queryLower);
+    });
+
+    // Deduplicate by city+state+country
+    const seen = new Set();
+    const unique = matches.filter(c => {
+      const key = `${c.city}-${c.state_id}-${c.country}`.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    return unique.slice(0, limit).map(c => ({
+      city: c.city,
+      state_id: c.state_id,
+      state_name: c.state_name,
+      lat: c.lat,
+      lng: c.lng,
+      pop: c.pop || 0,
+      zips: [],
+      country: c.country // Use the country from the data (US for territories, country code for others)
+    }));
+  } catch (error) {
+    console.error('NA cities search error:', error);
     return [];
   }
 }

@@ -77,8 +77,27 @@ export default function RescueSquadSearchPage() {
     }
   };
 
+  // Country code to flag emoji mapping
+  const getCountryFlag = (countryCode) => {
+    const flags = {
+      'US': '🇺🇸', 'CA': '🇨🇦', 'MX': '🇲🇽',
+      // Caribbean
+      'BS': '🇧🇸', 'CU': '🇨🇺', 'DO': '🇩🇴', 'HT': '🇭🇹', 'JM': '🇯🇲',
+      'TT': '🇹🇹', 'BB': '🇧🇧', 'AG': '🇦🇬', 'DM': '🇩🇲', 'GD': '🇬🇩',
+      'KN': '🇰🇳', 'LC': '🇱🇨', 'VC': '🇻🇨', 'AI': '🇦🇮', 'AW': '🇦🇼',
+      'BM': '🇧🇲', 'KY': '🇰🇾', 'TC': '🇹🇨', 'VG': '🇻🇬', 'CW': '🇨🇼',
+      'GP': '🇬🇵', 'MQ': '🇲🇶', 'MS': '🇲🇸',
+      // Central America
+      'BZ': '🇧🇿', 'CR': '🇨🇷', 'GT': '🇬🇹', 'HN': '🇭🇳',
+      'NI': '🇳🇮', 'PA': '🇵🇦', 'SV': '🇸🇻',
+      // Other
+      'GL': '🇬🇱'
+    };
+    return flags[countryCode] || '🌎';
+  };
+
   const selectSuggestion = (city) => {
-    const countryFlag = city.country === 'MX' ? '🇲🇽' : city.country === 'CA' ? '🇨🇦' : '🇺🇸';
+    const countryFlag = getCountryFlag(city.country);
     setSearchTerm(`${city.city}, ${city.state_id} ${countryFlag}`);
     setSelectedLocation(city); // Store full location data
     setShowSuggestions(false);
@@ -268,11 +287,10 @@ export default function RescueSquadSearchPage() {
           </p>
           <div className="mt-3 inline-flex items-center gap-2 text-sm text-midnight-400">
             <span>🇺🇸</span>
-            <span>+</span>
             <span>🇲🇽</span>
-            <span>+</span>
             <span>🇨🇦</span>
-            <span className="ml-1">United States, México & Canada</span>
+            <span>🇵🇷</span>
+            <span className="ml-1">US, México, Canada & Puerto Rico</span>
           </div>
         </div>
 
@@ -339,7 +357,7 @@ export default function RescueSquadSearchPage() {
                         className="px-4 py-3 cursor-pointer hover:bg-midnight-50 border-b border-midnight-100 last:border-b-0"
                       >
                         <div className="font-semibold text-midnight-900 flex items-center gap-2">
-                          <span>{city.country === 'MX' ? '🇲🇽' : city.country === 'CA' ? '🇨🇦' : '🇺🇸'}</span>
+                          <span>{city.country === 'MX' ? '🇲🇽' : city.country === 'CA' ? '🇨🇦' : city.country === 'PR' ? '🇵🇷' : '🇺🇸'}</span>
                           {city.city}, {city.state_id}
                         </div>
                         <div className="text-sm text-midnight-500">
@@ -387,7 +405,7 @@ export default function RescueSquadSearchPage() {
                     ? `Rescue Squads for ${searchLocation.cities.join(', ')}, ${searchLocation.state}`
                     : `Rescue Squads near ${searchLocation.cities?.[0] || searchLocation.city}, ${searchLocation.state}`
                   }
-                  {searchLocation.country === 'MX' ? ' 🇲🇽' : searchLocation.country === 'CA' ? ' 🇨🇦' : ''}
+                  {searchLocation.country === 'MX' ? ' 🇲🇽' : searchLocation.country === 'CA' ? ' 🇨🇦' : searchLocation.country === 'PR' ? ' 🇵🇷' : ''}
                 </h2>
                 <p className="text-sm text-midnight-500">
                   Found {cities.filter(c => c.exists).length} rescue squad{cities.filter(c => c.exists).length !== 1 ? 's' : ''} within {radius} miles
