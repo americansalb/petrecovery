@@ -4,6 +4,7 @@ import mxCitiesData from '@/app/lib/mxcities.json';
 import caCitiesData from '@/app/lib/cacities.json';
 import prCitiesData from '@/app/lib/prcities.json';
 import naCitiesData from '@/app/lib/nacities.json';
+import coCitiesData from '@/app/lib/cocities.json';
 import cityPopulations from '@/app/lib/city-populations.json';
 
 // Load cities data
@@ -11,9 +12,10 @@ const mxCities = mxCitiesData || [];
 const caCities = caCitiesData || [];
 const prCities = prCitiesData || [];
 const naCities = naCitiesData || [];
-console.log(`[Cities API] Loaded ${mxCities.length} MX + ${caCities.length} CA + ${prCities.length} PR + ${naCities.length} other NA cities`);
+const coCities = coCitiesData || [];
+console.log(`[Cities API] Loaded ${mxCities.length} MX + ${caCities.length} CA + ${prCities.length} PR + ${naCities.length} NA + ${coCities.length} CO cities`);
 
-// GET /api/cities/suggest?q=search_term - Unified search for all of North America
+// GET /api/cities/suggest?q=search_term - Unified search for North & South America
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -28,15 +30,16 @@ export async function GET(request) {
     const isZip = /^\d{5}$/.test(trimmed);
     const isCanadianPostal = /^[A-Za-z]\d[A-Za-z]/.test(trimmed);
 
-    // Search all countries/territories in North America
+    // Search all countries/territories
     const usResults = searchUSLocations(trimmed, isZip, limit * 2);
     const mxResults = searchLocations(mxCities, trimmed, 'MX', limit * 2);
     const caResults = searchLocations(caCities, trimmed, 'CA', limit * 2);
     const prResults = searchLocations(prCities, trimmed, 'US', limit * 2); // PR is a US territory
     const naResults = searchNACities(naCities, trimmed, limit * 2); // Caribbean, Central America, etc.
+    const coResults = searchLocations(coCities, trimmed, 'CO', limit * 2); // Colombia
 
     // Combine results
-    const allResults = [...usResults, ...mxResults, ...caResults, ...prResults, ...naResults];
+    const allResults = [...usResults, ...mxResults, ...caResults, ...prResults, ...naResults, ...coResults];
     const queryLower = trimmed.toLowerCase();
 
     // Filter results that match the query

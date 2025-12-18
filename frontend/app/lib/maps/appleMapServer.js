@@ -246,6 +246,11 @@ function detectLanguage(lat, lng) {
     return 'fr-CA';
   }
 
+  // Colombia (Spanish): lat -4 to 13, lng -79 to -67
+  if (lat > -4 && lat < 13 && lng > -79 && lng < -67) {
+    return 'es-MX'; // Use Spanish
+  }
+
   // Default to English (USA, English Canada, Jamaica, Bahamas, etc.)
   return 'en-US';
 }
@@ -259,21 +264,22 @@ function detectLanguage(lat, lng) {
  * @param {Object} options - Additional options
  * @returns {Promise<Array>} Array of place results
  */
-// All North American country codes for Apple Maps search
-const NORTH_AMERICA_COUNTRIES = [
-  'US', 'CA', 'MX', // Major countries
+// All supported country codes for Apple Maps search
+const SUPPORTED_COUNTRIES = [
+  'US', 'CA', 'MX', // North America
   'GT', 'BZ', 'HN', 'SV', 'NI', 'CR', 'PA', // Central America
   'CU', 'JM', 'HT', 'DO', 'BS', 'TT', 'BB', // Caribbean
   'AG', 'DM', 'GD', 'KN', 'LC', 'VC', // Lesser Antilles
   'AI', 'AW', 'BM', 'KY', 'TC', 'VG', 'VI', // Territories
-  'GP', 'MQ', 'CW', 'GL' // French/Dutch territories, Greenland
+  'GP', 'MQ', 'CW', 'GL', // French/Dutch territories, Greenland
+  'CO' // South America
 ].join(',');
 
 export async function searchPlaces(query, lat, lng, options = {}) {
   const {
     limit = 25,
     lang = null, // Auto-detect if not specified
-    countries = NORTH_AMERICA_COUNTRIES, // All of North America
+    countries = SUPPORTED_COUNTRIES, // All supported countries
   } = options;
 
   // Auto-detect language based on location

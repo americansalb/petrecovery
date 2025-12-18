@@ -90,6 +90,8 @@ export default function RescueSquadSearchPage() {
       // Central America
       'BZ': '🇧🇿', 'CR': '🇨🇷', 'GT': '🇬🇹', 'HN': '🇭🇳',
       'NI': '🇳🇮', 'PA': '🇵🇦', 'SV': '🇸🇻',
+      // South America
+      'CO': '🇨🇴',
       // Other
       'GL': '🇬🇱'
     };
