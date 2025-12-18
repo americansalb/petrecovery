@@ -13,7 +13,7 @@ export async function GET(request) {
     const query = searchParams.get('q') || '';
     const limit = parseInt(searchParams.get('limit')) || 10;
 
-    if (!query || query.trim().length < 2) {
+    if (!query || query.trim().length < 3) {
       return NextResponse.json({ suggestions: [] });
     }
 
