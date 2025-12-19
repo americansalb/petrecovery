@@ -691,43 +691,11 @@ export default function ReportLostPet() {
 
         <div ref={mapRef} className="h-full w-full" />
 
-        {/* Location controls */}
+        {/* Simple hint overlay */}
         {center && (
-          <div className="absolute bottom-4 left-4 right-4 z-10">
-            {/* Radius selector */}
-            <div className="bg-white rounded-xl shadow-lg p-3 mb-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">Search area</span>
-                <span className="text-sm text-gray-500">
-                  {radiusMeters < 1000
-                    ? `${Math.round(radiusMeters * 3.28084)} ft`
-                    : `${(radiusMeters / 1609.34).toFixed(1)} mi`
-                  }
-                </span>
-              </div>
-              <div className="flex gap-2">
-                {[
-                  { label: 'Exact', meters: 50, desc: '~150 ft' },
-                  { label: 'Block', meters: 150, desc: '~500 ft' },
-                  { label: 'Area', meters: 400, desc: '~0.25 mi' },
-                  { label: 'Wide', meters: 800, desc: '~0.5 mi' },
-                ].map((opt) => (
-                  <button
-                    key={opt.meters}
-                    onClick={() => setRadiusMeters(opt.meters)}
-                    className={`flex-1 py-2 px-1 rounded-lg text-xs font-medium transition-all ${
-                      radiusMeters === opt.meters
-                        ? 'bg-red-500 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+          <div className="absolute bottom-4 left-4 right-4 z-10 pointer-events-none">
             <div className="bg-black/70 backdrop-blur text-white px-4 py-2 rounded-full text-center text-sm">
-              Tap map or drag pin to set exact spot
+              Tap or drag pin to mark exact spot
             </div>
           </div>
         )}
@@ -736,8 +704,8 @@ export default function ReportLostPet() {
       {/* Bottom Sheet */}
       <div
         className={`
-          bg-white rounded-t-3xl shadow-2xl transition-all duration-300 ease-out
-          ${sheetExpanded ? 'max-h-[80vh]' : 'max-h-[280px]'}
+          bg-white rounded-t-3xl shadow-2xl transition-all duration-300 ease-out flex-shrink-0
+          ${sheetExpanded ? 'max-h-[70vh]' : 'h-auto'}
           overflow-hidden flex flex-col
         `}
       >
@@ -867,6 +835,31 @@ export default function ReportLostPet() {
                       `}
                     >
                       {opt.shortLabel}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Search radius */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">How precise is the location?</label>
+                <div className="flex gap-2">
+                  {[
+                    { label: 'Exact spot', meters: 50 },
+                    { label: 'This block', meters: 150 },
+                    { label: 'This area', meters: 400 },
+                    { label: 'General', meters: 800 },
+                  ].map((opt) => (
+                    <button
+                      key={opt.meters}
+                      onClick={() => setRadiusMeters(opt.meters)}
+                      className={`flex-1 py-2 px-1 rounded-lg text-xs font-medium transition-all ${
+                        radiusMeters === opt.meters
+                          ? 'bg-red-500 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {opt.label}
                     </button>
                   ))}
                 </div>
