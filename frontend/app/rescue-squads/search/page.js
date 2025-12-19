@@ -202,10 +202,21 @@ export default function RescueSquadSearchPage() {
     }
 
     const country = locationToSearch?.country || 'US';
+    const lat = locationToSearch?.lat;
+    const lng = locationToSearch?.lng;
+    const state = locationToSearch?.state_id;
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/rescue-squads?search=${encodeURIComponent(searchTerm)}&radius=${radius}&country=${country}`);
+      // Build URL with lat/lng for international cities
+      let url = `/api/rescue-squads?search=${encodeURIComponent(locationToSearch?.city || searchTerm)}&radius=${radius}&country=${country}`;
+      if (lat && lng) {
+        url += `&lat=${lat}&lng=${lng}`;
+      }
+      if (state) {
+        url += `&state=${encodeURIComponent(state)}`;
+      }
+      const res = await fetch(url);
       const data = await res.json();
 
       if (!res.ok) {
@@ -216,7 +227,7 @@ export default function RescueSquadSearchPage() {
       }
 
       setCities(data.cities || []);
-      setSearchLocation({ ...data.searchLocation, country });
+      setSearchLocation({ ...data.searchLocation, country, lat, lng });
       setSearched(true);
       const newExpanded = new Set();
       (data.cities || []).forEach((city, idx) => {
@@ -303,8 +314,11 @@ export default function RescueSquadSearchPage() {
       return;
     }
 
-    // Get country from selectedLocation or searchLocation
+    // Get country and coordinates from selectedLocation or searchLocation
     const country = selectedLocation?.country || searchLocation?.country || 'US';
+    const lat = selectedLocation?.lat || searchLocation?.lat;
+    const lng = selectedLocation?.lng || searchLocation?.lng;
+    const isInternational = country !== 'US' && country !== 'MX';
 
     if (!state) {
       setValidationError(`No squad found for "${city}". Please search by postal code to create a new squad for your area.`);
@@ -312,15 +326,20 @@ export default function RescueSquadSearchPage() {
     }
 
     try {
-      if (!zipCode || !/^\d{5}$/.test(zipCode)) {
+      // For US cities, require zipCode; for international, require lat/lng
+      if (!isInternational && (!zipCode || !/^\d{5}$/.test(zipCode))) {
         setValidationError('Unable to create squad: valid postal code required. Please search by postal code instead.');
+        return;
+      }
+      if (isInternational && (!lat || !lng)) {
+        setValidationError('Unable to create squad: location coordinates required. Please select a city from the dropdown.');
         return;
       }
 
       const res = await fetch('/api/rescue-squads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, state, zipCode, country }),
+        body: JSON.stringify({ city, state, zipCode: zipCode || null, country, lat, lng }),
       });
       const data = await res.json();
       if (res.ok) {

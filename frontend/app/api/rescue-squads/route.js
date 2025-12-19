@@ -19,6 +19,10 @@ export async function GET(request) {
     const searchTerm = searchParams.get('search') || searchParams.get('zipCode') || searchParams.get('zip');
     const radius = parseInt(searchParams.get('radius')) || 25;
     const country = searchParams.get('country') || 'US';
+    // For international cities, lat/lng can be passed directly
+    const passedLat = searchParams.get('lat') ? parseFloat(searchParams.get('lat')) : null;
+    const passedLng = searchParams.get('lng') ? parseFloat(searchParams.get('lng')) : null;
+    const passedState = searchParams.get('state') || null;
 
     if (!searchTerm) {
       await logEvent({
@@ -42,8 +46,16 @@ export async function GET(request) {
     let searchLat, searchLng, userState, allCitiesInZip, zipCode;
     const isZipCode = /^\d{5}$/.test(searchTerm.trim());
 
-    // Handle Mexican locations via Nominatim
-    if (country === 'MX') {
+    // Handle non-US cities with passed lat/lng (including MX, CA, CO, HT, etc.)
+    if (country !== 'US' && passedLat !== null && passedLng !== null) {
+      searchLat = passedLat;
+      searchLng = passedLng;
+      userState = passedState;
+      allCitiesInZip = [searchTerm.trim()];
+      zipCode = null; // International cities may not have ZIP codes
+    }
+    // Fallback: Handle Mexican locations via Nominatim if no lat/lng passed
+    else if (country === 'MX') {
       const result = await searchMexicanLocation(searchTerm.trim(), isZipCode);
       if (!result.success) {
         await logEvent({
@@ -322,21 +334,26 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { city, state, zipCode, country = 'US' } = await request.json();
+    const { city, state, zipCode, country = 'US', lat: passedLat, lng: passedLng } = await request.json();
 
-    if (!city || !state || !zipCode) {
+    // For international cities, lat/lng are required instead of zipCode
+    const isInternational = country !== 'US' && country !== 'MX';
+    if (!city || !state || (!zipCode && !isInternational) || (isInternational && (!passedLat || !passedLng))) {
+      const errorMsg = isInternational
+        ? 'City, state, and coordinates (lat/lng) required for international locations'
+        : 'City, state, and postal code required';
       await logEvent({
         event_type: 'squad.create_failed',
         resource_type: 'rescue_squad',
         action: 'create',
         result: 'failure',
         error_code: 'VALIDATION_ERROR',
-        error_message: 'Missing required parameters: city, state, or zipCode',
+        error_message: errorMsg,
         actor_user_id: session.user.id,
         actor_role: null,
-        metadata: { city, state, zipCode, country }
+        metadata: { city, state, zipCode, country, lat: passedLat, lng: passedLng }
       });
-      return NextResponse.json({ error: 'City, state, and postal code required' }, { status: 400 });
+      return NextResponse.json({ error: errorMsg }, { status: 400 });
     }
 
     // Emit squad.create_attempted event
@@ -410,7 +427,14 @@ export async function POST(request) {
     // Geocode to get coordinates - try multiple methods
     let latitude, longitude;
 
-    if (country === 'MX') {
+    // International cities - use passed coordinates directly
+    if (isInternational && passedLat && passedLng) {
+      latitude = passedLat;
+      longitude = passedLng;
+      console.log(`[Squad Create] Using passed coords for ${country}: ${latitude}, ${longitude}`);
+    }
+    // Mexican locations - use Nominatim with postal code
+    else if (country === 'MX') {
       // Mexican locations - use Nominatim with postal code
       try {
         const nomRes = await fetch(
@@ -556,7 +580,7 @@ export async function POST(request) {
           isAcceptingCases: true,
           centerLatitude: latitude,
           centerLongitude: longitude,
-          zipCodes: JSON.stringify([zipCode]),
+          zipCodes: JSON.stringify(zipCode ? [zipCode] : []),
           country,
         },
       });
@@ -599,7 +623,7 @@ export async function POST(request) {
           city,
           state,
           country,
-          zipCodes: JSON.stringify([zipCode]),
+          zipCodes: JSON.stringify(zipCode ? [zipCode] : []),
           centerLatitude: latitude,
           centerLongitude: longitude,
           radiusMiles: 10,
