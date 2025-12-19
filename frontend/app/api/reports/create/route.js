@@ -140,11 +140,11 @@ export async function POST(request) {
 
       // Create case
       const lastSeenAt = calculateLastSeenTime(timeElapsed);
-      const missionNumber = `CASE-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+      const caseNumber = `CASE-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
       const report = await tx.case.create({
         data: {
-          missionNumber,
+          caseNumber,
           petId: pet.id,
           reporterId: user.id,
           reportType: 'LOST',
@@ -323,7 +323,7 @@ export async function POST(request) {
               data: {
                 rescueSquadId: squad.id,
                 authorId: user.id, // Use reporter as author for now (TODO: create system mascot user)
-                content: `🚨 **New Case Alert!** 🚨\n\n${petName}, a ${color} ${petType}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${missionNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nIf you're in the area, please keep an eye out and report any sightings. Every pair of eyes helps! 👀`,
+                content: `🚨 **New Case Alert!** 🚨\n\n${petName}, a ${color} ${petType}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nIf you're in the area, please keep an eye out and report any sightings. Every pair of eyes helps! 👀`,
                 isSystemPost: true, // Mark as system/mascot post
                 isPinned: false,
               }

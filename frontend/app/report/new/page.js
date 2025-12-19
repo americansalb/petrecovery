@@ -58,16 +58,22 @@ export default function ReportLostPet() {
   // Location state
   const [center, setCenter] = useState(null);
   const [citySearchTerm, setCitySearchTerm] = useState('');
+  const [addressSearchTerm, setAddressSearchTerm] = useState('');
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
   const [selectedCity, setSelectedCity] = useState(null);
   const [lastSeenAddress, setLastSeenAddress] = useState('');
   const [cityName, setCityName] = useState('');
   const [isGettingLocation, setIsGettingLocation] = useState(true);
   const [locationError, setLocationError] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
+  const [searchMode, setSearchMode] = useState('address'); // 'address' or 'city'
+  const [radiusMeters, setRadiusMeters] = useState(150); // Default ~500 feet for precise location
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
   const circleRef = useRef(null);
+  const addressDebounceRef = useRef(null);
 
   // Pet details state
   const [petType, setPetType] = useState('');
@@ -114,6 +120,55 @@ export default function ReportLostPet() {
     } finally {
       setLoadingPets(false);
     }
+  };
+
+  // Address search with debounce (uses OpenStreetMap Nominatim)
+  const searchAddresses = async (query) => {
+    if (!query || query.trim().length < 3) {
+      setAddressSuggestions([]);
+      return;
+    }
+
+    setIsSearchingAddress(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=8&addressdetails=1`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data = await response.json();
+      setAddressSuggestions(data.map(item => ({
+        display_name: item.display_name,
+        lat: parseFloat(item.lat),
+        lon: parseFloat(item.lon),
+        type: item.type,
+        address: item.address,
+      })));
+    } catch (err) {
+      console.error('Address search failed:', err);
+      setAddressSuggestions([]);
+    } finally {
+      setIsSearchingAddress(false);
+    }
+  };
+
+  const handleAddressInputChange = (value) => {
+    setAddressSearchTerm(value);
+    if (addressDebounceRef.current) {
+      clearTimeout(addressDebounceRef.current);
+    }
+    addressDebounceRef.current = setTimeout(() => {
+      searchAddresses(value);
+    }, 300);
+  };
+
+  const handleAddressSelect = (address) => {
+    setCenter([address.lat, address.lon]);
+    setLastSeenAddress(address.display_name);
+    const city = address.address?.city || address.address?.town || address.address?.village || '';
+    setCityName(city);
+    setAddressSuggestions([]);
+    setAddressSearchTerm(address.display_name);
+    setShowSearch(false);
   };
 
   // Auto-detect location on mount
@@ -203,9 +258,9 @@ export default function ReportLostPet() {
       const circle = L.circle(center, {
         color: '#ef4444',
         fillColor: '#ef4444',
-        fillOpacity: 0.1,
+        fillOpacity: 0.15,
         weight: 2,
-        radius: 5 * 1609.34, // 5 miles
+        radius: radiusMeters, // Small radius for precise location
       }).addTo(map);
       circleRef.current = circle;
 
@@ -230,7 +285,8 @@ export default function ReportLostPet() {
         setCityName(result.city);
       });
 
-      map.fitBounds(circle.getBounds(), { padding: [30, 30] });
+      // Zoom to appropriate level for the radius
+      map.setView(center, 17); // High zoom for precise location
     });
 
     return () => {
@@ -242,6 +298,22 @@ export default function ReportLostPet() {
       }
     };
   }, [center]);
+
+  // Update circle radius when it changes
+  useEffect(() => {
+    if (circleRef.current) {
+      circleRef.current.setRadius(radiusMeters);
+    }
+  }, [radiusMeters]);
+
+  // Cleanup address debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (addressDebounceRef.current) {
+        clearTimeout(addressDebounceRef.current);
+      }
+    };
+  }, []);
 
   const reverseGeocode = async (lat, lon) => {
     try {
@@ -399,11 +471,11 @@ export default function ReportLostPet() {
           distinctiveMarks: reportData.distinctiveMarks,
           lastSeenAddress,
           center,
-          radiusMiles: 5,
+          radiusMiles: radiusMeters / 1609.34, // Convert meters to miles
           timeElapsed: timeElapsed || '6_to_24_hours',
           petType,
           photos,
-          locationType: 'city',
+          locationType: searchMode === 'address' ? 'address' : 'city',
           cityName,
           selectedPetId: selectedPet?.id,
         }),
@@ -506,15 +578,91 @@ export default function ReportLostPet() {
       {/* Search bar - floating */}
       {(showSearch || !center) && (
         <div className="absolute top-20 left-4 right-4 z-20">
-          <div className="bg-white rounded-2xl shadow-xl p-2">
-            <CitySearchInput
-              value={citySearchTerm}
-              onChange={setCitySearchTerm}
-              onSelect={handleCitySelect}
-              placeholder="Search city, address, or postal code..."
-              showIcon={true}
-              className="w-full"
-            />
+          <div className="bg-white rounded-2xl shadow-xl p-3">
+            {/* Search mode toggle */}
+            <div className="flex gap-2 mb-2">
+              <button
+                onClick={() => setSearchMode('address')}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                  searchMode === 'address'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                <MapPin size={14} className="inline mr-1" />
+                Exact Address
+              </button>
+              <button
+                onClick={() => setSearchMode('city')}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                  searchMode === 'city'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                <Search size={14} className="inline mr-1" />
+                City/Zip
+              </button>
+            </div>
+
+            {/* Address search */}
+            {searchMode === 'address' && (
+              <div className="relative">
+                <div className="flex items-center border-2 border-gray-200 rounded-xl focus-within:border-blue-400">
+                  <MapPin className="ml-3 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={addressSearchTerm}
+                    onChange={(e) => handleAddressInputChange(e.target.value)}
+                    placeholder="123 Main St, Los Angeles, CA..."
+                    className="flex-1 px-3 py-3 rounded-xl outline-none"
+                    autoFocus
+                  />
+                  {isSearchingAddress && (
+                    <Loader2 className="mr-3 w-5 h-5 text-blue-500 animate-spin" />
+                  )}
+                </div>
+
+                {/* Address suggestions dropdown */}
+                {addressSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto z-50">
+                    {addressSuggestions.map((addr, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleAddressSelect(addr)}
+                        className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                      >
+                        <div className="font-medium text-gray-900 text-sm truncate">
+                          {addr.display_name.split(',')[0]}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {addr.display_name.split(',').slice(1, 4).join(',')}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* City search */}
+            {searchMode === 'city' && (
+              <CitySearchInput
+                value={citySearchTerm}
+                onChange={setCitySearchTerm}
+                onSelect={handleCitySelect}
+                placeholder="City name or postal code..."
+                showIcon={true}
+                className="w-full"
+              />
+            )}
+
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              {searchMode === 'address'
+                ? 'Search any street address worldwide'
+                : 'Search by city or postal code'
+              }
+            </p>
           </div>
         </div>
       )}
@@ -543,11 +691,43 @@ export default function ReportLostPet() {
 
         <div ref={mapRef} className="h-full w-full" />
 
-        {/* Location hint */}
+        {/* Location controls */}
         {center && (
-          <div className="absolute bottom-4 left-4 right-4 z-10 pointer-events-none">
+          <div className="absolute bottom-4 left-4 right-4 z-10">
+            {/* Radius selector */}
+            <div className="bg-white rounded-xl shadow-lg p-3 mb-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">Search area</span>
+                <span className="text-sm text-gray-500">
+                  {radiusMeters < 1000
+                    ? `${Math.round(radiusMeters * 3.28084)} ft`
+                    : `${(radiusMeters / 1609.34).toFixed(1)} mi`
+                  }
+                </span>
+              </div>
+              <div className="flex gap-2">
+                {[
+                  { label: 'Exact', meters: 50, desc: '~150 ft' },
+                  { label: 'Block', meters: 150, desc: '~500 ft' },
+                  { label: 'Area', meters: 400, desc: '~0.25 mi' },
+                  { label: 'Wide', meters: 800, desc: '~0.5 mi' },
+                ].map((opt) => (
+                  <button
+                    key={opt.meters}
+                    onClick={() => setRadiusMeters(opt.meters)}
+                    className={`flex-1 py-2 px-1 rounded-lg text-xs font-medium transition-all ${
+                      radiusMeters === opt.meters
+                        ? 'bg-red-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="bg-black/70 backdrop-blur text-white px-4 py-2 rounded-full text-center text-sm">
-              Tap map or drag pin to set exact location
+              Tap map or drag pin to set exact spot
             </div>
           </div>
         )}
