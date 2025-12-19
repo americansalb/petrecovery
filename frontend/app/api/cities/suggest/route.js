@@ -20,6 +20,57 @@ function normalizeText(text) {
   return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+// Calculate Levenshtein distance for fuzzy matching
+function levenshteinDistance(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+// Check if query fuzzy-matches city name (allows 1-2 typos)
+function fuzzyMatch(cityNorm, queryNorm) {
+  // Exact prefix match
+  if (cityNorm.startsWith(queryNorm) || cityNorm.includes(queryNorm)) {
+    return { match: true, distance: 0 };
+  }
+
+  // For fuzzy matching, check edit distance on city prefix
+  // Use a slightly longer prefix to catch insertions
+  const cityPrefix = cityNorm.substring(0, queryNorm.length + 2);
+  const distance = levenshteinDistance(queryNorm, cityPrefix);
+
+  // Allow 2 typos for most queries (covers "bogat" -> "bogota")
+  const maxDistance = queryNorm.length <= 3 ? 1 : 2;
+
+  if (distance <= maxDistance) {
+    return { match: true, distance };
+  }
+
+  return { match: false, distance: Infinity };
+}
+
 // GET /api/cities/suggest?q=search_term - Unified search for North & South America
 export async function GET(request) {
   try {
@@ -56,14 +107,14 @@ export async function GET(request) {
       });
     }
 
-    // Filter results that match the query (accent-insensitive)
-    const filteredResults = allResults.filter(r => {
+    // Filter exact matches (startsWith or includes)
+    const exactMatches = allResults.filter(r => {
       const cityNorm = normalizeText(r.city);
       return cityNorm.startsWith(queryNorm) || cityNorm.includes(queryNorm);
     });
 
-    // Sort by relevance: exact > starts with > population > state match > alphabetical
-    filteredResults.sort((a, b) => {
+    // Sort exact matches by relevance
+    exactMatches.sort((a, b) => {
       const aName = normalizeText(a.city);
       const bName = normalizeText(b.city);
 
@@ -79,7 +130,7 @@ export async function GET(request) {
       if (aStarts && !bStarts) return -1;
       if (bStarts && !aStarts) return 1;
 
-      // Population (for cities 50k+)
+      // Population
       const aPop = getPopulation(a);
       const bPop = getPopulation(b);
       if (aPop !== bPop) return bPop - aPop;
@@ -95,10 +146,28 @@ export async function GET(request) {
       return aName.localeCompare(bName);
     });
 
-    const allSuggestions = filteredResults.slice(0, limit);
+    // If no exact matches or only small cities, find fuzzy "did you mean?" suggestions
+    let didYouMean = [];
+    const hasLargeCity = exactMatches.some(r => getPopulation(r) > 100000);
+
+    if (exactMatches.length === 0 || !hasLargeCity) {
+      // Find fuzzy matches from large cities only (pop > 100k)
+      const fuzzyMatches = allResults.filter(r => {
+        if (getPopulation(r) < 100000) return false;
+        const cityNorm = normalizeText(r.city);
+        if (cityNorm.startsWith(queryNorm) || cityNorm.includes(queryNorm)) return false; // Already in exact
+        const fuzzy = fuzzyMatch(cityNorm, queryNorm);
+        return fuzzy.match && fuzzy.distance <= 2;
+      }).sort((a, b) => getPopulation(b) - getPopulation(a));
+
+      didYouMean = fuzzyMatches.slice(0, 3);
+    }
+
+    const allSuggestions = exactMatches.slice(0, limit);
 
     return NextResponse.json({
       suggestions: allSuggestions,
+      didYouMean: didYouMean.length > 0 ? didYouMean : undefined,
       isZip: isZip || isCanadianPostal,
       isValid: allSuggestions.length > 0
     });
