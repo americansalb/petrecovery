@@ -12,7 +12,7 @@
  * 6. Success with squad assignment
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -20,10 +20,11 @@ import {
   Dog, Cat, Bird, Rabbit, MapPin, Clock, Search,
   User, Mail, Phone, Camera, Check, ChevronLeft,
   ChevronRight, AlertTriangle, Loader2, Sparkles,
-  Shield, Users, Bell, ArrowRight, Navigation, Hash, Crosshair
+  Shield, Users, Bell, ArrowRight, Crosshair
 } from 'lucide-react';
 import BreedSelector from '../../components/BreedSelector';
 import ColorSelector from '../../components/ColorSelector';
+import CitySearchInput, { getCountryFlag } from '../../components/CitySearchInput';
 
 // Step configuration
 const STEPS = [
@@ -63,26 +64,19 @@ export default function ReportLostPet() {
   const [prefillPet, setPrefillPet] = useState(null);
 
   // Location and map data
-  const [locationMethod, setLocationMethod] = useState(''); // 'address', 'zip', 'pin'
+  const [locationMethod, setLocationMethod] = useState(''); // 'city' or 'pin'
   const [lastSeenAddress, setLastSeenAddress] = useState('');
-  const [zipCode, setZipCode] = useState('');
+  const [citySearchTerm, setCitySearchTerm] = useState('');
+  const [selectedCity, setSelectedCity] = useState(null); // Full city object with lat/lng/country
   const [center, setCenter] = useState(null);
   const [radiusMiles] = useState(5); // Auto-set to 5 miles (squad coverage determines actual assignment)
   const [timeElapsed, setTimeElapsed] = useState('');
   const [locationConfirmed, setLocationConfirmed] = useState(false);
-  const [cityName, setCityName] = useState(''); // For zip code location type
+  const [cityName, setCityName] = useState(''); // City name for notifications
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
   const circleRef = useRef(null);
-
-  // Address autocomplete
-  const [addressSuggestions, setAddressSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
-  const addressInputRef = useRef(null);
-  const suggestionsRef = useRef(null);
-  const searchTimeoutRef = useRef(null);
 
   // Report submission data
   const [reportData, setReportData] = useState({
@@ -115,113 +109,17 @@ export default function ReportLostPet() {
     }
   }, [session]);
 
-  // Close suggestions when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target) &&
-          addressInputRef.current && !addressInputRef.current.contains(event.target)) {
-        setShowSuggestions(false);
-      }
+  // Handle city selection from unified search
+  const handleCitySelect = (city) => {
+    setSelectedCity(city);
+    setCityName(city.city);
+    const flag = getCountryFlag(city.country);
+    setLastSeenAddress(`${city.city}, ${city.state_name || city.state_id}, ${city.country} ${flag}`);
+    if (city.lat && city.lng) {
+      setCenter([city.lat, city.lng]);
+      setLocationConfirmed(false);
+      setStep(3);
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Cleanup search timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Search for address suggestions (debounced) - Uses Nominatim (OpenStreetMap)
-  const searchAddresses = useCallback(async (query) => {
-    if (!query || query.length < 3) {
-      setAddressSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    setIsSearchingAddress(true);
-    try {
-      // Use Nominatim for address search (free, no API key required)
-      const response = await fetch(
-        `/api/geocode?q=${encodeURIComponent(query)}&limit=5&countrycodes=us&addressdetails=1`
-      );
-
-      // Handle errors silently for autocomplete
-      if (!response.ok) {
-        console.warn('Address search failed with status:', response.status);
-        setAddressSuggestions([]);
-        setShowSuggestions(false);
-        return;
-      }
-
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (parseError) {
-        console.warn('Address search returned non-JSON response');
-        setAddressSuggestions([]);
-        setShowSuggestions(false);
-        return;
-      }
-
-      // Process Nominatim results
-      if (data && Array.isArray(data) && data.length > 0) {
-        setAddressSuggestions(data.map(item => ({
-          display_name: item.display_name,
-          lat: parseFloat(item.lat),
-          lon: parseFloat(item.lon),
-          address: item.address,
-          city: item.address?.city || item.address?.town || item.address?.village ||
-                item.address?.municipality || item.address?.hamlet || item.address?.county || '',
-          state: item.address?.state || '',
-        })));
-        setShowSuggestions(true);
-      } else {
-        setAddressSuggestions([]);
-        setShowSuggestions(false);
-      }
-    } catch (err) {
-      console.error('Address search error:', err);
-      setAddressSuggestions([]);
-      setShowSuggestions(false);
-    } finally {
-      setIsSearchingAddress(false);
-    }
-  }, []);
-
-  // Handle address input change with debounce
-  const handleAddressInputChange = (e) => {
-    const value = e.target.value;
-    setLastSeenAddress(value);
-    setLocationConfirmed(false);
-    setCenter(null);
-
-    // Clear previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    // Debounce search
-    searchTimeoutRef.current = setTimeout(() => {
-      searchAddresses(value);
-    }, 300);
-  };
-
-  // Select an address suggestion (all suggestions come from Nominatim with coordinates)
-  const selectAddressSuggestion = (suggestion) => {
-    setLastSeenAddress(suggestion.display_name);
-    setCenter([suggestion.lat, suggestion.lon]);
-    setCityName(suggestion.city);
-    setAddressSuggestions([]);
-    setShowSuggestions(false);
-    setLocationConfirmed(false);
-    setStep(3);
   };
 
   // Pre-fill from existing pet profile if petId is provided
@@ -428,93 +326,6 @@ export default function ReportLostPet() {
     setPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Geocode a location query using Nominatim (OpenStreetMap)
-  const geocodeLocation = async (query, isZipCode = false) => {
-    if (!query || query.length < 3) {
-      setError('Please enter a valid location');
-      return false;
-    }
-
-    setError(null);
-    setIsGeocoding(true);
-
-    try {
-      // Use Nominatim for geocoding (free, no API key required)
-      let url;
-      if (isZipCode) {
-        url = `/api/geocode?q=${encodeURIComponent(query + ' USA')}&limit=1&addressdetails=1`;
-      } else {
-        url = `/api/geocode?q=${encodeURIComponent(query)}&limit=1&countrycodes=us&addressdetails=1`;
-      }
-
-      const response = await fetch(url);
-
-      // Check for rate limiting or server errors
-      if (response.status === 503) {
-        setError('Location service is temporarily busy. Please wait a moment and try again.');
-        return false;
-      }
-
-      if (!response.ok) {
-        setError('Error connecting to location service. Please try again.');
-        return false;
-      }
-
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (parseError) {
-        console.error('Failed to parse geocoding response:', text);
-        setError('Location service returned invalid data. Please try again.');
-        return false;
-      }
-
-      // Process Nominatim results
-      if (data && Array.isArray(data) && data.length > 0) {
-        const lat = parseFloat(data[0].lat);
-        const lon = parseFloat(data[0].lon);
-
-        // Extract city name from address details - check multiple fields
-        const addr = data[0].address || {};
-        const city = addr.city || addr.town || addr.village || addr.municipality ||
-               addr.hamlet || addr.suburb || addr.county || addr.state || '';
-        const state = addr.state || '';
-
-        // Build a proper display address
-        let displayAddress;
-        if (isZipCode) {
-          // For zip codes, show city, state, and zip
-          if (city && state) {
-            displayAddress = `${city}, ${state} ${query}`;
-          } else if (state) {
-            displayAddress = `${state} ${query}`;
-          } else {
-            displayAddress = data[0].display_name || `Zip Code ${query}`;
-          }
-        } else {
-          displayAddress = data[0].display_name || query;
-        }
-
-        setLastSeenAddress(displayAddress);
-        setCityName(city || (isZipCode ? `Zip ${query}` : ''));
-        setCenter([lat, lon]);
-        setLocationConfirmed(false);
-        setStep(3);
-        return true;
-      } else {
-        setError('Could not find that location. Please try a different address or zip code.');
-        return false;
-      }
-    } catch (err) {
-      setError('Error finding location. Please check your internet connection and try again.');
-      console.error('Geocoding error:', err);
-      return false;
-    } finally {
-      setIsGeocoding(false);
-    }
-  };
-
   // Reverse geocode coordinates to get address and city using Nominatim
   const reverseGeocode = async (lat, lon) => {
     try {
@@ -610,9 +421,6 @@ export default function ReportLostPet() {
       setIsGeocoding(false);
     }
   };
-
-  // Legacy function name for compatibility
-  const geocodeAddress = () => geocodeLocation(lastSeenAddress);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -921,40 +729,25 @@ export default function ReportLostPet() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-midnight-900">Where were they last seen?</h3>
-                  <p className="text-sm text-midnight-600">Choose how to enter the location</p>
+                  <p className="text-sm text-midnight-600">Search by city name or postal code</p>
                 </div>
               </div>
 
               {/* Location method buttons */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="grid grid-cols-2 gap-3 mb-4">
                 <button
-                  onClick={() => setLocationMethod('address')}
+                  onClick={() => setLocationMethod('city')}
                   className={`
                     p-4 rounded-xl border text-center transition-all
-                    ${locationMethod === 'address'
+                    ${locationMethod === 'city'
                       ? 'bg-flash-100 border-flash-500'
                       : 'bg-midnight-50 border-midnight-200 hover:border-midnight-400'
                     }
                   `}
                 >
-                  <Navigation size={24} className={`mx-auto mb-2 ${locationMethod === 'address' ? 'text-flash-600' : 'text-midnight-600'}`} />
-                  <span className={`text-sm font-medium ${locationMethod === 'address' ? 'text-flash-700' : 'text-midnight-700'}`}>
-                    Address
-                  </span>
-                </button>
-                <button
-                  onClick={() => setLocationMethod('zip')}
-                  className={`
-                    p-4 rounded-xl border text-center transition-all
-                    ${locationMethod === 'zip'
-                      ? 'bg-flash-100 border-flash-500'
-                      : 'bg-midnight-50 border-midnight-200 hover:border-midnight-400'
-                    }
-                  `}
-                >
-                  <Hash size={24} className={`mx-auto mb-2 ${locationMethod === 'zip' ? 'text-flash-600' : 'text-midnight-600'}`} />
-                  <span className={`text-sm font-medium ${locationMethod === 'zip' ? 'text-flash-700' : 'text-midnight-700'}`}>
-                    Zip Code
+                  <Search size={24} className={`mx-auto mb-2 ${locationMethod === 'city' ? 'text-flash-600' : 'text-midnight-600'}`} />
+                  <span className={`text-sm font-medium ${locationMethod === 'city' ? 'text-flash-700' : 'text-midnight-700'}`}>
+                    City / Postal Code
                   </span>
                 </button>
                 <button
@@ -969,121 +762,30 @@ export default function ReportLostPet() {
                 >
                   <Crosshair size={24} className={`mx-auto mb-2 ${locationMethod === 'pin' ? 'text-flash-600' : 'text-midnight-600'}`} />
                   <span className={`text-sm font-medium ${locationMethod === 'pin' ? 'text-flash-700' : 'text-midnight-700'}`}>
-                    Pin on Map
+                    Use My Location
                   </span>
                 </button>
               </div>
 
-              {/* Address input with autocomplete */}
-              {locationMethod === 'address' && (
-                <div className="relative">
-                  <label className="block text-sm font-medium mb-2 text-midnight-700">
-                    Street Address
-                  </label>
-                  <div className="relative">
-                    <input
-                      ref={addressInputRef}
-                      type="text"
-                      value={lastSeenAddress}
-                      onChange={handleAddressInputChange}
-                      onFocus={() => {
-                        if (addressSuggestions.length > 0) {
-                          setShowSuggestions(true);
-                        }
-                      }}
-                      placeholder="Start typing an address..."
-                      className="w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl text-midnight-900 placeholder:text-midnight-600 focus:outline-none focus:border-flash-500 focus:ring-1 focus:ring-flash-500 transition-all"
-                      autoComplete="off"
-                    />
-                    {isSearchingAddress && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <Loader2 size={18} className="animate-spin text-flash-500" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Address suggestions dropdown */}
-                  {showSuggestions && addressSuggestions.length > 0 && (
-                    <div
-                      ref={suggestionsRef}
-                      className="absolute z-50 w-full mt-1 bg-white border border-midnight-200 rounded-xl shadow-lg max-h-64 overflow-y-auto"
-                    >
-                      {addressSuggestions.map((suggestion, index) => (
-                        <button
-                          key={index}
-                          onClick={() => selectAddressSuggestion(suggestion)}
-                          className="w-full px-4 py-3 text-left hover:bg-midnight-50 border-b border-midnight-100 last:border-b-0 transition-colors"
-                        >
-                          <div className="flex items-start gap-2">
-                            <MapPin size={16} className="text-flash-500 flex-shrink-0 mt-1" />
-                            <div className="min-w-0">
-                              <p className="text-midnight-900 text-sm truncate">
-                                {suggestion.display_name.split(',').slice(0, 3).join(', ')}
-                              </p>
-                              <p className="text-midnight-600 text-xs truncate">
-                                {suggestion.display_name.split(',').slice(3).join(', ')}
-                              </p>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Validation message */}
-                  {lastSeenAddress && !center && !isSearchingAddress && addressSuggestions.length === 0 && lastSeenAddress.length >= 3 && (
-                    <p className="mt-2 text-sm text-amber-600">
-                      No addresses found. Please check your spelling or try a more specific address.
-                    </p>
-                  )}
-                  {!lastSeenAddress && (
-                    <p className="mt-2 text-sm text-midnight-600">
-                      Type to search for an address. Select from suggestions to validate.
-                    </p>
-                  )}
-                  {center && lastSeenAddress && (
-                    <p className="mt-2 text-sm text-green-600 flex items-center gap-1">
-                      <Check size={14} /> Address validated
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Zip code input */}
-              {locationMethod === 'zip' && (
+              {/* Unified city search input */}
+              {locationMethod === 'city' && (
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-midnight-700">
-                    Zip Code
-                  </label>
-                  <input
-                    type="text"
-                    value={zipCode}
-                    onChange={(e) => {
-                      setZipCode(e.target.value.replace(/\D/g, '').slice(0, 5));
-                      setCenter(null);
-                      setLocationConfirmed(false);
-                    }}
-                    placeholder="60601"
-                    maxLength={5}
-                    className="w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl text-midnight-900 placeholder:text-midnight-600 focus:outline-none focus:border-flash-500 focus:ring-1 focus:ring-flash-500 transition-all"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && zipCode.length === 5 && timeElapsed) {
-                        geocodeLocation(zipCode, true);
-                      }
-                    }}
+                  <CitySearchInput
+                    value={citySearchTerm}
+                    onChange={setCitySearchTerm}
+                    onSelect={handleCitySelect}
+                    selectedCity={selectedCity}
+                    placeholder="e.g., Los Angeles, Chicago, 90210, Ciudad de México"
+                    label="City or Postal Code"
+                    showIcon={true}
                   />
-                  {zipCode.length > 0 && zipCode.length < 5 && (
-                    <p className="mt-2 text-sm text-amber-600">
-                      Enter a 5-digit zip code
+                  {selectedCity && center && (
+                    <p className="mt-2 text-sm text-green-600 flex items-center gap-1">
+                      <Check size={14} /> Location set: {selectedCity.city}, {selectedCity.state_name || selectedCity.state_id}
                     </p>
                   )}
-                  {zipCode.length === 5 && !center && (
-                    <p className="mt-2 text-sm text-midnight-600">
-                      Click "Set Location" to find this zip code area
-                    </p>
-                  )}
-                  <p className="mt-2 text-xs text-midnight-600">
-                    Using a zip code will notify all rescue squads in that area and neighboring towns.
+                  <p className="mt-2 text-xs text-midnight-500">
+                    35+ countries supported including US, Canada, Mexico, Colombia, Caribbean, and Central America
                   </p>
                 </div>
               )}
@@ -1117,13 +819,9 @@ export default function ReportLostPet() {
               </button>
               <button
                 onClick={() => {
-                  if (locationMethod === 'address' && center) {
-                    // Already validated via autocomplete, go to step 3
+                  if (locationMethod === 'city' && center) {
+                    // Already validated via city search, go to step 3
                     setStep(3);
-                  } else if (locationMethod === 'address' && lastSeenAddress) {
-                    geocodeLocation(lastSeenAddress, false);
-                  } else if (locationMethod === 'zip' && zipCode.length === 5) {
-                    geocodeLocation(zipCode, true);
                   } else if (locationMethod === 'pin') {
                     handleDropPin();
                   }
@@ -1131,16 +829,14 @@ export default function ReportLostPet() {
                 disabled={
                   !timeElapsed ||
                   !locationMethod ||
-                  (locationMethod === 'address' && !lastSeenAddress && !center) ||
-                  (locationMethod === 'zip' && zipCode.length !== 5) ||
+                  (locationMethod === 'city' && !center) ||
                   isGeocoding
                 }
                 className={`
                   flex-[2] py-3 px-4 rounded-xl font-medium transition-all
                   flex items-center justify-center gap-2
                   ${timeElapsed && locationMethod && !isGeocoding &&
-                    ((locationMethod === 'address' && lastSeenAddress) ||
-                     (locationMethod === 'zip' && zipCode.length === 5) ||
+                    ((locationMethod === 'city' && center) ||
                      locationMethod === 'pin')
                     ? 'bg-gradient-to-r from-flash-400 to-flash-500 text-midnight-900 shadow-glow-flash hover:shadow-glow-flash-lg'
                     : 'bg-midnight-100 text-midnight-400 cursor-not-allowed'
