@@ -20,7 +20,7 @@ export async function POST(request) {
       email, phone, firstName,
       petName, breed, color, size, distinctiveMarks,
       lastSeenAddress, center, radiusMiles, timeElapsed, petType,
-      photos, locationType, cityName
+      photos, locationType, cityName, selectedPetId
     } = body;
 
     // Default locationType to 'address' for backwards compatibility
@@ -91,21 +91,52 @@ export async function POST(request) {
         accountCreated = true;
       }
 
-      // Create pet record
-      const pet = await tx.pet.create({
-        data: {
-          ownerId: user.id,
-          name: petName,
-          species: petType.toUpperCase(),
-          breed: breed || '',
-          color,
-          size,
-          distinctiveMarks: distinctiveMarks || '',
-          primaryPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
-          photos: JSON.stringify(photos || []),
-          personality: "[]",
+      // Use existing pet if selectedPetId provided, otherwise create new
+      let pet;
+      if (selectedPetId) {
+        // Verify the pet belongs to this user
+        pet = await tx.pet.findFirst({
+          where: {
+            id: selectedPetId,
+            ownerId: user.id,
+            isDeleted: false,
+          }
+        });
+
+        if (!pet) {
+          throw new Error('Selected pet not found or does not belong to you');
         }
-      });
+
+        // Update pet details if they've changed
+        pet = await tx.pet.update({
+          where: { id: selectedPetId },
+          data: {
+            name: petName || pet.name,
+            color: color || pet.color,
+            breed: breed || pet.breed,
+            size: size || pet.size,
+            distinctiveMarks: distinctiveMarks || pet.distinctiveMarks,
+            primaryPhotoUrl: photos && photos.length > 0 ? photos[0] : pet.primaryPhotoUrl,
+            photos: photos && photos.length > 0 ? JSON.stringify(photos) : pet.photos,
+          }
+        });
+      } else {
+        // Create new pet record
+        pet = await tx.pet.create({
+          data: {
+            ownerId: user.id,
+            name: petName,
+            species: petType.toUpperCase(),
+            breed: breed || '',
+            color,
+            size,
+            distinctiveMarks: distinctiveMarks || '',
+            primaryPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
+            photos: JSON.stringify(photos || []),
+            personality: "[]",
+          }
+        });
+      }
 
       // Create case
       const lastSeenAt = calculateLastSeenTime(timeElapsed);

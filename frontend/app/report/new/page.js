@@ -37,7 +37,7 @@ const TIME_OPTIONS = [
   { value: '6_to_24_hours', label: '6-24 hours', shortLabel: '6-24h' },
   { value: '1_to_3_days', label: '1-3 days', shortLabel: '1-3d' },
   { value: '3_to_7_days', label: '3-7 days', shortLabel: '3-7d' },
-  { value: 'more_than_week', label: '1+ weeks', shortLabel: '1w+' },
+  { value: 'more_than_2_weeks', label: '1+ weeks', shortLabel: '1w+' },
 ];
 
 export default function ReportLostPet() {
