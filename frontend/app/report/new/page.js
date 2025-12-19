@@ -18,7 +18,7 @@ import {
   Dog, Cat, Bird, Rabbit, MapPin, Clock, Search,
   Camera, Check, ChevronUp, ChevronDown,
   AlertTriangle, Loader2, Sparkles, X, Plus,
-  Shield, Users, Bell, ArrowRight, Navigation
+  Shield, Users, Bell, ArrowRight, Navigation, ExternalLink
 } from 'lucide-react';
 import BreedSelector from '../../components/BreedSelector';
 import ColorSelector from '../../components/ColorSelector';
@@ -169,6 +169,23 @@ export default function ReportLostPet() {
     setAddressSuggestions([]);
     setAddressSearchTerm(address.display_name);
     setShowSearch(false);
+  };
+
+  // Open location in Apple Maps (iOS/Mac) or Google Maps (others)
+  const openInMapsApp = () => {
+    const lat = center ? center[0] : 0;
+    const lng = center ? center[1] : 0;
+
+    // Check if on Apple device
+    const isApple = /iPad|iPhone|iPod|Mac/.test(navigator.userAgent);
+
+    if (isApple) {
+      // Apple Maps URL scheme
+      window.open(`https://maps.apple.com/?ll=${lat},${lng}&q=Last%20Seen%20Location&z=17`, '_blank');
+    } else {
+      // Google Maps for others
+      window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
+    }
   };
 
   // Auto-detect location on mount
@@ -657,9 +674,18 @@ export default function ReportLostPet() {
               />
             )}
 
+            {/* Open in Maps button */}
+            <button
+              onClick={openInMapsApp}
+              className="w-full mt-3 py-2.5 px-4 bg-gray-900 text-white rounded-xl font-medium text-sm flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors"
+            >
+              <ExternalLink size={16} />
+              Open in Apple Maps
+            </button>
+
             <p className="text-xs text-gray-500 mt-2 text-center">
               {searchMode === 'address'
-                ? 'Search any street address worldwide'
+                ? 'Find exact address in Maps, then return here'
                 : 'Search by city or postal code'
               }
             </p>
@@ -667,15 +693,24 @@ export default function ReportLostPet() {
         </div>
       )}
 
-      {/* Toggle search button */}
+      {/* Toggle search button + Open in Maps */}
       {center && !showSearch && (
-        <button
-          onClick={() => setShowSearch(true)}
-          className="absolute top-20 left-4 z-20 bg-white rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm font-medium text-gray-700"
-        >
-          <Search size={16} />
-          {cityName || 'Change location'}
-        </button>
+        <div className="absolute top-20 left-4 right-4 z-20 flex gap-2">
+          <button
+            onClick={() => setShowSearch(true)}
+            className="flex-1 bg-white rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm font-medium text-gray-700"
+          >
+            <Search size={16} />
+            {cityName || 'Change location'}
+          </button>
+          <button
+            onClick={openInMapsApp}
+            className="bg-gray-900 text-white rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm font-medium"
+          >
+            <ExternalLink size={16} />
+            Maps
+          </button>
+        </div>
       )}
 
       {/* Map container */}
