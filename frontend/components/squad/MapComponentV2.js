@@ -59,7 +59,7 @@ export default function MapComponentV2({
   useEffect(() => {
     if (!mapInstanceRef.current || !squad.cityName) return;
 
-    const fetchCityBoundary = async () => {
+    const drawBoundary = async () => {
       try {
         // Clear old boundary
         if (cityBoundaryRef.current) {
@@ -67,38 +67,58 @@ export default function MapComponentV2({
           cityBoundaryRef.current = null;
         }
 
-        const cityName = squad.cityName;
-        const state = squad.state || '';
-        const country = squad.country || 'US';
+        let geometry = null;
 
-        // Map country codes to full names for Nominatim
-        const countryNames = {
-          'US': 'USA', 'CA': 'Canada', 'MX': 'Mexico', 'CO': 'Colombia',
-          'GT': 'Guatemala', 'HN': 'Honduras', 'SV': 'El Salvador', 'NI': 'Nicaragua',
-          'CR': 'Costa Rica', 'PA': 'Panama', 'BZ': 'Belize', 'CU': 'Cuba',
-          'JM': 'Jamaica', 'HT': 'Haiti', 'DO': 'Dominican Republic', 'BS': 'Bahamas',
-          'TT': 'Trinidad and Tobago', 'BB': 'Barbados', 'AG': 'Antigua and Barbuda',
-          'DM': 'Dominica', 'GD': 'Grenada', 'KN': 'Saint Kitts and Nevis',
-          'LC': 'Saint Lucia', 'VC': 'Saint Vincent', 'GL': 'Greenland'
-        };
-        const countryName = countryNames[country] || country;
-        const searchQuery = state ? `${cityName}, ${state}, ${countryName}` : `${cityName}, ${countryName}`;
+        // First, check if we have a stored boundary in the squad
+        if (squad.customBoundary) {
+          try {
+            geometry = typeof squad.customBoundary === 'string'
+              ? JSON.parse(squad.customBoundary)
+              : squad.customBoundary;
+            console.log('[Map] Using stored boundary for', squad.cityName);
+          } catch (e) {
+            console.error('[Map] Failed to parse stored boundary:', e);
+          }
+        }
 
-        // Use backend proxy to avoid CORS issues
-        const response = await fetch(
-          `/api/geocode?q=${encodeURIComponent(searchQuery)}&format=geojson&polygon_geojson=1&limit=1`
-        );
+        // Fall back to fetching from Nominatim if no stored boundary
+        if (!geometry) {
+          const cityName = squad.cityName;
+          const state = squad.state || '';
+          const country = squad.country || 'US';
 
-        if (!response.ok) return;
+          // Map country codes to full names for Nominatim
+          const countryNames = {
+            'US': 'USA', 'CA': 'Canada', 'MX': 'Mexico', 'CO': 'Colombia',
+            'GT': 'Guatemala', 'HN': 'Honduras', 'SV': 'El Salvador', 'NI': 'Nicaragua',
+            'CR': 'Costa Rica', 'PA': 'Panama', 'BZ': 'Belize', 'CU': 'Cuba',
+            'JM': 'Jamaica', 'HT': 'Haiti', 'DO': 'Dominican Republic', 'BS': 'Bahamas',
+            'TT': 'Trinidad and Tobago', 'BB': 'Barbados', 'AG': 'Antigua and Barbuda',
+            'DM': 'Dominica', 'GD': 'Grenada', 'KN': 'Saint Kitts and Nevis',
+            'LC': 'Saint Lucia', 'VC': 'Saint Vincent', 'GL': 'Greenland'
+          };
+          const countryName = countryNames[country] || country;
+          const searchQuery = state ? `${cityName}, ${state}, ${countryName}` : `${cityName}, ${countryName}`;
 
-        const data = await response.json();
-        if (!data.features || data.features.length === 0) return;
+          console.log('[Map] Fetching boundary from Nominatim for', searchQuery);
 
-        const feature = data.features[0];
-        if (!feature.geometry) return;
+          // Use backend proxy to avoid CORS issues
+          const response = await fetch(
+            `/api/geocode?q=${encodeURIComponent(searchQuery)}&format=geojson&polygon_geojson=1&limit=1`
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.features && data.features.length > 0 && data.features[0].geometry) {
+              geometry = data.features[0].geometry;
+            }
+          }
+        }
+
+        if (!geometry) return;
 
         // Create GeoJSON layer with city boundary
-        cityBoundaryRef.current = L.geoJSON(feature.geometry, {
+        cityBoundaryRef.current = L.geoJSON(geometry, {
           style: {
             color: '#3b82f6', // blue-500
             weight: 3,
@@ -112,11 +132,11 @@ export default function MapComponentV2({
         cityBoundaryRef.current.bringToBack();
 
       } catch (error) {
-        console.error('Failed to fetch city boundary:', error);
+        console.error('Failed to draw city boundary:', error);
       }
     };
 
-    fetchCityBoundary();
+    drawBoundary();
 
     return () => {
       if (cityBoundaryRef.current) {
@@ -124,7 +144,7 @@ export default function MapComponentV2({
         cityBoundaryRef.current = null;
       }
     };
-  }, [squad.cityName, squad.state]);
+  }, [squad.cityName, squad.state, squad.customBoundary]);
 
   // Draw division boundaries (subtle dotted lines)
   useEffect(() => {

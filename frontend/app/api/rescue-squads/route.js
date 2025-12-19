@@ -530,6 +530,42 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
+    // Fetch city boundary polygon from Nominatim for map display
+    let customBoundary = null;
+    try {
+      const countryNames = {
+        'US': 'USA', 'CA': 'Canada', 'MX': 'Mexico', 'CO': 'Colombia',
+        'GT': 'Guatemala', 'HN': 'Honduras', 'SV': 'El Salvador', 'NI': 'Nicaragua',
+        'CR': 'Costa Rica', 'PA': 'Panama', 'BZ': 'Belize', 'CU': 'Cuba',
+        'JM': 'Jamaica', 'HT': 'Haiti', 'DO': 'Dominican Republic', 'BS': 'Bahamas',
+        'TT': 'Trinidad and Tobago', 'BB': 'Barbados', 'AG': 'Antigua and Barbuda',
+        'DM': 'Dominica', 'GD': 'Grenada', 'KN': 'Saint Kitts and Nevis',
+        'LC': 'Saint Lucia', 'VC': 'Saint Vincent', 'GL': 'Greenland'
+      };
+      const countryName = countryNames[country] || country;
+      const searchQuery = state ? `${city}, ${state}, ${countryName}` : `${city}, ${countryName}`;
+
+      const boundaryRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&polygon_geojson=1&limit=1`,
+        { headers: { 'User-Agent': 'PetRecovery.org (contact@petrecovery.org)' } }
+      );
+
+      if (boundaryRes.ok) {
+        const boundaryData = await boundaryRes.json();
+        if (boundaryData.length > 0 && boundaryData[0].geojson) {
+          const geojson = boundaryData[0].geojson;
+          // Only store if it's a polygon (not a point)
+          if (geojson.type === 'Polygon' || geojson.type === 'MultiPolygon') {
+            customBoundary = JSON.stringify(geojson);
+            console.log(`[Squad Create] Fetched boundary polygon for ${city}, ${state}`);
+          }
+        }
+      }
+    } catch (boundaryError) {
+      // Non-fatal: log but continue - squad still created without boundary
+      console.error('[Squad Create] Boundary fetch failed:', boundaryError.message);
+    }
+
     const squadName = `${city} Rescue Squad`;
 
     // Check if squad already exists (active) - filter by country
@@ -582,6 +618,7 @@ export async function POST(request) {
           centerLongitude: longitude,
           zipCodes: JSON.stringify(zipCode ? [zipCode] : []),
           country,
+          customBoundary,
         },
       });
 
@@ -627,6 +664,7 @@ export async function POST(request) {
           centerLatitude: latitude,
           centerLongitude: longitude,
           radiusMiles: 10,
+          customBoundary,
           specializesInDogs: true,
           specializesInCats: true,
           members: {
