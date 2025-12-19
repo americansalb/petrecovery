@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import BreedSelector from '../../components/BreedSelector';
 import ColorSelector from '../../components/ColorSelector';
-import CitySearchInput, { getCountryFlag } from '../../components/CitySearchInput';
+import CitySearchInput, { getCountryFlag } from '../../../components/CitySearchInput';
 
 const PET_TYPES = [
   { type: 'dog', label: 'Dog', icon: Dog, species: 'DOG' },
