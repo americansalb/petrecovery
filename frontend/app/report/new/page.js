@@ -370,6 +370,20 @@ export default function ReportLostPet() {
       return;
     }
 
+    // For non-logged-in users, require contact info
+    if (!session?.user) {
+      if (!reportData.firstName) {
+        setError("Please enter your name");
+        setIsSubmitting(false);
+        return;
+      }
+      if (!reportData.email) {
+        setError("Please enter your email");
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     try {
       const response = await fetch('/api/reports/create', {
         method: 'POST',
@@ -407,7 +421,9 @@ export default function ReportLostPet() {
     }
   };
 
-  const canSubmit = center && petType && reportData.petName && reportData.color;
+  // For non-logged-in users, also require name and email
+  const hasContactInfo = session?.user || (reportData.firstName && reportData.email);
+  const canSubmit = center && petType && reportData.petName && reportData.color && hasContactInfo;
 
   // Success phase
   if (phase === 'success' && reportResult) {
@@ -735,6 +751,43 @@ export default function ReportLostPet() {
                 )}
               </div>
 
+              {/* Contact info for non-logged-in users - REQUIRED */}
+              {!session?.user && (
+                <div className="space-y-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <p className="text-sm font-medium text-blue-800">Your contact info (required)</p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Your Name *</label>
+                    <input
+                      type="text"
+                      value={reportData.firstName}
+                      onChange={(e) => setReportData(prev => ({ ...prev, firstName: e.target.value }))}
+                      placeholder="Your name"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Your Email *</label>
+                    <input
+                      type="email"
+                      value={reportData.email}
+                      onChange={(e) => setReportData(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="you@email.com"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone (for text alerts)</label>
+                    <input
+                      type="tel"
+                      value={reportData.phone}
+                      onChange={(e) => setReportData(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="(555) 123-4567"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* More details - expandable */}
               <button
                 onClick={() => setShowMoreDetails(!showMoreDetails)}
@@ -765,31 +818,6 @@ export default function ReportLostPet() {
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none resize-none"
                     />
                   </div>
-
-                  {!session?.user && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Your Email *</label>
-                        <input
-                          type="email"
-                          value={reportData.email}
-                          onChange={(e) => setReportData(prev => ({ ...prev, email: e.target.value }))}
-                          placeholder="you@email.com"
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone (for text alerts)</label>
-                        <input
-                          type="tel"
-                          value={reportData.phone}
-                          onChange={(e) => setReportData(prev => ({ ...prev, phone: e.target.value }))}
-                          placeholder="(555) 123-4567"
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none"
-                        />
-                      </div>
-                    </>
-                  )}
                 </div>
               )}
 
