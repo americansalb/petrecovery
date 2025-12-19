@@ -69,7 +69,20 @@ export default function MapComponentV2({
 
         const cityName = squad.cityName;
         const state = squad.state || '';
-        const searchQuery = state ? `${cityName}, ${state}, USA` : `${cityName}, USA`;
+        const country = squad.country || 'US';
+
+        // Map country codes to full names for Nominatim
+        const countryNames = {
+          'US': 'USA', 'CA': 'Canada', 'MX': 'Mexico', 'CO': 'Colombia',
+          'GT': 'Guatemala', 'HN': 'Honduras', 'SV': 'El Salvador', 'NI': 'Nicaragua',
+          'CR': 'Costa Rica', 'PA': 'Panama', 'BZ': 'Belize', 'CU': 'Cuba',
+          'JM': 'Jamaica', 'HT': 'Haiti', 'DO': 'Dominican Republic', 'BS': 'Bahamas',
+          'TT': 'Trinidad and Tobago', 'BB': 'Barbados', 'AG': 'Antigua and Barbuda',
+          'DM': 'Dominica', 'GD': 'Grenada', 'KN': 'Saint Kitts and Nevis',
+          'LC': 'Saint Lucia', 'VC': 'Saint Vincent', 'GL': 'Greenland'
+        };
+        const countryName = countryNames[country] || country;
+        const searchQuery = state ? `${cityName}, ${state}, ${countryName}` : `${cityName}, ${countryName}`;
 
         // Use backend proxy to avoid CORS issues
         const response = await fetch(
