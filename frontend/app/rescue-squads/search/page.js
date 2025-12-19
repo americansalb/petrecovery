@@ -117,25 +117,55 @@ export default function RescueSquadSearchPage() {
     }
   };
 
-  // Country code to flag emoji mapping
+  // Country code to flag and name mapping
+  const countryData = {
+    'US': { flag: '🇺🇸', name: 'United States' },
+    'CA': { flag: '🇨🇦', name: 'Canada' },
+    'MX': { flag: '🇲🇽', name: 'Mexico' },
+    // Caribbean
+    'BS': { flag: '🇧🇸', name: 'Bahamas' },
+    'CU': { flag: '🇨🇺', name: 'Cuba' },
+    'DO': { flag: '🇩🇴', name: 'Dominican Republic' },
+    'HT': { flag: '🇭🇹', name: 'Haiti' },
+    'JM': { flag: '🇯🇲', name: 'Jamaica' },
+    'TT': { flag: '🇹🇹', name: 'Trinidad and Tobago' },
+    'BB': { flag: '🇧🇧', name: 'Barbados' },
+    'AG': { flag: '🇦🇬', name: 'Antigua and Barbuda' },
+    'DM': { flag: '🇩🇲', name: 'Dominica' },
+    'GD': { flag: '🇬🇩', name: 'Grenada' },
+    'KN': { flag: '🇰🇳', name: 'Saint Kitts and Nevis' },
+    'LC': { flag: '🇱🇨', name: 'Saint Lucia' },
+    'VC': { flag: '🇻🇨', name: 'Saint Vincent' },
+    'AI': { flag: '🇦🇮', name: 'Anguilla' },
+    'AW': { flag: '🇦🇼', name: 'Aruba' },
+    'BM': { flag: '🇧🇲', name: 'Bermuda' },
+    'KY': { flag: '🇰🇾', name: 'Cayman Islands' },
+    'TC': { flag: '🇹🇨', name: 'Turks and Caicos' },
+    'VG': { flag: '🇻🇬', name: 'British Virgin Islands' },
+    'CW': { flag: '🇨🇼', name: 'Curaçao' },
+    'GP': { flag: '🇬🇵', name: 'Guadeloupe' },
+    'MQ': { flag: '🇲🇶', name: 'Martinique' },
+    'MS': { flag: '🇲🇸', name: 'Montserrat' },
+    // Central America
+    'BZ': { flag: '🇧🇿', name: 'Belize' },
+    'CR': { flag: '🇨🇷', name: 'Costa Rica' },
+    'GT': { flag: '🇬🇹', name: 'Guatemala' },
+    'HN': { flag: '🇭🇳', name: 'Honduras' },
+    'NI': { flag: '🇳🇮', name: 'Nicaragua' },
+    'PA': { flag: '🇵🇦', name: 'Panama' },
+    'SV': { flag: '🇸🇻', name: 'El Salvador' },
+    // South America
+    'CO': { flag: '🇨🇴', name: 'Colombia' },
+    // Other
+    'GL': { flag: '🇬🇱', name: 'Greenland' }
+  };
+
   const getCountryFlag = (countryCode) => {
-    const flags = {
-      'US': '🇺🇸', 'CA': '🇨🇦', 'MX': '🇲🇽',
-      // Caribbean
-      'BS': '🇧🇸', 'CU': '🇨🇺', 'DO': '🇩🇴', 'HT': '🇭🇹', 'JM': '🇯🇲',
-      'TT': '🇹🇹', 'BB': '🇧🇧', 'AG': '🇦🇬', 'DM': '🇩🇲', 'GD': '🇬🇩',
-      'KN': '🇰🇳', 'LC': '🇱🇨', 'VC': '🇻🇨', 'AI': '🇦🇮', 'AW': '🇦🇼',
-      'BM': '🇧🇲', 'KY': '🇰🇾', 'TC': '🇹🇨', 'VG': '🇻🇬', 'CW': '🇨🇼',
-      'GP': '🇬🇵', 'MQ': '🇲🇶', 'MS': '🇲🇸',
-      // Central America
-      'BZ': '🇧🇿', 'CR': '🇨🇷', 'GT': '🇬🇹', 'HN': '🇭🇳',
-      'NI': '🇳🇮', 'PA': '🇵🇦', 'SV': '🇸🇻',
-      // South America
-      'CO': '🇨🇴',
-      // Other
-      'GL': '🇬🇱'
-    };
-    return flags[countryCode] || '🌎';
+    return countryData[countryCode]?.flag || '🌎';
+  };
+
+  const getCountryName = (countryCode) => {
+    return countryData[countryCode]?.name || countryCode;
   };
 
   const selectSuggestion = (city) => {
@@ -404,10 +434,10 @@ export default function RescueSquadSearchPage() {
                       >
                         <div className="font-semibold text-midnight-900 flex items-center gap-2">
                           <span className="text-lg">{getCountryFlag(city.country)}</span>
-                          {city.city}, {city.state_id}
+                          {city.city}, {city.state_name || city.state_id}
                         </div>
                         <div className="text-sm text-midnight-500">
-                          {city.state_name || city.state_id} {city.zips?.length > 0 ? `• ${city.zips[0]}` : ''}
+                          {getCountryName(city.country)} {city.zips?.length > 0 ? `• ${city.zips[0]}` : ''}
                         </div>
                       </div>
                     ))}

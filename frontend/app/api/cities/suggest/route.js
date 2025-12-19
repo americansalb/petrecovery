@@ -47,6 +47,15 @@ export async function GET(request) {
     const allResults = [...usResults, ...mxResults, ...caResults, ...prResults, ...naResults, ...coResults];
     const queryNorm = normalizeText(trimmed);
 
+    // For ZIP codes, return US results directly (don't filter by city name)
+    if (isZip && usResults.length > 0) {
+      return NextResponse.json({
+        suggestions: usResults.slice(0, limit),
+        isZip: true,
+        isValid: true
+      });
+    }
+
     // Filter results that match the query (accent-insensitive)
     const filteredResults = allResults.filter(r => {
       const cityNorm = normalizeText(r.city);
