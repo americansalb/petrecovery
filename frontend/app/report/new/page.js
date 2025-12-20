@@ -225,7 +225,7 @@ export default function ReportLostPet() {
     if (typeof window === 'undefined' || !mapRef.current || !center) return;
     if (mapInstanceRef.current) {
       // Update existing map
-      mapInstanceRef.current.setView(center, 14);
+      mapInstanceRef.current.setView(center, 17);
       if (markerRef.current) {
         markerRef.current.setLatLng(center);
       }
@@ -238,7 +238,7 @@ export default function ReportLostPet() {
     import('leaflet').then((L) => {
       const map = L.map(mapRef.current, {
         zoomControl: false,
-      }).setView(center, 14);
+      }).setView(center, 17);
       mapInstanceRef.current = map;
 
       L.control.zoom({ position: 'topright' }).addTo(map);
@@ -764,6 +764,33 @@ export default function ReportLostPet() {
             </div>
           )}
 
+          {/* Search radius - always visible */}
+          {center && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">How precise is this location?</label>
+              <div className="flex gap-2">
+                {[
+                  { label: 'Exact spot', meters: 50 },
+                  { label: 'This block', meters: 150 },
+                  { label: 'This area', meters: 400 },
+                  { label: 'General', meters: 800 },
+                ].map((opt) => (
+                  <button
+                    key={opt.meters}
+                    onClick={() => setRadiusMeters(opt.meters)}
+                    className={`flex-1 py-2 px-1 rounded-lg text-xs font-medium transition-all ${
+                      radiusMeters === opt.meters
+                        ? 'bg-red-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Pet Selection */}
           {!petType && (
             <>
@@ -870,31 +897,6 @@ export default function ReportLostPet() {
                       `}
                     >
                       {opt.shortLabel}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Search radius */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">How precise is the location?</label>
-                <div className="flex gap-2">
-                  {[
-                    { label: 'Exact spot', meters: 50 },
-                    { label: 'This block', meters: 150 },
-                    { label: 'This area', meters: 400 },
-                    { label: 'General', meters: 800 },
-                  ].map((opt) => (
-                    <button
-                      key={opt.meters}
-                      onClick={() => setRadiusMeters(opt.meters)}
-                      className={`flex-1 py-2 px-1 rounded-lg text-xs font-medium transition-all ${
-                        radiusMeters === opt.meters
-                          ? 'bg-red-500 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {opt.label}
                     </button>
                   ))}
                 </div>
