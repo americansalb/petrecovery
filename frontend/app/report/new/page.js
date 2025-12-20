@@ -344,9 +344,9 @@ export default function ReportLostPet() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="h-screen bg-white flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between p-4 border-b">
+      <header className="flex items-center justify-between p-4 border-b flex-shrink-0">
         <button onClick={() => step > 1 ? prevStep() : null} className="w-10 h-10 flex items-center justify-center">
           {step > 1 ? <ChevronLeft size={24} /> : <Link href="/dashboard"><X size={24} /></Link>}
         </button>
@@ -359,7 +359,7 @@ export default function ReportLostPet() {
       </header>
 
       {/* Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 
         {/* Step 1: Location */}
         {step === 1 && (
@@ -398,7 +398,7 @@ export default function ReportLostPet() {
 
         {/* Step 2: Select Pet */}
         {step === 2 && (
-          <div className="flex-1 p-6">
+          <div className="flex-1 p-6 overflow-y-auto">
             <h1 className="text-2xl font-bold mb-1">Who went missing?</h1>
             <p className="text-gray-500 mb-6">Select your pet or add a new one</p>
 
@@ -472,7 +472,7 @@ export default function ReportLostPet() {
 
         {/* Step 4: When */}
         {step === 4 && (
-          <div className="flex-1 p-6">
+          <div className="flex-1 p-6 overflow-y-auto">
             <h1 className="text-2xl font-bold mb-1">When did {petName} go missing?</h1>
             <p className="text-gray-500 mb-6">This helps prioritize the search</p>
 
@@ -495,7 +495,7 @@ export default function ReportLostPet() {
 
         {/* Step 5: Color */}
         {step === 5 && (
-          <div className="flex-1 p-6">
+          <div className="flex-1 p-6 overflow-y-auto">
             <h1 className="text-2xl font-bold mb-1">What color is {petName}?</h1>
             <p className="text-gray-500 mb-6">Select all that apply</p>
 
@@ -508,7 +508,7 @@ export default function ReportLostPet() {
 
         {/* Step 6: Photo */}
         {step === 6 && (
-          <div className="flex-1 p-6">
+          <div className="flex-1 p-6 overflow-y-auto">
             <h1 className="text-2xl font-bold mb-1">Add a photo of {petName}</h1>
             <p className="text-gray-500 mb-6">This really helps people identify your pet</p>
 
@@ -555,7 +555,7 @@ export default function ReportLostPet() {
 
         {/* Step 7: Confirm */}
         {step === 7 && (
-          <div className="flex-1 p-6">
+          <div className="flex-1 p-6 overflow-y-auto">
             <h1 className="text-2xl font-bold mb-6">Ready to alert?</h1>
 
             <div className="space-y-4 mb-6">
@@ -601,7 +601,7 @@ export default function ReportLostPet() {
 
       {/* Footer with Next button */}
       {step < 8 && (
-        <div className="p-4 border-t">
+        <div className="p-4 border-t flex-shrink-0 bg-white">
           <button
             onClick={nextStep}
             disabled={!canProceed() || isSubmitting}
