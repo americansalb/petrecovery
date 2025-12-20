@@ -728,52 +728,52 @@ export default function ReportLostPet() {
 
       </div>
 
-      {/* Bottom Sheet - fixed height, scrollable content */}
+      {/* Bottom Sheet - takes ~45% of screen by default, expandable */}
       <div
         className={`
           bg-white rounded-t-3xl shadow-2xl transition-all duration-300 ease-out flex-shrink-0
-          ${sheetExpanded ? 'h-[65vh]' : 'h-[200px]'}
+          ${sheetExpanded ? 'h-[75vh]' : 'h-[45vh]'}
           overflow-hidden flex flex-col
         `}
       >
         {/* Drag handle */}
         <div
-          className="py-3 flex justify-center cursor-pointer"
+          className="py-2 flex justify-center cursor-pointer flex-shrink-0"
           onClick={() => setSheetExpanded(!sheetExpanded)}
         >
-          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+          <div className="w-10 h-1 bg-gray-300 rounded-full" />
         </div>
 
         <div className="px-4 pb-4 overflow-y-auto flex-1">
           {/* Error display */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
-              <AlertTriangle size={18} className="text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-red-700 text-sm flex-1">{error}</p>
+            <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
+              <AlertTriangle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-red-700 text-xs flex-1">{error}</p>
               <button onClick={() => setError(null)} className="text-red-400">
-                <X size={16} />
+                <X size={14} />
               </button>
             </div>
           )}
 
-          {/* Search radius - always visible */}
-          {center && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">How precise is this location?</label>
-              <div className="flex gap-2">
+          {/* Search radius - compact inline */}
+          {center && !petType && (
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-xs text-gray-500 flex-shrink-0">Precision:</span>
+              <div className="flex gap-1 flex-1">
                 {[
-                  { label: 'Exact spot', meters: 50 },
-                  { label: 'This block', meters: 150 },
-                  { label: 'This area', meters: 400 },
-                  { label: 'General', meters: 800 },
+                  { label: 'Exact', meters: 50 },
+                  { label: 'Block', meters: 150 },
+                  { label: 'Area', meters: 400 },
+                  { label: 'Wide', meters: 800 },
                 ].map((opt) => (
                   <button
                     key={opt.meters}
                     onClick={() => setRadiusMeters(opt.meters)}
-                    className={`flex-1 py-2 px-1 rounded-lg text-xs font-medium transition-all ${
+                    className={`flex-1 py-1.5 rounded text-xs font-medium ${
                       radiusMeters === opt.meters
                         ? 'bg-red-500 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        : 'bg-gray-100 text-gray-600'
                     }`}
                   >
                     {opt.label}
@@ -788,26 +788,26 @@ export default function ReportLostPet() {
             <>
               {/* My Pets - if logged in and has pets */}
               {session?.user && myPets.length > 0 && (
-                <div className="mb-4">
-                  <p className="text-sm font-medium text-gray-500 mb-2">Quick select from your pets:</p>
-                  <div className="flex gap-3 overflow-x-auto pb-2">
+                <div className="mb-3">
+                  <p className="text-xs font-medium text-gray-500 mb-2">Your pets:</p>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
                     {myPets.map(pet => (
                       <button
                         key={pet.id}
                         onClick={() => handleSelectPet(pet)}
-                        className="flex-shrink-0 w-20 text-center"
+                        className="flex-shrink-0 w-16 text-center"
                       >
-                        <div className="w-16 h-16 mx-auto rounded-2xl bg-gray-100 border-2 border-gray-200 flex items-center justify-center overflow-hidden mb-1 hover:border-blue-400 transition-colors">
+                        <div className="w-14 h-14 mx-auto rounded-xl bg-gray-100 border-2 border-gray-200 flex items-center justify-center overflow-hidden mb-1 hover:border-blue-400">
                           {pet.primaryPhotoUrl ? (
                             <img src={pet.primaryPhotoUrl} alt={pet.name} className="w-full h-full object-cover" />
                           ) : (
-                            pet.species === 'DOG' ? <Dog size={28} className="text-gray-400" /> :
-                            pet.species === 'CAT' ? <Cat size={28} className="text-gray-400" /> :
-                            pet.species === 'BIRD' ? <Bird size={28} className="text-gray-400" /> :
-                            <Rabbit size={28} className="text-gray-400" />
+                            pet.species === 'DOG' ? <Dog size={24} className="text-gray-400" /> :
+                            pet.species === 'CAT' ? <Cat size={24} className="text-gray-400" /> :
+                            pet.species === 'BIRD' ? <Bird size={24} className="text-gray-400" /> :
+                            <Rabbit size={24} className="text-gray-400" />
                           )}
                         </div>
-                        <span className="text-xs font-medium text-gray-700 truncate block">{pet.name}</span>
+                        <span className="text-xs text-gray-700 truncate block">{pet.name}</span>
                       </button>
                     ))}
                   </div>
@@ -816,8 +816,8 @@ export default function ReportLostPet() {
 
               {/* New pet type selection */}
               <div>
-                <p className="text-sm font-medium text-gray-500 mb-2">
-                  {myPets.length > 0 ? 'Or report a new pet:' : 'What type of pet is missing?'}
+                <p className="text-xs font-medium text-gray-500 mb-2">
+                  {myPets.length > 0 ? 'Or new pet:' : 'Select pet type:'}
                 </p>
                 <div className="grid grid-cols-4 gap-2">
                   {PET_TYPES.map((pet) => {
@@ -826,9 +826,9 @@ export default function ReportLostPet() {
                       <button
                         key={pet.type}
                         onClick={() => handleSelectNewPetType(pet.type)}
-                        className="p-3 rounded-xl bg-gray-50 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-center"
+                        className="p-2 rounded-xl bg-gray-50 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-center"
                       >
-                        <Icon size={28} className="mx-auto mb-1 text-gray-600" />
+                        <Icon size={24} className="mx-auto mb-0.5 text-gray-600" />
                         <span className="text-xs font-medium text-gray-700">{pet.label}</span>
                       </button>
                     );
