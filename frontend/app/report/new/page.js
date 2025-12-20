@@ -115,6 +115,14 @@ export default function ReportLostPet() {
       return;
     }
 
+    // Load Leaflet CSS if not already loaded
+    if (!document.querySelector('link[href*="leaflet.css"]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
+
     import('leaflet').then((L) => {
       const map = L.map(mapRef.current, { zoomControl: false }).setView(center, 17);
       mapInstanceRef.current = map;
@@ -355,13 +363,13 @@ export default function ReportLostPet() {
 
         {/* Step 1: Location */}
         {step === 1 && (
-          <div className="flex-1 flex flex-col">
-            <div className="p-6 pb-2">
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="p-4 pb-2">
               <h1 className="text-2xl font-bold mb-1">Where was {petName || 'your pet'} last seen?</h1>
               <p className="text-gray-500">Tap the map or drag the pin</p>
             </div>
 
-            <div className="flex-1 relative">
+            <div className="flex-1 relative min-h-[300px]">
               {isGettingLocation && !center ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
                   <div className="text-center">
@@ -370,12 +378,12 @@ export default function ReportLostPet() {
                   </div>
                 </div>
               ) : (
-                <div ref={mapRef} className="h-full w-full" />
+                <div ref={mapRef} className="absolute inset-0" />
               )}
             </div>
 
             {center && (
-              <div className="p-4 border-t bg-gray-50">
+              <div className="p-4 border-t bg-gray-50 flex-shrink-0">
                 <p className="text-sm text-gray-600 truncate mb-2">{lastSeenAddress || 'Location set'}</p>
                 <button
                   onClick={openInMaps}
