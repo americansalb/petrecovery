@@ -299,6 +299,49 @@ export async function POST(request) {
 
       console.log('[Report Debug] Squads to notify:', squadsToNotify.length);
 
+      // If no squads found within 1 mile, auto-create one for this city AND find nearby squads
+      if (squadsToNotify.length === 0 && cityName) {
+        console.log('[Report Debug] No local squads found - auto-creating squad for:', cityName);
+
+        // Auto-create a rescue squad for this city
+        const newSquad = await prisma.rescueSquad.create({
+          data: {
+            name: `${cityName} Pet Rescue`,
+            city: cityName,
+            country: 'US',
+            centerLatitude: center[0],
+            centerLongitude: center[1],
+            radiusMiles: 5, // Default 5 mile coverage
+            isActive: true,
+            description: `🆕 Community rescue squad for ${cityName}. Auto-created to help reunite pets with their families. Join to help coordinate local pet searches!`,
+          },
+        });
+
+        console.log('[Report Debug] Auto-created squad:', { id: newSquad.id, name: newSquad.name });
+
+        // Add the auto-created squad to the list
+        squadsToNotify.push({
+          ...newSquad,
+          distance: 0,
+          effectiveRadius: newSquad.radiusMiles + COVERAGE_BUFFER,
+          isAutoCreated: true,
+        });
+
+        // Also find squads within 10 miles as "nearby assist" squads
+        const NEARBY_ASSIST_RADIUS = 10; // miles
+        const nearbyAssistSquads = squadsWithDistance.filter(squad =>
+          squad.distance <= NEARBY_ASSIST_RADIUS && squad.distance > 1
+        );
+
+        if (nearbyAssistSquads.length > 0) {
+          console.log('[Report Debug] Found', nearbyAssistSquads.length, 'nearby assist squads within 10 miles');
+          nearbyAssistSquads.forEach(squad => {
+            squad.isNearbyAssist = true;
+            squadsToNotify.push(squad);
+          });
+        }
+      }
+
       // Sort by distance (closest first)
       squadsToNotify.sort((a, b) => a.distance - b.distance);
 
@@ -319,16 +362,31 @@ export async function POST(request) {
 
           // Create automatic mascot post about the new case
           try {
+            const isNearbyAssist = squad.isNearbyAssist;
+            const distanceText = squad.distance ? `~${squad.distance.toFixed(1)} miles away` : '';
+
+            let postContent;
+            if (squad.isAutoCreated) {
+              // Welcome post for newly auto-created squad
+              postContent = `🎉 **Welcome to ${squad.name}!** 🎉\n\nThis squad was just created to help find ${petName}!\n\n🚨 **First Case:** ${petName}, a ${color} ${petType}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nJoin this squad to help reunite pets with their families in your community! 🐾`;
+            } else if (isNearbyAssist) {
+              // Nearby assist post
+              postContent = `🆘 **Nearby Assist Request!** 🆘\n\n${petName}, a ${color} ${petType}${breed ? ` (${breed})` : ''}, went missing ${distanceText} from your coverage area.\n\n📍 Location: ${lastSeenAddress}\n📋 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nNo local squad in that area yet - your help could make the difference! 🙏`;
+            } else {
+              // Regular case alert
+              postContent = `🚨 **New Case Alert!** 🚨\n\n${petName}, a ${color} ${petType}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nIf you're in the area, please keep an eye out and report any sightings. Every pair of eyes helps! 👀`;
+            }
+
             await prisma.squadPost.create({
               data: {
                 rescueSquadId: squad.id,
-                authorId: user.id, // Use reporter as author for now (TODO: create system mascot user)
-                content: `🚨 **New Case Alert!** 🚨\n\n${petName}, a ${color} ${petType}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nIf you're in the area, please keep an eye out and report any sightings. Every pair of eyes helps! 👀`,
-                isSystemPost: true, // Mark as system/mascot post
-                isPinned: false,
+                authorId: user.id,
+                content: postContent,
+                isSystemPost: true,
+                isPinned: squad.isAutoCreated, // Pin the welcome post for new squads
               }
             });
-            console.log('[Report Debug] Created mascot post for squad:', squad.name);
+            console.log('[Report Debug] Created mascot post for squad:', squad.name, isNearbyAssist ? '(nearby assist)' : '');
           } catch (postError) {
             // Non-fatal: log but continue
             console.error('[Report Debug] Failed to create mascot post:', postError);
