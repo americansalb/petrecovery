@@ -726,21 +726,13 @@ export default function ReportLostPet() {
 
         <div ref={mapRef} className="h-full w-full" />
 
-        {/* Simple hint overlay */}
-        {center && (
-          <div className="absolute bottom-4 left-4 right-4 z-10 pointer-events-none">
-            <div className="bg-black/70 backdrop-blur text-white px-4 py-2 rounded-full text-center text-sm">
-              Tap or drag pin to mark exact spot
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Bottom Sheet */}
+      {/* Bottom Sheet - fixed height, scrollable content */}
       <div
         className={`
           bg-white rounded-t-3xl shadow-2xl transition-all duration-300 ease-out flex-shrink-0
-          ${sheetExpanded ? 'max-h-[70vh]' : 'h-auto'}
+          ${sheetExpanded ? 'h-[65vh]' : 'h-[200px]'}
           overflow-hidden flex flex-col
         `}
       >
