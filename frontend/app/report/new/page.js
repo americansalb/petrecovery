@@ -1,28 +1,27 @@
 'use client';
 
 /**
- * Report Lost Pet - Streamlined Map-First Design
+ * Report Lost Pet - Step-by-Step Wizard
  *
- * New flow:
- * 1. Map loads immediately with GPS auto-detection
- * 2. Quick pet selection (from registry) or new pet type
- * 3. Bottom sheet with essential details
- * 4. Submit - done!
+ * Clean, focused flow - one question per screen:
+ * 1. Where? (map)
+ * 2. Who? (select pet or type)
+ * 3. Name? (if new pet)
+ * 4. When?
+ * 5. Color?
+ * 6. Photo? (optional)
+ * 7. Confirm & Submit
  */
 
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Dog, Cat, Bird, Rabbit, MapPin, Clock, Search,
-  Camera, Check, ChevronUp, ChevronDown,
-  AlertTriangle, Loader2, Sparkles, X, Plus,
-  Shield, Users, Bell, ArrowRight, Navigation, ExternalLink
+  Camera, Check, ChevronLeft, ChevronRight,
+  AlertTriangle, Loader2, X, Navigation, ExternalLink
 } from 'lucide-react';
-import BreedSelector from '../../components/BreedSelector';
 import ColorSelector from '../../components/ColorSelector';
-import CitySearchInput, { getCountryFlag } from '../../../components/CitySearchInput';
 
 const PET_TYPES = [
   { type: 'dog', label: 'Dog', icon: Dog, species: 'DOG' },
@@ -32,163 +31,54 @@ const PET_TYPES = [
 ];
 
 const TIME_OPTIONS = [
-  { value: 'less_than_hour', label: '< 1 hour', shortLabel: '< 1h' },
-  { value: '1_to_6_hours', label: '1-6 hours', shortLabel: '1-6h' },
-  { value: '6_to_24_hours', label: '6-24 hours', shortLabel: '6-24h' },
-  { value: '1_to_3_days', label: '1-3 days', shortLabel: '1-3d' },
-  { value: '3_to_7_days', label: '3-7 days', shortLabel: '3-7d' },
-  { value: 'more_than_2_weeks', label: '1+ weeks', shortLabel: '1w+' },
+  { value: 'less_than_hour', label: 'Less than an hour ago', emoji: '⚡' },
+  { value: '1_to_6_hours', label: '1-6 hours ago', emoji: '🕐' },
+  { value: '6_to_24_hours', label: '6-24 hours ago', emoji: '🌅' },
+  { value: '1_to_3_days', label: '1-3 days ago', emoji: '📅' },
+  { value: '3_to_7_days', label: '3-7 days ago', emoji: '📆' },
+  { value: 'more_than_2_weeks', label: 'More than a week', emoji: '📆' },
 ];
 
 export default function ReportLostPet() {
-  const { data: session, status } = useSession();
-  const searchParams = useSearchParams();
+  const { data: session } = useSession();
 
-  // Core state
-  const [phase, setPhase] = useState('location'); // 'location' or 'details'
+  // Wizard state
+  const [step, setStep] = useState(1); // 1=location, 2=pet, 3=name, 4=when, 5=color, 6=photo, 7=confirm
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [reportResult, setReportResult] = useState(null);
 
-  // My Pets state
-  const [myPets, setMyPets] = useState([]);
-  const [loadingPets, setLoadingPets] = useState(false);
-  const [selectedPet, setSelectedPet] = useState(null);
-
-  // Location state
+  // Data state
   const [center, setCenter] = useState(null);
-  const [citySearchTerm, setCitySearchTerm] = useState('');
-  const [addressSearchTerm, setAddressSearchTerm] = useState('');
-  const [addressSuggestions, setAddressSuggestions] = useState([]);
-  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
-  const [selectedCity, setSelectedCity] = useState(null);
   const [lastSeenAddress, setLastSeenAddress] = useState('');
   const [cityName, setCityName] = useState('');
   const [isGettingLocation, setIsGettingLocation] = useState(true);
-  const [locationError, setLocationError] = useState(null);
-  const [showSearch, setShowSearch] = useState(false);
-  const [searchMode, setSearchMode] = useState('address'); // 'address' or 'city'
-  const [radiusMeters, setRadiusMeters] = useState(150); // Default ~500 feet for precise location
+  const [myPets, setMyPets] = useState([]);
+  const [selectedPet, setSelectedPet] = useState(null);
+  const [petType, setPetType] = useState('');
+  const [petName, setPetName] = useState('');
+  const [timeElapsed, setTimeElapsed] = useState('');
+  const [color, setColor] = useState('');
+  const [photos, setPhotos] = useState([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  // Map refs
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
   const circleRef = useRef(null);
-  const addressDebounceRef = useRef(null);
 
-  // Pet details state
-  const [petType, setPetType] = useState('');
-  const [timeElapsed, setTimeElapsed] = useState('');
-  const [photos, setPhotos] = useState([]);
-  const [uploadingPhotos, setUploadingPhotos] = useState(false);
-  const [showMoreDetails, setShowMoreDetails] = useState(false);
-  const [reportData, setReportData] = useState({
-    petName: '',
-    breed: '',
-    color: '',
-    size: 'MEDIUM',
-    distinctiveMarks: '',
-    email: '',
-    phone: '',
-    firstName: '',
-  });
-
-  // Bottom sheet state
-  const [sheetExpanded, setSheetExpanded] = useState(false);
-
-  // Fetch user's pets on mount
+  // Fetch user's pets
   useEffect(() => {
     if (session?.user) {
-      fetchMyPets();
-      setReportData(prev => ({
-        ...prev,
-        email: session.user.email || '',
-        firstName: session.user.name || '',
-      }));
+      fetch('/api/pets')
+        .then(res => res.ok ? res.json() : { pets: [] })
+        .then(data => setMyPets(data.pets || []))
+        .catch(() => setMyPets([]));
     }
   }, [session]);
 
-  const fetchMyPets = async () => {
-    setLoadingPets(true);
-    try {
-      const res = await fetch('/api/pets');
-      if (res.ok) {
-        const data = await res.json();
-        setMyPets(data.pets || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch pets:', err);
-    } finally {
-      setLoadingPets(false);
-    }
-  };
-
-  // Address search with debounce (uses OpenStreetMap Nominatim)
-  const searchAddresses = async (query) => {
-    if (!query || query.trim().length < 3) {
-      setAddressSuggestions([]);
-      return;
-    }
-
-    setIsSearchingAddress(true);
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=8&addressdetails=1`,
-        { headers: { 'Accept-Language': 'en' } }
-      );
-      const data = await response.json();
-      setAddressSuggestions(data.map(item => ({
-        display_name: item.display_name,
-        lat: parseFloat(item.lat),
-        lon: parseFloat(item.lon),
-        type: item.type,
-        address: item.address,
-      })));
-    } catch (err) {
-      console.error('Address search failed:', err);
-      setAddressSuggestions([]);
-    } finally {
-      setIsSearchingAddress(false);
-    }
-  };
-
-  const handleAddressInputChange = (value) => {
-    setAddressSearchTerm(value);
-    if (addressDebounceRef.current) {
-      clearTimeout(addressDebounceRef.current);
-    }
-    addressDebounceRef.current = setTimeout(() => {
-      searchAddresses(value);
-    }, 300);
-  };
-
-  const handleAddressSelect = (address) => {
-    setCenter([address.lat, address.lon]);
-    setLastSeenAddress(address.display_name);
-    const city = address.address?.city || address.address?.town || address.address?.village || '';
-    setCityName(city);
-    setAddressSuggestions([]);
-    setAddressSearchTerm(address.display_name);
-    setShowSearch(false);
-  };
-
-  // Open location in Apple Maps (iOS/Mac) or Google Maps (others)
-  const openInMapsApp = () => {
-    const lat = center ? center[0] : 0;
-    const lng = center ? center[1] : 0;
-
-    // Check if on Apple device
-    const isApple = /iPad|iPhone|iPod|Mac/.test(navigator.userAgent);
-
-    if (isApple) {
-      // Apple Maps URL scheme
-      window.open(`https://maps.apple.com/?ll=${lat},${lng}&q=Last%20Seen%20Location&z=17`, '_blank');
-    } else {
-      // Google Maps for others
-      window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
-    }
-  };
-
-  // Auto-detect location on mount
+  // Auto-detect location
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -199,90 +89,64 @@ export default function ReportLostPet() {
         async (position) => {
           const { latitude, longitude } = position.coords;
           setCenter([latitude, longitude]);
-          // Reverse geocode
           const result = await reverseGeocode(latitude, longitude);
           setLastSeenAddress(result.address);
           setCityName(result.city);
           setIsGettingLocation(false);
         },
-        (error) => {
-          console.warn('Geolocation failed:', error);
-          setLocationError('Could not detect location. Please search for your city.');
-          setShowSearch(true);
+        () => {
           setIsGettingLocation(false);
+          // Default to a location if geolocation fails
         },
         { timeout: 10000, enableHighAccuracy: true }
       );
     } else {
-      setLocationError('Location not supported. Please search for your city.');
-      setShowSearch(true);
       setIsGettingLocation(false);
     }
   }, []);
 
-  // Initialize map when we have center
+  // Initialize map
   useEffect(() => {
-    if (typeof window === 'undefined' || !mapRef.current || !center) return;
+    if (typeof window === 'undefined' || !mapRef.current || !center || step !== 1) return;
     if (mapInstanceRef.current) {
-      // Update existing map
       mapInstanceRef.current.setView(center, 17);
-      if (markerRef.current) {
-        markerRef.current.setLatLng(center);
-      }
-      if (circleRef.current) {
-        circleRef.current.setLatLng(center);
-      }
+      if (markerRef.current) markerRef.current.setLatLng(center);
+      if (circleRef.current) circleRef.current.setLatLng(center);
       return;
     }
 
     import('leaflet').then((L) => {
-      const map = L.map(mapRef.current, {
-        zoomControl: false,
-      }).setView(center, 17);
+      const map = L.map(mapRef.current, { zoomControl: false }).setView(center, 17);
       mapInstanceRef.current = map;
 
       L.control.zoom({ position: 'topright' }).addTo(map);
-
       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap &copy; CARTO',
         maxZoom: 19,
       }).addTo(map);
 
-      // Custom marker
       const markerIcon = L.divIcon({
         className: 'custom-marker',
-        html: `
-          <div class="relative">
-            <div class="absolute -inset-3 bg-red-500/30 rounded-full animate-ping"></div>
-            <div class="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-full border-3 border-white shadow-lg flex items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
-              </svg>
-            </div>
-          </div>
-        `,
-        iconSize: [40, 40],
-        iconAnchor: [20, 40],
+        html: `<div class="w-8 h-8 bg-red-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
+          <div class="w-2 h-2 bg-white rounded-full"></div>
+        </div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
       });
 
-      const marker = L.marker(center, {
-        draggable: true,
-        icon: markerIcon,
-      }).addTo(map);
+      const marker = L.marker(center, { draggable: true, icon: markerIcon }).addTo(map);
       markerRef.current = marker;
 
       const circle = L.circle(center, {
         color: '#ef4444',
         fillColor: '#ef4444',
-        fillOpacity: 0.15,
+        fillOpacity: 0.1,
         weight: 2,
-        radius: radiusMeters, // Small radius for precise location
+        radius: 100,
       }).addTo(map);
       circleRef.current = circle;
 
-      // Handle marker drag
-      marker.on('dragend', async function(e) {
+      marker.on('dragend', async (e) => {
         const pos = e.target.getLatLng();
         setCenter([pos.lat, pos.lng]);
         circle.setLatLng(pos);
@@ -291,8 +155,7 @@ export default function ReportLostPet() {
         setCityName(result.city);
       });
 
-      // Handle map click
-      map.on('click', async function(e) {
+      map.on('click', async (e) => {
         const pos = e.latlng;
         setCenter([pos.lat, pos.lng]);
         marker.setLatLng(pos);
@@ -301,36 +164,15 @@ export default function ReportLostPet() {
         setLastSeenAddress(result.address);
         setCityName(result.city);
       });
-
-      // Zoom to appropriate level for the radius
-      map.setView(center, 17); // High zoom for precise location
     });
 
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
-        markerRef.current = null;
-        circleRef.current = null;
       }
     };
-  }, [center]);
-
-  // Update circle radius when it changes
-  useEffect(() => {
-    if (circleRef.current) {
-      circleRef.current.setRadius(radiusMeters);
-    }
-  }, [radiusMeters]);
-
-  // Cleanup address debounce on unmount
-  useEffect(() => {
-    return () => {
-      if (addressDebounceRef.current) {
-        clearTimeout(addressDebounceRef.current);
-      }
-    };
-  }, []);
+  }, [center, step]);
 
   const reverseGeocode = async (lat, lon) => {
     try {
@@ -339,95 +181,68 @@ export default function ReportLostPet() {
         const data = await response.json();
         if (data?.display_name) {
           const addr = data.address || {};
-          const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
+          const city = addr.city || addr.town || addr.village || addr.municipality || '';
           return { address: data.display_name, city };
         }
       }
     } catch (err) {
-      console.error('Reverse geocode error:', err);
+      console.error('Geocode error:', err);
     }
     return { address: `${lat.toFixed(4)}, ${lon.toFixed(4)}`, city: '' };
   };
 
-  const handleCitySelect = (city) => {
-    setSelectedCity(city);
-    setCityName(city.city);
-    const flag = getCountryFlag(city.country);
-    setLastSeenAddress(`${city.city}, ${city.state_name || city.state_id} ${flag}`);
-    if (city.lat && city.lng) {
-      setCenter([city.lat, city.lng]);
+  const openInMaps = () => {
+    const lat = center?.[0] || 0;
+    const lng = center?.[1] || 0;
+    const isApple = /iPad|iPhone|iPod|Mac/.test(navigator.userAgent);
+    if (isApple) {
+      window.open(`https://maps.apple.com/?ll=${lat},${lng}&q=Last%20Seen&z=17`, '_blank');
+    } else {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
     }
-    setShowSearch(false);
   };
 
   const handleSelectPet = (pet) => {
     setSelectedPet(pet);
-    // Map species to petType
     const typeMap = { 'DOG': 'dog', 'CAT': 'cat', 'BIRD': 'bird' };
     setPetType(typeMap[pet.species] || 'other');
-    setReportData(prev => ({
-      ...prev,
-      petName: pet.name || '',
-      breed: pet.breed || '',
-      color: pet.color || '',
-      size: pet.size || 'MEDIUM',
-      distinctiveMarks: pet.distinctiveMarks || '',
-    }));
-    if (pet.primaryPhotoUrl) {
-      setPhotos([pet.primaryPhotoUrl]);
-    }
-    setSheetExpanded(true);
+    setPetName(pet.name);
+    setColor(pet.color || '');
+    if (pet.primaryPhotoUrl) setPhotos([pet.primaryPhotoUrl]);
+    setStep(4); // Skip name step since we have it
   };
 
-  const handleSelectNewPetType = (type) => {
+  const handleSelectPetType = (type) => {
     setSelectedPet(null);
     setPetType(type);
-    setReportData(prev => ({
-      ...prev,
-      petName: '',
-      breed: '',
-      color: '',
-      size: 'MEDIUM',
-      distinctiveMarks: '',
-    }));
+    setPetName('');
+    setColor('');
     setPhotos([]);
-    setSheetExpanded(true);
+    setStep(3); // Go to name step
   };
 
   const handlePhotoUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    if (photos.length + files.length > 5) {
-      setError('Maximum 5 photos allowed');
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Photo must be under 10MB');
       return;
     }
 
-    for (const file of files) {
-      if (file.size > 10 * 1024 * 1024) {
-        setError('Each photo must be under 10MB');
-        return;
-      }
-    }
-
-    setError(null);
-    setUploadingPhotos(true);
-
+    setUploadingPhoto(true);
     try {
-      const uploadedUrls = [];
-      for (const file of files) {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('context', 'pet');
-        const response = await fetch('/api/upload', { method: 'POST', body: formData });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.url) uploadedUrls.push(data.url);
-        }
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('context', 'pet');
+      const response = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.url) setPhotos([data.url]);
       }
-      setPhotos(prev => [...prev, ...uploadedUrls]);
     } catch (err) {
-      setError('Failed to upload photos');
+      setError('Failed to upload photo');
     } finally {
-      setUploadingPhotos(false);
+      setUploadingPhoto(false);
     }
   };
 
@@ -435,64 +250,22 @@ export default function ReportLostPet() {
     setIsSubmitting(true);
     setError(null);
 
-    if (!center) {
-      setError('Please set a location on the map');
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (!petType) {
-      setError('Please select a pet type');
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (!reportData.petName) {
-      setError("Please enter your pet's name");
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (!reportData.color) {
-      setError("Please select your pet's color");
-      setIsSubmitting(false);
-      return;
-    }
-
-    // For non-logged-in users, require contact info
-    if (!session?.user) {
-      if (!reportData.firstName) {
-        setError("Please enter your name");
-        setIsSubmitting(false);
-        return;
-      }
-      if (!reportData.email) {
-        setError("Please enter your email");
-        setIsSubmitting(false);
-        return;
-      }
-    }
-
     try {
       const response = await fetch('/api/reports/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: reportData.email || session?.user?.email,
-          phone: reportData.phone,
-          firstName: reportData.firstName || session?.user?.name,
-          petName: reportData.petName,
-          breed: reportData.breed,
-          color: reportData.color,
-          size: reportData.size,
-          distinctiveMarks: reportData.distinctiveMarks,
+          email: session?.user?.email,
+          firstName: session?.user?.name,
+          petName,
+          color,
           lastSeenAddress,
           center,
-          radiusMiles: radiusMeters / 1609.34, // Convert meters to miles
-          timeElapsed: timeElapsed || '6_to_24_hours',
+          radiusMiles: 0.1,
+          timeElapsed,
           petType,
           photos,
-          locationType: searchMode === 'address' ? 'address' : 'city',
+          locationType: 'address',
           cityName,
           selectedPetId: selectedPet?.id,
         }),
@@ -502,7 +275,7 @@ export default function ReportLostPet() {
       if (!response.ok) throw new Error(data.error || 'Failed to create report');
 
       setReportResult(data);
-      setPhase('success');
+      setStep(8); // Success step
     } catch (err) {
       setError(err.message);
     } finally {
@@ -510,562 +283,339 @@ export default function ReportLostPet() {
     }
   };
 
-  // For non-logged-in users, also require name and email
-  const hasContactInfo = session?.user || (reportData.firstName && reportData.email);
-  const canSubmit = center && petType && reportData.petName && reportData.color && hasContactInfo;
+  const canProceed = () => {
+    switch (step) {
+      case 1: return !!center;
+      case 2: return !!petType;
+      case 3: return !!petName.trim();
+      case 4: return !!timeElapsed;
+      case 5: return !!color;
+      case 6: return true; // Photo is optional
+      case 7: return true;
+      default: return false;
+    }
+  };
 
-  // Success phase
-  if (phase === 'success' && reportResult) {
+  const nextStep = () => {
+    if (canProceed() && step < 7) setStep(step + 1);
+    if (step === 7) handleSubmit();
+  };
+
+  const prevStep = () => {
+    if (step > 1) {
+      // If we came from selecting existing pet, go back to step 2
+      if (step === 4 && selectedPet) {
+        setStep(2);
+      } else {
+        setStep(step - 1);
+      }
+    }
+  };
+
+  // Success screen
+  if (step === 8 && reportResult) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center p-4">
-        <div className="max-w-md w-full text-center">
-          <div className="relative inline-block mb-6">
-            <div className="absolute inset-0 bg-green-500 blur-3xl opacity-30 rounded-full animate-pulse" />
-            <div className="relative w-24 h-24 bg-gradient-to-br from-green-500 to-emerald-400 rounded-full flex items-center justify-center shadow-xl">
-              <Check size={48} className="text-white" />
-            </div>
+      <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center p-6">
+        <div className="text-center max-w-sm">
+          <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Check size={40} className="text-white" />
           </div>
-
-          <h1 className="text-3xl font-bold mb-3 text-gray-900">Alert Created!</h1>
-          <p className="text-gray-600 mb-8">
-            {reportResult.squadsNotified || 0} rescue squad{reportResult.squadsNotified === 1 ? '' : 's'} notified about {reportData.petName}
+          <h1 className="text-2xl font-bold mb-2">Alert Created!</h1>
+          <p className="text-gray-600 mb-6">
+            {reportResult.squadsNotified || 0} rescue squad{reportResult.squadsNotified === 1 ? '' : 's'} notified
           </p>
-
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6 text-left">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                {petType === 'dog' && <Dog className="text-gray-600" />}
-                {petType === 'cat' && <Cat className="text-gray-600" />}
-                {petType === 'bird' && <Bird className="text-gray-600" />}
-                {petType === 'other' && <Rabbit className="text-gray-600" />}
-              </div>
-              <div>
-                <p className="font-bold text-gray-900">{reportData.petName}</p>
-                <p className="text-sm text-gray-500">{reportData.color} {reportData.breed}</p>
-              </div>
-            </div>
-            <div className="text-sm text-gray-600">
-              <p className="flex items-center gap-2 mb-1">
-                <MapPin size={14} /> {cityName || 'Location set'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            {reportResult.assignedSquad && (
-              <Link
-                href={`/rescue-squads/${reportResult.assignedSquad.id}`}
-                className="w-full py-3 px-6 rounded-xl font-medium bg-gradient-to-r from-violet-500 to-purple-500 text-white flex items-center justify-center gap-2"
-              >
-                <Shield size={18} />
-                Go to Squad Hub
-              </Link>
-            )}
-            <Link
-              href="/dashboard"
-              className="w-full py-3 px-6 rounded-xl font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
-            >
-              My Dashboard
-            </Link>
-          </div>
+          <Link
+            href="/dashboard"
+            className="block w-full py-3 bg-green-500 text-white rounded-xl font-semibold"
+          >
+            Go to Dashboard
+          </Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100 overflow-hidden">
-      {/* Header - minimal */}
-      <header className="absolute top-0 left-0 right-0 z-20 p-4 flex items-center justify-between">
-        <Link
-          href="/dashboard"
-          className="w-10 h-10 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-lg"
-        >
-          <X size={20} className="text-gray-600" />
-        </Link>
-
-        <div className="bg-red-500 text-white px-4 py-2 rounded-full font-semibold text-sm shadow-lg flex items-center gap-2">
-          <AlertTriangle size={16} />
-          Report Lost Pet
+    <div className="min-h-screen bg-white flex flex-col">
+      {/* Header */}
+      <header className="flex items-center justify-between p-4 border-b">
+        <button onClick={() => step > 1 ? prevStep() : null} className="w-10 h-10 flex items-center justify-center">
+          {step > 1 ? <ChevronLeft size={24} /> : <Link href="/dashboard"><X size={24} /></Link>}
+        </button>
+        <div className="flex gap-1">
+          {[1,2,3,4,5,6,7].map(s => (
+            <div key={s} className={`w-8 h-1 rounded-full ${s <= step ? 'bg-red-500' : 'bg-gray-200'}`} />
+          ))}
         </div>
-
-        <div className="w-10" /> {/* Spacer */}
+        <div className="w-10" />
       </header>
 
-      {/* Search bar - floating */}
-      {(showSearch || !center) && (
-        <div className="absolute top-20 left-4 right-4 z-20">
-          <div className="bg-white rounded-2xl shadow-xl p-3">
-            {/* Search mode toggle */}
-            <div className="flex gap-2 mb-2">
-              <button
-                onClick={() => setSearchMode('address')}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                  searchMode === 'address'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-600'
-                }`}
-              >
-                <MapPin size={14} className="inline mr-1" />
-                Exact Address
-              </button>
-              <button
-                onClick={() => setSearchMode('city')}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                  searchMode === 'city'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-600'
-                }`}
-              >
-                <Search size={14} className="inline mr-1" />
-                City/Zip
-              </button>
+      {/* Content */}
+      <div className="flex-1 flex flex-col">
+
+        {/* Step 1: Location */}
+        {step === 1 && (
+          <div className="flex-1 flex flex-col">
+            <div className="p-6 pb-2">
+              <h1 className="text-2xl font-bold mb-1">Where was {petName || 'your pet'} last seen?</h1>
+              <p className="text-gray-500">Tap the map or drag the pin</p>
             </div>
 
-            {/* Address search */}
-            {searchMode === 'address' && (
-              <div className="relative">
-                <div className="flex items-center border-2 border-gray-200 rounded-xl focus-within:border-blue-400">
-                  <MapPin className="ml-3 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={addressSearchTerm}
-                    onChange={(e) => handleAddressInputChange(e.target.value)}
-                    placeholder="123 Main St, Los Angeles, CA..."
-                    className="flex-1 px-3 py-3 rounded-xl outline-none"
-                    autoFocus
-                  />
-                  {isSearchingAddress && (
-                    <Loader2 className="mr-3 w-5 h-5 text-blue-500 animate-spin" />
-                  )}
-                </div>
-
-                {/* Address suggestions dropdown */}
-                {addressSuggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto z-50">
-                    {addressSuggestions.map((addr, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleAddressSelect(addr)}
-                        className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-                      >
-                        <div className="font-medium text-gray-900 text-sm truncate">
-                          {addr.display_name.split(',')[0]}
-                        </div>
-                        <div className="text-xs text-gray-500 truncate">
-                          {addr.display_name.split(',').slice(1, 4).join(',')}
-                        </div>
-                      </button>
-                    ))}
+            <div className="flex-1 relative">
+              {isGettingLocation && !center ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                  <div className="text-center">
+                    <Navigation size={32} className="mx-auto mb-2 text-blue-500 animate-pulse" />
+                    <p className="text-gray-600">Finding your location...</p>
                   </div>
-                )}
+                </div>
+              ) : (
+                <div ref={mapRef} className="h-full w-full" />
+              )}
+            </div>
+
+            {center && (
+              <div className="p-4 border-t bg-gray-50">
+                <p className="text-sm text-gray-600 truncate mb-2">{lastSeenAddress || 'Location set'}</p>
+                <button
+                  onClick={openInMaps}
+                  className="text-sm text-blue-600 flex items-center gap-1"
+                >
+                  <ExternalLink size={14} /> Open in Maps for exact address
+                </button>
               </div>
             )}
-
-            {/* City search */}
-            {searchMode === 'city' && (
-              <CitySearchInput
-                value={citySearchTerm}
-                onChange={setCitySearchTerm}
-                onSelect={handleCitySelect}
-                placeholder="City name or postal code..."
-                showIcon={true}
-                className="w-full"
-              />
-            )}
-
-            {/* Open in Maps button */}
-            <button
-              onClick={openInMapsApp}
-              className="w-full mt-3 py-2.5 px-4 bg-gray-900 text-white rounded-xl font-medium text-sm flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors"
-            >
-              <ExternalLink size={16} />
-              Open in Apple Maps
-            </button>
-
-            <p className="text-xs text-gray-500 mt-2 text-center">
-              {searchMode === 'address'
-                ? 'Find exact address in Maps, then return here'
-                : 'Search by city or postal code'
-              }
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Toggle search button + Open in Maps */}
-      {center && !showSearch && (
-        <div className="absolute top-20 left-4 right-4 z-20 flex gap-2">
-          <button
-            onClick={() => setShowSearch(true)}
-            className="flex-1 bg-white rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm font-medium text-gray-700"
-          >
-            <Search size={16} />
-            {cityName || 'Change location'}
-          </button>
-          <button
-            onClick={openInMapsApp}
-            className="bg-gray-900 text-white rounded-full px-4 py-2 shadow-lg flex items-center gap-2 text-sm font-medium"
-          >
-            <ExternalLink size={16} />
-            Maps
-          </button>
-        </div>
-      )}
-
-      {/* Map container */}
-      <div className="flex-1 relative">
-        {isGettingLocation && !center && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
-            <div className="text-center">
-              <Navigation size={48} className="mx-auto mb-4 text-blue-500 animate-pulse" />
-              <p className="text-gray-600 font-medium">Detecting your location...</p>
-            </div>
           </div>
         )}
 
-        <div ref={mapRef} className="h-full w-full" />
+        {/* Step 2: Select Pet */}
+        {step === 2 && (
+          <div className="flex-1 p-6">
+            <h1 className="text-2xl font-bold mb-1">Who went missing?</h1>
+            <p className="text-gray-500 mb-6">Select your pet or add a new one</p>
 
-      </div>
-
-      {/* Bottom Sheet - takes ~45% of screen by default, expandable */}
-      <div
-        className={`
-          bg-white rounded-t-3xl shadow-2xl transition-all duration-300 ease-out flex-shrink-0
-          ${sheetExpanded ? 'h-[75vh]' : 'h-[45vh]'}
-          overflow-hidden flex flex-col
-        `}
-      >
-        {/* Drag handle */}
-        <div
-          className="py-2 flex justify-center cursor-pointer flex-shrink-0"
-          onClick={() => setSheetExpanded(!sheetExpanded)}
-        >
-          <div className="w-10 h-1 bg-gray-300 rounded-full" />
-        </div>
-
-        <div className="px-4 pb-4 overflow-y-auto flex-1">
-          {/* Error display */}
-          {error && (
-            <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
-              <AlertTriangle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-red-700 text-xs flex-1">{error}</p>
-              <button onClick={() => setError(null)} className="text-red-400">
-                <X size={14} />
-              </button>
-            </div>
-          )}
-
-          {/* Search radius - compact inline */}
-          {center && !petType && (
-            <div className="mb-3 flex items-center gap-2">
-              <span className="text-xs text-gray-500 flex-shrink-0">Precision:</span>
-              <div className="flex gap-1 flex-1">
-                {[
-                  { label: 'Exact', meters: 50 },
-                  { label: 'Block', meters: 150 },
-                  { label: 'Area', meters: 400 },
-                  { label: 'Wide', meters: 800 },
-                ].map((opt) => (
-                  <button
-                    key={opt.meters}
-                    onClick={() => setRadiusMeters(opt.meters)}
-                    className={`flex-1 py-1.5 rounded text-xs font-medium ${
-                      radiusMeters === opt.meters
-                        ? 'bg-red-500 text-white'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Pet Selection */}
-          {!petType && (
-            <>
-              {/* My Pets - if logged in and has pets */}
-              {session?.user && myPets.length > 0 && (
-                <div className="mb-3">
-                  <p className="text-xs font-medium text-gray-500 mb-2">Your pets:</p>
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {myPets.map(pet => (
-                      <button
-                        key={pet.id}
-                        onClick={() => handleSelectPet(pet)}
-                        className="flex-shrink-0 w-16 text-center"
-                      >
-                        <div className="w-14 h-14 mx-auto rounded-xl bg-gray-100 border-2 border-gray-200 flex items-center justify-center overflow-hidden mb-1 hover:border-blue-400">
-                          {pet.primaryPhotoUrl ? (
-                            <img src={pet.primaryPhotoUrl} alt={pet.name} className="w-full h-full object-cover" />
-                          ) : (
-                            pet.species === 'DOG' ? <Dog size={24} className="text-gray-400" /> :
-                            pet.species === 'CAT' ? <Cat size={24} className="text-gray-400" /> :
-                            pet.species === 'BIRD' ? <Bird size={24} className="text-gray-400" /> :
-                            <Rabbit size={24} className="text-gray-400" />
-                          )}
-                        </div>
-                        <span className="text-xs text-gray-700 truncate block">{pet.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* New pet type selection */}
-              <div>
-                <p className="text-xs font-medium text-gray-500 mb-2">
-                  {myPets.length > 0 ? 'Or new pet:' : 'Select pet type:'}
-                </p>
-                <div className="grid grid-cols-4 gap-2">
-                  {PET_TYPES.map((pet) => {
-                    const Icon = pet.icon;
-                    return (
-                      <button
-                        key={pet.type}
-                        onClick={() => handleSelectNewPetType(pet.type)}
-                        className="p-2 rounded-xl bg-gray-50 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-center"
-                      >
-                        <Icon size={24} className="mx-auto mb-0.5 text-gray-600" />
-                        <span className="text-xs font-medium text-gray-700">{pet.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Details Form - shown after pet type selected */}
-          {petType && (
-            <div className="space-y-4">
-              {/* Selected pet indicator */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {petType === 'dog' && <Dog size={20} className="text-gray-600" />}
-                  {petType === 'cat' && <Cat size={20} className="text-gray-600" />}
-                  {petType === 'bird' && <Bird size={20} className="text-gray-600" />}
-                  {petType === 'other' && <Rabbit size={20} className="text-gray-600" />}
-                  <span className="font-medium text-gray-900">
-                    {selectedPet ? selectedPet.name : `New ${petType}`}
-                  </span>
-                </div>
-                <button
-                  onClick={() => { setPetType(''); setSelectedPet(null); setSheetExpanded(false); }}
-                  className="text-sm text-blue-600"
-                >
-                  Change
-                </button>
-              </div>
-
-              {/* Pet name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Pet's Name *</label>
-                <input
-                  type="text"
-                  value={reportData.petName}
-                  onChange={(e) => setReportData(prev => ({ ...prev, petName: e.target.value }))}
-                  placeholder="Max"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none"
-                />
-              </div>
-
-              {/* Time elapsed - compact pills */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">When did they go missing?</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {TIME_OPTIONS.map((opt) => (
+            {myPets.length > 0 && (
+              <div className="mb-8">
+                <p className="text-sm font-medium text-gray-500 mb-3">Your pets</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {myPets.map(pet => (
                     <button
-                      key={opt.value}
-                      onClick={() => setTimeElapsed(opt.value)}
-                      className={`
-                        py-2 px-3 rounded-lg text-sm font-medium transition-all
-                        ${timeElapsed === opt.value
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }
-                      `}
+                      key={pet.id}
+                      onClick={() => handleSelectPet(pet)}
+                      className="p-4 border-2 rounded-2xl text-left hover:border-blue-400 transition-all"
                     >
-                      {opt.shortLabel}
+                      <div className="w-16 h-16 rounded-xl bg-gray-100 mb-2 overflow-hidden">
+                        {pet.primaryPhotoUrl ? (
+                          <img src={pet.primaryPhotoUrl} alt={pet.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            {pet.species === 'DOG' ? <Dog size={28} className="text-gray-400" /> :
+                             pet.species === 'CAT' ? <Cat size={28} className="text-gray-400" /> :
+                             <Rabbit size={28} className="text-gray-400" />}
+                          </div>
+                        )}
+                      </div>
+                      <p className="font-semibold">{pet.name}</p>
                     </button>
                   ))}
                 </div>
               </div>
+            )}
 
-              {/* Color - required */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Color/Pattern *</label>
-                <ColorSelector
-                  value={reportData.color}
-                  onChange={(color) => setReportData(prev => ({ ...prev, color }))}
-                />
+            <div>
+              <p className="text-sm font-medium text-gray-500 mb-3">
+                {myPets.length > 0 ? 'Or report a new pet' : 'What type of pet?'}
+              </p>
+              <div className="grid grid-cols-4 gap-3">
+                {PET_TYPES.map(pet => {
+                  const Icon = pet.icon;
+                  return (
+                    <button
+                      key={pet.type}
+                      onClick={() => handleSelectPetType(pet.type)}
+                      className="p-4 border-2 rounded-2xl hover:border-blue-400 transition-all text-center"
+                    >
+                      <Icon size={32} className="mx-auto mb-1 text-gray-600" />
+                      <span className="text-sm font-medium">{pet.label}</span>
+                    </button>
+                  );
+                })}
               </div>
-
-              {/* Photo upload - prominent */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Photos <span className="text-gray-400 font-normal">(helps rescuers identify your pet)</span>
-                </label>
-
-                {photos.length > 0 && (
-                  <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
-                    {photos.map((photo, idx) => (
-                      <div key={idx} className="relative flex-shrink-0">
-                        <img src={photo} alt="" className="w-20 h-20 object-cover rounded-lg" />
-                        <button
-                          onClick={() => setPhotos(prev => prev.filter((_, i) => i !== idx))}
-                          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {photos.length < 5 && (
-                  <label className={`
-                    block p-4 border-2 border-dashed rounded-xl cursor-pointer text-center transition-colors
-                    ${uploadingPhotos ? 'border-blue-300 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'}
-                  `}>
-                    {uploadingPhotos ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <Loader2 size={20} className="animate-spin text-blue-500" />
-                        <span className="text-blue-600">Uploading...</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center gap-2 text-gray-500">
-                        <Camera size={20} />
-                        <span>Add photos</span>
-                      </div>
-                    )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handlePhotoUpload}
-                      className="hidden"
-                      disabled={uploadingPhotos}
-                    />
-                  </label>
-                )}
-              </div>
-
-              {/* Contact info for non-logged-in users - REQUIRED */}
-              {!session?.user && (
-                <div className="space-y-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                  <p className="text-sm font-medium text-blue-800">Your contact info (required)</p>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Your Name *</label>
-                    <input
-                      type="text"
-                      value={reportData.firstName}
-                      onChange={(e) => setReportData(prev => ({ ...prev, firstName: e.target.value }))}
-                      placeholder="Your name"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Your Email *</label>
-                    <input
-                      type="email"
-                      value={reportData.email}
-                      onChange={(e) => setReportData(prev => ({ ...prev, email: e.target.value }))}
-                      placeholder="you@email.com"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone (for text alerts)</label>
-                    <input
-                      type="tel"
-                      value={reportData.phone}
-                      onChange={(e) => setReportData(prev => ({ ...prev, phone: e.target.value }))}
-                      placeholder="(555) 123-4567"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none bg-white"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* More details - expandable */}
-              <button
-                onClick={() => setShowMoreDetails(!showMoreDetails)}
-                className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"
-              >
-                {showMoreDetails ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                {showMoreDetails ? 'Less details' : 'More details (optional)'}
-              </button>
-
-              {showMoreDetails && (
-                <div className="space-y-4 pt-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Breed</label>
-                    <BreedSelector
-                      species={petType}
-                      value={reportData.breed}
-                      onChange={(breed) => setReportData(prev => ({ ...prev, breed }))}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Distinctive Marks</label>
-                    <textarea
-                      value={reportData.distinctiveMarks}
-                      onChange={(e) => setReportData(prev => ({ ...prev, distinctiveMarks: e.target.value }))}
-                      placeholder="Black spot on left ear, very friendly..."
-                      rows={2}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none resize-none"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Submit button */}
-              <button
-                onClick={handleSubmit}
-                disabled={!canSubmit || isSubmitting}
-                className={`
-                  w-full py-4 rounded-xl font-semibold text-lg flex items-center justify-center gap-2 transition-all
-                  ${canSubmit && !isSubmitting
-                    ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg hover:shadow-xl'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  }
-                `}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 size={20} className="animate-spin" />
-                    Creating Alert...
-                  </>
-                ) : (
-                  <>
-                    <Bell size={20} />
-                    Create Alert
-                  </>
-                )}
-              </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* Step 3: Pet Name */}
+        {step === 3 && (
+          <div className="flex-1 p-6">
+            <h1 className="text-2xl font-bold mb-1">What's their name?</h1>
+            <p className="text-gray-500 mb-6">This helps people identify your pet</p>
+
+            <input
+              type="text"
+              value={petName}
+              onChange={(e) => setPetName(e.target.value)}
+              placeholder="Max, Bella, Charlie..."
+              className="w-full text-2xl py-4 border-b-2 border-gray-200 focus:border-blue-500 outline-none"
+              autoFocus
+            />
+          </div>
+        )}
+
+        {/* Step 4: When */}
+        {step === 4 && (
+          <div className="flex-1 p-6">
+            <h1 className="text-2xl font-bold mb-1">When did {petName} go missing?</h1>
+            <p className="text-gray-500 mb-6">This helps prioritize the search</p>
+
+            <div className="space-y-3">
+              {TIME_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setTimeElapsed(opt.value)}
+                  className={`w-full p-4 rounded-2xl border-2 text-left flex items-center gap-3 transition-all ${
+                    timeElapsed === opt.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                  }`}
+                >
+                  <span className="text-2xl">{opt.emoji}</span>
+                  <span className="font-medium">{opt.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Color */}
+        {step === 5 && (
+          <div className="flex-1 p-6">
+            <h1 className="text-2xl font-bold mb-1">What color is {petName}?</h1>
+            <p className="text-gray-500 mb-6">Select all that apply</p>
+
+            <ColorSelector
+              value={color}
+              onChange={setColor}
+            />
+          </div>
+        )}
+
+        {/* Step 6: Photo */}
+        {step === 6 && (
+          <div className="flex-1 p-6">
+            <h1 className="text-2xl font-bold mb-1">Add a photo of {petName}</h1>
+            <p className="text-gray-500 mb-6">This really helps people identify your pet</p>
+
+            {photos.length > 0 ? (
+              <div className="relative">
+                <img src={photos[0]} alt="Pet" className="w-full aspect-square object-cover rounded-2xl" />
+                <button
+                  onClick={() => setPhotos([])}
+                  className="absolute top-2 right-2 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            ) : (
+              <label className="block aspect-square border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-400 transition-colors">
+                <div className="h-full flex flex-col items-center justify-center">
+                  {uploadingPhoto ? (
+                    <Loader2 size={32} className="text-blue-500 animate-spin" />
+                  ) : (
+                    <>
+                      <Camera size={48} className="text-gray-400 mb-2" />
+                      <span className="text-gray-500">Tap to add photo</span>
+                    </>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                  disabled={uploadingPhoto}
+                />
+              </label>
+            )}
+
+            <button
+              onClick={() => setStep(7)}
+              className="mt-4 text-gray-500 text-sm"
+            >
+              Skip for now
+            </button>
+          </div>
+        )}
+
+        {/* Step 7: Confirm */}
+        {step === 7 && (
+          <div className="flex-1 p-6">
+            <h1 className="text-2xl font-bold mb-6">Ready to alert?</h1>
+
+            <div className="space-y-4 mb-6">
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                <MapPin className="text-gray-400" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-500">Location</p>
+                  <p className="font-medium truncate">{cityName || lastSeenAddress || 'Set'}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                {petType === 'dog' ? <Dog className="text-gray-400" /> :
+                 petType === 'cat' ? <Cat className="text-gray-400" /> :
+                 <Rabbit className="text-gray-400" />}
+                <div className="flex-1">
+                  <p className="text-sm text-gray-500">Pet</p>
+                  <p className="font-medium">{petName} • {color}</p>
+                </div>
+                {photos[0] && (
+                  <img src={photos[0]} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                <Clock className="text-gray-400" />
+                <div className="flex-1">
+                  <p className="text-sm text-gray-500">Missing since</p>
+                  <p className="font-medium">{TIME_OPTIONS.find(t => t.value === timeElapsed)?.label}</p>
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl mb-4 flex items-start gap-2">
+                <AlertTriangle size={18} className="text-red-500 flex-shrink-0" />
+                <p className="text-red-700 text-sm">{error}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Styles */}
+      {/* Footer with Next button */}
+      {step < 8 && (
+        <div className="p-4 border-t">
+          <button
+            onClick={nextStep}
+            disabled={!canProceed() || isSubmitting}
+            className={`w-full py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2 ${
+              canProceed() && !isSubmitting
+                ? 'bg-red-500 text-white'
+                : 'bg-gray-200 text-gray-400'
+            }`}
+          >
+            {isSubmitting ? (
+              <Loader2 size={20} className="animate-spin" />
+            ) : step === 7 ? (
+              'Create Alert'
+            ) : (
+              <>Continue <ChevronRight size={20} /></>
+            )}
+          </button>
+        </div>
+      )}
+
       <style jsx global>{`
-        .leaflet-container {
-          background: #f3f4f6;
-        }
-        .custom-marker {
-          background: transparent;
-          border: none;
-        }
-        .leaflet-control-zoom a {
-          background: white !important;
-          color: #374151 !important;
-          border-color: #e5e7eb !important;
-        }
+        .custom-marker { background: transparent; border: none; }
       `}</style>
     </div>
   );
