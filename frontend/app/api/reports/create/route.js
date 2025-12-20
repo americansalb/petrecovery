@@ -255,51 +255,45 @@ export async function POST(request) {
         withinCoverage: s.distance <= s.effectiveRadius
       })));
 
-      // Determine which squads to notify - use squad's coverage area + buffer
+      // Determine which squads to notify - use squad's actual coverage area
+      // A squad is notified if the report location falls within their coverage radius
       let squadsToNotify = [];
 
-      if (locationType === 'zip') {
-        // For zip code: notify ALL squads in same city OR within 1 mile of city borders
-        const BORDER_DISTANCE_MILES = 1; // Within 1 mile of borders
-        const normalizedCityName = (cityName || '').toLowerCase().trim();
-        console.log('[Report Debug] Zip mode - looking for city:', normalizedCityName);
+      // Check if report falls within each squad's coverage area (distance <= squad.radiusMiles + buffer)
+      squadsToNotify = squadsWithDistance.filter(squad => {
+        const withinCoverage = squad.distance <= squad.effectiveRadius;
 
-        squadsToNotify = squadsWithDistance.filter(squad => {
+        if (withinCoverage) {
+          console.log('[Report Debug] Report within squad coverage:', {
+            name: squad.name,
+            city: squad.city,
+            distance: squad.distance.toFixed(2),
+            squadRadius: squad.radiusMiles,
+            effectiveRadius: squad.effectiveRadius,
+          });
+        }
+        return withinCoverage;
+      });
+
+      // Also check for city name match as fallback (for squads without coordinates)
+      if (cityName) {
+        const normalizedCityName = cityName.toLowerCase().trim();
+        const cityMatchSquads = squadsWithDistance.filter(squad => {
           const squadCity = (squad.city || '').toLowerCase().trim();
-          const sameCityMatch = squadCity === normalizedCityName;
-          const withinBorders = squad.distance <= BORDER_DISTANCE_MILES;
-
-          if (sameCityMatch || withinBorders) {
-            console.log('[Report Debug] Squad matched:', {
-              name: squad.name,
-              city: squad.city,
-              sameCityMatch,
-              withinBorders,
-              distance: squad.distance.toFixed(2)
-            });
-          }
-          return sameCityMatch || withinBorders;
+          const sameCity = squadCity === normalizedCityName;
+          const alreadyIncluded = squadsToNotify.some(s => s.id === squad.id);
+          return sameCity && !alreadyIncluded;
         });
-      } else {
-        // For exact address or pin: notify ALL squads within 1 mile
-        const BORDER_DISTANCE_MILES = 1; // Within 1 mile
 
-        squadsToNotify = squadsWithDistance.filter(squad => {
-          const withinBorders = squad.distance <= BORDER_DISTANCE_MILES;
-          if (withinBorders) {
-            console.log('[Report Debug] Squad within 1 mile:', {
-              name: squad.name,
-              city: squad.city,
-              distance: squad.distance.toFixed(2)
-            });
-          }
-          return withinBorders;
-        });
+        if (cityMatchSquads.length > 0) {
+          console.log('[Report Debug] Adding city-matched squads:', cityMatchSquads.map(s => s.name));
+          squadsToNotify.push(...cityMatchSquads);
+        }
       }
 
       console.log('[Report Debug] Squads to notify:', squadsToNotify.length);
 
-      // If no squads found within 1 mile, auto-create one for this city AND find nearby squads
+      // If no squads cover this location, auto-create one for this city AND find nearby squads
       if (squadsToNotify.length === 0 && cityName) {
         console.log('[Report Debug] No local squads found - auto-creating squad for:', cityName);
 
@@ -328,9 +322,10 @@ export async function POST(request) {
         });
 
         // Also find squads within 10 miles as "nearby assist" squads
+        // These are squads whose coverage doesn't reach the report, but are close enough to help
         const NEARBY_ASSIST_RADIUS = 10; // miles
         const nearbyAssistSquads = squadsWithDistance.filter(squad =>
-          squad.distance <= NEARBY_ASSIST_RADIUS && squad.distance > 1
+          squad.distance <= NEARBY_ASSIST_RADIUS && squad.distance > squad.effectiveRadius
         );
 
         if (nearbyAssistSquads.length > 0) {
