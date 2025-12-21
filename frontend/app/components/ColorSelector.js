@@ -3,77 +3,28 @@
 import { useState, useEffect } from 'react';
 import { Check } from 'lucide-react';
 
-// Comprehensive pet colors - scroll to find exact match
+// Simple, recognizable colors - no abstract names
 const COLORS = [
-  // Blacks
-  { name: 'Black', color: '#0a0a0a' },
-  { name: 'Jet Black', color: '#1a1a1a' },
-  { name: 'Charcoal', color: '#36454f' },
-
-  // Whites
-  { name: 'White', color: '#ffffff', border: true },
-  { name: 'Off-White', color: '#faf9f6', border: true },
-  { name: 'Ivory', color: '#fffff0', border: true },
-
-  // Grays
-  { name: 'Light Gray', color: '#d3d3d3', border: true },
+  { name: 'Black', color: '#1a1a1a' },
+  { name: 'Dark Gray', color: '#4a4a4a' },
   { name: 'Gray', color: '#808080' },
-  { name: 'Dark Gray', color: '#505050' },
-  { name: 'Silver', color: '#c0c0c0', border: true },
-  { name: 'Slate', color: '#708090' },
-  { name: 'Blue Gray', color: '#6699cc' },
+  { name: 'Light Gray', color: '#c0c0c0', border: true },
+  { name: 'White', color: '#ffffff', border: true },
 
-  // Browns
-  { name: 'Light Brown', color: '#a67b5b' },
+  { name: 'Dark Brown', color: '#3d2314' },
   { name: 'Brown', color: '#8b4513' },
-  { name: 'Dark Brown', color: '#5c4033' },
-  { name: 'Chocolate', color: '#3d2314' },
-  { name: 'Chestnut', color: '#954535' },
-  { name: 'Mahogany', color: '#4a0000' },
-  { name: 'Liver', color: '#674c47' },
-  { name: 'Seal', color: '#321414' },
+  { name: 'Light Brown', color: '#a67b5b' },
 
-  // Tans & Beiges
   { name: 'Tan', color: '#d2b48c' },
-  { name: 'Light Tan', color: '#e6d5b8' },
-  { name: 'Dark Tan', color: '#9a7b4f' },
-  { name: 'Beige', color: '#f5f5dc', border: true },
-  { name: 'Fawn', color: '#e5aa70' },
-  { name: 'Sand', color: '#c2b280' },
-  { name: 'Buff', color: '#f0dc82' },
-  { name: 'Wheaten', color: '#f5deb3' },
-
-  // Creams & Yellows
+  { name: 'Beige', color: '#e8dcc8', border: true },
   { name: 'Cream', color: '#fffdd0', border: true },
-  { name: 'Champagne', color: '#f7e7ce', border: true },
-  { name: 'Apricot', color: '#fbceb1' },
-  { name: 'Honey', color: '#eb9605' },
-  { name: 'Yellow', color: '#ffd700' },
-  { name: 'Lemon', color: '#fff44f' },
 
-  // Golds
   { name: 'Golden', color: '#daa520' },
-  { name: 'Light Golden', color: '#eee8aa' },
-  { name: 'Dark Golden', color: '#b8860b' },
-  { name: 'Copper', color: '#b87333' },
-  { name: 'Bronze', color: '#cd7f32' },
+  { name: 'Yellow', color: '#ffd700' },
 
-  // Oranges & Reds
   { name: 'Orange', color: '#ff8c00' },
-  { name: 'Light Orange', color: '#ffb347' },
-  { name: 'Dark Orange', color: '#cc5500' },
   { name: 'Red', color: '#b22222' },
-  { name: 'Rust', color: '#b7410e' },
   { name: 'Ginger', color: '#b06500' },
-  { name: 'Auburn', color: '#a52a2a' },
-  { name: 'Cinnamon', color: '#d2691e' },
-  { name: 'Sorrel', color: '#c04000' },
-
-  // Rare/Special
-  { name: 'Lilac', color: '#c8a2c8' },
-  { name: 'Blue', color: '#6a8faf' },
-  { name: 'Lavender', color: '#b4a7d6' },
-  { name: 'Pink', color: '#ffc0cb' },
 ];
 
 // Common patterns for autocomplete
