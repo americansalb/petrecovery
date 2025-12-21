@@ -91,33 +91,42 @@ export default function ReportFoundPet() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    console.log('[FoundPet] Getting geolocation...');
     setIsGettingLocation(true);
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
+          console.log('[FoundPet] Geolocation success:', latitude, longitude);
           setCenter([latitude, longitude]);
           const result = await reverseGeocode(latitude, longitude);
           setFoundAddress(result.address);
           setCityName(result.city);
           setIsGettingLocation(false);
         },
-        () => {
+        (error) => {
+          console.log('[FoundPet] Geolocation error:', error.message);
           setIsGettingLocation(false);
         },
         { timeout: 10000, enableHighAccuracy: true }
       );
     } else {
+      console.log('[FoundPet] Geolocation not available');
       setIsGettingLocation(false);
     }
   }, []);
 
   // Initialize map
   useEffect(() => {
-    if (typeof window === 'undefined' || !center || step !== 1) return;
+    console.log('[FoundPet Map] useEffect triggered - step:', step, 'center:', center, 'mapRef:', mapRef.current);
+    if (typeof window === 'undefined' || !center || step !== 1) {
+      console.log('[FoundPet Map] Early return - conditions not met');
+      return;
+    }
 
     if (mapInstanceRef.current) {
+      console.log('[FoundPet Map] Map already exists, updating view');
       mapInstanceRef.current.setView(center, 17);
       if (markerRef.current) markerRef.current.setLatLng(center);
       return;
@@ -125,17 +134,25 @@ export default function ReportFoundPet() {
 
     const initMap = async () => {
       const container = mapRef.current;
+      console.log('[FoundPet Map] initMap called - container:', container, 'height:', container?.offsetHeight);
       if (!container || container.offsetHeight === 0) {
+        console.log('[FoundPet Map] Container not ready, retrying in 50ms');
         setTimeout(initMap, 50);
         return;
       }
 
+      console.log('[FoundPet Map] Container ready, loading Leaflet...');
       const L = (await import('leaflet')).default;
 
-      if (!mapRef.current || mapInstanceRef.current) return;
+      if (!mapRef.current || mapInstanceRef.current) {
+        console.log('[FoundPet Map] Abort - mapRef gone or map already created');
+        return;
+      }
 
+      console.log('[FoundPet Map] Creating map instance...');
       const map = L.map(mapRef.current, { zoomControl: false }).setView(center, 17);
       mapInstanceRef.current = map;
+      console.log('[FoundPet Map] Map instance created successfully');
 
       L.control.zoom({ position: 'topright' }).addTo(map);
       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
