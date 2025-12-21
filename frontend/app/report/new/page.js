@@ -1,52 +1,51 @@
 'use client';
 
 /**
- * Report Lost Pet - Step-by-Step Wizard
+ * Report Lost Pet - Beautiful Step-by-Step Wizard
  *
- * Clean, focused flow - one question per screen:
- * 1. Where? (map)
- * 2. Who? (select pet or type)
- * 3. Name? (if new pet)
- * 4. When?
- * 5. Color?
- * 6. Photo? (optional)
- * 7. Confirm & Submit
+ * Modern, clean design with one focus per screen
  */
 
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import {
-  Dog, Cat, Bird, Rabbit, MapPin, Clock, Search,
+  Dog, Cat, Bird, Rabbit, MapPin, Clock,
   Camera, Check, ChevronLeft, ChevronRight,
-  AlertTriangle, Loader2, X, Navigation, ExternalLink
+  AlertTriangle, Loader2, X, Navigation, ExternalLink,
+  Sparkles, Heart, Mail, User
 } from 'lucide-react';
 import ColorSelector from '../../components/ColorSelector';
 
 const PET_TYPES = [
-  { type: 'dog', label: 'Dog', icon: Dog, species: 'DOG' },
-  { type: 'cat', label: 'Cat', icon: Cat, species: 'CAT' },
-  { type: 'bird', label: 'Bird', icon: Bird, species: 'BIRD' },
-  { type: 'other', label: 'Other', icon: Rabbit, species: 'OTHER' },
+  { type: 'dog', label: 'Dog', icon: Dog, emoji: '🐕' },
+  { type: 'cat', label: 'Cat', icon: Cat, emoji: '🐈' },
+  { type: 'bird', label: 'Bird', icon: Bird, emoji: '🦜' },
+  { type: 'other', label: 'Other', icon: Rabbit, emoji: '🐰' },
 ];
 
 const TIME_OPTIONS = [
-  { value: 'less_than_hour', label: 'Less than an hour ago', emoji: '⚡' },
-  { value: '1_to_6_hours', label: '1-6 hours ago', emoji: '🕐' },
-  { value: '6_to_24_hours', label: '6-24 hours ago', emoji: '🌅' },
-  { value: '1_to_3_days', label: '1-3 days ago', emoji: '📅' },
-  { value: '3_to_7_days', label: '3-7 days ago', emoji: '📆' },
-  { value: 'more_than_2_weeks', label: 'More than a week', emoji: '📆' },
+  { value: 'less_than_hour', label: 'Just now', sublabel: 'Less than an hour', urgent: true },
+  { value: '1_to_6_hours', label: 'Few hours', sublabel: '1-6 hours ago', urgent: true },
+  { value: '6_to_24_hours', label: 'Today', sublabel: '6-24 hours ago', urgent: false },
+  { value: '1_to_3_days', label: 'Few days', sublabel: '1-3 days ago', urgent: false },
+  { value: '3_to_7_days', label: 'This week', sublabel: '3-7 days ago', urgent: false },
+  { value: 'more_than_2_weeks', label: 'Longer', sublabel: 'More than a week', urgent: false },
 ];
 
 export default function ReportLostPet() {
-  const { data: session } = useSession();
+  const { data: session, status: authStatus } = useSession();
+  const isLoggedIn = authStatus === 'authenticated';
 
-  // Wizard state
-  const [step, setStep] = useState(1); // 1=location, 2=pet, 3=name, 4=when, 5=color, 6=photo, 7=confirm
+  // Wizard state - step 0 is contact info for non-logged-in users
+  const [step, setStep] = useState(0); // 0=contact, 1=location, 2=pet, 3=name, 4=when, 5=color, 6=photo, 7=confirm
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [reportResult, setReportResult] = useState(null);
+
+  // Contact info (for non-logged-in users)
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactName, setContactName] = useState('');
 
   // Data state
   const [center, setCenter] = useState(null);
@@ -67,6 +66,20 @@ export default function ReportLostPet() {
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
   const circleRef = useRef(null);
+
+  // Determine starting step based on auth
+  useEffect(() => {
+    if (authStatus === 'loading') return;
+    if (isLoggedIn) {
+      setStep(1); // Skip contact step
+    } else {
+      setStep(0); // Show contact step
+    }
+  }, [authStatus, isLoggedIn]);
+
+  // Get effective email and name
+  const effectiveEmail = isLoggedIn ? session?.user?.email : contactEmail;
+  const effectiveName = isLoggedIn ? (session?.user?.name || 'Pet Owner') : contactName;
 
   // Fetch user's pets
   useEffect(() => {
@@ -258,20 +271,34 @@ export default function ReportLostPet() {
     setIsSubmitting(true);
     setError(null);
 
+    // Validate required fields before submission
+    if (!effectiveEmail || !effectiveName || !petName || !color || !lastSeenAddress || !center) {
+      const missing = [];
+      if (!effectiveEmail) missing.push('email');
+      if (!effectiveName) missing.push('name');
+      if (!petName) missing.push('pet name');
+      if (!color) missing.push('color');
+      if (!lastSeenAddress) missing.push('location');
+      if (!center) missing.push('map location');
+      setError(`Please provide: ${missing.join(', ')}`);
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/reports/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: session?.user?.email,
-          firstName: session?.user?.name,
+          email: effectiveEmail,
+          firstName: effectiveName,
           petName,
           color,
           lastSeenAddress,
           center,
           radiusMiles: 0.1,
           timeElapsed,
-          petType,
+          petType: petType.toUpperCase(),
           photos,
           locationType: 'address',
           cityName,
@@ -291,8 +318,11 @@ export default function ReportLostPet() {
     }
   };
 
+  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
   const canProceed = () => {
     switch (step) {
+      case 0: return contactEmail.trim() && isValidEmail(contactEmail) && contactName.trim();
       case 1: return !!center;
       case 2: return !!petType;
       case 3: return !!petName.trim();
@@ -304,13 +334,17 @@ export default function ReportLostPet() {
     }
   };
 
+  const totalSteps = isLoggedIn ? 7 : 8;
+  const displayStep = isLoggedIn ? step : step + 1;
+
   const nextStep = () => {
     if (canProceed() && step < 7) setStep(step + 1);
     if (step === 7) handleSubmit();
   };
 
   const prevStep = () => {
-    if (step > 1) {
+    const minStep = isLoggedIn ? 1 : 0;
+    if (step > minStep) {
       // If we came from selecting existing pet, go back to step 2
       if (step === 4 && selectedPet) {
         setStep(2);
@@ -320,61 +354,170 @@ export default function ReportLostPet() {
     }
   };
 
-  // Success screen
-  if (step === 8 && reportResult) {
+  // Loading state while checking auth
+  if (authStatus === 'loading') {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center p-6">
-        <div className="text-center max-w-sm">
-          <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Check size={40} className="text-white" />
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-r from-orange-400 to-red-500 flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Heart size={28} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold mb-2">Alert Created!</h1>
-          <p className="text-gray-600 mb-6">
-            {reportResult.squadsNotified || 0} rescue squad{reportResult.squadsNotified === 1 ? '' : 's'} notified
-          </p>
-          <Link
-            href="/dashboard"
-            className="block w-full py-3 bg-green-500 text-white rounded-xl font-semibold"
-          >
-            Go to Dashboard
-          </Link>
+          <p className="text-gray-500">Loading...</p>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="h-screen bg-white flex flex-col overflow-hidden">
-      {/* Header */}
-      <header className="flex items-center justify-between p-4 border-b flex-shrink-0">
-        <button onClick={() => step > 1 ? prevStep() : null} className="w-10 h-10 flex items-center justify-center">
-          {step > 1 ? <ChevronLeft size={24} /> : <Link href="/dashboard"><X size={24} /></Link>}
-        </button>
-        <div className="flex gap-1">
-          {[1,2,3,4,5,6,7].map(s => (
-            <div key={s} className={`w-8 h-1 rounded-full ${s <= step ? 'bg-red-500' : 'bg-gray-200'}`} />
-          ))}
+  // Success screen
+  if (step === 8 && reportResult) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-6">
+        <div className="text-center max-w-sm">
+          <div className="relative mb-8">
+            <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-200">
+              <Check size={48} className="text-white" strokeWidth={3} />
+            </div>
+            <Sparkles className="absolute -top-2 -right-2 text-yellow-400" size={24} />
+            <Sparkles className="absolute -bottom-1 -left-3 text-green-400" size={20} />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Alert Sent!</h1>
+          <p className="text-gray-600 mb-8 text-lg">
+            {reportResult.squadsNotified || 0} rescue team{reportResult.squadsNotified === 1 ? '' : 's'} notified in your area
+          </p>
+          <Link
+            href="/dashboard"
+            className="block w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl font-semibold text-lg shadow-lg shadow-green-200 hover:shadow-xl transition-all"
+          >
+            View Dashboard
+          </Link>
+          <p className="mt-4 text-sm text-gray-500">
+            We'll notify you of any sightings
+          </p>
         </div>
+      </div>
+    );
+  }
+
+  const minStep = isLoggedIn ? 1 : 0;
+  const stepLabels = isLoggedIn
+    ? ['Location', 'Pet', 'Name', 'When', 'Color', 'Photo', 'Review']
+    : ['Contact', 'Location', 'Pet', 'Name', 'When', 'Color', 'Photo', 'Review'];
+
+  return (
+    <div className="min-h-screen h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 flex flex-col overflow-hidden">
+      {/* Header */}
+      <header className="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+        <button
+          onClick={() => step > minStep ? prevStep() : null}
+          className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/50 transition-colors"
+        >
+          {step > minStep ? (
+            <ChevronLeft size={24} className="text-gray-600" />
+          ) : (
+            <Link href="/dashboard"><X size={24} className="text-gray-600" /></Link>
+          )}
+        </button>
+
+        <div className="flex-1 mx-4">
+          <div className="flex justify-center gap-1.5">
+            {Array.from({ length: totalSteps }, (_, i) => {
+              const stepNum = isLoggedIn ? i + 1 : i;
+              const isActive = stepNum <= step;
+              const isCurrent = stepNum === step;
+              return (
+                <div
+                  key={i}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    isCurrent ? 'w-8 bg-gradient-to-r from-orange-400 to-red-500' :
+                    isActive ? 'w-4 bg-orange-300' : 'w-4 bg-gray-200'
+                  }`}
+                />
+              );
+            })}
+          </div>
+          <p className="text-center text-xs text-gray-400 mt-1">
+            {stepLabels[step - minStep] || ''}
+          </p>
+        </div>
+
         <div className="w-10" />
       </header>
 
       {/* Content */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 
+        {/* Step 0: Contact Info (non-logged-in users) */}
+        {step === 0 && (
+          <div className="flex-1 flex flex-col px-6 py-4 overflow-y-auto">
+            <div className="mb-8">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center mb-4 shadow-lg shadow-blue-200">
+                <Mail size={28} className="text-white" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Let's stay in touch</h1>
+              <p className="text-gray-500 text-lg">We'll notify you when someone spots your pet</p>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Your name</label>
+                <div className="relative">
+                  <User size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    placeholder="Jane"
+                    className="w-full pl-12 pr-4 py-4 text-lg bg-white border-2 border-gray-200 rounded-2xl focus:border-blue-400 focus:ring-4 focus:ring-blue-50 outline-none transition-all"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email address</label>
+                <div className="relative">
+                  <Mail size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="email"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    placeholder="jane@example.com"
+                    className="w-full pl-12 pr-4 py-4 text-lg bg-white border-2 border-gray-200 rounded-2xl focus:border-blue-400 focus:ring-4 focus:ring-blue-50 outline-none transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-auto pt-4">
+              <p className="text-center text-sm text-gray-500">
+                Already have an account?{' '}
+                <Link href="/login?callbackUrl=/report/new" className="text-blue-600 font-medium">
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Step 1: Location */}
         {step === 1 && (
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="p-4 pb-2">
-              <h1 className="text-2xl font-bold mb-1">Where was {petName || 'your pet'} last seen?</h1>
-              <p className="text-gray-500">Tap the map or drag the pin</p>
+            <div className="px-6 py-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-400 to-rose-500 flex items-center justify-center mb-3 shadow-lg shadow-red-200">
+                <MapPin size={24} className="text-white" />
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-1">Where was {petName || 'your pet'} last seen?</h1>
+              <p className="text-gray-500">Tap the map or drag the pin to mark the spot</p>
             </div>
 
-            <div className="flex-1 relative min-h-[300px]">
+            <div className="flex-1 relative mx-4 mb-4 rounded-3xl overflow-hidden shadow-lg border border-gray-100">
               {isGettingLocation && !center ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
                   <div className="text-center">
-                    <Navigation size={32} className="mx-auto mb-2 text-blue-500 animate-pulse" />
-                    <p className="text-gray-600">Finding your location...</p>
+                    <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
+                      <Navigation size={28} className="text-blue-500 animate-pulse" />
+                    </div>
+                    <p className="text-gray-600 font-medium">Finding your location...</p>
                   </div>
                 </div>
               ) : (
@@ -383,14 +526,16 @@ export default function ReportLostPet() {
             </div>
 
             {center && (
-              <div className="p-4 border-t bg-gray-50 flex-shrink-0">
-                <p className="text-sm text-gray-600 truncate mb-2">{lastSeenAddress || 'Location set'}</p>
-                <button
-                  onClick={openInMaps}
-                  className="text-sm text-blue-600 flex items-center gap-1"
-                >
-                  <ExternalLink size={14} /> Open in Maps for exact address
-                </button>
+              <div className="px-6 pb-4 flex-shrink-0">
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                  <p className="text-sm text-gray-600 truncate mb-2">{lastSeenAddress || 'Location set'}</p>
+                  <button
+                    onClick={openInMaps}
+                    className="text-sm text-blue-600 font-medium flex items-center gap-1.5 hover:text-blue-700"
+                  >
+                    <ExternalLink size={14} /> Open in Maps to set exact address
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -398,32 +543,36 @@ export default function ReportLostPet() {
 
         {/* Step 2: Select Pet */}
         {step === 2 && (
-          <div className="flex-1 p-6 overflow-y-auto">
-            <h1 className="text-2xl font-bold mb-1">Who went missing?</h1>
-            <p className="text-gray-500 mb-6">Select your pet or add a new one</p>
+          <div className="flex-1 px-6 py-4 overflow-y-auto">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center mb-3 shadow-lg shadow-purple-200">
+              <Heart size={24} className="text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">Who went missing?</h1>
+            <p className="text-gray-500 mb-6">Select your pet or tell us about them</p>
 
             {myPets.length > 0 && (
               <div className="mb-8">
-                <p className="text-sm font-medium text-gray-500 mb-3">Your pets</p>
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Pets</p>
                 <div className="grid grid-cols-2 gap-3">
                   {myPets.map(pet => (
                     <button
                       key={pet.id}
                       onClick={() => handleSelectPet(pet)}
-                      className="p-4 border-2 rounded-2xl text-left hover:border-blue-400 transition-all"
+                      className="p-4 bg-white border-2 border-gray-100 rounded-2xl text-left hover:border-purple-300 hover:shadow-lg transition-all group"
                     >
-                      <div className="w-16 h-16 rounded-xl bg-gray-100 mb-2 overflow-hidden">
+                      <div className="w-16 h-16 rounded-xl bg-gray-100 mb-3 overflow-hidden group-hover:scale-105 transition-transform">
                         {pet.primaryPhotoUrl ? (
                           <img src={pet.primaryPhotoUrl} alt={pet.name} className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center">
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-50">
                             {pet.species === 'DOG' ? <Dog size={28} className="text-gray-400" /> :
                              pet.species === 'CAT' ? <Cat size={28} className="text-gray-400" /> :
                              <Rabbit size={28} className="text-gray-400" />}
                           </div>
                         )}
                       </div>
-                      <p className="font-semibold">{pet.name}</p>
+                      <p className="font-semibold text-gray-900">{pet.name}</p>
+                      <p className="text-xs text-gray-500">{pet.species?.toLowerCase()}</p>
                     </button>
                   ))}
                 </div>
@@ -431,20 +580,19 @@ export default function ReportLostPet() {
             )}
 
             <div>
-              <p className="text-sm font-medium text-gray-500 mb-3">
-                {myPets.length > 0 ? 'Or report a new pet' : 'What type of pet?'}
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                {myPets.length > 0 ? 'Or Add New' : 'Pet Type'}
               </p>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-4 gap-2">
                 {PET_TYPES.map(pet => {
-                  const Icon = pet.icon;
                   return (
                     <button
                       key={pet.type}
                       onClick={() => handleSelectPetType(pet.type)}
-                      className="p-4 border-2 rounded-2xl hover:border-blue-400 transition-all text-center"
+                      className="py-4 px-2 bg-white border-2 border-gray-100 rounded-2xl hover:border-purple-300 hover:shadow-lg transition-all text-center group"
                     >
-                      <Icon size={32} className="mx-auto mb-1 text-gray-600" />
-                      <span className="text-sm font-medium">{pet.label}</span>
+                      <span className="text-3xl block mb-1 group-hover:scale-110 transition-transform">{pet.emoji}</span>
+                      <span className="text-sm font-medium text-gray-700">{pet.label}</span>
                     </button>
                   );
                 })}
@@ -455,38 +603,54 @@ export default function ReportLostPet() {
 
         {/* Step 3: Pet Name */}
         {step === 3 && (
-          <div className="flex-1 p-6">
-            <h1 className="text-2xl font-bold mb-1">What's their name?</h1>
-            <p className="text-gray-500 mb-6">This helps people identify your pet</p>
+          <div className="flex-1 px-6 py-4 flex flex-col">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center mb-3 shadow-lg shadow-pink-200">
+              <span className="text-2xl">{PET_TYPES.find(p => p.type === petType)?.emoji || '🐾'}</span>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">What's their name?</h1>
+            <p className="text-gray-500 mb-8">This helps people identify your pet</p>
 
             <input
               type="text"
               value={petName}
               onChange={(e) => setPetName(e.target.value)}
-              placeholder="Max, Bella, Charlie..."
-              className="w-full text-2xl py-4 border-b-2 border-gray-200 focus:border-blue-500 outline-none"
+              placeholder="Enter name..."
+              className="w-full text-3xl font-medium py-4 border-b-2 border-gray-200 focus:border-pink-400 outline-none bg-transparent placeholder:text-gray-300 transition-colors"
               autoFocus
             />
+            <p className="text-sm text-gray-400 mt-2">e.g., Max, Bella, Charlie</p>
           </div>
         )}
 
         {/* Step 4: When */}
         {step === 4 && (
-          <div className="flex-1 p-6 overflow-y-auto">
-            <h1 className="text-2xl font-bold mb-1">When did {petName} go missing?</h1>
+          <div className="flex-1 px-6 py-4 overflow-y-auto">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mb-3 shadow-lg shadow-amber-200">
+              <Clock size={24} className="text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">When did {petName} go missing?</h1>
             <p className="text-gray-500 mb-6">This helps prioritize the search</p>
 
-            <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
               {TIME_OPTIONS.map(opt => (
                 <button
                   key={opt.value}
                   onClick={() => setTimeElapsed(opt.value)}
-                  className={`w-full p-4 rounded-2xl border-2 text-left flex items-center gap-3 transition-all ${
-                    timeElapsed === opt.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                  className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                    timeElapsed === opt.value
+                      ? 'border-orange-400 bg-orange-50 shadow-lg shadow-orange-100'
+                      : 'border-gray-100 bg-white hover:border-orange-200 hover:shadow-md'
                   }`}
                 >
-                  <span className="text-2xl">{opt.emoji}</span>
-                  <span className="font-medium">{opt.label}</span>
+                  <p className={`font-semibold text-lg ${timeElapsed === opt.value ? 'text-orange-600' : 'text-gray-900'}`}>
+                    {opt.label}
+                  </p>
+                  <p className="text-sm text-gray-500">{opt.sublabel}</p>
+                  {opt.urgent && (
+                    <span className="inline-block mt-2 text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-600">
+                      Urgent
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -495,9 +659,17 @@ export default function ReportLostPet() {
 
         {/* Step 5: Color */}
         {step === 5 && (
-          <div className="flex-1 p-6 overflow-y-auto">
-            <h1 className="text-2xl font-bold mb-1">What color is {petName}?</h1>
-            <p className="text-gray-500 mb-6">Select all that apply</p>
+          <div className="flex-1 px-6 py-4 overflow-y-auto">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center mb-3 shadow-lg shadow-emerald-200">
+              <div className="grid grid-cols-2 gap-0.5">
+                <div className="w-3 h-3 rounded-full bg-white/80" />
+                <div className="w-3 h-3 rounded-full bg-amber-200" />
+                <div className="w-3 h-3 rounded-full bg-gray-800" />
+                <div className="w-3 h-3 rounded-full bg-orange-300" />
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">What color is {petName}?</h1>
+            <p className="text-gray-500 mb-6">Select the closest match</p>
 
             <ColorSelector
               value={color}
@@ -508,29 +680,41 @@ export default function ReportLostPet() {
 
         {/* Step 6: Photo */}
         {step === 6 && (
-          <div className="flex-1 p-6 overflow-y-auto">
-            <h1 className="text-2xl font-bold mb-1">Add a photo of {petName}</h1>
-            <p className="text-gray-500 mb-6">This really helps people identify your pet</p>
+          <div className="flex-1 px-6 py-4 overflow-y-auto">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mb-3 shadow-lg shadow-sky-200">
+              <Camera size={24} className="text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">Add a photo</h1>
+            <p className="text-gray-500 mb-6">A clear photo helps others spot {petName}</p>
 
             {photos.length > 0 ? (
-              <div className="relative">
-                <img src={photos[0]} alt="Pet" className="w-full aspect-square object-cover rounded-2xl" />
+              <div className="relative rounded-3xl overflow-hidden shadow-lg">
+                <img src={photos[0]} alt="Pet" className="w-full aspect-square object-cover" />
                 <button
                   onClick={() => setPhotos([])}
-                  className="absolute top-2 right-2 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white"
+                  className="absolute top-3 right-3 w-10 h-10 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/60 transition-colors"
                 >
-                  <X size={18} />
+                  <X size={20} />
                 </button>
+                <div className="absolute bottom-3 left-3 px-3 py-1.5 bg-green-500 text-white text-sm font-medium rounded-full flex items-center gap-1.5">
+                  <Check size={14} /> Photo added
+                </div>
               </div>
             ) : (
-              <label className="block aspect-square border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-blue-400 transition-colors">
+              <label className="block aspect-square bg-white border-2 border-dashed border-gray-200 rounded-3xl cursor-pointer hover:border-blue-300 hover:bg-blue-50/50 transition-all group">
                 <div className="h-full flex flex-col items-center justify-center">
                   {uploadingPhoto ? (
-                    <Loader2 size={32} className="text-blue-500 animate-spin" />
+                    <div className="text-center">
+                      <Loader2 size={40} className="text-blue-500 animate-spin mx-auto mb-3" />
+                      <p className="text-gray-500">Uploading...</p>
+                    </div>
                   ) : (
                     <>
-                      <Camera size={48} className="text-gray-400 mb-2" />
-                      <span className="text-gray-500">Tap to add photo</span>
+                      <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                        <Camera size={32} className="text-blue-500" />
+                      </div>
+                      <p className="text-gray-900 font-medium text-lg">Tap to add photo</p>
+                      <p className="text-gray-500 text-sm mt-1">or drag & drop</p>
                     </>
                   )}
                 </div>
@@ -546,53 +730,88 @@ export default function ReportLostPet() {
 
             <button
               onClick={() => setStep(7)}
-              className="mt-4 text-gray-500 text-sm"
+              className="mt-6 w-full py-3 text-gray-500 text-sm hover:text-gray-700 transition-colors"
             >
-              Skip for now
+              Skip for now — you can add later
             </button>
           </div>
         )}
 
         {/* Step 7: Confirm */}
         {step === 7 && (
-          <div className="flex-1 p-6 overflow-y-auto">
-            <h1 className="text-2xl font-bold mb-6">Ready to alert?</h1>
+          <div className="flex-1 px-6 py-4 overflow-y-auto">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center mb-3 shadow-lg shadow-violet-200">
+              <Sparkles size={24} className="text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">Ready to send alert?</h1>
+            <p className="text-gray-500 mb-6">Review the details below</p>
 
-            <div className="space-y-4 mb-6">
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                <MapPin className="text-gray-400" />
+            <div className="space-y-3">
+              {/* Location */}
+              <div className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <MapPin size={20} className="text-red-500" />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-500">Location</p>
-                  <p className="font-medium truncate">{cityName || lastSeenAddress || 'Set'}</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Last Seen</p>
+                  <p className="font-medium text-gray-900 truncate">{cityName || lastSeenAddress || 'Location set'}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                {petType === 'dog' ? <Dog className="text-gray-400" /> :
-                 petType === 'cat' ? <Cat className="text-gray-400" /> :
-                 <Rabbit className="text-gray-400" />}
-                <div className="flex-1">
-                  <p className="text-sm text-gray-500">Pet</p>
-                  <p className="font-medium">{petName} • {color}</p>
+              {/* Pet */}
+              <div className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="w-12 h-12 rounded-xl overflow-hidden bg-purple-100 flex items-center justify-center flex-shrink-0">
+                  {photos[0] ? (
+                    <img src={photos[0]} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-2xl">{PET_TYPES.find(p => p.type === petType)?.emoji}</span>
+                  )}
                 </div>
-                {photos[0] && (
-                  <img src={photos[0]} alt="" className="w-12 h-12 rounded-lg object-cover" />
-                )}
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Pet</p>
+                  <p className="font-medium text-gray-900">{petName}</p>
+                  <p className="text-sm text-gray-500">{color} {petType}</p>
+                </div>
               </div>
 
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                <Clock className="text-gray-400" />
+              {/* Time */}
+              <div className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <Clock size={20} className="text-amber-600" />
+                </div>
                 <div className="flex-1">
-                  <p className="text-sm text-gray-500">Missing since</p>
-                  <p className="font-medium">{TIME_OPTIONS.find(t => t.value === timeElapsed)?.label}</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Missing Since</p>
+                  <p className="font-medium text-gray-900">
+                    {TIME_OPTIONS.find(t => t.value === timeElapsed)?.label}
+                    {TIME_OPTIONS.find(t => t.value === timeElapsed)?.urgent && (
+                      <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-600">
+                        Urgent
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Contact */}
+              <div className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Mail size={20} className="text-blue-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Contact</p>
+                  <p className="font-medium text-gray-900">{effectiveName}</p>
+                  <p className="text-sm text-gray-500">{effectiveEmail}</p>
                 </div>
               </div>
             </div>
 
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl mb-4 flex items-start gap-2">
-                <AlertTriangle size={18} className="text-red-500 flex-shrink-0" />
-                <p className="text-red-700 text-sm">{error}</p>
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3">
+                <AlertTriangle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-red-700">Something went wrong</p>
+                  <p className="text-red-600 text-sm mt-1">{error}</p>
+                </div>
               </div>
             )}
           </div>
@@ -600,23 +819,32 @@ export default function ReportLostPet() {
       </div>
 
       {/* Footer with Next button */}
-      {step < 8 && (
-        <div className="p-4 border-t flex-shrink-0 bg-white">
+      {step >= minStep && step < 8 && (
+        <div className="px-6 pb-6 pt-4 flex-shrink-0 bg-gradient-to-t from-white via-white to-transparent">
           <button
             onClick={nextStep}
             disabled={!canProceed() || isSubmitting}
-            className={`w-full py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2 ${
+            className={`w-full py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2 transition-all ${
               canProceed() && !isSubmitting
-                ? 'bg-red-500 text-white'
+                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-200 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
                 : 'bg-gray-200 text-gray-400'
             }`}
           >
             {isSubmitting ? (
-              <Loader2 size={20} className="animate-spin" />
+              <>
+                <Loader2 size={20} className="animate-spin" />
+                <span>Creating alert...</span>
+              </>
             ) : step === 7 ? (
-              'Create Alert'
+              <>
+                <Sparkles size={20} />
+                <span>Send Alert</span>
+              </>
             ) : (
-              <>Continue <ChevronRight size={20} /></>
+              <>
+                <span>Continue</span>
+                <ChevronRight size={20} />
+              </>
             )}
           </button>
         </div>
