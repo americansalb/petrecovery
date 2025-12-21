@@ -589,27 +589,29 @@ export default function ReportFoundPet() {
             </div>
 
             <div className="flex-1 relative mx-4 mb-2 rounded-2xl overflow-hidden shadow-lg border border-gray-100 min-h-[300px]">
-              {isGettingLocation ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50">
-                  <div className="text-center">
-                    <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
-                      <Navigation size={28} className="text-green-500 animate-pulse" />
+              {/* Always render map container so ref is available immediately */}
+              <div ref={mapRef} className="absolute inset-0" />
+
+              {/* Overlay loading states on top of map */}
+              {(isGettingLocation || !center) && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50">
+                  {isGettingLocation ? (
+                    <div className="text-center">
+                      <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                        <Navigation size={28} className="text-green-500 animate-pulse" />
+                      </div>
+                      <p className="text-gray-600 font-medium">Finding your location...</p>
                     </div>
-                    <p className="text-gray-600 font-medium">Finding your location...</p>
-                  </div>
-                </div>
-              ) : !center ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50">
-                  <div className="text-center px-6">
-                    <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
-                      <MapPin size={28} className="text-green-500" />
+                  ) : (
+                    <div className="text-center px-6">
+                      <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                        <MapPin size={28} className="text-green-500" />
+                      </div>
+                      <p className="text-gray-900 font-semibold mb-1">Enter the location</p>
+                      <p className="text-gray-500 text-sm">Where did you find the pet?</p>
                     </div>
-                    <p className="text-gray-900 font-semibold mb-1">Enter the location</p>
-                    <p className="text-gray-500 text-sm">Where did you find the pet?</p>
-                  </div>
+                  )}
                 </div>
-              ) : (
-                <div ref={mapRef} className="absolute inset-0" />
               )}
             </div>
 
