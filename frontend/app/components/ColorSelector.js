@@ -1,291 +1,161 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { PET_COLORS } from '../lib/colors';
+import { useState, useEffect } from 'react';
+import { Check, Plus } from 'lucide-react';
+
+// Simple, recognizable colors - no abstract names
+const COLORS = [
+  { name: 'Black', color: '#1a1a1a' },
+  { name: 'Dark Gray', color: '#4a4a4a' },
+  { name: 'Gray', color: '#808080' },
+  { name: 'Light Gray', color: '#c0c0c0', border: true },
+  { name: 'White', color: '#ffffff', border: true },
+  { name: 'Dark Brown', color: '#3d2314' },
+  { name: 'Brown', color: '#8b4513' },
+  { name: 'Light Brown', color: '#a67b5b' },
+  { name: 'Tan', color: '#d2b48c' },
+  { name: 'Beige', color: '#e8dcc8', border: true },
+  { name: 'Cream', color: '#fffdd0', border: true },
+  { name: 'Golden', color: '#daa520' },
+  { name: 'Orange', color: '#ff8c00' },
+  { name: 'Red', color: '#b22222' },
+  { name: 'Ginger', color: '#b06500' },
+];
 
 export default function ColorSelector({ value, onChange }) {
   const [selectedColors, setSelectedColors] = useState([]);
-  const [inputValue, setInputValue] = useState('');
-  const [showDropdown, setShowDropdown] = useState(true); // Show dropdown by default
-  const [filteredColors, setFilteredColors] = useState(PET_COLORS);
-  const [isOther, setIsOther] = useState(false);
-  const dropdownRef = useRef(null);
+  const [showOther, setShowOther] = useState(false);
+  const [customInput, setCustomInput] = useState('');
 
-  // Initialize from value
   useEffect(() => {
     if (value) {
-      // Split by comma and trim
       const colors = value.split(',').map(c => c.trim()).filter(c => c);
       setSelectedColors(colors);
-
-      // Check if any color is not in the predefined list
-      const hasCustomColor = colors.some(c => !PET_COLORS.includes(c));
-      if (hasCustomColor) {
-        setIsOther(true);
-      }
     }
   }, []);
 
-  // Update parent when selectedColors changes
   useEffect(() => {
     onChange(selectedColors.join(', '));
-  }, [selectedColors]);
+  }, [selectedColors, onChange]);
 
-  // Filter colors based on input
-  useEffect(() => {
-    if (!inputValue || inputValue.trim() === '') {
-      setFilteredColors(PET_COLORS);
-    } else {
-      const filtered = PET_COLORS.filter(color =>
-        color.toLowerCase().includes(inputValue.toLowerCase())
-      );
-      setFilteredColors(filtered);
-    }
-  }, [inputValue]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowDropdown(false);
+  const toggleColor = (colorName) => {
+    setSelectedColors(prev => {
+      if (prev.includes(colorName)) {
+        return prev.filter(c => c !== colorName);
+      } else {
+        return [...prev, colorName];
       }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleColorClick = (color) => {
-    if (selectedColors.includes(color)) {
-      // Remove color
-      setSelectedColors(selectedColors.filter(c => c !== color));
-    } else {
-      // Add color
-      setSelectedColors([...selectedColors, color]);
-    }
+    });
   };
 
-  const handleRemoveColor = (colorToRemove) => {
-    setSelectedColors(selectedColors.filter(c => c !== colorToRemove));
-  };
-
-  const handleOtherToggle = (checked) => {
-    setIsOther(checked);
-    if (!checked) {
-      // Remove any custom colors when unchecking "Other"
-      const standardColors = selectedColors.filter(c => PET_COLORS.includes(c));
-      setSelectedColors(standardColors);
+  const addCustomColor = () => {
+    const trimmed = customInput.trim();
+    if (trimmed && !selectedColors.includes(trimmed)) {
+      setSelectedColors(prev => [...prev, trimmed]);
     }
-  };
-
-  const handleInputChange = (e) => {
-    setInputValue(e.target.value);
-    if (!isOther) {
-      setShowDropdown(true);
-    }
-  };
-
-  const handleInputKeyDown = (e) => {
-    if (e.key === 'Enter' && isOther && inputValue.trim()) {
-      e.preventDefault();
-      // Add custom color
-      if (!selectedColors.includes(inputValue.trim())) {
-        setSelectedColors([...selectedColors, inputValue.trim()]);
-      }
-      setInputValue('');
-    }
+    setCustomInput('');
+    setShowOther(false);
   };
 
   return (
-    <div className="color-selector" style={{ position: 'relative' }}>
-      {/* Selected Colors Display */}
+    <div className="space-y-3">
+      {/* Selected preview */}
       {selectedColors.length > 0 && (
-        <div className="color-selected-list">
-          {selectedColors.map((color) => (
-            <div key={color} className="color-tag">
+        <div className="flex flex-wrap gap-2 p-3 bg-green-50 rounded-xl border border-green-200">
+          {selectedColors.map(color => (
+            <span
+              key={color}
+              className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-lg text-sm text-green-800 border border-green-200"
+            >
               {color}
               <button
                 type="button"
-                onClick={() => handleRemoveColor(color)}
-                className="color-tag-remove"
+                onClick={() => toggleColor(color)}
+                className="text-green-400 hover:text-red-500 font-bold"
               >
                 ×
               </button>
-            </div>
+            </span>
           ))}
         </div>
       )}
 
-      {/* Input Field */}
-      <input
-        type="text"
-        value={inputValue}
-        onChange={handleInputChange}
-        onKeyDown={handleInputKeyDown}
-        onFocus={() => {
-          if (!isOther) {
-            setShowDropdown(true);
-          }
-        }}
-        placeholder={
-          isOther
-            ? "Type a custom color and press Enter..."
-            : "Type to filter colors below..."
-        }
-        className="color-input"
-      />
-
-      {/* Color Options Grid - Always visible when not in "Other" mode */}
-      {!isOther && (
-        <div ref={dropdownRef} className="color-grid">
-          {filteredColors.map((color) => (
+      {/* Color grid - full size, no scroll */}
+      <div className="grid grid-cols-2 gap-2">
+        {COLORS.map(item => {
+          const isSelected = selectedColors.includes(item.name);
+          return (
             <button
-              key={color}
+              key={item.name}
               type="button"
-              onClick={() => handleColorClick(color)}
-              className={`color-grid-item ${selectedColors.includes(color) ? 'selected' : ''}`}
+              onClick={() => toggleColor(item.name)}
+              className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
+                isSelected
+                  ? 'bg-green-50 ring-2 ring-green-500'
+                  : 'bg-white border border-gray-100 hover:bg-gray-50'
+              }`}
             >
-              {color}
-              {selectedColors.includes(color) && <span className="color-check">✓</span>}
+              <div
+                className={`w-8 h-8 rounded-full flex-shrink-0 ${item.border ? 'ring-1 ring-gray-300' : ''}`}
+                style={{ backgroundColor: item.color }}
+              />
+              <span className={`text-sm font-medium ${isSelected ? 'text-green-700' : 'text-gray-700'}`}>
+                {item.name}
+              </span>
+              {isSelected && (
+                <Check size={16} className="text-green-600 ml-auto" strokeWidth={3} />
+              )}
             </button>
-          ))}
+          );
+        })}
+
+        {/* Other button */}
+        <button
+          type="button"
+          onClick={() => setShowOther(true)}
+          className="flex items-center gap-3 p-3 rounded-xl bg-white border border-dashed border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all"
+        >
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-300 via-purple-300 to-blue-300 flex items-center justify-center">
+            <Plus size={16} className="text-white" />
+          </div>
+          <span className="text-sm font-medium text-gray-500">Other...</span>
+        </button>
+      </div>
+
+      {/* Custom color input */}
+      {showOther && (
+        <div className="flex gap-2 p-3 bg-gray-50 rounded-xl">
+          <input
+            type="text"
+            value={customInput}
+            onChange={(e) => setCustomInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && customInput.trim()) {
+                e.preventDefault();
+                addCustomColor();
+              }
+            }}
+            placeholder="Type a color..."
+            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-green-400 focus:ring-2 focus:ring-green-100 outline-none bg-white"
+            autoFocus
+          />
+          <button
+            type="button"
+            onClick={addCustomColor}
+            disabled={!customInput.trim()}
+            className="px-4 py-2 bg-green-500 text-white text-sm font-semibold rounded-lg hover:bg-green-600 disabled:bg-gray-200 disabled:text-gray-400 transition-colors"
+          >
+            Add
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowOther(false)}
+            className="px-3 py-2 text-gray-500 text-sm hover:text-gray-700"
+          >
+            Cancel
+          </button>
         </div>
       )}
-
-      {/* Other Checkbox */}
-      <label className="color-other-label">
-        <input
-          type="checkbox"
-          checked={isOther}
-          onChange={(e) => handleOtherToggle(e.target.checked)}
-          className="color-other-checkbox"
-        />
-        <span className="color-other-text">Other / Custom Color</span>
-      </label>
-
-      {/* Help Text */}
-      <p className="color-help-text">
-        {isOther
-          ? "Type a color name and press Enter to add it"
-          : selectedColors.length > 0
-            ? `${selectedColors.length} color${selectedColors.length !== 1 ? 's' : ''} selected — click again to remove`
-            : "Click colors below to select (you can choose multiple)"}
-      </p>
-
-      <style jsx>{`
-        .color-selector {
-          position: relative;
-        }
-        .color-selected-list {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-          margin-bottom: 0.75rem;
-        }
-        .color-tag {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.5rem 0.75rem;
-          background: rgba(16, 185, 129, 0.15);
-          border: 2px solid #10b981;
-          border-radius: 0.5rem;
-          font-size: 0.9rem;
-          font-weight: 600;
-          color: #059669;
-        }
-        .color-tag-remove {
-          background: none;
-          border: none;
-          color: #ef4444;
-          cursor: pointer;
-          font-size: 1.1rem;
-          line-height: 1;
-          padding: 0;
-        }
-        .color-input {
-          width: 100%;
-          padding: 0.75rem;
-          border: 2px solid #d1d5db;
-          border-radius: 0.5rem;
-          font-size: 1rem;
-          background: white;
-          color: #111827;
-        }
-        .color-input::placeholder {
-          color: #9ca3af;
-        }
-        .color-input:focus {
-          outline: none;
-          border-color: #6366f1;
-          box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-        }
-        .color-grid {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-          margin-top: 0.75rem;
-          padding: 0.75rem;
-          background: #f9fafb;
-          border: 2px solid #e5e7eb;
-          border-radius: 0.5rem;
-          max-height: 200px;
-          overflow-y: auto;
-        }
-        .color-grid-item {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.25rem;
-          padding: 0.5rem 0.75rem;
-          border: 2px solid #d1d5db;
-          border-radius: 0.5rem;
-          background: white;
-          color: #374151;
-          font-size: 0.875rem;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .color-grid-item:hover {
-          border-color: #6366f1;
-          background: #f5f3ff;
-        }
-        .color-grid-item.selected {
-          border-color: #10b981;
-          background: rgba(16, 185, 129, 0.15);
-          color: #059669;
-          font-weight: 600;
-        }
-        .color-check {
-          font-size: 0.75rem;
-          font-weight: bold;
-        }
-        .color-other-label {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-top: 0.75rem;
-          cursor: pointer;
-        }
-        .color-other-checkbox {
-          width: 18px;
-          height: 18px;
-          min-width: 18px;
-          min-height: 18px;
-          cursor: pointer;
-          accent-color: #6366f1;
-        }
-        .color-other-text {
-          font-weight: 600;
-          color: #374151;
-        }
-        .color-help-text {
-          font-size: 0.85rem;
-          color: #6b7280;
-          margin-top: 0.5rem;
-          margin-bottom: 0;
-        }
-      `}</style>
     </div>
   );
 }

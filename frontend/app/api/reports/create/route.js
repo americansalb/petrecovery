@@ -129,7 +129,7 @@ export async function POST(request) {
             species: petType.toUpperCase(),
             breed: breed || '',
             color,
-            size,
+            size: size || 'MEDIUM', // Default to medium if not provided
             distinctiveMarks: distinctiveMarks || '',
             primaryPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
             photos: JSON.stringify(photos || []),
@@ -141,6 +141,7 @@ export async function POST(request) {
       // Create case
       const lastSeenAt = calculateLastSeenTime(timeElapsed);
       const caseNumber = `CASE-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+      const petSizeValue = size || 'MEDIUM';
 
       const report = await tx.case.create({
         data: {
@@ -152,9 +153,9 @@ export async function POST(request) {
           petSpecies: petType.toUpperCase(),
           petBreed: breed || 'Unknown',
           petColor: color,
-          petSize: size,
+          petSize: petSizeValue,
           petPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
-          petDescription: distinctiveMarks || `${size} ${color} ${petType}${breed ? ` - ${breed}` : ''}`,
+          petDescription: distinctiveMarks || `${color} ${petType}${breed ? ` - ${breed}` : ''}`,
           ownerName: firstName,
           ownerPhone: phone || 'Not provided',
           ownerEmail: email,
