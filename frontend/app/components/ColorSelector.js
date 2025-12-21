@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Check } from 'lucide-react';
 
-// Simple color options - users select multiple
+// Pet colors - users select multiple
 const COLORS = [
   { name: 'Black', color: '#1a1a1a' },
   { name: 'White', color: '#ffffff', border: true },
@@ -13,10 +13,8 @@ const COLORS = [
   { name: 'Cream', color: '#fef3c7', border: true },
   { name: 'Gray', color: '#6b7280' },
   { name: 'Orange', color: '#ea580c' },
-  { name: 'Red', color: '#b91c1c' },
-  { name: 'Yellow', color: '#eab308' },
-  { name: 'Green', color: '#16a34a' },
-  { name: 'Blue', color: '#2563eb' },
+  { name: 'Chocolate', color: '#5c3317' },
+  { name: 'Silver', color: '#c0c0c0', border: true },
 ];
 
 export default function ColorSelector({ value, onChange }) {
