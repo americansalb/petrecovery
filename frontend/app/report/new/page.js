@@ -797,7 +797,6 @@ export default function ReportLostPet() {
             <ColorSelector
               value={color}
               onChange={setColor}
-              petType={petType}
             />
           </div>
         )}
