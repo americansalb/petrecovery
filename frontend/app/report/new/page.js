@@ -111,12 +111,17 @@ export default function ReportLostPet() {
           setIsGettingLocation(false);
         },
         () => {
+          // Default to US center if geolocation fails
+          setCenter([39.8283, -98.5795]);
+          setLastSeenAddress('United States');
           setIsGettingLocation(false);
-          // Default to a location if geolocation fails
         },
         { timeout: 10000, enableHighAccuracy: true }
       );
     } else {
+      // Default to US center if geolocation not available
+      setCenter([39.8283, -98.5795]);
+      setLastSeenAddress('United States');
       setIsGettingLocation(false);
     }
   }, []);
@@ -783,6 +788,7 @@ export default function ReportLostPet() {
             <ColorSelector
               value={color}
               onChange={setColor}
+              petType={petType}
             />
           </div>
         )}
