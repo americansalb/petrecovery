@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Plus } from 'lucide-react';
 
 // Simple, recognizable colors - no abstract names
 const COLORS = [
@@ -10,34 +10,22 @@ const COLORS = [
   { name: 'Gray', color: '#808080' },
   { name: 'Light Gray', color: '#c0c0c0', border: true },
   { name: 'White', color: '#ffffff', border: true },
-
   { name: 'Dark Brown', color: '#3d2314' },
   { name: 'Brown', color: '#8b4513' },
   { name: 'Light Brown', color: '#a67b5b' },
-
   { name: 'Tan', color: '#d2b48c' },
   { name: 'Beige', color: '#e8dcc8', border: true },
   { name: 'Cream', color: '#fffdd0', border: true },
-
   { name: 'Golden', color: '#daa520' },
-  { name: 'Yellow', color: '#ffd700' },
-
   { name: 'Orange', color: '#ff8c00' },
   { name: 'Red', color: '#b22222' },
   { name: 'Ginger', color: '#b06500' },
 ];
 
-// Common patterns for autocomplete
-const PATTERNS = [
-  'Spotted', 'Striped', 'Tabby', 'Calico', 'Brindle',
-  'Merle', 'Tuxedo', 'Patches', 'Speckled', 'Marbled',
-  'Ticked', 'Roan', 'Sable', 'Points', 'Mask'
-];
-
 export default function ColorSelector({ value, onChange }) {
   const [selectedColors, setSelectedColors] = useState([]);
-  const [patternInput, setPatternInput] = useState('');
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showOther, setShowOther] = useState(false);
+  const [customInput, setCustomInput] = useState('');
 
   useEffect(() => {
     if (value) {
@@ -60,22 +48,17 @@ export default function ColorSelector({ value, onChange }) {
     });
   };
 
-  const addPattern = (pattern) => {
-    const trimmed = pattern.trim();
+  const addCustomColor = () => {
+    const trimmed = customInput.trim();
     if (trimmed && !selectedColors.includes(trimmed)) {
       setSelectedColors(prev => [...prev, trimmed]);
     }
-    setPatternInput('');
-    setShowSuggestions(false);
+    setCustomInput('');
+    setShowOther(false);
   };
 
-  const filteredPatterns = PATTERNS.filter(p =>
-    p.toLowerCase().includes(patternInput.toLowerCase()) &&
-    !selectedColors.includes(p)
-  );
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Selected preview */}
       {selectedColors.length > 0 && (
         <div className="flex flex-wrap gap-2 p-3 bg-green-50 rounded-xl border border-green-200">
@@ -97,86 +80,82 @@ export default function ColorSelector({ value, onChange }) {
         </div>
       )}
 
-      {/* Scrollable color grid */}
-      <div className="max-h-64 overflow-y-auto border border-gray-100 rounded-xl p-2 bg-white">
-        <div className="grid grid-cols-2 gap-2">
-          {COLORS.map(item => {
-            const isSelected = selectedColors.includes(item.name);
-            return (
-              <button
-                key={item.name}
-                type="button"
-                onClick={() => toggleColor(item.name)}
-                className={`flex items-center gap-2 p-2 rounded-lg transition-all w-full ${
-                  isSelected
-                    ? 'bg-green-50 ring-2 ring-green-500'
-                    : 'hover:bg-gray-50'
-                }`}
-              >
-                <div
-                  className={`w-6 h-6 rounded-full flex-shrink-0 ${item.border ? 'ring-1 ring-gray-300' : ''}`}
-                  style={{ backgroundColor: item.color }}
-                />
-                <span className={`text-xs font-medium ${isSelected ? 'text-green-700' : 'text-gray-700'}`}>
-                  {item.name}
-                </span>
-                {isSelected && (
-                  <Check size={14} className="text-green-600 ml-auto" strokeWidth={3} />
-                )}
-              </button>
-            );
-          })}
-        </div>
+      {/* Color grid - full size, no scroll */}
+      <div className="grid grid-cols-2 gap-2">
+        {COLORS.map(item => {
+          const isSelected = selectedColors.includes(item.name);
+          return (
+            <button
+              key={item.name}
+              type="button"
+              onClick={() => toggleColor(item.name)}
+              className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
+                isSelected
+                  ? 'bg-green-50 ring-2 ring-green-500'
+                  : 'bg-white border border-gray-100 hover:bg-gray-50'
+              }`}
+            >
+              <div
+                className={`w-8 h-8 rounded-full flex-shrink-0 ${item.border ? 'ring-1 ring-gray-300' : ''}`}
+                style={{ backgroundColor: item.color }}
+              />
+              <span className={`text-sm font-medium ${isSelected ? 'text-green-700' : 'text-gray-700'}`}>
+                {item.name}
+              </span>
+              {isSelected && (
+                <Check size={16} className="text-green-600 ml-auto" strokeWidth={3} />
+              )}
+            </button>
+          );
+        })}
+
+        {/* Other button */}
+        <button
+          type="button"
+          onClick={() => setShowOther(true)}
+          className="flex items-center gap-3 p-3 rounded-xl bg-white border border-dashed border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all"
+        >
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-300 via-purple-300 to-blue-300 flex items-center justify-center">
+            <Plus size={16} className="text-white" />
+          </div>
+          <span className="text-sm font-medium text-gray-500">Other...</span>
+        </button>
       </div>
 
-      {/* Pattern input with autocomplete */}
-      <div className="relative">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Pattern (optional)</p>
-        <div className="flex gap-2">
+      {/* Custom color input */}
+      {showOther && (
+        <div className="flex gap-2 p-3 bg-gray-50 rounded-xl">
           <input
             type="text"
-            value={patternInput}
-            onChange={(e) => {
-              setPatternInput(e.target.value);
-              setShowSuggestions(true);
-            }}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            value={customInput}
+            onChange={(e) => setCustomInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && patternInput.trim()) {
+              if (e.key === 'Enter' && customInput.trim()) {
                 e.preventDefault();
-                addPattern(patternInput);
+                addCustomColor();
               }
             }}
-            placeholder="e.g. Spotted, Striped, Tabby..."
-            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-green-400 focus:ring-2 focus:ring-green-100 outline-none"
+            placeholder="Type a color..."
+            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-green-400 focus:ring-2 focus:ring-green-100 outline-none bg-white"
+            autoFocus
           />
           <button
             type="button"
-            onClick={() => addPattern(patternInput)}
-            disabled={!patternInput.trim()}
-            className="px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-xl hover:bg-green-600 disabled:bg-gray-200 disabled:text-gray-400 transition-colors"
+            onClick={addCustomColor}
+            disabled={!customInput.trim()}
+            className="px-4 py-2 bg-green-500 text-white text-sm font-semibold rounded-lg hover:bg-green-600 disabled:bg-gray-200 disabled:text-gray-400 transition-colors"
           >
             Add
           </button>
+          <button
+            type="button"
+            onClick={() => setShowOther(false)}
+            className="px-3 py-2 text-gray-500 text-sm hover:text-gray-700"
+          >
+            Cancel
+          </button>
         </div>
-
-        {/* Autocomplete suggestions */}
-        {showSuggestions && filteredPatterns.length > 0 && patternInput && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 overflow-hidden">
-            {filteredPatterns.slice(0, 5).map(pattern => (
-              <button
-                key={pattern}
-                type="button"
-                onMouseDown={() => addPattern(pattern)}
-                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0"
-              >
-                {pattern}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
