@@ -31,12 +31,12 @@ export async function GET(request, { params }) {
       await logEvent({
         event_type: 'case.detail_failed',
         resource_type: 'mission',
-        resource_id: params.id,
+        resource_id: params.missionId,
         action: 'read',
         result: 'failure',
         error_code: 'UNAUTHORIZED',
         error_message: 'Attempted to view case without authentication',
-        metadata: { missionId: params.id }
+        metadata: { missionId: params.missionId }
       });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -51,17 +51,17 @@ export async function GET(request, { params }) {
       await logEvent({
         event_type: 'case.detail_failed',
         resource_type: 'mission',
-        resource_id: params.id,
+        resource_id: params.missionId,
         action: 'read',
         result: 'failure',
         error_code: 'WAIVER_NOT_ACCEPTED',
         error_message: 'User attempted to view case without accepting liability waiver',
         actor_user_id: session.user.id,
         actor_role: session.user.role || 'USER',
-        metadata: { missionId: params.id }
+        metadata: { missionId: params.missionId }
       });
 
-      const encodedReturnUrl = encodeURIComponent('/admin/missions/' + params.id);
+      const encodedReturnUrl = encodeURIComponent('/admin/missions/' + params.missionId);
       return NextResponse.json({
         error: 'Liability waiver required',
         code: 'WAIVER_NOT_ACCEPTED',
@@ -74,14 +74,14 @@ export async function GET(request, { params }) {
     // Using Case model (not the old mission)
     // Support both ID (UUID or CUID) and case number lookup
     // UUID: 8-4-4-4-12 hex with dashes, CUID: starts with 'c', 25 alphanumeric chars
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.id);
-    const isCuid = /^c[a-z0-9]{24}$/i.test(params.id);
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.missionId);
+    const isCuid = /^c[a-z0-9]{24}$/i.test(params.missionId);
     const isId = isUuid || isCuid;
 
     const missionData = await prisma.case.findFirst({
       where: isId
-        ? { id: params.id }
-        : { caseNumber: params.id },
+        ? { id: params.missionId }
+        : { caseNumber: params.missionId },
       include: {
         reporter: {
           select: {
@@ -155,14 +155,14 @@ export async function GET(request, { params }) {
       await logEvent({
         event_type: 'case.detail_failed',
         resource_type: 'mission',
-        resource_id: params.id,
+        resource_id: params.missionId,
         action: 'read',
         result: 'failure',
         error_code: 'NOT_FOUND',
-        error_message: 'Mission not found: ' + params.id,
+        error_message: 'Mission not found: ' + params.missionId,
         actor_user_id: session.user.id,
         actor_role: session.user.role || 'USER',
-        metadata: { missionId: params.id }
+        metadata: { missionId: params.missionId }
       });
 
       return NextResponse.json({
@@ -205,7 +205,7 @@ export async function GET(request, { params }) {
     await logEvent({
       event_type: 'case.detail_failed',
       resource_type: 'mission',
-      resource_id: params.id,
+      resource_id: params.missionId,
       action: 'read',
       result: 'failure',
       error_code: 'INTERNAL_ERROR',
@@ -213,7 +213,7 @@ export async function GET(request, { params }) {
       actor_user_id: session?.user?.id || null,
       actor_role: session?.user?.role || 'USER',
       metadata: {
-        missionId: params.id,
+        missionId: params.missionId,
         error_stack: error.stack?.substring(0, 500)
       }
     });
@@ -243,7 +243,7 @@ export async function DELETE(request, { params }) {
       await logEvent({
         event_type: 'case.delete_failed',
         resource_type: 'mission',
-        resource_id: params.id,
+        resource_id: params.missionId,
         action: 'delete',
         result: 'failure',
         error_code: 'FORBIDDEN',
@@ -256,7 +256,7 @@ export async function DELETE(request, { params }) {
 
     // Check if case exists and get associated pet
     const existingCase = await prisma.case.findUnique({
-      where: { id: params.id },
+      where: { id: params.missionId },
       select: { id: true, caseNumber: true, petName: true, petId: true }
     });
 
@@ -268,32 +268,32 @@ export async function DELETE(request, { params }) {
     await prisma.$transaction(async (tx) => {
       // Delete case participants
       await tx.caseParticipant.deleteMany({
-        where: { assignment: { missionId: params.id } }
+        where: { assignment: { missionId: params.missionId } }
       });
 
       // Delete case assignments
       await tx.caseAssignment.deleteMany({
-        where: { missionId: params.id }
+        where: { missionId: params.missionId }
       });
 
       // Delete case updates
       await tx.caseUpdate.deleteMany({
-        where: { missionId: params.id }
+        where: { missionId: params.missionId }
       });
 
       // Delete sightings
       await tx.caseSighting.deleteMany({
-        where: { missionId: params.id }
+        where: { missionId: params.missionId }
       });
 
       // Delete alerts
       await tx.alert.deleteMany({
-        where: { missionId: params.id }
+        where: { missionId: params.missionId }
       });
 
       // Finally delete the case
       await tx.case.delete({
-        where: { id: params.id }
+        where: { id: params.missionId }
       });
 
       // Soft-delete associated pet if it has no other active cases
@@ -301,7 +301,7 @@ export async function DELETE(request, { params }) {
         const otherActiveCases = await tx.case.count({
           where: {
             petId: existingCase.petId,
-            id: { not: params.id },
+            id: { not: params.missionId },
             status: { in: ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'] }
           }
         });
@@ -321,7 +321,7 @@ export async function DELETE(request, { params }) {
     await logEvent({
       event_type: 'case.deleted',
       resource_type: 'mission',
-      resource_id: params.id,
+      resource_id: params.missionId,
       action: 'delete',
       result: 'success',
       actor_user_id: session.user.id,
@@ -340,7 +340,7 @@ export async function DELETE(request, { params }) {
     await logEvent({
       event_type: 'case.delete_failed',
       resource_type: 'mission',
-      resource_id: params.id,
+      resource_id: params.missionId,
       action: 'delete',
       result: 'failure',
       error_code: 'INTERNAL_ERROR',
