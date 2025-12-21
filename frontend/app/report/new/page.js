@@ -697,22 +697,33 @@ export default function ReportLostPet() {
 
         {/* Step 3: Pet Name */}
         {step === 3 && (
-          <div className="flex-1 px-6 py-4 flex flex-col">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center mb-3 shadow-lg shadow-pink-200">
-              <span className="text-2xl">{PET_TYPES.find(p => p.type === petType)?.emoji || '🐾'}</span>
+          <div className="flex-1 px-6 py-4 flex flex-col overflow-y-auto">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center shadow-lg shadow-pink-200 flex-shrink-0">
+                <span className="text-xl">{PET_TYPES.find(p => p.type === petType)?.emoji || '🐾'}</span>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">What's their name?</h1>
+                <p className="text-sm text-gray-500">This helps identify your pet</p>
+              </div>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">What's their name?</h1>
-            <p className="text-gray-500 mb-8">This helps people identify your pet</p>
 
             <input
               type="text"
               value={petName}
               onChange={(e) => setPetName(e.target.value)}
+              onFocus={(e) => {
+                // Scroll input into view on mobile when keyboard opens
+                setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+              }}
               placeholder="Enter name..."
-              className="w-full text-3xl font-medium py-4 border-b-2 border-gray-200 focus:border-pink-400 outline-none bg-transparent placeholder:text-gray-300 transition-colors"
+              className="w-full text-2xl font-medium py-4 border-b-2 border-gray-200 focus:border-pink-400 outline-none bg-transparent placeholder:text-gray-300 transition-colors"
               autoFocus
             />
             <p className="text-sm text-gray-400 mt-2">e.g., Max, Bella, Charlie</p>
+
+            {/* Spacer for keyboard */}
+            <div className="flex-1 min-h-[200px]" />
           </div>
         )}
 
