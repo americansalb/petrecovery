@@ -134,26 +134,33 @@ export default function ReportLostPet() {
       return;
     }
 
-    // Small delay to ensure container has dimensions
+    // Initialize map with proper CSS loading
     const initMap = async () => {
-      // Load Leaflet CSS if not already loaded
+      // Load Leaflet CSS if not already loaded - wait for it properly
       if (!document.getElementById('leaflet-css')) {
-        const leafletCSS = document.createElement('link');
-        leafletCSS.id = 'leaflet-css';
-        leafletCSS.rel = 'stylesheet';
-        leafletCSS.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-        document.head.appendChild(leafletCSS);
+        await new Promise((resolve) => {
+          const leafletCSS = document.createElement('link');
+          leafletCSS.id = 'leaflet-css';
+          leafletCSS.rel = 'stylesheet';
+          leafletCSS.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+          leafletCSS.onload = resolve;
+          leafletCSS.onerror = resolve; // Continue even if CSS fails
+          document.head.appendChild(leafletCSS);
+        });
       }
 
       const L = (await import('leaflet')).default;
 
-      // Check container has dimensions
+      // Check container exists and has dimensions
       const container = mapRef.current;
-      if (!container || container.offsetHeight === 0) {
-        // Retry after a short delay
-        setTimeout(initMap, 100);
+      if (!container || container.offsetHeight === 0 || container.offsetWidth === 0) {
+        // Retry up to 10 times with increasing delay
+        setTimeout(initMap, 150);
         return;
       }
+
+      // Double-check map wasn't already initialized while waiting
+      if (mapInstanceRef.current) return;
 
       const map = L.map(container, { zoomControl: false }).setView(center, 17);
       mapInstanceRef.current = map;
@@ -204,10 +211,12 @@ export default function ReportLostPet() {
         setCityName(result.city);
       });
 
-      // Force map to recalculate size after render
-      setTimeout(() => {
+      // Force map to recalculate size multiple times to ensure tiles load
+      map.whenReady(() => {
         map.invalidateSize();
-      }, 100);
+      });
+      setTimeout(() => map.invalidateSize(), 100);
+      setTimeout(() => map.invalidateSize(), 300);
     };
 
     initMap();
