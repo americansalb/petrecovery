@@ -212,11 +212,7 @@ export default function ReportLostPet() {
 
     initMap();
 
-    // Also try again after a short delay in case DOM isn't ready
-    const retryTimeout = setTimeout(initMap, 200);
-
     return () => {
-      clearTimeout(retryTimeout);
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
