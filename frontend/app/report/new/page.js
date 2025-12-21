@@ -140,6 +140,15 @@ export default function ReportLostPet() {
 
     // Small delay to ensure container has dimensions
     const initMap = async () => {
+      // Load Leaflet CSS if not already loaded
+      if (!document.getElementById('leaflet-css')) {
+        const leafletCSS = document.createElement('link');
+        leafletCSS.id = 'leaflet-css';
+        leafletCSS.rel = 'stylesheet';
+        leafletCSS.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(leafletCSS);
+      }
+
       const L = (await import('leaflet')).default;
 
       // Check container has dimensions
