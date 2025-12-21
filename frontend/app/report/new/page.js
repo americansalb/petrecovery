@@ -124,7 +124,11 @@ export default function ReportLostPet() {
 
   // Initialize map
   useEffect(() => {
-    if (typeof window === 'undefined' || !mapRef.current || !center || step !== 1) return;
+    console.log('[Map] useEffect triggered - step:', step, 'center:', center, 'mapRef:', mapRef.current);
+    if (typeof window === 'undefined' || !mapRef.current || !center || step !== 1) {
+      console.log('[Map] Early exit - window:', typeof window, 'mapRef:', !!mapRef.current, 'center:', !!center, 'step:', step);
+      return;
+    }
 
     // If map already exists, just update view
     if (mapInstanceRef.current) {
