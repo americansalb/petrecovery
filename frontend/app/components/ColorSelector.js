@@ -1,63 +1,87 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Check, Pipette } from 'lucide-react';
+import { Check } from 'lucide-react';
 
-// Pet colors with hex values for matching
+// Comprehensive pet colors - scroll to find exact match
 const COLORS = [
-  { name: 'Black', color: '#1a1a1a', rgb: [26, 26, 26] },
-  { name: 'White', color: '#ffffff', border: true, rgb: [255, 255, 255] },
-  { name: 'Brown', color: '#78350f', rgb: [120, 53, 15] },
-  { name: 'Tan', color: '#d4a574', rgb: [212, 165, 116] },
-  { name: 'Golden', color: '#ca8a04', rgb: [202, 138, 4] },
-  { name: 'Cream', color: '#fef3c7', border: true, rgb: [254, 243, 199] },
-  { name: 'Gray', color: '#6b7280', rgb: [107, 114, 128] },
-  { name: 'Orange', color: '#ea580c', rgb: [234, 88, 12] },
-  { name: 'Chocolate', color: '#5c3317', rgb: [92, 51, 23] },
-  { name: 'Silver', color: '#c0c0c0', border: true, rgb: [192, 192, 192] },
+  // Blacks
+  { name: 'Black', color: '#0a0a0a' },
+  { name: 'Jet Black', color: '#1a1a1a' },
+  { name: 'Charcoal', color: '#36454f' },
+
+  // Whites
+  { name: 'White', color: '#ffffff', border: true },
+  { name: 'Off-White', color: '#faf9f6', border: true },
+  { name: 'Ivory', color: '#fffff0', border: true },
+
+  // Grays
+  { name: 'Light Gray', color: '#d3d3d3', border: true },
+  { name: 'Gray', color: '#808080' },
+  { name: 'Dark Gray', color: '#505050' },
+  { name: 'Silver', color: '#c0c0c0', border: true },
+  { name: 'Slate', color: '#708090' },
+  { name: 'Blue Gray', color: '#6699cc' },
+
+  // Browns
+  { name: 'Light Brown', color: '#a67b5b' },
+  { name: 'Brown', color: '#8b4513' },
+  { name: 'Dark Brown', color: '#5c4033' },
+  { name: 'Chocolate', color: '#3d2314' },
+  { name: 'Chestnut', color: '#954535' },
+  { name: 'Mahogany', color: '#4a0000' },
+  { name: 'Liver', color: '#674c47' },
+  { name: 'Seal', color: '#321414' },
+
+  // Tans & Beiges
+  { name: 'Tan', color: '#d2b48c' },
+  { name: 'Light Tan', color: '#e6d5b8' },
+  { name: 'Dark Tan', color: '#9a7b4f' },
+  { name: 'Beige', color: '#f5f5dc', border: true },
+  { name: 'Fawn', color: '#e5aa70' },
+  { name: 'Sand', color: '#c2b280' },
+  { name: 'Buff', color: '#f0dc82' },
+  { name: 'Wheaten', color: '#f5deb3' },
+
+  // Creams & Yellows
+  { name: 'Cream', color: '#fffdd0', border: true },
+  { name: 'Champagne', color: '#f7e7ce', border: true },
+  { name: 'Apricot', color: '#fbceb1' },
+  { name: 'Honey', color: '#eb9605' },
+  { name: 'Yellow', color: '#ffd700' },
+  { name: 'Lemon', color: '#fff44f' },
+
+  // Golds
+  { name: 'Golden', color: '#daa520' },
+  { name: 'Light Golden', color: '#eee8aa' },
+  { name: 'Dark Golden', color: '#b8860b' },
+  { name: 'Copper', color: '#b87333' },
+  { name: 'Bronze', color: '#cd7f32' },
+
+  // Oranges & Reds
+  { name: 'Orange', color: '#ff8c00' },
+  { name: 'Light Orange', color: '#ffb347' },
+  { name: 'Dark Orange', color: '#cc5500' },
+  { name: 'Red', color: '#b22222' },
+  { name: 'Rust', color: '#b7410e' },
+  { name: 'Ginger', color: '#b06500' },
+  { name: 'Auburn', color: '#a52a2a' },
+  { name: 'Cinnamon', color: '#d2691e' },
+  { name: 'Sorrel', color: '#c04000' },
+
+  // Rare/Special
+  { name: 'Lilac', color: '#c8a2c8' },
+  { name: 'Blue', color: '#6a8faf' },
+  { name: 'Lavender', color: '#b4a7d6' },
+  { name: 'Pink', color: '#ffc0cb' },
 ];
 
 // Common patterns for autocomplete
 const PATTERNS = [
   'Spotted', 'Striped', 'Tabby', 'Calico', 'Brindle',
-  'Merle', 'Tuxedo', 'Patches', 'Speckled', 'Marbled'
+  'Merle', 'Tuxedo', 'Patches', 'Speckled', 'Marbled',
+  'Ticked', 'Roan', 'Sable', 'Points', 'Mask'
 ];
-
-// Find closest color name from hex
-function hexToRgb(hex) {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? [
-    parseInt(result[1], 16),
-    parseInt(result[2], 16),
-    parseInt(result[3], 16)
-  ] : null;
-}
-
-function colorDistance(rgb1, rgb2) {
-  return Math.sqrt(
-    Math.pow(rgb1[0] - rgb2[0], 2) +
-    Math.pow(rgb1[1] - rgb2[1], 2) +
-    Math.pow(rgb1[2] - rgb2[2], 2)
-  );
-}
-
-function findClosestColor(hex) {
-  const rgb = hexToRgb(hex);
-  if (!rgb) return null;
-
-  let closest = COLORS[0];
-  let minDistance = Infinity;
-
-  for (const color of COLORS) {
-    const dist = colorDistance(rgb, color.rgb);
-    if (dist < minDistance) {
-      minDistance = dist;
-      closest = color;
-    }
-  }
-
-  return closest.name;
-}
 
 export default function ColorSelector({ value, onChange }) {
   const [selectedColors, setSelectedColors] = useState([]);
@@ -94,14 +118,6 @@ export default function ColorSelector({ value, onChange }) {
     setShowSuggestions(false);
   };
 
-  const handleColorPick = (e) => {
-    const hex = e.target.value;
-    const colorName = findClosestColor(hex);
-    if (colorName && !selectedColors.includes(colorName)) {
-      setSelectedColors(prev => [...prev, colorName]);
-    }
-  };
-
   const filteredPatterns = PATTERNS.filter(p =>
     p.toLowerCase().includes(patternInput.toLowerCase()) &&
     !selectedColors.includes(p)
@@ -130,52 +146,36 @@ export default function ColorSelector({ value, onChange }) {
         </div>
       )}
 
-      {/* Colors grid */}
-      <div className="grid grid-cols-2 gap-2">
-        {COLORS.map(item => {
-          const isSelected = selectedColors.includes(item.name);
-          return (
-            <button
-              key={item.name}
-              type="button"
-              onClick={() => toggleColor(item.name)}
-              className={`flex items-center gap-3 p-2 rounded-xl transition-all w-full ${
-                isSelected
-                  ? 'bg-green-50 ring-2 ring-green-500'
-                  : 'bg-white hover:bg-gray-50 border border-gray-100'
-              }`}
-            >
-              <div
-                className={`w-8 h-8 rounded-full flex-shrink-0 ${item.border ? 'ring-1 ring-gray-300' : ''}`}
-                style={{ backgroundColor: item.color }}
-              />
-              <span className={`text-sm font-medium ${isSelected ? 'text-green-700' : 'text-gray-700'}`}>
-                {item.name}
-              </span>
-              {isSelected && (
-                <Check size={16} className="text-green-600 ml-auto" strokeWidth={3} />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Color picker */}
-      <div className="flex items-center gap-3 p-3 bg-white border border-gray-100 rounded-xl">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <div className="relative">
-            <input
-              type="color"
-              onChange={handleColorPick}
-              className="w-10 h-10 rounded-full cursor-pointer border-0 p-0"
-              style={{ WebkitAppearance: 'none' }}
-            />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-700">Pick from color wheel</p>
-            <p className="text-xs text-gray-400">We'll match it to the closest color</p>
-          </div>
-        </label>
+      {/* Scrollable color grid */}
+      <div className="max-h-64 overflow-y-auto border border-gray-100 rounded-xl p-2 bg-white">
+        <div className="grid grid-cols-2 gap-2">
+          {COLORS.map(item => {
+            const isSelected = selectedColors.includes(item.name);
+            return (
+              <button
+                key={item.name}
+                type="button"
+                onClick={() => toggleColor(item.name)}
+                className={`flex items-center gap-2 p-2 rounded-lg transition-all w-full ${
+                  isSelected
+                    ? 'bg-green-50 ring-2 ring-green-500'
+                    : 'hover:bg-gray-50'
+                }`}
+              >
+                <div
+                  className={`w-6 h-6 rounded-full flex-shrink-0 ${item.border ? 'ring-1 ring-gray-300' : ''}`}
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className={`text-xs font-medium ${isSelected ? 'text-green-700' : 'text-gray-700'}`}>
+                  {item.name}
+                </span>
+                {isSelected && (
+                  <Check size={14} className="text-green-600 ml-auto" strokeWidth={3} />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Pattern input with autocomplete */}
