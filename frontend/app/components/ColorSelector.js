@@ -10,16 +10,24 @@ const DOG_COLORS = [
   { name: 'Brown', color: '#78350f' },
   { name: 'Tan', color: '#d4a574' },
   { name: 'Golden', color: '#ca8a04' },
-  { name: 'Gray', color: '#6b7280' },
   { name: 'Cream', color: '#fef3c7', border: true },
+  { name: 'Gray', color: '#6b7280' },
   { name: 'Red', color: '#b91c1c' },
+  { name: 'Fawn', color: '#d2b48c' },
+  { name: 'Chocolate', color: '#5c3317' },
+  { name: 'Liver', color: '#6b3e26' },
+  { name: 'Blue', color: '#64748b' },
 ];
 
 const DOG_PATTERNS = [
   { name: 'Brindle', colors: ['#78350f', '#1a1a1a'] },
   { name: 'Spotted', colors: ['#ffffff', '#1a1a1a'], border: true },
   { name: 'Merle', colors: ['#c0c0c0', '#1a1a1a'] },
-  { name: 'Mixed', colors: ['#78350f', '#d4a574', '#1a1a1a'] },
+  { name: 'Bi-color', colors: ['#1a1a1a', '#d4a574'] },
+  { name: 'Tri-color', colors: ['#1a1a1a', '#78350f', '#ffffff'], border: true },
+  { name: 'Sable', colors: ['#d4a574', '#1a1a1a'] },
+  { name: 'Ticked', colors: ['#ffffff', '#78350f'], border: true },
+  { name: 'Parti', colors: ['#ffffff', '#ca8a04'], border: true },
 ];
 
 const CAT_COLORS = [
@@ -27,17 +35,25 @@ const CAT_COLORS = [
   { name: 'White', color: '#ffffff', border: true },
   { name: 'Orange', color: '#ea580c' },
   { name: 'Gray', color: '#6b7280' },
-  { name: 'Brown', color: '#78350f' },
+  { name: 'Blue', color: '#64748b' },
   { name: 'Cream', color: '#fef3c7', border: true },
-  { name: 'Silver', color: '#c0c0c0', border: true },
-  { name: 'Ginger', color: '#c2410c' },
+  { name: 'Brown', color: '#78350f' },
+  { name: 'Chocolate', color: '#5c3317' },
+  { name: 'Cinnamon', color: '#a0522d' },
+  { name: 'Fawn', color: '#d2b48c' },
+  { name: 'Lilac', color: '#c4b7cb' },
+  { name: 'Red', color: '#c2410c' },
 ];
 
 const CAT_PATTERNS = [
   { name: 'Tabby', colors: ['#d4a574', '#78350f'] },
   { name: 'Calico', colors: ['#ea580c', '#1a1a1a', '#ffffff'], border: true },
-  { name: 'Tortie', colors: ['#ea580c', '#1a1a1a', '#78350f'] },
+  { name: 'Tortoiseshell', colors: ['#ea580c', '#1a1a1a'] },
   { name: 'Tuxedo', colors: ['#1a1a1a', '#ffffff'], border: true },
+  { name: 'Bi-color', colors: ['#ffffff', '#6b7280'], border: true },
+  { name: 'Pointed', colors: ['#fef3c7', '#5c3317'] },
+  { name: 'Smoke', colors: ['#1a1a1a', '#c0c0c0'] },
+  { name: 'Van', colors: ['#ffffff', '#ea580c'], border: true },
 ];
 
 const BIRD_COLORS = [
@@ -45,16 +61,25 @@ const BIRD_COLORS = [
   { name: 'Blue', color: '#2563eb' },
   { name: 'Yellow', color: '#eab308' },
   { name: 'Red', color: '#dc2626' },
+  { name: 'Orange', color: '#ea580c' },
   { name: 'White', color: '#ffffff', border: true },
   { name: 'Gray', color: '#6b7280' },
-  { name: 'Orange', color: '#ea580c' },
+  { name: 'Black', color: '#1a1a1a' },
   { name: 'Purple', color: '#7c3aed' },
+  { name: 'Pink', color: '#ec4899' },
+  { name: 'Turquoise', color: '#06b6d4' },
+  { name: 'Brown', color: '#78350f' },
 ];
 
 const BIRD_PATTERNS = [
-  { name: 'Multi-Color', colors: ['#16a34a', '#eab308', '#2563eb'] },
+  { name: 'Solid', colors: ['#16a34a'] },
   { name: 'Pied', colors: ['#16a34a', '#ffffff'], border: true },
   { name: 'Lutino', colors: ['#fef9c3', '#eab308'] },
+  { name: 'Albino', colors: ['#ffffff'], border: true },
+  { name: 'Pearl', colors: ['#e5e7eb', '#6b7280'] },
+  { name: 'Cinnamon', colors: ['#d4a574', '#a0522d'] },
+  { name: 'Opaline', colors: ['#2563eb', '#eab308'] },
+  { name: 'Spangle', colors: ['#eab308', '#1a1a1a'] },
 ];
 
 const OTHER_COLORS = [
@@ -66,11 +91,19 @@ const OTHER_COLORS = [
   { name: 'Orange', color: '#ea580c' },
   { name: 'Cream', color: '#fef3c7', border: true },
   { name: 'Golden', color: '#ca8a04' },
+  { name: 'Red', color: '#b91c1c' },
+  { name: 'Blue', color: '#2563eb' },
+  { name: 'Green', color: '#16a34a' },
+  { name: 'Yellow', color: '#eab308' },
 ];
 
 const OTHER_PATTERNS = [
+  { name: 'Solid', colors: ['#78350f'] },
   { name: 'Spotted', colors: ['#ffffff', '#1a1a1a'], border: true },
-  { name: 'Mixed', colors: ['#78350f', '#ffffff', '#1a1a1a'] },
+  { name: 'Striped', colors: ['#d4a574', '#78350f'] },
+  { name: 'Bi-color', colors: ['#1a1a1a', '#ffffff'], border: true },
+  { name: 'Agouti', colors: ['#d4a574', '#78350f', '#1a1a1a'] },
+  { name: 'Marked', colors: ['#ffffff', '#1a1a1a', '#78350f'], border: true },
 ];
 
 export default function ColorSelector({ value, onChange, petType = 'dog' }) {
