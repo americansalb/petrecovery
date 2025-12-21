@@ -483,6 +483,8 @@ export default function ReportLostPet() {
 
   return (
     <div className="h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50 flex flex-col overflow-hidden">
+      {/* Centered container for desktop */}
+      <div className="flex-1 flex flex-col max-w-lg mx-auto w-full min-h-0">
       {/* Header */}
       <header className="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
         <button
@@ -976,6 +978,7 @@ export default function ReportLostPet() {
       <style jsx global>{`
         .custom-marker { background: transparent; border: none; }
       `}</style>
+      </div>
     </div>
   );
 }
