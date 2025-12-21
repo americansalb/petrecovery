@@ -75,6 +75,7 @@ const OTHER_PATTERNS = [
 
 export default function ColorSelector({ value, onChange, petType = 'dog' }) {
   const [selectedColors, setSelectedColors] = useState([]);
+  const [customColor, setCustomColor] = useState('');
 
   const getColorsForPetType = () => {
     const type = petType?.toLowerCase() || 'dog';
@@ -111,6 +112,14 @@ export default function ColorSelector({ value, onChange, petType = 'dog' }) {
         return [...prev, colorName];
       }
     });
+  };
+
+  const addCustomColor = () => {
+    const trimmed = customColor.trim();
+    if (trimmed && !selectedColors.includes(trimmed)) {
+      setSelectedColors(prev => [...prev, trimmed]);
+      setCustomColor('');
+    }
   };
 
   const SolidSwatch = ({ item }) => {
@@ -175,9 +184,20 @@ export default function ColorSelector({ value, onChange, petType = 'dog' }) {
       {/* Selected preview */}
       {selectedColors.length > 0 && (
         <div className="flex flex-wrap gap-2 p-3 bg-green-50 rounded-xl border border-green-200">
-          <span className="text-sm text-green-700 font-medium">Selected:</span>
           {selectedColors.map(color => (
-            <span key={color} className="text-sm text-green-800">{color}</span>
+            <span
+              key={color}
+              className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-lg text-sm text-green-800 border border-green-200"
+            >
+              {color}
+              <button
+                type="button"
+                onClick={() => toggleColor(color)}
+                className="text-green-400 hover:text-red-500 font-bold"
+              >
+                ×
+              </button>
+            </span>
           ))}
         </div>
       )}
@@ -203,6 +223,29 @@ export default function ColorSelector({ value, onChange, petType = 'dog' }) {
           </div>
         </div>
       )}
+
+      {/* Custom color input */}
+      <div>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Other</p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={customColor}
+            onChange={(e) => setCustomColor(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addCustomColor()}
+            placeholder="Type a color (e.g. Light grey with spots)"
+            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-green-400 focus:ring-2 focus:ring-green-100 outline-none"
+          />
+          <button
+            type="button"
+            onClick={addCustomColor}
+            disabled={!customColor.trim()}
+            className="px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-xl hover:bg-green-600 disabled:bg-gray-200 disabled:text-gray-400 transition-colors"
+          >
+            Add
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
