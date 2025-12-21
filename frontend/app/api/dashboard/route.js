@@ -20,7 +20,15 @@ export async function GET(request) {
             status: 'ACTIVE',
             reportType: 'LOST' // Only fetch LOST reports for Owner View
           },
-          include: {
+          select: {
+            id: true,
+            caseNumber: true,
+            petName: true,
+            petSpecies: true,
+            petPhotoUrl: true,
+            lastSeenAt: true,
+            lastSeenAddress: true,
+            status: true,
             pet: true,
           }
         },
@@ -177,6 +185,7 @@ export async function GET(request) {
     }
 
     // Build missions from owned cases
+    console.log('📊 Dashboard: User cases:', user.cases.map(c => ({ id: c.id, caseNumber: c.caseNumber, petName: c.petName })));
     const missions = user.cases.map(caseItem => {
       const hoursMissing = caseItem.lastSeenAt
         ? Math.floor((Date.now() - new Date(caseItem.lastSeenAt).getTime()) / 3600000)

@@ -89,8 +89,9 @@ export default function SARMapView({
     baseLayersRef.current[mapLayer].addTo(mapInstance.current);
 
     // Track user location
+    let watchId = null;
     if ('geolocation' in navigator) {
-      const watchId = navigator.geolocation.watchPosition(
+      watchId = navigator.geolocation.watchPosition(
         (pos) => {
           const loc = [pos.coords.latitude, pos.coords.longitude];
           setUserLocation(loc);
@@ -98,10 +99,13 @@ export default function SARMapView({
         () => {},
         { enableHighAccuracy: true, maximumAge: 10000 }
       );
-      return () => navigator.geolocation.clearWatch(watchId);
     }
 
+    // Cleanup both geolocation watcher AND map on unmount
     return () => {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
       if (mapInstance.current) {
         mapInstance.current.remove();
         mapInstance.current = null;
@@ -109,12 +113,9 @@ export default function SARMapView({
     };
   }, []);
 
-  // Update map center when it changes
-  useEffect(() => {
-    if (mapInstance.current && center) {
-      mapInstance.current.setView(center, 15);
-    }
-  }, [center]);
+  // Note: We intentionally don't auto-pan on center changes during GPS tracking
+  // This was causing constant zooming/panning. Users can manually pan the map.
+  // Initial center is set during map initialization above.
 
   // Handle layer switching
   useEffect(() => {
@@ -433,29 +434,14 @@ export default function SARMapView({
         .addTo(mapInstance.current);
       gpsLayersRef.current.push(endMarker);
 
-      // Fit bounds to show entire GPS path
-      mapInstance.current.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+      // Note: We don't fitBounds here to avoid constant zooming during active tracking
+      // Users can manually pan/zoom. The map stays centered on last seen location.
     }
 
-    // Add search coverage heatmap
+    // Note: We removed the individual coverage circles (heatmap) as they were visually cluttered.
+    // The purple corridor already shows the search coverage area effectively.
     heatmapLayersRef.current.forEach(layer => layer.remove());
     heatmapLayersRef.current = [];
-
-    if (showHeatmap && gpsPath && gpsPath.length > 0) {
-      // Create coverage circles for each GPS point
-      gpsPath.forEach((point, index) => {
-        // Create a circle representing search coverage at this point
-        // Coverage radius: 100 feet (~30 meters) - typical search visibility
-        const coverageCircle = L.circle([point.lat, point.lng], {
-          radius: 30, // 30 meters
-          fillColor: '#3b82f6', // Blue
-          fillOpacity: 0.1,
-          stroke: false,
-          interactive: false
-        }).addTo(mapInstance.current);
-        heatmapLayersRef.current.push(coverageCircle);
-      });
-    }
 
   }, [lastSeen, sightings, petSpecies, hoursElapsed, gpsPath, showHeatmap]);
 
@@ -482,21 +468,6 @@ export default function SARMapView({
               </>
             )}
           </button>
-
-          {/* Heatmap Toggle Button - Only show if there's GPS data */}
-          {gpsPath && gpsPath.length > 0 && (
-            <button
-              onClick={() => setShowHeatmap(!showHeatmap)}
-              className={`backdrop-blur border rounded-xl px-4 py-2.5 font-semibold text-sm transition flex items-center gap-2 shadow-lg ${
-                showHeatmap
-                  ? 'bg-blue-600/90 border-blue-500 text-white hover:bg-blue-700'
-                  : 'bg-slate-900/90 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <span>{showHeatmap ? '🔵' : '⚫'}</span>
-              <span>Coverage {showHeatmap ? 'ON' : 'OFF'}</span>
-            </button>
-          )}
         </div>
       )}
 

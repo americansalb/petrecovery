@@ -79,7 +79,7 @@ export function searchCityOrZip(input) {
  * @returns {Array} - Array of city records
  */
 export function getCitySuggestions(query, limit = 10) {
-  if (!query || query.trim().length < 2) return [];
+  if (!query || query.trim().length < 3) return [];
 
   const results = searchCityOrZip(query);
   return results.slice(0, limit);

@@ -195,6 +195,67 @@ async function appleMapsFetch(endpoint, params = {}) {
 }
 
 /**
+ * Detect language based on coordinates for all of North America
+ * Spanish: Mexico, Central America (except Belize), Cuba, DR, PR
+ * French: Quebec, Haiti, Martinique, Guadeloupe
+ * English: USA, Canada (except Quebec), Belize, Jamaica, Bahamas, etc.
+ */
+function detectLanguage(lat, lng) {
+  // Central America (Spanish-speaking) - lat 7-18, lng -93 to -77
+  // Excludes Belize (English) which is lng < -87.5, lat > 15.5
+  if (lat > 7 && lat < 18 && lng > -93 && lng < -77) {
+    // Check if it's Belize (English-speaking)
+    if (lat > 15.5 && lng < -87.5 && lng > -90) {
+      return 'en-US'; // Belize speaks English
+    }
+    return 'es-MX'; // Guatemala, Honduras, El Salvador, Nicaragua, Costa Rica, Panama
+  }
+
+  // Mexico: roughly south of US border (lat < 32) and within Mexico's longitude range
+  if (lat < 32 && lat > 14 && lng > -118 && lng < -86) {
+    return 'es-MX';
+  }
+
+  // Cuba: lat 19.5-23.5, lng -85 to -74
+  if (lat > 19.5 && lat < 23.5 && lng > -85 && lng < -74) {
+    return 'es-MX';
+  }
+
+  // Dominican Republic: lat 17.5-20, lng -72 to -68
+  if (lat > 17.5 && lat < 20 && lng > -72 && lng < -68) {
+    return 'es-MX';
+  }
+
+  // Haiti (French-speaking): lat 18-20, lng -74.5 to -71.5
+  if (lat > 18 && lat < 20 && lng > -74.5 && lng < -71.5) {
+    return 'fr-CA';
+  }
+
+  // Puerto Rico: roughly lat 17.9-18.5, lng -67.3 to -65.2
+  if (lat > 17.5 && lat < 18.6 && lng > -68 && lng < -65) {
+    return 'es-PR';
+  }
+
+  // French Caribbean - Martinique & Guadeloupe: lat 14-17, lng -62 to -60
+  if (lat > 14 && lat < 17 && lng > -62 && lng < -60) {
+    return 'fr-CA';
+  }
+
+  // Quebec: roughly lat 45-62, lng -80 to -57
+  if (lat > 45 && lat < 62 && lng > -80 && lng < -57) {
+    return 'fr-CA';
+  }
+
+  // Colombia (Spanish): lat -4 to 13, lng -79 to -67
+  if (lat > -4 && lat < 13 && lng > -79 && lng < -67) {
+    return 'es-MX'; // Use Spanish
+  }
+
+  // Default to English (USA, English Canada, Jamaica, Bahamas, etc.)
+  return 'en-US';
+}
+
+/**
  * Search for places near a location
  *
  * @param {string} query - Search query (e.g., "animal shelter", "veterinary")
@@ -203,11 +264,26 @@ async function appleMapsFetch(endpoint, params = {}) {
  * @param {Object} options - Additional options
  * @returns {Promise<Array>} Array of place results
  */
+// All supported country codes for Apple Maps search
+const SUPPORTED_COUNTRIES = [
+  'US', 'CA', 'MX', // North America
+  'GT', 'BZ', 'HN', 'SV', 'NI', 'CR', 'PA', // Central America
+  'CU', 'JM', 'HT', 'DO', 'BS', 'TT', 'BB', // Caribbean
+  'AG', 'DM', 'GD', 'KN', 'LC', 'VC', // Lesser Antilles
+  'AI', 'AW', 'BM', 'KY', 'TC', 'VG', 'VI', // Territories
+  'GP', 'MQ', 'CW', 'GL', // French/Dutch territories, Greenland
+  'CO' // South America
+].join(',');
+
 export async function searchPlaces(query, lat, lng, options = {}) {
   const {
     limit = 25,
-    lang = 'en-US',
+    lang = null, // Auto-detect if not specified
+    countries = SUPPORTED_COUNTRIES, // All supported countries
   } = options;
+
+  // Auto-detect language based on location
+  const searchLang = lang || detectLanguage(lat, lng);
 
   try {
     // Try requesting additional data with various undocumented parameters
@@ -215,8 +291,8 @@ export async function searchPlaces(query, lat, lng, options = {}) {
       q: query,
       searchLocation: `${lat},${lng}`,
       resultTypeFilter: 'Poi', // Points of Interest only
-      lang,
-      limitToCountries: 'US',
+      lang: searchLang,
+      limitToCountries: countries,
       // Try undocumented parameters that might return hours
       includeAddressDetails: true,
       includePoiDetails: true,
@@ -256,21 +332,39 @@ export async function searchPlaces(query, lat, lng, options = {}) {
 }
 
 /**
+ * Get localized search terms based on language
+ */
+function getLocalizedShelterTerms(lang) {
+  const terms = {
+    // English terms (US, English Canada)
+    'en-US': ['animal shelter', 'pet shelter', 'animal rescue', 'humane society', 'SPCA'],
+    'en-CA': ['animal shelter', 'pet shelter', 'animal rescue', 'humane society', 'SPCA'],
+    // Spanish terms (Mexico, Puerto Rico)
+    'es-MX': ['refugio de animales', 'albergue animal', 'rescate animal', 'protectora de animales', 'antirrábico'],
+    'es-PR': ['refugio de animales', 'albergue animal', 'rescate animal', 'humane society', 'SPCA'],
+    // French terms (Quebec)
+    'fr-CA': ['refuge animalier', 'refuge pour animaux', 'SPA', 'société protectrice des animaux', 'SPCA'],
+  };
+  return terms[lang] || terms['en-US'];
+}
+
+/**
  * Search specifically for animal shelters
  */
 export async function searchShelters(lat, lng, options = {}) {
-  // Try multiple search terms to get better results
-  const searchTerms = [
-    'animal shelter',
-    'pet shelter',
-    'animal rescue',
-    'humane society',
-  ];
+  // Detect language and get localized search terms
+  const lang = options.lang || detectLanguage(lat, lng);
+  const searchTerms = getLocalizedShelterTerms(lang);
+
+  // Also include English terms as fallback (many places indexed in English)
+  const allTerms = lang !== 'en-US'
+    ? [...searchTerms, 'animal shelter', 'pet shelter']
+    : searchTerms;
 
   const allResults = [];
   const seenIds = new Set();
 
-  for (const term of searchTerms) {
+  for (const term of allTerms) {
     try {
       const results = await searchPlaces(term, lat, lng, { ...options, limit: 10 });
       for (const place of results) {
@@ -291,20 +385,49 @@ export async function searchShelters(lat, lng, options = {}) {
 }
 
 /**
+ * Get localized vet search terms
+ */
+function getLocalizedVetTerms(lang) {
+  const terms = {
+    'en-US': ['veterinary clinic', 'veterinarian', 'animal hospital', 'pet clinic'],
+    'en-CA': ['veterinary clinic', 'veterinarian', 'animal hospital', 'pet clinic'],
+    'es-MX': ['veterinaria', 'clínica veterinaria', 'hospital veterinario', 'médico veterinario'],
+    'es-PR': ['veterinaria', 'clínica veterinaria', 'hospital veterinario', 'veterinarian'],
+    'fr-CA': ['clinique vétérinaire', 'vétérinaire', 'hôpital vétérinaire', 'clinique animale'],
+  };
+  return terms[lang] || terms['en-US'];
+}
+
+/**
+ * Get localized animal control terms
+ */
+function getLocalizedAnimalControlTerms(lang) {
+  const terms = {
+    'en-US': ['animal control', 'animal services', 'animal regulation'],
+    'en-CA': ['animal control', 'animal services', 'bylaw enforcement'],
+    'es-MX': ['control animal', 'centro antirrábico', 'servicios animales', 'zoonosis'],
+    'es-PR': ['control animal', 'servicios animales', 'animal control'],
+    'fr-CA': ['contrôle animalier', 'services animaliers', 'fourrière municipale'],
+  };
+  return terms[lang] || terms['en-US'];
+}
+
+/**
  * Search specifically for veterinary clinics
  */
 export async function searchVets(lat, lng, options = {}) {
-  const searchTerms = [
-    'veterinary clinic',
-    'veterinarian',
-    'animal hospital',
-    'pet clinic',
-  ];
+  const lang = options.lang || detectLanguage(lat, lng);
+  const searchTerms = getLocalizedVetTerms(lang);
+
+  // Include English fallback
+  const allTerms = lang !== 'en-US'
+    ? [...searchTerms, 'veterinary', 'vet clinic']
+    : searchTerms;
 
   const allResults = [];
   const seenIds = new Set();
 
-  for (const term of searchTerms) {
+  for (const term of allTerms) {
     try {
       const results = await searchPlaces(term, lat, lng, { ...options, limit: 10 });
       for (const place of results) {
@@ -328,16 +451,18 @@ export async function searchVets(lat, lng, options = {}) {
  * Search for animal control offices
  */
 export async function searchAnimalControl(lat, lng, options = {}) {
-  const searchTerms = [
-    'animal control',
-    'animal services',
-    'animal regulation',
-  ];
+  const lang = options.lang || detectLanguage(lat, lng);
+  const searchTerms = getLocalizedAnimalControlTerms(lang);
+
+  // Include English fallback
+  const allTerms = lang !== 'en-US'
+    ? [...searchTerms, 'animal control']
+    : searchTerms;
 
   const allResults = [];
   const seenIds = new Set();
 
-  for (const term of searchTerms) {
+  for (const term of allTerms) {
     try {
       const results = await searchPlaces(term, lat, lng, { ...options, limit: 10 });
       for (const place of results) {
@@ -359,12 +484,16 @@ export async function searchAnimalControl(lat, lng, options = {}) {
 
 /**
  * Geocode an address to coordinates
+ * @param {string} address - Address to geocode
+ * @param {Object} options - Options including countries to limit search
  */
-export async function geocode(address) {
+export async function geocode(address, options = {}) {
+  const { countries = 'US,CA,MX' } = options;
+
   try {
     const data = await appleMapsFetch('/geocode', {
       q: address,
-      limitToCountries: 'US',
+      limitToCountries: countries,
     });
 
     if (!data.results || data.results.length === 0) {

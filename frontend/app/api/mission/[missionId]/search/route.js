@@ -429,7 +429,10 @@ async function handleSearchEnd(userId, missionId, body, missionRecord) {
           userId,
           actionType: 'search_area',
           verificationMethod: 'GPS',
-          pointsAwarded: points.total,
+          basePoints: points.distance + points.gridBonus + points.timeBonus,
+          bonusPoints: Math.round((points.total - (points.distance + points.gridBonus + points.timeBonus))),
+          totalPoints: points.total,
+          multipliers: points.multiplier > 1 ? JSON.stringify([{ type: 'time_bonus', value: points.multiplier }]) : null,
           metadata: JSON.stringify({
             searchSessionId: sessionId,
             distanceMiles: stats.validatedDistanceMiles,
@@ -574,6 +577,7 @@ export async function GET(request, { params }) {
       lat: ping.latitude,
       lng: ping.longitude,
       valid: true, // All pings in DB are valid
+      timestamp: new Date(ping.createdAt).getTime(),
     }));
 
     return NextResponse.json({

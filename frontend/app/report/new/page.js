@@ -1,639 +1,286 @@
 'use client';
 
 /**
- * Report Lost Pet - Midnight & Flash Design
+ * Report Lost Pet - Beautiful Step-by-Step Wizard
  *
- * Multi-step wizard for reporting a lost pet:
- * 1. Pet type selection
- * 2. Location & time
- * 3. Map with search radius
- * 4. Contact info (skipped if logged in)
- * 5. Pet details & photos
- * 6. Success with squad assignment
+ * Modern, clean design with one focus per screen
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Dog, Cat, Bird, Rabbit, MapPin, Clock, Search,
-  User, Mail, Phone, Camera, Check, ChevronLeft,
-  ChevronRight, AlertTriangle, Loader2, Sparkles,
-  Shield, Users, Bell, ArrowRight, Navigation, Hash, Crosshair
+  Dog, Cat, Bird, Rabbit, MapPin, Clock,
+  Camera, Check, ChevronLeft, ChevronRight,
+  AlertTriangle, Loader2, X, Navigation, ExternalLink,
+  Sparkles, Heart, Mail, User
 } from 'lucide-react';
-import BreedSelector from '../../components/BreedSelector';
 import ColorSelector from '../../components/ColorSelector';
 
-// Step configuration
-const STEPS = [
-  { id: 1, label: 'Pet Type', icon: Dog },
-  { id: 2, label: 'Location', icon: MapPin },
-  { id: 3, label: 'Search Area', icon: Search },
-  { id: 4, label: 'Contact', icon: User },
-  { id: 5, label: 'Details', icon: Camera },
-];
-
 const PET_TYPES = [
-  { type: 'dog', label: 'Dog', icon: Dog, color: 'from-blue-500 to-cyan-500' },
-  { type: 'cat', label: 'Cat', icon: Cat, color: 'from-violet-500 to-purple-500' },
-  { type: 'bird', label: 'Bird', icon: Bird, color: 'from-emerald-500 to-teal-500' },
-  { type: 'other', label: 'Other', icon: Rabbit, color: 'from-amber-500 to-orange-500' },
+  { type: 'dog', label: 'Dog', icon: Dog, emoji: '🐕' },
+  { type: 'cat', label: 'Cat', icon: Cat, emoji: '🐈' },
+  { type: 'bird', label: 'Bird', icon: Bird, emoji: '🦜' },
+  { type: 'other', label: 'Other', icon: Rabbit, emoji: '🐰' },
 ];
 
 const TIME_OPTIONS = [
-  { value: 'less_than_hour', label: 'Less than 1 hour ago', urgency: 'critical' },
-  { value: '1_to_6_hours', label: '1-6 hours ago', urgency: 'high' },
-  { value: '6_to_24_hours', label: '6-24 hours ago', urgency: 'medium' },
-  { value: '1_to_3_days', label: '1-3 days ago', urgency: 'medium' },
-  { value: '3_to_7_days', label: '3-7 days ago', urgency: 'normal' },
-  { value: '1_to_2_weeks', label: '1-2 weeks ago', urgency: 'normal' },
-  { value: 'more_than_2_weeks', label: 'More than 2 weeks ago', urgency: 'normal' },
+  { value: 'less_than_hour', label: 'Just now', sublabel: 'Less than an hour', urgent: true },
+  { value: '1_to_6_hours', label: 'Few hours', sublabel: '1-6 hours ago', urgent: true },
+  { value: '6_to_24_hours', label: 'Today', sublabel: '6-24 hours ago', urgent: false },
+  { value: '1_to_3_days', label: 'Few days', sublabel: '1-3 days ago', urgent: false },
+  { value: '3_to_7_days', label: 'This week', sublabel: '3-7 days ago', urgent: false },
+  { value: 'more_than_2_weeks', label: 'Longer', sublabel: 'More than a week', urgent: false },
 ];
 
 export default function ReportLostPet() {
-  const { data: session, status } = useSession();
-  const searchParams = useSearchParams();
-  const petId = searchParams.get('petId');
+  const { data: session, status: authStatus } = useSession();
+  const isLoggedIn = authStatus === 'authenticated';
 
-  const [step, setStep] = useState(1);
-  const [petType, setPetType] = useState('');
-  const [isGeocoding, setIsGeocoding] = useState(false);
-  const [isLoadingPet, setIsLoadingPet] = useState(false);
-  const [prefillPet, setPrefillPet] = useState(null);
+  // Wizard state - step 0 is contact info for non-logged-in users
+  const [step, setStep] = useState(0); // 0=contact, 1=location, 2=pet, 3=name, 4=when, 5=color, 6=photo, 7=confirm
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [reportResult, setReportResult] = useState(null);
 
-  // Location and map data
-  const [locationMethod, setLocationMethod] = useState(''); // 'address', 'zip', 'pin'
-  const [lastSeenAddress, setLastSeenAddress] = useState('');
-  const [zipCode, setZipCode] = useState('');
+  // Contact info (for non-logged-in users)
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactName, setContactName] = useState('');
+
+  // Data state
   const [center, setCenter] = useState(null);
-  const [radiusMiles] = useState(5); // Auto-set to 5 miles (squad coverage determines actual assignment)
+  const [lastSeenAddress, setLastSeenAddress] = useState('');
+  const [cityName, setCityName] = useState('');
+  const [isGettingLocation, setIsGettingLocation] = useState(true);
+  const [myPets, setMyPets] = useState([]);
+  const [selectedPet, setSelectedPet] = useState(null);
+  const [petType, setPetType] = useState('');
+  const [petName, setPetName] = useState('');
   const [timeElapsed, setTimeElapsed] = useState('');
-  const [locationConfirmed, setLocationConfirmed] = useState(false);
-  const [cityName, setCityName] = useState(''); // For zip code location type
+  const [color, setColor] = useState('');
+  const [photos, setPhotos] = useState([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  // Map refs
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
   const circleRef = useRef(null);
 
-  // Address autocomplete
-  const [addressSuggestions, setAddressSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
-  const addressInputRef = useRef(null);
-  const suggestionsRef = useRef(null);
-  const searchTimeoutRef = useRef(null);
+  // Determine starting step based on auth
+  useEffect(() => {
+    if (authStatus === 'loading') return;
+    if (isLoggedIn) {
+      setStep(1); // Skip contact step
+    } else {
+      setStep(0); // Show contact step
+    }
+  }, [authStatus, isLoggedIn]);
 
-  // Report submission data
-  const [reportData, setReportData] = useState({
-    email: '',
-    phone: '',
-    firstName: '',
-    petName: '',
-    breed: '',
-    color: '',
-    size: 'MEDIUM',
-    distinctiveMarks: '',
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null);
-  const [reportResult, setReportResult] = useState(null);
-  const [photos, setPhotos] = useState([]);
-  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  // Get effective email and name
+  const effectiveEmail = isLoggedIn ? session?.user?.email : contactEmail;
+  const effectiveName = isLoggedIn ? (session?.user?.name || 'Pet Owner') : contactName;
 
-  // Validation states
-  const [touched, setTouched] = useState({});
-
-  // Auto-fill user data from session
+  // Fetch user's pets
   useEffect(() => {
     if (session?.user) {
-      setReportData(prev => ({
-        ...prev,
-        email: session.user.email || '',
-        firstName: session.user.name || '',
-      }));
+      fetch('/api/pets')
+        .then(res => res.ok ? res.json() : { pets: [] })
+        .then(data => setMyPets(data.pets || []))
+        .catch(() => setMyPets([]));
     }
   }, [session]);
 
-  // Close suggestions when clicking outside
+  // Auto-detect location
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target) &&
-          addressInputRef.current && !addressInputRef.current.contains(event.target)) {
-        setShowSuggestions(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    if (typeof window === 'undefined') return;
 
-  // Cleanup search timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, []);
+    setIsGettingLocation(true);
 
-  // Search for address suggestions (debounced) - Uses Nominatim (OpenStreetMap)
-  const searchAddresses = useCallback(async (query) => {
-    if (!query || query.length < 3) {
-      setAddressSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    setIsSearchingAddress(true);
-    try {
-      // Use Nominatim for address search (free, no API key required)
-      const response = await fetch(
-        `/api/geocode?q=${encodeURIComponent(query)}&limit=5&countrycodes=us&addressdetails=1`
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          setCenter([latitude, longitude]);
+          const result = await reverseGeocode(latitude, longitude);
+          setLastSeenAddress(result.address);
+          setCityName(result.city);
+          setIsGettingLocation(false);
+        },
+        () => {
+          setIsGettingLocation(false);
+          // Default to a location if geolocation fails
+        },
+        { timeout: 10000, enableHighAccuracy: true }
       );
-
-      // Handle errors silently for autocomplete
-      if (!response.ok) {
-        console.warn('Address search failed with status:', response.status);
-        setAddressSuggestions([]);
-        setShowSuggestions(false);
-        return;
-      }
-
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (parseError) {
-        console.warn('Address search returned non-JSON response');
-        setAddressSuggestions([]);
-        setShowSuggestions(false);
-        return;
-      }
-
-      // Process Nominatim results
-      if (data && Array.isArray(data) && data.length > 0) {
-        setAddressSuggestions(data.map(item => ({
-          display_name: item.display_name,
-          lat: parseFloat(item.lat),
-          lon: parseFloat(item.lon),
-          address: item.address,
-          city: item.address?.city || item.address?.town || item.address?.village ||
-                item.address?.municipality || item.address?.hamlet || item.address?.county || '',
-          state: item.address?.state || '',
-        })));
-        setShowSuggestions(true);
-      } else {
-        setAddressSuggestions([]);
-        setShowSuggestions(false);
-      }
-    } catch (err) {
-      console.error('Address search error:', err);
-      setAddressSuggestions([]);
-      setShowSuggestions(false);
-    } finally {
-      setIsSearchingAddress(false);
+    } else {
+      setIsGettingLocation(false);
     }
   }, []);
 
-  // Handle address input change with debounce
-  const handleAddressInputChange = (e) => {
-    const value = e.target.value;
-    setLastSeenAddress(value);
-    setLocationConfirmed(false);
-    setCenter(null);
-
-    // Clear previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    // Debounce search
-    searchTimeoutRef.current = setTimeout(() => {
-      searchAddresses(value);
-    }, 300);
-  };
-
-  // Select an address suggestion (all suggestions come from Nominatim with coordinates)
-  const selectAddressSuggestion = (suggestion) => {
-    setLastSeenAddress(suggestion.display_name);
-    setCenter([suggestion.lat, suggestion.lon]);
-    setCityName(suggestion.city);
-    setAddressSuggestions([]);
-    setShowSuggestions(false);
-    setLocationConfirmed(false);
-    setStep(3);
-  };
-
-  // Pre-fill from existing pet profile if petId is provided
+  // Initialize map
   useEffect(() => {
-    if (!petId) return;
-
-    const fetchPet = async () => {
-      setIsLoadingPet(true);
-      try {
-        const response = await fetch(`/api/pets/${petId}`);
-        if (response.ok) {
-          const pet = await response.json();
-          setPrefillPet(pet);
-
-          // Map species to petType
-          const speciesMap = {
-            'DOG': 'dog',
-            'CAT': 'cat',
-            'BIRD': 'bird',
-          };
-          const mappedType = speciesMap[pet.species] || 'other';
-          setPetType(mappedType);
-
-          // Pre-fill pet data
-          setReportData(prev => ({
-            ...prev,
-            petName: pet.name || '',
-            breed: pet.breed || '',
-            color: pet.color || '',
-            size: pet.size || 'MEDIUM',
-            distinctiveMarks: pet.distinctiveMarks || '',
-          }));
-
-          // Pre-fill photos
-          if (pet.primaryPhotoUrl) {
-            setPhotos([pet.primaryPhotoUrl]);
-          }
-
-          // Skip to step 2 since pet type is pre-selected
-          setStep(2);
-        }
-      } catch (err) {
-        console.error('Error fetching pet:', err);
-      } finally {
-        setIsLoadingPet(false);
-      }
-    };
-
-    fetchPet();
-  }, [petId]);
-
-  // Initialize map when on step 3
-  useEffect(() => {
-    if (typeof window === 'undefined' || !mapRef.current || !center || step !== 3) {
-      if (step !== 3 && mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-        markerRef.current = null;
-        circleRef.current = null;
-      }
+    if (typeof window === 'undefined' || !mapRef.current || !center || step !== 1) return;
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setView(center, 17);
+      if (markerRef.current) markerRef.current.setLatLng(center);
+      if (circleRef.current) circleRef.current.setLatLng(center);
       return;
     }
 
-    if (mapInstanceRef.current) return;
+    // Load Leaflet CSS if not already loaded
+    if (!document.querySelector('link[href*="leaflet.css"]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
 
     import('leaflet').then((L) => {
-      // Dark map style matching midnight theme
-      const map = L.map(mapRef.current, {
-        zoomControl: false,
-      }).setView(center, 14);
+      const map = L.map(mapRef.current, { zoomControl: false }).setView(center, 17);
       mapInstanceRef.current = map;
 
       L.control.zoom({ position: 'topright' }).addTo(map);
-
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap &copy; CARTO',
         maxZoom: 19,
       }).addTo(map);
 
-      // Custom marker with flash yellow glow
       const markerIcon = L.divIcon({
         className: 'custom-marker',
-        html: `
-          <div class="relative">
-            <div class="absolute -inset-4 bg-flash-500/30 rounded-full animate-ping"></div>
-            <div class="w-8 h-8 bg-gradient-to-br from-flash-400 to-flash-600 rounded-full border-2 border-white shadow-lg shadow-flash-500/50 flex items-center justify-center">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
-              </svg>
-            </div>
-          </div>
-        `,
+        html: `<div class="w-8 h-8 bg-red-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
+          <div class="w-2 h-2 bg-white rounded-full"></div>
+        </div>`,
         iconSize: [32, 32],
-        iconAnchor: [16, 32],
+        iconAnchor: [16, 16],
       });
 
-      const marker = L.marker(center, {
-        draggable: true,
-        icon: markerIcon,
-      }).addTo(map);
+      const marker = L.marker(center, { draggable: true, icon: markerIcon }).addTo(map);
       markerRef.current = marker;
 
       const circle = L.circle(center, {
-        color: '#facc15',
-        fillColor: '#facc15',
-        fillOpacity: 0.15,
+        color: '#ef4444',
+        fillColor: '#ef4444',
+        fillOpacity: 0.1,
         weight: 2,
-        radius: radiusMiles * 1609.34,
+        radius: 100,
       }).addTo(map);
       circleRef.current = circle;
 
-      marker.on('dragend', async function(e) {
+      marker.on('dragend', async (e) => {
         const pos = e.target.getLatLng();
         setCenter([pos.lat, pos.lng]);
-        // Update address when marker is dragged
+        circle.setLatLng(pos);
         const result = await reverseGeocode(pos.lat, pos.lng);
         setLastSeenAddress(result.address);
         setCityName(result.city);
       });
 
-      // Fit bounds to circle
-      map.fitBounds(circle.getBounds(), { padding: [20, 20] });
+      map.on('click', async (e) => {
+        const pos = e.latlng;
+        setCenter([pos.lat, pos.lng]);
+        marker.setLatLng(pos);
+        circle.setLatLng(pos);
+        const result = await reverseGeocode(pos.lat, pos.lng);
+        setLastSeenAddress(result.address);
+        setCityName(result.city);
+      });
     });
 
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
-        markerRef.current = null;
-        circleRef.current = null;
       }
     };
-  }, [step, center]);
+  }, [center, step]);
 
-  useEffect(() => {
-    if (markerRef.current && circleRef.current && center) {
-      markerRef.current.setLatLng(center);
-      circleRef.current.setLatLng(center);
+  const reverseGeocode = async (lat, lon) => {
+    try {
+      const response = await fetch(`/api/geocode?lat=${lat}&lon=${lon}&addressdetails=1`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data?.display_name) {
+          const addr = data.address || {};
+          const city = addr.city || addr.town || addr.village || addr.municipality || '';
+          return { address: data.display_name, city };
+        }
+      }
+    } catch (err) {
+      console.error('Geocode error:', err);
     }
-  }, [center]);
+    return { address: `${lat.toFixed(4)}, ${lon.toFixed(4)}`, city: '' };
+  };
 
-  useEffect(() => {
-    if (circleRef.current && mapInstanceRef.current) {
-      circleRef.current.setRadius(radiusMiles * 1609.34);
-      mapInstanceRef.current.fitBounds(circleRef.current.getBounds(), { padding: [20, 20] });
+  const openInMaps = () => {
+    const lat = center?.[0] || 0;
+    const lng = center?.[1] || 0;
+    const isApple = /iPad|iPhone|iPod|Mac/.test(navigator.userAgent);
+    if (isApple) {
+      window.open(`https://maps.apple.com/?ll=${lat},${lng}&q=Last%20Seen&z=17`, '_blank');
+    } else {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
     }
-  }, [radiusMiles]);
+  };
+
+  const handleSelectPet = (pet) => {
+    setSelectedPet(pet);
+    const typeMap = { 'DOG': 'dog', 'CAT': 'cat', 'BIRD': 'bird' };
+    setPetType(typeMap[pet.species] || 'other');
+    setPetName(pet.name);
+    setColor(pet.color || '');
+    if (pet.primaryPhotoUrl) setPhotos([pet.primaryPhotoUrl]);
+    setStep(4); // Skip name step since we have it
+  };
+
+  const handleSelectPetType = (type) => {
+    setSelectedPet(null);
+    setPetType(type);
+    setPetName('');
+    setColor('');
+    setPhotos([]);
+    setStep(3); // Go to name step
+  };
 
   const handlePhotoUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    const maxPhotos = 5;
-
-    if (photos.length + files.length > maxPhotos) {
-      setError(`Maximum ${maxPhotos} photos allowed`);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Photo must be under 10MB');
       return;
     }
 
-    // Validate file sizes first
-    for (const file of files) {
-      if (file.size > 10 * 1024 * 1024) {
-        setError('Each photo must be under 10MB');
-        return;
-      }
-    }
-
-    setError(null);
-    setUploadingPhotos(true);
-
+    setUploadingPhoto(true);
     try {
-      const uploadedUrls = [];
-
-      for (const file of files) {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('context', 'pet');
-
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || 'Failed to upload photo');
-        }
-
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('context', 'pet');
+      const response = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (response.ok) {
         const data = await response.json();
-        if (data.url) {
-          uploadedUrls.push(data.url);
-        }
+        if (data.url) setPhotos([data.url]);
       }
-
-      setPhotos(prev => [...prev, ...uploadedUrls]);
     } catch (err) {
-      console.error('Photo upload error:', err);
-      setError(err.message || 'Failed to upload photos. Please try again.');
+      setError('Failed to upload photo');
     } finally {
-      setUploadingPhotos(false);
+      setUploadingPhoto(false);
     }
   };
-
-  const removePhoto = (index) => {
-    setPhotos(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Geocode a location query using Nominatim (OpenStreetMap)
-  const geocodeLocation = async (query, isZipCode = false) => {
-    if (!query || query.length < 3) {
-      setError('Please enter a valid location');
-      return false;
-    }
-
-    setError(null);
-    setIsGeocoding(true);
-
-    try {
-      // Use Nominatim for geocoding (free, no API key required)
-      let url;
-      if (isZipCode) {
-        url = `/api/geocode?q=${encodeURIComponent(query + ' USA')}&limit=1&addressdetails=1`;
-      } else {
-        url = `/api/geocode?q=${encodeURIComponent(query)}&limit=1&countrycodes=us&addressdetails=1`;
-      }
-
-      const response = await fetch(url);
-
-      // Check for rate limiting or server errors
-      if (response.status === 503) {
-        setError('Location service is temporarily busy. Please wait a moment and try again.');
-        return false;
-      }
-
-      if (!response.ok) {
-        setError('Error connecting to location service. Please try again.');
-        return false;
-      }
-
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (parseError) {
-        console.error('Failed to parse geocoding response:', text);
-        setError('Location service returned invalid data. Please try again.');
-        return false;
-      }
-
-      // Process Nominatim results
-      if (data && Array.isArray(data) && data.length > 0) {
-        const lat = parseFloat(data[0].lat);
-        const lon = parseFloat(data[0].lon);
-
-        // Extract city name from address details - check multiple fields
-        const addr = data[0].address || {};
-        const city = addr.city || addr.town || addr.village || addr.municipality ||
-               addr.hamlet || addr.suburb || addr.county || addr.state || '';
-        const state = addr.state || '';
-
-        // Build a proper display address
-        let displayAddress;
-        if (isZipCode) {
-          // For zip codes, show city, state, and zip
-          if (city && state) {
-            displayAddress = `${city}, ${state} ${query}`;
-          } else if (state) {
-            displayAddress = `${state} ${query}`;
-          } else {
-            displayAddress = data[0].display_name || `Zip Code ${query}`;
-          }
-        } else {
-          displayAddress = data[0].display_name || query;
-        }
-
-        setLastSeenAddress(displayAddress);
-        setCityName(city || (isZipCode ? `Zip ${query}` : ''));
-        setCenter([lat, lon]);
-        setLocationConfirmed(false);
-        setStep(3);
-        return true;
-      } else {
-        setError('Could not find that location. Please try a different address or zip code.');
-        return false;
-      }
-    } catch (err) {
-      setError('Error finding location. Please check your internet connection and try again.');
-      console.error('Geocoding error:', err);
-      return false;
-    } finally {
-      setIsGeocoding(false);
-    }
-  };
-
-  // Reverse geocode coordinates to get address and city using Nominatim
-  const reverseGeocode = async (lat, lon) => {
-    try {
-      const response = await fetch(
-        `/api/geocode?lat=${lat}&lon=${lon}&addressdetails=1`
-      );
-
-      if (!response.ok) {
-        console.warn('Reverse geocode failed with status:', response.status);
-        return {
-          address: `Location: ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
-          city: '',
-        };
-      }
-
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (parseError) {
-        console.warn('Reverse geocode returned non-JSON response');
-        return {
-          address: `Location: ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
-          city: '',
-        };
-      }
-
-      if (data && data.display_name) {
-        const addr = data.address || {};
-        const city = addr.city || addr.town || addr.village || addr.municipality ||
-                     addr.hamlet || addr.suburb || addr.county || '';
-        return {
-          address: data.display_name,
-          city: city,
-        };
-      }
-    } catch (err) {
-      console.error('Reverse geocoding error:', err);
-    }
-    return {
-      address: `Location: ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
-      city: '',
-    };
-  };
-
-  // Handle "drop pin" - get user's current location or default
-  const handleDropPin = async () => {
-    setError(null);
-    setIsGeocoding(true);
-
-    try {
-      // Try to get user's current location
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            const { latitude, longitude } = position.coords;
-            setCenter([latitude, longitude]);
-            // Reverse geocode to get actual address
-            const result = await reverseGeocode(latitude, longitude);
-            setLastSeenAddress(result.address);
-            setCityName(result.city);
-            setLocationConfirmed(false);
-            setStep(3);
-            setIsGeocoding(false);
-          },
-          async (error) => {
-            // If geolocation fails, use a default (Chicago center)
-            console.warn('Geolocation failed:', error);
-            const defaultLat = 41.8781;
-            const defaultLon = -87.6298;
-            setCenter([defaultLat, defaultLon]);
-            setLastSeenAddress('Chicago, IL (drag pin to your location)');
-            setCityName('Chicago');
-            setLocationConfirmed(false);
-            setStep(3);
-            setIsGeocoding(false);
-          },
-          { timeout: 10000 }
-        );
-      } else {
-        // No geolocation support, use default
-        const defaultLat = 41.8781;
-        const defaultLon = -87.6298;
-        setCenter([defaultLat, defaultLon]);
-        setLastSeenAddress('Chicago, IL (drag pin to your location)');
-        setCityName('Chicago');
-        setLocationConfirmed(false);
-        setStep(3);
-        setIsGeocoding(false);
-      }
-    } catch (err) {
-      setError('Could not get location. Please try entering an address.');
-      setIsGeocoding(false);
-    }
-  };
-
-  // Legacy function name for compatibility
-  const geocodeAddress = () => geocodeLocation(lastSeenAddress);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setError(null);
 
-    // Validate location
-    if (!center || !Array.isArray(center) || center.length !== 2) {
-      setError('Please set a valid location. Go back to step 2.');
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Validate required fields
-    if (!reportData.petName) {
-      setError('Please enter your pet\'s name');
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (!reportData.color) {
-      setError('Please select your pet\'s color');
+    // Validate required fields before submission
+    if (!effectiveEmail || !effectiveName || !petName || !color || !lastSeenAddress || !center) {
+      const missing = [];
+      if (!effectiveEmail) missing.push('email');
+      if (!effectiveName) missing.push('name');
+      if (!petName) missing.push('pet name');
+      if (!color) missing.push('color');
+      if (!lastSeenAddress) missing.push('location');
+      if (!center) missing.push('map location');
+      setError(`Please provide: ${missing.join(', ')}`);
       setIsSubmitting(false);
       return;
     }
@@ -643,34 +290,27 @@ export default function ReportLostPet() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: reportData.email,
-          phone: reportData.phone,
-          firstName: reportData.firstName,
-          petName: reportData.petName,
-          breed: reportData.breed,
-          color: reportData.color,
-          size: reportData.size,
-          distinctiveMarks: reportData.distinctiveMarks,
+          email: effectiveEmail,
+          firstName: effectiveName,
+          petName,
+          color,
           lastSeenAddress,
           center,
-          radiusMiles,
+          radiusMiles: 0.1,
           timeElapsed,
-          petType,
+          petType: petType.toUpperCase(),
           photos,
-          // Location type info for squad notifications
-          locationType: locationMethod, // 'address', 'zip', or 'pin'
-          cityName, // City name for zip code notifications
+          locationType: 'address',
+          cityName,
+          selectedPetId: selectedPet?.id,
         }),
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create report');
-      }
+      if (!response.ok) throw new Error(data.error || 'Failed to create report');
 
       setReportResult(data);
-      setStep(6);
+      setStep(8); // Success step
     } catch (err) {
       setError(err.message);
     } finally {
@@ -678,1067 +318,540 @@ export default function ReportLostPet() {
     }
   };
 
-  const canProceedFromStep4 = reportData.firstName && reportData.email;
-  const canSubmit = reportData.petName && reportData.color && center && locationConfirmed && !uploadingPhotos;
+  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  // Determine which step to skip to based on session
-  const nextStepFromMap = session?.user ? 5 : 4;
-  const prevStepFromDetails = session?.user ? 3 : 4;
+  const canProceed = () => {
+    switch (step) {
+      case 0: return contactEmail.trim() && isValidEmail(contactEmail) && contactName.trim();
+      case 1: return !!center;
+      case 2: return !!petType;
+      case 3: return !!petName.trim();
+      case 4: return !!timeElapsed;
+      case 5: return !!color;
+      case 6: return true; // Photo is optional
+      case 7: return true;
+      default: return false;
+    }
+  };
+
+  const totalSteps = isLoggedIn ? 7 : 8;
+  const displayStep = isLoggedIn ? step : step + 1;
+
+  const nextStep = () => {
+    if (canProceed() && step < 7) setStep(step + 1);
+    if (step === 7) handleSubmit();
+  };
+
+  const prevStep = () => {
+    const minStep = isLoggedIn ? 1 : 0;
+    if (step > minStep) {
+      // If we came from selecting existing pet, go back to step 2
+      if (step === 4 && selectedPet) {
+        setStep(2);
+      } else {
+        setStep(step - 1);
+      }
+    }
+  };
+
+  // Loading state while checking auth
+  if (authStatus === 'loading') {
+    return (
+      <div className="h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-r from-orange-400 to-red-500 flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Heart size={28} className="text-white" />
+          </div>
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Success screen
+  if (step === 8 && reportResult) {
+    return (
+      <div className="h-[100dvh] bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-6">
+        <div className="text-center max-w-sm">
+          <div className="relative mb-8">
+            <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-200">
+              <Check size={48} className="text-white" strokeWidth={3} />
+            </div>
+            <Sparkles className="absolute -top-2 -right-2 text-yellow-400" size={24} />
+            <Sparkles className="absolute -bottom-1 -left-3 text-green-400" size={20} />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Alert Sent!</h1>
+          <p className="text-gray-600 mb-8 text-lg">
+            {reportResult.squadsNotified || 0} rescue team{reportResult.squadsNotified === 1 ? '' : 's'} notified in your area
+          </p>
+          <Link
+            href="/dashboard"
+            className="block w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl font-semibold text-lg shadow-lg shadow-green-200 hover:shadow-xl transition-all"
+          >
+            View Dashboard
+          </Link>
+          <p className="mt-4 text-sm text-gray-500">
+            We'll notify you of any sightings
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const minStep = isLoggedIn ? 1 : 0;
+  const stepLabels = isLoggedIn
+    ? ['Location', 'Pet', 'Name', 'When', 'Color', 'Photo', 'Review']
+    : ['Contact', 'Location', 'Pet', 'Name', 'When', 'Color', 'Photo', 'Review'];
 
   return (
-    <div className="min-h-screen bg-midnight-50 text-midnight-900">
+    <div className="h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50 flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-midnight-200">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-midnight-600 hover:text-midnight-900 transition-colors"
-          >
-            <ChevronLeft size={20} />
-            <span className="font-medium">Back</span>
-          </Link>
-
-          {session?.user && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-full text-sm">
-              <Check size={14} className="text-green-600" />
-              <span className="text-green-700">Signed in</span>
-            </div>
+      <header className="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
+        <button
+          onClick={() => step > minStep ? prevStep() : null}
+          className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/50 transition-colors"
+        >
+          {step > minStep ? (
+            <ChevronLeft size={24} className="text-gray-600" />
+          ) : (
+            <Link href="/dashboard"><X size={24} className="text-gray-600" /></Link>
           )}
+        </button>
+
+        <div className="flex-1 mx-4">
+          <div className="flex justify-center gap-1.5">
+            {Array.from({ length: totalSteps }, (_, i) => {
+              const stepNum = isLoggedIn ? i + 1 : i;
+              const isActive = stepNum <= step;
+              const isCurrent = stepNum === step;
+              return (
+                <div
+                  key={i}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    isCurrent ? 'w-8 bg-gradient-to-r from-orange-400 to-red-500' :
+                    isActive ? 'w-4 bg-orange-300' : 'w-4 bg-gray-200'
+                  }`}
+                />
+              );
+            })}
+          </div>
+          <p className="text-center text-xs text-gray-400 mt-1">
+            {stepLabels[step - minStep] || ''}
+          </p>
         </div>
+
+        <div className="w-10" />
       </header>
 
-      {/* Progress indicator - only show during form steps */}
-      {step >= 2 && step <= 5 && (
-        <div className="bg-white border-b border-midnight-200 py-4">
-          <div className="max-w-4xl mx-auto px-4">
-            <div className="flex items-center justify-between gap-2">
-              {STEPS.slice(1).map((s, idx) => {
-                const stepNum = s.id;
-                const isActive = step === stepNum;
-                const isComplete = step > stepNum;
-                const Icon = s.icon;
+      {/* Content */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 
-                // Skip step 4 indicator if logged in
-                if (stepNum === 4 && session?.user) return null;
-
-                return (
-                  <div key={s.id} className="flex-1 flex items-center">
-                    <div
-                      className={`
-                        w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300
-                        ${isComplete
-                          ? 'bg-flash-500 shadow-glow-flash'
-                          : isActive
-                            ? 'bg-flash-100 border-2 border-flash-500 shadow-glow-flash-sm'
-                            : 'bg-midnight-50 border border-midnight-200'
-                        }
-                      `}
-                    >
-                      {isComplete ? (
-                        <Check size={18} className="text-midnight-900" />
-                      ) : (
-                        <Icon size={18} className={isActive ? 'text-flash-600' : 'text-midnight-400'} />
-                      )}
-                    </div>
-                    {idx < (session?.user ? 2 : 3) && (
-                      <div
-                        className={`
-                          flex-1 h-1 mx-2 rounded-full transition-all duration-300
-                          ${isComplete
-                            ? 'bg-gradient-to-r from-flash-400 to-flash-500'
-                            : 'bg-midnight-100'
-                          }
-                        `}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+        {/* Step 0: Contact Info (non-logged-in users) */}
+        {step === 0 && (
+          <div className="flex-1 flex flex-col px-6 py-4 overflow-y-auto">
+            <div className="mb-8">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center mb-4 shadow-lg shadow-blue-200">
+                <Mail size={28} className="text-white" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Let's stay in touch</h1>
+              <p className="text-gray-500 text-lg">We'll notify you when someone spots your pet</p>
             </div>
-          </div>
-        </div>
-      )}
 
-      <main className="report-form max-w-4xl mx-auto px-4 py-8">
-        {/* Loading state for pet prefill */}
-        {isLoadingPet && (
-          <div className="text-center py-12">
-            <Loader2 size={48} className="mx-auto mb-4 text-flash-500 animate-spin" />
-            <p className="text-midnight-700">Loading pet information...</p>
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Your name</label>
+                <div className="relative">
+                  <User size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    placeholder="Jane"
+                    className="w-full pl-12 pr-4 py-4 text-lg bg-white border-2 border-gray-200 rounded-2xl focus:border-blue-400 focus:ring-4 focus:ring-blue-50 outline-none transition-all"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email address</label>
+                <div className="relative">
+                  <Mail size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="email"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    placeholder="jane@example.com"
+                    className="w-full pl-12 pr-4 py-4 text-lg bg-white border-2 border-gray-200 rounded-2xl focus:border-blue-400 focus:ring-4 focus:ring-blue-50 outline-none transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-auto pt-4">
+              <p className="text-center text-sm text-gray-500">
+                Already have an account?{' '}
+                <Link href="/login?callbackUrl=/report/new" className="text-blue-600 font-medium">
+                  Sign in
+                </Link>
+              </p>
+            </div>
           </div>
         )}
 
-        {/* Error display with dismiss */}
-        {error && !isLoadingPet && (
-          <div
-            role="alert"
-            aria-live="polite"
-            className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3"
-          >
-            <AlertTriangle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-red-700">{error}</p>
-              {error.includes('location') && (
-                <p className="text-sm text-midnight-600 mt-1">
-                  Try a different address format or use zip code instead.
-                </p>
+        {/* Step 1: Location */}
+        {step === 1 && (
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="px-6 py-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-400 to-rose-500 flex items-center justify-center mb-3 shadow-lg shadow-red-200">
+                <MapPin size={24} className="text-white" />
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-1">Where was {petName || 'your pet'} last seen?</h1>
+              <p className="text-gray-500">Tap the map or drag the pin to mark the spot</p>
+            </div>
+
+            <div className="flex-1 relative mx-4 mb-4 rounded-3xl overflow-hidden shadow-lg border border-gray-100">
+              {isGettingLocation && !center ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
+                  <div className="text-center">
+                    <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
+                      <Navigation size={28} className="text-blue-500 animate-pulse" />
+                    </div>
+                    <p className="text-gray-600 font-medium">Finding your location...</p>
+                  </div>
+                </div>
+              ) : (
+                <div ref={mapRef} className="absolute inset-0" />
               )}
             </div>
+
+            {center && (
+              <div className="px-6 pb-4 flex-shrink-0">
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                  <p className="text-sm text-gray-600 truncate mb-2">{lastSeenAddress || 'Location set'}</p>
+                  <button
+                    onClick={openInMaps}
+                    className="text-sm text-blue-600 font-medium flex items-center gap-1.5 hover:text-blue-700"
+                  >
+                    <ExternalLink size={14} /> Open in Maps to set exact address
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 2: Select Pet */}
+        {step === 2 && (
+          <div className="flex-1 px-6 py-4 overflow-y-auto">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center mb-3 shadow-lg shadow-purple-200">
+              <Heart size={24} className="text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">Who went missing?</h1>
+            <p className="text-gray-500 mb-6">Select your pet or tell us about them</p>
+
+            {myPets.length > 0 && (
+              <div className="mb-8">
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Pets</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {myPets.map(pet => (
+                    <button
+                      key={pet.id}
+                      onClick={() => handleSelectPet(pet)}
+                      className="p-4 bg-white border-2 border-gray-100 rounded-2xl text-left hover:border-purple-300 hover:shadow-lg transition-all group"
+                    >
+                      <div className="w-16 h-16 rounded-xl bg-gray-100 mb-3 overflow-hidden group-hover:scale-105 transition-transform">
+                        {pet.primaryPhotoUrl ? (
+                          <img src={pet.primaryPhotoUrl} alt={pet.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-50">
+                            {pet.species === 'DOG' ? <Dog size={28} className="text-gray-400" /> :
+                             pet.species === 'CAT' ? <Cat size={28} className="text-gray-400" /> :
+                             <Rabbit size={28} className="text-gray-400" />}
+                          </div>
+                        )}
+                      </div>
+                      <p className="font-semibold text-gray-900">{pet.name}</p>
+                      <p className="text-xs text-gray-500">{pet.species?.toLowerCase()}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                {myPets.length > 0 ? 'Or Add New' : 'Pet Type'}
+              </p>
+              <div className="grid grid-cols-4 gap-2">
+                {PET_TYPES.map(pet => {
+                  return (
+                    <button
+                      key={pet.type}
+                      onClick={() => handleSelectPetType(pet.type)}
+                      className="py-4 px-2 bg-white border-2 border-gray-100 rounded-2xl hover:border-purple-300 hover:shadow-lg transition-all text-center group"
+                    >
+                      <span className="text-3xl block mb-1 group-hover:scale-110 transition-transform">{pet.emoji}</span>
+                      <span className="text-sm font-medium text-gray-700">{pet.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Pet Name */}
+        {step === 3 && (
+          <div className="flex-1 px-6 py-4 flex flex-col">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center mb-3 shadow-lg shadow-pink-200">
+              <span className="text-2xl">{PET_TYPES.find(p => p.type === petType)?.emoji || '🐾'}</span>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">What's their name?</h1>
+            <p className="text-gray-500 mb-8">This helps people identify your pet</p>
+
+            <input
+              type="text"
+              value={petName}
+              onChange={(e) => setPetName(e.target.value)}
+              placeholder="Enter name..."
+              className="w-full text-3xl font-medium py-4 border-b-2 border-gray-200 focus:border-pink-400 outline-none bg-transparent placeholder:text-gray-300 transition-colors"
+              autoFocus
+            />
+            <p className="text-sm text-gray-400 mt-2">e.g., Max, Bella, Charlie</p>
+          </div>
+        )}
+
+        {/* Step 4: When */}
+        {step === 4 && (
+          <div className="flex-1 px-6 py-4 overflow-y-auto">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mb-3 shadow-lg shadow-amber-200">
+              <Clock size={24} className="text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">When did {petName} go missing?</h1>
+            <p className="text-gray-500 mb-6">This helps prioritize the search</p>
+
+            <div className="grid grid-cols-2 gap-3">
+              {TIME_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setTimeElapsed(opt.value)}
+                  className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                    timeElapsed === opt.value
+                      ? 'border-orange-400 bg-orange-50 shadow-lg shadow-orange-100'
+                      : 'border-gray-100 bg-white hover:border-orange-200 hover:shadow-md'
+                  }`}
+                >
+                  <p className={`font-semibold text-lg ${timeElapsed === opt.value ? 'text-orange-600' : 'text-gray-900'}`}>
+                    {opt.label}
+                  </p>
+                  <p className="text-sm text-gray-500">{opt.sublabel}</p>
+                  {opt.urgent && (
+                    <span className="inline-block mt-2 text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-600">
+                      Urgent
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Color */}
+        {step === 5 && (
+          <div className="flex-1 px-6 py-4 overflow-y-auto">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center mb-3 shadow-lg shadow-emerald-200">
+              <div className="grid grid-cols-2 gap-0.5">
+                <div className="w-3 h-3 rounded-full bg-white/80" />
+                <div className="w-3 h-3 rounded-full bg-amber-200" />
+                <div className="w-3 h-3 rounded-full bg-gray-800" />
+                <div className="w-3 h-3 rounded-full bg-orange-300" />
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">What color is {petName}?</h1>
+            <p className="text-gray-500 mb-6">Select the closest match</p>
+
+            <ColorSelector
+              value={color}
+              onChange={setColor}
+            />
+          </div>
+        )}
+
+        {/* Step 6: Photo */}
+        {step === 6 && (
+          <div className="flex-1 px-6 py-4 overflow-y-auto">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mb-3 shadow-lg shadow-sky-200">
+              <Camera size={24} className="text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">Add a photo</h1>
+            <p className="text-gray-500 mb-6">A clear photo helps others spot {petName}</p>
+
+            {photos.length > 0 ? (
+              <div className="relative rounded-3xl overflow-hidden shadow-lg">
+                <img src={photos[0]} alt="Pet" className="w-full aspect-square object-cover" />
+                <button
+                  onClick={() => setPhotos([])}
+                  className="absolute top-3 right-3 w-10 h-10 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+                <div className="absolute bottom-3 left-3 px-3 py-1.5 bg-green-500 text-white text-sm font-medium rounded-full flex items-center gap-1.5">
+                  <Check size={14} /> Photo added
+                </div>
+              </div>
+            ) : (
+              <label className="block aspect-square bg-white border-2 border-dashed border-gray-200 rounded-3xl cursor-pointer hover:border-blue-300 hover:bg-blue-50/50 transition-all group">
+                <div className="h-full flex flex-col items-center justify-center">
+                  {uploadingPhoto ? (
+                    <div className="text-center">
+                      <Loader2 size={40} className="text-blue-500 animate-spin mx-auto mb-3" />
+                      <p className="text-gray-500">Uploading...</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                        <Camera size={32} className="text-blue-500" />
+                      </div>
+                      <p className="text-gray-900 font-medium text-lg">Tap to add photo</p>
+                      <p className="text-gray-500 text-sm mt-1">or drag & drop</p>
+                    </>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                  disabled={uploadingPhoto}
+                />
+              </label>
+            )}
+
             <button
-              onClick={() => setError(null)}
-              className="text-red-600 hover:text-midnight-900 transition-colors p-1"
-              aria-label="Dismiss error"
+              onClick={() => setStep(7)}
+              className="mt-6 w-full py-3 text-gray-500 text-sm hover:text-gray-700 transition-colors"
             >
-              <span className="text-xl leading-none">&times;</span>
+              Skip for now — you can add later
             </button>
           </div>
         )}
 
-        {/* Pre-filled pet notice */}
-        {prefillPet && step >= 2 && step <= 5 && (
-          <div className="mb-6 p-4 bg-flash-50 border border-flash-200 rounded-xl flex items-start gap-3">
-            <Sparkles size={20} className="text-flash-500 flex-shrink-0 mt-0.5" />
-            <p className="text-midnight-700">
-              <strong className="text-flash-600">Pre-filled from {prefillPet.name}'s profile.</strong> You can update any details below.
-            </p>
-          </div>
-        )}
-
-        {/* Step 1: Pet Type Selection */}
-        {step === 1 && !isLoadingPet && (
-          <div className="text-center max-w-xl mx-auto">
-            <div className="relative inline-block mb-6">
-              <div className="absolute inset-0 bg-red-500 blur-3xl opacity-20 rounded-full" />
-              <AlertTriangle size={64} className="relative text-red-600" />
+        {/* Step 7: Confirm */}
+        {step === 7 && (
+          <div className="flex-1 px-6 py-4 overflow-y-auto">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center mb-3 shadow-lg shadow-violet-200">
+              <Sparkles size={24} className="text-white" />
             </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">Ready to send alert?</h1>
+            <p className="text-gray-500 mb-6">Review the details below</p>
 
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-red-600 to-orange-400 bg-clip-text text-transparent">
-              Report Lost Pet
-            </h1>
-            <p className="text-lg text-midnight-700 mb-10">
-              Alert your community and mobilize rescue squads to help find your pet
-            </p>
-
-            <h2 className="text-xl font-semibold mb-6 text-midnight-900" id="pet-type-label">
-              What type of pet is missing?
-            </h2>
-
-            <div
-              className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4"
-              role="radiogroup"
-              aria-labelledby="pet-type-label"
-            >
-              {PET_TYPES.map((pet) => {
-                const Icon = pet.icon;
-                return (
-                  <button
-                    key={pet.type}
-                    onClick={() => {
-                      setPetType(pet.type);
-                      setStep(2);
-                    }}
-                    role="radio"
-                    aria-checked={petType === pet.type}
-                    aria-label={`Report lost ${pet.label.toLowerCase()}`}
-                    className={`
-                      relative group p-4 sm:p-6 rounded-2xl border-2 border-midnight-200
-                      bg-white hover:bg-midnight-50
-                      transition-all duration-300 hover:scale-[1.02]
-                      hover:border-flash-400
-                      hover:shadow-glow-flash-sm
-                      focus:outline-none focus:ring-2 focus:ring-flash-400 focus:ring-offset-2 focus:ring-offset-midnight-50
-                    `}
-                  >
-                    <div className={`
-                      w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-2xl bg-gradient-to-br ${pet.color}
-                      flex items-center justify-center shadow-lg
-                      group-hover:shadow-xl group-hover:scale-110 transition-all duration-300
-                    `}>
-                      <Icon size={24} className="sm:hidden text-white" />
-                      <Icon size={32} className="hidden sm:block text-white" />
-                    </div>
-                    <span className="text-base sm:text-lg font-semibold text-midnight-900">
-                      {pet.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Time & Location Method */}
-        {step === 2 && (
-          <div className="max-w-xl mx-auto space-y-6">
-            {/* Time Selection */}
-            <div className="bg-white rounded-2xl border border-midnight-200 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
-                  <Clock size={20} className="text-red-600" />
+            <div className="space-y-3">
+              {/* Location */}
+              <div className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <MapPin size={20} className="text-red-500" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-midnight-900">When did they go missing?</h3>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Last Seen</p>
+                  <p className="font-medium text-gray-900 truncate">{cityName || lastSeenAddress || 'Location set'}</p>
                 </div>
               </div>
 
-              <div className="grid gap-2">
-                {TIME_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => setTimeElapsed(option.value)}
-                    className={`
-                      w-full p-3 rounded-xl border text-left transition-all
-                      ${timeElapsed === option.value
-                        ? 'bg-flash-100 border-flash-500'
-                        : 'bg-midnight-50 border-midnight-200 hover:border-midnight-400'
-                      }
-                    `}
-                  >
-                    <span className={`flex items-center justify-between ${timeElapsed === option.value ? 'text-flash-700' : 'text-midnight-700'}`}>
-                      {option.label}
-                      {option.urgency === 'critical' && (
-                        <span className="text-xs px-2 py-0.5 bg-red-100 text-red-600 rounded-full font-medium">
-                          URGENT
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              {!timeElapsed && (
-                <p className="mt-3 text-sm text-amber-600">
-                  Please select when your pet went missing
-                </p>
-              )}
-            </div>
-
-            {/* Location Selection */}
-            <div className="bg-white rounded-2xl border border-midnight-200 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-flash-100 flex items-center justify-center">
-                  <MapPin size={20} className="text-flash-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-midnight-900">Where were they last seen?</h3>
-                  <p className="text-sm text-midnight-600">Choose how to enter the location</p>
-                </div>
-              </div>
-
-              {/* Location method buttons */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <button
-                  onClick={() => setLocationMethod('address')}
-                  className={`
-                    p-4 rounded-xl border text-center transition-all
-                    ${locationMethod === 'address'
-                      ? 'bg-flash-100 border-flash-500'
-                      : 'bg-midnight-50 border-midnight-200 hover:border-midnight-400'
-                    }
-                  `}
-                >
-                  <Navigation size={24} className={`mx-auto mb-2 ${locationMethod === 'address' ? 'text-flash-600' : 'text-midnight-600'}`} />
-                  <span className={`text-sm font-medium ${locationMethod === 'address' ? 'text-flash-700' : 'text-midnight-700'}`}>
-                    Address
-                  </span>
-                </button>
-                <button
-                  onClick={() => setLocationMethod('zip')}
-                  className={`
-                    p-4 rounded-xl border text-center transition-all
-                    ${locationMethod === 'zip'
-                      ? 'bg-flash-100 border-flash-500'
-                      : 'bg-midnight-50 border-midnight-200 hover:border-midnight-400'
-                    }
-                  `}
-                >
-                  <Hash size={24} className={`mx-auto mb-2 ${locationMethod === 'zip' ? 'text-flash-600' : 'text-midnight-600'}`} />
-                  <span className={`text-sm font-medium ${locationMethod === 'zip' ? 'text-flash-700' : 'text-midnight-700'}`}>
-                    Zip Code
-                  </span>
-                </button>
-                <button
-                  onClick={() => setLocationMethod('pin')}
-                  className={`
-                    p-4 rounded-xl border text-center transition-all
-                    ${locationMethod === 'pin'
-                      ? 'bg-flash-100 border-flash-500'
-                      : 'bg-midnight-50 border-midnight-200 hover:border-midnight-400'
-                    }
-                  `}
-                >
-                  <Crosshair size={24} className={`mx-auto mb-2 ${locationMethod === 'pin' ? 'text-flash-600' : 'text-midnight-600'}`} />
-                  <span className={`text-sm font-medium ${locationMethod === 'pin' ? 'text-flash-700' : 'text-midnight-700'}`}>
-                    Pin on Map
-                  </span>
-                </button>
-              </div>
-
-              {/* Address input with autocomplete */}
-              {locationMethod === 'address' && (
-                <div className="relative">
-                  <label className="block text-sm font-medium mb-2 text-midnight-700">
-                    Street Address
-                  </label>
-                  <div className="relative">
-                    <input
-                      ref={addressInputRef}
-                      type="text"
-                      value={lastSeenAddress}
-                      onChange={handleAddressInputChange}
-                      onFocus={() => {
-                        if (addressSuggestions.length > 0) {
-                          setShowSuggestions(true);
-                        }
-                      }}
-                      placeholder="Start typing an address..."
-                      className="w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl text-midnight-900 placeholder:text-midnight-600 focus:outline-none focus:border-flash-500 focus:ring-1 focus:ring-flash-500 transition-all"
-                      autoComplete="off"
-                    />
-                    {isSearchingAddress && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <Loader2 size={18} className="animate-spin text-flash-500" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Address suggestions dropdown */}
-                  {showSuggestions && addressSuggestions.length > 0 && (
-                    <div
-                      ref={suggestionsRef}
-                      className="absolute z-50 w-full mt-1 bg-white border border-midnight-200 rounded-xl shadow-lg max-h-64 overflow-y-auto"
-                    >
-                      {addressSuggestions.map((suggestion, index) => (
-                        <button
-                          key={index}
-                          onClick={() => selectAddressSuggestion(suggestion)}
-                          className="w-full px-4 py-3 text-left hover:bg-midnight-50 border-b border-midnight-100 last:border-b-0 transition-colors"
-                        >
-                          <div className="flex items-start gap-2">
-                            <MapPin size={16} className="text-flash-500 flex-shrink-0 mt-1" />
-                            <div className="min-w-0">
-                              <p className="text-midnight-900 text-sm truncate">
-                                {suggestion.display_name.split(',').slice(0, 3).join(', ')}
-                              </p>
-                              <p className="text-midnight-600 text-xs truncate">
-                                {suggestion.display_name.split(',').slice(3).join(', ')}
-                              </p>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Validation message */}
-                  {lastSeenAddress && !center && !isSearchingAddress && addressSuggestions.length === 0 && lastSeenAddress.length >= 3 && (
-                    <p className="mt-2 text-sm text-amber-600">
-                      No addresses found. Please check your spelling or try a more specific address.
-                    </p>
-                  )}
-                  {!lastSeenAddress && (
-                    <p className="mt-2 text-sm text-midnight-600">
-                      Type to search for an address. Select from suggestions to validate.
-                    </p>
-                  )}
-                  {center && lastSeenAddress && (
-                    <p className="mt-2 text-sm text-green-600 flex items-center gap-1">
-                      <Check size={14} /> Address validated
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Zip code input */}
-              {locationMethod === 'zip' && (
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-midnight-700">
-                    Zip Code
-                  </label>
-                  <input
-                    type="text"
-                    value={zipCode}
-                    onChange={(e) => {
-                      setZipCode(e.target.value.replace(/\D/g, '').slice(0, 5));
-                      setCenter(null);
-                      setLocationConfirmed(false);
-                    }}
-                    placeholder="60601"
-                    maxLength={5}
-                    className="w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl text-midnight-900 placeholder:text-midnight-600 focus:outline-none focus:border-flash-500 focus:ring-1 focus:ring-flash-500 transition-all"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && zipCode.length === 5 && timeElapsed) {
-                        geocodeLocation(zipCode, true);
-                      }
-                    }}
-                  />
-                  {zipCode.length > 0 && zipCode.length < 5 && (
-                    <p className="mt-2 text-sm text-amber-600">
-                      Enter a 5-digit zip code
-                    </p>
-                  )}
-                  {zipCode.length === 5 && !center && (
-                    <p className="mt-2 text-sm text-midnight-600">
-                      Click "Set Location" to find this zip code area
-                    </p>
-                  )}
-                  <p className="mt-2 text-xs text-midnight-600">
-                    Using a zip code will notify all rescue squads in that area and neighboring towns.
-                  </p>
-                </div>
-              )}
-
-              {/* Pin on map info */}
-              {locationMethod === 'pin' && (
-                <div className="p-4 bg-midnight-50 rounded-xl">
-                  <p className="text-midnight-700 text-sm">
-                    We'll use your current location or let you drop a pin on the map to mark where your pet was last seen.
-                  </p>
-                </div>
-              )}
-
-              {!locationMethod && (
-                <p className="text-sm text-amber-600">
-                  Select how you want to enter the location
-                </p>
-              )}
-            </div>
-
-            {/* Navigation buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setStep(1)}
-                className="flex-1 py-3 px-4 rounded-xl bg-midnight-50 text-midnight-700
-                  border border-midnight-200 hover:bg-midnight-100 transition-all
-                  flex items-center justify-center gap-2"
-              >
-                <ChevronLeft size={18} />
-                Back
-              </button>
-              <button
-                onClick={() => {
-                  if (locationMethod === 'address' && center) {
-                    // Already validated via autocomplete, go to step 3
-                    setStep(3);
-                  } else if (locationMethod === 'address' && lastSeenAddress) {
-                    geocodeLocation(lastSeenAddress, false);
-                  } else if (locationMethod === 'zip' && zipCode.length === 5) {
-                    geocodeLocation(zipCode, true);
-                  } else if (locationMethod === 'pin') {
-                    handleDropPin();
-                  }
-                }}
-                disabled={
-                  !timeElapsed ||
-                  !locationMethod ||
-                  (locationMethod === 'address' && !lastSeenAddress && !center) ||
-                  (locationMethod === 'zip' && zipCode.length !== 5) ||
-                  isGeocoding
-                }
-                className={`
-                  flex-[2] py-3 px-4 rounded-xl font-medium transition-all
-                  flex items-center justify-center gap-2
-                  ${timeElapsed && locationMethod && !isGeocoding &&
-                    ((locationMethod === 'address' && lastSeenAddress) ||
-                     (locationMethod === 'zip' && zipCode.length === 5) ||
-                     locationMethod === 'pin')
-                    ? 'bg-gradient-to-r from-flash-400 to-flash-500 text-midnight-900 shadow-glow-flash hover:shadow-glow-flash-lg'
-                    : 'bg-midnight-100 text-midnight-400 cursor-not-allowed'
-                  }
-                `}
-              >
-                {isGeocoding ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" />
-                    Finding location...
-                  </>
-                ) : (
-                  <>
-                    Set Location on Map
-                    <ChevronRight size={18} />
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Confirm Location on Map */}
-        {step === 3 && center && (
-          <div className="space-y-4 sm:space-y-6">
-            <div className="bg-white rounded-2xl border border-midnight-200 overflow-hidden">
-              <div className="p-4 sm:p-6 border-b border-midnight-200">
-                <div className="flex items-start sm:items-center gap-3">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-flash-100 flex items-center justify-center flex-shrink-0">
-                    <MapPin size={20} className="sm:hidden text-flash-600" />
-                    <MapPin size={24} className="hidden sm:block text-flash-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-midnight-900">Confirm Last Seen Location</h2>
-                    <p className="text-sm sm:text-base text-midnight-600">
-                      <span className="hidden sm:inline">Drag the marker to the exact spot. Set how far they may have wandered.</span>
-                      <span className="sm:hidden">Drag marker to exact spot</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Drag instruction banner */}
-              <div className="px-4 py-2 bg-flash-50 border-b border-midnight-200 flex items-center justify-center gap-2">
-                <Crosshair size={14} className="text-flash-600" />
-                <span className="text-xs sm:text-sm text-flash-700">
-                  Drag the flash yellow marker to adjust location
-                </span>
-              </div>
-
-              {/* Map container - responsive height */}
-              <div className="h-[280px] sm:h-[350px] md:h-[400px] lg:h-[450px]">
-                <div ref={mapRef} className="h-full w-full" />
-              </div>
-
-              {/* Info about coverage */}
-              <div className="p-4 sm:p-6 bg-midnight-50 rounded-xl">
-                <p className="text-sm text-midnight-700">
-                  Your local rescue squad will be automatically notified based on your location.
-                  The search area is set to {radiusMiles} miles and nearby rescue squads will be alerted.
-                </p>
-              </div>
-            </div>
-
-            {/* Tip */}
-            <div className="p-4 bg-flash-50 border border-flash-200 rounded-xl flex items-start gap-3">
-              <Sparkles size={20} className="text-flash-600 flex-shrink-0 mt-0.5" />
-              <p className="text-midnight-700">
-                <strong className="text-flash-700">Tip:</strong> Rescue squads in your area will be automatically notified.
-                They'll coordinate search efforts based on your pet's last known location.
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setStep(2);
-                  setCenter(null);
-                  setLocationConfirmed(false);
-                }}
-                className="flex-1 py-3 px-4 rounded-xl bg-midnight-50 text-midnight-700
-                  border border-midnight-200 hover:bg-midnight-100 transition-all
-                  flex items-center justify-center gap-2"
-              >
-                <ChevronLeft size={18} />
-                Back
-              </button>
-              <button
-                onClick={() => {
-                  setLocationConfirmed(true);
-                  setStep(nextStepFromMap);
-                }}
-                className="flex-[2] py-3 px-4 rounded-xl font-medium transition-all
-                  bg-gradient-to-r from-flash-400 to-flash-500 text-midnight-900
-                  shadow-glow-flash hover:shadow-glow-flash-lg
-                  flex items-center justify-center gap-2"
-              >
-                <Check size={18} />
-                Confirm Location
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Contact Info (only if not logged in) */}
-        {step === 4 && !session?.user && (
-          <div className="max-w-xl mx-auto">
-            <div className="bg-white rounded-2xl border border-midnight-200 p-6 md:p-8">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-violet-50 flex items-center justify-center">
-                  <User size={24} className="text-violet-600" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-midnight-900">Your Contact Information</h2>
-                  <p className="text-midnight-600">So rescuers can reach you with sightings</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-midnight-700">
-                    Your Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={reportData.firstName}
-                    onChange={(e) => setReportData({ ...reportData, firstName: e.target.value })}
-                    placeholder="John"
-                    className="w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl
-                      text-midnight-900 placeholder:text-midnight-600
-                      focus:outline-none focus:border-flash-500 focus:ring-1 focus:ring-flash-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-midnight-700">
-                    <Mail size={14} className="inline mr-1" />
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    value={reportData.email}
-                    onChange={(e) => setReportData({ ...reportData, email: e.target.value })}
-                    placeholder="john@example.com"
-                    className="w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl
-                      text-midnight-900 placeholder:text-midnight-600
-                      focus:outline-none focus:border-flash-500 focus:ring-1 focus:ring-flash-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-midnight-700">
-                    <Phone size={14} className="inline mr-1" />
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={reportData.phone}
-                    onChange={(e) => setReportData({ ...reportData, phone: e.target.value })}
-                    placeholder="(555) 123-4567"
-                    className="w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl
-                      text-midnight-900 placeholder:text-midnight-600
-                      focus:outline-none focus:border-flash-500 focus:ring-1 focus:ring-flash-500"
-                  />
-                  <p className="mt-1 text-sm text-midnight-600">For text alerts about sightings</p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-8">
-                <button
-                  onClick={() => setStep(3)}
-                  className="flex-1 py-3 px-4 rounded-xl bg-midnight-50 text-midnight-700
-                    border border-midnight-200 hover:bg-midnight-100 transition-all
-                    flex items-center justify-center gap-2"
-                >
-                  <ChevronLeft size={18} />
-                  Back
-                </button>
-                <button
-                  onClick={() => setStep(5)}
-                  disabled={!canProceedFromStep4}
-                  className={`
-                    flex-[2] py-3 px-4 rounded-xl font-medium transition-all
-                    flex items-center justify-center gap-2
-                    ${canProceedFromStep4
-                      ? 'bg-gradient-to-r from-flash-400 to-flash-500 text-midnight-900 shadow-glow-flash hover:shadow-glow-flash-lg'
-                      : 'bg-midnight-100 text-midnight-400 cursor-not-allowed'
-                    }
-                  `}
-                >
-                  Continue
-                  <ChevronRight size={18} />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 5: Pet Details */}
-        {step === 5 && (
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-2xl border border-midnight-200 p-6 md:p-8">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
-                  <Camera size={24} className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-midnight-900">Tell us about your pet</h2>
-                  <p className="text-midnight-600">Help people identify and find them</p>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-midnight-700">
-                    Pet's Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={reportData.petName}
-                    onChange={(e) => setReportData({ ...reportData, petName: e.target.value })}
-                    placeholder="Max"
-                    disabled={isSubmitting}
-                    className={`w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl
-                      text-midnight-900 placeholder:text-midnight-600
-                      focus:outline-none focus:border-flash-500 focus:ring-1 focus:ring-flash-500
-                      ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-midnight-700">
-                    Breed
-                  </label>
-                  <div className="breed-selector-wrapper">
-                    <BreedSelector
-                      species={petType}
-                      value={reportData.breed}
-                      onChange={(breed) => setReportData({ ...reportData, breed })}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-midnight-700">
-                    Color/Pattern *
-                  </label>
-                  <div className="color-selector-wrapper">
-                    <ColorSelector
-                      value={reportData.color}
-                      onChange={(color) => setReportData({ ...reportData, color })}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-midnight-700">
-                    Size
-                  </label>
-                  <select
-                    value={reportData.size}
-                    onChange={(e) => setReportData({ ...reportData, size: e.target.value })}
-                    disabled={isSubmitting}
-                    className={`w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl
-                      text-midnight-900 focus:outline-none focus:border-flash-500
-                      ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  >
-                    {petType === 'bird' ? (
-                      <>
-                        <option value="TINY">Small (Parakeet, Finch)</option>
-                        <option value="SMALL">Medium (Cockatiel, Conure)</option>
-                        <option value="MEDIUM">Large (African Grey, Amazon)</option>
-                        <option value="LARGE">Very Large (Macaw, Cockatoo)</option>
-                      </>
-                    ) : petType === 'cat' ? (
-                      <>
-                        <option value="TINY">Small (&lt; 8 lbs)</option>
-                        <option value="SMALL">Medium (8-12 lbs)</option>
-                        <option value="MEDIUM">Large (12-18 lbs)</option>
-                        <option value="LARGE">Very Large (&gt; 18 lbs)</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="TINY">Tiny (&lt; 10 lbs)</option>
-                        <option value="SMALL">Small (10-25 lbs)</option>
-                        <option value="MEDIUM">Medium (25-60 lbs)</option>
-                        <option value="LARGE">Large (60-90 lbs)</option>
-                        <option value="GIANT">Giant (&gt; 90 lbs)</option>
-                      </>
-                    )}
-                  </select>
-                </div>
-
-                {/* Photo upload */}
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-midnight-700">
-                    <Camera size={14} className="inline mr-1" />
-                    Photos (up to 5)
-                  </label>
-
-                  {photos.length > 0 && (
-                    <div className="flex flex-wrap gap-3 mb-3">
-                      {photos.map((photo, index) => (
-                        <div key={index} className="relative group">
-                          <img
-                            src={photo}
-                            alt={`Pet photo ${index + 1}`}
-                            className="w-24 h-24 object-cover rounded-lg border border-midnight-200"
-                          />
-                          {!isSubmitting && (
-                            <button
-                              onClick={() => removePhoto(index)}
-                              className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 rounded-full
-                                flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              &times;
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {photos.length < 5 && !isSubmitting && (
-                    uploadingPhotos ? (
-                      <div className="block p-6 border-2 border-dashed border-flash-500 rounded-xl text-center">
-                        <Loader2 size={32} className="mx-auto mb-2 text-flash-500 animate-spin" />
-                        <span className="text-flash-600">Uploading photos...</span>
-                      </div>
-                    ) : (
-                      <label className="block p-6 border-2 border-dashed border-midnight-200 rounded-xl
-                        hover:border-flash-500 transition-colors cursor-pointer text-center">
-                        <Camera size={32} className="mx-auto mb-2 text-midnight-400" />
-                        <span className="text-midnight-700">Click to upload photos</span>
-                        <span className="block text-sm text-midnight-600">Max 10MB each</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handlePhotoUpload}
-                          className="hidden"
-                        />
-                      </label>
-                    )
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-midnight-700">
-                    Distinctive Features
-                  </label>
-                  <textarea
-                    value={reportData.distinctiveMarks}
-                    onChange={(e) => setReportData({ ...reportData, distinctiveMarks: e.target.value })}
-                    placeholder="Black spot on left ear, scar on right paw, very friendly with strangers..."
-                    rows={3}
-                    disabled={isSubmitting}
-                    className={`w-full px-4 py-3 bg-midnight-50 border border-midnight-200 rounded-xl
-                      text-midnight-900 placeholder:text-midnight-600
-                      focus:outline-none focus:border-flash-500 resize-none
-                      ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-8">
-                <button
-                  onClick={() => setStep(prevStepFromDetails)}
-                  disabled={isSubmitting}
-                  className={`flex-1 py-3 px-4 rounded-xl bg-midnight-50 text-midnight-700
-                    border border-midnight-200 transition-all flex items-center justify-center gap-2
-                    ${isSubmitting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-midnight-100'}`}
-                >
-                  <ChevronLeft size={18} />
-                  Back
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={!canSubmit || isSubmitting}
-                  className={`
-                    flex-[2] py-3 px-4 rounded-xl font-medium transition-all
-                    flex items-center justify-center gap-2
-                    ${canSubmit && !isSubmitting
-                      ? 'bg-gradient-to-r from-green-500 to-emerald-400 text-white shadow-glow-green hover:shadow-glow-green-lg'
-                      : 'bg-midnight-100 text-midnight-400 cursor-not-allowed'
-                    }
-                  `}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin" />
-                      Creating Alert...
-                    </>
+              {/* Pet */}
+              <div className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="w-12 h-12 rounded-xl overflow-hidden bg-purple-100 flex items-center justify-center flex-shrink-0">
+                  {photos[0] ? (
+                    <img src={photos[0]} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <>
-                      <Bell size={18} />
-                      Create Alert
-                    </>
+                    <span className="text-2xl">{PET_TYPES.find(p => p.type === petType)?.emoji}</span>
                   )}
-                </button>
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Pet</p>
+                  <p className="font-medium text-gray-900">{petName}</p>
+                  <p className="text-sm text-gray-500">{color} {petType}</p>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* Step 6: Success */}
-        {step === 6 && reportResult && (
-          <div className="max-w-xl mx-auto text-center">
-            <div className="relative inline-block mb-6">
-              <div className="absolute inset-0 bg-green-500 blur-3xl opacity-30 rounded-full animate-pulse" />
-              <div className="relative w-24 h-24 bg-gradient-to-br from-green-500 to-emerald-400 rounded-full flex items-center justify-center shadow-glow-green">
-                <Check size={48} className="text-white" />
-              </div>
-            </div>
-
-            <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-green-600 to-emerald-500 bg-clip-text text-transparent">
-              Alert Created!
-            </h1>
-            <p className="text-lg text-midnight-700 mb-8">
-              {reportResult.squadsNotified || 0} rescue squad{reportResult.squadsNotified === 1 ? '' : 's'} and {reportResult.patrolAlerted || 0} patrol member{reportResult.patrolAlerted === 1 ? '' : 's'} have been notified about {reportData.petName}.
-            </p>
-
-            {/* Report Summary */}
-            <div className="bg-white rounded-2xl border border-midnight-200 p-4 sm:p-6 text-left mb-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Search size={20} className="text-flash-500" />
-                Report Summary
-              </h3>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-midnight-600">Pet Name</p>
-                  <p className="font-medium text-midnight-900">{reportData.petName}</p>
+              {/* Time */}
+              <div className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <Clock size={20} className="text-amber-600" />
                 </div>
-                <div>
-                  <p className="text-midnight-600">Type</p>
-                  <p className="font-medium text-midnight-900 capitalize">{petType}</p>
-                </div>
-                <div>
-                  <p className="text-midnight-600">Color</p>
-                  <p className="font-medium text-midnight-900">{reportData.color}</p>
-                </div>
-                <div>
-                  <p className="text-midnight-600">Last Seen</p>
-                  <p className="font-medium text-midnight-900">
-                    {TIME_OPTIONS.find(opt => opt.value === timeElapsed)?.label || 'Recently'}
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Missing Since</p>
+                  <p className="font-medium text-gray-900">
+                    {TIME_OPTIONS.find(t => t.value === timeElapsed)?.label}
+                    {TIME_OPTIONS.find(t => t.value === timeElapsed)?.urgent && (
+                      <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-600">
+                        Urgent
+                      </span>
+                    )}
                   </p>
                 </div>
-                <div className="col-span-2">
-                  <p className="text-midnight-600">Last Seen Location</p>
-                  <p className="font-medium text-midnight-900 text-sm break-words">{lastSeenAddress}</p>
+              </div>
+
+              {/* Contact */}
+              <div className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Mail size={20} className="text-blue-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Contact</p>
+                  <p className="font-medium text-gray-900">{effectiveName}</p>
+                  <p className="text-sm text-gray-500">{effectiveEmail}</p>
                 </div>
               </div>
-              {reportResult.reportId && (
-                <div className="mt-4 pt-4 border-t border-midnight-200">
-                  <p className="text-xs text-midnight-600">
-                    Report ID: <span className="font-mono text-flash-600">{reportResult.reportId}</span>
-                  </p>
-                </div>
-              )}
             </div>
 
-            {/* What happens next */}
-            <div className="bg-white rounded-2xl border border-midnight-200 p-4 sm:p-6 text-left mb-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Sparkles size={20} className="text-flash-500" />
-                What happens next
-              </h3>
-              <ul className="space-y-3">
-                {[
-                  { icon: Users, text: 'Community patrol members in your area will keep watch' },
-                  { icon: Bell, text: `You'll receive updates when there are sightings of ${reportData.petName}` },
-                  { icon: Shield, text: 'Rescue squads can coordinate search efforts' },
-                  { icon: MapPin, text: 'Check your dashboard to see reported sightings on the map' },
-                ].map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-3">
-                    <item.icon size={18} className="text-flash-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-midnight-700 text-sm sm:text-base">{item.text}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Assigned squad notice */}
-            {reportResult.assignedSquad && (
-              <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 mb-6 text-left">
-                <div className="flex items-center gap-3 mb-2">
-                  <Shield size={20} className="text-violet-600" />
-                  <p className="text-violet-700 font-medium">Rescue Squad Assigned</p>
+            {error && (
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3">
+                <AlertTriangle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-red-700">Something went wrong</p>
+                  <p className="text-red-600 text-sm mt-1">{error}</p>
                 </div>
-                <p className="text-sm text-midnight-700 mb-3">
-                  {reportResult.assignedSquad.name}{reportResult.assignedSquad.city ? ` (${reportResult.assignedSquad.city})` : ''} has been notified and will coordinate search efforts.
-                  {reportResult.squadsNotified > 1 && (
-                    <span className="block mt-1 text-flash-600">
-                      + {reportResult.squadsNotified - 1} other squad{reportResult.squadsNotified > 2 ? 's' : ''} also notified
-                    </span>
-                  )}
-                </p>
-                <Link
-                  href={`/rescue-squads/${reportResult.assignedSquad.id}`}
-                  className="inline-flex items-center gap-2 text-sm text-violet-600 hover:underline"
-                >
-                  View Squad Hub
-                  <ArrowRight size={14} />
-                </Link>
               </div>
             )}
-
-            {/* Account created notice */}
-            {reportResult.accountCreated && (
-              <div className="bg-flash-50 border border-flash-200 rounded-xl p-4 mb-6 text-left">
-                <p className="text-flash-700 font-medium mb-1">Account Created</p>
-                <p className="text-sm text-midnight-700">
-                  Check your email for login credentials to access your dashboard.
-                </p>
-              </div>
-            )}
-
-            {/* Action buttons */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              {reportResult.assignedSquad ? (
-                <Link
-                  href={`/rescue-squads/${reportResult.assignedSquad.id}`}
-                  className="flex-1 py-3 px-6 rounded-xl font-medium transition-all
-                    bg-gradient-to-r from-violet-500 to-violet-400 text-white
-                    shadow-glow-violet hover:shadow-glow-violet-lg
-                    flex items-center justify-center gap-2"
-                >
-                  Go to Squad Hub
-                  <ArrowRight size={18} />
-                </Link>
-              ) : (
-                <Link
-                  href="/dashboard"
-                  className="flex-1 py-3 px-6 rounded-xl font-medium transition-all
-                    bg-gradient-to-r from-flash-400 to-flash-500 text-midnight-900
-                    shadow-glow-flash hover:shadow-glow-flash-lg
-                    flex items-center justify-center gap-2"
-                >
-                  Go to Dashboard
-                  <ArrowRight size={18} />
-                </Link>
-              )}
-              <Link
-                href="/dashboard"
-                className="flex-1 py-3 px-6 rounded-xl bg-midnight-50 text-midnight-700
-                  border border-midnight-200 hover:bg-midnight-100 transition-all
-                  flex items-center justify-center"
-              >
-                My Dashboard
-              </Link>
-            </div>
           </div>
         )}
-      </main>
+      </div>
 
-      {/* Leaflet CSS injection for dark theme */}
+      {/* Footer with Next button */}
+      {step >= minStep && step < 8 && (
+        <div className="px-6 pb-6 pt-4 flex-shrink-0 bg-gradient-to-t from-white via-white to-transparent">
+          <button
+            onClick={nextStep}
+            disabled={!canProceed() || isSubmitting}
+            className={`w-full py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2 transition-all ${
+              canProceed() && !isSubmitting
+                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-200 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
+                : 'bg-gray-200 text-gray-400'
+            }`}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 size={20} className="animate-spin" />
+                <span>Creating alert...</span>
+              </>
+            ) : step === 7 ? (
+              <>
+                <Sparkles size={20} />
+                <span>Send Alert</span>
+              </>
+            ) : (
+              <>
+                <span>Continue</span>
+                <ChevronRight size={20} />
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       <style jsx global>{`
-        .leaflet-container {
-          background: #0f172a;
-        }
-        .custom-marker {
-          background: transparent;
-          border: none;
-        }
-        .leaflet-control-zoom a {
-          background: #ffffff !important;
-          color: #0f172a !important;
-          border-color: #e2e8f0 !important;
-        }
-        .leaflet-control-zoom a:hover {
-          background: #f1f5f9 !important;
-        }
-        /* Override global input styles */
-        .report-form input[type="text"],
-        .report-form input[type="email"],
-        .report-form input[type="tel"],
-        .report-form textarea,
-        .report-form select {
-          background: #f8fafc !important;
-          color: #0f172a !important;
-          border-color: #e2e8f0 !important;
-        }
-        .report-form input::placeholder,
-        .report-form textarea::placeholder {
-          color: #64748b !important;
-        }
-        .report-form input:focus,
-        .report-form textarea:focus,
-        .report-form select:focus {
-          border-color: #facc15 !important;
-          box-shadow: 0 0 0 1px #facc15 !important;
-        }
-        .breed-selector-wrapper input,
-        .color-selector-wrapper button {
-          background: #f8fafc !important;
-          border-color: #e2e8f0 !important;
-          color: #0f172a !important;
-        }
+        .custom-marker { background: transparent; border: none; }
       `}</style>
     </div>
   );

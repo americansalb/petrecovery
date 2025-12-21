@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { getCitiesByZip, getCityByName } from '@/app/lib/cities';
+import { getMexicanStateFromPostalCode } from '@/app/lib/states';
 import { logEvent } from '@/lib/logging';
 
 // GET /api/rescue-squads - Search for cities with rescue squads nearby
@@ -17,6 +18,11 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const searchTerm = searchParams.get('search') || searchParams.get('zipCode') || searchParams.get('zip');
     const radius = parseInt(searchParams.get('radius')) || 25;
+    const country = searchParams.get('country') || 'US';
+    // For international cities, lat/lng can be passed directly
+    const passedLat = searchParams.get('lat') ? parseFloat(searchParams.get('lat')) : null;
+    const passedLng = searchParams.get('lng') ? parseFloat(searchParams.get('lng')) : null;
+    const passedState = searchParams.get('state') || null;
 
     if (!searchTerm) {
       await logEvent({
@@ -30,17 +36,47 @@ export async function GET(request) {
         actor_role: null,
         metadata: {
           search_term: searchTerm,
-          radius
+          radius,
+          country
         }
       });
-      return NextResponse.json({ error: 'City name or ZIP code required' }, { status: 400 });
+      return NextResponse.json({ error: 'City name or postal code required' }, { status: 400 });
     }
 
     let searchLat, searchLng, userState, allCitiesInZip, zipCode;
     const isZipCode = /^\d{5}$/.test(searchTerm.trim());
 
-    if (isZipCode) {
-      // Search by ZIP code - use cities library
+    // Handle non-US cities with passed lat/lng (including MX, CA, CO, HT, etc.)
+    if (country !== 'US' && passedLat !== null && passedLng !== null) {
+      searchLat = passedLat;
+      searchLng = passedLng;
+      userState = passedState;
+      allCitiesInZip = [searchTerm.trim()];
+      zipCode = null; // International cities may not have ZIP codes
+    }
+    // Fallback: Handle Mexican locations via Nominatim if no lat/lng passed
+    else if (country === 'MX') {
+      const result = await searchMexicanLocation(searchTerm.trim(), isZipCode);
+      if (!result.success) {
+        await logEvent({
+          event_type: 'squad.search_failed',
+          resource_type: 'rescue_squad',
+          action: 'read',
+          result: 'failure',
+          error_code: 'INVALID_LOCATION',
+          error_message: result.error,
+          actor_user_id: session?.user?.id || null,
+          metadata: { search_term: searchTerm, country }
+        });
+        return NextResponse.json({ error: result.error }, { status: 400 });
+      }
+      searchLat = result.lat;
+      searchLng = result.lng;
+      userState = result.state;
+      allCitiesInZip = [result.city];
+      zipCode = result.postalCode;
+    } else if (isZipCode) {
+      // US ZIP code search - use cities library
       zipCode = searchTerm.trim();
       const citiesForZip = getCitiesByZip(zipCode);
 
@@ -78,7 +114,7 @@ export async function GET(request) {
       userState = citiesForZip[0].state_id;
       allCitiesInZip = citiesForZip.map(c => c.city);
     } else {
-      // Search by city name - use cities library
+      // US city name search - use cities library
       const cityName = searchTerm.trim();
       const cityData = getCityByName(cityName);
 
@@ -137,12 +173,13 @@ export async function GET(request) {
       zipCode = cityData.zips.length > 0 ? cityData.zips[0] : null;
     }
 
-    // Find all active squads with coordinates
+    // Find all active squads with coordinates (filter by country)
     const squads = await prisma.rescueSquad.findMany({
       where: {
         isActive: true,
         centerLatitude: { not: null },
         centerLongitude: { not: null },
+        country: country,
       },
       include: {
         members: {
@@ -297,21 +334,26 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { city, state, zipCode } = await request.json();
+    const { city, state, zipCode, country = 'US', lat: passedLat, lng: passedLng } = await request.json();
 
-    if (!city || !state || !zipCode) {
+    // For international cities, lat/lng are required instead of zipCode
+    const isInternational = country !== 'US' && country !== 'MX';
+    if (!city || !state || (!zipCode && !isInternational) || (isInternational && (!passedLat || !passedLng))) {
+      const errorMsg = isInternational
+        ? 'City, state, and coordinates (lat/lng) required for international locations'
+        : 'City, state, and postal code required';
       await logEvent({
         event_type: 'squad.create_failed',
         resource_type: 'rescue_squad',
         action: 'create',
         result: 'failure',
         error_code: 'VALIDATION_ERROR',
-        error_message: 'Missing required parameters: city, state, or zipCode',
+        error_message: errorMsg,
         actor_user_id: session.user.id,
         actor_role: null,
-        metadata: { city, state, zipCode }
+        metadata: { city, state, zipCode, country, lat: passedLat, lng: passedLng }
       });
-      return NextResponse.json({ error: 'City, state, and zipCode required' }, { status: 400 });
+      return NextResponse.json({ error: errorMsg }, { status: 400 });
     }
 
     // Emit squad.create_attempted event
@@ -326,6 +368,7 @@ export async function POST(request) {
         city,
         state,
         zipCode,
+        country,
         requestedRadiusMiles: 10
       }
     });
@@ -384,27 +427,19 @@ export async function POST(request) {
     // Geocode to get coordinates - try multiple methods
     let latitude, longitude;
 
-    // Method 1: Try zippopotam.us (ZIP code lookup)
-    try {
-      const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
-      if (geoRes.ok) {
-        const geoData = await geoRes.json();
-        const place = geoData.places[0];
-        latitude = parseFloat(place['latitude']);
-        longitude = parseFloat(place['longitude']);
-        console.log(`[Squad Create] Geocoded via zippopotam: ${latitude}, ${longitude}`);
-      }
-    } catch (err) {
-      console.log('[Squad Create] zippopotam.us failed, trying fallback...');
+    // International cities - use passed coordinates directly
+    if (isInternational && passedLat && passedLng) {
+      latitude = passedLat;
+      longitude = passedLng;
+      console.log(`[Squad Create] Using passed coords for ${country}: ${latitude}, ${longitude}`);
     }
-
-    // Method 2: Fallback to Nominatim (city, state lookup)
-    if (!latitude || !longitude) {
+    // Mexican locations - use Nominatim with postal code
+    else if (country === 'MX') {
+      // Mexican locations - use Nominatim with postal code
       try {
-        const query = encodeURIComponent(`${city}, ${state}, USA`);
         const nomRes = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
-          { headers: { 'User-Agent': 'PetRecovery-RescueSquad/1.0' } }
+          `https://nominatim.openstreetmap.org/search?postalcode=${zipCode}&country=MX&format=json&limit=1`,
+          { headers: { 'User-Agent': 'PetRecovery.org' } }
         );
 
         if (nomRes.ok) {
@@ -412,15 +447,72 @@ export async function POST(request) {
           if (nomData.length > 0) {
             latitude = parseFloat(nomData[0].lat);
             longitude = parseFloat(nomData[0].lon);
-            console.log(`[Squad Create] Geocoded via Nominatim: ${latitude}, ${longitude}`);
+            console.log(`[Squad Create] Geocoded MX via Nominatim postal: ${latitude}, ${longitude}`);
           }
         }
       } catch (err) {
-        console.error('[Squad Create] Nominatim geocoding failed:', err);
+        console.log('[Squad Create] Nominatim postal code failed, trying city name...');
+      }
+
+      // Fallback: try city name search
+      if (!latitude || !longitude) {
+        try {
+          const nomRes = await fetch(
+            `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&country=MX&format=json&limit=1`,
+            { headers: { 'User-Agent': 'PetRecovery.org' } }
+          );
+
+          if (nomRes.ok) {
+            const nomData = await nomRes.json();
+            if (nomData.length > 0) {
+              latitude = parseFloat(nomData[0].lat);
+              longitude = parseFloat(nomData[0].lon);
+              console.log(`[Squad Create] Geocoded MX via Nominatim city: ${latitude}, ${longitude}`);
+            }
+          }
+        } catch (err) {
+          console.error('[Squad Create] Nominatim city geocoding failed:', err);
+        }
+      }
+    } else {
+      // US locations - try zippopotam.us first
+      try {
+        const geoRes = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          const place = geoData.places[0];
+          latitude = parseFloat(place['latitude']);
+          longitude = parseFloat(place['longitude']);
+          console.log(`[Squad Create] Geocoded via zippopotam: ${latitude}, ${longitude}`);
+        }
+      } catch (err) {
+        console.log('[Squad Create] zippopotam.us failed, trying fallback...');
+      }
+
+      // Fallback to Nominatim (city, state lookup)
+      if (!latitude || !longitude) {
+        try {
+          const query = encodeURIComponent(`${city}, ${state}, USA`);
+          const nomRes = await fetch(
+            `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
+            { headers: { 'User-Agent': 'PetRecovery-RescueSquad/1.0' } }
+          );
+
+          if (nomRes.ok) {
+            const nomData = await nomRes.json();
+            if (nomData.length > 0) {
+              latitude = parseFloat(nomData[0].lat);
+              longitude = parseFloat(nomData[0].lon);
+              console.log(`[Squad Create] Geocoded via Nominatim: ${latitude}, ${longitude}`);
+            }
+          }
+        } catch (err) {
+          console.error('[Squad Create] Nominatim geocoding failed:', err);
+        }
       }
     }
 
-    // If both methods failed, return error
+    // If geocoding failed, return error
     if (!latitude || !longitude) {
       await logEvent({
         event_type: 'squad.create_failed',
@@ -428,21 +520,57 @@ export async function POST(request) {
         action: 'create',
         result: 'failure',
         error_code: 'GEOCODING_FAILED',
-        error_message: `Could not geocode ${city}, ${state} (ZIP: ${zipCode})`,
+        error_message: `Could not geocode ${city}, ${state} (Postal: ${zipCode}, Country: ${country})`,
         actor_user_id: session.user.id,
         actor_role: null,
-        metadata: { city, state, zipCode }
+        metadata: { city, state, zipCode, country }
       });
       return NextResponse.json({
         error: 'Could not determine location coordinates. Please try again or contact support.'
       }, { status: 400 });
     }
 
+    // Fetch city boundary polygon from Nominatim for map display
+    let customBoundary = null;
+    try {
+      const countryNames = {
+        'US': 'USA', 'CA': 'Canada', 'MX': 'Mexico', 'CO': 'Colombia',
+        'GT': 'Guatemala', 'HN': 'Honduras', 'SV': 'El Salvador', 'NI': 'Nicaragua',
+        'CR': 'Costa Rica', 'PA': 'Panama', 'BZ': 'Belize', 'CU': 'Cuba',
+        'JM': 'Jamaica', 'HT': 'Haiti', 'DO': 'Dominican Republic', 'BS': 'Bahamas',
+        'TT': 'Trinidad and Tobago', 'BB': 'Barbados', 'AG': 'Antigua and Barbuda',
+        'DM': 'Dominica', 'GD': 'Grenada', 'KN': 'Saint Kitts and Nevis',
+        'LC': 'Saint Lucia', 'VC': 'Saint Vincent', 'GL': 'Greenland'
+      };
+      const countryName = countryNames[country] || country;
+      const searchQuery = state ? `${city}, ${state}, ${countryName}` : `${city}, ${countryName}`;
+
+      const boundaryRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&polygon_geojson=1&limit=1`,
+        { headers: { 'User-Agent': 'PetRecovery.org (contact@petrecovery.org)' } }
+      );
+
+      if (boundaryRes.ok) {
+        const boundaryData = await boundaryRes.json();
+        if (boundaryData.length > 0 && boundaryData[0].geojson) {
+          const geojson = boundaryData[0].geojson;
+          // Only store if it's a polygon (not a point)
+          if (geojson.type === 'Polygon' || geojson.type === 'MultiPolygon') {
+            customBoundary = JSON.stringify(geojson);
+            console.log(`[Squad Create] Fetched boundary polygon for ${city}, ${state}`);
+          }
+        }
+      }
+    } catch (boundaryError) {
+      // Non-fatal: log but continue - squad still created without boundary
+      console.error('[Squad Create] Boundary fetch failed:', boundaryError.message);
+    }
+
     const squadName = `${city} Rescue Squad`;
 
-    // Check if squad already exists (active)
+    // Check if squad already exists (active) - filter by country
     const existingActive = await prisma.rescueSquad.findFirst({
-      where: { city, state, isDeleted: false }
+      where: { city, state, country, isDeleted: false }
     });
 
     if (existingActive) {
@@ -452,17 +580,17 @@ export async function POST(request) {
         action: 'create',
         result: 'failure',
         error_code: 'DUPLICATE_SQUAD',
-        error_message: `Squad already exists for ${city}, ${state}`,
+        error_message: `Squad already exists for ${city}, ${state}, ${country}`,
         actor_user_id: session.user.id,
         actor_role: null,
-        metadata: { city, state, zipCode, existingSquadId: existingActive.id, existingSquadName: existingActive.name }
+        metadata: { city, state, zipCode, country, existingSquadId: existingActive.id, existingSquadName: existingActive.name }
       });
       return NextResponse.json({ error: 'Squad already exists for this city' }, { status: 400 });
     }
 
     // Check if there's a deleted squad we can reactivate
     const deletedSquad = await prisma.rescueSquad.findFirst({
-      where: { city, state, isDeleted: true }
+      where: { city, state, country, isDeleted: true }
     });
 
     let squad;
@@ -488,7 +616,9 @@ export async function POST(request) {
           isAcceptingCases: true,
           centerLatitude: latitude,
           centerLongitude: longitude,
-          zipCodes: JSON.stringify([zipCode]),
+          zipCodes: JSON.stringify(zipCode ? [zipCode] : []),
+          country,
+          customBoundary,
         },
       });
 
@@ -529,10 +659,12 @@ export async function POST(request) {
           name: squadName,
           city,
           state,
-          zipCodes: JSON.stringify([zipCode]),
+          country,
+          zipCodes: JSON.stringify(zipCode ? [zipCode] : []),
           centerLatitude: latitude,
           centerLongitude: longitude,
           radiusMiles: 10,
+          customBoundary,
           specializesInDogs: true,
           specializesInCats: true,
           members: {
@@ -698,4 +830,100 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 function toRad(deg) {
   return deg * (Math.PI / 180);
+}
+
+// Search Mexican location via Nominatim
+async function searchMexicanLocation(query, isPostalCode) {
+  try {
+    let nominatimUrl;
+
+    if (isPostalCode) {
+      nominatimUrl = `https://nominatim.openstreetmap.org/search?postalcode=${query}&country=MX&format=json&limit=1&addressdetails=1`;
+    } else {
+      nominatimUrl = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(query)}&country=MX&format=json&limit=1&addressdetails=1`;
+    }
+
+    const response = await fetch(nominatimUrl, {
+      headers: { 'User-Agent': 'PetRecovery.org' }
+    });
+
+    if (!response.ok) {
+      return { success: false, error: 'Location search failed' };
+    }
+
+    const data = await response.json();
+
+    if (data.length === 0) {
+      return { success: false, error: isPostalCode ? 'Invalid postal code' : 'Invalid city name' };
+    }
+
+    const place = data[0];
+    const address = place.address || {};
+    const city = address.city || address.town || address.village || address.municipality || address.county || query;
+    const stateName = address.state || 'México';
+    const postalCode = address.postcode || (isPostalCode ? query : null);
+
+    // Map state name to code
+    const stateCode = getMexicanStateCodeFromName(stateName);
+
+    return {
+      success: true,
+      lat: parseFloat(place.lat),
+      lng: parseFloat(place.lon),
+      city: city,
+      state: stateCode,
+      stateName: stateName,
+      postalCode: postalCode
+    };
+  } catch (error) {
+    console.error('Mexican location search error:', error);
+    return { success: false, error: 'Location search failed' };
+  }
+}
+
+// Map Mexican state names to state codes
+function getMexicanStateCodeFromName(stateName) {
+  if (!stateName) return 'MX';
+
+  const nameToCode = {
+    'aguascalientes': 'AGS',
+    'baja california': 'BC',
+    'baja california sur': 'BCS',
+    'campeche': 'CAM',
+    'chiapas': 'CHIS',
+    'chihuahua': 'CHIH',
+    'ciudad de méxico': 'CDMX',
+    'coahuila': 'COAH',
+    'coahuila de zaragoza': 'COAH',
+    'colima': 'COL',
+    'durango': 'DGO',
+    'guanajuato': 'GTO',
+    'guerrero': 'GRO',
+    'hidalgo': 'HGO',
+    'jalisco': 'JAL',
+    'méxico': 'MEX',
+    'estado de méxico': 'MEX',
+    'michoacán': 'MICH',
+    'michoacán de ocampo': 'MICH',
+    'morelos': 'MOR',
+    'nayarit': 'NAY',
+    'nuevo león': 'NL',
+    'oaxaca': 'OAX',
+    'puebla': 'PUE',
+    'querétaro': 'QRO',
+    'quintana roo': 'QROO',
+    'san luis potosí': 'SLP',
+    'sinaloa': 'SIN',
+    'sonora': 'SON',
+    'tabasco': 'TAB',
+    'tamaulipas': 'TAMPS',
+    'tlaxcala': 'TLAX',
+    'veracruz': 'VER',
+    'veracruz de ignacio de la llave': 'VER',
+    'yucatán': 'YUC',
+    'zacatecas': 'ZAC',
+  };
+
+  const normalized = stateName.toLowerCase().trim();
+  return nameToCode[normalized] || 'MX';
 }

@@ -5,7 +5,7 @@
  * Uses: Midnight Blue + Flashlight Yellow color palette
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Search, MapPin, Users, ChevronDown, ChevronRight, Plus, ArrowLeft, Shield } from 'lucide-react';
@@ -15,6 +15,7 @@ export default function RescueSquadSearchPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState(null); // Stores full location data including country
   const [radius, setRadius] = useState(25);
   const [cities, setCities] = useState([]);
   const [searchLocation, setSearchLocation] = useState(null);
@@ -25,34 +26,90 @@ export default function RescueSquadSearchPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [inputType, setInputType] = useState(null);
   const [validationError, setValidationError] = useState('');
-  const [isValidInput, setIsValidInput] = useState(false);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [showCountriesModal, setShowCountriesModal] = useState(false);
+  const debounceRef = useRef(null);
+  const currentQueryRef = useRef('');
+
+  // Supported countries with flags
+  const supportedCountries = [
+    { flag: '🇺🇸', name: 'United States', cities: '~29,000' },
+    { flag: '🇨🇦', name: 'Canada', cities: '1,079' },
+    { flag: '🇲🇽', name: 'Mexico', cities: '9,321' },
+    { flag: '🇨🇴', name: 'Colombia', cities: '1,122' },
+    { flag: '🇬🇹', name: 'Guatemala', cities: '382' },
+    { flag: '🇭🇳', name: 'Honduras', cities: '545' },
+    { flag: '🇸🇻', name: 'El Salvador', cities: '100' },
+    { flag: '🇳🇮', name: 'Nicaragua', cities: '155' },
+    { flag: '🇨🇷', name: 'Costa Rica', cities: '159' },
+    { flag: '🇵🇦', name: 'Panama', cities: '551' },
+    { flag: '🇧🇿', name: 'Belize', cities: '13' },
+    { flag: '🇨🇺', name: 'Cuba', cities: '187' },
+    { flag: '🇯🇲', name: 'Jamaica', cities: '837' },
+    { flag: '🇭🇹', name: 'Haiti', cities: '124' },
+    { flag: '🇩🇴', name: 'Dominican Republic', cities: '207' },
+    { flag: '🇧🇸', name: 'Bahamas', cities: '21' },
+    { flag: '🇹🇹', name: 'Trinidad and Tobago', cities: '25' },
+    { flag: '🇧🇧', name: 'Barbados', cities: '7' },
+    { flag: '🇦🇬', name: 'Antigua and Barbuda', cities: '9' },
+    { flag: '🇩🇲', name: 'Dominica', cities: '17' },
+    { flag: '🇬🇩', name: 'Grenada', cities: '7' },
+    { flag: '🇰🇳', name: 'Saint Kitts and Nevis', cities: '13' },
+    { flag: '🇱🇨', name: 'Saint Lucia', cities: '479' },
+    { flag: '🇻🇨', name: 'Saint Vincent', cities: '9' },
+    { flag: '🇦🇮', name: 'Anguilla', cities: '12' },
+    { flag: '🇦🇼', name: 'Aruba', cities: '12' },
+    { flag: '🇧🇲', name: 'Bermuda', cities: '9' },
+    { flag: '🇰🇾', name: 'Cayman Islands', cities: '7' },
+    { flag: '🇹🇨', name: 'Turks and Caicos', cities: '8' },
+    { flag: '🇻🇬', name: 'British Virgin Islands', cities: '5' },
+    { flag: '🇻🇮', name: 'US Virgin Islands', cities: '20' },
+    { flag: '🇬🇵', name: 'Guadeloupe', cities: '32' },
+    { flag: '🇲🇶', name: 'Martinique', cities: '34' },
+    { flag: '🇨🇼', name: 'Curaçao', cities: '12' },
+    { flag: '🇬🇱', name: 'Greenland', cities: '18' },
+  ];
 
   const fetchSuggestions = useCallback(async (value) => {
     if (!value || value.trim().length < 2) {
       setSuggestions([]);
       setShowSuggestions(false);
+      setIsLoadingSuggestions(false);
       return;
     }
 
+    const query = value.trim();
+    currentQueryRef.current = query;
+    setIsLoadingSuggestions(true);
+
     try {
-      const res = await fetch(`/api/cities/suggest?q=${encodeURIComponent(value.trim())}&limit=10`);
+      const res = await fetch(`/api/cities/suggest?q=${encodeURIComponent(query)}&limit=15`);
       const data = await res.json();
-      setSuggestions(data.suggestions || []);
-      setIsValidInput(data.isValid);
-      setShowSuggestions(data.suggestions && data.suggestions.length > 0);
+
+      // Only update if this is still the current query (prevents race conditions)
+      if (currentQueryRef.current === query) {
+        setSuggestions(data.suggestions || []);
+        setShowSuggestions(true); // Always show dropdown after search completes
+        setIsLoadingSuggestions(false);
+      }
     } catch (error) {
       console.error('Failed to fetch suggestions:', error);
-      setSuggestions([]);
+      if (currentQueryRef.current === query) {
+        setSuggestions([]);
+        setShowSuggestions(true); // Show "no results" message
+        setIsLoadingSuggestions(false);
+      }
     }
   }, []);
 
   const handleInputChange = (value) => {
     setSearchTerm(value);
     setValidationError('');
+    setSelectedLocation(null);
     const isZip = /^\d{0,5}$/.test(value);
     setInputType(isZip ? 'zip' : 'city');
 
-    if (!isZip && value.trim().length >= 2) {
+    if (value.trim().length >= 2) {
       fetchSuggestions(value);
     } else {
       setSuggestions([]);
@@ -60,34 +117,106 @@ export default function RescueSquadSearchPage() {
     }
   };
 
+  // Country code to flag and name mapping
+  const countryData = {
+    'US': { flag: '🇺🇸', name: 'United States' },
+    'CA': { flag: '🇨🇦', name: 'Canada' },
+    'MX': { flag: '🇲🇽', name: 'Mexico' },
+    // Caribbean
+    'BS': { flag: '🇧🇸', name: 'Bahamas' },
+    'CU': { flag: '🇨🇺', name: 'Cuba' },
+    'DO': { flag: '🇩🇴', name: 'Dominican Republic' },
+    'HT': { flag: '🇭🇹', name: 'Haiti' },
+    'JM': { flag: '🇯🇲', name: 'Jamaica' },
+    'TT': { flag: '🇹🇹', name: 'Trinidad and Tobago' },
+    'BB': { flag: '🇧🇧', name: 'Barbados' },
+    'AG': { flag: '🇦🇬', name: 'Antigua and Barbuda' },
+    'DM': { flag: '🇩🇲', name: 'Dominica' },
+    'GD': { flag: '🇬🇩', name: 'Grenada' },
+    'KN': { flag: '🇰🇳', name: 'Saint Kitts and Nevis' },
+    'LC': { flag: '🇱🇨', name: 'Saint Lucia' },
+    'VC': { flag: '🇻🇨', name: 'Saint Vincent' },
+    'AI': { flag: '🇦🇮', name: 'Anguilla' },
+    'AW': { flag: '🇦🇼', name: 'Aruba' },
+    'BM': { flag: '🇧🇲', name: 'Bermuda' },
+    'KY': { flag: '🇰🇾', name: 'Cayman Islands' },
+    'TC': { flag: '🇹🇨', name: 'Turks and Caicos' },
+    'VG': { flag: '🇻🇬', name: 'British Virgin Islands' },
+    'CW': { flag: '🇨🇼', name: 'Curaçao' },
+    'GP': { flag: '🇬🇵', name: 'Guadeloupe' },
+    'MQ': { flag: '🇲🇶', name: 'Martinique' },
+    'MS': { flag: '🇲🇸', name: 'Montserrat' },
+    // Central America
+    'BZ': { flag: '🇧🇿', name: 'Belize' },
+    'CR': { flag: '🇨🇷', name: 'Costa Rica' },
+    'GT': { flag: '🇬🇹', name: 'Guatemala' },
+    'HN': { flag: '🇭🇳', name: 'Honduras' },
+    'NI': { flag: '🇳🇮', name: 'Nicaragua' },
+    'PA': { flag: '🇵🇦', name: 'Panama' },
+    'SV': { flag: '🇸🇻', name: 'El Salvador' },
+    // South America
+    'CO': { flag: '🇨🇴', name: 'Colombia' },
+    // Other
+    'GL': { flag: '🇬🇱', name: 'Greenland' }
+  };
+
+  const getCountryFlag = (countryCode) => {
+    return countryData[countryCode]?.flag || '🌎';
+  };
+
+  const getCountryName = (countryCode) => {
+    return countryData[countryCode]?.name || countryCode;
+  };
+
   const selectSuggestion = (city) => {
-    setSearchTerm(`${city.city}, ${city.state_id}`);
+    const countryFlag = getCountryFlag(city.country);
+    setSearchTerm(`${city.city}, ${city.state_id} ${countryFlag}`);
+    setSelectedLocation(city); // Store full location data
     setShowSuggestions(false);
     setSuggestions([]);
-    setIsValidInput(true);
   };
 
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchTerm.trim()) return;
 
-    const isZip = /^\d{5}$/.test(searchTerm.trim());
-    if (!isZip) {
+    // Validate we have a location selected or can find one
+    let locationToSearch = selectedLocation;
+
+    if (!locationToSearch) {
+      // Try to validate the input
       try {
         const validateRes = await fetch(`/api/cities/suggest?q=${encodeURIComponent(searchTerm.trim())}`);
         const validateData = await validateRes.json();
-        if (!validateData.isValid && (!validateData.suggestions || validateData.suggestions.length === 0)) {
-          setValidationError('Please enter a valid US city name or 5-digit ZIP code');
+        if (!validateData.suggestions || validateData.suggestions.length === 0) {
+          setValidationError('Please enter a valid city name or postal code');
           return;
         }
+        // Use first suggestion
+        locationToSearch = validateData.suggestions[0];
       } catch (error) {
         console.error('Validation error:', error);
+        setValidationError('Search failed. Please try again.');
+        return;
       }
     }
 
+    const country = locationToSearch?.country || 'US';
+    const lat = locationToSearch?.lat;
+    const lng = locationToSearch?.lng;
+    const state = locationToSearch?.state_id;
+
     setLoading(true);
     try {
-      const res = await fetch(`/api/rescue-squads?search=${encodeURIComponent(searchTerm)}&radius=${radius}`);
+      // Build URL with lat/lng for international cities
+      let url = `/api/rescue-squads?search=${encodeURIComponent(locationToSearch?.city || searchTerm)}&radius=${radius}&country=${country}`;
+      if (lat && lng) {
+        url += `&lat=${lat}&lng=${lng}`;
+      }
+      if (state) {
+        url += `&state=${encodeURIComponent(state)}`;
+      }
+      const res = await fetch(url);
       const data = await res.json();
 
       if (!res.ok) {
@@ -98,7 +227,7 @@ export default function RescueSquadSearchPage() {
       }
 
       setCities(data.cities || []);
-      setSearchLocation(data.searchLocation || null);
+      setSearchLocation({ ...data.searchLocation, country, lat, lng });
       setSearched(true);
       const newExpanded = new Set();
       (data.cities || []).forEach((city, idx) => {
@@ -135,7 +264,6 @@ export default function RescueSquadSearchPage() {
       const res = await fetch(`/api/rescue-squads/${squadId}/join`, { method: 'POST' });
       const data = await res.json();
       if (res.ok || data.alreadyMember) {
-        // Successfully joined or already a member - redirect to squad page
         router.push(`/rescue-squads/${squadId}`);
       } else {
         if (data.code === 'WAIVER_NOT_ACCEPTED' && data.redirectTo) {
@@ -163,7 +291,6 @@ export default function RescueSquadSearchPage() {
         return;
       }
 
-      // Allow continuing if already a member (alreadyMember flag) or success
       if (!squadRes.ok && !squadData.alreadyMember) {
         setValidationError(squadData.error || 'Failed to join squad');
         return;
@@ -187,21 +314,32 @@ export default function RescueSquadSearchPage() {
       return;
     }
 
+    // Get country and coordinates from selectedLocation or searchLocation
+    const country = selectedLocation?.country || searchLocation?.country || 'US';
+    const lat = selectedLocation?.lat || searchLocation?.lat;
+    const lng = selectedLocation?.lng || searchLocation?.lng;
+    const isInternational = country !== 'US' && country !== 'MX';
+
     if (!state) {
-      setValidationError(`No squad found for "${city}". Please search by ZIP code to create a new squad for your area.`);
+      setValidationError(`No squad found for "${city}". Please search by postal code to create a new squad for your area.`);
       return;
     }
 
     try {
-      if (!zipCode || !/^\d{5}$/.test(zipCode)) {
-        setValidationError('Unable to create squad: valid ZIP code required. Please search by ZIP code instead.');
+      // For US cities, require zipCode; for international, require lat/lng
+      if (!isInternational && (!zipCode || !/^\d{5}$/.test(zipCode))) {
+        setValidationError('Unable to create squad: valid postal code required. Please search by postal code instead.');
+        return;
+      }
+      if (isInternational && (!lat || !lng)) {
+        setValidationError('Unable to create squad: location coordinates required. Please select a city from the dropdown.');
         return;
       }
 
       const res = await fetch('/api/rescue-squads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, state, zipCode }),
+        body: JSON.stringify({ city, state, zipCode: zipCode || null, country, lat, lng }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -236,8 +374,19 @@ export default function RescueSquadSearchPage() {
           </div>
           <h1 className="text-3xl font-bold text-midnight-900 mb-2">Find Rescue Squads</h1>
           <p className="text-midnight-500">
-            Enter a city name or ZIP code to find or create a rescue squad
+            Enter a city name or postal code to find or create a rescue squad
           </p>
+          <div className="mt-3 inline-flex items-center gap-2 text-sm text-midnight-400">
+            <span className="text-lg">🌎</span>
+            <span>35+ countries supported</span>
+            <button
+              type="button"
+              onClick={() => setShowCountriesModal(true)}
+              className="text-flash-600 hover:text-flash-700 underline"
+            >
+              See list
+            </button>
+          </div>
         </div>
 
         {/* Search Form */}
@@ -247,7 +396,7 @@ export default function RescueSquadSearchPage() {
               {/* City/ZIP Input */}
               <div className="relative md:col-span-2">
                 <label className="block font-semibold mb-2 text-midnight-700 text-sm">
-                  City Name or ZIP Code
+                  City Name or Postal Code
                 </label>
                 <input
                   type="text"
@@ -259,18 +408,18 @@ export default function RescueSquadSearchPage() {
                   onBlur={() => {
                     setTimeout(() => setShowSuggestions(false), 200);
                   }}
-                  placeholder="e.g., Lynwood or 60411"
+                  placeholder="e.g., Los Angeles, Ciudad de México, 90210"
                   className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition ${
                     validationError ? 'border-red-500' : inputType === 'zip' ? 'border-midnight-400' : inputType === 'city' ? 'border-green-500' : 'border-midnight-200'
                   }`}
                   required
                 />
 
-                {inputType && searchTerm.trim() && (
+                {inputType && searchTerm.trim() && !selectedLocation && (
                   <div className={`absolute right-3 top-10 text-xs font-semibold px-2 py-0.5 rounded ${
                     inputType === 'zip' ? 'bg-midnight-100 text-midnight-600' : 'bg-green-100 text-green-600'
                   }`}>
-                    {inputType === 'zip' ? 'ZIP' : 'City'}
+                    {inputType === 'zip' ? 'Postal' : 'City'}
                   </div>
                 )}
 
@@ -280,19 +429,34 @@ export default function RescueSquadSearchPage() {
                   </div>
                 )}
 
-                {showSuggestions && suggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 bg-white border border-midnight-200 rounded-xl mt-2 max-h-48 overflow-y-auto z-50 shadow-lg">
+                {/* Loading indicator */}
+                {isLoadingSuggestions && searchTerm.trim().length >= 2 && (
+                  <div className="absolute top-full left-0 right-0 bg-white border border-midnight-200 rounded-xl mt-2 p-4 z-50 shadow-lg text-center">
+                    <div className="text-midnight-500 text-sm">Searching...</div>
+                  </div>
+                )}
+
+                {/* No results message */}
+                {showSuggestions && suggestions.length === 0 && !isLoadingSuggestions && searchTerm.trim().length >= 2 && (
+                  <div className="absolute top-full left-0 right-0 bg-white border border-midnight-200 rounded-xl mt-2 p-4 z-50 shadow-lg text-center">
+                    <div className="text-midnight-500 text-sm">No cities found matching "{searchTerm.trim()}"</div>
+                  </div>
+                )}
+
+                {showSuggestions && suggestions.length > 0 && !isLoadingSuggestions && (
+                  <div className="absolute top-full left-0 right-0 bg-white border border-midnight-200 rounded-xl mt-2 max-h-64 overflow-y-auto z-50 shadow-lg">
                     {suggestions.map((city, idx) => (
                       <div
-                        key={`${city.city}-${city.state_id}-${idx}`}
+                        key={`${city.city}-${city.state_id}-${city.country}-${idx}`}
                         onMouseDown={() => selectSuggestion(city)}
                         className="px-4 py-3 cursor-pointer hover:bg-midnight-50 border-b border-midnight-100 last:border-b-0"
                       >
-                        <div className="font-semibold text-midnight-900">
-                          {city.city}, {city.state_id}
+                        <div className="font-semibold text-midnight-900 flex items-center gap-2">
+                          <span className="text-lg">{getCountryFlag(city.country)}</span>
+                          {city.city}, {city.state_name || city.state_id}
                         </div>
                         <div className="text-sm text-midnight-500">
-                          {city.state_name} {city.zips?.length > 0 ? `• ZIP ${city.zips[0]}` : ''}
+                          {getCountryName(city.country)} {city.zips?.length > 0 ? `• ${city.zips[0]}` : ''}
                         </div>
                       </div>
                     ))}
@@ -336,6 +500,7 @@ export default function RescueSquadSearchPage() {
                     ? `Rescue Squads for ${searchLocation.cities.join(', ')}, ${searchLocation.state}`
                     : `Rescue Squads near ${searchLocation.cities?.[0] || searchLocation.city}, ${searchLocation.state}`
                   }
+                  {searchLocation.country === 'MX' ? ' 🇲🇽' : searchLocation.country === 'CA' ? ' 🇨🇦' : searchLocation.country === 'PR' ? ' 🇵🇷' : ''}
                 </h2>
                 <p className="text-sm text-midnight-500">
                   Found {cities.filter(c => c.exists).length} rescue squad{cities.filter(c => c.exists).length !== 1 ? 's' : ''} within {radius} miles
@@ -459,6 +624,47 @@ export default function RescueSquadSearchPage() {
           </div>
         )}
       </div>
+
+      {/* Supported Countries Modal */}
+      {showCountriesModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden shadow-xl">
+            <div className="p-6 border-b border-midnight-100 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-midnight-900">🌎 Supported Countries</h2>
+              <button
+                onClick={() => setShowCountriesModal(false)}
+                className="text-midnight-400 hover:text-midnight-600 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <p className="text-midnight-500 mb-4">
+                Search for rescue squads in any of these {supportedCountries.length} countries and territories:
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {supportedCountries.map((country) => (
+                  <div
+                    key={country.name}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-midnight-50"
+                  >
+                    <span className="text-2xl">{country.flag}</span>
+                    <div>
+                      <div className="font-medium text-midnight-900">{country.name}</div>
+                      <div className="text-xs text-midnight-400">{country.cities} cities</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="p-4 border-t border-midnight-100 bg-midnight-50">
+              <Button fullWidth onClick={() => setShowCountriesModal(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

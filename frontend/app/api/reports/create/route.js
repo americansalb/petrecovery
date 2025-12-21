@@ -20,7 +20,7 @@ export async function POST(request) {
       email, phone, firstName,
       petName, breed, color, size, distinctiveMarks,
       lastSeenAddress, center, radiusMiles, timeElapsed, petType,
-      photos, locationType, cityName
+      photos, locationType, cityName, selectedPetId
     } = body;
 
     // Default locationType to 'address' for backwards compatibility
@@ -91,29 +91,60 @@ export async function POST(request) {
         accountCreated = true;
       }
 
-      // Create pet record
-      const pet = await tx.pet.create({
-        data: {
-          ownerId: user.id,
-          name: petName,
-          species: petType.toUpperCase(),
-          breed: breed || '',
-          color,
-          size,
-          distinctiveMarks: distinctiveMarks || '',
-          primaryPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
-          photos: JSON.stringify(photos || []),
-          personality: "[]",
+      // Use existing pet if selectedPetId provided, otherwise create new
+      let pet;
+      if (selectedPetId) {
+        // Verify the pet belongs to this user
+        pet = await tx.pet.findFirst({
+          where: {
+            id: selectedPetId,
+            ownerId: user.id,
+            isDeleted: false,
+          }
+        });
+
+        if (!pet) {
+          throw new Error('Selected pet not found or does not belong to you');
         }
-      });
+
+        // Update pet details if they've changed
+        pet = await tx.pet.update({
+          where: { id: selectedPetId },
+          data: {
+            name: petName || pet.name,
+            color: color || pet.color,
+            breed: breed || pet.breed,
+            size: size || pet.size,
+            distinctiveMarks: distinctiveMarks || pet.distinctiveMarks,
+            primaryPhotoUrl: photos && photos.length > 0 ? photos[0] : pet.primaryPhotoUrl,
+            photos: photos && photos.length > 0 ? JSON.stringify(photos) : pet.photos,
+          }
+        });
+      } else {
+        // Create new pet record
+        pet = await tx.pet.create({
+          data: {
+            ownerId: user.id,
+            name: petName,
+            species: petType.toUpperCase(),
+            breed: breed || '',
+            color,
+            size,
+            distinctiveMarks: distinctiveMarks || '',
+            primaryPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
+            photos: JSON.stringify(photos || []),
+            personality: "[]",
+          }
+        });
+      }
 
       // Create case
       const lastSeenAt = calculateLastSeenTime(timeElapsed);
-      const missionNumber = `CASE-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+      const caseNumber = `CASE-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
       const report = await tx.case.create({
         data: {
-          missionNumber,
+          caseNumber,
           petId: pet.id,
           reporterId: user.id,
           reportType: 'LOST',
@@ -224,49 +255,87 @@ export async function POST(request) {
         withinCoverage: s.distance <= s.effectiveRadius
       })));
 
-      // Determine which squads to notify - use squad's coverage area + buffer
+      // Determine which squads to notify - use squad's actual coverage area
+      // A squad is notified if the report location falls within their coverage radius
       let squadsToNotify = [];
 
-      if (locationType === 'zip') {
-        // For zip code: notify ALL squads in same city OR within 1 mile of city borders
-        const BORDER_DISTANCE_MILES = 1; // Within 1 mile of borders
-        const normalizedCityName = (cityName || '').toLowerCase().trim();
-        console.log('[Report Debug] Zip mode - looking for city:', normalizedCityName);
+      // Check if report falls within each squad's coverage area (distance <= squad.radiusMiles + buffer)
+      squadsToNotify = squadsWithDistance.filter(squad => {
+        const withinCoverage = squad.distance <= squad.effectiveRadius;
 
-        squadsToNotify = squadsWithDistance.filter(squad => {
+        if (withinCoverage) {
+          console.log('[Report Debug] Report within squad coverage:', {
+            name: squad.name,
+            city: squad.city,
+            distance: squad.distance.toFixed(2),
+            squadRadius: squad.radiusMiles,
+            effectiveRadius: squad.effectiveRadius,
+          });
+        }
+        return withinCoverage;
+      });
+
+      // Also check for city name match as fallback (for squads without coordinates)
+      if (cityName) {
+        const normalizedCityName = cityName.toLowerCase().trim();
+        const cityMatchSquads = squadsWithDistance.filter(squad => {
           const squadCity = (squad.city || '').toLowerCase().trim();
-          const sameCityMatch = squadCity === normalizedCityName;
-          const withinBorders = squad.distance <= BORDER_DISTANCE_MILES;
-
-          if (sameCityMatch || withinBorders) {
-            console.log('[Report Debug] Squad matched:', {
-              name: squad.name,
-              city: squad.city,
-              sameCityMatch,
-              withinBorders,
-              distance: squad.distance.toFixed(2)
-            });
-          }
-          return sameCityMatch || withinBorders;
+          const sameCity = squadCity === normalizedCityName;
+          const alreadyIncluded = squadsToNotify.some(s => s.id === squad.id);
+          return sameCity && !alreadyIncluded;
         });
-      } else {
-        // For exact address or pin: notify ALL squads within 1 mile
-        const BORDER_DISTANCE_MILES = 1; // Within 1 mile
 
-        squadsToNotify = squadsWithDistance.filter(squad => {
-          const withinBorders = squad.distance <= BORDER_DISTANCE_MILES;
-          if (withinBorders) {
-            console.log('[Report Debug] Squad within 1 mile:', {
-              name: squad.name,
-              city: squad.city,
-              distance: squad.distance.toFixed(2)
-            });
-          }
-          return withinBorders;
-        });
+        if (cityMatchSquads.length > 0) {
+          console.log('[Report Debug] Adding city-matched squads:', cityMatchSquads.map(s => s.name));
+          squadsToNotify.push(...cityMatchSquads);
+        }
       }
 
       console.log('[Report Debug] Squads to notify:', squadsToNotify.length);
+
+      // If no squads cover this location, auto-create one for this city AND find nearby squads
+      if (squadsToNotify.length === 0 && cityName) {
+        console.log('[Report Debug] No local squads found - auto-creating squad for:', cityName);
+
+        // Auto-create a rescue squad for this city
+        const newSquad = await prisma.rescueSquad.create({
+          data: {
+            name: `${cityName} Pet Rescue`,
+            city: cityName,
+            country: 'US',
+            centerLatitude: center[0],
+            centerLongitude: center[1],
+            radiusMiles: 5, // Default 5 mile coverage
+            isActive: true,
+            description: `🆕 Community rescue squad for ${cityName}. Auto-created to help reunite pets with their families. Join to help coordinate local pet searches!`,
+          },
+        });
+
+        console.log('[Report Debug] Auto-created squad:', { id: newSquad.id, name: newSquad.name });
+
+        // Add the auto-created squad to the list
+        squadsToNotify.push({
+          ...newSquad,
+          distance: 0,
+          effectiveRadius: newSquad.radiusMiles + COVERAGE_BUFFER,
+          isAutoCreated: true,
+        });
+
+        // Also find squads within 10 miles as "nearby assist" squads
+        // These are squads whose coverage doesn't reach the report, but are close enough to help
+        const NEARBY_ASSIST_RADIUS = 10; // miles
+        const nearbyAssistSquads = squadsWithDistance.filter(squad =>
+          squad.distance <= NEARBY_ASSIST_RADIUS && squad.distance > squad.effectiveRadius
+        );
+
+        if (nearbyAssistSquads.length > 0) {
+          console.log('[Report Debug] Found', nearbyAssistSquads.length, 'nearby assist squads within 10 miles');
+          nearbyAssistSquads.forEach(squad => {
+            squad.isNearbyAssist = true;
+            squadsToNotify.push(squad);
+          });
+        }
+      }
 
       // Sort by distance (closest first)
       squadsToNotify.sort((a, b) => a.distance - b.distance);
@@ -288,16 +357,31 @@ export async function POST(request) {
 
           // Create automatic mascot post about the new case
           try {
+            const isNearbyAssist = squad.isNearbyAssist;
+            const distanceText = squad.distance ? `~${squad.distance.toFixed(1)} miles away` : '';
+
+            let postContent;
+            if (squad.isAutoCreated) {
+              // Welcome post for newly auto-created squad
+              postContent = `🎉 **Welcome to ${squad.name}!** 🎉\n\nThis squad was just created to help find ${petName}!\n\n🚨 **First Case:** ${petName}, a ${color} ${petType}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nJoin this squad to help reunite pets with their families in your community! 🐾`;
+            } else if (isNearbyAssist) {
+              // Nearby assist post
+              postContent = `🆘 **Nearby Assist Request!** 🆘\n\n${petName}, a ${color} ${petType}${breed ? ` (${breed})` : ''}, went missing ${distanceText} from your coverage area.\n\n📍 Location: ${lastSeenAddress}\n📋 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nNo local squad in that area yet - your help could make the difference! 🙏`;
+            } else {
+              // Regular case alert
+              postContent = `🚨 **New Case Alert!** 🚨\n\n${petName}, a ${color} ${petType}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nIf you're in the area, please keep an eye out and report any sightings. Every pair of eyes helps! 👀`;
+            }
+
             await prisma.squadPost.create({
               data: {
                 rescueSquadId: squad.id,
-                authorId: user.id, // Use reporter as author for now (TODO: create system mascot user)
-                content: `🚨 **New Case Alert!** 🚨\n\n${petName}, a ${color} ${petType}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${missionNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nIf you're in the area, please keep an eye out and report any sightings. Every pair of eyes helps! 👀`,
-                isSystemPost: true, // Mark as system/mascot post
-                isPinned: false,
+                authorId: user.id,
+                content: postContent,
+                isSystemPost: true,
+                isPinned: squad.isAutoCreated, // Pin the welcome post for new squads
               }
             });
-            console.log('[Report Debug] Created mascot post for squad:', squad.name);
+            console.log('[Report Debug] Created mascot post for squad:', squad.name, isNearbyAssist ? '(nearby assist)' : '');
           } catch (postError) {
             // Non-fatal: log but continue
             console.error('[Report Debug] Failed to create mascot post:', postError);

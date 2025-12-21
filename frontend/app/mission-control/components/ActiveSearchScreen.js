@@ -142,16 +142,16 @@ export default function ActiveSearchScreen({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col">
-      {/* Header */}
-      <div className="flex-shrink-0 bg-slate-900/95 border-b border-slate-700 px-4 py-3">
+    <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      {/* Header - with safe area padding for notched devices */}
+      <div className="flex-shrink-0 bg-slate-900/95 border-b border-slate-700 px-4 py-3" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
         <div className="flex items-center justify-between">
           <button
             onClick={() => setShowEndConfirm(true)}
-            className="flex items-center gap-2 text-slate-400 hover:text-white transition"
+            className="flex items-center gap-2 text-slate-400 hover:text-white transition min-h-[44px] min-w-[44px] -ml-2 px-2"
           >
-            <ArrowLeft size={20} />
-            <span className="text-sm font-medium">Exit</span>
+            <ArrowLeft size={24} />
+            <span className="text-base font-medium">Exit</span>
           </button>
 
           <div className="flex items-center gap-2">
@@ -161,9 +161,9 @@ export default function ActiveSearchScreen({
 
           <button
             onClick={onReportSighting}
-            className="px-3 py-1.5 bg-amber-500 text-slate-900 font-bold text-sm rounded-lg hover:bg-amber-400 transition flex items-center gap-1"
+            className="px-4 py-2.5 bg-amber-500 text-slate-900 font-bold text-base rounded-xl hover:bg-amber-400 transition flex items-center gap-2 min-h-[44px]"
           >
-            <Eye size={16} />
+            <Eye size={20} />
             Sighting
           </button>
         </div>
@@ -173,16 +173,15 @@ export default function ActiveSearchScreen({
       <div className="flex-1 relative">
         <SARMapView
           center={mapCenter}
-          zoom={17}
           lastSeen={mission?.lastSeenLatitude ? {
             lat: mission.lastSeenLatitude,
             lng: mission.lastSeenLongitude,
             address: mission.lastSeenAddress,
           } : null}
           gpsPath={path}
-          showUserLocation={true}
           petSpecies={mission?.petSpecies}
           showControls={false}
+          showLegend={false}
           interactive={true}
         />
 
@@ -190,21 +189,35 @@ export default function ActiveSearchScreen({
         {validation.lastWarning && (
           <div className="absolute top-4 left-4 right-4 z-10">
             <div className={`px-4 py-3 rounded-xl backdrop-blur-sm flex items-center gap-3 ${
-              validation.lastWarning === 'OUTSIDE_ZONE'
-                ? 'bg-amber-500/90 text-slate-900'
-                : 'bg-red-500/90 text-white'
+              validation.lastWarning === 'OUTSIDE_ZONE' ? 'bg-amber-500/90 text-slate-900' :
+              validation.lastWarning === 'OFFLINE' ? 'bg-slate-600/90 text-white' :
+              validation.lastWarning === 'SYNC_ERROR' ? 'bg-orange-500/90 text-white' :
+              validation.lastWarning === 'GPS_PERMISSION_DENIED' ? 'bg-red-600/90 text-white' :
+              validation.lastWarning === 'GPS_UNAVAILABLE' ? 'bg-red-500/90 text-white' :
+              validation.lastWarning === 'GPS_TIMEOUT' ? 'bg-amber-600/90 text-white' :
+              'bg-red-500/90 text-white'
             }`}>
               <AlertTriangle size={20} />
               <div className="flex-1">
                 <p className="font-bold text-sm">
-                  {validation.lastWarning === 'OUTSIDE_ZONE'
-                    ? 'Outside Search Zone'
-                    : 'Movement Paused'}
+                  {validation.lastWarning === 'OUTSIDE_ZONE' ? 'Outside Search Zone' :
+                   validation.lastWarning === 'DRIVING' ? 'Movement Paused' :
+                   validation.lastWarning === 'OFFLINE' ? 'You\'re Offline' :
+                   validation.lastWarning === 'SYNC_ERROR' ? 'Sync Issue' :
+                   validation.lastWarning === 'GPS_PERMISSION_DENIED' ? 'Location Blocked' :
+                   validation.lastWarning === 'GPS_UNAVAILABLE' ? 'GPS Unavailable' :
+                   validation.lastWarning === 'GPS_TIMEOUT' ? 'GPS Slow' :
+                   'GPS Issue'}
                 </p>
                 <p className="text-xs opacity-90">
-                  {validation.lastWarning === 'OUTSIDE_ZONE'
-                    ? `${validation.distanceFromZone.toFixed(1)} mi from zone - distance won't count`
-                    : 'Speed too high - walking searches only'}
+                  {validation.lastWarning === 'OUTSIDE_ZONE' ? `${validation.distanceFromZone?.toFixed(1) || '?'} mi from zone - distance won't count` :
+                   validation.lastWarning === 'DRIVING' ? 'Speed too high - walking searches only' :
+                   validation.lastWarning === 'OFFLINE' ? 'Data will sync when connection returns' :
+                   validation.lastWarning === 'SYNC_ERROR' ? 'Location saved locally, will retry' :
+                   validation.lastWarning === 'GPS_PERMISSION_DENIED' ? 'Enable location in your device settings' :
+                   validation.lastWarning === 'GPS_UNAVAILABLE' ? 'Move to an open area for better signal' :
+                   validation.lastWarning === 'GPS_TIMEOUT' ? 'Waiting for location fix...' :
+                   'Check your location settings'}
                 </p>
               </div>
             </div>
@@ -212,8 +225,8 @@ export default function ActiveSearchScreen({
         )}
       </div>
 
-      {/* Bottom Panel */}
-      <div className="flex-shrink-0 bg-slate-900 border-t border-slate-700">
+      {/* Bottom Panel - with safe area padding for home indicator */}
+      <div className="flex-shrink-0 bg-slate-900 border-t border-slate-700" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {/* Stats Row */}
         <div
           className="px-4 py-3 cursor-pointer"
@@ -323,8 +336,14 @@ export default function ActiveSearchScreen({
 
       {/* End Confirmation Modal */}
       {showEndConfirm && (
-        <div className="fixed inset-0 z-60 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 rounded-2xl max-w-sm w-full border border-slate-700 shadow-xl">
+        <div
+          className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowEndConfirm(false)}
+        >
+          <div
+            className="bg-slate-900 rounded-2xl max-w-sm w-full border border-slate-700 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
               <h3 className="text-xl font-bold text-white mb-4">End your search?</h3>
 
