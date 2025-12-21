@@ -111,16 +111,27 @@ export default function Navigation() {
           <div className="flex items-center gap-2">
             <Link href="/database" className="hidden md:flex items-center gap-2 px-4 py-2 text-midnight-300 hover:text-white font-medium text-sm rounded-lg hover:bg-midnight-800 transition">
               <Database className="w-4 h-4" />
-              Search Pets
+              Pet Database
             </Link>
             <Link href="/shelters" className="hidden lg:flex items-center gap-2 px-4 py-2 text-midnight-300 hover:text-white font-medium text-sm rounded-lg hover:bg-midnight-800 transition">
               <Building2 className="w-4 h-4" />
-              Find Shelters
+              Shelters
             </Link>
             <Link href="/rescue-squads/search" className="hidden lg:flex items-center gap-2 px-4 py-2 text-midnight-300 hover:text-white font-medium text-sm rounded-lg hover:bg-midnight-800 transition">
               <Users className="w-4 h-4" />
-              Find Squads
+              Rescue Squads
             </Link>
+
+            {/* Report Buttons for Guest */}
+            <Link href="/report/new" className="hidden md:flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white font-medium text-sm rounded-lg transition">
+              <Bell className="w-4 h-4" />
+              Report Lost
+            </Link>
+            <Link href="/found" className="hidden lg:flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-medium text-sm rounded-lg transition">
+              <CheckCircle className="w-4 h-4" />
+              Report Found
+            </Link>
+
             <Link href="/login">
               <Button variant="ghost" size="sm" className="text-white hover:bg-midnight-800">
                 Login
@@ -140,8 +151,8 @@ export default function Navigation() {
       <nav className="sticky top-0 z-50 bg-midnight-900 border-b border-midnight-800">
         <div className="max-w-7xl mx-auto px-4">
           <div className="h-16 flex items-center justify-between gap-4">
-            {/* Logo */}
-            <Link href="/dashboard" className="flex items-center gap-2.5 text-white font-bold text-xl shrink-0">
+            {/* Logo - always links to home */}
+            <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl shrink-0">
               <img src={SARAMA_AVATAR} alt="PetRecovery" className="h-8 w-8 rounded-full" />
               <span className="hidden sm:inline">PetRecovery</span>
             </Link>
@@ -179,10 +190,10 @@ export default function Navigation() {
                 <DropdownLink href="/rescue-squads/search" icon={Users} title="Find Rescue Squads" description="Volunteer groups near you" />
               </NavDropdown>
 
-              {/* My Squads Dropdown - Only shows if user has squads */}
+              {/* My Rescue Squads Dropdown - Only shows if user has squads */}
               {userSquads.length > 0 && (
               <NavDropdown
-                label="My Squads"
+                label="My Rescue Squads"
                 icon={Shield}
                 active={pathname.includes('/rescue-squads') && pathname !== '/rescue-squads/search'}
                 isOpen={activeDropdown === 'squads'}
@@ -385,7 +396,7 @@ export default function Navigation() {
             <>
               <div className="border-t border-midnight-100 my-2" />
               <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
-                My Squads
+                My Rescue Squads
               </div>
               {userSquads.slice(0, 5).map(squad => (
                 <Link
