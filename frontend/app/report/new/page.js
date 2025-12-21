@@ -94,6 +94,18 @@ export default function ReportLostPet() {
     }
   }, [session]);
 
+  // Pre-load Leaflet CSS on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!document.getElementById('leaflet-css')) {
+      const leafletCSS = document.createElement('link');
+      leafletCSS.id = 'leaflet-css';
+      leafletCSS.rel = 'stylesheet';
+      leafletCSS.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(leafletCSS);
+    }
+  }, []);
+
   // Auto-detect location
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -140,15 +152,6 @@ export default function ReportLostPet() {
       if (!container || container.offsetHeight === 0) {
         setTimeout(initMap, 50);
         return;
-      }
-
-      // Load Leaflet CSS
-      if (!document.getElementById('leaflet-css')) {
-        const leafletCSS = document.createElement('link');
-        leafletCSS.id = 'leaflet-css';
-        leafletCSS.rel = 'stylesheet';
-        leafletCSS.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-        document.head.appendChild(leafletCSS);
       }
 
       const L = (await import('leaflet')).default;
@@ -612,7 +615,7 @@ export default function ReportLostPet() {
               </div>
             </div>
 
-            <div className="flex-1 relative mx-4 mb-2 rounded-2xl overflow-hidden shadow-lg border border-gray-100">
+            <div className="flex-1 relative mx-4 mb-2 rounded-2xl overflow-hidden shadow-lg border border-gray-100 min-h-[300px]">
               {isGettingLocation ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
                   <div className="text-center">
