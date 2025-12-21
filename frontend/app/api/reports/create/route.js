@@ -129,7 +129,7 @@ export async function POST(request) {
             species: petType.toUpperCase(),
             breed: breed || '',
             color,
-            size,
+            size: size || 'MEDIUM', // Default to medium if not provided
             distinctiveMarks: distinctiveMarks || '',
             primaryPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
             photos: JSON.stringify(photos || []),
