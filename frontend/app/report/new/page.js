@@ -765,16 +765,20 @@ export default function ReportLostPet() {
         {/* Step 5: Color */}
         {step === 5 && (
           <div className="flex-1 px-6 py-4 overflow-y-auto">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center mb-3 shadow-lg shadow-emerald-200">
-              <div className="grid grid-cols-2 gap-0.5">
-                <div className="w-3 h-3 rounded-full bg-white/80" />
-                <div className="w-3 h-3 rounded-full bg-amber-200" />
-                <div className="w-3 h-3 rounded-full bg-gray-800" />
-                <div className="w-3 h-3 rounded-full bg-orange-300" />
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-200 flex-shrink-0">
+                <div className="grid grid-cols-2 gap-0.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-white/80" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-200" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-gray-800" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-orange-300" />
+                </div>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">What color is {petName}?</h1>
+                <p className="text-sm text-gray-500">Select one or more colors</p>
               </div>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">What color is {petName}?</h1>
-            <p className="text-gray-500 mb-6">Select the closest match</p>
 
             <ColorSelector
               value={color}
