@@ -111,17 +111,13 @@ export default function ReportLostPet() {
           setIsGettingLocation(false);
         },
         () => {
-          // Default to US center if geolocation fails
-          setCenter([39.8283, -98.5795]);
-          setLastSeenAddress('United States');
+          // Geolocation failed - user will need to search
           setIsGettingLocation(false);
         },
         { timeout: 10000, enableHighAccuracy: true }
       );
     } else {
-      // Default to US center if geolocation not available
-      setCenter([39.8283, -98.5795]);
-      setLastSeenAddress('United States');
+      // No geolocation - user will need to search
       setIsGettingLocation(false);
     }
   }, []);
@@ -619,13 +615,23 @@ export default function ReportLostPet() {
             </div>
 
             <div className="flex-1 relative mx-4 mb-2 rounded-2xl overflow-hidden shadow-lg border border-gray-100">
-              {isGettingLocation && !center ? (
+              {isGettingLocation ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
                   <div className="text-center">
                     <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
                       <Navigation size={28} className="text-blue-500 animate-pulse" />
                     </div>
                     <p className="text-gray-600 font-medium">Finding your location...</p>
+                  </div>
+                </div>
+              ) : !center ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-50 to-red-50">
+                  <div className="text-center px-6">
+                    <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-3">
+                      <MapPin size={28} className="text-orange-500" />
+                    </div>
+                    <p className="text-gray-900 font-semibold mb-1">Enter your location</p>
+                    <p className="text-gray-500 text-sm">Type an address or city in the search box above</p>
                   </div>
                 </div>
               ) : (
