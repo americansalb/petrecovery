@@ -357,7 +357,7 @@ export default function ReportLostPet() {
   // Loading state while checking auth
   if (authStatus === 'loading') {
     return (
-      <div className="h-full bg-gradient-to-br from-orange-50 via-white to-red-50 flex items-center justify-center">
+      <div className="h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 rounded-full bg-gradient-to-r from-orange-400 to-red-500 flex items-center justify-center mx-auto mb-4 animate-pulse">
             <Heart size={28} className="text-white" />
@@ -371,7 +371,7 @@ export default function ReportLostPet() {
   // Success screen
   if (step === 8 && reportResult) {
     return (
-      <div className="h-full bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-6">
+      <div className="h-[100dvh] bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-6">
         <div className="text-center max-w-sm">
           <div className="relative mb-8">
             <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-200">
@@ -404,7 +404,7 @@ export default function ReportLostPet() {
     : ['Contact', 'Location', 'Pet', 'Name', 'When', 'Color', 'Photo', 'Review'];
 
   return (
-    <div className="h-full bg-gradient-to-br from-orange-50 via-white to-red-50 flex flex-col overflow-hidden">
+    <div className="h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50 flex flex-col overflow-hidden">
       {/* Header */}
       <header className="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
         <button
