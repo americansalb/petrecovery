@@ -121,6 +121,8 @@ export default function ReportLostPet() {
   // Initialize map
   useEffect(() => {
     if (typeof window === 'undefined' || !mapRef.current || !center || step !== 1) return;
+
+    // If map already exists, just update view
     if (mapInstanceRef.current) {
       mapInstanceRef.current.setView(center, 17);
       if (markerRef.current) markerRef.current.setLatLng(center);
@@ -128,16 +130,19 @@ export default function ReportLostPet() {
       return;
     }
 
-    // Load Leaflet CSS if not already loaded
-    if (!document.querySelector('link[href*="leaflet.css"]')) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
-    }
+    // Small delay to ensure container has dimensions
+    const initMap = async () => {
+      const L = (await import('leaflet')).default;
 
-    import('leaflet').then((L) => {
-      const map = L.map(mapRef.current, { zoomControl: false }).setView(center, 17);
+      // Check container has dimensions
+      const container = mapRef.current;
+      if (!container || container.offsetHeight === 0) {
+        // Retry after a short delay
+        setTimeout(initMap, 100);
+        return;
+      }
+
+      const map = L.map(container, { zoomControl: false }).setView(center, 17);
       mapInstanceRef.current = map;
 
       L.control.zoom({ position: 'topright' }).addTo(map);
@@ -185,7 +190,14 @@ export default function ReportLostPet() {
         setLastSeenAddress(result.address);
         setCityName(result.city);
       });
-    });
+
+      // Force map to recalculate size after render
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
+    };
+
+    initMap();
 
     return () => {
       if (mapInstanceRef.current) {
