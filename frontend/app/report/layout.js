@@ -1,29 +1,11 @@
-'use client';
-
 /**
- * Report Layout - Full screen wizard without navigation
- * This layout removes the main navigation to give the wizard full viewport height
+ * Report Layout - Full screen wizard that overlays the navigation
+ * Uses fixed positioning to cover entire viewport including nav bar
  */
 
-import { useEffect } from 'react';
-
 export default function ReportLayout({ children }) {
-  // Hide the main navigation when this layout is active
-  useEffect(() => {
-    const nav = document.querySelector('nav');
-    if (nav) {
-      nav.style.display = 'none';
-    }
-
-    return () => {
-      if (nav) {
-        nav.style.display = '';
-      }
-    };
-  }, []);
-
   return (
-    <div className="fixed inset-0 z-50 bg-white">
+    <div className="fixed inset-0 z-50 overflow-hidden">
       {children}
     </div>
   );
