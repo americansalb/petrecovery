@@ -135,8 +135,11 @@ export default function ReportLostPet() {
     }
 
     const initMap = async () => {
+      console.log('[Map] initMap called, center:', center);
+
       // Load Leaflet CSS
       if (!document.getElementById('leaflet-css')) {
+        console.log('[Map] Adding Leaflet CSS');
         const leafletCSS = document.createElement('link');
         leafletCSS.id = 'leaflet-css';
         leafletCSS.rel = 'stylesheet';
@@ -145,21 +148,29 @@ export default function ReportLostPet() {
       }
 
       const L = (await import('leaflet')).default;
+      console.log('[Map] Leaflet loaded');
 
       const container = mapRef.current;
+      console.log('[Map] Container:', container, 'Height:', container?.offsetHeight, 'Width:', container?.offsetWidth);
+
       if (!container || container.offsetHeight === 0) {
+        console.log('[Map] Container not ready, retrying...');
         setTimeout(initMap, 100);
         return;
       }
 
+      console.log('[Map] Creating map instance');
       const map = L.map(container, { zoomControl: false }).setView(center, 17);
       mapInstanceRef.current = map;
 
       L.control.zoom({ position: 'topright' }).addTo(map);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      console.log('[Map] Adding tile layer');
+      const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap &copy; CARTO',
         maxZoom: 19,
       }).addTo(map);
+      tileLayer.on('load', () => console.log('[Map] Tiles loaded'));
+      tileLayer.on('tileerror', (e) => console.error('[Map] Tile error:', e));
 
       const markerIcon = L.divIcon({
         className: 'custom-marker',
@@ -201,7 +212,10 @@ export default function ReportLostPet() {
         setCityName(result.city);
       });
 
-      setTimeout(() => map.invalidateSize(), 100);
+      setTimeout(() => {
+        console.log('[Map] Calling invalidateSize');
+        map.invalidateSize();
+      }, 100);
     };
 
     initMap();
