@@ -4,26 +4,51 @@
  * Rescue Hub Landing Page
  *
  * Community forum for pet rescuers to connect, learn, and coordinate.
+ * Categories organized into logical sections.
  */
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   MessageSquare, Users, Heart, Truck, BookOpen, Trophy,
   AlertTriangle, MessageCircle, ChevronRight, Plus,
-  Loader2, Sparkles, ArrowRight, Search
+  Loader2, Sparkles, ArrowRight, Search, Building2
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+
+// Category sections for organization
+const CATEGORY_SECTIONS = {
+  'Need Help': {
+    description: 'Get immediate assistance',
+    color: 'from-red-500 to-orange-500',
+    categories: ['lost-pet-support', 'found-pet-help', 'urgent'],
+  },
+  'Rescue Network': {
+    description: 'Coordinate with other rescuers',
+    color: 'from-amber-500 to-yellow-500',
+    categories: ['transport', 'foster', 'shelter-talk'],
+  },
+  'Learn & Grow': {
+    description: 'Resources and training',
+    color: 'from-blue-500 to-cyan-500',
+    categories: ['training'],
+  },
+  'Community': {
+    description: 'Connect with others',
+    color: 'from-green-500 to-emerald-500',
+    categories: ['welcome', 'success-stories', 'general'],
+  },
+};
 
 // Map category slugs to icons
 const CATEGORY_ICONS = {
   'welcome': Users,
   'lost-pet-support': Heart,
-  'found-pet-help': MessageSquare,
+  'found-pet-help': Search,
   'transport': Truck,
   'foster': Heart,
-  'shelter-talk': Users,
+  'shelter-talk': Building2,
   'training': BookOpen,
   'success-stories': Trophy,
   'urgent': AlertTriangle,
@@ -88,6 +113,10 @@ export default function HubPage() {
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString();
+  };
+
+  const getCategoriesBySection = (sectionCategories) => {
+    return categories.filter(cat => sectionCategories.includes(cat.slug));
   };
 
   if (loading) {
@@ -197,55 +226,114 @@ export default function HubPage() {
           </div>
         </div>
 
+        {/* Quick Actions */}
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+          <h2 className="text-lg font-bold text-gray-800 mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Link
+              href="/hub/new?template=lost-pet"
+              className="flex items-center gap-3 p-3 bg-red-50 rounded-lg hover:bg-red-100 transition-colors border border-red-100"
+            >
+              <span className="text-2xl">🚨</span>
+              <div>
+                <div className="font-medium text-red-700 text-sm">Report Lost Pet</div>
+              </div>
+            </Link>
+            <Link
+              href="/hub/new?template=found-pet"
+              className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors border border-blue-100"
+            >
+              <span className="text-2xl">🔍</span>
+              <div>
+                <div className="font-medium text-blue-700 text-sm">Report Found Pet</div>
+              </div>
+            </Link>
+            <Link
+              href="/hub/new?template=transport"
+              className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors border border-amber-100"
+            >
+              <span className="text-2xl">🚗</span>
+              <div>
+                <div className="font-medium text-amber-700 text-sm">Request Transport</div>
+              </div>
+            </Link>
+            <Link
+              href="/hub/new?template=success-story"
+              className="flex items-center gap-3 p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors border border-green-100"
+            >
+              <span className="text-2xl">🎉</span>
+              <div>
+                <div className="font-medium text-green-700 text-sm">Share Success</div>
+              </div>
+            </Link>
+          </div>
+        </div>
+
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Categories */}
-          <div className="lg:col-span-2">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Categories</h2>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {categories.map((category) => {
-                const IconComponent = CATEGORY_ICONS[category.slug] || MessageSquare;
-                return (
-                  <Link
-                    key={category.id}
-                    href={`/hub/c/${category.slug}`}
-                    className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow group"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center text-white flex-shrink-0"
-                        style={{ backgroundColor: category.color }}
-                      >
-                        {category.icon ? (
-                          <span className="text-xl">{category.icon}</span>
-                        ) : (
-                          <IconComponent size={20} />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-800 group-hover:text-indigo-600 transition-colors">
-                          {category.name}
-                        </h3>
-                        <p className="text-sm text-gray-500 line-clamp-2">
-                          {category.description}
-                        </p>
-                        <div className="mt-2 text-xs text-gray-400">
-                          {category.threadCount || 0} threads
-                        </div>
-                      </div>
-                      <ChevronRight
-                        size={20}
-                        className="text-gray-300 group-hover:text-indigo-400 transition-colors flex-shrink-0"
-                      />
+          {/* Categories by Section */}
+          <div className="lg:col-span-2 space-y-8">
+            {Object.entries(CATEGORY_SECTIONS).map(([sectionName, section]) => {
+              const sectionCategories = getCategoriesBySection(section.categories);
+              if (sectionCategories.length === 0) return null;
+
+              return (
+                <div key={sectionName}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`w-1.5 h-8 rounded-full bg-gradient-to-b ${section.color}`} />
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-800">{sectionName}</h2>
+                      <p className="text-sm text-gray-500">{section.description}</p>
                     </div>
-                  </Link>
-                );
-              })}
-            </div>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {sectionCategories.map((category) => {
+                      const IconComponent = CATEGORY_ICONS[category.slug] || MessageSquare;
+                      return (
+                        <Link
+                          key={category.id}
+                          href={`/hub/c/${category.slug}`}
+                          className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow group"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div
+                              className="w-10 h-10 rounded-lg flex items-center justify-center text-white flex-shrink-0"
+                              style={{ backgroundColor: category.color }}
+                            >
+                              {category.icon ? (
+                                <span className="text-xl">{category.icon}</span>
+                              ) : (
+                                <IconComponent size={20} />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-gray-800 group-hover:text-indigo-600 transition-colors">
+                                {category.name}
+                              </h3>
+                              <p className="text-sm text-gray-500 line-clamp-2">
+                                {category.description}
+                              </p>
+                              <div className="mt-2 text-xs text-gray-400">
+                                {category.threadCount || 0} threads
+                              </div>
+                            </div>
+                            <ChevronRight
+                              size={20}
+                              className="text-gray-300 group-hover:text-indigo-400 transition-colors flex-shrink-0"
+                            />
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Recent Activity */}
+          {/* Sidebar */}
           <div>
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Recent Discussions</h2>
+            {/* Recent Activity */}
+            <h2 className="text-lg font-bold text-gray-800 mb-4">Recent Discussions</h2>
             <div className="bg-white rounded-xl shadow-sm divide-y">
               {recentThreads.length === 0 ? (
                 <div className="p-6 text-center text-gray-500">
@@ -297,7 +385,7 @@ export default function HubPage() {
 
             {/* Urgent Alerts */}
             <div className="mt-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <AlertTriangle size={20} className="text-red-500" />
                 Urgent Alerts
               </h2>
@@ -316,32 +404,15 @@ export default function HubPage() {
               </Link>
             </div>
 
-            {/* Quick Links */}
-            <div className="mt-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Quick Links</h2>
-              <div className="space-y-2">
-                <Link
-                  href="/hub/c/training"
-                  className="flex items-center gap-3 p-3 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <BookOpen size={20} className="text-indigo-500" />
-                  <span className="text-gray-700">Training & Resources</span>
-                </Link>
-                <Link
-                  href="/hub/c/transport"
-                  className="flex items-center gap-3 p-3 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <Truck size={20} className="text-amber-500" />
-                  <span className="text-gray-700">Transport Network</span>
-                </Link>
-                <Link
-                  href="/hub/c/success-stories"
-                  className="flex items-center gap-3 p-3 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <Trophy size={20} className="text-green-500" />
-                  <span className="text-gray-700">Success Stories</span>
-                </Link>
-              </div>
+            {/* Guidelines */}
+            <div className="mt-6 bg-indigo-50 rounded-xl p-5">
+              <h3 className="font-semibold text-indigo-800 mb-3">Community Guidelines</h3>
+              <ul className="space-y-2 text-sm text-indigo-700">
+                <li>• Be kind and supportive</li>
+                <li>• No spam or self-promotion</li>
+                <li>• Respect privacy</li>
+                <li>• Report, don't engage trolls</li>
+              </ul>
             </div>
           </div>
         </div>
