@@ -14,7 +14,7 @@ import {
   ArrowLeft, Bookmark, BookmarkCheck, Pin, Lock, CheckCircle,
   AlertTriangle, MessageSquare, Eye, Clock, Heart, ThumbsUp,
   MoreVertical, Flag, Edit2, Trash2, Loader2, Send, Image,
-  MapPin, Share2
+  MapPin, Share2, Shield, Unlock, Move, RotateCcw
 } from 'lucide-react';
 
 const URGENCY_STYLES = {
@@ -35,6 +35,11 @@ export default function ThreadPage({ params }) {
   const [replyContent, setReplyContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
+  const [showModMenu, setShowModMenu] = useState(false);
+  const [modAction, setModAction] = useState(null);
+  const [categories, setCategories] = useState([]);
+
+  const isMod = session?.user?.role === 'ADMIN' || session?.user?.role === 'MODERATOR';
 
   useEffect(() => {
     fetchThread();
@@ -155,6 +160,76 @@ export default function ThreadPage({ params }) {
     }
   };
 
+  const handleModAction = async (action, data = {}) => {
+    if (!isMod) return;
+
+    try {
+      setModAction(action);
+      const res = await fetch('/api/hub/mod', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          threadId: thread.id,
+          ...data,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (result.success) {
+        // Refresh thread data
+        fetchThread();
+        setShowModMenu(false);
+      } else {
+        alert(result.error || 'Action failed');
+      }
+    } catch (err) {
+      console.error('Mod action failed:', err);
+      alert('Action failed');
+    } finally {
+      setModAction(null);
+    }
+  };
+
+  const handlePostModAction = async (action, postId) => {
+    if (!isMod) return;
+
+    try {
+      const res = await fetch('/api/hub/mod', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          postId,
+          threadId: thread.id,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (result.success) {
+        fetchThread();
+      } else {
+        alert(result.error || 'Action failed');
+      }
+    } catch (err) {
+      console.error('Mod action failed:', err);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/hub/mod');
+      const data = await res.json();
+      if (data.success) {
+        setCategories(data.categories || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch categories:', err);
+    }
+  };
+
   const formatTime = (dateStr) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
@@ -250,6 +325,104 @@ export default function ThreadPage({ params }) {
               >
                 <Share2 size={20} className="text-gray-400" />
               </button>
+
+              {/* Mod Menu */}
+              {isMod && (
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setShowModMenu(!showModMenu);
+                      if (!showModMenu && categories.length === 0) {
+                        fetchCategories();
+                      }
+                    }}
+                    className="p-2 rounded-lg hover:bg-purple-100 transition-colors"
+                    title="Moderation"
+                  >
+                    <Shield size={20} className="text-purple-600" />
+                  </button>
+
+                  {showModMenu && (
+                    <div className="absolute right-0 top-12 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20">
+                      <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase">
+                        Thread Actions
+                      </div>
+
+                      {thread?.isLocked ? (
+                        <button
+                          onClick={() => handleModAction('unlock_thread')}
+                          disabled={!!modAction}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 disabled:opacity-50"
+                        >
+                          <Unlock size={16} />
+                          Unlock Thread
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleModAction('lock_thread')}
+                          disabled={!!modAction}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 disabled:opacity-50"
+                        >
+                          <Lock size={16} />
+                          Lock Thread
+                        </button>
+                      )}
+
+                      {thread?.isPinned ? (
+                        <button
+                          onClick={() => handleModAction('unpin_thread')}
+                          disabled={!!modAction}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 disabled:opacity-50"
+                        >
+                          <Pin size={16} />
+                          Unpin Thread
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleModAction('pin_thread')}
+                          disabled={!!modAction}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 disabled:opacity-50"
+                        >
+                          <Pin size={16} />
+                          Pin Thread
+                        </button>
+                      )}
+
+                      <div className="border-t my-1" />
+                      <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase">
+                        Move To
+                      </div>
+
+                      {categories.filter(c => c.id !== thread?.categoryId).slice(0, 5).map((cat) => (
+                        <button
+                          key={cat.id}
+                          onClick={() => handleModAction('move_thread', { categoryId: cat.id })}
+                          disabled={!!modAction}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 disabled:opacity-50"
+                        >
+                          <span>{cat.icon}</span>
+                          {cat.name}
+                        </button>
+                      ))}
+
+                      <div className="border-t my-1" />
+
+                      <button
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete this thread?')) {
+                            handleModAction('delete_thread');
+                          }
+                        }}
+                        disabled={!!modAction}
+                        className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-50"
+                      >
+                        <Trash2 size={16} />
+                        Delete Thread
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -402,32 +575,70 @@ export default function ThreadPage({ params }) {
                         {post.content}
                       </p>
 
-                      {/* Reactions */}
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => handleReaction(post.id, 'HELPFUL')}
-                          disabled={isAuthor}
-                          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm transition-colors ${
-                            hasReacted('HELPFUL')
-                              ? 'bg-green-100 text-green-700'
-                              : 'text-gray-500 hover:bg-gray-100'
-                          } ${isAuthor ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          <ThumbsUp size={14} />
-                          <span>{post.helpfulCount || 0}</span>
-                        </button>
-                        <button
-                          onClick={() => handleReaction(post.id, 'HEART')}
-                          disabled={isAuthor}
-                          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm transition-colors ${
-                            hasReacted('HEART')
-                              ? 'bg-pink-100 text-pink-700'
-                              : 'text-gray-500 hover:bg-gray-100'
-                          } ${isAuthor ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          <Heart size={14} />
-                          <span>{post.heartCount || 0}</span>
-                        </button>
+                      {/* Reactions and Mod Actions */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleReaction(post.id, 'HELPFUL')}
+                            disabled={isAuthor}
+                            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm transition-colors ${
+                              hasReacted('HELPFUL')
+                                ? 'bg-green-100 text-green-700'
+                                : 'text-gray-500 hover:bg-gray-100'
+                            } ${isAuthor ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <ThumbsUp size={14} />
+                            <span>{post.helpfulCount || 0}</span>
+                          </button>
+                          <button
+                            onClick={() => handleReaction(post.id, 'HEART')}
+                            disabled={isAuthor}
+                            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm transition-colors ${
+                              hasReacted('HEART')
+                                ? 'bg-pink-100 text-pink-700'
+                                : 'text-gray-500 hover:bg-gray-100'
+                            } ${isAuthor ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <Heart size={14} />
+                            <span>{post.heartCount || 0}</span>
+                          </button>
+                        </div>
+
+                        {/* Mod controls for posts */}
+                        {isMod && (
+                          <div className="flex items-center gap-2">
+                            {!post.isSolution ? (
+                              <button
+                                onClick={() => handlePostModAction('mark_solution', post.id)}
+                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-sm text-green-600 hover:bg-green-50 transition-colors"
+                                title="Mark as solution"
+                              >
+                                <CheckCircle size={14} />
+                                <span className="hidden sm:inline">Solution</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handlePostModAction('unmark_solution', post.id)}
+                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition-colors"
+                                title="Unmark solution"
+                              >
+                                <RotateCcw size={14} />
+                                <span className="hidden sm:inline">Unmark</span>
+                              </button>
+                            )}
+                            <button
+                              onClick={() => {
+                                if (confirm('Delete this reply?')) {
+                                  handlePostModAction('delete_post', post.id);
+                                }
+                              }}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors"
+                              title="Delete post"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

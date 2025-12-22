@@ -199,6 +199,32 @@ export const PUSH_TEMPLATES = {
   }),
 
   /**
+   * Forum reply notification
+   */
+  FORUM_REPLY: (authorName, threadTitle, threadSlug) => ({
+    title: `💬 New reply from ${authorName}`,
+    body: `In: ${threadTitle.length > 50 ? threadTitle.substring(0, 47) + '...' : threadTitle}`,
+    icon: '/icons/icon-192x192.png',
+    tag: `forum-${threadSlug}`,
+    type: 'FORUM_REPLY',
+    url: `/hub/thread/${threadSlug}`,
+    data: { threadSlug, type: 'FORUM_REPLY' },
+  }),
+
+  /**
+   * Forum mention notification
+   */
+  FORUM_MENTION: (authorName, threadTitle, threadSlug) => ({
+    title: `📢 ${authorName} mentioned you`,
+    body: `In: ${threadTitle.length > 50 ? threadTitle.substring(0, 47) + '...' : threadTitle}`,
+    icon: '/icons/icon-192x192.png',
+    tag: `forum-mention-${threadSlug}`,
+    type: 'FORUM_MENTION',
+    url: `/hub/thread/${threadSlug}`,
+    data: { threadSlug, type: 'FORUM_MENTION' },
+  }),
+
+  /**
    * Generic notification
    */
   GENERIC: (title, body, url = '/') => ({

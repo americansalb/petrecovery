@@ -12,8 +12,9 @@ import Link from 'next/link';
 import {
   MessageSquare, Users, Heart, Truck, BookOpen, Trophy,
   AlertTriangle, MessageCircle, ChevronRight, Plus,
-  Loader2, Sparkles, ArrowRight
+  Loader2, Sparkles, ArrowRight, Search
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 // Map category slugs to icons
 const CATEGORY_ICONS = {
@@ -31,10 +32,19 @@ const CATEGORY_ICONS = {
 
 export default function HubPage() {
   const { data: session, status: authStatus } = useSession();
+  const router = useRouter();
   const [categories, setCategories] = useState([]);
   const [recentThreads, setRecentThreads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/hub/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -103,11 +113,32 @@ export default function HubPage() {
           <h1 className="text-3xl sm:text-4xl font-bold mb-4">
             Rescue Hub
           </h1>
-          <p className="text-indigo-100 text-lg max-w-2xl mb-8">
+          <p className="text-indigo-100 text-lg max-w-2xl mb-6">
             A community space for pet rescuers to connect, learn, and coordinate.
             Whether you've lost a pet, found a stray, or want to help reunite families —
             you belong here.
           </p>
+
+          {/* Search Bar */}
+          <form onSubmit={handleSearch} className="mb-6 max-w-xl">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search discussions..."
+                className="w-full pl-12 pr-4 py-3 rounded-lg bg-white/10 backdrop-blur border border-white/20 text-white placeholder-indigo-200 focus:outline-none focus:ring-2 focus:ring-white/50"
+              />
+              <button
+                type="submit"
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-1.5 bg-white text-indigo-600 rounded-md font-medium text-sm hover:bg-indigo-50 transition-colors"
+              >
+                Search
+              </button>
+            </div>
+          </form>
+
           <div className="flex flex-wrap gap-4">
             {authStatus === 'authenticated' ? (
               <Link

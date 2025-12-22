@@ -7,6 +7,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/app/lib/prisma';
+import { sendPushToUser, PUSH_TEMPLATES } from '@/app/lib/push';
 
 /**
  * POST /api/hub/posts
@@ -169,6 +170,16 @@ export async function POST(request) {
           actorId: user.id,
         }
       });
+
+      // Send push notification
+      const pushPayload = PUSH_TEMPLATES.FORUM_REPLY(
+        user.firstName,
+        thread.title,
+        thread.slug
+      );
+      sendPushToUser(prisma, thread.authorId, pushPayload).catch(err => {
+        console.error('Failed to send push notification:', err);
+      });
     }
 
     // If replying to a specific post, notify that author too
@@ -187,6 +198,16 @@ export async function POST(request) {
             body: `${user.firstName} replied to your comment`,
             actorId: user.id,
           }
+        });
+
+        // Send push notification for reply to post
+        const pushPayload = PUSH_TEMPLATES.FORUM_REPLY(
+          user.firstName,
+          thread.title,
+          thread.slug
+        );
+        sendPushToUser(prisma, parentPost.authorId, pushPayload).catch(err => {
+          console.error('Failed to send push notification:', err);
         });
       }
     }
