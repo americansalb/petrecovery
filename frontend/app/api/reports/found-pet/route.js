@@ -146,31 +146,41 @@ export async function POST(request) {
 
     // 4. Create found report
     const foundAt = calculateFoundTime(timeElapsed);
+    const caseNumber = `FOUND-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
-    const report = await prisma.lostReport.create({
+    const report = await prisma.case.create({
       data: {
+        caseNumber,
         petId: pet.id,
         reporterId: user.id,
-        reportType: 'FOUND', // This is a FOUND pet report
+        reportType: 'FOUND',
+        petName: displayName,
+        petSpecies: petType.toUpperCase(),
+        petBreed: breed || 'Unknown',
+        petColor: color,
+        petSize: size || 'MEDIUM',
+        petPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
+        petDescription: distinctiveMarks || `Found ${color} ${petType}`,
+        ownerName: firstName,
+        ownerPhone: phone || 'Not provided',
+        ownerEmail: email,
         lastSeenAt: foundAt,
         lastSeenLatitude: center[0],
         lastSeenLongitude: center[1],
         lastSeenAddress: foundAddress,
+        searchRadius: radiusMiles || 5,
         escapeScenario: 'found_by_community',
-        searchRadius: radiusMiles,
         status: 'ACTIVE',
         priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'HIGH',
       }
     });
 
-    // 5. Find potential matches using the matching algorithm
-    const lostPetReports = await prisma.lostReport.findMany({
+    // 5. Find potential matches - look for LOST pets that match this FOUND pet
+    const lostPetCases = await prisma.case.findMany({
       where: {
         reportType: 'LOST',
         status: 'ACTIVE',
-        pet: {
-          species: petType.toUpperCase(), // Pre-filter by species
-        }
+        petSpecies: petType.toUpperCase(),
       },
       include: {
         pet: true,
@@ -191,23 +201,23 @@ export async function POST(request) {
       createdAt: new Date(),
     };
 
-    // Transform lost reports into format expected by matching algorithm
-    const candidates = lostPetReports.map(lr => ({
-      id: lr.id,
-      missionNumber: `LR-${lr.id}`,
-      petSpecies: lr.pet.species,
-      petBreed: lr.pet.breed || '',
-      petColor: lr.pet.color,
-      city: lr.lastSeenAddress?.split(',')[0]?.trim() || '',
-      state: lr.lastSeenAddress?.split(',')[1]?.trim()?.substring(0, 2) || '',
-      latitude: lr.lastSeenLatitude,
-      longitude: lr.lastSeenLongitude,
-      lastSeenAt: lr.lastSeenAt,
-      createdAt: lr.createdAt,
+    // Transform lost cases into format expected by matching algorithm
+    const candidates = lostPetCases.map(c => ({
+      id: c.id,
+      missionNumber: c.caseNumber,
+      petSpecies: c.petSpecies,
+      petBreed: c.petBreed || '',
+      petColor: c.petColor,
+      city: c.lastSeenAddress?.split(',')[0]?.trim() || '',
+      state: c.lastSeenAddress?.split(',')[1]?.trim()?.substring(0, 2) || '',
+      latitude: c.lastSeenLatitude,
+      longitude: c.lastSeenLongitude,
+      lastSeenAt: c.lastSeenAt,
+      createdAt: c.createdAt,
       // Include extra data for notification
-      pet: lr.pet,
-      reporter: lr.reporter,
-      reporterId: lr.reporterId,
+      pet: c.pet,
+      reporter: c.reporter,
+      reporterId: c.reporterId,
     }));
 
     // Run matching algorithm
@@ -223,17 +233,17 @@ export async function POST(request) {
 
       return {
         reportId: c.id,
-        petName: c.pet.name,
-        petSpecies: c.pet.species,
-        petBreed: c.pet.breed,
-        petColor: c.pet.color,
-        petPhoto: c.pet.primaryPhotoUrl,
-        ownerName: c.reporter.firstName,
+        petName: c.pet?.name || c.petName || 'Unknown',
+        petSpecies: c.petSpecies,
+        petBreed: c.petBreed,
+        petColor: c.petColor,
+        petPhoto: c.pet?.primaryPhotoUrl || c.petPhotoUrl,
+        ownerName: c.reporter?.firstName || c.ownerName,
         lastSeenAddress: c.lastSeenAddress,
         lastSeenAt: c.lastSeenAt,
         matchScore: match.score,
         matchQuality: quality,
-        distance: match.details.distance,
+        distance: match.details?.distance,
       };
     });
 
@@ -241,17 +251,19 @@ export async function POST(request) {
     const nearbyMatches = matches.filter(m => m.score >= 50).map(m => m.case);
 
     // Create alerts for potential matches
-    await Promise.all(
-      nearbyMatches.map(match =>
-        prisma.alert.create({
-          data: {
-            reportId: match.id,
-            userId: match.reporterId,
-            method: 'EMAIL',
-          }
-        })
-      )
-    );
+    if (nearbyMatches.length > 0) {
+      await Promise.all(
+        nearbyMatches.map(match =>
+          prisma.alert.create({
+            data: {
+              missionId: match.id,
+              userId: match.reporterId,
+              method: 'EMAIL',
+            }
+          })
+        )
+      );
+    }
 
     // 6. Send email in background (don't wait for it)
     if (accountCreated && tempPassword) {
