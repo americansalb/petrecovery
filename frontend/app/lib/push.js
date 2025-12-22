@@ -101,6 +101,25 @@ export async function sendPushToMany(subscriptions, payload) {
  */
 export const PUSH_TEMPLATES = {
   /**
+   * Match found alert - when a found pet matches a lost pet
+   */
+  MATCH_ALERT: (petName, matchScore, location, conversationId) => ({
+    title: `🎉 Potential Match for ${petName}!`,
+    body: `Someone found a pet that's a ${matchScore}% match near ${location}. Tap to connect!`,
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/badge-72x72.png',
+    tag: `match-${conversationId}`,
+    type: 'MATCH_ALERT',
+    url: `/messages/${conversationId}`,
+    requireInteraction: true,
+    actions: [
+      { action: 'view', title: 'View Match' },
+      { action: 'dismiss', title: 'Not Now' }
+    ],
+    data: { conversationId, type: 'MATCH_ALERT' },
+  }),
+
+  /**
    * New sighting alert
    */
   SIGHTING_ALERT: (petName, location, missionId) => ({

@@ -5,6 +5,7 @@ import { ModeProvider } from './contexts/ModeContext';
 import Navigation from './components/Navigation';
 import ErrorBoundary from './components/ErrorBoundary';
 import OfflineBanner from '@/components/OfflineBanner';
+import PushNotificationProvider from './components/PushNotificationProvider';
 
 // Load Inter font with optimal settings
 const inter = Inter({
@@ -36,11 +37,13 @@ export default function RootLayout({ children }) {
       <body className="m-0 p-0 font-sans antialiased bg-midnight-50 text-midnight-900">
         <SessionProvider>
           <ModeProvider>
-            <ErrorBoundary>
-              <OfflineBanner />
-              <Navigation />
-              {children}
-            </ErrorBoundary>
+            <PushNotificationProvider>
+              <ErrorBoundary>
+                <OfflineBanner />
+                <Navigation />
+                {children}
+              </ErrorBoundary>
+            </PushNotificationProvider>
           </ModeProvider>
         </SessionProvider>
       </body>

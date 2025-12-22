@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/app/lib/prisma';
 import { sendEmail } from '@/app/lib/email';
+import { sendPushToUser, PUSH_TEMPLATES, isPushConfigured } from '@/app/lib/push';
 
 /**
  * POST /api/conversations/[id]/messages
@@ -128,6 +129,24 @@ export async function POST(request, { params }) {
           </div>
         `
       }).catch(err => console.error('Failed to send message notification:', err));
+
+      // Send push notification (instant!)
+      if (isPushConfigured()) {
+        const senderName = user.firstName || (isOwner ? 'Pet Owner' : 'Finder');
+        const pushPayload = PUSH_TEMPLATES.NEW_MESSAGE(
+          senderName,
+          content.substring(0, 100),
+          conversationId
+        );
+
+        sendPushToUser(prisma, otherPartyId, pushPayload)
+          .then(result => {
+            if (result.sent > 0) {
+              console.log(`Push notification sent to ${result.sent} device(s) for new message`);
+            }
+          })
+          .catch(err => console.error('Failed to send push notification:', err));
+      }
     }
 
     return NextResponse.json({

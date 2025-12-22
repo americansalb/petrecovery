@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/app/lib/prisma';
 import { sendEmail } from '@/app/lib/email';
+import { sendPushToUser, PUSH_TEMPLATES, isPushConfigured } from '@/app/lib/push';
 
 /**
  * POST /api/conversations
@@ -148,6 +149,27 @@ export async function POST(request) {
           </div>
         `
       }).catch(err => console.error('Failed to send conversation notification:', err));
+    }
+
+    // Send push notification to the other party (instant alert!)
+    if (isPushConfigured()) {
+      const otherPartyId = isOwner ? foundCase.reporterId : lostCase.reporterId;
+      const foundLocation = foundCase.lastSeenAddress?.split(',')[0] || 'your area';
+
+      const pushPayload = PUSH_TEMPLATES.MATCH_ALERT(
+        petName,
+        matchScore || 0,
+        foundLocation,
+        conversation.id
+      );
+
+      sendPushToUser(prisma, otherPartyId, pushPayload)
+        .then(result => {
+          if (result.sent > 0) {
+            console.log(`Push notification sent to ${result.sent} device(s) for match alert`);
+          }
+        })
+        .catch(err => console.error('Failed to send push notification:', err));
     }
 
     return NextResponse.json({
