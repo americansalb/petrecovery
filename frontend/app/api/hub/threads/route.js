@@ -154,6 +154,14 @@ export async function POST(request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Require email verification for forum posting
+    if (!user.emailVerified) {
+      return NextResponse.json(
+        { error: 'Please verify your email to post on the forum', code: 'EMAIL_NOT_VERIFIED' },
+        { status: 403 }
+      );
+    }
+
     // Get or create forum profile
     let forumProfile = await prisma.forumProfile.findUnique({
       where: { userId: user.id }

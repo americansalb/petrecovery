@@ -85,6 +85,8 @@ export default function ThreadPage({ params }) {
           replyCount: prev.replyCount + 1,
         }));
         setReplyContent('');
+      } else if (data.code === 'EMAIL_NOT_VERIFIED') {
+        alert('Please verify your email to post on the forum. Check your inbox for a verification link.');
       } else {
         alert(data.error || 'Failed to post reply');
       }

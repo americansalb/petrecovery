@@ -78,6 +78,8 @@ function NewThreadForm() {
 
       if (data.success) {
         router.push(`/hub/thread/${data.thread.slug}`);
+      } else if (data.code === 'EMAIL_NOT_VERIFIED') {
+        setError('Please verify your email to post on the forum. Check your inbox for a verification link.');
       } else {
         setError(data.error || 'Failed to create thread');
       }
