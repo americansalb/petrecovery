@@ -94,6 +94,9 @@ export default function ReportFoundPet() {
     console.log('[FoundPet] Getting geolocation...');
     setIsGettingLocation(true);
 
+    // Default fallback location (center of US)
+    const fallbackLocation = [39.8283, -98.5795];
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
@@ -105,14 +108,18 @@ export default function ReportFoundPet() {
           setCityName(result.city);
           setIsGettingLocation(false);
         },
-        (error) => {
-          console.log('[FoundPet] Geolocation error:', error.message);
+        async (error) => {
+          console.log('[FoundPet] Geolocation error, using fallback:', error.message);
+          setCenter(fallbackLocation);
+          setFoundAddress('Drag the pin or search for your location');
           setIsGettingLocation(false);
         },
-        { timeout: 10000, enableHighAccuracy: true }
+        { timeout: 5000, enableHighAccuracy: false }
       );
     } else {
-      console.log('[FoundPet] Geolocation not available');
+      console.log('[FoundPet] Geolocation not available, using fallback');
+      setCenter(fallbackLocation);
+      setFoundAddress('Drag the pin or search for your location');
       setIsGettingLocation(false);
     }
   }, []);
