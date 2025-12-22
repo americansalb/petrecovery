@@ -33,6 +33,7 @@ import {
   Settings,
   Building2,
   Database,
+  MessageCircle,
 } from 'lucide-react';
 import { Button, Badge, CountBadge } from '@/components/ui';
 import { SARAMA_AVATAR, LOGO_PRIMARY } from '@/lib/brandAssets';
@@ -301,6 +302,10 @@ export default function Navigation() {
                       <User className="w-4 h-4" />
                       <span className="font-medium">My Profile</span>
                     </Link>
+                    <Link href="/messages" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
+                      <MessageCircle className="w-4 h-4" />
+                      <span className="font-medium">Messages</span>
+                    </Link>
                     <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
                       <Home className="w-4 h-4" />
                       <span className="font-medium">Dashboard</span>
@@ -380,6 +385,7 @@ export default function Navigation() {
         {/* Mobile Nav Links */}
         <div className="py-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
           <MobileNavLink href="/dashboard" icon={Home} label="Dashboard" active={pathname === '/dashboard'} onClick={() => setMobileMenuOpen(false)} />
+          <MobileNavLink href="/messages" icon={MessageCircle} label="Messages" active={pathname.startsWith('/messages')} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/pets" icon={PawPrint} label="My Pets" active={pathname.startsWith('/pets')} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/missions" icon={ClipboardList} label="My Missions" active={pathname.startsWith('/cases')} onClick={() => setMobileMenuOpen(false)} />
 

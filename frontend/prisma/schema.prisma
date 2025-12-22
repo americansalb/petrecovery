@@ -3956,3 +3956,116 @@ model CaseOutcome {
   @@index([foundMethod])
   @@index([createdAt])
 }
+
+// ============================================================================
+// OWNER-FINDER MESSAGING SYSTEM
+// ============================================================================
+// Secure communication channel between pet owners and finders
+// Created when a match is found between lost and found pet reports
+
+model Conversation {
+  id              String   @id @default(cuid())
+
+  // The two cases being connected
+  lostCaseId      String   // The LOST pet case (owner's case)
+  foundCaseId     String   // The FOUND pet case (finder's case)
+
+  // Participants
+  ownerId         String   // User who lost their pet
+  finderId        String   // User who found a pet
+
+  // Match context
+  matchScore      Int      // The algorithm match score (0-100)
+  matchDetails    String   @default("{}") // JSON: score breakdown
+
+  // Conversation status
+  status          ConversationStatus @default(ACTIVE)
+
+  // Privacy settings
+  ownerRevealed   Boolean  @default(false) // Owner chose to share contact info
+  finderRevealed  Boolean  @default(false) // Finder chose to share contact info
+
+  // Verification
+  ownerVerified   Boolean  @default(false) // Owner provided proof of ownership
+  reunionConfirmed Boolean @default(false) // Both parties confirmed reunion
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastMessageAt   DateTime @default(now())
+
+  // Soft close (conversation can be reopened)
+  closedAt        DateTime?
+  closedBy        String?  // User ID who closed
+  closeReason     String?  // "reunited", "not_my_pet", "no_response", "spam"
+
+  // Relations
+  messages        DirectMessage[]
+
+  @@unique([lostCaseId, foundCaseId]) // Only one conversation per match
+  @@index([ownerId])
+  @@index([finderId])
+  @@index([status])
+  @@index([lastMessageAt])
+  @@index([lostCaseId])
+  @@index([foundCaseId])
+}
+
+enum ConversationStatus {
+  ACTIVE           // Conversation is open
+  PENDING_OWNER    // Waiting for owner to respond
+  PENDING_FINDER   // Waiting for finder to respond
+  REUNION_PENDING  // Arranging meetup
+  REUNITED         // Pet successfully returned
+  CLOSED           // Conversation closed (not a match, etc.)
+}
+
+model DirectMessage {
+  id              String   @id @default(cuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Sender
+  senderId        String   // User ID of sender
+  senderRole      MessageSenderRole // OWNER or FINDER
+
+  // Content
+  content         String
+  messageType     DirectMessageType @default(TEXT)
+
+  // Attachments
+  photoUrls       String   @default("[]") // JSON array of image URLs
+  locationData    String?  // JSON: { lat, lng, address } for meetup coordination
+
+  // Read status
+  readAt          DateTime?
+
+  // Moderation
+  isHidden        Boolean  @default(false) // Hidden by moderator
+  hiddenReason    String?
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  editedAt        DateTime?
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+enum MessageSenderRole {
+  OWNER    // Pet owner
+  FINDER   // Person who found the pet
+  SYSTEM   // System-generated message
+}
+
+enum DirectMessageType {
+  TEXT             // Regular text message
+  PHOTO            // Photo message
+  LOCATION         // Location share (for meetup)
+  CONTACT_SHARED   // User shared their contact info
+  VERIFICATION     // Ownership verification (photos, docs)
+  REUNION_PROPOSED // Proposed meetup time/place
+  REUNION_CONFIRMED // Confirmed reunion happened
+  SYSTEM           // System notification
+}
