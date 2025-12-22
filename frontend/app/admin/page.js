@@ -143,6 +143,12 @@ export default function AdminDashboard() {
             icon="🏠"
           />
           <AdminCard
+            title="Shelter Requests"
+            description="Review and approve shelter account applications"
+            href="/admin/shelters/requests"
+            icon="📝"
+          />
+          <AdminCard
             title="Notifications"
             description="Send announcements and manage notification templates"
             href="/admin/notifications"
