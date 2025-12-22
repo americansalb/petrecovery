@@ -312,26 +312,23 @@ export default function ReportFoundPet() {
     setError(null);
 
     try {
-      const res = await fetch('/api/public/found', {
+      const res = await fetch('/api/reports/found-pet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          petSpecies: petType.toUpperCase(),
-          petBreed: breed,
-          petColor: color,
-          petDescription: description,
-          city: cityName,
-          state: '',
-          zipCode: '',
-          lastSeenLandmark: foundAddress,
-          foundAt: new Date().toISOString(),
-          contactName: effectiveName,
-          contactPhone: contactPhone,
-          contactEmail: effectiveEmail,
-          agreeToTerms: true,
-          photoUrls: photos,
-          latitude: center?.[0],
-          longitude: center?.[1],
+          email: effectiveEmail,
+          phone: contactPhone,
+          firstName: effectiveName,
+          petType: petType,
+          breed: breed,
+          color: color,
+          size: 'MEDIUM',
+          distinctiveMarks: description,
+          foundAddress: foundAddress,
+          center: center,
+          radiusMiles: 5,
+          timeElapsed: foundWhen === 'today' ? 'less_than_hour' : foundWhen === 'yesterday' ? '6_to_24_hours' : '1_to_3_days',
+          photos: photos,
         })
       });
 
@@ -408,19 +405,19 @@ export default function ReportFoundPet() {
             Your found pet report has been submitted
           </p>
 
-          {reportResult.matches?.length > 0 && (
+          {reportResult.potentialMatches?.length > 0 && (
             <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-4 mb-6 text-left">
               <p className="font-bold text-green-800 flex items-center gap-2 mb-2">
                 <CheckCircle size={20} />
                 Potential Matches Found!
               </p>
               <p className="text-sm text-green-700">
-                We found {reportResult.matches.length} potential match(es) and notified the owners.
+                We found {reportResult.potentialMatches.length} potential match(es) and notified {reportResult.matchesNotified} owner(s).
               </p>
             </div>
           )}
 
-          {(!reportResult.matches || reportResult.matches.length === 0) && (
+          {(!reportResult.potentialMatches || reportResult.potentialMatches.length === 0) && (
             <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 mb-6">
               <p className="text-sm text-amber-800">
                 No matching lost pet reports found yet. If someone reports a matching pet, they'll be notified!
