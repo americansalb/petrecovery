@@ -1,7 +1,7 @@
 /**
  * Forum Categories API
  *
- * GET /api/hub/categories - List all categories
+ * GET /api/hub/categories - List all categories with last post info
  */
 
 import { NextResponse } from 'next/server';
@@ -9,57 +9,115 @@ import prisma from '@/app/lib/prisma';
 
 /**
  * GET /api/hub/categories
- * List all forum categories with thread counts
+ * List all forum categories with thread counts and last post info
  */
 export async function GET() {
   try {
     const categories = await prisma.forumCategory.findMany({
       where: {
         isReadOnly: false,
-        parentId: null, // Top-level categories only
       },
       orderBy: { displayOrder: 'asc' },
-      include: {
-        children: {
-          orderBy: { displayOrder: 'asc' },
-        },
-        _count: {
-          select: { threads: true }
-        }
-      }
     });
 
-    // Get recent threads for each category
-    const categoriesWithRecent = await Promise.all(
+    // Get detailed stats for each category
+    const categoriesWithStats = await Promise.all(
       categories.map(async (category) => {
-        const recentThreads = await prisma.forumThread.findMany({
+        // Get thread count
+        const threadCount = await prisma.forumThread.count({
           where: {
             categoryId: category.id,
+            isDeleted: false,
+            isHidden: false,
+          },
+        });
+
+        // Get post count (replies in this category)
+        const postCount = await prisma.forumPost.count({
+          where: {
+            thread: {
+              categoryId: category.id,
+              isDeleted: false,
+            },
+            isDeleted: false,
+          },
+        });
+
+        // Get last thread with activity
+        const lastThread = await prisma.forumThread.findFirst({
+          where: {
+            categoryId: category.id,
+            isDeleted: false,
             isHidden: false,
           },
           orderBy: { lastActivityAt: 'desc' },
-          take: 3,
           select: {
             id: true,
             title: true,
             slug: true,
-            authorId: true,
-            replyCount: true,
             lastActivityAt: true,
-          }
+            author: {
+              select: { id: true, firstName: true },
+            },
+          },
         });
 
+        // Get the actual last poster (could be from a reply)
+        let lastPoster = lastThread?.author;
+        if (lastThread) {
+          const lastPost = await prisma.forumPost.findFirst({
+            where: {
+              threadId: lastThread.id,
+              isDeleted: false,
+            },
+            orderBy: { createdAt: 'desc' },
+            select: {
+              author: {
+                select: { id: true, firstName: true },
+              },
+              createdAt: true,
+            },
+          });
+          if (lastPost) {
+            lastPoster = lastPost.author;
+          }
+        }
+
         return {
-          ...category,
-          threadCount: category._count.threads,
-          recentThreads,
+          id: category.id,
+          name: category.name,
+          slug: category.slug,
+          description: category.description,
+          icon: category.icon,
+          color: category.color,
+          parentId: category.parentId,
+          displayOrder: category.displayOrder,
+          threadCount,
+          postCount,
+          lastPost: lastThread ? {
+            threadId: lastThread.id,
+            threadTitle: lastThread.title,
+            threadSlug: lastThread.slug,
+            at: lastThread.lastActivityAt,
+            by: lastPoster,
+          } : null,
         };
       })
     );
 
+    // Group by parent (for sections)
+    const topLevel = categoriesWithStats.filter(c => !c.parentId);
+    const children = categoriesWithStats.filter(c => c.parentId);
+
+    // Attach children to parents
+    const organized = topLevel.map(parent => ({
+      ...parent,
+      children: children.filter(c => c.parentId === parent.id),
+    }));
+
     return NextResponse.json({
       success: true,
-      categories: categoriesWithRecent,
+      categories: organized,
     });
   } catch (error) {
     console.error('Error fetching categories:', error);

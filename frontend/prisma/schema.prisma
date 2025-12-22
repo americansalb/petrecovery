@@ -4331,12 +4331,16 @@ model ForumProfile {
   bannedReason      String?
   bannedUntil       DateTime? // Null = permanent
 
+  // Activity tracking
+  lastActiveAt      DateTime?
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@index([trustLevel])
   @@index([isVerifiedShelter])
   @@index([isModerator])
+  @@index([lastActiveAt])
 }
 
 model ForumNotification {
