@@ -34,6 +34,7 @@ import {
   Building2,
   Database,
   MessageCircle,
+  Sparkles,
 } from 'lucide-react';
 import { Button, Badge, CountBadge } from '@/components/ui';
 import { SARAMA_AVATAR, LOGO_PRIMARY } from '@/lib/brandAssets';
@@ -190,6 +191,12 @@ export default function Navigation() {
                 <DropdownLink href="/shelters" icon={Building2} title="Find Shelters" description="Animal shelters near you" />
                 <DropdownLink href="/rescue-squads/search" icon={Users} title="Find Rescue Squads" description="Volunteer groups near you" />
               </NavDropdown>
+
+              {/* Rescue Hub */}
+              <NavLink href="/hub" active={pathname.startsWith('/hub')}>
+                <Sparkles className="w-4 h-4" />
+                Hub
+              </NavLink>
 
               {/* My Rescue Squads Dropdown - Only shows if user has squads */}
               {userSquads.length > 0 && (
@@ -397,6 +404,12 @@ export default function Navigation() {
           <MobileNavLink href="/database" icon={Database} label="Pet Database" active={pathname === '/database'} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/shelters" icon={Building2} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/rescue-squads/search" icon={Users} label="Find Rescue Squads" active={pathname === '/rescue-squads/search'} onClick={() => setMobileMenuOpen(false)} />
+
+          <div className="border-t border-midnight-100 my-2" />
+          <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
+            Community
+          </div>
+          <MobileNavLink href="/hub" icon={Sparkles} label="Rescue Hub" active={pathname.startsWith('/hub')} onClick={() => setMobileMenuOpen(false)} />
 
           {userSquads.length > 0 && (
             <>
