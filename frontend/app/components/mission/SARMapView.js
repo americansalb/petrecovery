@@ -50,6 +50,7 @@ export default function SARMapView({
   center = [41.8781, -87.6298],
   lastSeen = null,
   sightings = [],
+  pois = [], // Shelters, vets, animal control
   petSpecies = 'DOG',
   hoursElapsed = 24,
   showControls = false,
@@ -66,8 +67,10 @@ export default function SARMapView({
   const circlesRef = useRef([]);
   const gpsLayersRef = useRef([]);
   const coverageLayersRef = useRef([]); // For team coverage trails
+  const poiMarkersRef = useRef([]); // For shelter/vet markers
   const [userLocation, setUserLocation] = useState(null);
   const userMarkerRef = useRef(null);
+  const [showPOIs, setShowPOIs] = useState(true); // Toggle POI visibility
   const [mapLayer, setMapLayer] = useState('satellite');
   const baseLayersRef = useRef({});
   const [showCoverage, setShowCoverage] = useState(true); // Toggle coverage overlay
@@ -614,6 +617,73 @@ export default function SARMapView({
 
   }, [coverageTrails, showCoverage]);
 
+  // Render POI markers (shelters, vets, animal control)
+  useEffect(() => {
+    if (!mapInstance.current || !showPOIs) return;
+
+    // Clear existing POI markers
+    poiMarkersRef.current.forEach(marker => marker.remove());
+    poiMarkersRef.current = [];
+
+    if (!pois || pois.length === 0) return;
+
+    // Color mapping for POI types
+    const typeColors = {
+      SHELTER: '#6366f1', // Indigo
+      RESCUE: '#8b5cf6', // Purple
+      VET: '#10b981', // Emerald
+      ANIMAL_CONTROL: '#f59e0b', // Amber
+    };
+
+    pois.forEach(poi => {
+      if (!poi.latitude || !poi.longitude) return;
+
+      const color = typeColors[poi.type?.toUpperCase()] || '#6366f1';
+      const icon = poi.icon || '🏠';
+
+      const poiIcon = L.divIcon({
+        className: 'poi-marker',
+        html: `
+          <div style="
+            width: 28px;
+            height: 28px;
+            background: ${color};
+            border: 2px solid white;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            font-size: 14px;
+          ">${icon}</div>
+        `,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+      });
+
+      const marker = L.marker([poi.latitude, poi.longitude], { icon: poiIcon })
+        .bindPopup(`
+          <div style="min-width: 200px;">
+            <strong style="color: ${color};">${poi.name}</strong>
+            <br/>
+            <span style="font-size: 11px; color: #666; text-transform: capitalize;">
+              ${poi.type?.toLowerCase() || 'Shelter'}
+            </span>
+            <br/>
+            <span style="font-size: 12px; color: #333;">
+              ${poi.address || ''}
+            </span>
+            ${poi.phone ? `<br/><a href="tel:${poi.phone}" style="color: #3b82f6; font-size: 12px;">${poi.phone}</a>` : ''}
+            ${poi.distance ? `<br/><span style="font-size: 11px; color: #999;">${poi.distance} miles away</span>` : ''}
+          </div>
+        `)
+        .addTo(mapInstance.current);
+
+      poiMarkersRef.current.push(marker);
+    });
+
+  }, [pois, showPOIs]);
+
   return (
     <div className="w-full h-full relative">
       <div ref={mapRef} className="w-full h-full" />
@@ -662,7 +732,7 @@ export default function SARMapView({
           showSightings={sightings.length > 0}
           showSearchPath={gpsPath && gpsPath.length > 0 || coverageTrails.length > 0}
           showActiveSearches={activeSearchersCount > 0}
-          showPOIs={false}
+          showPOIs={pois.length > 0}
           activeSearchersCount={activeSearchersCount}
         />
       )}

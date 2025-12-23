@@ -24,6 +24,7 @@ import useMissionControl from './hooks/useMissionControl';
 import useSearchSession from './hooks/useSearchSession';
 import useSearchCoverage from './hooks/useSearchCoverage';
 import useMissionChat from './hooks/useMissionChat';
+import usePOIs from './hooks/usePOIs';
 
 // Components
 import CompactHeader from './components/simple/CompactHeader';
@@ -105,6 +106,9 @@ function MissionControlContent() {
   // Search coverage - historical trails from all team members
   const coverage = useSearchCoverage(activeMission?.id);
   const coverageData = coverage.getMapCoverageData();
+
+  // POIs - nearby shelters, vets, animal control
+  const { pois } = usePOIs(activeMission?.id);
 
   // Completed tasks (stored in state for now)
   const [completedTasks, setCompletedTasks] = useState([]);
@@ -303,6 +307,7 @@ function MissionControlContent() {
               gpsPath={gpsPath}
               coverageTrails={coverageData.trails}
               activeSearchersCount={coverageData.activeSearchersCount}
+              pois={pois}
               showLegend={!isSearching}
               interactive={true}
             />
