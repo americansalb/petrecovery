@@ -76,8 +76,10 @@ function MissionControlContent() {
     activeParticipants,
   } = mission;
 
-  // GPS search session
-  const lastSeenLocation = activeMission?.lastSeenLat && activeMission?.lastSeenLng
+  // GPS search session - API returns lastSeenLatitude/lastSeenLongitude
+  const lastSeenLocation = (activeMission?.lastSeenLatitude && activeMission?.lastSeenLongitude)
+    ? { lat: activeMission.lastSeenLatitude, lng: activeMission.lastSeenLongitude }
+    : (activeMission?.lastSeenLat && activeMission?.lastSeenLng)
     ? { lat: activeMission.lastSeenLat, lng: activeMission.lastSeenLng }
     : null;
 

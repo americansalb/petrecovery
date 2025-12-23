@@ -271,7 +271,7 @@ export default function useMissionControl(session) {
 
       setIsJoining(true);
 
-      const res = await fetchWithRetry(`/api/rescue-squads/${squadId}/cases/${activeMission.id}/help`, {
+      const res = await fetchWithRetry(`/api/rescue-squads/${squadId}/missions/${activeMission.id}/help`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });

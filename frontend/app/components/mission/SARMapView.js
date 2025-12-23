@@ -158,6 +158,42 @@ export default function SARMapView({
     }
   }, [userLocation]);
 
+  // Fit bounds to show both user location and last seen (once on initial load)
+  const hasFitBoundsRef = useRef(false);
+  useEffect(() => {
+    if (!mapInstance.current || hasFitBoundsRef.current) return;
+    if (!lastSeen) return;
+
+    // Wait a moment for map to initialize
+    const timer = setTimeout(() => {
+      if (!mapInstance.current) return;
+
+      const bounds = L.latLngBounds([]);
+
+      // Add last seen to bounds
+      if (lastSeen?.lat && lastSeen?.lng) {
+        bounds.extend([lastSeen.lat, lastSeen.lng]);
+      }
+
+      // Add user location if available
+      if (userLocation) {
+        bounds.extend(userLocation);
+      }
+
+      // If we have valid bounds, fit to them
+      if (bounds.isValid()) {
+        mapInstance.current.fitBounds(bounds, {
+          padding: [50, 50],
+          maxZoom: 16,
+          animate: true
+        });
+        hasFitBoundsRef.current = true;
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [lastSeen, userLocation]);
+
   // Update markers and circles
   useEffect(() => {
     if (!mapInstance.current) return;
@@ -449,7 +485,7 @@ export default function SARMapView({
     <div className="w-full h-full relative">
       <div ref={mapRef} className="w-full h-full" />
 
-      {/* Layer Toggle Button - Only show for interactive maps */}
+      {/* Layer Toggle & Fit Buttons - Only show for interactive maps */}
       {interactive && (
         <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2">
           <button
@@ -467,6 +503,22 @@ export default function SARMapView({
                 <span>Satellite</span>
               </>
             )}
+          </button>
+          {/* Fit all locations button */}
+          <button
+            onClick={() => {
+              if (!mapInstance.current) return;
+              const bounds = L.latLngBounds([]);
+              if (lastSeen?.lat && lastSeen?.lng) bounds.extend([lastSeen.lat, lastSeen.lng]);
+              if (userLocation) bounds.extend(userLocation);
+              if (bounds.isValid()) {
+                mapInstance.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+              }
+            }}
+            className="bg-slate-900/90 backdrop-blur border border-slate-700 rounded-xl px-4 py-2.5 text-white font-semibold text-sm hover:bg-slate-800 transition flex items-center gap-2 shadow-lg"
+          >
+            <span>🎯</span>
+            <span>Fit All</span>
           </button>
         </div>
       )}
