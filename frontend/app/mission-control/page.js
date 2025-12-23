@@ -2,11 +2,13 @@
 
 /**
  * Mission Control Page
- * Using V3 while V4 is being fixed
+ *
+ * Single-screen, no-scroll design with full-viewport map.
+ * Uses the simplified MissionControlSimple component.
  */
 
-import MissionControlV3 from './MissionControlV3';
+import MissionControlSimple from './MissionControlSimple';
 
 export default function MissionControl() {
-  return <MissionControlV3 />;
+  return <MissionControlSimple />;
 }
