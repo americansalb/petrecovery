@@ -106,10 +106,27 @@ export async function POST(request, { params }) {
       select: { firstName: true, lastName: true },
     });
 
+    // If no rescue squad, create one for this mission
+    let rescueSquadId = mission.rescueSquadId;
+    if (!rescueSquadId) {
+      const squad = await prisma.rescueSquad.create({
+        data: {
+          name: `Mission Squad`,
+          caseId: missionId,
+        },
+      });
+      rescueSquadId = squad.id;
+      // Update mission with squad
+      await prisma.case.update({
+        where: { id: missionId },
+        data: { rescueSquadId: squad.id },
+      });
+    }
+
     // Create chat message as SquadActivity
     const message = await prisma.squadActivity.create({
       data: {
-        rescueSquadId: mission.rescueSquadId,
+        rescueSquadId: rescueSquadId,
         type: 'CHAT_MESSAGE',
         message: content.trim(),
         actorId: session.user.id,

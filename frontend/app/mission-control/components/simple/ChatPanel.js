@@ -8,16 +8,15 @@
  * - Quick status updates
  * - Location sharing
  * - Sighting alerts
+ * - Mobile keyboard handling
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Send,
   MapPin,
-  Camera,
   AlertCircle,
   CheckCheck,
-  Clock
 } from 'lucide-react';
 
 // Quick message templates
@@ -37,7 +36,38 @@ export default function ChatPanel({
 }) {
   const [newMessage, setNewMessage] = useState('');
   const [showQuickMessages, setShowQuickMessages] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+  const containerRef = useRef(null);
+
+  // Handle visual viewport changes (keyboard open/close)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const viewport = window.visualViewport;
+
+    const handleResize = () => {
+      // Calculate keyboard height as difference between window and viewport
+      const newKeyboardHeight = window.innerHeight - viewport.height;
+      setKeyboardHeight(Math.max(0, newKeyboardHeight));
+
+      // Scroll to keep input visible
+      if (newKeyboardHeight > 0 && inputRef.current) {
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    };
+
+    viewport.addEventListener('resize', handleResize);
+    viewport.addEventListener('scroll', handleResize);
+
+    return () => {
+      viewport.removeEventListener('resize', handleResize);
+      viewport.removeEventListener('scroll', handleResize);
+    };
+  }, []);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -75,9 +105,16 @@ export default function ChatPanel({
   ];
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-950 overflow-hidden">
+    <div
+      ref={containerRef}
+      className="flex-1 flex flex-col bg-slate-950 overflow-hidden"
+      style={{
+        // Adjust for keyboard on mobile
+        paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : undefined,
+      }}
+    >
       {/* Chat Header */}
-      <div className="p-4 bg-slate-900/50 border-b border-slate-800">
+      <div className="shrink-0 p-4 bg-slate-900/50 border-b border-slate-800">
         <h2 className="text-lg font-bold text-white">Team Chat</h2>
         <p className="text-xs text-slate-500 mt-0.5">
           {messages.length > 0 ? `${messages.length} messages` : 'Coordinate with your team'}
@@ -134,7 +171,7 @@ export default function ChatPanel({
 
       {/* Quick Messages */}
       {showQuickMessages && (
-        <div className="p-3 border-t border-slate-800 bg-slate-900/50">
+        <div className="shrink-0 p-3 border-t border-slate-800 bg-slate-900">
           <p className="text-xs text-slate-500 mb-2">Quick Messages</p>
           <div className="grid grid-cols-2 gap-2">
             {QUICK_MESSAGES.map(qm => (
@@ -151,8 +188,8 @@ export default function ChatPanel({
         </div>
       )}
 
-      {/* Input Area */}
-      <div className="p-3 border-t border-slate-800 bg-slate-900/50">
+      {/* Input Area - Fixed at bottom */}
+      <div className="shrink-0 p-3 border-t border-slate-800 bg-slate-900">
         <div className="flex items-end gap-2">
           {/* Quick actions */}
           <div className="flex gap-1">
@@ -179,11 +216,13 @@ export default function ChatPanel({
           {/* Text input */}
           <div className="flex-1 relative">
             <textarea
+              ref={inputRef}
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Message team..."
               rows={1}
+              enterKeyHint="send"
               className="w-full bg-slate-800 text-white rounded-xl px-4 py-3 pr-12 border border-slate-700 focus:border-amber-500 focus:outline-none resize-none placeholder-slate-500"
               style={{ minHeight: '48px', maxHeight: '120px' }}
             />
