@@ -27,7 +27,7 @@ export async function GET(request, { params }) {
     // Get chat messages for this mission
     const activities = await prisma.squadActivity.findMany({
       where: {
-        missionId: missionId,
+        caseId: missionId,
         type: 'CHAT_MESSAGE',
       },
       include: {
@@ -130,7 +130,7 @@ export async function POST(request, { params }) {
         type: 'CHAT_MESSAGE',
         message: content.trim(),
         actorId: session.user.id,
-        missionId: missionId,
+        caseId: missionId,
         details: JSON.stringify({}),
       },
     });

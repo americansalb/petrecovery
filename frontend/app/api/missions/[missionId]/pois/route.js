@@ -29,7 +29,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { missionId } = await params;
+    const { missionId } = params;
     const { searchParams } = new URL(request.url);
     const radiusMiles = parseFloat(searchParams.get('radius') || '10');
 

@@ -100,12 +100,12 @@ function calculatePoints(stats, caseCreatedAt) {
  */
 export async function POST(request, { params }) {
   const startTime = Date.now();
+  const { missionId } = params;
 
   try {
-    // Parse body and params in parallel with auth
-    const [session, { missionId }, body] = await Promise.all([
+    // Parse body in parallel with auth
+    const [session, body] = await Promise.all([
       getServerSession(),
-      params,
       request.json(),
     ]);
 
@@ -556,13 +556,10 @@ async function handleSearchLog(userId, missionId, body) {
  */
 export async function GET(request, { params }) {
   const startTime = Date.now();
+  const { missionId } = params;
 
   try {
-    // Parse params and auth in parallel
-    const [session, { missionId }] = await Promise.all([
-      getServerSession(),
-      params,
-    ]);
+    const session = await getServerSession();
 
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

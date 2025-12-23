@@ -21,7 +21,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { missionId } = await params;
+    const { missionId } = params;
 
     // Verify mission exists
     const mission = await prisma.case.findUnique({
