@@ -11,7 +11,7 @@
  * - End search button
  */
 
-import { useState } from 'react';
+import { useCallback } from 'react';
 import { Clock, Navigation, Star, AlertTriangle, Loader2 } from 'lucide-react';
 
 // Transport method info
@@ -42,8 +42,34 @@ export default function LiveSearchOverlay({
   const transport = TRANSPORT_INFO[transportMethod] || TRANSPORT_INFO.stationary;
   const hasWarning = validation.lastWarning && validation.lastWarning !== 'STATIONARY';
 
+  // Handle end search with proper event stopping to prevent map interference
+  const handleEndClick = useCallback((e) => {
+    // Prevent default and stop propagation to avoid map interaction
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Prevent double-firing from both touch and click events
+    if (e.type === 'touchend') {
+      // Mark that we handled this as a touch event
+      e.target.dataset.touchHandled = 'true';
+    } else if (e.type === 'click' && e.target.dataset.touchHandled === 'true') {
+      // Skip click if we already handled touch
+      delete e.target.dataset.touchHandled;
+      return;
+    }
+
+    if (!isEnding && onEndSearch) {
+      console.log('End search button clicked');
+      onEndSearch();
+    }
+  }, [isEnding, onEndSearch]);
+
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-[600]">
+    <div
+      className="absolute bottom-0 left-0 right-0 z-[600]"
+      onClick={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+    >
       {/* Warning banner */}
       {hasWarning && (
         <div className={`
@@ -123,7 +149,9 @@ export default function LiveSearchOverlay({
 
         {/* End Search Button - Large touch target for mobile */}
         <button
-          onClick={onEndSearch}
+          type="button"
+          onClick={handleEndClick}
+          onTouchEnd={handleEndClick}
           disabled={isEnding}
           className={`
             w-full py-5 rounded-2xl font-bold text-lg
@@ -131,9 +159,10 @@ export default function LiveSearchOverlay({
             transition-all transform
             bg-gradient-to-r from-red-500 to-orange-500 text-white
             shadow-lg shadow-red-500/30
-            touch-manipulation
+            touch-manipulation select-none
             ${isEnding ? 'opacity-70 cursor-wait' : 'active:scale-[0.98] hover:shadow-xl hover:shadow-red-500/40'}
           `}
+          style={{ WebkitTapHighlightColor: 'transparent' }}
         >
           {isEnding ? (
             <Loader2 size={24} className="animate-spin" />
