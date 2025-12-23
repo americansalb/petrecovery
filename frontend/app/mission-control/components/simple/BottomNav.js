@@ -3,29 +3,28 @@
 /**
  * BottomNav - Main navigation for Mission Control
  *
- * Provides quick access to all key sections:
- * - Map: GPS search, sightings, location tracking
- * - Team: Squad members, coordination
- * - Chat: Communication with team
- * - Tasks: Actions and assignments
- * - More: Settings, details, share
+ * 5-tab focused structure:
+ * - Home: Overview with key info at a glance
+ * - Search: Map + GPS tracking
+ * - Team: Members + Chat combined
+ * - Actions: Shelters, flyers, share
+ * - Tips: Search strategies
  */
 
-import { Map, Users, MessageCircle, ClipboardList, MoreHorizontal } from 'lucide-react';
+import { Home, Navigation, Users, ClipboardList, Lightbulb } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { id: 'map', icon: Map, label: 'Map' },
+  { id: 'home', icon: Home, label: 'Home' },
+  { id: 'search', icon: Navigation, label: 'Search' },
   { id: 'team', icon: Users, label: 'Team' },
-  { id: 'chat', icon: MessageCircle, label: 'Chat' },
-  { id: 'tasks', icon: ClipboardList, label: 'Tasks' },
-  { id: 'more', icon: MoreHorizontal, label: 'More' },
+  { id: 'actions', icon: ClipboardList, label: 'Actions' },
+  { id: 'tips', icon: Lightbulb, label: 'Tips' },
 ];
 
 export default function BottomNav({
-  activeTab = 'map',
+  activeTab = 'home',
   onTabChange,
   unreadChat = 0,
-  pendingTasks = 0,
   isSearching = false,
 }) {
   return (
@@ -35,9 +34,10 @@ export default function BottomNav({
       <div className="flex items-center justify-around">
         {NAV_ITEMS.map(item => {
           const isActive = activeTab === item.id;
-          const badge = item.id === 'chat' ? unreadChat : item.id === 'tasks' ? pendingTasks : 0;
-          // Show live indicator on Map when searching
-          const showLive = isSearching && item.id === 'map';
+          // Show badge on Team tab for unread messages
+          const badge = item.id === 'team' ? unreadChat : 0;
+          // Show live indicator on Search when GPS is active
+          const showLive = isSearching && item.id === 'search';
 
           return (
             <button

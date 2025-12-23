@@ -3,12 +3,12 @@
 /**
  * MissionControlSimple - Full-featured Mission Control with navigation
  *
- * Features:
- * - Map: GPS search, sightings, location tracking
- * - Team: Squad members, coordination
- * - Chat: Team communication
- * - Tasks: Actions and assignments
- * - More: Settings, details, share
+ * 5-tab focused structure:
+ * - Home: Overview with key info at a glance
+ * - Search: Map + GPS tracking
+ * - Team: Members + Chat combined
+ * - Actions: Shelters, flyers, share
+ * - Tips: Search strategies
  *
  * Design: Single-screen, no-scroll with bottom navigation
  */
@@ -29,10 +29,10 @@ import CompactHeader from './components/simple/CompactHeader';
 import BottomNav from './components/simple/BottomNav';
 import BottomPanel from './components/simple/BottomPanel';
 import LiveSearchOverlay from './components/simple/LiveSearchOverlay';
-import TeamPanel from './components/simple/TeamPanel';
-import ChatPanel from './components/simple/ChatPanel';
-import TasksPanel from './components/simple/TasksPanel';
-import MorePanel from './components/simple/MorePanel';
+import OverviewPanel from './components/simple/OverviewPanel';
+import TeamChatPanel from './components/simple/TeamChatPanel';
+import ActionsPanel from './components/simple/ActionsPanel';
+import TipsPanel from './components/simple/TipsPanel';
 import SightingFormModal from './components/modals/SightingFormModal';
 
 // Dynamic import for map (no SSR)
@@ -53,8 +53,8 @@ function MissionControlContent() {
   const searchParams = useSearchParams();
   const missionId = searchParams.get('mission');
 
-  // Navigation state
-  const [activeTab, setActiveTab] = useState('map');
+  // Navigation state - start on home/overview
+  const [activeTab, setActiveTab] = useState('home');
 
   // Main mission state
   const mission = useMissionControl(session);
@@ -106,12 +106,10 @@ function MissionControlContent() {
 
   // Handle tab change
   const handleTabChange = useCallback((tab) => {
-    // If searching and trying to leave map, warn user
-    if (isSearching && tab !== 'map') {
-      // Still allow switching but keep search running
-    }
+    // If searching and trying to leave search tab, still allow it
+    // Search continues in background
     setActiveTab(tab);
-  }, [isSearching]);
+  }, []);
 
   // Handle quick actions from map panel
   const handleQuickAction = useCallback((actionId) => {
@@ -143,7 +141,7 @@ function MissionControlContent() {
 
   // Handle start search
   const handleStartSearch = useCallback(async () => {
-    setActiveTab('map'); // Switch to map when starting search
+    setActiveTab('search'); // Switch to search/map when starting
     const result = await startSearch();
     if (result.success) {
       showNotification('success', 'GPS search started! Your path is being tracked.');
@@ -178,38 +176,35 @@ function MissionControlContent() {
     setCompletedTasks(prev => [...prev, 'sighting']);
   }, [setShowSightingForm, fetchSightings, showNotification]);
 
-  // Handle task actions
-  const handleTaskAction = useCallback((taskId) => {
-    switch (taskId) {
-      case 'search':
-        handleStartSearch();
-        setActiveTab('map');
-        break;
-      case 'sighting':
-        setShowSightingForm(true);
-        break;
-      case 'share':
-        handleQuickAction('share');
-        setCompletedTasks(prev => [...prev, 'share']);
-        break;
-      default:
-        showNotification('info', `${taskId} action - opening...`);
+  // Handle share action
+  const handleShare = useCallback((platform) => {
+    if (navigator.share) {
+      navigator.share({
+        title: `Help find ${activeMission?.petName}!`,
+        text: `Please help us find our missing pet. Share to spread the word!`,
+        url: window.location.href
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      showNotification('success', 'Link copied to clipboard!');
     }
-  }, [handleStartSearch, setShowSightingForm, handleQuickAction, showNotification]);
+    setCompletedTasks(prev => [...prev, 'share']);
+  }, [activeMission, showNotification]);
 
-  // Handle more panel actions
-  const handleMoreAction = useCallback((actionId) => {
-    switch (actionId) {
-      case 'share':
-        handleQuickAction('share');
-        break;
-      case 'details':
-        showNotification('info', 'Pet details - opening...');
-        break;
-      default:
-        showNotification('info', `${actionId} - coming soon!`);
-    }
-  }, [handleQuickAction, showNotification]);
+  // Handle download flyer
+  const handleDownloadFlyer = useCallback(() => {
+    showNotification('info', 'Flyer download coming soon!');
+  }, [showNotification]);
+
+  // Handle view map from overview
+  const handleViewMap = useCallback(() => {
+    setActiveTab('search');
+  }, []);
+
+  // Handle call shelters
+  const handleCallShelters = useCallback(() => {
+    setActiveTab('actions');
+  }, []);
 
   // Loading state
   if (loading) {
@@ -271,7 +266,24 @@ function MissionControlContent() {
   // Render the active panel based on tab
   const renderPanel = () => {
     switch (activeTab) {
-      case 'map':
+      case 'home':
+        return (
+          <OverviewPanel
+            mission={activeMission}
+            timeMissing={timeMissing}
+            sightingsCount={sightings?.length || 0}
+            teamCount={team?.length || 0}
+            searchersActive={activeParticipants?.length || 0}
+            recentActivity={[]} // TODO: Wire up activity feed
+            onStartSearch={handleStartSearch}
+            onReportSighting={() => setShowSightingForm(true)}
+            onShare={handleShare}
+            onViewMap={handleViewMap}
+            onCallShelters={handleCallShelters}
+          />
+        );
+
+      case 'search':
         return (
           <div className="flex-1 relative">
             <SARMapView
@@ -316,19 +328,9 @@ function MissionControlContent() {
 
       case 'team':
         return (
-          <TeamPanel
+          <TeamChatPanel
             team={team}
             activeParticipants={activeParticipants}
-            isDeployed={isDeployed}
-            isOwner={isOwner}
-            onJoinMission={handleJoinMission}
-            isJoining={isJoining}
-          />
-        );
-
-      case 'chat':
-        return (
-          <ChatPanel
             messages={chat.messages}
             onSendMessage={async (msg) => {
               const result = await chat.sendMessage(msg);
@@ -352,21 +354,24 @@ function MissionControlContent() {
           />
         );
 
-      case 'tasks':
+      case 'actions':
         return (
-          <TasksPanel
-            completedTasks={completedTasks}
-            onTaskAction={handleTaskAction}
-            onStartSearch={handleStartSearch}
-            onReportSighting={() => setShowSightingForm(true)}
+          <ActionsPanel
+            mission={activeMission}
+            completedActions={completedTasks}
+            onShare={handleShare}
+            onDownloadFlyer={handleDownloadFlyer}
+            onCallShelter={(shelter) => {
+              showNotification('info', `Calling ${shelter.name}...`);
+            }}
           />
         );
 
-      case 'more':
+      case 'tips':
         return (
-          <MorePanel
-            mission={activeMission}
-            onAction={handleMoreAction}
+          <TipsPanel
+            petSpecies={activeMission.petSpecies || 'DOG'}
+            hoursMissing={hoursElapsed}
           />
         );
 
@@ -393,8 +398,7 @@ function MissionControlContent() {
       <BottomNav
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        unreadChat={chat.messages.length > 0 ? 0 : 0}
-        pendingTasks={completedTasks.length < 9 ? 9 - completedTasks.length : 0}
+        unreadChat={0} // TODO: Track unread messages
         isSearching={isSearching}
       />
 
