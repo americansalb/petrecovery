@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import MapLegend from './MapLegend';
 
 // Travel speeds (miles per hour) for search radius calculation
 const PET_SPEEDS = {
@@ -523,31 +524,15 @@ export default function SARMapView({
         </div>
       )}
 
-      {/* Legend - Only show if showLegend is true */}
+      {/* Legend - Collapsible, positioned top-left */}
       {showLegend && (
-        <div className="absolute bottom-36 left-4 bg-slate-900/90 backdrop-blur rounded-xl p-3 text-xs z-[400] border border-slate-700">
-          <div className="text-slate-400 font-semibold mb-2 text-[10px] uppercase tracking-wide">Map Legend</div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <div className="w-4 h-4 rounded-full bg-red-500 border border-white flex items-center justify-center text-[10px]">📍</div>
-            <span className="text-slate-200 font-medium">Last known location</span>
-          </div>
-          {sightings.length > 0 && (
-            <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-4 h-4 rounded-full bg-amber-500 border border-white flex items-center justify-center text-[10px]">👁</div>
-              <span className="text-slate-200 font-medium">Reported sighting</span>
-            </div>
-          )}
-          {gpsPath && gpsPath.length > 0 && (
-            <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-8 h-3 bg-purple-500/30 rounded border border-purple-500" />
-              <span className="text-slate-200 font-medium">Search path</span>
-            </div>
-          )}
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500 border border-white" />
-            <span className="text-slate-200 font-medium">You</span>
-          </div>
-        </div>
+        <MapLegend
+          showSightings={sightings.length > 0}
+          showSearchPath={gpsPath && gpsPath.length > 0}
+          showActiveSearches={false}
+          showPOIs={false}
+          activeSearchersCount={0}
+        />
       )}
 
       {/* Zoom Controls (if enabled) */}
