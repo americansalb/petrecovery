@@ -53,8 +53,8 @@ function MissionControlContent() {
   const searchParams = useSearchParams();
   const missionId = searchParams.get('mission');
 
-  // Navigation state - start on home/overview
-  const [activeTab, setActiveTab] = useState('home');
+  // Navigation state - start on search (the main feature)
+  const [activeTab, setActiveTab] = useState('search');
 
   // Main mission state
   const mission = useMissionControl(session);
@@ -300,26 +300,20 @@ function MissionControlContent() {
               interactive={true}
             />
 
-            {/* Map-specific bottom panel */}
+            {/* Search controls */}
             {isSearching ? (
               <LiveSearchOverlay
                 formattedDuration={formattedDuration}
                 distanceMiles={stats.validatedDistanceMiles}
                 estimatedPoints={stats.estimatedPoints}
-                transportMethod={stats.transportMethod}
-                validation={validation}
                 isEnding={isEnding}
                 onEndSearch={handleEndSearch}
               />
             ) : (
               <BottomPanel
-                isSearching={isSearching}
                 isStarting={isStarting}
-                isEnding={isEnding}
                 onStartSearch={handleStartSearch}
-                onEndSearch={handleEndSearch}
-                onAction={handleQuickAction}
-                estimatedPoints={stats.estimatedPoints}
+                onReportSighting={() => setShowSightingForm(true)}
                 disabled={loading}
               />
             )}

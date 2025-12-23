@@ -1,98 +1,67 @@
 'use client';
 
 /**
- * BottomPanel - Floating bottom panel with actions and primary CTA
+ * BottomPanel - Simple search controls
  *
- * Features:
- * - QuickActions bar for common actions
- * - Primary CTA button (Start/End Search)
- * - Semi-transparent gradient background
- * - Safe area padding for mobile
+ * Clean, reliable start search button with clear states
  */
 
-import QuickActions from './QuickActions';
-import { Loader2, Navigation, Compass } from 'lucide-react';
+import { Loader2, Navigation, MapPin, Eye } from 'lucide-react';
 
 export default function BottomPanel({
-  // Search state
-  isSearching = false,
   isStarting = false,
-  isEnding = false,
-
-  // Callbacks
   onStartSearch,
-  onEndSearch,
-  onAction,
-
-  // Stats for display
-  estimatedPoints = 0,
-
-  // Disable during loading
+  onReportSighting,
   disabled = false,
 }) {
-  const isLoading = isStarting || isEnding;
-
-  const handlePrimaryAction = () => {
-    if (isSearching) {
-      onEndSearch?.();
-    } else {
-      onStartSearch?.();
-    }
-  };
-
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-[500]">
-      {/* Solid background for visibility */}
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/98 to-transparent pointer-events-none" />
+    <div className="absolute bottom-0 left-0 right-0 z-[500] pointer-events-none">
+      {/* Gradient fade */}
+      <div className="h-20 bg-gradient-to-t from-slate-950 to-transparent" />
 
-      {/* Content */}
-      <div className="relative px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-        {/* Quick Actions (only when not searching) */}
-        {!isSearching && (
-          <div className="mb-3">
-            <QuickActions
-              onAction={onAction}
-              disabled={disabled || isLoading}
-            />
-          </div>
-        )}
+      {/* Controls */}
+      <div className="bg-slate-950 px-4 pb-4 pointer-events-auto">
+        {/* Quick actions row */}
+        <div className="flex gap-2 mb-3">
+          <button
+            onClick={onReportSighting}
+            disabled={disabled}
+            className="flex-1 py-3 px-4 rounded-xl bg-slate-800 border border-slate-700 text-white font-medium flex items-center justify-center gap-2 active:bg-slate-700 transition disabled:opacity-50"
+          >
+            <Eye size={18} className="text-amber-400" />
+            <span>Report Sighting</span>
+          </button>
+        </div>
 
-        {/* Primary CTA Button */}
+        {/* Main start button */}
         <button
-          onClick={handlePrimaryAction}
-          disabled={disabled || isLoading}
+          onClick={onStartSearch}
+          disabled={disabled || isStarting}
           className={`
             w-full py-4 rounded-2xl font-bold text-lg
             flex items-center justify-center gap-3
-            transition-all transform
-            ${isLoading ? 'opacity-70 cursor-wait' : 'active:scale-[0.98]'}
-            ${isSearching
-              ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg shadow-red-500/30'
-              : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30'
-            }
+            transition-all
+            bg-gradient-to-r from-emerald-500 to-teal-500 text-white
+            shadow-lg shadow-emerald-500/25
+            active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100
           `}
         >
-          {isLoading ? (
-            <Loader2 size={24} className="animate-spin" />
-          ) : isSearching ? (
+          {isStarting ? (
             <>
-              <Navigation size={22} />
-              <span>END & EARN {estimatedPoints} PTS</span>
+              <Loader2 size={22} className="animate-spin" />
+              <span>Getting GPS...</span>
             </>
           ) : (
             <>
-              <Compass size={22} />
-              <span>START GPS SEARCH</span>
+              <Navigation size={22} />
+              <span>Start GPS Search</span>
             </>
           )}
         </button>
 
-        {/* Subtitle */}
-        {!isSearching && !isLoading && (
-          <p className="text-center text-xs text-slate-500 mt-2">
-            GPS-tracked search • Earn 100 pts/mile
-          </p>
-        )}
+        <p className="text-center text-xs text-slate-500 mt-2">
+          Track your search path and earn points
+        </p>
       </div>
     </div>
   );
