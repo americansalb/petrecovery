@@ -43,7 +43,7 @@ export default function LiveSearchOverlay({
   const hasWarning = validation.lastWarning && validation.lastWarning !== 'STATIONARY';
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-[500]">
+    <div className="absolute bottom-0 left-0 right-0 z-[600]">
       {/* Warning banner */}
       {hasWarning && (
         <div className={`
@@ -66,10 +66,10 @@ export default function LiveSearchOverlay({
       )}
 
       {/* Gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent pointer-events-none z-0" />
 
-      {/* Content */}
-      <div className="relative px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+      {/* Content - positioned above gradient */}
+      <div className="relative z-10 px-4 pt-4 pb-4">
         {/* Stats bar */}
         <div className="bg-slate-900/80 backdrop-blur border border-slate-800 rounded-2xl p-3 mb-3">
           <div className="flex items-center justify-around">
@@ -121,17 +121,18 @@ export default function LiveSearchOverlay({
           </div>
         </div>
 
-        {/* End Search Button */}
+        {/* End Search Button - Large touch target for mobile */}
         <button
           onClick={onEndSearch}
           disabled={isEnding}
           className={`
-            w-full py-4 rounded-2xl font-bold text-lg
+            w-full py-5 rounded-2xl font-bold text-lg
             flex items-center justify-center gap-3
             transition-all transform
             bg-gradient-to-r from-red-500 to-orange-500 text-white
             shadow-lg shadow-red-500/30
-            ${isEnding ? 'opacity-70 cursor-wait' : 'active:scale-[0.98]'}
+            touch-manipulation
+            ${isEnding ? 'opacity-70 cursor-wait' : 'active:scale-[0.98] hover:shadow-xl hover:shadow-red-500/40'}
           `}
         >
           {isEnding ? (

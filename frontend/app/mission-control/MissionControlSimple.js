@@ -98,9 +98,8 @@ function MissionControlContent() {
     cancelSearch,
   } = searchSession;
 
-  // Chat - get squadId from mission data
-  const squadId = activeMission?.rescueSquadId || activeMission?.squadId || activeMission?.assignments?.[0]?.rescueSquadId;
-  const chat = useMissionChat(activeMission?.id, squadId);
+  // Chat - uses mission-level chat API (no squad membership required)
+  const chat = useMissionChat(activeMission?.id);
 
   // Completed tasks (stored in state for now)
   const [completedTasks, setCompletedTasks] = useState([]);
@@ -274,7 +273,7 @@ function MissionControlContent() {
     switch (activeTab) {
       case 'map':
         return (
-          <div className="flex-1 relative overflow-hidden">
+          <div className="flex-1 relative">
             <SARMapView
               center={lastSeenLocation
                 ? [lastSeenLocation.lat, lastSeenLocation.lng]
@@ -390,15 +389,14 @@ function MissionControlContent() {
       {/* Main Content Area */}
       {renderPanel()}
 
-      {/* Bottom Navigation - hide during active search */}
-      {!isSearching && (
-        <BottomNav
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          unreadChat={0}
-          pendingTasks={completedTasks.length < 9 ? 9 - completedTasks.length : 0}
-        />
-      )}
+      {/* Bottom Navigation - always visible */}
+      <BottomNav
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        unreadChat={chat.messages.length > 0 ? 0 : 0}
+        pendingTasks={completedTasks.length < 9 ? 9 - completedTasks.length : 0}
+        isSearching={isSearching}
+      />
 
       {/* Notification toast */}
       {notification && (

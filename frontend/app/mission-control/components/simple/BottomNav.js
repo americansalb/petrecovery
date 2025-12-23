@@ -26,13 +26,18 @@ export default function BottomNav({
   onTabChange,
   unreadChat = 0,
   pendingTasks = 0,
+  isSearching = false,
 }) {
   return (
-    <nav className="bg-slate-900 border-t border-slate-800 px-2 pb-[env(safe-area-inset-bottom)]">
+    <nav className={`border-t px-2 pb-[env(safe-area-inset-bottom)] ${
+      isSearching ? 'bg-red-900/50 border-red-800' : 'bg-slate-900 border-slate-800'
+    }`}>
       <div className="flex items-center justify-around">
         {NAV_ITEMS.map(item => {
           const isActive = activeTab === item.id;
           const badge = item.id === 'chat' ? unreadChat : item.id === 'tasks' ? pendingTasks : 0;
+          // Show live indicator on Map when searching
+          const showLive = isSearching && item.id === 'map';
 
           return (
             <button
@@ -42,7 +47,7 @@ export default function BottomNav({
                 flex flex-col items-center py-2 px-4 min-w-[64px] relative
                 transition-colors
                 ${isActive
-                  ? 'text-amber-400'
+                  ? showLive ? 'text-red-400' : 'text-amber-400'
                   : 'text-slate-500 hover:text-slate-300'
                 }
               `}
@@ -54,12 +59,17 @@ export default function BottomNav({
                     {badge > 9 ? '9+' : badge}
                   </span>
                 )}
+                {showLive && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                )}
               </div>
               <span className={`text-[10px] mt-1 font-medium ${isActive ? 'font-semibold' : ''}`}>
-                {item.label}
+                {showLive ? 'LIVE' : item.label}
               </span>
               {isActive && (
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-amber-400 rounded-full" />
+                <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full ${
+                  showLive ? 'bg-red-400' : 'bg-amber-400'
+                }`} />
               )}
             </button>
           );
