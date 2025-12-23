@@ -386,6 +386,90 @@ function MissionControlContent() {
     }
   };
 
+  // Render sidebar panel content (for desktop)
+  const renderSidebarPanel = () => {
+    switch (activeTab) {
+      case 'home':
+        return (
+          <OverviewPanel
+            mission={activeMission}
+            timeMissing={timeMissing}
+            sightingsCount={sightings?.length || 0}
+            teamCount={team?.length || 0}
+            searchersActive={activeParticipants?.length || 0}
+            recentActivity={[]}
+            onStartSearch={handleStartSearch}
+            onReportSighting={() => setShowSightingForm(true)}
+            onShare={handleShare}
+            onViewMap={() => setActiveTab('search')}
+            onCallShelters={() => setActiveTab('actions')}
+          />
+        );
+      case 'team':
+        return (
+          <TeamChatPanel
+            team={team}
+            activeParticipants={activeParticipants}
+            messages={chat.messages}
+            onSendMessage={async (msg) => {
+              const result = await chat.sendMessage(msg);
+              if (!result.success) {
+                showNotification('error', result.error || 'Failed to send message');
+              }
+            }}
+            onShareLocation={() => {
+              if ('geolocation' in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                  (pos) => {
+                    const locationMsg = `📍 My location: https://maps.google.com/?q=${pos.coords.latitude},${pos.coords.longitude}`;
+                    chat.sendMessage(locationMsg);
+                  },
+                  () => showNotification('error', 'Could not get location')
+                );
+              }
+            }}
+            currentUserId={session?.user?.id}
+            isLoading={chat.isLoading || chat.isSending}
+          />
+        );
+      case 'actions':
+        return (
+          <ActionsPanel
+            mission={activeMission}
+            completedActions={completedTasks}
+            onShare={handleShare}
+            onDownloadFlyer={handleDownloadFlyer}
+            onCallShelter={(shelter) => {
+              showNotification('info', `Calling ${shelter.name}...`);
+            }}
+          />
+        );
+      case 'tips':
+        return (
+          <TipsPanel
+            petSpecies={activeMission.petSpecies || 'DOG'}
+            hoursMissing={hoursElapsed}
+          />
+        );
+      default:
+        return (
+          <OverviewPanel
+            mission={activeMission}
+            timeMissing={timeMissing}
+            sightingsCount={sightings?.length || 0}
+            teamCount={team?.length || 0}
+            searchersActive={activeParticipants?.length || 0}
+            recentActivity={[]}
+            onStartSearch={handleStartSearch}
+            onReportSighting={() => setShowSightingForm(true)}
+            onShare={handleShare}
+            onViewMap={() => setActiveTab('search')}
+            onCallShelters={() => setActiveTab('actions')}
+          />
+        );
+    }
+  };
+
   return (
     <div className="h-[100dvh] bg-slate-950 flex flex-col overflow-hidden">
       {/* Compact Header */}
@@ -397,21 +481,117 @@ function MissionControlContent() {
         onShowSighting={() => setShowSightingForm(true)}
       />
 
-      {/* Main Content Area */}
-      {renderPanel()}
+      {/* DESKTOP LAYOUT (lg+): Map + Sidebar */}
+      <div className="hidden lg:flex flex-1 overflow-hidden">
+        {/* Map - Always visible on desktop, takes most of the space */}
+        <div className="flex-1 relative">
+          <SARMapView
+            center={lastSeenLocation
+              ? [lastSeenLocation.lat, lastSeenLocation.lng]
+              : [41.8781, -87.6298]
+            }
+            lastSeen={lastSeenLocation}
+            sightings={sightings}
+            petSpecies={activeMission.petSpecies}
+            hoursElapsed={hoursElapsed}
+            gpsPath={gpsPath}
+            coverageTrails={coverageData.trails}
+            activeSearchersCount={coverageData.activeSearchersCount}
+            pois={pois}
+            showLegend={!isSearching}
+            interactive={true}
+          />
 
-      {/* Bottom Navigation - always visible */}
-      <BottomNav
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-        unreadChat={0} // TODO: Track unread messages
-        isSearching={isSearching}
-      />
+          {/* Search controls overlay on map */}
+          {isSearching ? (
+            <LiveSearchOverlay
+              formattedDuration={formattedDuration}
+              distanceMiles={stats.validatedDistanceMiles}
+              estimatedPoints={stats.estimatedPoints}
+              isEnding={isEnding}
+              onEndSearch={handleEndSearch}
+            />
+          ) : (
+            <div className="absolute bottom-6 left-6 right-6 z-[400]">
+              <div className="flex gap-3">
+                <button
+                  onClick={handleStartSearch}
+                  disabled={isStarting || loading}
+                  className="flex-1 py-4 px-6 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                >
+                  {isStarting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Starting...
+                    </>
+                  ) : (
+                    <>
+                      <MapPin className="w-5 h-5" />
+                      Start GPS Search
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowSightingForm(true)}
+                  className="py-4 px-6 bg-amber-500 hover:bg-amber-400 text-white font-bold rounded-xl shadow-lg transition-all"
+                >
+                  Report Sighting
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar - Panel content */}
+        <div className="w-[420px] flex flex-col border-l border-slate-800 bg-slate-900">
+          {/* Sidebar Tab Navigation */}
+          <div className="flex border-b border-slate-800">
+            {[
+              { id: 'home', label: 'Overview' },
+              { id: 'team', label: 'Team Chat' },
+              { id: 'actions', label: 'Actions' },
+              { id: 'tips', label: 'Tips' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 py-3 px-2 text-sm font-medium transition-all ${
+                  activeTab === tab.id || (activeTab === 'search' && tab.id === 'home')
+                    ? 'text-amber-400 border-b-2 border-amber-400 bg-slate-800/50'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Sidebar Panel Content */}
+          <div className="flex-1 overflow-y-auto">
+            {renderSidebarPanel()}
+          </div>
+        </div>
+      </div>
+
+      {/* MOBILE LAYOUT (< lg): Original single-column design */}
+      <div className="lg:hidden flex-1 flex flex-col overflow-hidden">
+        {renderPanel()}
+      </div>
+
+      {/* Bottom Navigation - mobile only */}
+      <div className="lg:hidden">
+        <BottomNav
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          unreadChat={0}
+          isSearching={isSearching}
+        />
+      </div>
 
       {/* Notification toast */}
       {notification && (
         <div className={`
-          fixed top-20 left-4 right-4 z-[600]
+          fixed top-20 left-4 right-4 lg:left-auto lg:right-6 lg:w-96 z-[600]
           p-4 rounded-xl border shadow-lg
           animate-in slide-in-from-top-4 fade-in duration-300
           ${notification.type === 'success'
