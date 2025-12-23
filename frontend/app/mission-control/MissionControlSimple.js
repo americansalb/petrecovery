@@ -1,14 +1,16 @@
 'use client';
 
 /**
- * MissionControlSimple - Single-screen, no-scroll Mission Control
+ * MissionControlSimple - Full-featured Mission Control with navigation
  *
- * Design goals:
- * - 100dvh viewport - no scrolling
- * - Map fills most of the screen (~70%)
- * - Compact header with essential info
- * - Extensible bottom panel with quick actions
- * - Clean GPS search experience
+ * Features:
+ * - Map: GPS search, sightings, location tracking
+ * - Team: Squad members, coordination
+ * - Chat: Team communication
+ * - Tasks: Actions and assignments
+ * - More: Settings, details, share
+ *
+ * Design: Single-screen, no-scroll with bottom navigation
  */
 
 import { useState, useCallback, Suspense } from 'react';
@@ -23,8 +25,13 @@ import useSearchSession from './hooks/useSearchSession';
 
 // Components
 import CompactHeader from './components/simple/CompactHeader';
+import BottomNav from './components/simple/BottomNav';
 import BottomPanel from './components/simple/BottomPanel';
 import LiveSearchOverlay from './components/simple/LiveSearchOverlay';
+import TeamPanel from './components/simple/TeamPanel';
+import ChatPanel from './components/simple/ChatPanel';
+import TasksPanel from './components/simple/TasksPanel';
+import MorePanel from './components/simple/MorePanel';
 import SightingFormModal from './components/modals/SightingFormModal';
 
 // Dynamic import for map (no SSR)
@@ -45,6 +52,9 @@ function MissionControlContent() {
   const searchParams = useSearchParams();
   const missionId = searchParams.get('mission');
 
+  // Navigation state
+  const [activeTab, setActiveTab] = useState('map');
+
   // Main mission state
   const mission = useMissionControl(session);
   const {
@@ -53,11 +63,17 @@ function MissionControlContent() {
     error,
     timeMissing,
     sightings,
+    team,
     showSightingForm,
     setShowSightingForm,
     fetchSightings,
     showNotification,
     notification,
+    isDeployed,
+    isOwner,
+    handleJoinMission,
+    isJoining,
+    activeParticipants,
   } = mission;
 
   // GPS search session
@@ -79,14 +95,25 @@ function MissionControlContent() {
     cancelSearch,
   } = searchSession;
 
-  // Handle quick actions
+  // Completed tasks (stored in state for now)
+  const [completedTasks, setCompletedTasks] = useState([]);
+
+  // Handle tab change
+  const handleTabChange = useCallback((tab) => {
+    // If searching and trying to leave map, warn user
+    if (isSearching && tab !== 'map') {
+      // Still allow switching but keep search running
+    }
+    setActiveTab(tab);
+  }, [isSearching]);
+
+  // Handle quick actions from map panel
   const handleQuickAction = useCallback((actionId) => {
     switch (actionId) {
       case 'sighting':
         setShowSightingForm(true);
         break;
       case 'lastSeen':
-        // Pan map to last seen location
         if (lastSeenLocation) {
           showNotification('info', 'Centering on last seen location...');
         }
@@ -103,16 +130,14 @@ function MissionControlContent() {
           showNotification('success', 'Link copied to clipboard!');
         }
         break;
-      case 'log':
-        showNotification('info', 'Activity log coming soon!');
-        break;
       default:
-        showNotification('info', `${actionId} coming soon!`);
+        showNotification('info', `${actionId} - coming soon!`);
     }
   }, [activeMission, lastSeenLocation, setShowSightingForm, showNotification]);
 
   // Handle start search
   const handleStartSearch = useCallback(async () => {
+    setActiveTab('map'); // Switch to map when starting search
     const result = await startSearch();
     if (result.success) {
       showNotification('success', 'GPS search started! Your path is being tracked.');
@@ -126,12 +151,14 @@ function MissionControlContent() {
     const result = await endSearch();
     if (result.success) {
       showNotification('success', `Great work! You earned ${result.points?.total || 0} points!`);
+      // Mark search task as completed
+      setCompletedTasks(prev => [...prev, 'search']);
     } else {
       showNotification('error', result.error || 'Failed to end search');
     }
   }, [endSearch, showNotification]);
 
-  // Handle exit search (cancel without saving)
+  // Handle exit search (cancel)
   const handleExitSearch = useCallback(async () => {
     await cancelSearch();
     showNotification('info', 'Search cancelled');
@@ -142,7 +169,41 @@ function MissionControlContent() {
     setShowSightingForm(false);
     fetchSightings();
     showNotification('success', 'Sighting reported! Thank you for helping.');
+    setCompletedTasks(prev => [...prev, 'sighting']);
   }, [setShowSightingForm, fetchSightings, showNotification]);
+
+  // Handle task actions
+  const handleTaskAction = useCallback((taskId) => {
+    switch (taskId) {
+      case 'search':
+        handleStartSearch();
+        setActiveTab('map');
+        break;
+      case 'sighting':
+        setShowSightingForm(true);
+        break;
+      case 'share':
+        handleQuickAction('share');
+        setCompletedTasks(prev => [...prev, 'share']);
+        break;
+      default:
+        showNotification('info', `${taskId} action - opening...`);
+    }
+  }, [handleStartSearch, setShowSightingForm, handleQuickAction, showNotification]);
+
+  // Handle more panel actions
+  const handleMoreAction = useCallback((actionId) => {
+    switch (actionId) {
+      case 'share':
+        handleQuickAction('share');
+        break;
+      case 'details':
+        showNotification('info', 'Pet details - opening...');
+        break;
+      default:
+        showNotification('info', `${actionId} - coming soon!`);
+    }
+  }, [handleQuickAction, showNotification]);
 
   // Loading state
   if (loading) {
@@ -201,6 +262,97 @@ function MissionControlContent() {
     ? Math.floor((Date.now() - new Date(activeMission.lastSeenAt).getTime()) / 3600000)
     : 24;
 
+  // Render the active panel based on tab
+  const renderPanel = () => {
+    switch (activeTab) {
+      case 'map':
+        return (
+          <div className="flex-1 relative overflow-hidden">
+            <SARMapView
+              center={lastSeenLocation
+                ? [lastSeenLocation.lat, lastSeenLocation.lng]
+                : [41.8781, -87.6298]
+              }
+              lastSeen={lastSeenLocation}
+              sightings={sightings}
+              petSpecies={activeMission.petSpecies}
+              hoursElapsed={hoursElapsed}
+              gpsPath={gpsPath}
+              showLegend={!isSearching}
+              interactive={true}
+            />
+
+            {/* Map-specific bottom panel */}
+            {isSearching ? (
+              <LiveSearchOverlay
+                formattedDuration={formattedDuration}
+                distanceMiles={stats.validatedDistanceMiles}
+                estimatedPoints={stats.estimatedPoints}
+                transportMethod={stats.transportMethod}
+                validation={validation}
+                isEnding={isEnding}
+                onEndSearch={handleEndSearch}
+              />
+            ) : (
+              <BottomPanel
+                isSearching={isSearching}
+                isStarting={isStarting}
+                isEnding={isEnding}
+                onStartSearch={handleStartSearch}
+                onEndSearch={handleEndSearch}
+                onAction={handleQuickAction}
+                estimatedPoints={stats.estimatedPoints}
+                disabled={loading}
+              />
+            )}
+          </div>
+        );
+
+      case 'team':
+        return (
+          <TeamPanel
+            team={team}
+            activeParticipants={activeParticipants}
+            isDeployed={isDeployed}
+            isOwner={isOwner}
+            onJoinMission={handleJoinMission}
+            isJoining={isJoining}
+          />
+        );
+
+      case 'chat':
+        return (
+          <ChatPanel
+            messages={[]}
+            onSendMessage={(msg) => showNotification('info', 'Chat coming soon!')}
+            onShareLocation={() => showNotification('info', 'Location sharing coming soon!')}
+            currentUserId={session?.user?.id}
+          />
+        );
+
+      case 'tasks':
+        return (
+          <TasksPanel
+            completedTasks={completedTasks}
+            onTaskAction={handleTaskAction}
+            onStartSearch={handleStartSearch}
+            onReportSighting={() => setShowSightingForm(true)}
+          />
+        );
+
+      case 'more':
+        return (
+          <MorePanel
+            mission={activeMission}
+            onAction={handleMoreAction}
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="h-[100dvh] bg-slate-950 flex flex-col overflow-hidden">
       {/* Compact Header */}
@@ -212,51 +364,23 @@ function MissionControlContent() {
         onShowSighting={() => setShowSightingForm(true)}
       />
 
-      {/* Map Container - fills remaining space */}
-      <div className="flex-1 relative overflow-hidden">
-        <SARMapView
-          center={lastSeenLocation
-            ? [lastSeenLocation.lat, lastSeenLocation.lng]
-            : [41.8781, -87.6298]
-          }
-          lastSeen={lastSeenLocation}
-          sightings={sightings}
-          petSpecies={activeMission.petSpecies}
-          hoursElapsed={hoursElapsed}
-          gpsPath={gpsPath}
-          showLegend={!isSearching}
-          interactive={true}
-        />
+      {/* Main Content Area */}
+      {renderPanel()}
 
-        {/* Bottom Panel - either quick actions or search overlay */}
-        {isSearching ? (
-          <LiveSearchOverlay
-            formattedDuration={formattedDuration}
-            distanceMiles={stats.validatedDistanceMiles}
-            estimatedPoints={stats.estimatedPoints}
-            transportMethod={stats.transportMethod}
-            validation={validation}
-            isEnding={isEnding}
-            onEndSearch={handleEndSearch}
-          />
-        ) : (
-          <BottomPanel
-            isSearching={isSearching}
-            isStarting={isStarting}
-            isEnding={isEnding}
-            onStartSearch={handleStartSearch}
-            onEndSearch={handleEndSearch}
-            onAction={handleQuickAction}
-            estimatedPoints={stats.estimatedPoints}
-            disabled={loading}
-          />
-        )}
-      </div>
+      {/* Bottom Navigation - hide during active search */}
+      {!isSearching && (
+        <BottomNav
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          unreadChat={0}
+          pendingTasks={completedTasks.length < 9 ? 9 - completedTasks.length : 0}
+        />
+      )}
 
       {/* Notification toast */}
       {notification && (
         <div className={`
-          fixed top-20 left-4 right-4 z-50
+          fixed top-20 left-4 right-4 z-[600]
           p-4 rounded-xl border shadow-lg
           animate-in slide-in-from-top-4 fade-in duration-300
           ${notification.type === 'success'
