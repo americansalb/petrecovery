@@ -43,7 +43,7 @@ export default function LiveSearchOverlay({
   const hasWarning = validation.lastWarning && validation.lastWarning !== 'STATIONARY';
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-10">
+    <div className="absolute bottom-0 left-0 right-0 z-[500]">
       {/* Warning banner */}
       {hasWarning && (
         <div className={`

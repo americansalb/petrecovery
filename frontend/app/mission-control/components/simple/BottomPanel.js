@@ -41,9 +41,9 @@ export default function BottomPanel({
   };
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-10">
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent pointer-events-none" />
+    <div className="absolute bottom-0 left-0 right-0 z-[500]">
+      {/* Solid background for visibility */}
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/98 to-transparent pointer-events-none" />
 
       {/* Content */}
       <div className="relative px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">

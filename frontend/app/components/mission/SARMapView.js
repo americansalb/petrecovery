@@ -473,7 +473,7 @@ export default function SARMapView({
 
       {/* Legend - Only show if showLegend is true */}
       {showLegend && (
-        <div className="absolute bottom-4 left-4 bg-slate-900/90 backdrop-blur rounded-xl p-3 text-xs z-[400] border border-slate-700">
+        <div className="absolute bottom-36 left-4 bg-slate-900/90 backdrop-blur rounded-xl p-3 text-xs z-[400] border border-slate-700">
           <div className="text-slate-400 font-semibold mb-2 text-[10px] uppercase tracking-wide">Map Legend</div>
           <div className="flex items-center gap-2 mb-1.5">
             <div className="w-4 h-4 rounded-full bg-red-500 border border-white flex items-center justify-center text-[10px]">📍</div>
