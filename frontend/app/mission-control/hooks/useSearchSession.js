@@ -146,6 +146,9 @@ export default function useSearchSession(missionId, lastSeenLocation) {
   const [isEnding, setIsEnding] = useState(false);
   const [error, setError] = useState(null);
 
+  // Track which mission this session belongs to
+  const currentMissionIdRef = useRef(missionId);
+
   // Stats
   const [stats, setStats] = useState({
     durationSeconds: 0,
@@ -177,6 +180,64 @@ export default function useSearchSession(missionId, lastSeenLocation) {
   const lastPingRef = useRef(null);
   const visitedCellsRef = useRef(new Set());
   const watchIdRef = useRef(null);
+
+  // Helper to reset all state
+  const resetState = useCallback(() => {
+    // Stop GPS watcher
+    if (watchIdRef.current) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+
+    // Stop timers
+    if (durationIntervalRef.current) {
+      clearInterval(durationIntervalRef.current);
+      durationIntervalRef.current = null;
+    }
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
+    }
+
+    // Reset refs
+    lastPingRef.current = null;
+    visitedCellsRef.current = new Set();
+
+    // Reset state
+    setSession(null);
+    setIsActive(false);
+    setIsStarting(false);
+    setIsEnding(false);
+    setError(null);
+    setStats({
+      durationSeconds: 0,
+      totalDistanceMiles: 0,
+      validatedDistanceMiles: 0,
+      estimatedPoints: 0,
+      gridCellsCovered: 0,
+      recentSpeeds: [],
+      avgSpeed30s: 0,
+      transportMethod: 'stationary',
+    });
+    setPath([]);
+    setValidation({
+      inZone: true,
+      validSpeed: true,
+      distanceFromZone: 0,
+      currentSpeed: 0,
+      lastWarning: null,
+    });
+  }, []);
+
+  // Reset state when mission changes
+  useEffect(() => {
+    if (missionId !== currentMissionIdRef.current) {
+      console.log('Mission changed, resetting search session state');
+      resetState();
+      currentMissionIdRef.current = missionId;
+      setIsLoading(true);
+    }
+  }, [missionId, resetState]);
 
   // Check if location is within search zone
   const isWithinSearchZone = useCallback((lat, lng) => {
@@ -573,7 +634,29 @@ export default function useSearchSession(missionId, lastSeenLocation) {
 
   // End the search session
   const endSearch = useCallback(async () => {
-    if (!session?.id) return { success: false, error: 'No active session' };
+    // Get session ID - from state or try to fetch it
+    let sessionId = session?.id;
+
+    // If no session ID in state but we think we're active, try to fetch it
+    if (!sessionId && isActive) {
+      try {
+        const checkRes = await fetch(`/api/mission/${missionId}/search`);
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          if (checkData.activeSession?.id) {
+            sessionId = checkData.activeSession.id;
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching session to end:', err);
+      }
+    }
+
+    if (!sessionId) {
+      // No session to end - just reset local state
+      resetState();
+      return { success: true, message: 'Session cleared' };
+    }
 
     setIsEnding(true);
 
@@ -596,12 +679,17 @@ export default function useSearchSession(missionId, lastSeenLocation) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'end',
-          sessionId: session.id,
+          sessionId: sessionId,
         }),
       });
 
       if (!res.ok) {
         const data = await res.json();
+        // If session not found, still clear local state
+        if (res.status === 404 || data.error?.includes('not found')) {
+          resetState();
+          return { success: true, message: 'Session cleared' };
+        }
         throw new Error(data.error || 'Failed to end search');
       }
 
@@ -623,15 +711,33 @@ export default function useSearchSession(missionId, lastSeenLocation) {
       };
     } catch (err) {
       setError(err.message || 'Failed to end search');
+      // Even on error, clear local state to allow starting new session
+      resetState();
       return { success: false, error: err.message };
     } finally {
       setIsEnding(false);
     }
-  }, [session?.id, missionId]);
+  }, [session?.id, isActive, missionId, resetState, stats]);
 
   // Cancel search (no points)
   const cancelSearch = useCallback(async () => {
-    if (!session?.id) return;
+    // Get session ID - from state or try to fetch it
+    let sessionId = session?.id;
+
+    // If no session ID in state but we think we're active, try to fetch it
+    if (!sessionId && isActive) {
+      try {
+        const checkRes = await fetch(`/api/mission/${missionId}/search`);
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          if (checkData.activeSession?.id) {
+            sessionId = checkData.activeSession.id;
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching session to cancel:', err);
+      }
+    }
 
     // Stop watching
     if (watchIdRef.current) {
@@ -642,35 +748,45 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     // Stop timers
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
+      durationIntervalRef.current = null;
     }
 
-    try {
-      await fetch(`/api/mission/${missionId}/search`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'cancel',
-          sessionId: session.id,
-        }),
-      });
-    } catch (err) {
-      console.error('Error cancelling search:', err);
+    // Try to cancel on server if we have a session ID
+    if (sessionId) {
+      try {
+        await fetch(`/api/mission/${missionId}/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'cancel',
+            sessionId: sessionId,
+          }),
+        });
+      } catch (err) {
+        console.error('Error cancelling search:', err);
+      }
     }
 
-    setSession(null);
-    setIsActive(false);
-    setStats({
-      durationSeconds: 0,
-      totalDistanceMiles: 0,
-      validatedDistanceMiles: 0,
-      estimatedPoints: 0,
-      gridCellsCovered: 0,
-      recentSpeeds: [],
-      avgSpeed30s: 0,
-      transportMethod: 'stationary',
-    });
-    setPath([]);
-  }, [session?.id, missionId]);
+    // Always reset local state
+    resetState();
+  }, [session?.id, isActive, missionId, resetState]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Stop GPS watcher
+      if (watchIdRef.current) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+      // Stop timers
+      if (durationIntervalRef.current) {
+        clearInterval(durationIntervalRef.current);
+      }
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current);
+      }
+    };
+  }, []);
 
   // Format duration for display
   const formatDuration = useCallback((seconds) => {
@@ -715,6 +831,7 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     startSearch,
     endSearch,
     cancelSearch,
+    resetState, // Force reset all state
 
     // Helpers
     isWithinSearchZone,
