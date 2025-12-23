@@ -530,17 +530,36 @@ export default function useSearchSession(missionId, lastSeenLocation) {
   const startSearch = useCallback(async () => {
     if (!missionId) return { success: false, error: 'No case ID' };
 
+    console.log('[Search] Starting...');
+    const startTime = Date.now();
     setIsStarting(true);
     setError(null);
 
     try {
-      // Get current position
+      // Get current position with shorter timeout
       const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 15000,
-        });
+        const timeoutId = setTimeout(() => {
+          reject(new Error('GPS_TIMEOUT'));
+        }, 8000); // 8 second timeout
+
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            clearTimeout(timeoutId);
+            resolve(pos);
+          },
+          (err) => {
+            clearTimeout(timeoutId);
+            reject(err);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 8000,
+            maximumAge: 10000, // Accept cached position up to 10 seconds old
+          }
+        );
       });
+
+      console.log(`[Search] GPS acquired: ${Date.now() - startTime}ms`);
 
       const { latitude, longitude } = position.coords;
 
@@ -561,6 +580,7 @@ export default function useSearchSession(missionId, lastSeenLocation) {
       }
 
       // Call API to start session
+      const apiStart = Date.now();
       const res = await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -573,12 +593,15 @@ export default function useSearchSession(missionId, lastSeenLocation) {
         }),
       });
 
+      console.log(`[Search] API call: ${Date.now() - apiStart}ms`);
+
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to start search');
       }
 
       const data = await res.json();
+      console.log(`[Search] Total start time: ${Date.now() - startTime}ms`);
 
       // Initialize session
       setSession({
@@ -634,11 +657,15 @@ export default function useSearchSession(missionId, lastSeenLocation) {
 
   // End the search session
   const endSearch = useCallback(async () => {
+    console.log('[Search] Ending...');
+    const startTime = Date.now();
+
     // Get session ID - from state or try to fetch it
     let sessionId = session?.id;
 
     // If no session ID in state but we think we're active, try to fetch it
     if (!sessionId && isActive) {
+      console.log('[Search] No session ID, fetching from API...');
       try {
         const checkRes = await fetch(`/api/mission/${missionId}/search`);
         if (checkRes.ok) {
@@ -647,6 +674,7 @@ export default function useSearchSession(missionId, lastSeenLocation) {
             sessionId = checkData.activeSession.id;
           }
         }
+        console.log(`[Search] Session lookup: ${Date.now() - startTime}ms`);
       } catch (err) {
         console.error('Error fetching session to end:', err);
       }
@@ -654,6 +682,7 @@ export default function useSearchSession(missionId, lastSeenLocation) {
 
     if (!sessionId) {
       // No session to end - just reset local state
+      console.log('[Search] No session to end, clearing state');
       resetState();
       return { success: true, message: 'Session cleared' };
     }
@@ -674,6 +703,7 @@ export default function useSearchSession(missionId, lastSeenLocation) {
       }
 
       // Call API to end session
+      const apiStart = Date.now();
       const res = await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -683,8 +713,10 @@ export default function useSearchSession(missionId, lastSeenLocation) {
         }),
       });
 
+      console.log(`[Search] End API call: ${Date.now() - apiStart}ms`);
+
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         // If session not found, still clear local state
         if (res.status === 404 || data.error?.includes('not found')) {
           resetState();
@@ -694,6 +726,7 @@ export default function useSearchSession(missionId, lastSeenLocation) {
       }
 
       const data = await res.json();
+      console.log(`[Search] Total end time: ${Date.now() - startTime}ms`);
 
       // Clear session
       setSession(null);
