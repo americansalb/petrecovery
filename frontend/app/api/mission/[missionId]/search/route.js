@@ -99,35 +99,44 @@ function calculatePoints(stats, caseCreatedAt) {
  * POST /api/mission/[missionId]/search
  */
 export async function POST(request, { params }) {
+  const startTime = Date.now();
+
   try {
-    const session = await getServerSession();
+    // Parse body and params in parallel with auth
+    const [session, { missionId }, body] = await Promise.all([
+      getServerSession(),
+      params,
+      request.json(),
+    ]);
+
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { missionId } = await params;
-    const body = await request.json();
+    console.log(`[Search API] Auth: ${Date.now() - startTime}ms, action: ${body.action}`);
 
-    // Get user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
-    });
+    // Get user and mission in parallel
+    const [user, missionRecord] = await Promise.all([
+      prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true },
+      }),
+      prisma.case.findUnique({
+        where: { id: missionId },
+        select: {
+          id: true,
+          createdAt: true,
+          lastSeenLatitude: true,
+          lastSeenLongitude: true,
+        },
+      }),
+    ]);
+
+    console.log(`[Search API] DB lookups: ${Date.now() - startTime}ms`);
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-
-    // Verify case exists and get last seen location
-    const missionRecord = await prisma.case.findUnique({
-      where: { id: missionId },
-      select: {
-        id: true,
-        createdAt: true,
-        lastSeenLatitude: true,
-        lastSeenLongitude: true,
-      },
-    });
 
     if (!missionRecord) {
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
@@ -172,6 +181,7 @@ export async function POST(request, { params }) {
  * Start a GPS-tracked search session
  */
 async function handleSearchStart(userId, missionId, body, missionRecord) {
+  const startTime = Date.now();
   const { latitude, longitude, lastSeenLat, lastSeenLng } = body;
 
   // Check for existing active session
@@ -181,7 +191,10 @@ async function handleSearchStart(userId, missionId, body, missionRecord) {
       userId,
       status: { in: ['READY', 'ACTIVE'] },
     },
+    select: { id: true },
   });
+
+  console.log(`[Search Start] Check existing: ${Date.now() - startTime}ms`);
 
   if (existingSession) {
     return NextResponse.json(
@@ -201,6 +214,8 @@ async function handleSearchStart(userId, missionId, body, missionRecord) {
       lastSeenLatitude, lastSeenLongitude
     );
   }
+
+  const createStart = Date.now();
 
   // Create search session with new fields
   const searchSession = await prisma.searchSession.create({
@@ -227,15 +242,19 @@ async function handleSearchStart(userId, missionId, body, missionRecord) {
     },
   });
 
-  // Create initial location ping
-  await prisma.locationPing.create({
+  console.log(`[Search Start] Session created: ${Date.now() - createStart}ms`);
+
+  // Create initial location ping (fire and forget to speed up response)
+  prisma.locationPing.create({
     data: {
       session: { connect: { id: searchSession.id } },
       latitude,
       longitude,
       isValid: distanceFromLastSeen ? distanceFromLastSeen <= CONFIG.SEARCH_RADIUS_MILES : true,
     },
-  });
+  }).catch(err => console.error('Failed to create initial ping:', err));
+
+  console.log(`[Search Start] Total: ${Date.now() - startTime}ms`);
 
   return NextResponse.json({
     success: true,
@@ -366,16 +385,22 @@ async function handleSearchPing(body, missionRecord) {
  */
 async function handleSearchEnd(userId, missionId, body, missionRecord) {
   const { sessionId } = body;
+  const startTime = Date.now();
 
-  // Get session with all data
+  // Get session WITHOUT loading all pings (stats are already on session)
   const session = await prisma.searchSession.findUnique({
     where: { id: sessionId },
-    include: {
-      locationPings: {
-        orderBy: { createdAt: 'asc' },
-      },
+    select: {
+      id: true,
+      status: true,
+      startedAt: true,
+      totalDistanceMiles: true,
+      validatedDistanceMiles: true,
+      gridCellsCovered: true,
     },
   });
+
+  console.log(`[Search End] Session fetch: ${Date.now() - startTime}ms`);
 
   if (!session) {
     return NextResponse.json({ error: 'Session not found' }, { status: 404 });
@@ -396,8 +421,6 @@ async function handleSearchEnd(userId, missionId, body, missionRecord) {
     totalDistanceMiles: session.totalDistanceMiles || 0,
     validatedDistanceMiles: session.validatedDistanceMiles || 0,
     gridCellsCovered: session.gridCellsCovered || 0,
-    totalPings: session.locationPings.length,
-    validPings: session.locationPings.filter(p => p.isValid).length,
   };
 
   // Check minimum requirements
@@ -408,6 +431,8 @@ async function handleSearchEnd(userId, missionId, body, missionRecord) {
   const points = meetsMinimum
     ? calculatePoints(stats, missionRecord.createdAt)
     : { distance: 0, gridBonus: 0, timeBonus: 0, multiplier: 1, total: 0 };
+
+  const updateStart = Date.now();
 
   // Update session
   await prisma.searchSession.update({
@@ -420,33 +445,32 @@ async function handleSearchEnd(userId, missionId, body, missionRecord) {
     },
   });
 
-  // Create verified action record if points earned
+  console.log(`[Search End] Session update: ${Date.now() - updateStart}ms`);
+
+  // Create verified action record if points earned (don't await - fire and forget)
   if (points.total > 0) {
-    try {
-      await prisma.verifiedAction.create({
-        data: {
-          missionId,
-          userId,
-          actionType: 'search_area',
-          verificationMethod: 'GPS',
-          basePoints: points.distance + points.gridBonus + points.timeBonus,
-          bonusPoints: Math.round((points.total - (points.distance + points.gridBonus + points.timeBonus))),
-          totalPoints: points.total,
-          multipliers: points.multiplier > 1 ? JSON.stringify([{ type: 'time_bonus', value: points.multiplier }]) : null,
-          metadata: JSON.stringify({
-            searchSessionId: sessionId,
-            distanceMiles: stats.validatedDistanceMiles,
-            gridCellsCovered: stats.gridCellsCovered,
-            durationMinutes: stats.durationMinutes,
-            multiplier: points.multiplier,
-          }),
-        },
-      });
-    } catch (err) {
-      // VerifiedAction table may not exist yet - continue without it
-      console.log('VerifiedAction not created:', err.message);
-    }
+    prisma.verifiedAction.create({
+      data: {
+        missionId,
+        userId,
+        actionType: 'search_area',
+        verificationMethod: 'GPS',
+        basePoints: points.distance + points.gridBonus + points.timeBonus,
+        bonusPoints: Math.round((points.total - (points.distance + points.gridBonus + points.timeBonus))),
+        totalPoints: points.total,
+        multipliers: points.multiplier > 1 ? JSON.stringify([{ type: 'time_bonus', value: points.multiplier }]) : null,
+        metadata: JSON.stringify({
+          searchSessionId: sessionId,
+          distanceMiles: stats.validatedDistanceMiles,
+          gridCellsCovered: stats.gridCellsCovered,
+          durationMinutes: stats.durationMinutes,
+          multiplier: points.multiplier,
+        }),
+      },
+    }).catch(err => console.log('VerifiedAction not created:', err.message));
   }
+
+  console.log(`[Search End] Total: ${Date.now() - startTime}ms`);
 
   return NextResponse.json({
     success: true,
@@ -531,13 +555,18 @@ async function handleSearchLog(userId, missionId, body) {
  * Get active search session for current user
  */
 export async function GET(request, { params }) {
+  const startTime = Date.now();
+
   try {
-    const session = await getServerSession();
+    // Parse params and auth in parallel
+    const [session, { missionId }] = await Promise.all([
+      getServerSession(),
+      params,
+    ]);
+
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const { missionId } = await params;
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
@@ -548,37 +577,28 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get active session with recent pings
+    // Get active session WITHOUT loading all pings (they're tracked client-side)
     const activeSession = await prisma.searchSession.findFirst({
       where: {
         missionId,
         userId: user.id,
         status: { in: ['READY', 'ACTIVE'] },
       },
-      include: {
-        locationPings: {
-          orderBy: { createdAt: 'asc' },
-          select: {
-            latitude: true,
-            longitude: true,
-            accuracy: true,
-            createdAt: true,
-          },
-        },
+      select: {
+        id: true,
+        status: true,
+        startedAt: true,
+        totalDistanceMiles: true,
+        validatedDistanceMiles: true,
+        gridCellsCovered: true,
       },
     });
+
+    console.log(`[Search GET] Total: ${Date.now() - startTime}ms`);
 
     if (!activeSession) {
       return NextResponse.json({ activeSession: null });
     }
-
-    // Build path from pings
-    const path = activeSession.locationPings.map(ping => ({
-      lat: ping.latitude,
-      lng: ping.longitude,
-      valid: true, // All pings in DB are valid
-      timestamp: new Date(ping.createdAt).getTime(),
-    }));
 
     return NextResponse.json({
       activeSession: {
@@ -588,7 +608,7 @@ export async function GET(request, { params }) {
         totalDistanceMiles: activeSession.totalDistanceMiles || 0,
         validatedDistanceMiles: activeSession.validatedDistanceMiles || 0,
         gridCellsCovered: activeSession.gridCellsCovered || 0,
-        path,
+        path: [], // Path is tracked client-side now
       },
     });
   } catch (error) {
