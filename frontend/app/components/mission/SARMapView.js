@@ -22,6 +22,30 @@ const PET_SPEEDS = {
   DEFAULT: { wander: 2, run: 10 }
 };
 
+// Vision radius for coverage (14 meters = ~45 feet)
+const VISION_RADIUS_METERS = 14;
+
+// Coverage opacity levels based on search count
+const getCoverageOpacity = (searchCount) => {
+  if (searchCount <= 0) return 0;
+  if (searchCount === 1) return 0.15;
+  if (searchCount === 2) return 0.25;
+  if (searchCount === 3) return 0.35;
+  if (searchCount === 4) return 0.45;
+  if (searchCount === 5) return 0.55;
+  return 0.65; // 6+ people = max
+};
+
+// Calculate decayed opacity (25% reduction per 12 hours, min 7.5%)
+const getDecayedOpacity = (baseOpacity, hoursAgo) => {
+  const periods = Math.floor(hoursAgo / 12);
+  let opacity = baseOpacity;
+  for (let i = 0; i < periods; i++) {
+    opacity *= 0.75;
+  }
+  return Math.max(opacity, 0.075);
+};
+
 export default function SARMapView({
   center = [41.8781, -87.6298],
   lastSeen = null,
@@ -29,21 +53,24 @@ export default function SARMapView({
   petSpecies = 'DOG',
   hoursElapsed = 24,
   showControls = false,
-  gpsPath = [], // NEW: GPS tracking path
-  showProbabilityCircles = false, // NEW: Make circles optional
-  showLegend = true, // NEW: Option to hide legend for compact views
-  interactive = true // NEW: Disable interactions for preview maps
+  gpsPath = [], // Current user's active GPS path
+  coverageTrails = [], // Historical search trails from all team members
+  activeSearchersCount = 0, // Number of team members actively searching
+  showProbabilityCircles = false,
+  showLegend = true,
+  interactive = true
 }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markersRef = useRef([]);
   const circlesRef = useRef([]);
   const gpsLayersRef = useRef([]);
+  const coverageLayersRef = useRef([]); // For team coverage trails
   const [userLocation, setUserLocation] = useState(null);
   const userMarkerRef = useRef(null);
-  const [mapLayer, setMapLayer] = useState('satellite'); // 'satellite' or 'street'
+  const [mapLayer, setMapLayer] = useState('satellite');
   const baseLayersRef = useRef({});
-  const [showHeatmap, setShowHeatmap] = useState(true); // Toggle for search coverage heatmap
+  const [showCoverage, setShowCoverage] = useState(true); // Toggle coverage overlay
   const heatmapLayersRef = useRef([]);
 
   // Calculate search radius based on time and pet type
@@ -480,7 +507,112 @@ export default function SARMapView({
     heatmapLayersRef.current.forEach(layer => layer.remove());
     heatmapLayersRef.current = [];
 
-  }, [lastSeen, sightings, petSpecies, hoursElapsed, gpsPath, showHeatmap]);
+  }, [lastSeen, sightings, petSpecies, hoursElapsed, gpsPath]);
+
+  // Render team coverage trails
+  useEffect(() => {
+    if (!mapInstance.current || !showCoverage) return;
+
+    // Clear existing coverage layers
+    coverageLayersRef.current.forEach(layer => layer.remove());
+    coverageLayersRef.current = [];
+
+    if (!coverageTrails || coverageTrails.length === 0) return;
+
+    // Render each team member's trail
+    coverageTrails.forEach(trail => {
+      if (!trail.path || trail.path.length < 2) return;
+
+      const pathCoords = trail.path.map(p => [p.lat, p.lng]);
+      const hoursAgo = trail.hoursAgo || 0;
+
+      // Base opacity (1 person searched = 15%)
+      const baseOpacity = getCoverageOpacity(1);
+      // Apply time decay
+      const decayedOpacity = getDecayedOpacity(baseOpacity, hoursAgo);
+
+      // Draw purple coverage corridor (vision radius)
+      const coverageCorridor = L.polyline(pathCoords, {
+        color: '#a855f7', // Purple
+        weight: VISION_RADIUS_METERS * 2, // Diameter in pixels (approximate)
+        opacity: decayedOpacity,
+        smoothFactor: 1,
+        lineJoin: 'round',
+        lineCap: 'round',
+      }).addTo(mapInstance.current);
+
+      // Add click handler for popup
+      coverageCorridor.on('click', (e) => {
+        const searchDate = trail.endedAt
+          ? new Date(trail.endedAt).toLocaleDateString()
+          : new Date(trail.startedAt).toLocaleDateString();
+        const searchTime = trail.endedAt
+          ? new Date(trail.endedAt).toLocaleTimeString()
+          : new Date(trail.startedAt).toLocaleTimeString();
+
+        L.popup()
+          .setLatLng(e.latlng)
+          .setContent(`
+            <div style="min-width: 180px;">
+              <strong style="color: ${trail.color};">${trail.userName}</strong>
+              <br/>
+              <span style="font-size: 12px; color: #666;">
+                Searched: ${searchDate}
+              </span>
+              <br/>
+              <span style="font-size: 11px; color: #999;">
+                ${searchTime}
+              </span>
+              ${trail.isActive ? '<br/><span style="color: #22c55e; font-weight: bold;">🔴 Active Now</span>' : ''}
+            </div>
+          `)
+          .openOn(mapInstance.current);
+      });
+      coverageLayersRef.current.push(coverageCorridor);
+
+      // Draw individual colored trail line on top
+      const trailLine = L.polyline(pathCoords, {
+        color: trail.color,
+        weight: 3,
+        opacity: trail.isActive ? 0.9 : 0.6,
+        smoothFactor: 1,
+        dashArray: trail.isActive ? null : '5, 5', // Dashed for historical
+      }).addTo(mapInstance.current);
+      coverageLayersRef.current.push(trailLine);
+
+      // Add pulsing dot for active searchers
+      if (trail.isActive && pathCoords.length > 0) {
+        const lastPoint = pathCoords[pathCoords.length - 1];
+        const activeIcon = L.divIcon({
+          className: 'active-searcher-marker',
+          html: `
+            <div style="
+              width: 16px;
+              height: 16px;
+              background: ${trail.color};
+              border: 2px solid white;
+              border-radius: 50%;
+              box-shadow: 0 0 10px ${trail.color}80;
+              animation: pulse 1.5s infinite;
+            "></div>
+            <style>
+              @keyframes pulse {
+                0%, 100% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(1.3); opacity: 0.7; }
+              }
+            </style>
+          `,
+          iconSize: [16, 16],
+          iconAnchor: [8, 8],
+        });
+        const activeMarker = L.marker(lastPoint, { icon: activeIcon })
+          .bindPopup(`<strong style="color: ${trail.color};">${trail.userName}</strong><br/>Searching now...`)
+          .addTo(mapInstance.current);
+        coverageLayersRef.current.push(activeMarker);
+      }
+    });
+
+  }, [coverageTrails, showCoverage]);
 
   return (
     <div className="w-full h-full relative">
@@ -528,10 +660,10 @@ export default function SARMapView({
       {showLegend && (
         <MapLegend
           showSightings={sightings.length > 0}
-          showSearchPath={gpsPath && gpsPath.length > 0}
-          showActiveSearches={false}
+          showSearchPath={gpsPath && gpsPath.length > 0 || coverageTrails.length > 0}
+          showActiveSearches={activeSearchersCount > 0}
           showPOIs={false}
-          activeSearchersCount={0}
+          activeSearchersCount={activeSearchersCount}
         />
       )}
 

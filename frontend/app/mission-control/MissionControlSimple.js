@@ -22,6 +22,7 @@ import { Loader2, AlertTriangle, MapPin } from 'lucide-react';
 // Hooks
 import useMissionControl from './hooks/useMissionControl';
 import useSearchSession from './hooks/useSearchSession';
+import useSearchCoverage from './hooks/useSearchCoverage';
 import useMissionChat from './hooks/useMissionChat';
 
 // Components
@@ -100,6 +101,10 @@ function MissionControlContent() {
 
   // Chat - uses mission-level chat API (no squad membership required)
   const chat = useMissionChat(activeMission?.id);
+
+  // Search coverage - historical trails from all team members
+  const coverage = useSearchCoverage(activeMission?.id);
+  const coverageData = coverage.getMapCoverageData();
 
   // Completed tasks (stored in state for now)
   const [completedTasks, setCompletedTasks] = useState([]);
@@ -296,6 +301,8 @@ function MissionControlContent() {
               petSpecies={activeMission.petSpecies}
               hoursElapsed={hoursElapsed}
               gpsPath={gpsPath}
+              coverageTrails={coverageData.trails}
+              activeSearchersCount={coverageData.activeSearchersCount}
               showLegend={!isSearching}
               interactive={true}
             />
