@@ -22,6 +22,7 @@ import { Loader2, AlertTriangle, MapPin } from 'lucide-react';
 // Hooks
 import useMissionControl from './hooks/useMissionControl';
 import useSearchSession from './hooks/useSearchSession';
+import useMissionChat from './hooks/useMissionChat';
 
 // Components
 import CompactHeader from './components/simple/CompactHeader';
@@ -96,6 +97,10 @@ function MissionControlContent() {
     endSearch,
     cancelSearch,
   } = searchSession;
+
+  // Chat - get squadId from mission data
+  const squadId = activeMission?.rescueSquadId || activeMission?.squadId || activeMission?.assignments?.[0]?.rescueSquadId;
+  const chat = useMissionChat(activeMission?.id, squadId);
 
   // Completed tasks (stored in state for now)
   const [completedTasks, setCompletedTasks] = useState([]);
@@ -325,10 +330,26 @@ function MissionControlContent() {
       case 'chat':
         return (
           <ChatPanel
-            messages={[]}
-            onSendMessage={(msg) => showNotification('info', 'Chat coming soon!')}
-            onShareLocation={() => showNotification('info', 'Location sharing coming soon!')}
+            messages={chat.messages}
+            onSendMessage={async (msg) => {
+              const result = await chat.sendMessage(msg);
+              if (!result.success) {
+                showNotification('error', result.error || 'Failed to send message');
+              }
+            }}
+            onShareLocation={() => {
+              if ('geolocation' in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                  (pos) => {
+                    const locationMsg = `📍 My location: https://maps.google.com/?q=${pos.coords.latitude},${pos.coords.longitude}`;
+                    chat.sendMessage(locationMsg);
+                  },
+                  () => showNotification('error', 'Could not get location')
+                );
+              }
+            }}
             currentUserId={session?.user?.id}
+            isLoading={chat.isLoading || chat.isSending}
           />
         );
 
