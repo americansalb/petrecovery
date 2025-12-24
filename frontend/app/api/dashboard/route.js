@@ -369,11 +369,27 @@ export async function GET(request) {
         }
       }));
 
-    // Fetch active GPS search sessions for this user
-    const activeSearchSessions = await prisma.searchSession.findMany({
+    // First, cleanup any stale GPS sessions (older than 30 minutes)
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    await prisma.searchSession.updateMany({
       where: {
         userId: user.id,
         status: { in: ['READY', 'ACTIVE'] },
+        startedAt: { lt: thirtyMinutesAgo },
+      },
+      data: {
+        status: 'COMPLETED',
+        endedAt: new Date(),
+        endReason: 'AUTO_CLEANUP',
+      },
+    });
+
+    // Fetch ONLY recent active GPS search sessions (started within last 30 min)
+    const activeSearchSessions = await prisma.searchSession.findMany({
+      where: {
+        userId: user.id,
+        status: 'ACTIVE',
+        startedAt: { gte: thirtyMinutesAgo },
       },
       select: {
         id: true,
