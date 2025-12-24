@@ -123,16 +123,32 @@ export default function SARMapView({
     let watchId = null;
     if ('geolocation' in navigator) {
       console.log('[Map] Starting geolocation watch...');
+
+      // First check permission status
+      if (navigator.permissions) {
+        navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+          console.log('[Map] Geolocation permission status:', result.state);
+        }).catch(() => {});
+      }
+
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
           const loc = [pos.coords.latitude, pos.coords.longitude];
-          console.log('[Map] Got user location:', loc);
+          console.log('[Map] Got user location:', loc, 'accuracy:', pos.coords.accuracy);
           setUserLocation(loc);
         },
         (err) => {
           console.error('[Map] Geolocation error:', err.code, err.message);
+          // Error codes: 1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE, 3 = TIMEOUT
+          if (err.code === 1) {
+            console.error('[Map] Location permission denied - user needs to enable in browser settings');
+          } else if (err.code === 2) {
+            console.error('[Map] Position unavailable - GPS may be disabled on device');
+          } else if (err.code === 3) {
+            console.error('[Map] Geolocation timeout - trying again...');
+          }
         },
-        { enableHighAccuracy: true, maximumAge: 10000 }
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
       );
     } else {
       console.warn('[Map] Geolocation not available in this browser');
@@ -228,11 +244,15 @@ export default function SARMapView({
     }
   }, [userLocation]);
 
-  // Fit bounds to show both user location and last seen (once on initial load)
+  // Fit bounds to show both user location and last seen
+  // Only mark as done when we have BOTH locations
   const hasFitBoundsRef = useRef(false);
   useEffect(() => {
-    if (!mapInstance.current || hasFitBoundsRef.current) return;
+    if (!mapInstance.current) return;
     if (!lastSeen) return;
+
+    // If we already fit with user location, don't do it again
+    if (hasFitBoundsRef.current) return;
 
     // Wait a moment for map to initialize
     const timer = setTimeout(() => {
@@ -248,6 +268,12 @@ export default function SARMapView({
       // Add user location if available
       if (userLocation) {
         bounds.extend(userLocation);
+        // Only mark as done if we have user location
+        // This ensures we'll re-fit when user location becomes available
+        hasFitBoundsRef.current = true;
+        console.log('[Map] Fitting bounds with both locations');
+      } else {
+        console.log('[Map] Fitting bounds without user location (will re-fit when available)');
       }
 
       // If we have valid bounds, fit to them
@@ -257,7 +283,6 @@ export default function SARMapView({
           maxZoom: 16,
           animate: true
         });
-        hasFitBoundsRef.current = true;
       }
     }, 500);
 
