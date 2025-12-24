@@ -191,16 +191,33 @@ async function handleSearchStart(userId, missionId, body, missionRecord) {
       userId,
       status: { in: ['READY', 'ACTIVE'] },
     },
-    select: { id: true },
+    select: { id: true, startedAt: true },
   });
 
   console.log(`[Search Start] Check existing: ${Date.now() - startTime}ms`);
 
   if (existingSession) {
-    return NextResponse.json(
-      { error: 'Active session already exists', sessionId: existingSession.id },
-      { status: 409 }
-    );
+    const sessionAgeHours = (Date.now() - new Date(existingSession.startedAt).getTime()) / 3600000;
+
+    // If session is older than 2 hours, it's stuck - auto-end it
+    if (sessionAgeHours > 2) {
+      console.log(`[Search Start] Auto-ending stuck session ${existingSession.id} (${sessionAgeHours.toFixed(1)} hours old)`);
+      await prisma.searchSession.update({
+        where: { id: existingSession.id },
+        data: {
+          status: 'COMPLETED',
+          endedAt: new Date(),
+          endReason: 'AUTO_CLEANUP',
+        },
+      });
+      // Continue to create new session
+    } else {
+      // Recent session exists - return it so client can resume or end it
+      return NextResponse.json(
+        { error: 'Active session already exists', sessionId: existingSession.id },
+        { status: 409 }
+      );
+    }
   }
 
   // Calculate distance from last seen
@@ -594,6 +611,21 @@ export async function GET(request, { params }) {
     console.log(`[Search GET] Total: ${Date.now() - startTime}ms`);
 
     if (!activeSession) {
+      return NextResponse.json({ activeSession: null });
+    }
+
+    // Check if session is stuck (older than 2 hours) - auto-end it
+    const sessionAgeHours = (Date.now() - new Date(activeSession.startedAt).getTime()) / 3600000;
+    if (sessionAgeHours > 2) {
+      console.log(`[Search GET] Auto-ending stuck session ${activeSession.id} (${sessionAgeHours.toFixed(1)} hours old)`);
+      await prisma.searchSession.update({
+        where: { id: activeSession.id },
+        data: {
+          status: 'COMPLETED',
+          endedAt: new Date(),
+          endReason: 'AUTO_CLEANUP',
+        },
+      });
       return NextResponse.json({ activeSession: null });
     }
 

@@ -597,7 +597,7 @@ export default function useSearchSession(missionId, lastSeenLocation) {
 
       // Call API to start session
       const apiStart = Date.now();
-      const res = await fetch(`/api/mission/${missionId}/search`, {
+      let res = await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -610,6 +610,37 @@ export default function useSearchSession(missionId, lastSeenLocation) {
       });
 
       console.log(`[Search] API call: ${Date.now() - apiStart}ms`);
+
+      // If session already exists (409), try to end it and start fresh
+      if (res.status === 409) {
+        const existingData = await res.json().catch(() => ({}));
+        console.log('[Search] Existing session found, ending it first:', existingData.sessionId);
+
+        // End the existing session
+        await fetch(`/api/mission/${missionId}/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'end',
+            sessionId: existingData.sessionId,
+            autoEnded: true,
+            reason: 'RESTART',
+          }),
+        });
+
+        // Try starting again
+        res = await fetch(`/api/mission/${missionId}/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'start',
+            latitude,
+            longitude,
+            lastSeenLat: lastSeenLocation?.lat,
+            lastSeenLng: lastSeenLocation?.lng,
+          }),
+        });
+      }
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
