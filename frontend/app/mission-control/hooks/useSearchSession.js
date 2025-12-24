@@ -25,6 +25,8 @@ const CONFIG = {
   GRID_CELL_SIZE_METERS: 100,
   PING_RETRY_ATTEMPTS: 3,
   PING_RETRY_DELAY_MS: 2000,
+  INACTIVITY_TIMEOUT_MS: 15 * 60 * 1000, // 15 minutes
+  MIN_MOVEMENT_DISTANCE_MILES: 0.01, // ~50 feet - minimum to count as "moving"
 };
 
 // Geolocation error codes
@@ -180,6 +182,9 @@ export default function useSearchSession(missionId, lastSeenLocation) {
   const lastPingRef = useRef(null);
   const visitedCellsRef = useRef(new Set());
   const watchIdRef = useRef(null);
+  const lastSignificantMovementRef = useRef(Date.now());
+  const inactivityCheckRef = useRef(null);
+  const isEndingRef = useRef(false); // Prevent double-ending
 
   // Helper to reset all state
   const resetState = useCallback(() => {
@@ -198,10 +203,16 @@ export default function useSearchSession(missionId, lastSeenLocation) {
       clearInterval(pingIntervalRef.current);
       pingIntervalRef.current = null;
     }
+    if (inactivityCheckRef.current) {
+      clearInterval(inactivityCheckRef.current);
+      inactivityCheckRef.current = null;
+    }
 
     // Reset refs
     lastPingRef.current = null;
     visitedCellsRef.current = new Set();
+    lastSignificantMovementRef.current = Date.now();
+    isEndingRef.current = false;
 
     // Reset state
     setSession(null);
@@ -421,6 +432,11 @@ export default function useSearchSession(missionId, lastSeenLocation) {
         transportMethod,
       };
     });
+
+    // Track significant movement for inactivity timeout
+    if (movementValidation.distance >= CONFIG.MIN_MOVEMENT_DISTANCE_MILES) {
+      lastSignificantMovementRef.current = Date.now();
+    }
 
     // Store as last ping
     lastPingRef.current = currentPing;
@@ -804,7 +820,100 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     resetState();
   }, [session?.id, isActive, missionId, resetState]);
 
-  // Cleanup on unmount
+  // Auto-end session due to inactivity (15 minutes no movement)
+  useEffect(() => {
+    if (!isActive || !session?.id) return;
+
+    // Reset movement timer when session starts
+    lastSignificantMovementRef.current = Date.now();
+
+    // Check every minute for inactivity
+    inactivityCheckRef.current = setInterval(async () => {
+      const timeSinceMovement = Date.now() - lastSignificantMovementRef.current;
+
+      if (timeSinceMovement >= CONFIG.INACTIVITY_TIMEOUT_MS) {
+        console.log('[Search] Auto-ending due to 15 minutes of inactivity');
+
+        // Prevent double-ending
+        if (isEndingRef.current) return;
+        isEndingRef.current = true;
+
+        // End the session
+        try {
+          await fetch(`/api/mission/${missionId}/search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'end',
+              sessionId: session.id,
+              autoEnded: true,
+              reason: 'INACTIVITY',
+            }),
+          });
+        } catch (err) {
+          console.error('Error auto-ending session:', err);
+        }
+
+        // Reset local state
+        resetState();
+      }
+    }, 60000); // Check every minute
+
+    return () => {
+      if (inactivityCheckRef.current) {
+        clearInterval(inactivityCheckRef.current);
+        inactivityCheckRef.current = null;
+      }
+    };
+  }, [isActive, session?.id, missionId, resetState]);
+
+  // Auto-end session when leaving page
+  useEffect(() => {
+    if (!isActive || !session?.id) return;
+
+    // Use sendBeacon for reliable cleanup on page leave
+    const endSessionOnLeave = () => {
+      if (!session?.id || isEndingRef.current) return;
+      isEndingRef.current = true;
+
+      console.log('[Search] Auto-ending due to page leave');
+
+      // Use sendBeacon with Blob for proper JSON content type
+      const data = JSON.stringify({
+        action: 'end',
+        sessionId: session.id,
+        autoEnded: true,
+        reason: 'PAGE_LEAVE',
+      });
+
+      const blob = new Blob([data], { type: 'application/json' });
+      navigator.sendBeacon(`/api/mission/${missionId}/search`, blob);
+    };
+
+    // Handle page visibility change (tab switch, minimize)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        endSessionOnLeave();
+        resetState();
+      }
+    };
+
+    // Handle page unload (close tab, navigate away)
+    const handleBeforeUnload = () => {
+      endSessionOnLeave();
+    };
+
+    // Listen for both events
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isActive, session?.id, missionId, resetState]);
+
+  // Cleanup on unmount - also end session
   useEffect(() => {
     return () => {
       // Stop GPS watcher
@@ -817,6 +926,9 @@ export default function useSearchSession(missionId, lastSeenLocation) {
       }
       if (pingIntervalRef.current) {
         clearInterval(pingIntervalRef.current);
+      }
+      if (inactivityCheckRef.current) {
+        clearInterval(inactivityCheckRef.current);
       }
     };
   }, []);
