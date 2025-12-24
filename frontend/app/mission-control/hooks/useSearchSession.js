@@ -342,36 +342,44 @@ export default function useSearchSession(missionId, lastSeenLocation) {
       watchIdRef.current = null;
     }
 
+    // Stop timer immediately
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    // Capture current values before resetting
+    const currentSessionId = sessionId;
+    const currentStats = { ...stats };
+
+    // Reset UI state IMMEDIATELY - don't wait for API
+    setIsSearching(false);
+    setSessionId(null);
+
+    // Fire API call in background (don't block UI)
     try {
       const res = await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'end',
-          sessionId: sessionId,
+          sessionId: currentSessionId,
         }),
       });
 
       const data = await res.json().catch(() => ({}));
 
-      // Reset state regardless of response
-      setIsSearching(false);
-      setSessionId(null);
-
+      setIsEnding(false);
       return {
         success: true,
-        stats: data.stats || stats,
-        points: data.points || { total: stats.estimatedPoints },
+        stats: data.stats || currentStats,
+        points: data.points || { total: currentStats.estimatedPoints },
         meetsMinimum: data.meetsMinimum,
       };
     } catch (err) {
       console.error('End search error:', err);
-      // Reset state anyway
-      setIsSearching(false);
-      setSessionId(null);
-      return { success: false, error: err.message };
-    } finally {
       setIsEnding(false);
+      return { success: false, error: err.message };
     }
   }, [missionId, sessionId, isEnding, stats]);
 

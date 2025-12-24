@@ -40,8 +40,6 @@ export async function GET(request, { params }) {
         id: true,
         lastSeenLatitude: true,
         lastSeenLongitude: true,
-        city: true,
-        state: true,
       },
     });
 

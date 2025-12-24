@@ -104,13 +104,14 @@ export async function GET(request, { params }) {
         id: true,
         firstName: true,
         lastName: true,
-        image: true,
+        profileImage: true,
       },
     });
 
     const userMap = Object.fromEntries(users.map(u => [u.id, {
       ...u,
       name: [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Anonymous',
+      image: u.profileImage, // Alias for backwards compatibility
     }]));
 
     // Format response
