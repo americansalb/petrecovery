@@ -296,6 +296,7 @@ export default function MapTabV2({
   onStopGPS,
   onReportSighting,
   showNotification,
+  gpsError = null, // GPS error from centralized service
 }) {
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
@@ -448,16 +449,37 @@ export default function MapTabV2({
         </div>
       )}
 
+      {/* GPS Error Banner */}
+      {gpsError && !isGPSTracking && (
+        <div className="absolute top-4 left-4 right-4 bg-red-500/95 backdrop-blur-lg rounded-xl p-4 shadow-xl border border-red-400/50 z-20">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="text-white shrink-0" size={20} />
+            <div className="flex-1">
+              <p className="text-white font-semibold text-sm">GPS Error</p>
+              <p className="text-white/80 text-xs">{gpsError}</p>
+            </div>
+            <button
+              onClick={handleStartGPS}
+              className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-sm font-medium rounded-lg"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* GPS Search Panel */}
-      <GPSSearchPanel
-        isActive={isGPSTracking}
-        duration={duration}
-        distance={distance}
-        onStart={handleStartGPS}
-        onStop={handleStopGPS}
-        starting={starting}
-        stopping={stopping}
-      />
+      {!gpsError && (
+        <GPSSearchPanel
+          isActive={isGPSTracking}
+          duration={duration}
+          distance={distance}
+          onStart={handleStartGPS}
+          onStop={handleStopGPS}
+          starting={starting}
+          stopping={stopping}
+        />
+      )}
 
       {/* Map Legend */}
       {!isGPSTracking && (

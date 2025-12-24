@@ -6,6 +6,7 @@ import Navigation from './components/Navigation';
 import ErrorBoundary from './components/ErrorBoundary';
 import OfflineBanner from '@/components/OfflineBanner';
 import PushNotificationProvider from './components/PushNotificationProvider';
+import { GPSProvider } from './lib/gpsService';
 
 // Load Inter font with optimal settings
 const inter = Inter({
@@ -38,11 +39,13 @@ export default function RootLayout({ children }) {
         <SessionProvider>
           <ModeProvider>
             <PushNotificationProvider>
-              <ErrorBoundary>
-                <OfflineBanner />
-                <Navigation />
-                {children}
-              </ErrorBoundary>
+              <GPSProvider>
+                <ErrorBoundary>
+                  <OfflineBanner />
+                  <Navigation />
+                  {children}
+                </ErrorBoundary>
+              </GPSProvider>
             </PushNotificationProvider>
           </ModeProvider>
         </SessionProvider>

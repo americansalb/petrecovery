@@ -13,6 +13,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { getPointsMultiplier } from '@/app/lib/searchProbability';
+import { useGPS, GPS_MODE } from '@/app/lib/gpsService';
 
 const CONFIG = {
   MAX_WALKING_SPEED_MPH: 5,
@@ -36,6 +37,10 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
 }
 
 export default function useSearchSession(missionId, lastSeenLocation, probabilityZones = null) {
+  // Centralized GPS service
+  const { location: gpsLocation, startTracking, subscribe, getPosition, isSupported: gpsSupported, error: gpsServiceError } = useGPS();
+  const gpsUnsubscribeRef = useRef(null);
+
   // Core state - kept minimal
   const [isSearching, setIsSearching] = useState(false);
   const [sessionId, setSessionId] = useState(null);
@@ -57,16 +62,14 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
   // Path for map visualization
   const [path, setPath] = useState([]);
 
-  // Refs - CRITICAL: Use refs for values checked in watchPosition callback
-  // State values get captured in closure and become stale!
-  const watchIdRef = useRef(null);
+  // Refs for session management
   const timerRef = useRef(null);
   const lastPingRef = useRef(null);
   const currentMissionRef = useRef(missionId);
   const isSearchingRef = useRef(false);
   const sessionIdRef = useRef(null);
 
-  // Keep refs in sync with state - CRITICAL for watchPosition callback
+  // Keep refs in sync with state - still needed for async callbacks
   useEffect(() => {
     isSearchingRef.current = isSearching;
   }, [isSearching]);
@@ -278,42 +281,47 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
     }
   }, [missionId, lastSeenLocation]); // Removed sessionId, isSearching - we use refs now
 
-  // GPS watching effect
+  // GPS watching effect - uses centralized GPS service
   useEffect(() => {
     if (!isSearching || !sessionId) {
-      if (watchIdRef.current) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
+      // Unsubscribe from GPS service
+      if (gpsUnsubscribeRef.current) {
+        gpsUnsubscribeRef.current();
+        gpsUnsubscribeRef.current = null;
       }
       return;
     }
 
-    if (!('geolocation' in navigator)) {
+    if (!gpsSupported) {
       setError('GPS not available');
       return;
     }
 
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      processLocation,
-      (err) => {
-        // Don't set error for transient failures - just log them
-        // DevTools spoofing often causes intermittent errors
-        console.warn('[GPS Watch] Error (non-fatal):', err.code, err.message);
-      },
-      {
-        enableHighAccuracy: false, // false works better with DevTools spoofing
-        timeout: 30000,
-        maximumAge: 10000,
-      }
-    );
+    // Start high accuracy tracking for search sessions
+    startTracking(GPS_MODE.HIGH_ACCURACY);
+
+    // Subscribe to location updates from centralized service
+    gpsUnsubscribeRef.current = subscribe((location) => {
+      // Create a position-like object for processLocation
+      const position = {
+        coords: {
+          latitude: location.lat,
+          longitude: location.lng,
+          accuracy: location.accuracy || 50,
+          heading: null,
+          speed: null,
+        },
+      };
+      processLocation(position);
+    });
 
     return () => {
-      if (watchIdRef.current) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
+      if (gpsUnsubscribeRef.current) {
+        gpsUnsubscribeRef.current();
+        gpsUnsubscribeRef.current = null;
       }
     };
-  }, [isSearching, sessionId, processLocation]);
+  }, [isSearching, sessionId, gpsSupported, startTracking, subscribe, processLocation]);
 
   // Start search
   const startSearch = useCallback(async () => {
@@ -324,33 +332,21 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
       return { success: false };
     }
 
+    if (!gpsSupported) {
+      setError('GPS not available on this device');
+      return { success: false, error: 'GPS not available' };
+    }
+
     setIsStarting(true);
     setError(null);
     console.log('[useSearchSession] Set isStarting to true');
 
     try {
-      // Get current position - use large maximumAge to grab cached position from map's watchPosition
-      const position = await new Promise((resolve, reject) => {
-        // Try getCurrentPosition first with cached data
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            console.log('[useSearchSession] Got position via getCurrentPosition:', pos.coords.latitude, pos.coords.longitude);
-            resolve(pos);
-          },
-          (err) => {
-            console.warn('[useSearchSession] getCurrentPosition failed:', err.message, '- will retry');
-            // Retry once with lower accuracy
-            navigator.geolocation.getCurrentPosition(
-              resolve,
-              (err2) => reject(new Error('GPS failed: ' + err2.message)),
-              { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
-            );
-          },
-          { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 } // Accept 60s old position
-        );
-      })
+      // Get current position from centralized GPS service
+      const location = await getPosition();
+      console.log('[useSearchSession] Got position via GPS service:', location.lat, location.lng);
 
-      const { latitude, longitude } = position.coords;
+      const { lat: latitude, lng: longitude } = location;
 
       // Call API - it will force-end any existing sessions
       const res = await fetch(`/api/mission/${missionId}/search`, {
@@ -400,7 +396,7 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
     } finally {
       setIsStarting(false);
     }
-  }, [missionId, isStarting]);
+  }, [missionId, isStarting, gpsSupported, getPosition]);
 
   // End search
   const endSearch = useCallback(async () => {
@@ -420,10 +416,10 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
     sessionIdRef.current = null;
     console.log('[useSearchSession] Cleared refs, currentSessionId:', currentSessionId);
 
-    // Stop GPS
-    if (watchIdRef.current) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
+    // Unsubscribe from GPS service
+    if (gpsUnsubscribeRef.current) {
+      gpsUnsubscribeRef.current();
+      gpsUnsubscribeRef.current = null;
     }
 
     // Stop timer
@@ -477,10 +473,10 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
     isSearchingRef.current = false;
     sessionIdRef.current = null;
 
-    // Stop GPS
-    if (watchIdRef.current) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
+    // Unsubscribe from GPS service
+    if (gpsUnsubscribeRef.current) {
+      gpsUnsubscribeRef.current();
+      gpsUnsubscribeRef.current = null;
     }
 
     // Stop timer
@@ -519,8 +515,10 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
       isSearchingRef.current = false;
       sessionIdRef.current = null;
 
-      if (watchIdRef.current) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
+      // Unsubscribe from GPS service
+      if (gpsUnsubscribeRef.current) {
+        gpsUnsubscribeRef.current();
+        gpsUnsubscribeRef.current = null;
       }
       if (timerRef.current) {
         clearInterval(timerRef.current);

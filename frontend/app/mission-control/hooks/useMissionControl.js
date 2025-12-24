@@ -14,14 +14,19 @@
  * All features preserved from MissionControlV3.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { fetchWithRetry, formatErrorMessage, isOnline } from '@/app/lib/utils';
+import { useGPS, GPS_MODE } from '@/app/lib/gpsService';
 
 export default function useMissionControl(session) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const missionId = searchParams.get('mission');
+
+  // Centralized GPS service
+  const { location: gpsLocation, error: gpsError, startTracking, stopTracking: stopGPSService, subscribe, isSupported: gpsSupported } = useGPS();
+  const gpsUnsubscribeRef = useRef(null);
 
   // ============================================================
   // MISSION STATE
@@ -296,43 +301,56 @@ export default function useMissionControl(session) {
     }
   }, [activeMission, missionId, fetchMission, fetchAvailableMissions, showNotification, isJoining]);
 
-  // GPS Tracking
+  // GPS Tracking - uses centralized GPS service
   const startGPSTracking = useCallback(() => {
-    if (!('geolocation' in navigator)) {
+    if (!gpsSupported) {
       showNotification('error', 'GPS not available on this device');
       return;
     }
+
+    // Start high accuracy tracking for active searching
+    const started = startTracking(GPS_MODE.HIGH_ACCURACY);
+    if (!started) {
+      showNotification('error', 'Failed to start GPS tracking');
+      return;
+    }
+
     setIsGPSTracking(true);
     setGpsPath([]);
     showNotification('info', 'GPS tracking started. Your search path is being recorded.');
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        setGpsPath(prev => [...prev, {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          timestamp: Date.now(),
-        }]);
-      },
-      (error) => {
-        console.error('GPS error:', error);
-        setIsGPSTracking(false);
-        showNotification('error', 'Unable to access GPS. Please check your location permissions.');
-      },
-      { enableHighAccuracy: true, maximumAge: 5000 }
-    );
-    window._gpsWatchId = watchId;
-  }, [showNotification]);
+
+    // Subscribe to location updates
+    gpsUnsubscribeRef.current = subscribe((location) => {
+      setGpsPath(prev => [...prev, {
+        lat: location.lat,
+        lng: location.lng,
+        timestamp: Date.now(),
+      }]);
+    });
+  }, [gpsSupported, startTracking, subscribe, showNotification]);
 
   const stopGPSTracking = useCallback(() => {
-    if (window._gpsWatchId) {
-      navigator.geolocation.clearWatch(window._gpsWatchId);
-      window._gpsWatchId = null;
+    // Unsubscribe from location updates
+    if (gpsUnsubscribeRef.current) {
+      gpsUnsubscribeRef.current();
+      gpsUnsubscribeRef.current = null;
     }
+
     setIsGPSTracking(false);
     if (gpsPath.length > 0) {
       showNotification('success', `Recorded ${gpsPath.length} GPS points. View your search path on the Map tab.`);
     }
   }, [gpsPath.length, showNotification]);
+
+  // Cleanup GPS subscription on mission change or unmount
+  useEffect(() => {
+    return () => {
+      if (gpsUnsubscribeRef.current) {
+        gpsUnsubscribeRef.current();
+        gpsUnsubscribeRef.current = null;
+      }
+    };
+  }, [missionId]);
 
   // ============================================================
   // COMPUTED VALUES
@@ -399,6 +417,10 @@ export default function useMissionControl(session) {
     setSelectedTask,
     expandedCategories,
     setExpandedCategories,
+
+    // GPS state from centralized service
+    gpsLocation,
+    gpsError,
 
     // Computed values
     timeMissing,

@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchWithRetry } from '@/app/lib/utils';
+import { useGPS, GPS_MODE } from '@/app/lib/gpsService';
 
 // Points per flyer (per spec)
 const FLYER_BASE_POINTS = 8;
@@ -16,6 +17,9 @@ const PHOTO_BONUS_POINTS = 3;
 
 export default function useFlyerTracking(missionId, options = {}) {
   const { autoRefresh = true, refreshInterval = 30000 } = options;
+
+  // Centralized GPS service
+  const { location: gpsLocation, error: gpsServiceError, startTracking, isSupported: gpsSupported } = useGPS();
 
   // ==========================================================================
   // STATE
@@ -26,15 +30,22 @@ export default function useFlyerTracking(missionId, options = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [posting, setPosting] = useState(false);
-  const [userLocation, setUserLocation] = useState(null);
-  const [locationError, setLocationError] = useState(null);
+
+  // User location from GPS service
+  const userLocation = gpsLocation ? {
+    lat: gpsLocation.lat,
+    lng: gpsLocation.lng,
+    accuracy: gpsLocation.accuracy,
+    timestamp: gpsLocation.timestamp,
+  } : null;
+
+  const locationError = gpsServiceError;
 
   // Stats
   const [userStats, setUserStats] = useState({ flyersPosted: 0, pointsEarned: 0 });
   const [teamStats, setTeamStats] = useState({ totalFlyers: 0, uniqueContributors: 0 });
 
   // Refs for cleanup
-  const watchIdRef = useRef(null);
   const refreshIntervalRef = useRef(null);
 
   // ==========================================================================
@@ -71,57 +82,21 @@ export default function useFlyerTracking(missionId, options = {}) {
   }, [missionId]);
 
   // ==========================================================================
-  // LOCATION TRACKING
+  // LOCATION TRACKING (via centralized GPS service)
   // ==========================================================================
   const startLocationTracking = useCallback(() => {
-    if (!('geolocation' in navigator)) {
-      setLocationError('GPS not available on this device');
+    if (!gpsSupported) {
       return false;
     }
 
-    // Get initial position
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setUserLocation({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-          timestamp: Date.now(),
-        });
-        setLocationError(null);
-      },
-      (err) => {
-        console.error('Location error:', err);
-        setLocationError('Unable to get your location. Please enable GPS.');
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-
-    // Watch position for continuous updates
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        setUserLocation({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-          timestamp: Date.now(),
-        });
-        setLocationError(null);
-      },
-      (err) => {
-        console.error('Location watch error:', err);
-      },
-      { enableHighAccuracy: true, maximumAge: 5000 }
-    );
-
+    // Start balanced tracking for flyer posting
+    startTracking(GPS_MODE.BALANCED);
     return true;
-  }, []);
+  }, [gpsSupported, startTracking]);
 
+  // No need to stop - GPS service handles cleanup
   const stopLocationTracking = useCallback(() => {
-    if (watchIdRef.current) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
+    // GPS service manages its own cleanup
   }, []);
 
   // ==========================================================================

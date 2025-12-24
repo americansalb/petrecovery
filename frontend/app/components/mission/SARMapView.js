@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import MapLegend from './MapLegend';
+import { useGPS, GPS_MODE } from '@/app/lib/gpsService';
 
 // Travel speeds (miles per hour) for search radius calculation
 const PET_SPEEDS = {
@@ -70,13 +71,16 @@ export default function SARMapView({
   const gpsLayersRef = useRef([]);
   const coverageLayersRef = useRef([]); // For team coverage trails
   const poiMarkersRef = useRef([]); // For shelter/vet markers
-  const [userLocation, setUserLocation] = useState(null);
   const userMarkerRef = useRef(null);
   const [showPOIs, setShowPOIs] = useState(true); // Toggle POI visibility
   const [mapLayer, setMapLayer] = useState('satellite');
   const baseLayersRef = useRef({});
   const [showCoverage, setShowCoverage] = useState(true); // Toggle coverage overlay
   const heatmapLayersRef = useRef([]);
+
+  // Use centralized GPS service instead of local watchPosition
+  const { location: gpsLocation, error: gpsError, startTracking, getPosition, isSupported } = useGPS();
+  const userLocation = gpsLocation?.coords || null;
 
   // Calculate search radius based on time and pet type
   const getSearchRadius = () => {
@@ -121,52 +125,17 @@ export default function SARMapView({
     // Add default layer (satellite)
     baseLayersRef.current[mapLayer].addTo(mapInstance.current);
 
-    // Track user location - uses browser's FREE Geolocation API (not Apple/Google)
-    let watchId = null;
-    if ('geolocation' in navigator) {
-      console.log('[Map] Starting geolocation watch...');
+    // Start GPS tracking via centralized service (balanced mode for map viewing)
+    startTracking(GPS_MODE.BALANCED);
 
-      // First check permission status
-      if (navigator.permissions) {
-        navigator.permissions.query({ name: 'geolocation' }).then((result) => {
-          console.log('[Map] Geolocation permission status:', result.state);
-        }).catch(() => {});
-      }
-
-      watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          const loc = [pos.coords.latitude, pos.coords.longitude];
-          console.log('[Map] Got user location:', loc, 'accuracy:', pos.coords.accuracy);
-          setUserLocation(loc);
-        },
-        (err) => {
-          console.error('[Map] Geolocation error:', err.code, err.message);
-          // Error codes: 1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE, 3 = TIMEOUT
-          if (err.code === 1) {
-            console.error('[Map] Location permission denied - user needs to enable in browser settings');
-          } else if (err.code === 2) {
-            console.error('[Map] Position unavailable - GPS may be disabled on device');
-          } else if (err.code === 3) {
-            console.error('[Map] Geolocation timeout - trying again...');
-          }
-        },
-        { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
-      );
-    } else {
-      console.warn('[Map] Geolocation not available in this browser');
-    }
-
-    // Cleanup both geolocation watcher AND map on unmount
+    // Cleanup map on unmount (GPS cleanup handled by GPSProvider)
     return () => {
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-      }
       if (mapInstance.current) {
         mapInstance.current.remove();
         mapInstance.current = null;
       }
     };
-  }, []);
+  }, [startTracking]);
 
   // Note: We intentionally don't auto-pan on center changes during GPS tracking
   // This was causing constant zooming/panning. Users can manually pan the map.
@@ -832,24 +801,21 @@ export default function SARMapView({
           </button>
           {/* Center on my location button */}
           <button
-            onClick={() => {
+            onClick={async () => {
               if (!mapInstance.current) return;
               if (userLocation) {
                 mapInstance.current.setView(userLocation, 17, { animate: true });
               } else {
-                // Try to get location
-                navigator.geolocation.getCurrentPosition(
-                  (pos) => {
-                    const loc = [pos.coords.latitude, pos.coords.longitude];
-                    setUserLocation(loc);
-                    mapInstance.current.setView(loc, 17, { animate: true });
-                  },
-                  (err) => {
-                    console.error('[Map] Failed to get location:', err);
-                    alert('Could not get your location. Please check GPS permissions.');
-                  },
-                  { enableHighAccuracy: true }
-                );
+                // Try to get location via GPS service
+                try {
+                  const loc = await getPosition();
+                  if (loc?.coords) {
+                    mapInstance.current.setView(loc.coords, 17, { animate: true });
+                  }
+                } catch (err) {
+                  console.error('[Map] Failed to get location:', err);
+                  alert(gpsError || 'Could not get your location. Please check GPS permissions.');
+                }
               }
             }}
             className="bg-blue-600/90 backdrop-blur border border-blue-500 rounded-xl px-4 py-2.5 text-white font-semibold text-sm hover:bg-blue-500 transition flex items-center gap-2 shadow-lg"
