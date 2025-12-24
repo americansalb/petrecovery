@@ -268,19 +268,14 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     watchIdRef.current = navigator.geolocation.watchPosition(
       processLocation,
       (err) => {
-        console.error('GPS error:', err);
-        if (err.code === 1) {
-          setError('Location permission denied');
-        } else if (err.code === 2) {
-          setError('GPS unavailable');
-        } else {
-          setError('GPS timeout');
-        }
+        // Don't set error for transient failures - just log them
+        // DevTools spoofing often causes intermittent errors
+        console.warn('[GPS Watch] Error (non-fatal):', err.code, err.message);
       },
       {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 5000,
+        enableHighAccuracy: false, // false works better with DevTools spoofing
+        timeout: 30000,
+        maximumAge: 10000,
       }
     );
 
@@ -306,15 +301,23 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     console.log('[useSearchSession] Set isStarting to true');
 
     try {
-      // Get current position
-      const position = await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('GPS timeout')), 10000);
+      // Get current position - try high accuracy first, fall back to low accuracy
+      const getPosition = (highAccuracy) => new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('GPS timeout')), 15000);
         navigator.geolocation.getCurrentPosition(
           (pos) => { clearTimeout(timeout); resolve(pos); },
           (err) => { clearTimeout(timeout); reject(err); },
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+          { enableHighAccuracy: highAccuracy, timeout: 15000, maximumAge: 10000 }
         );
       });
+
+      let position;
+      try {
+        position = await getPosition(true);
+      } catch (highAccuracyErr) {
+        console.log('[useSearchSession] High accuracy failed, trying low accuracy:', highAccuracyErr.message);
+        position = await getPosition(false);
+      }
 
       const { latitude, longitude } = position.coords;
 
