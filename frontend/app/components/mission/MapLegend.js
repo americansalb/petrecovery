@@ -75,23 +75,38 @@ export default function MapLegend({
               <span className="text-slate-200 text-xs font-medium">You</span>
             </div>
 
-            {/* Area Searched (purple overlay) */}
+            {/* Search path elements - shown when there's a search path */}
             {showSearchPath && (
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-3 rounded bg-purple-500/40 border border-purple-400" />
-                <span className="text-slate-200 text-xs font-medium">Area Searched</span>
-              </div>
+              <>
+                {/* Search Start marker */}
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full bg-green-500 border-2 border-white shadow-sm" />
+                  <span className="text-slate-200 text-xs font-medium">Search Start</span>
+                </div>
+
+                {/* Your Search Path */}
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-1 rounded bg-blue-500" />
+                  <span className="text-slate-200 text-xs font-medium">Your Path</span>
+                </div>
+
+                {/* Area Searched (purple corridor) */}
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-3 rounded bg-purple-500/40 border border-purple-400" />
+                  <span className="text-slate-200 text-xs font-medium">Area Covered</span>
+                </div>
+              </>
             )}
 
-            {/* Active Searches */}
-            {showActiveSearches && activeSearchersCount > 0 && (
+            {/* Team Members Searching - only show if more than just you */}
+            {showActiveSearches && activeSearchersCount > 1 && (
               <div className="flex items-center gap-2">
                 <div className="relative">
                   <div className="w-5 h-5 rounded-full bg-gradient-to-r from-emerald-500 via-blue-500 to-purple-500 border-2 border-white shadow-sm" />
                   <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
                 </div>
                 <span className="text-slate-200 text-xs font-medium">
-                  Active ({activeSearchersCount})
+                  Team Searching ({activeSearchersCount - 1})
                 </span>
               </div>
             )}
