@@ -594,20 +594,17 @@ export default function SARMapView({
       const hoursAgo = trail.hoursAgo || 0;
       const isCurrentUser = trail.isCurrentUser || false;
 
-      // Base opacity - current user's paths are more visible
-      const baseOpacity = isCurrentUser ? 0.35 : getCoverageOpacity(1);
-      // Apply time decay (less decay for current user)
-      const decayedOpacity = isCurrentUser
-        ? Math.max(baseOpacity * 0.9, 0.2) // Current user's paths stay visible
-        : getDecayedOpacity(baseOpacity, hoursAgo);
+      // SAME decay for everyone - the point is to show areas need searching again
+      const baseOpacity = getCoverageOpacity(1);
+      const decayedOpacity = getDecayedOpacity(baseOpacity, hoursAgo);
 
-      // Draw coverage corridor - current user's paths are thicker and brighter
-      const corridorWeight = isCurrentUser ? VISION_RADIUS_METERS * 3 : VISION_RADIUS_METERS * 2;
-      const corridorColor = isCurrentUser ? '#3b82f6' : '#a855f7'; // Blue for you, purple for others
+      // Current user's paths are BLUE, others keep their team color
+      // But ALL paths fade the same way
+      const corridorColor = isCurrentUser ? '#3b82f6' : '#a855f7';
 
       const coverageCorridor = L.polyline(pathCoords, {
         color: corridorColor,
-        weight: corridorWeight,
+        weight: VISION_RADIUS_METERS * 2,
         opacity: decayedOpacity,
         smoothFactor: 1,
         lineJoin: 'round',
@@ -646,18 +643,17 @@ export default function SARMapView({
       coverageLayersRef.current.push(coverageCorridor);
 
       // Draw individual colored trail line on top
-      // Current user's line is thicker and solid blue
+      // Current user = blue, others = their assigned team color
+      // All lines fade the same way based on time
       const lineColor = isCurrentUser ? '#3b82f6' : trail.color;
-      const lineWeight = isCurrentUser ? 4 : 3;
-      const lineOpacity = isCurrentUser ? 0.9 : (trail.isActive ? 0.9 : 0.6);
-      const lineDash = isCurrentUser ? null : (trail.isActive ? null : '5, 5');
+      const lineOpacity = trail.isActive ? 0.9 : Math.max(decayedOpacity * 4, 0.3); // Line is more visible than corridor
 
       const trailLine = L.polyline(pathCoords, {
         color: lineColor,
-        weight: lineWeight,
+        weight: 3,
         opacity: lineOpacity,
         smoothFactor: 1,
-        dashArray: lineDash,
+        dashArray: trail.isActive ? null : '5, 5', // Dashed for historical
       }).addTo(mapInstance.current);
       coverageLayersRef.current.push(trailLine);
 
