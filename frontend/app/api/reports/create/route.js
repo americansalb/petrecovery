@@ -20,8 +20,14 @@ export async function POST(request) {
       email, phone, firstName,
       petName, breed, color, size, distinctiveMarks,
       lastSeenAddress, center, radiusMiles, timeElapsed, petType,
+      petSize, isIndoorCat, // New fields for probability zones
       photos, locationType, cityName, selectedPetId
     } = body;
+
+    // For dogs, use petSize if provided (more specific than generic size)
+    if (petType?.toUpperCase() === 'DOG' && petSize) {
+      size = petSize;
+    }
 
     // Default locationType to 'address' for backwards compatibility
     locationType = locationType || 'address';
@@ -143,6 +149,13 @@ export async function POST(request) {
       const caseNumber = `CASE-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
       const petSizeValue = size || 'MEDIUM';
 
+      // Build pet description including indoor/outdoor status for cats
+      let petDescription = distinctiveMarks || `${color} ${petType}${breed ? ` - ${breed}` : ''}`;
+      if (petType.toUpperCase() === 'CAT' && isIndoorCat !== undefined && isIndoorCat !== null) {
+        const indoorStatus = isIndoorCat ? 'Indoor cat' : 'Outdoor access cat';
+        petDescription = `${indoorStatus}. ${petDescription}`;
+      }
+
       const report = await tx.case.create({
         data: {
           caseNumber,
@@ -155,7 +168,7 @@ export async function POST(request) {
           petColor: color,
           petSize: petSizeValue,
           petPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
-          petDescription: distinctiveMarks || `${color} ${petType}${breed ? ` - ${breed}` : ''}`,
+          petDescription,
           ownerName: firstName,
           ownerPhone: phone || 'Not provided',
           ownerEmail: email,
