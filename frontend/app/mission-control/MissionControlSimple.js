@@ -166,7 +166,9 @@ function MissionControlContent() {
 
   // Handle end search
   const handleEndSearch = useCallback(async () => {
+    console.log('[GPS] handleEndSearch called, isSearching:', isSearching, 'isEnding:', isEnding);
     const result = await endSearch();
+    console.log('[GPS] endSearch result:', result);
     if (result.success) {
       showNotification('success', `Great work! You earned ${result.points?.total || 0} points!`);
       // Mark search task as completed
@@ -174,7 +176,7 @@ function MissionControlContent() {
     } else {
       showNotification('error', result.error || 'Failed to end search');
     }
-  }, [endSearch, showNotification]);
+  }, [endSearch, showNotification, isSearching, isEnding]);
 
   // Handle exit search (cancel)
   const handleExitSearch = useCallback(async () => {

@@ -294,10 +294,16 @@ export default function useSearchSession(missionId, lastSeenLocation) {
 
   // Start search
   const startSearch = useCallback(async () => {
-    if (!missionId || isStarting) return { success: false };
+    console.log('[useSearchSession] startSearch called, missionId:', missionId, 'isStarting:', isStarting);
+
+    if (!missionId || isStarting) {
+      console.log('[useSearchSession] Cannot start - no missionId or already starting');
+      return { success: false };
+    }
 
     setIsStarting(true);
     setError(null);
+    console.log('[useSearchSession] Set isStarting to true');
 
     try {
       // Get current position
@@ -329,14 +335,17 @@ export default function useSearchSession(missionId, lastSeenLocation) {
       }
 
       const data = await res.json();
+      console.log('[useSearchSession] Start API response:', data);
 
       // Set refs FIRST - ensures callbacks see correct values immediately
       sessionIdRef.current = data.sessionId;
       isSearchingRef.current = true;
+      console.log('[useSearchSession] Set refs, sessionId:', data.sessionId);
 
       // Set state
       setSessionId(data.sessionId);
       setIsSearching(true);
+      console.log('[useSearchSession] Set state, isSearching now true');
       setStats({
         durationSeconds: 0,
         totalDistanceMiles: 0,
@@ -361,14 +370,21 @@ export default function useSearchSession(missionId, lastSeenLocation) {
 
   // End search
   const endSearch = useCallback(async () => {
-    if (isEnding) return { success: false };
+    console.log('[useSearchSession] endSearch called, isEnding:', isEnding, 'sessionIdRef:', sessionIdRef.current);
+
+    if (isEnding) {
+      console.log('[useSearchSession] Already ending, returning early');
+      return { success: false };
+    }
 
     setIsEnding(true);
+    console.log('[useSearchSession] Set isEnding to true');
 
     // CRITICAL: Update refs FIRST - this stops pending callbacks immediately
     const currentSessionId = sessionIdRef.current;
     isSearchingRef.current = false;
     sessionIdRef.current = null;
+    console.log('[useSearchSession] Cleared refs, currentSessionId:', currentSessionId);
 
     // Stop GPS
     if (watchIdRef.current) {
@@ -388,9 +404,11 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     // Reset UI state
     setIsSearching(false);
     setSessionId(null);
+    console.log('[useSearchSession] Reset UI state, isSearching now false');
 
     // Fire API call in background (don't block UI)
     try {
+      console.log('[useSearchSession] Calling end API for session:', currentSessionId);
       const res = await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -401,8 +419,10 @@ export default function useSearchSession(missionId, lastSeenLocation) {
       });
 
       const data = await res.json().catch(() => ({}));
+      console.log('[useSearchSession] API response:', data);
 
       setIsEnding(false);
+      console.log('[useSearchSession] endSearch complete, success');
       return {
         success: true,
         stats: data.stats || currentStats,
@@ -410,7 +430,7 @@ export default function useSearchSession(missionId, lastSeenLocation) {
         meetsMinimum: data.meetsMinimum,
       };
     } catch (err) {
-      console.error('End search error:', err);
+      console.error('[useSearchSession] End search error:', err);
       setIsEnding(false);
       return { success: false, error: err.message };
     }
