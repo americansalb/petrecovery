@@ -102,12 +102,16 @@ export async function GET(request, { params }) {
       where: { id: { in: userIds } },
       select: {
         id: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         image: true,
       },
     });
 
-    const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+    const userMap = Object.fromEntries(users.map(u => [u.id, {
+      ...u,
+      name: [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Anonymous',
+    }]));
 
     // Format response
     const coverage = {
