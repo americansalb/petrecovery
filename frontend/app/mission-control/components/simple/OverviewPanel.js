@@ -53,6 +53,7 @@ export default function OverviewPanel({
   onShare,
   onViewMap,
   onCallShelters,
+  hideSearchButton = false, // Hide on desktop since map has its own button
 }) {
   const pet = mission || {};
   const hoursMissing = timeMissing?.hours || 0;
@@ -141,14 +142,16 @@ export default function OverviewPanel({
         <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Quick Actions</h2>
 
         <div className="grid grid-cols-2 gap-3">
-          {/* Start Search - Primary */}
-          <button
-            onClick={onStartSearch}
-            className="col-span-2 p-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold flex items-center justify-center gap-3 shadow-lg shadow-amber-500/20 active:scale-[0.98] transition"
-          >
-            <Navigation size={20} />
-            <span>Start GPS Search</span>
-          </button>
+          {/* Start Search - Primary (hidden on desktop where map has its own button) */}
+          {!hideSearchButton && (
+            <button
+              onClick={onStartSearch}
+              className="col-span-2 p-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold flex items-center justify-center gap-3 shadow-lg shadow-amber-500/20 active:scale-[0.98] transition"
+            >
+              <Navigation size={20} />
+              <span>Start GPS Search</span>
+            </button>
+          )}
 
           {/* Report Sighting */}
           <button

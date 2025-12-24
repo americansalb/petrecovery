@@ -13,7 +13,7 @@
  * Design: Single-screen, no-scroll with bottom navigation
  */
 
-import { useState, useCallback, Suspense } from 'react';
+import { useState, useCallback, useMemo, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -80,11 +80,16 @@ function MissionControlContent() {
   } = mission;
 
   // GPS search session - API returns lastSeenLatitude/lastSeenLongitude
-  const lastSeenLocation = (activeMission?.lastSeenLatitude && activeMission?.lastSeenLongitude)
-    ? { lat: activeMission.lastSeenLatitude, lng: activeMission.lastSeenLongitude }
-    : (activeMission?.lastSeenLat && activeMission?.lastSeenLng)
-    ? { lat: activeMission.lastSeenLat, lng: activeMission.lastSeenLng }
-    : null;
+  // IMPORTANT: useMemo to prevent new object reference on every render
+  const lastSeenLocation = useMemo(() => {
+    if (activeMission?.lastSeenLatitude && activeMission?.lastSeenLongitude) {
+      return { lat: activeMission.lastSeenLatitude, lng: activeMission.lastSeenLongitude };
+    }
+    if (activeMission?.lastSeenLat && activeMission?.lastSeenLng) {
+      return { lat: activeMission.lastSeenLat, lng: activeMission.lastSeenLng };
+    }
+    return null;
+  }, [activeMission?.lastSeenLatitude, activeMission?.lastSeenLongitude, activeMission?.lastSeenLat, activeMission?.lastSeenLng]);
 
   const searchSession = useSearchSession(activeMission?.id, lastSeenLocation);
   const {
@@ -403,6 +408,7 @@ function MissionControlContent() {
             onShare={handleShare}
             onViewMap={() => setActiveTab('search')}
             onCallShelters={() => setActiveTab('actions')}
+            hideSearchButton={true} // Map has its own button on desktop
           />
         );
       case 'team':
@@ -465,6 +471,7 @@ function MissionControlContent() {
             onShare={handleShare}
             onViewMap={() => setActiveTab('search')}
             onCallShelters={() => setActiveTab('actions')}
+            hideSearchButton={true} // Map has its own button on desktop
           />
         );
     }
