@@ -303,25 +303,24 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     console.log('[useSearchSession] Set isStarting to true');
 
     try {
-      // Get current position using watchPosition (works better with DevTools GPS spoofing)
+      // Get current position - use large maximumAge to grab cached position from map's watchPosition
       const position = await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          navigator.geolocation.clearWatch(watchId);
-          reject(new Error('GPS timeout'));
-        }, 20000);
-
-        const watchId = navigator.geolocation.watchPosition(
+        // Try getCurrentPosition first with cached data
+        navigator.geolocation.getCurrentPosition(
           (pos) => {
-            clearTimeout(timeout);
-            navigator.geolocation.clearWatch(watchId);
-            console.log('[useSearchSession] Got position via watchPosition:', pos.coords.latitude, pos.coords.longitude);
+            console.log('[useSearchSession] Got position via getCurrentPosition:', pos.coords.latitude, pos.coords.longitude);
             resolve(pos);
           },
           (err) => {
-            // Don't reject on first error - watchPosition may retry
-            console.warn('[useSearchSession] watchPosition error (waiting for success):', err.message);
+            console.warn('[useSearchSession] getCurrentPosition failed:', err.message, '- will retry');
+            // Retry once with lower accuracy
+            navigator.geolocation.getCurrentPosition(
+              resolve,
+              (err2) => reject(new Error('GPS failed: ' + err2.message)),
+              { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
+            );
           },
-          { enableHighAccuracy: false, timeout: 20000, maximumAge: 30000 }
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 } // Accept 60s old position
         );
       })
 
