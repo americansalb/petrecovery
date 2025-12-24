@@ -177,7 +177,7 @@ export default function DashboardPage() {
     return null;
   }
 
-  const { user, squads = [], activeMissions = [], reports = [], nearbyAlerts = [], missions = [], allMembers = [] } = userData;
+  const { user, squads = [], activeMissions = [], reports = [], nearbyAlerts = [], missions = [], allMembers = [], activeSearches = [] } = userData;
   const rescueLevel = RESCUE_LEVELS[user?.rescueLevel] || RESCUE_LEVELS.PET_OWNER;
   const LevelIcon = rescueLevel.icon;
   const isAdmin = user?.role === 'ADMIN';
@@ -255,6 +255,32 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-midnight-50">
+      {/* Active GPS Search Banner */}
+      {activeSearches.length > 0 && (
+        <div className="bg-red-600 text-white">
+          {activeSearches.map(search => (
+            <Link
+              key={search.id}
+              href={`/mission-control?mission=${search.missionId}`}
+              className="block hover:bg-red-500 transition-colors"
+            >
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="w-3 h-3 bg-white rounded-full animate-pulse" />
+                  <span className="font-bold">GPS SEARCH ACTIVE</span>
+                  <span className="text-white/80">
+                    Finding {search.petName} • {search.durationMinutes} min • {search.distanceMiles.toFixed(2)} mi
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="bg-white/20 px-3 py-1 rounded-lg">View Search →</span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-midnight-900 via-midnight-800 to-midnight-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
