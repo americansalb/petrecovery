@@ -12,6 +12,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
+import { getPointsMultiplier } from '@/app/lib/searchProbability';
+
 const CONFIG = {
   MAX_WALKING_SPEED_MPH: 5,
   SEARCH_RADIUS_MILES: 2,
@@ -33,7 +35,7 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-export default function useSearchSession(missionId, lastSeenLocation) {
+export default function useSearchSession(missionId, lastSeenLocation, probabilityZones = null) {
   // Core state - kept minimal
   const [isSearching, setIsSearching] = useState(false);
   const [sessionId, setSessionId] = useState(null);
@@ -49,6 +51,7 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     validatedDistanceMiles: 0,
     estimatedPoints: 0,
     gridCellsCovered: 0,
+    zoneMultiplier: 1.0, // Average zone multiplier for searched area
   });
 
   // Path for map visualization
@@ -150,17 +153,40 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     };
   }, [isSearching]);
 
+  // Calculate average zone multiplier from path
+  useEffect(() => {
+    if (!path.length || !probabilityZones) {
+      setStats(prev => ({ ...prev, zoneMultiplier: 1.0 }));
+      return;
+    }
+
+    // Calculate multiplier for each valid point in path
+    const validPoints = path.filter(p => p.valid);
+    if (!validPoints.length) return;
+
+    const totalMultiplier = validPoints.reduce((sum, point) => {
+      const mult = getPointsMultiplier([point.lat, point.lng], probabilityZones);
+      return sum + mult;
+    }, 0);
+
+    const avgMultiplier = totalMultiplier / validPoints.length;
+    setStats(prev => ({ ...prev, zoneMultiplier: avgMultiplier }));
+  }, [path, probabilityZones]);
+
   // Estimated points calculation
   useEffect(() => {
     const basePoints = stats.validatedDistanceMiles * CONFIG.POINTS_PER_MILE;
     const gridBonus = stats.gridCellsCovered * 5;
     const timeBonus = Math.min(Math.floor(stats.durationSeconds / 900) * 10, 40);
 
+    // Apply zone multiplier to base points
+    const zoneBonus = basePoints * (stats.zoneMultiplier - 1); // Only the bonus part
+
     setStats(prev => ({
       ...prev,
-      estimatedPoints: Math.round(basePoints + gridBonus + timeBonus),
+      estimatedPoints: Math.round(basePoints + zoneBonus + gridBonus + timeBonus),
     }));
-  }, [stats.validatedDistanceMiles, stats.gridCellsCovered, stats.durationSeconds]);
+  }, [stats.validatedDistanceMiles, stats.gridCellsCovered, stats.durationSeconds, stats.zoneMultiplier]);
 
   // Process GPS update
   const processLocation = useCallback(async (position) => {

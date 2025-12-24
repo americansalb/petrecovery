@@ -28,7 +28,9 @@ import {
   ChevronUp,
   ChevronDown,
   AlertCircle,
+  Target,
 } from 'lucide-react';
+import { calculateProbabilityZones } from '@/app/lib/searchProbability';
 
 // Dynamically import map to avoid SSR issues
 const MapView = dynamic(() => import('@/app/components/mission/SARMapView'), {
@@ -300,8 +302,34 @@ export default function MapTabV2({
   const [duration, setDuration] = useState(0);
   const [distance, setDistance] = useState(0);
   const [showLegend, setShowLegend] = useState(false);
+  const [showProbabilityZones, setShowProbabilityZones] = useState(false);
   const [selectedMarker, setSelectedMarker] = useState(null);
   const durationInterval = useRef(null);
+
+  // Calculate probability zones based on mission data
+  const probabilityZones = mission ? calculateProbabilityZones({
+    species: mission.petSpecies,
+    size: mission.petSize,
+    isIndoorCat: mission.petDescription?.includes('Indoor cat') ? true :
+                  mission.petDescription?.includes('Outdoor access') ? false : null,
+    timeElapsed: getTimeElapsedCategory(mission.lastSeenAt),
+    lastSeenLocation: mission.lastSeenLatitude && mission.lastSeenLongitude
+      ? [mission.lastSeenLatitude, mission.lastSeenLongitude]
+      : null,
+  }) : null;
+
+  // Helper to convert lastSeenAt to time category
+  function getTimeElapsedCategory(lastSeenAt) {
+    if (!lastSeenAt) return '6_to_24_hours';
+    const hoursAgo = (Date.now() - new Date(lastSeenAt).getTime()) / (1000 * 60 * 60);
+    if (hoursAgo < 1) return 'less_than_hour';
+    if (hoursAgo < 6) return '1_to_6_hours';
+    if (hoursAgo < 24) return '6_to_24_hours';
+    if (hoursAgo < 72) return '1_to_3_days';
+    if (hoursAgo < 168) return '3_to_7_days';
+    if (hoursAgo < 336) return '1_to_2_weeks';
+    return 'more_than_2_weeks';
+  }
 
   // Duration timer
   useEffect(() => {
@@ -405,6 +433,8 @@ export default function MapTabV2({
           gpsPath={gpsPath || []}
           petSpecies={mission?.petSpecies || 'DOG'}
           showProbabilityCircles={false}
+          showProbabilityZones={showProbabilityZones}
+          probabilityZones={probabilityZones}
           showLegend={false}
           interactive={true}
         />
@@ -432,6 +462,23 @@ export default function MapTabV2({
       {/* Map Legend */}
       {!isGPSTracking && (
         <MapLegend visible={showLegend} onToggle={() => setShowLegend(!showLegend)} />
+      )}
+
+      {/* Probability Zones Toggle */}
+      {hasLocation && !isGPSTracking && (
+        <button
+          onClick={() => setShowProbabilityZones(!showProbabilityZones)}
+          className={`absolute bottom-6 left-4 z-20 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg transition-all ${
+            showProbabilityZones
+              ? 'bg-red-500 text-white'
+              : 'bg-slate-800/90 backdrop-blur text-slate-300 hover:text-white'
+          }`}
+        >
+          <Target size={20} />
+          <span className="font-medium text-sm">
+            {showProbabilityZones ? 'Hide Zones' : 'Search Zones'}
+          </span>
+        </button>
       )}
 
       {/* Floating Action Buttons */}

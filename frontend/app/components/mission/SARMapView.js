@@ -58,6 +58,8 @@ export default function SARMapView({
   coverageTrails = [], // Historical search trails from all team members
   activeSearchersCount = 0, // Number of team members actively searching
   showProbabilityCircles = false,
+  showProbabilityZones = false, // New: Show research-based probability zones
+  probabilityZones = null, // New: Data from calculateProbabilityZones()
   showLegend = true,
   interactive = true
 }) {
@@ -389,6 +391,52 @@ export default function SARMapView({
         }).addTo(mapInstance.current);
         circlesRef.current.push(outerCircle);
       }
+
+      // Add research-based probability zones (NEW - toggleable)
+      if (showProbabilityZones && probabilityZones?.zones) {
+        const milesToMeters = (miles) => miles * 1609.34;
+        const zoneCenter = probabilityZones.center || [lastSeen.lat, lastSeen.lng];
+
+        // Render zones from largest to smallest so smaller ones appear on top
+        const sortedZones = [...probabilityZones.zones].sort((a, b) => b.radius - a.radius);
+
+        sortedZones.forEach(zone => {
+          const circle = L.circle(zoneCenter, {
+            radius: milesToMeters(zone.radius),
+            color: zone.color,
+            fillColor: zone.color,
+            fillOpacity: zone.fillOpacity,
+            weight: 2,
+            dashArray: zone.name === 'EXTENDED' ? '15, 10' : zone.name === 'LOW' ? '10, 5' : null,
+          });
+
+          // Add popup with zone info
+          const radiusText = zone.radius < 1
+            ? `${Math.round(zone.radius * 5280)} feet`
+            : `${zone.radius.toFixed(1)} miles`;
+
+          circle.bindPopup(`
+            <div style="min-width: 180px; text-align: center;">
+              <strong style="color: ${zone.color}; font-size: 14px;">${zone.name} Priority Zone</strong>
+              <br/>
+              <span style="font-size: 13px; color: #333;">
+                ${zone.probabilityPercent}% probability
+              </span>
+              <br/>
+              <span style="font-size: 12px; color: #666;">
+                Within ${radiusText} of last sighting
+              </span>
+              <br/>
+              <span style="font-size: 11px; color: #888; margin-top: 4px; display: block;">
+                Search this area first for best results
+              </span>
+            </div>
+          `);
+
+          circle.addTo(mapInstance.current);
+          circlesRef.current.push(circle);
+        });
+      }
     }
 
     // Add sighting markers
@@ -574,7 +622,7 @@ export default function SARMapView({
     heatmapLayersRef.current.forEach(layer => layer.remove());
     heatmapLayersRef.current = [];
 
-  }, [lastSeen, sightings, petSpecies, hoursElapsed, gpsPath]);
+  }, [lastSeen, sightings, petSpecies, hoursElapsed, gpsPath, showProbabilityZones, probabilityZones]);
 
   // Render team coverage trails
   useEffect(() => {

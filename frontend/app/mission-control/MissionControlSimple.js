@@ -25,6 +25,7 @@ import useSearchSession from './hooks/useSearchSession';
 import useSearchCoverage from './hooks/useSearchCoverage';
 import useMissionChat from './hooks/useMissionChat';
 import usePOIs from './hooks/usePOIs';
+import { calculateProbabilityZones } from '@/app/lib/searchProbability';
 
 // Components
 import CompactHeader from './components/simple/CompactHeader';
@@ -91,7 +92,33 @@ function MissionControlContent() {
     return null;
   }, [activeMission?.lastSeenLatitude, activeMission?.lastSeenLongitude, activeMission?.lastSeenLat, activeMission?.lastSeenLng]);
 
-  const searchSession = useSearchSession(activeMission?.id, lastSeenLocation);
+  // Calculate probability zones for points multiplier
+  const probabilityZones = useMemo(() => {
+    if (!activeMission || !lastSeenLocation) return null;
+
+    const getTimeElapsedCategory = (lastSeenAt) => {
+      if (!lastSeenAt) return '6_to_24_hours';
+      const hoursAgo = (Date.now() - new Date(lastSeenAt).getTime()) / (1000 * 60 * 60);
+      if (hoursAgo < 1) return 'less_than_hour';
+      if (hoursAgo < 6) return '1_to_6_hours';
+      if (hoursAgo < 24) return '6_to_24_hours';
+      if (hoursAgo < 72) return '1_to_3_days';
+      if (hoursAgo < 168) return '3_to_7_days';
+      if (hoursAgo < 336) return '1_to_2_weeks';
+      return 'more_than_2_weeks';
+    };
+
+    return calculateProbabilityZones({
+      species: activeMission.petSpecies,
+      size: activeMission.petSize,
+      isIndoorCat: activeMission.petDescription?.includes('Indoor cat') ? true :
+                    activeMission.petDescription?.includes('Outdoor access') ? false : null,
+      timeElapsed: getTimeElapsedCategory(activeMission.lastSeenAt),
+      lastSeenLocation: [lastSeenLocation.lat, lastSeenLocation.lng],
+    });
+  }, [activeMission, lastSeenLocation]);
+
+  const searchSession = useSearchSession(activeMission?.id, lastSeenLocation, probabilityZones);
   const {
     isActive: isSearching,
     isStarting,
