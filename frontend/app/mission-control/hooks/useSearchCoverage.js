@@ -8,12 +8,13 @@
  * - Individual team member trails (colored)
  * - Purple coverage overlay
  * - Active searcher indicators
+ * - Highlights current user's paths
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { getTeamColorByUserId, getCoverageOpacity, getDecayedOpacity } from '@/app/lib/teamColors';
 
-export default function useSearchCoverage(missionId) {
+export default function useSearchCoverage(missionId, currentUserId = null) {
   const [coverage, setCoverage] = useState({
     completed: [],
     active: [],
@@ -80,43 +81,63 @@ export default function useSearchCoverage(missionId) {
   /**
    * Get coverage data formatted for map rendering
    * Includes decay-adjusted opacity calculations
+   * Highlights current user's paths (isCurrentUser flag)
    */
   const getMapCoverageData = useCallback(() => {
     const now = Date.now();
 
-    return {
-      // Individual trails with user colors
-      trails: [
-        ...coverage.completed.map(session => ({
-          id: session.id,
-          userId: session.userId,
-          userName: session.userName,
-          color: session.color.hex,
-          path: session.path,
-          isActive: false,
-          startedAt: session.startedAt,
-          endedAt: session.endedAt,
-          hoursAgo: session.hoursAgo,
-        })),
-        ...coverage.active.map(session => ({
-          id: session.id,
-          userId: session.userId,
-          userName: session.userName,
-          color: session.color.hex,
-          path: session.path,
-          isActive: true,
-          startedAt: session.startedAt,
-          endedAt: null,
-          hoursAgo: 0,
-        })),
-      ],
+    // Separate current user's paths from others for proper rendering order
+    const allTrails = [
+      ...coverage.completed.map(session => ({
+        id: session.id,
+        userId: session.userId,
+        userName: session.userName,
+        color: session.color.hex,
+        path: session.path,
+        isActive: false,
+        isCurrentUser: currentUserId && session.userId === currentUserId,
+        startedAt: session.startedAt,
+        endedAt: session.endedAt,
+        hoursAgo: session.hoursAgo,
+      })),
+      ...coverage.active.map(session => ({
+        id: session.id,
+        userId: session.userId,
+        userName: session.userName,
+        color: session.color.hex,
+        path: session.path,
+        isActive: true,
+        isCurrentUser: currentUserId && session.userId === currentUserId,
+        startedAt: session.startedAt,
+        endedAt: null,
+        hoursAgo: 0,
+      })),
+    ];
 
+    // Sort so current user's trails render LAST (on top)
+    // And active trails render after completed ones
+    allTrails.sort((a, b) => {
+      // Current user's trails come last (render on top)
+      if (a.isCurrentUser !== b.isCurrentUser) {
+        return a.isCurrentUser ? 1 : -1;
+      }
+      // Active trails come after completed
+      if (a.isActive !== b.isActive) {
+        return a.isActive ? 1 : -1;
+      }
+      return 0;
+    });
+
+    return {
+      trails: allTrails,
       // Stats
       activeSearchersCount: coverage.stats.activeSearchers,
       totalSearchers: coverage.stats.totalSearchers,
       totalSessions: coverage.stats.totalSessions,
+      // Current user's search count
+      currentUserSearches: allTrails.filter(t => t.isCurrentUser).length,
     };
-  }, [coverage]);
+  }, [coverage, currentUserId]);
 
   return {
     coverage,

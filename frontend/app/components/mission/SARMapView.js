@@ -592,16 +592,22 @@ export default function SARMapView({
 
       const pathCoords = trail.path.map(p => [p.lat, p.lng]);
       const hoursAgo = trail.hoursAgo || 0;
+      const isCurrentUser = trail.isCurrentUser || false;
 
-      // Base opacity (1 person searched = 15%)
-      const baseOpacity = getCoverageOpacity(1);
-      // Apply time decay
-      const decayedOpacity = getDecayedOpacity(baseOpacity, hoursAgo);
+      // Base opacity - current user's paths are more visible
+      const baseOpacity = isCurrentUser ? 0.35 : getCoverageOpacity(1);
+      // Apply time decay (less decay for current user)
+      const decayedOpacity = isCurrentUser
+        ? Math.max(baseOpacity * 0.9, 0.2) // Current user's paths stay visible
+        : getDecayedOpacity(baseOpacity, hoursAgo);
 
-      // Draw purple coverage corridor (vision radius)
+      // Draw coverage corridor - current user's paths are thicker and brighter
+      const corridorWeight = isCurrentUser ? VISION_RADIUS_METERS * 3 : VISION_RADIUS_METERS * 2;
+      const corridorColor = isCurrentUser ? '#3b82f6' : '#a855f7'; // Blue for you, purple for others
+
       const coverageCorridor = L.polyline(pathCoords, {
-        color: '#a855f7', // Purple
-        weight: VISION_RADIUS_METERS * 2, // Diameter in pixels (approximate)
+        color: corridorColor,
+        weight: corridorWeight,
         opacity: decayedOpacity,
         smoothFactor: 1,
         lineJoin: 'round',
@@ -616,12 +622,14 @@ export default function SARMapView({
         const searchTime = trail.endedAt
           ? new Date(trail.endedAt).toLocaleTimeString()
           : new Date(trail.startedAt).toLocaleTimeString();
+        const displayName = isCurrentUser ? 'Your Search' : trail.userName;
+        const displayColor = isCurrentUser ? '#3b82f6' : trail.color;
 
         L.popup()
           .setLatLng(e.latlng)
           .setContent(`
             <div style="min-width: 180px;">
-              <strong style="color: ${trail.color};">${trail.userName}</strong>
+              <strong style="color: ${displayColor};">${displayName}</strong>
               <br/>
               <span style="font-size: 12px; color: #666;">
                 Searched: ${searchDate}
@@ -638,12 +646,18 @@ export default function SARMapView({
       coverageLayersRef.current.push(coverageCorridor);
 
       // Draw individual colored trail line on top
+      // Current user's line is thicker and solid blue
+      const lineColor = isCurrentUser ? '#3b82f6' : trail.color;
+      const lineWeight = isCurrentUser ? 4 : 3;
+      const lineOpacity = isCurrentUser ? 0.9 : (trail.isActive ? 0.9 : 0.6);
+      const lineDash = isCurrentUser ? null : (trail.isActive ? null : '5, 5');
+
       const trailLine = L.polyline(pathCoords, {
-        color: trail.color,
-        weight: 3,
-        opacity: trail.isActive ? 0.9 : 0.6,
+        color: lineColor,
+        weight: lineWeight,
+        opacity: lineOpacity,
         smoothFactor: 1,
-        dashArray: trail.isActive ? null : '5, 5', // Dashed for historical
+        dashArray: lineDash,
       }).addTo(mapInstance.current);
       coverageLayersRef.current.push(trailLine);
 

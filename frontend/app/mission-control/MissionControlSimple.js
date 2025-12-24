@@ -109,7 +109,8 @@ function MissionControlContent() {
   const chat = useMissionChat(activeMission?.id);
 
   // Search coverage - historical trails from all team members
-  const coverage = useSearchCoverage(activeMission?.id);
+  // Pass current user ID so we can highlight their paths
+  const coverage = useSearchCoverage(activeMission?.id, session?.user?.id);
   const coverageData = coverage.getMapCoverageData();
 
   // POIs - nearby shelters, vets, animal control
