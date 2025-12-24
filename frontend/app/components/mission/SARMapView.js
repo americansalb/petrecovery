@@ -119,17 +119,23 @@ export default function SARMapView({
     // Add default layer (satellite)
     baseLayersRef.current[mapLayer].addTo(mapInstance.current);
 
-    // Track user location
+    // Track user location - uses browser's FREE Geolocation API (not Apple/Google)
     let watchId = null;
     if ('geolocation' in navigator) {
+      console.log('[Map] Starting geolocation watch...');
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
           const loc = [pos.coords.latitude, pos.coords.longitude];
+          console.log('[Map] Got user location:', loc);
           setUserLocation(loc);
         },
-        () => {},
+        (err) => {
+          console.error('[Map] Geolocation error:', err.code, err.message);
+        },
         { enableHighAccuracy: true, maximumAge: 10000 }
       );
+    } else {
+      console.warn('[Map] Geolocation not available in this browser');
     }
 
     // Cleanup both geolocation watcher AND map on unmount
@@ -162,7 +168,7 @@ export default function SARMapView({
     baseLayersRef.current[mapLayer].addTo(mapInstance.current);
   }, [mapLayer]);
 
-  // Update user location marker
+  // Update user location marker - big and visible with pulsing effect
   useEffect(() => {
     if (!mapInstance.current || !userLocation) return;
 
@@ -172,19 +178,52 @@ export default function SARMapView({
       const userIcon = L.divIcon({
         className: 'user-location-marker',
         html: `
-          <div style="
-            width: 20px;
-            height: 20px;
-            background: #3b82f6;
-            border: 3px solid white;
-            border-radius: 50%;
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
-          "></div>
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="position: relative;">
+              <div style="
+                position: absolute;
+                width: 40px;
+                height: 40px;
+                background: rgba(59, 130, 246, 0.3);
+                border-radius: 50%;
+                animation: userPulse 2s ease-out infinite;
+                left: -6px;
+                top: -6px;
+              "></div>
+              <div style="
+                width: 28px;
+                height: 28px;
+                background: #3b82f6;
+                border: 4px solid white;
+                border-radius: 50%;
+                box-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
+                position: relative;
+                z-index: 1;
+              "></div>
+            </div>
+            <div style="
+              margin-top: 4px;
+              padding: 2px 8px;
+              background: rgba(59, 130, 246, 0.9);
+              border-radius: 4px;
+              font-size: 10px;
+              font-weight: 600;
+              color: white;
+              white-space: nowrap;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            ">You</div>
+          </div>
+          <style>
+            @keyframes userPulse {
+              0% { transform: scale(1); opacity: 0.8; }
+              100% { transform: scale(2.5); opacity: 0; }
+            }
+          </style>
         `,
-        iconSize: [20, 20],
-        iconAnchor: [10, 10]
+        iconSize: [80, 50],
+        iconAnchor: [40, 14]
       });
-      userMarkerRef.current = L.marker(userLocation, { icon: userIcon })
+      userMarkerRef.current = L.marker(userLocation, { icon: userIcon, zIndexOffset: 1000 })
         .addTo(mapInstance.current);
     }
   }, [userLocation]);
@@ -688,7 +727,7 @@ export default function SARMapView({
     <div className="w-full h-full relative">
       <div ref={mapRef} className="w-full h-full" />
 
-      {/* Layer Toggle & Fit Buttons - Only show for interactive maps */}
+      {/* Layer Toggle & Location Buttons - Always show for interactive maps */}
       {interactive && (
         <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2">
           <button
@@ -706,6 +745,33 @@ export default function SARMapView({
                 <span>Satellite</span>
               </>
             )}
+          </button>
+          {/* Center on my location button */}
+          <button
+            onClick={() => {
+              if (!mapInstance.current) return;
+              if (userLocation) {
+                mapInstance.current.setView(userLocation, 17, { animate: true });
+              } else {
+                // Try to get location
+                navigator.geolocation.getCurrentPosition(
+                  (pos) => {
+                    const loc = [pos.coords.latitude, pos.coords.longitude];
+                    setUserLocation(loc);
+                    mapInstance.current.setView(loc, 17, { animate: true });
+                  },
+                  (err) => {
+                    console.error('[Map] Failed to get location:', err);
+                    alert('Could not get your location. Please check GPS permissions.');
+                  },
+                  { enableHighAccuracy: true }
+                );
+              }
+            }}
+            className="bg-blue-600/90 backdrop-blur border border-blue-500 rounded-xl px-4 py-2.5 text-white font-semibold text-sm hover:bg-blue-500 transition flex items-center gap-2 shadow-lg"
+          >
+            <span>📍</span>
+            <span>My Location</span>
           </button>
           {/* Fit all locations button */}
           <button
