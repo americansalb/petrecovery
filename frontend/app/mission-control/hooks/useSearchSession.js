@@ -203,9 +203,11 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     // Validate speed (ignore GPS glitches)
     const isValid = speedMph <= CONFIG.MAX_WALKING_SPEED_MPH && inZone && distance < 0.5;
 
-    // Skip obvious GPS glitches
+    // Skip obvious GPS glitches (but update lastPingRef so we can recover)
     if (distance > 0.5 || speedMph > 20) {
-      console.log('GPS glitch detected, skipping');
+      console.log('GPS glitch detected, skipping (but updating baseline for next ping)');
+      // Still update lastPingRef so subsequent pings have a valid baseline
+      lastPingRef.current = { lat: latitude, lng: longitude, timestamp };
       return;
     }
 
