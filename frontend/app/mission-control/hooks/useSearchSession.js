@@ -54,11 +54,23 @@ export default function useSearchSession(missionId, lastSeenLocation) {
   // Path for map visualization
   const [path, setPath] = useState([]);
 
-  // Refs
+  // Refs - CRITICAL: Use refs for values checked in watchPosition callback
+  // State values get captured in closure and become stale!
   const watchIdRef = useRef(null);
   const timerRef = useRef(null);
   const lastPingRef = useRef(null);
   const currentMissionRef = useRef(missionId);
+  const isSearchingRef = useRef(false);
+  const sessionIdRef = useRef(null);
+
+  // Keep refs in sync with state - CRITICAL for watchPosition callback
+  useEffect(() => {
+    isSearchingRef.current = isSearching;
+  }, [isSearching]);
+
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -67,6 +79,9 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     // Reset if mission changed
     if (missionId !== currentMissionRef.current) {
       currentMissionRef.current = missionId;
+      // Clear refs first
+      isSearchingRef.current = false;
+      sessionIdRef.current = null;
       setIsSearching(false);
       setSessionId(null);
       setStats({
@@ -86,7 +101,10 @@ export default function useSearchSession(missionId, lastSeenLocation) {
         if (res.ok) {
           const data = await res.json();
           if (data.activeSession) {
-            // Resume existing session
+            // Resume existing session - set refs FIRST
+            sessionIdRef.current = data.activeSession.id;
+            isSearchingRef.current = true;
+
             setSessionId(data.activeSession.id);
             setIsSearching(true);
             const elapsed = Math.floor(
@@ -146,7 +164,14 @@ export default function useSearchSession(missionId, lastSeenLocation) {
 
   // Process GPS update
   const processLocation = useCallback(async (position) => {
-    if (!sessionId || !isSearching) return;
+    // CRITICAL: Check refs, not state! State values are stale in watchPosition callback
+    const currentSessionId = sessionIdRef.current;
+    const currentlySearching = isSearchingRef.current;
+
+    if (!currentSessionId || !currentlySearching) {
+      console.log('[GPS] Ignoring ping - search not active (session:', currentSessionId, 'searching:', currentlySearching, ')');
+      return;
+    }
 
     const { latitude, longitude, accuracy, heading, speed } = position.coords;
     const timestamp = Date.now();
@@ -211,7 +236,7 @@ export default function useSearchSession(missionId, lastSeenLocation) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'ping',
-          sessionId,
+          sessionId: currentSessionId,
           latitude,
           longitude,
           accuracy,
@@ -223,7 +248,7 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     } catch (err) {
       console.error('Ping failed:', err);
     }
-  }, [sessionId, isSearching, missionId, lastSeenLocation]);
+  }, [missionId, lastSeenLocation]); // Removed sessionId, isSearching - we use refs now
 
   // GPS watching effect
   useEffect(() => {
@@ -305,6 +330,10 @@ export default function useSearchSession(missionId, lastSeenLocation) {
 
       const data = await res.json();
 
+      // Set refs FIRST - ensures callbacks see correct values immediately
+      sessionIdRef.current = data.sessionId;
+      isSearchingRef.current = true;
+
       // Set state
       setSessionId(data.sessionId);
       setIsSearching(true);
@@ -336,23 +365,27 @@ export default function useSearchSession(missionId, lastSeenLocation) {
 
     setIsEnding(true);
 
-    // Stop GPS immediately
+    // CRITICAL: Update refs FIRST - this stops pending callbacks immediately
+    const currentSessionId = sessionIdRef.current;
+    isSearchingRef.current = false;
+    sessionIdRef.current = null;
+
+    // Stop GPS
     if (watchIdRef.current) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
 
-    // Stop timer immediately
+    // Stop timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
 
-    // Capture current values before resetting
-    const currentSessionId = sessionId;
+    // Capture stats before resetting
     const currentStats = { ...stats };
 
-    // Reset UI state IMMEDIATELY - don't wait for API
+    // Reset UI state
     setIsSearching(false);
     setSessionId(null);
 
@@ -381,10 +414,15 @@ export default function useSearchSession(missionId, lastSeenLocation) {
       setIsEnding(false);
       return { success: false, error: err.message };
     }
-  }, [missionId, sessionId, isEnding, stats]);
+  }, [missionId, isEnding, stats]); // Removed sessionId - we use ref now
 
   // Force stop (used for cleanup)
   const forceStop = useCallback(async () => {
+    // CRITICAL: Update refs FIRST - stops pending callbacks immediately
+    const currentSessionId = sessionIdRef.current;
+    isSearchingRef.current = false;
+    sessionIdRef.current = null;
+
     // Stop GPS
     if (watchIdRef.current) {
       navigator.geolocation.clearWatch(watchIdRef.current);
@@ -398,11 +436,11 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     }
 
     // End on server (don't wait)
-    if (sessionId) {
+    if (currentSessionId) {
       fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'end', sessionId }),
+        body: JSON.stringify({ action: 'end', sessionId: currentSessionId }),
       }).catch(() => {});
     }
 
@@ -418,11 +456,15 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     });
     setPath([]);
     lastPingRef.current = null;
-  }, [missionId, sessionId]);
+  }, [missionId]); // Removed sessionId - we use ref now
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      // Clear refs first to stop any pending callbacks
+      isSearchingRef.current = false;
+      sessionIdRef.current = null;
+
       if (watchIdRef.current) {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
