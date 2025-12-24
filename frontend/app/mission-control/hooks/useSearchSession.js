@@ -301,23 +301,27 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     console.log('[useSearchSession] Set isStarting to true');
 
     try {
-      // Get current position - try high accuracy first, fall back to low accuracy
-      const getPosition = (highAccuracy) => new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('GPS timeout')), 15000);
-        navigator.geolocation.getCurrentPosition(
-          (pos) => { clearTimeout(timeout); resolve(pos); },
-          (err) => { clearTimeout(timeout); reject(err); },
-          { enableHighAccuracy: highAccuracy, timeout: 15000, maximumAge: 10000 }
-        );
-      });
+      // Get current position using watchPosition (works better with DevTools GPS spoofing)
+      const position = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          navigator.geolocation.clearWatch(watchId);
+          reject(new Error('GPS timeout'));
+        }, 20000);
 
-      let position;
-      try {
-        position = await getPosition(true);
-      } catch (highAccuracyErr) {
-        console.log('[useSearchSession] High accuracy failed, trying low accuracy:', highAccuracyErr.message);
-        position = await getPosition(false);
-      }
+        const watchId = navigator.geolocation.watchPosition(
+          (pos) => {
+            clearTimeout(timeout);
+            navigator.geolocation.clearWatch(watchId);
+            console.log('[useSearchSession] Got position via watchPosition:', pos.coords.latitude, pos.coords.longitude);
+            resolve(pos);
+          },
+          (err) => {
+            // Don't reject on first error - watchPosition may retry
+            console.warn('[useSearchSession] watchPosition error (waiting for success):', err.message);
+          },
+          { enableHighAccuracy: false, timeout: 20000, maximumAge: 30000 }
+        );
+      })
 
       const { latitude, longitude } = position.coords;
 
