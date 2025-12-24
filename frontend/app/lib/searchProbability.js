@@ -195,13 +195,14 @@ function getZoneColor(zoneName) {
  * Get zone fill opacity for map display
  */
 function getZoneFillOpacity(zoneName) {
+  // Very subtle opacities - visible but not overwhelming
   const opacities = {
-    HIGH: 0.25,
-    MEDIUM: 0.15,
-    LOW: 0.08,
-    EXTENDED: 0.04,
+    HIGH: 0.10,      // 10% - subtle red tint
+    MEDIUM: 0.06,    // 6% - barely visible orange
+    LOW: 0.03,       // 3% - very faint yellow
+    EXTENDED: 0.015, // 1.5% - almost invisible indigo edge
   };
-  return opacities[zoneName] || 0.1;
+  return opacities[zoneName] || 0.05;
 }
 
 /**

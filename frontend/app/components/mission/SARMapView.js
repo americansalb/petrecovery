@@ -406,8 +406,9 @@ export default function SARMapView({
             color: zone.color,
             fillColor: zone.color,
             fillOpacity: zone.fillOpacity,
-            weight: 2,
-            dashArray: zone.name === 'EXTENDED' ? '15, 10' : zone.name === 'LOW' ? '10, 5' : null,
+            weight: 1, // Thin border for subtlety
+            opacity: 0.4, // Semi-transparent border
+            dashArray: '8, 4', // All zones get subtle dashed border
           });
 
           // Add popup with zone info
