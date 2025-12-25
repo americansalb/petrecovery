@@ -389,16 +389,10 @@ export default function SARMapView({
           const displayPercent = zone.cumulativePercent || zone.probabilityPercent;
 
           circle.bindPopup(`
-            <div style="min-width: 180px; text-align: center;">
-              <strong style="color: ${zone.color}; font-size: 14px;">${zone.name} Priority Zone</strong>
-              <br/>
-              <span style="font-size: 15px; color: #333; font-weight: bold;">
-                ${displayPercent}% chance within ${radiusText}
-              </span>
-              <br/>
-              <span style="font-size: 11px; color: #888; margin-top: 4px; display: block;">
-                Search this area for best results
-              </span>
+            <div style="text-align:center;padding:4px;">
+              <b style="color:${zone.color}">${zone.name}</b><br>
+              <span style="font-size:16px;font-weight:bold">${displayPercent}%</span><br>
+              <small style="color:#666">within ${radiusText}</small>
             </div>
           `);
 
@@ -443,20 +437,10 @@ export default function SARMapView({
 
       const marker = L.marker([sighting.latitude, sighting.longitude], { icon: sightingIcon })
         .bindPopup(`
-          <div style="min-width: 180px;">
-            <strong style="color: ${color};">Sighting #${index + 1}</strong>
-            <br/>
-            <span style="font-size: 12px; color: #666;">
-              ${sighting.description || 'No description'}
-            </span>
-            <br/>
-            <span style="font-size: 11px; color: #999;">
-              ${sighting.address || 'Unknown location'}
-            </span>
-            <br/>
-            <span style="font-size: 10px; color: #999;">
-              ${hoursSinceSighting < 1 ? 'Just now' : hoursSinceSighting < 24 ? `${hoursSinceSighting}h ago` : `${Math.floor(hoursSinceSighting / 24)}d ago`}
-            </span>
+          <div style="max-width:200px">
+            <b style="color:${color}">Sighting #${index + 1}</b>
+            <small style="color:#666;display:block">${hoursSinceSighting < 1 ? 'Just now' : hoursSinceSighting < 24 ? `${hoursSinceSighting}h ago` : `${Math.floor(hoursSinceSighting / 24)}d ago`}</small>
+            ${sighting.description ? `<p style="margin:4px 0 0;font-size:12px">${sighting.description.slice(0, 80)}${sighting.description.length > 80 ? '...' : ''}</p>` : ''}
           </div>
         `)
         .addTo(mapInstance.current);
@@ -493,19 +477,8 @@ export default function SARMapView({
           .setLatLng(pathCoords[Math.floor(pathCoords.length / 2)])
           .setContent(`
             <div style="min-width: 200px;">
-              <strong style="color: #a855f7;">GPS Tracked Search Area</strong>
-              <br/>
-              <span style="font-size: 12px; color: #666;">
-                Duration: ${durationMinutes} minute${durationMinutes !== 1 ? 's' : ''}
-              </span>
-              <br/>
-              <span style="font-size: 12px; color: #666;">
-                ${gpsPath.length} GPS points recorded
-              </span>
-              <br/>
-              <span style="font-size: 11px; color: #999;">
-                ${new Date(startTime).toLocaleTimeString()} - ${new Date(endTime).toLocaleTimeString()}
-              </span>
+              <b style="color:#a855f7">Your Search</b><br>
+              <span style="font-size:13px">${durationMinutes} min</span>
             </div>
           `)
           .openOn(mapInstance.current);
@@ -647,17 +620,9 @@ export default function SARMapView({
         L.popup()
           .setLatLng(e.latlng)
           .setContent(`
-            <div style="min-width: 180px;">
-              <strong style="color: ${displayColor};">${displayName}</strong>
-              <br/>
-              <span style="font-size: 12px; color: #666;">
-                Searched: ${searchDate}
-              </span>
-              <br/>
-              <span style="font-size: 11px; color: #999;">
-                ${searchTime}
-              </span>
-              ${trail.isActive ? '<br/><span style="color: #22c55e; font-weight: bold;">🔴 Active Now</span>' : ''}
+            <div>
+              <b style="color:${displayColor}">${displayName}</b>
+              ${trail.isActive ? '<span style="color:#22c55e;margin-left:6px">● Live</span>' : `<br><small style="color:#666">${searchDate}</small>`}
             </div>
           `)
           .openOn(mapInstance.current);
