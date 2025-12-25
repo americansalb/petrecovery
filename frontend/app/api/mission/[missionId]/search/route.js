@@ -27,6 +27,16 @@ const CONFIG = {
   MIN_SESSION_MILES: 0.1,
   FIRST_24H_MULTIPLIER: 1.5,
   DAWN_DUSK_MULTIPLIER: 1.25,
+  // Zone multipliers - reward searching in high probability areas
+  ZONE_MULTIPLIERS: {
+    HIGH: 4.0,      // 4x points in HIGH probability zone
+    MEDIUM: 2.5,    // 2.5x in MEDIUM zone
+    LOW: 1.5,       // 1.5x in LOW zone
+    EXTENDED: 1.0,  // Base points in EXTENDED zone
+    OUTSIDE: 0.5,   // Half points outside all zones
+  },
+  // Zone radii multipliers (relative to base)
+  ZONE_RADIUS_MULTIPLIERS: { HIGH: 1, MEDIUM: 2, LOW: 4, EXTENDED: 8 },
   // Auto-cleanup any session older than 30 minutes
   MAX_SESSION_AGE_MINUTES: 30,
 };
@@ -52,7 +62,7 @@ function isDawnOrDusk(date) {
   return (hour >= 6 && hour <= 8) || (hour >= 17 && hour <= 19);
 }
 
-function calculatePoints(stats, caseCreatedAt) {
+function calculatePoints(stats, caseCreatedAt, zoneMultiplier = 1.0) {
   const distancePoints = stats.validatedDistanceMiles * CONFIG.POINTS_PER_MILE;
   const gridPoints = stats.gridCellsCovered * CONFIG.POINTS_PER_GRID_CELL;
   const timePoints = Math.min(
@@ -60,27 +70,106 @@ function calculatePoints(stats, caseCreatedAt) {
     CONFIG.MAX_TIME_BONUS
   );
 
+  // Base subtotal before multipliers
   let subtotal = distancePoints + gridPoints + timePoints;
-  let multiplier = 1.0;
 
+  // Apply zone multiplier to distance points (the main reward for searching right areas)
+  const zoneBonus = distancePoints * (zoneMultiplier - 1);
+  subtotal += zoneBonus;
+
+  // Time-based multipliers
+  let timeMultiplier = 1.0;
   const now = new Date();
   const hoursAfterLost = (now - new Date(caseCreatedAt)) / 3600000;
 
   if (hoursAfterLost < 24) {
-    multiplier *= CONFIG.FIRST_24H_MULTIPLIER;
+    timeMultiplier *= CONFIG.FIRST_24H_MULTIPLIER;
   }
 
   if (isDawnOrDusk(now)) {
-    multiplier *= CONFIG.DAWN_DUSK_MULTIPLIER;
+    timeMultiplier *= CONFIG.DAWN_DUSK_MULTIPLIER;
   }
 
   return {
     distance: Math.round(distancePoints),
+    zoneBonus: Math.round(zoneBonus),
+    zoneMultiplier: Math.round(zoneMultiplier * 10) / 10,
     gridBonus: Math.round(gridPoints),
     timeBonus: Math.round(timePoints),
-    multiplier,
-    total: Math.round(subtotal * multiplier),
+    timeMultiplier,
+    total: Math.round(subtotal * timeMultiplier),
   };
+}
+
+/**
+ * Calculate base search radius based on pet type and time elapsed
+ * Returns radius in miles
+ */
+function calculateBaseRadius(petSpecies, petSize, lastSeenAt) {
+  // Base radius by species
+  const speciesBase = {
+    DOG: { TINY: 0.3, SMALL: 0.5, MEDIUM: 1.0, LARGE: 1.5, GIANT: 2.5 },
+    CAT: 0.25,
+    BIRD: 2.0,
+    OTHER: 0.5,
+  };
+
+  let baseRadius;
+  if (petSpecies === 'DOG' && petSize && speciesBase.DOG[petSize]) {
+    baseRadius = speciesBase.DOG[petSize];
+  } else if (petSpecies === 'CAT') {
+    baseRadius = speciesBase.CAT;
+  } else if (petSpecies === 'BIRD') {
+    baseRadius = speciesBase.BIRD;
+  } else {
+    baseRadius = speciesBase.OTHER;
+  }
+
+  // Time multiplier - radius expands over time
+  if (lastSeenAt) {
+    const hoursAgo = (Date.now() - new Date(lastSeenAt).getTime()) / 3600000;
+    if (hoursAgo < 1) baseRadius *= 1.0;
+    else if (hoursAgo < 6) baseRadius *= 1.3;
+    else if (hoursAgo < 24) baseRadius *= 1.8;
+    else if (hoursAgo < 72) baseRadius *= 2.5;
+    else if (hoursAgo < 168) baseRadius *= 3.5;
+    else baseRadius *= 4.5;
+  }
+
+  return baseRadius;
+}
+
+/**
+ * Calculate average zone multiplier from location pings
+ */
+function calculateZoneMultiplier(pings, lastSeenLat, lastSeenLng, baseRadius) {
+  if (!pings?.length || !lastSeenLat || !lastSeenLng || !baseRadius) {
+    return 1.0;
+  }
+
+  const validPings = pings.filter(p => p.isValid);
+  if (!validPings.length) return 1.0;
+
+  let totalMultiplier = 0;
+
+  validPings.forEach(ping => {
+    const distance = calculateDistance(ping.latitude, ping.longitude, lastSeenLat, lastSeenLng);
+
+    // Determine which zone this ping falls into
+    if (distance <= baseRadius * CONFIG.ZONE_RADIUS_MULTIPLIERS.HIGH) {
+      totalMultiplier += CONFIG.ZONE_MULTIPLIERS.HIGH;
+    } else if (distance <= baseRadius * CONFIG.ZONE_RADIUS_MULTIPLIERS.MEDIUM) {
+      totalMultiplier += CONFIG.ZONE_MULTIPLIERS.MEDIUM;
+    } else if (distance <= baseRadius * CONFIG.ZONE_RADIUS_MULTIPLIERS.LOW) {
+      totalMultiplier += CONFIG.ZONE_MULTIPLIERS.LOW;
+    } else if (distance <= baseRadius * CONFIG.ZONE_RADIUS_MULTIPLIERS.EXTENDED) {
+      totalMultiplier += CONFIG.ZONE_MULTIPLIERS.EXTENDED;
+    } else {
+      totalMultiplier += CONFIG.ZONE_MULTIPLIERS.OUTSIDE;
+    }
+  });
+
+  return totalMultiplier / validPings.length;
 }
 
 /**
@@ -211,7 +300,7 @@ async function handleStart(userId, missionId, body) {
       isVerified: true,
       totalDistanceMiles: 0,
       validatedDistanceMiles: 0,
-      gridCellsCovered: 1,
+      gridCellsCovered: 0, // Start at 0 - earn grid cells by moving
       lastSeenLat: mission?.lastSeenLatitude,
       lastSeenLng: mission?.lastSeenLongitude,
     },
@@ -336,7 +425,19 @@ async function handleEnd(userId, missionId, body) {
       totalDistanceMiles: true,
       validatedDistanceMiles: true,
       gridCellsCovered: true,
-      mission: { select: { createdAt: true } },
+      lastSeenLat: true,
+      lastSeenLng: true,
+      locationPings: {
+        select: { latitude: true, longitude: true, isValid: true },
+      },
+      mission: {
+        select: {
+          createdAt: true,
+          petSpecies: true,
+          petSize: true,
+          lastSeenAt: true,
+        },
+      },
     },
   });
 
@@ -362,9 +463,26 @@ async function handleEnd(userId, missionId, body) {
   const meetsMinimum = durationMinutes >= CONFIG.MIN_SESSION_MINUTES &&
     stats.validatedDistanceMiles >= CONFIG.MIN_SESSION_MILES;
 
+  // Calculate zone multiplier based on where the user searched
+  let zoneMultiplier = 1.0;
+  if (meetsMinimum && session.lastSeenLat && session.lastSeenLng) {
+    // Calculate base radius based on pet species/size and time elapsed
+    const baseRadius = calculateBaseRadius(
+      session.mission?.petSpecies,
+      session.mission?.petSize,
+      session.mission?.lastSeenAt
+    );
+    zoneMultiplier = calculateZoneMultiplier(
+      session.locationPings,
+      session.lastSeenLat,
+      session.lastSeenLng,
+      baseRadius
+    );
+  }
+
   const points = meetsMinimum
-    ? calculatePoints(stats, session.mission?.createdAt || new Date())
-    : { distance: 0, gridBonus: 0, timeBonus: 0, multiplier: 1, total: 0 };
+    ? calculatePoints(stats, session.mission?.createdAt || new Date(), zoneMultiplier)
+    : { distance: 0, zoneBonus: 0, zoneMultiplier: 1, gridBonus: 0, timeBonus: 0, timeMultiplier: 1, total: 0 };
 
   // Update session
   await prisma.searchSession.update({
@@ -378,7 +496,7 @@ async function handleEnd(userId, missionId, body) {
     },
   });
 
-  console.log(`[Search] Ended session ${sessionId}, earned ${points.total} points`);
+  console.log(`[Search] Ended session ${sessionId}, earned ${points.total} points (zone multiplier: ${zoneMultiplier.toFixed(1)}x)`);
 
   return NextResponse.json({
     success: true,
