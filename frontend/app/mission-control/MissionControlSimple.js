@@ -356,7 +356,7 @@ function MissionControlContent() {
             {!isSearching && lastSeenLocation && (
               <button
                 onClick={() => setShowProbabilityZones(!showProbabilityZones)}
-                className={`absolute bottom-32 left-4 z-[500] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg transition-all ${
+                className={`absolute top-[200px] left-4 z-[500] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg transition-all ${
                   showProbabilityZones
                     ? 'bg-red-500 text-white'
                     : 'bg-slate-800/95 backdrop-blur text-slate-300 hover:text-white border border-slate-700'
