@@ -26,8 +26,14 @@ const CONFIG = {
   SEARCH_RADIUS_MILES: 2,
   MIN_SESSION_MINUTES: 5,
   MIN_SESSION_MILES: 0.1,
-  FIRST_24H_MULTIPLIER: 1.5,
-  DAWN_DUSK_MULTIPLIER: 1.25,
+  // Urgency multipliers - reward searching sooner after pet goes missing
+  URGENCY_MULTIPLIERS: {
+    CRITICAL: { maxHours: 6, multiplier: 2.0, label: 'Critical (< 6h)' },
+    URGENT: { maxHours: 12, multiplier: 1.75, label: 'Urgent (< 12h)' },
+    HIGH: { maxHours: 24, multiplier: 1.5, label: 'High (< 24h)' },
+    MODERATE: { maxHours: 48, multiplier: 1.25, label: 'Moderate (< 48h)' },
+    STANDARD: { maxHours: 96, multiplier: 1.1, label: 'Standard (< 96h)' },
+  },
   // Zone multipliers - reward searching in high probability areas
   ZONE_MULTIPLIERS: {
     HIGH: 4.0,      // 4x points in HIGH probability zone
@@ -58,12 +64,27 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-function isDawnOrDusk(date) {
-  const hour = date.getHours();
-  return (hour >= 6 && hour <= 8) || (hour >= 17 && hour <= 19);
+/**
+ * Get urgency multiplier based on hours since pet was lost
+ */
+function getUrgencyMultiplier(hoursAfterLost) {
+  const { URGENCY_MULTIPLIERS } = CONFIG;
+
+  if (hoursAfterLost < URGENCY_MULTIPLIERS.CRITICAL.maxHours) {
+    return URGENCY_MULTIPLIERS.CRITICAL;
+  } else if (hoursAfterLost < URGENCY_MULTIPLIERS.URGENT.maxHours) {
+    return URGENCY_MULTIPLIERS.URGENT;
+  } else if (hoursAfterLost < URGENCY_MULTIPLIERS.HIGH.maxHours) {
+    return URGENCY_MULTIPLIERS.HIGH;
+  } else if (hoursAfterLost < URGENCY_MULTIPLIERS.MODERATE.maxHours) {
+    return URGENCY_MULTIPLIERS.MODERATE;
+  } else if (hoursAfterLost < URGENCY_MULTIPLIERS.STANDARD.maxHours) {
+    return URGENCY_MULTIPLIERS.STANDARD;
+  }
+  return { multiplier: 1.0, label: 'Base' };
 }
 
-function calculatePoints(stats, caseCreatedAt, zoneMultiplier = 1.0) {
+function calculatePoints(stats, lastSeenAt, zoneMultiplier = 1.0) {
   const distancePoints = stats.validatedDistanceMiles * CONFIG.POINTS_PER_MILE;
   const gridPoints = stats.gridCellsCovered * CONFIG.POINTS_PER_GRID_CELL;
   const timePoints = Math.min(
@@ -78,18 +99,11 @@ function calculatePoints(stats, caseCreatedAt, zoneMultiplier = 1.0) {
   const zoneBonus = distancePoints * (zoneMultiplier - 1);
   subtotal += zoneBonus;
 
-  // Time-based multipliers
-  let timeMultiplier = 1.0;
-  const now = new Date();
-  const hoursAfterLost = (now - new Date(caseCreatedAt)) / 3600000;
-
-  if (hoursAfterLost < 24) {
-    timeMultiplier *= CONFIG.FIRST_24H_MULTIPLIER;
-  }
-
-  if (isDawnOrDusk(now)) {
-    timeMultiplier *= CONFIG.DAWN_DUSK_MULTIPLIER;
-  }
+  // Urgency multiplier - based on how recently pet was lost
+  const hoursAfterLost = lastSeenAt
+    ? (Date.now() - new Date(lastSeenAt).getTime()) / 3600000
+    : 999;
+  const urgency = getUrgencyMultiplier(hoursAfterLost);
 
   return {
     distance: Math.round(distancePoints),
@@ -97,8 +111,9 @@ function calculatePoints(stats, caseCreatedAt, zoneMultiplier = 1.0) {
     zoneMultiplier: Math.round(zoneMultiplier * 10) / 10,
     gridBonus: Math.round(gridPoints),
     timeBonus: Math.round(timePoints),
-    timeMultiplier,
-    total: Math.round(subtotal * timeMultiplier),
+    urgencyMultiplier: urgency.multiplier,
+    urgencyLabel: urgency.label,
+    total: Math.round(subtotal * urgency.multiplier),
   };
 }
 
@@ -482,8 +497,8 @@ async function handleEnd(userId, missionId, body) {
   }
 
   const points = meetsMinimum
-    ? calculatePoints(stats, session.mission?.createdAt || new Date(), zoneMultiplier)
-    : { distance: 0, zoneBonus: 0, zoneMultiplier: 1, gridBonus: 0, timeBonus: 0, timeMultiplier: 1, total: 0 };
+    ? calculatePoints(stats, session.mission?.lastSeenAt, zoneMultiplier)
+    : { distance: 0, zoneBonus: 0, zoneMultiplier: 1, gridBonus: 0, timeBonus: 0, urgencyMultiplier: 1, urgencyLabel: 'None', total: 0 };
 
   // Create VerifiedAction to track points in gamification system
   let verifiedActionId = null;
@@ -505,6 +520,8 @@ async function handleEnd(userId, missionId, body) {
           zoneBonus: points.zoneBonus,
           gridBonus: points.gridBonus,
           timeBonus: points.timeBonus,
+          urgencyMultiplier: points.urgencyMultiplier,
+          urgencyLabel: points.urgencyLabel,
         },
         caseCreatedAt: session.mission?.createdAt,
         caseLostAt: session.mission?.lastSeenAt,

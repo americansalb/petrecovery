@@ -176,8 +176,17 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
     setStats(prev => ({ ...prev, zoneMultiplier: avgMultiplier }));
   }, [path, probabilityZones]);
 
-  // Estimated points calculation
+  // Estimated points calculation - only show if minimum requirements met
   useEffect(() => {
+    const durationMinutes = stats.durationSeconds / 60;
+    const meetsMinimum = durationMinutes >= CONFIG.MIN_SESSION_MINUTES &&
+                         stats.validatedDistanceMiles >= CONFIG.MIN_SESSION_MILES;
+
+    if (!meetsMinimum) {
+      setStats(prev => ({ ...prev, estimatedPoints: 0 }));
+      return;
+    }
+
     const basePoints = stats.validatedDistanceMiles * CONFIG.POINTS_PER_MILE;
     const gridBonus = stats.gridCellsCovered * 5;
     const timeBonus = Math.min(Math.floor(stats.durationSeconds / 900) * 10, 40);
@@ -381,7 +390,8 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
         totalDistanceMiles: 0,
         validatedDistanceMiles: 0,
         estimatedPoints: 0,
-        gridCellsCovered: 1,
+        gridCellsCovered: 0, // Start at 0 - earn by moving
+        zoneMultiplier: 1.0,
       });
       setPath([{ lat: latitude, lng: longitude, valid: true, timestamp: Date.now() }]);
       lastPingRef.current = { lat: latitude, lng: longitude, timestamp: Date.now() };
