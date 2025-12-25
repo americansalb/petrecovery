@@ -356,14 +356,14 @@ function MissionControlContent() {
             {!isSearching && lastSeenLocation && (
               <button
                 onClick={() => setShowProbabilityZones(!showProbabilityZones)}
-                className={`absolute top-4 right-4 z-[400] flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg transition-all ${
+                className={`absolute bottom-32 left-4 z-[500] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg transition-all ${
                   showProbabilityZones
                     ? 'bg-red-500 text-white'
-                    : 'bg-slate-800/90 backdrop-blur text-slate-300 hover:text-white border border-slate-700'
+                    : 'bg-slate-800/95 backdrop-blur text-slate-300 hover:text-white border border-slate-700'
                 }`}
               >
-                <Target size={18} />
-                <span className="font-medium text-sm">
+                <Target size={20} />
+                <span className="font-semibold text-sm">
                   {showProbabilityZones ? 'Hide Zones' : 'Search Zones'}
                 </span>
               </button>
@@ -591,14 +591,14 @@ function MissionControlContent() {
           {!isSearching && lastSeenLocation && (
             <button
               onClick={() => setShowProbabilityZones(!showProbabilityZones)}
-              className={`absolute top-4 right-4 z-[400] flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg transition-all ${
+              className={`absolute bottom-28 left-6 z-[500] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg transition-all ${
                 showProbabilityZones
                   ? 'bg-red-500 text-white'
-                  : 'bg-slate-800/90 backdrop-blur text-slate-300 hover:text-white border border-slate-700'
+                  : 'bg-slate-800/95 backdrop-blur text-slate-300 hover:text-white border border-slate-700'
               }`}
             >
-              <Target size={18} />
-              <span className="font-medium text-sm">
+              <Target size={20} />
+              <span className="font-semibold text-sm">
                 {showProbabilityZones ? 'Hide Zones' : 'Search Zones'}
               </span>
             </button>
