@@ -17,7 +17,7 @@ import { useState, useCallback, useMemo, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { Loader2, AlertTriangle, MapPin } from 'lucide-react';
+import { Loader2, AlertTriangle, MapPin, Target } from 'lucide-react';
 
 // Hooks
 import useMissionControl from './hooks/useMissionControl';
@@ -58,6 +58,9 @@ function MissionControlContent() {
 
   // Navigation state - start on search (the main feature)
   const [activeTab, setActiveTab] = useState('search');
+
+  // Probability zones toggle
+  const [showProbabilityZones, setShowProbabilityZones] = useState(false);
 
   // Main mission state
   const mission = useMissionControl(session);
@@ -345,7 +348,26 @@ function MissionControlContent() {
               pois={pois}
               showLegend={!isSearching}
               interactive={true}
+              showProbabilityZones={showProbabilityZones}
+              probabilityZones={probabilityZones}
             />
+
+            {/* Probability Zones Toggle - show when not searching */}
+            {!isSearching && lastSeenLocation && (
+              <button
+                onClick={() => setShowProbabilityZones(!showProbabilityZones)}
+                className={`absolute top-4 right-4 z-[400] flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg transition-all ${
+                  showProbabilityZones
+                    ? 'bg-red-500 text-white'
+                    : 'bg-slate-800/90 backdrop-blur text-slate-300 hover:text-white border border-slate-700'
+                }`}
+              >
+                <Target size={18} />
+                <span className="font-medium text-sm">
+                  {showProbabilityZones ? 'Hide Zones' : 'Search Zones'}
+                </span>
+              </button>
+            )}
 
             {/* Search controls */}
             {isSearching ? (
@@ -561,7 +583,26 @@ function MissionControlContent() {
             pois={pois}
             showLegend={!isSearching}
             interactive={true}
+            showProbabilityZones={showProbabilityZones}
+            probabilityZones={probabilityZones}
           />
+
+          {/* Probability Zones Toggle - Desktop */}
+          {!isSearching && lastSeenLocation && (
+            <button
+              onClick={() => setShowProbabilityZones(!showProbabilityZones)}
+              className={`absolute top-4 right-4 z-[400] flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg transition-all ${
+                showProbabilityZones
+                  ? 'bg-red-500 text-white'
+                  : 'bg-slate-800/90 backdrop-blur text-slate-300 hover:text-white border border-slate-700'
+              }`}
+            >
+              <Target size={18} />
+              <span className="font-medium text-sm">
+                {showProbabilityZones ? 'Hide Zones' : 'Search Zones'}
+              </span>
+            </button>
+          )}
 
           {/* Search controls overlay on map */}
           {isSearching ? (
