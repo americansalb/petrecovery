@@ -123,16 +123,20 @@ export function calculateProbabilityZones({
     adjustedRadius *= ageMod;
   }
 
-  // Step 4: Generate zones
+  // Step 4: Generate zones with CUMULATIVE probabilities
+  let cumulativeProbability = 0;
   const zones = Object.entries(ZONE_MULTIPLIERS).map(([zoneName, multiplier]) => {
     const radius = Math.min(adjustedRadius * multiplier, MAX_SEARCH_RADIUS);
     const probability = ZONE_PROBABILITIES[zoneName];
+    cumulativeProbability += probability;
 
     return {
       name: zoneName,
       radius,
-      probability,
-      probabilityPercent: Math.round(probability * 100 * 10) / 10, // e.g., 67.5
+      probability, // Individual zone probability
+      probabilityPercent: Math.round(probability * 100 * 10) / 10, // Individual (e.g., 67.5)
+      cumulativeProbability, // Cumulative up to this zone
+      cumulativePercent: Math.round(cumulativeProbability * 100 * 10) / 10, // Cumulative (e.g., 85.5)
       color: getZoneColor(zoneName),
       fillOpacity: getZoneFillOpacity(zoneName),
     };
@@ -195,14 +199,14 @@ function getZoneColor(zoneName) {
  * Get zone fill opacity for map display
  */
 function getZoneFillOpacity(zoneName) {
-  // Very subtle opacities - visible but not overwhelming
+  // Visible opacities - clearly shows the zones
   const opacities = {
-    HIGH: 0.10,      // 10% - subtle red tint
-    MEDIUM: 0.06,    // 6% - barely visible orange
-    LOW: 0.03,       // 3% - very faint yellow
-    EXTENDED: 0.015, // 1.5% - almost invisible indigo edge
+    HIGH: 0.35,      // 35% - clearly visible red
+    MEDIUM: 0.25,    // 25% - visible orange
+    LOW: 0.15,       // 15% - visible yellow
+    EXTENDED: 0.10,  // 10% - visible indigo edge
   };
-  return opacities[zoneName] || 0.05;
+  return opacities[zoneName] || 0.2;
 }
 
 /**

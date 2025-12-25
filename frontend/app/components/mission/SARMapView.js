@@ -375,9 +375,9 @@ export default function SARMapView({
             color: zone.color,
             fillColor: zone.color,
             fillOpacity: zone.fillOpacity,
-            weight: 1, // Thin border for subtlety
-            opacity: 0.4, // Semi-transparent border
-            dashArray: '8, 4', // All zones get subtle dashed border
+            weight: 3, // Visible border
+            opacity: 0.8, // Strong border visibility
+            dashArray: '8, 4', // Dashed border
           });
 
           // Add popup with zone info
@@ -385,20 +385,19 @@ export default function SARMapView({
             ? `${Math.round(zone.radius * 5280)} feet`
             : `${zone.radius.toFixed(1)} miles`;
 
+          // Use cumulative percent - "X% chance pet is within this distance"
+          const displayPercent = zone.cumulativePercent || zone.probabilityPercent;
+
           circle.bindPopup(`
             <div style="min-width: 180px; text-align: center;">
               <strong style="color: ${zone.color}; font-size: 14px;">${zone.name} Priority Zone</strong>
               <br/>
-              <span style="font-size: 13px; color: #333;">
-                ${zone.probabilityPercent}% probability
-              </span>
-              <br/>
-              <span style="font-size: 12px; color: #666;">
-                Within ${radiusText} of last sighting
+              <span style="font-size: 15px; color: #333; font-weight: bold;">
+                ${displayPercent}% chance within ${radiusText}
               </span>
               <br/>
               <span style="font-size: 11px; color: #888; margin-top: 4px; display: block;">
-                Search this area first for best results
+                Search this area for best results
               </span>
             </div>
           `);
