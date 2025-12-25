@@ -11,6 +11,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/app/lib/prisma';
+import { getPointsService } from '@/lib/actions';
 
 // =============================================================================
 // CONFIGURATION
@@ -484,6 +485,38 @@ async function handleEnd(userId, missionId, body) {
     ? calculatePoints(stats, session.mission?.createdAt || new Date(), zoneMultiplier)
     : { distance: 0, zoneBonus: 0, zoneMultiplier: 1, gridBonus: 0, timeBonus: 0, timeMultiplier: 1, total: 0 };
 
+  // Create VerifiedAction to track points in gamification system
+  let verifiedActionId = null;
+  if (meetsMinimum && points.total > 0) {
+    try {
+      const pointsService = getPointsService(prisma);
+      const awardResult = await pointsService.awardVerifiedPoints({
+        userId,
+        missionId,
+        actionType: 'search_area',
+        verificationMethod: 'GPS',
+        basePoints: points.distance,
+        metadata: {
+          sessionId,
+          durationMinutes: stats.durationMinutes,
+          distanceMiles: stats.validatedDistanceMiles,
+          gridCellsCovered: stats.gridCellsCovered,
+          zoneMultiplier: points.zoneMultiplier,
+          zoneBonus: points.zoneBonus,
+          gridBonus: points.gridBonus,
+          timeBonus: points.timeBonus,
+        },
+        caseCreatedAt: session.mission?.createdAt,
+        caseLostAt: session.mission?.lastSeenAt,
+      });
+      verifiedActionId = awardResult.verifiedActionId;
+      console.log(`[Search] Created VerifiedAction ${verifiedActionId} with ${awardResult.awardedPoints} points`);
+    } catch (err) {
+      console.error('[Search] Failed to create VerifiedAction:', err);
+      // Continue - points are still stored on session even if VerifiedAction fails
+    }
+  }
+
   // Update session
   await prisma.searchSession.update({
     where: { id: sessionId },
@@ -493,6 +526,7 @@ async function handleEnd(userId, missionId, body) {
       endReason: reason || 'USER_ENDED',
       distanceMiles: stats.validatedDistanceMiles,
       pointsEarned: points.total,
+      verifiedActionId,
     },
   });
 
