@@ -485,6 +485,7 @@ export default function SARMapView({
         lineJoin: 'round',
         lineCap: 'round'
       }).addTo(mapInstance.current);
+      searchCorridor.bringToFront(); // Above probability zones
 
       // Add click handler to show details
       searchCorridor.on('click', () => {
@@ -518,6 +519,7 @@ export default function SARMapView({
         opacity: 0.9,
         smoothFactor: 1
       }).addTo(mapInstance.current);
+      polyline.bringToFront(); // Above probability zones
       gpsLayersRef.current.push(polyline);
 
       // Add start marker (green)
@@ -628,6 +630,9 @@ export default function SARMapView({
         lineCap: 'round',
       }).addTo(mapInstance.current);
 
+      // Ensure coverage renders ABOVE probability zones
+      coverageCorridor.bringToFront();
+
       // Add click handler for popup
       coverageCorridor.on('click', (e) => {
         const searchDate = trail.endedAt
@@ -672,6 +677,7 @@ export default function SARMapView({
         smoothFactor: 1,
         dashArray: trail.isActive ? null : '5, 5', // Dashed for historical
       }).addTo(mapInstance.current);
+      trailLine.bringToFront(); // Above probability zones
       coverageLayersRef.current.push(trailLine);
 
       // Add pulsing dot for active searchers
