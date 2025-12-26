@@ -37,6 +37,7 @@ export default function useSearchCoverage(missionId, currentUserId = null) {
       }
 
       const data = await res.json();
+      console.log('[Coverage] Fetched data:', data.completed?.length || 0, 'completed,', data.active?.length || 0, 'active sessions');
 
       // Enrich with colors and decay calculations
       const enrichedData = {

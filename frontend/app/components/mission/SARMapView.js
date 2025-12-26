@@ -106,25 +106,26 @@ function splitPathAtJumps(pathCoords, maxGapMeters = MAX_POINT_GAP_METERS) {
   return segments;
 }
 
-// Coverage opacity levels based on search count
+// Coverage opacity levels based on search count - VISIBLE values
 const getCoverageOpacity = (searchCount) => {
   if (searchCount <= 0) return 0;
-  if (searchCount === 1) return 0.15;
-  if (searchCount === 2) return 0.25;
-  if (searchCount === 3) return 0.35;
-  if (searchCount === 4) return 0.45;
-  if (searchCount === 5) return 0.55;
-  return 0.65; // 6+ people = max
+  if (searchCount === 1) return 0.35;  // 35% - clearly visible
+  if (searchCount === 2) return 0.45;
+  if (searchCount === 3) return 0.55;
+  if (searchCount === 4) return 0.65;
+  if (searchCount === 5) return 0.75;
+  return 0.85; // 6+ people = max
 };
 
-// Calculate decayed opacity (25% reduction per 12 hours, min 7.5%)
+// Calculate decayed opacity (15% reduction per 24 hours, min 20%)
+// Slower decay so old searches remain visible
 const getDecayedOpacity = (baseOpacity, hoursAgo) => {
-  const periods = Math.floor(hoursAgo / 12);
+  const periods = Math.floor(hoursAgo / 24); // per day instead of per 12 hours
   let opacity = baseOpacity;
   for (let i = 0; i < periods; i++) {
-    opacity *= 0.75;
+    opacity *= 0.85; // 15% reduction instead of 25%
   }
-  return Math.max(opacity, 0.075);
+  return Math.max(opacity, 0.20); // Minimum 20% instead of 7.5%
 };
 
 export default function SARMapView({
@@ -516,11 +517,11 @@ export default function SARMapView({
       segments.forEach((segmentCoords, idx) => {
         if (segmentCoords.length < 2) return;
 
-        // Draw semi-transparent corridor showing search area covered
+        // Draw visible corridor showing search area covered (vision radius ~14m = ~45ft)
         const searchCorridor = L.polyline(segmentCoords, {
           color: '#a855f7', // Purple
-          weight: 40, // Wide corridor to show search area
-          opacity: 0.25,
+          weight: 50, // Wide corridor to show search area
+          opacity: 0.45, // 45% - clearly visible but not overwhelming
           smoothFactor: 1,
           lineJoin: 'round',
           lineCap: 'round'
@@ -574,15 +575,25 @@ export default function SARMapView({
     coverageLayersRef.current.forEach(layer => layer.remove());
     coverageLayersRef.current = [];
 
-    if (!coverageTrails || coverageTrails.length === 0) return;
+    if (!coverageTrails || coverageTrails.length === 0) {
+      console.log('[Map] No coverage trails to render');
+      return;
+    }
+
+    console.log('[Map] Rendering', coverageTrails.length, 'coverage trails');
 
     // Render each team member's trail
     coverageTrails.forEach(trail => {
-      if (!trail.path || trail.path.length < 2) return;
+      if (!trail.path || trail.path.length < 2) {
+        console.log('[Map] Skipping trail with insufficient points:', trail.path?.length || 0);
+        return;
+      }
 
       const pathCoords = trail.path.map(p => [p.lat, p.lng]);
       const hoursAgo = trail.hoursAgo || 0;
       const isCurrentUser = trail.isCurrentUser || false;
+
+      console.log('[Map] Drawing trail:', trail.userName, 'points:', pathCoords.length, 'hoursAgo:', hoursAgo.toFixed(1), 'isActive:', trail.isActive);
 
       // Split path into segments at GPS jumps
       const segments = splitPathAtJumps(pathCoords);
@@ -600,10 +611,13 @@ export default function SARMapView({
       segments.forEach(segmentCoords => {
         if (segmentCoords.length < 2) return;
 
+        // Calculate corridor opacity - more visible than before
+        const corridorOpacity = trail.isActive ? 0.45 : Math.max(decayedOpacity, 0.25);
+
         const coverageCorridor = L.polyline(segmentCoords, {
           color: corridorColor,
-          weight: VISION_RADIUS_METERS * 2,
-          opacity: decayedOpacity,
+          weight: 50, // Wide corridor matching active search
+          opacity: corridorOpacity,
           smoothFactor: 1,
           lineJoin: 'round',
           lineCap: 'round',
