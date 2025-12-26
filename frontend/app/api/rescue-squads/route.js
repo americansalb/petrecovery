@@ -334,14 +334,22 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { city, state, zipCode, country = 'US', lat: passedLat, lng: passedLng } = await request.json();
+    const body = await request.json();
+    const { city, state, zipCode, country = 'US' } = body;
+    // Accept coordinates from multiple field names (form sends centerLatitude/centerLongitude)
+    const passedLat = body.lat ?? body.centerLatitude ?? null;
+    const passedLng = body.lng ?? body.centerLongitude ?? null;
+    const hasCoordinates = passedLat !== null && passedLng !== null;
 
     // For international cities, lat/lng are required instead of zipCode
+    // For US/MX, we need either zipCode OR coordinates
     const isInternational = country !== 'US' && country !== 'MX';
-    if (!city || !state || (!zipCode && !isInternational) || (isInternational && (!passedLat || !passedLng))) {
+    const hasLocation = zipCode || hasCoordinates;
+
+    if (!city || !state || (!hasLocation && !isInternational) || (isInternational && !hasCoordinates)) {
       const errorMsg = isInternational
-        ? 'City, state, and coordinates (lat/lng) required for international locations'
-        : 'City, state, and postal code required';
+        ? 'City, state, and coordinates required for international locations'
+        : 'City, state, and location (ZIP or coordinates) required';
       await logEvent({
         event_type: 'squad.create_failed',
         resource_type: 'rescue_squad',
@@ -427,11 +435,11 @@ export async function POST(request) {
     // Geocode to get coordinates - try multiple methods
     let latitude, longitude;
 
-    // International cities - use passed coordinates directly
-    if (isInternational && passedLat && passedLng) {
+    // If coordinates were passed (from form geocoding), use them first
+    if (hasCoordinates) {
       latitude = passedLat;
       longitude = passedLng;
-      console.log(`[Squad Create] Using passed coords for ${country}: ${latitude}, ${longitude}`);
+      console.log(`[Squad Create] Using passed coords for ${city}, ${state}: ${latitude}, ${longitude}`);
     }
     // Mexican locations - use Nominatim with postal code
     else if (country === 'MX') {
