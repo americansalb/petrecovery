@@ -128,10 +128,10 @@ export default function DashboardPage() {
         {/* SECTION 1: MY MISSIONS (Your Pets)          */}
         {/* ============================================ */}
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
               <PawPrint className="w-5 h-5 text-amber-500" />
-              <h2 className="text-lg font-bold text-slate-900">My Missions</h2>
+              <h2 className="text-lg font-bold text-slate-900">My Pets</h2>
             </div>
             <Link
               href="/report/new"
@@ -141,6 +141,7 @@ export default function DashboardPage() {
               Report Lost Pet
             </Link>
           </div>
+          <p className="text-xs text-slate-500 mb-3 ml-7">Lost pets you reported</p>
 
           {myMissions.length > 0 ? (
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
@@ -272,10 +273,10 @@ export default function DashboardPage() {
         {/* ============================================ */}
         {urgentNearby.length > 0 && (
           <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
                 <Siren className="w-5 h-5 text-red-500" />
-                <h2 className="text-lg font-bold text-slate-900">Help Nearby</h2>
+                <h2 className="text-lg font-bold text-slate-900">Urgent Nearby</h2>
               </div>
               <Link
                 href="/database?filter=nearby"
@@ -284,6 +285,7 @@ export default function DashboardPage() {
                 View All →
               </Link>
             </div>
+            <p className="text-xs text-slate-500 mb-3 ml-7">Pets near you that need help now</p>
             <div className="bg-white border-2 border-red-200 rounded-xl overflow-hidden">
               {urgentNearby.slice(0, 3).map((alert, i) => (
                 <Link
@@ -338,10 +340,11 @@ export default function DashboardPage() {
         {/* Missions I'm Helping */}
         {helpingMissions.length > 0 && (
           <div className="border-t border-slate-200 pt-6">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-1">
               <Heart className="w-5 h-5 text-pink-500" />
-              <h2 className="text-lg font-bold text-slate-900">Missions I'm Helping</h2>
+              <h2 className="text-lg font-bold text-slate-900">Helping Find</h2>
             </div>
+            <p className="text-xs text-slate-500 mb-3 ml-7">Other people&apos;s pets you&apos;re searching for</p>
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
               {helpingMissions.slice(0, 3).map((mission, i) => (
                 <Link
