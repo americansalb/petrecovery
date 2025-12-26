@@ -696,13 +696,13 @@ function MissionControlContent() {
       {notification && (
         <div className={`
           fixed top-20 left-4 right-4 lg:left-auto lg:right-6 lg:w-96 z-[600]
-          p-4 rounded-xl border shadow-lg
+          p-4 rounded-xl border shadow-xl backdrop-blur-sm
           animate-in slide-in-from-top-4 fade-in duration-300
           ${notification.type === 'success'
-            ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
+            ? 'bg-slate-900/95 border-emerald-500/50 text-emerald-400'
             : notification.type === 'error'
-            ? 'bg-red-500/20 border-red-500/30 text-red-400'
-            : 'bg-slate-800 border-slate-700 text-slate-300'
+            ? 'bg-slate-900/95 border-red-500/50 text-red-400'
+            : 'bg-slate-900/95 border-slate-700 text-slate-300'
           }
         `}>
           <p className="font-medium text-sm">{notification.message}</p>
