@@ -184,29 +184,32 @@ export function calculateProbabilityZones({
 
 /**
  * Get zone color for map display
+ * Green = high probability (good place to search)
+ * Red = low probability (less likely to find pet there)
  */
 function getZoneColor(zoneName) {
   const colors = {
-    HIGH: '#ef4444',     // Red - highest probability
-    MEDIUM: '#f97316',   // Orange
-    LOW: '#eab308',      // Yellow
-    EXTENDED: '#6366f1', // Indigo - edge of search
+    HIGH: '#22c55e',     // Green - highest probability (best place to search!)
+    MEDIUM: '#eab308',   // Yellow/amber
+    LOW: '#f97316',      // Orange
+    EXTENDED: '#ef4444', // Red - edge of search (least likely)
   };
   return colors[zoneName] || '#6b7280';
 }
 
 /**
  * Get zone fill opacity for map display
+ * Reduced opacity for better map visibility
  */
 function getZoneFillOpacity(zoneName) {
-  // Visible opacities - clearly shows the zones
+  // Subtle opacities - visible but don't obscure the map
   const opacities = {
-    HIGH: 0.35,      // 35% - clearly visible red
-    MEDIUM: 0.25,    // 25% - visible orange
-    LOW: 0.15,       // 15% - visible yellow
-    EXTENDED: 0.10,  // 10% - visible indigo edge
+    HIGH: 0.18,      // 18% - visible green tint
+    MEDIUM: 0.12,    // 12% - subtle yellow
+    LOW: 0.08,       // 8% - faint orange
+    EXTENDED: 0.05,  // 5% - barely visible edge
   };
-  return opacities[zoneName] || 0.2;
+  return opacities[zoneName] || 0.1;
 }
 
 /**

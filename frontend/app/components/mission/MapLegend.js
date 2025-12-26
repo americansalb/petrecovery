@@ -78,12 +78,6 @@ export default function MapLegend({
             {/* Search path elements - shown when there's a search path */}
             {showSearchPath && (
               <>
-                {/* Search Start marker */}
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full bg-green-500 border-2 border-white shadow-sm" />
-                  <span className="text-slate-200 text-xs font-medium">Search Start</span>
-                </div>
-
                 {/* Your Search Path */}
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-1 rounded bg-blue-500" />

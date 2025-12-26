@@ -358,8 +358,8 @@ function MissionControlContent() {
                 onClick={() => setShowProbabilityZones(!showProbabilityZones)}
                 className={`absolute top-[200px] left-4 z-[500] flex items-center gap-2 px-4 py-3 rounded-xl shadow-xl transition-all border-2 ${
                   showProbabilityZones
-                    ? 'bg-red-500 text-white border-red-400'
-                    : 'bg-emerald-500 text-white border-emerald-400 hover:bg-emerald-400'
+                    ? 'bg-emerald-600 text-white border-emerald-500 hover:bg-emerald-500'
+                    : 'bg-slate-800/95 backdrop-blur text-slate-300 hover:text-white border-slate-600'
                 }`}
               >
                 <Target size={20} />
@@ -594,7 +594,7 @@ function MissionControlContent() {
               onClick={() => setShowProbabilityZones(!showProbabilityZones)}
               className={`absolute bottom-28 left-6 z-[500] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg transition-all ${
                 showProbabilityZones
-                  ? 'bg-red-500 text-white'
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-500'
                   : 'bg-slate-800/95 backdrop-blur text-slate-300 hover:text-white border border-slate-700'
               }`}
             >

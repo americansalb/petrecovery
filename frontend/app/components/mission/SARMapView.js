@@ -41,6 +41,39 @@ function getDistanceMeters(lat1, lng1, lat2, lng2) {
   return R * c;
 }
 
+// Smooth GPS path using weighted moving average to reduce jitter from weak signals
+function smoothPath(pathCoords, windowSize = 3) {
+  if (!pathCoords || pathCoords.length < windowSize) return pathCoords;
+
+  const smoothed = [];
+  const half = Math.floor(windowSize / 2);
+
+  for (let i = 0; i < pathCoords.length; i++) {
+    // For edge points, use smaller window
+    const start = Math.max(0, i - half);
+    const end = Math.min(pathCoords.length - 1, i + half);
+    const windowPoints = pathCoords.slice(start, end + 1);
+
+    // Weighted average - center point has more weight
+    let totalWeight = 0;
+    let sumLat = 0;
+    let sumLng = 0;
+
+    windowPoints.forEach((point, idx) => {
+      // Weight decreases with distance from center
+      const distFromCenter = Math.abs(idx - (i - start));
+      const weight = 1 / (distFromCenter + 1);
+      totalWeight += weight;
+      sumLat += point[0] * weight;
+      sumLng += point[1] * weight;
+    });
+
+    smoothed.push([sumLat / totalWeight, sumLng / totalWeight]);
+  }
+
+  return smoothed;
+}
+
 // Split path into segments, breaking at GPS jumps
 function splitPathAtJumps(pathCoords, maxGapMeters = MAX_POINT_GAP_METERS) {
   if (!pathCoords || pathCoords.length < 2) return [pathCoords];
@@ -56,7 +89,8 @@ function splitPathAtJumps(pathCoords, maxGapMeters = MAX_POINT_GAP_METERS) {
     if (dist > maxGapMeters) {
       // GPS jump detected - end current segment, start new one
       if (currentSegment.length > 1) {
-        segments.push(currentSegment);
+        // Apply smoothing before adding segment
+        segments.push(smoothPath(currentSegment));
       }
       currentSegment = [curr];
     } else {
@@ -64,9 +98,9 @@ function splitPathAtJumps(pathCoords, maxGapMeters = MAX_POINT_GAP_METERS) {
     }
   }
 
-  // Add final segment
+  // Add final segment with smoothing
   if (currentSegment.length > 1) {
-    segments.push(currentSegment);
+    segments.push(smoothPath(currentSegment));
   }
 
   return segments;
@@ -520,26 +554,7 @@ export default function SARMapView({
         gpsLayersRef.current.push(polyline);
       });
 
-      // Add start marker (green) - at first point
-      const startIcon = L.divIcon({
-        className: 'gps-start-marker',
-        html: `
-          <div style="
-            width: 20px;
-            height: 20px;
-            background: #22c55e;
-            border: 3px solid white;
-            border-radius: 50%;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-          "></div>
-        `,
-        iconSize: [20, 20],
-        iconAnchor: [10, 10]
-      });
-      const startMarker = L.marker(pathCoords[0], { icon: startIcon })
-        .bindPopup(`<b style="color:#22c55e">Search Start</b><br><small>${new Date(startTime).toLocaleTimeString()}</small>`)
-        .addTo(mapInstance.current);
-      gpsLayersRef.current.push(startMarker);
+      // Note: Removed start marker as requested - the path itself shows where search started
 
       // Note: We don't fitBounds here to avoid constant zooming during active tracking
     }
@@ -615,13 +630,12 @@ export default function SARMapView({
         });
         coverageLayersRef.current.push(coverageCorridor);
 
-        // Draw trail line on top
+        // Draw trail line on top - all solid lines for consistency
         const trailLine = L.polyline(segmentCoords, {
           color: lineColor,
           weight: 3,
           opacity: lineOpacity,
           smoothFactor: 1,
-          dashArray: trail.isActive ? null : '5, 5',
         }).addTo(mapInstance.current);
         trailLine.bringToFront();
         coverageLayersRef.current.push(trailLine);
