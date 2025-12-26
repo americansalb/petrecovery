@@ -8,13 +8,18 @@
 
 import { Clock, Navigation, Star, Square, Loader2 } from 'lucide-react';
 
+const MIN_MINUTES = 5;
+const MIN_MILES = 0.1;
+
 export default function LiveSearchOverlay({
   formattedDuration = '0:00',
+  durationSeconds = 0,
   distanceMiles = 0,
   estimatedPoints = 0,
   isEnding = false,
   onEndSearch,
 }) {
+  const meetsMinimum = (durationSeconds / 60) >= MIN_MINUTES && distanceMiles >= MIN_MILES;
   const handleEnd = () => {
     if (!isEnding && onEndSearch) {
       onEndSearch();
@@ -91,10 +96,20 @@ export default function LiveSearchOverlay({
           )}
         </button>
 
-        {/* Status indicator */}
-        <div className="flex items-center justify-center gap-2 mt-3">
-          <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-          <span className="text-xs text-slate-400">GPS tracking active</span>
+        {/* Status and requirements */}
+        <div className="mt-3 space-y-1">
+          <div className="flex items-center justify-center gap-2">
+            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+            <span className="text-xs text-slate-400">GPS tracking active</span>
+          </div>
+          {!meetsMinimum && (
+            <div className="text-center text-xs text-amber-400">
+              Minimum: {MIN_MINUTES} min + {MIN_MILES} mi to earn points
+            </div>
+          )}
+          <div className="text-center text-xs text-slate-500">
+            Keep screen on while searching
+          </div>
         </div>
       </div>
     </div>

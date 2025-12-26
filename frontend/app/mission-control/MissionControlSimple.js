@@ -373,6 +373,7 @@ function MissionControlContent() {
             {isSearching ? (
               <LiveSearchOverlay
                 formattedDuration={formattedDuration}
+                durationSeconds={stats.durationSeconds}
                 distanceMiles={stats.validatedDistanceMiles}
                 estimatedPoints={stats.estimatedPoints}
                 isEnding={isEnding}
@@ -608,6 +609,7 @@ function MissionControlContent() {
           {isSearching ? (
             <LiveSearchOverlay
               formattedDuration={formattedDuration}
+              durationSeconds={stats.durationSeconds}
               distanceMiles={stats.validatedDistanceMiles}
               estimatedPoints={stats.estimatedPoints}
               isEnding={isEnding}

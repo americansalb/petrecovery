@@ -68,6 +68,7 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
   const currentMissionRef = useRef(missionId);
   const isSearchingRef = useRef(false);
   const sessionIdRef = useRef(null);
+  const sessionStartedAtRef = useRef(null); // Track when session started for accurate duration
 
   // Keep refs in sync with state - still needed for async callbacks
   useEffect(() => {
@@ -110,15 +111,15 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
             // Resume existing session - set refs FIRST
             sessionIdRef.current = data.activeSession.id;
             isSearchingRef.current = true;
+            sessionStartedAtRef.current = new Date(data.activeSession.startedAt).getTime();
 
             setSessionId(data.activeSession.id);
             setIsSearching(true);
-            const elapsed = Math.floor(
-              (Date.now() - new Date(data.activeSession.startedAt).getTime()) / 1000
-            );
+
+            // Use server's distance values (they're accumulated on server)
             setStats(prev => ({
               ...prev,
-              durationSeconds: elapsed,
+              durationSeconds: Math.floor((Date.now() - sessionStartedAtRef.current) / 1000),
               validatedDistanceMiles: data.activeSession.validatedDistanceMiles || 0,
               totalDistanceMiles: data.activeSession.totalDistanceMiles || 0,
               gridCellsCovered: data.activeSession.gridCellsCovered || 0,
@@ -135,13 +136,16 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
     checkSession();
   }, [missionId]);
 
-  // Duration timer
+  // Duration timer - calculates from session start time (works even after backgrounding)
   useEffect(() => {
-    if (isSearching) {
+    if (isSearching && sessionStartedAtRef.current) {
       timerRef.current = setInterval(() => {
+        // Calculate from actual start time, not incremental
+        // This ensures accurate time even if app was backgrounded
+        const elapsed = Math.floor((Date.now() - sessionStartedAtRef.current) / 1000);
         setStats(prev => ({
           ...prev,
-          durationSeconds: prev.durationSeconds + 1,
+          durationSeconds: elapsed,
         }));
       }, 1000);
     } else {
@@ -377,8 +381,10 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
       console.log('[useSearchSession] Start API response:', data);
 
       // Set refs FIRST - ensures callbacks see correct values immediately
+      const startTime = Date.now();
       sessionIdRef.current = data.sessionId;
       isSearchingRef.current = true;
+      sessionStartedAtRef.current = startTime;
       console.log('[useSearchSession] Set refs, sessionId:', data.sessionId);
 
       // Set state
@@ -393,8 +399,8 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
         gridCellsCovered: 0, // Start at 0 - earn by moving
         zoneMultiplier: 1.0,
       });
-      setPath([{ lat: latitude, lng: longitude, valid: true, timestamp: Date.now() }]);
-      lastPingRef.current = { lat: latitude, lng: longitude, timestamp: Date.now() };
+      setPath([{ lat: latitude, lng: longitude, valid: true, timestamp: startTime }]);
+      lastPingRef.current = { lat: latitude, lng: longitude, timestamp: startTime };
 
       return { success: true, sessionId: data.sessionId };
     } catch (err) {
@@ -424,6 +430,7 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
     const currentSessionId = sessionIdRef.current;
     isSearchingRef.current = false;
     sessionIdRef.current = null;
+    sessionStartedAtRef.current = null;
     console.log('[useSearchSession] Cleared refs, currentSessionId:', currentSessionId);
 
     // Unsubscribe from GPS service
@@ -482,6 +489,7 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
     const currentSessionId = sessionIdRef.current;
     isSearchingRef.current = false;
     sessionIdRef.current = null;
+    sessionStartedAtRef.current = null;
 
     // Unsubscribe from GPS service
     if (gpsUnsubscribeRef.current) {

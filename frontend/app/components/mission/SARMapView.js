@@ -26,6 +26,52 @@ const PET_SPEEDS = {
 // Vision radius for coverage (14 meters = ~45 feet)
 const VISION_RADIUS_METERS = 14;
 
+// Max distance between consecutive points before we consider it a GPS jump (meters)
+const MAX_POINT_GAP_METERS = 100; // ~330 feet - if gap is bigger, don't draw a line
+
+// Helper to calculate distance between two points (meters)
+function getDistanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000; // Earth's radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Split path into segments, breaking at GPS jumps
+function splitPathAtJumps(pathCoords, maxGapMeters = MAX_POINT_GAP_METERS) {
+  if (!pathCoords || pathCoords.length < 2) return [pathCoords];
+
+  const segments = [];
+  let currentSegment = [pathCoords[0]];
+
+  for (let i = 1; i < pathCoords.length; i++) {
+    const prev = pathCoords[i - 1];
+    const curr = pathCoords[i];
+    const dist = getDistanceMeters(prev[0], prev[1], curr[0], curr[1]);
+
+    if (dist > maxGapMeters) {
+      // GPS jump detected - end current segment, start new one
+      if (currentSegment.length > 1) {
+        segments.push(currentSegment);
+      }
+      currentSegment = [curr];
+    } else {
+      currentSegment.push(curr);
+    }
+  }
+
+  // Add final segment
+  if (currentSegment.length > 1) {
+    segments.push(currentSegment);
+  }
+
+  return segments;
+}
+
 // Coverage opacity levels based on search count
 const getCoverageOpacity = (searchCount) => {
   if (searchCount <= 0) return 0;
@@ -162,55 +208,42 @@ export default function SARMapView({
     if (userMarkerRef.current) {
       userMarkerRef.current.setLatLng(userLocation);
     } else {
+      // Simpler user marker - just a blue dot with pulse, no label to avoid overlap
       const userIcon = L.divIcon({
         className: 'user-location-marker',
         html: `
-          <div style="display: flex; flex-direction: column; align-items: center;">
-            <div style="position: relative;">
-              <div style="
-                position: absolute;
-                width: 40px;
-                height: 40px;
-                background: rgba(59, 130, 246, 0.3);
-                border-radius: 50%;
-                animation: userPulse 2s ease-out infinite;
-                left: -6px;
-                top: -6px;
-              "></div>
-              <div style="
-                width: 28px;
-                height: 28px;
-                background: #3b82f6;
-                border: 4px solid white;
-                border-radius: 50%;
-                box-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
-                position: relative;
-                z-index: 1;
-              "></div>
-            </div>
+          <div style="position: relative; display: flex; align-items: center; justify-content: center;">
             <div style="
-              margin-top: 4px;
-              padding: 2px 8px;
-              background: rgba(59, 130, 246, 0.9);
-              border-radius: 4px;
-              font-size: 10px;
-              font-weight: 600;
-              color: white;
-              white-space: nowrap;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            ">You</div>
+              position: absolute;
+              width: 36px;
+              height: 36px;
+              background: rgba(59, 130, 246, 0.25);
+              border-radius: 50%;
+              animation: userPulse 2s ease-out infinite;
+            "></div>
+            <div style="
+              width: 18px;
+              height: 18px;
+              background: #3b82f6;
+              border: 3px solid white;
+              border-radius: 50%;
+              box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+              position: relative;
+              z-index: 1;
+            "></div>
           </div>
           <style>
             @keyframes userPulse {
               0% { transform: scale(1); opacity: 0.8; }
-              100% { transform: scale(2.5); opacity: 0; }
+              100% { transform: scale(2); opacity: 0; }
             }
           </style>
         `,
-        iconSize: [80, 50],
-        iconAnchor: [40, 14]
+        iconSize: [36, 36],
+        iconAnchor: [18, 18]
       });
       userMarkerRef.current = L.marker(userLocation, { icon: userIcon, zIndexOffset: 1000 })
+        .bindPopup('<b>You</b>')
         .addTo(mapInstance.current);
     }
   }, [userLocation]);
@@ -270,7 +303,7 @@ export default function SARMapView({
     markersRef.current = [];
     circlesRef.current = [];
 
-    // Add last seen marker with label
+    // Add last seen marker - compact, no overlapping labels
     if (lastSeen) {
       // Determine if this is a sighting or original last seen
       const isLatestSighting = lastSeen.isLatestSighting;
@@ -278,47 +311,29 @@ export default function SARMapView({
       const emoji = isLatestSighting ? '👁' : '📍';
       const labelText = isLatestSighting ? 'Latest Sighting' : 'Last Seen';
 
+      // Compact marker without permanent label (tap to see popup)
       const lastSeenIcon = L.divIcon({
         className: 'last-seen-marker',
         html: `
-          <div style="display: flex; flex-direction: column; align-items: center;">
-            <div style="
-              width: 36px;
-              height: 36px;
-              background: linear-gradient(135deg, ${markerColor}, ${markerColor}dd);
-              border: 3px solid white;
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              box-shadow: 0 0 20px ${markerColor}80;
-              font-size: 18px;
-            ">${emoji}</div>
-            <div style="
-              margin-top: 4px;
-              padding: 2px 8px;
-              background: rgba(15, 23, 42, 0.9);
-              border-radius: 4px;
-              font-size: 10px;
-              font-weight: 600;
-              color: white;
-              white-space: nowrap;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            ">${labelText}</div>
-          </div>
+          <div style="
+            width: 32px;
+            height: 32px;
+            background: ${markerColor};
+            border: 3px solid white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px ${markerColor}80;
+            font-size: 16px;
+          ">${emoji}</div>
         `,
-        iconSize: [80, 60],
-        iconAnchor: [40, 20]
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
       });
 
       const lastSeenMarker = L.marker([lastSeen.lat, lastSeen.lng], { icon: lastSeenIcon })
-        .bindPopup(`
-          <div style="text-align: center; min-width: 150px;">
-            <strong style="color: ${markerColor};">${labelText}</strong>
-            <br/>
-            <span style="font-size: 12px; color: #666;">${lastSeen.address || 'Unknown address'}</span>
-          </div>
-        `)
+        .bindPopup(`<b style="color:${markerColor}">${labelText}</b><br><small>${lastSeen.address || ''}</small>`)
         .addTo(mapInstance.current);
       markersRef.current.push(lastSeenMarker);
 
@@ -455,110 +470,78 @@ export default function SARMapView({
       // Convert GPS path to leaflet format
       const pathCoords = gpsPath.map(point => [point.lat, point.lng]);
 
+      // Split path into segments at GPS jumps to avoid drawing lines across the map
+      const segments = splitPathAtJumps(pathCoords);
+
       // Calculate search duration
       const startTime = gpsPath[0].timestamp;
       const endTime = gpsPath[gpsPath.length - 1].timestamp;
       const durationMinutes = Math.round((endTime - startTime) / 60000);
 
-      // Draw semi-transparent polygon corridor showing search area covered
-      const searchCorridor = L.polyline(pathCoords, {
-        color: '#a855f7', // Purple
-        weight: 40, // Wide corridor to show search area
-        opacity: 0.25,
-        smoothFactor: 1,
-        lineJoin: 'round',
-        lineCap: 'round'
-      }).addTo(mapInstance.current);
-      searchCorridor.bringToFront(); // Above probability zones
+      // Draw each segment separately
+      segments.forEach((segmentCoords, idx) => {
+        if (segmentCoords.length < 2) return;
 
-      // Add click handler to show details
-      searchCorridor.on('click', () => {
-        L.popup()
-          .setLatLng(pathCoords[Math.floor(pathCoords.length / 2)])
-          .setContent(`
-            <div style="min-width: 200px;">
-              <b style="color:#a855f7">Your Search</b><br>
-              <span style="font-size:13px">${durationMinutes} min</span>
-            </div>
-          `)
-          .openOn(mapInstance.current);
+        // Draw semi-transparent corridor showing search area covered
+        const searchCorridor = L.polyline(segmentCoords, {
+          color: '#a855f7', // Purple
+          weight: 40, // Wide corridor to show search area
+          opacity: 0.25,
+          smoothFactor: 1,
+          lineJoin: 'round',
+          lineCap: 'round'
+        }).addTo(mapInstance.current);
+        searchCorridor.bringToFront();
+
+        // Add click handler to show details (only on first segment)
+        if (idx === 0) {
+          searchCorridor.on('click', () => {
+            L.popup()
+              .setLatLng(segmentCoords[Math.floor(segmentCoords.length / 2)])
+              .setContent(`
+                <div style="min-width: 200px;">
+                  <b style="color:#a855f7">Your Search</b><br>
+                  <span style="font-size:13px">${durationMinutes} min</span>
+                </div>
+              `)
+              .openOn(mapInstance.current);
+          });
+        }
+        gpsLayersRef.current.push(searchCorridor);
+
+        // Draw center line showing exact path walked
+        const polyline = L.polyline(segmentCoords, {
+          color: '#a855f7', // Purple
+          weight: 3,
+          opacity: 0.9,
+          smoothFactor: 1
+        }).addTo(mapInstance.current);
+        polyline.bringToFront();
+        gpsLayersRef.current.push(polyline);
       });
-      gpsLayersRef.current.push(searchCorridor);
 
-      // Draw center line showing exact path walked
-      const polyline = L.polyline(pathCoords, {
-        color: '#a855f7', // Purple
-        weight: 3,
-        opacity: 0.9,
-        smoothFactor: 1
-      }).addTo(mapInstance.current);
-      polyline.bringToFront(); // Above probability zones
-      gpsLayersRef.current.push(polyline);
-
-      // Add start marker (green)
+      // Add start marker (green) - at first point
       const startIcon = L.divIcon({
         className: 'gps-start-marker',
         html: `
           <div style="
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             background: #22c55e;
             border: 3px solid white;
             border-radius: 50%;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
           "></div>
         `,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
       });
       const startMarker = L.marker(pathCoords[0], { icon: startIcon })
-        .bindPopup(`
-          <div style="min-width: 150px;">
-            <strong style="color: #22c55e;">Search Started</strong>
-            <br/>
-            <span style="font-size: 11px; color: #666;">
-              ${new Date(startTime).toLocaleTimeString()}
-            </span>
-          </div>
-        `)
+        .bindPopup(`<b style="color:#22c55e">Search Start</b><br><small>${new Date(startTime).toLocaleTimeString()}</small>`)
         .addTo(mapInstance.current);
       gpsLayersRef.current.push(startMarker);
 
-      // Add end marker (orange)
-      const endIcon = L.divIcon({
-        className: 'gps-end-marker',
-        html: `
-          <div style="
-            width: 24px;
-            height: 24px;
-            background: #f97316;
-            border: 3px solid white;
-            border-radius: 50%;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-          "></div>
-        `,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
-      });
-      const endMarker = L.marker(pathCoords[pathCoords.length - 1], { icon: endIcon })
-        .bindPopup(`
-          <div style="min-width: 150px;">
-            <strong style="color: #f97316;">Search Ended</strong>
-            <br/>
-            <span style="font-size: 11px; color: #666;">
-              ${new Date(endTime).toLocaleTimeString()}
-            </span>
-            <br/>
-            <span style="font-size: 11px; color: #666;">
-              Duration: ${durationMinutes} min
-            </span>
-          </div>
-        `)
-        .addTo(mapInstance.current);
-      gpsLayersRef.current.push(endMarker);
-
       // Note: We don't fitBounds here to avoid constant zooming during active tracking
-      // Users can manually pan/zoom. The map stays centered on last seen location.
     }
 
     // Note: We removed the individual coverage circles (heatmap) as they were visually cluttered.
@@ -586,64 +569,63 @@ export default function SARMapView({
       const hoursAgo = trail.hoursAgo || 0;
       const isCurrentUser = trail.isCurrentUser || false;
 
+      // Split path into segments at GPS jumps
+      const segments = splitPathAtJumps(pathCoords);
+
       // SAME decay for everyone - the point is to show areas need searching again
       const baseOpacity = getCoverageOpacity(1);
       const decayedOpacity = getDecayedOpacity(baseOpacity, hoursAgo);
 
       // Current user's paths are BLUE, others keep their team color
-      // But ALL paths fade the same way
       const corridorColor = isCurrentUser ? '#3b82f6' : '#a855f7';
-
-      const coverageCorridor = L.polyline(pathCoords, {
-        color: corridorColor,
-        weight: VISION_RADIUS_METERS * 2,
-        opacity: decayedOpacity,
-        smoothFactor: 1,
-        lineJoin: 'round',
-        lineCap: 'round',
-      }).addTo(mapInstance.current);
-
-      // Ensure coverage renders ABOVE probability zones
-      coverageCorridor.bringToFront();
-
-      // Add click handler for popup
-      coverageCorridor.on('click', (e) => {
-        const searchDate = trail.endedAt
-          ? new Date(trail.endedAt).toLocaleDateString()
-          : new Date(trail.startedAt).toLocaleDateString();
-        const searchTime = trail.endedAt
-          ? new Date(trail.endedAt).toLocaleTimeString()
-          : new Date(trail.startedAt).toLocaleTimeString();
-        const displayName = isCurrentUser ? 'Your Search' : trail.userName;
-        const displayColor = isCurrentUser ? '#3b82f6' : trail.color;
-
-        L.popup()
-          .setLatLng(e.latlng)
-          .setContent(`
-            <div>
-              <b style="color:${displayColor}">${displayName}</b>
-              ${trail.isActive ? '<span style="color:#22c55e;margin-left:6px">● Live</span>' : `<br><small style="color:#666">${searchDate}</small>`}
-            </div>
-          `)
-          .openOn(mapInstance.current);
-      });
-      coverageLayersRef.current.push(coverageCorridor);
-
-      // Draw individual colored trail line on top
-      // Current user = blue, others = their assigned team color
-      // All lines fade the same way based on time
       const lineColor = isCurrentUser ? '#3b82f6' : trail.color;
-      const lineOpacity = trail.isActive ? 0.9 : Math.max(decayedOpacity * 4, 0.3); // Line is more visible than corridor
+      const lineOpacity = trail.isActive ? 0.9 : Math.max(decayedOpacity * 4, 0.3);
 
-      const trailLine = L.polyline(pathCoords, {
-        color: lineColor,
-        weight: 3,
-        opacity: lineOpacity,
-        smoothFactor: 1,
-        dashArray: trail.isActive ? null : '5, 5', // Dashed for historical
-      }).addTo(mapInstance.current);
-      trailLine.bringToFront(); // Above probability zones
-      coverageLayersRef.current.push(trailLine);
+      // Draw each segment separately
+      segments.forEach(segmentCoords => {
+        if (segmentCoords.length < 2) return;
+
+        const coverageCorridor = L.polyline(segmentCoords, {
+          color: corridorColor,
+          weight: VISION_RADIUS_METERS * 2,
+          opacity: decayedOpacity,
+          smoothFactor: 1,
+          lineJoin: 'round',
+          lineCap: 'round',
+        }).addTo(mapInstance.current);
+        coverageCorridor.bringToFront();
+
+        // Add click handler for popup
+        coverageCorridor.on('click', (e) => {
+          const searchDate = trail.endedAt
+            ? new Date(trail.endedAt).toLocaleDateString()
+            : new Date(trail.startedAt).toLocaleDateString();
+          const displayName = isCurrentUser ? 'Your Search' : trail.userName;
+          const displayColor = isCurrentUser ? '#3b82f6' : trail.color;
+
+          L.popup()
+            .setLatLng(e.latlng)
+            .setContent(`
+              <div>
+                <b style="color:${displayColor}">${displayName}</b>
+                ${trail.isActive ? '<span style="color:#22c55e;margin-left:6px">● Live</span>' : `<br><small style="color:#666">${searchDate}</small>`}
+              </div>
+            `)
+            .openOn(mapInstance.current);
+        });
+        coverageLayersRef.current.push(coverageCorridor);
+
+        // Draw trail line on top
+        const trailLine = L.polyline(segmentCoords, {
+          color: lineColor,
+          weight: 3,
+          opacity: lineOpacity,
+          smoothFactor: 1,
+          dashArray: trail.isActive ? null : '5, 5',
+        }).addTo(mapInstance.current);
+        trailLine.bringToFront();
+        coverageLayersRef.current.push(trailLine);
+      });
 
       // Add pulsing dot for active searchers
       if (trail.isActive && pathCoords.length > 0) {
