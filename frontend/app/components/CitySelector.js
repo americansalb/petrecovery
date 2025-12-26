@@ -90,7 +90,7 @@ export default function CitySelector({ value, onChange, state }) {
           color: '#ef4444',
           marginTop: '0.5rem',
         }}>
-          Please enter a valid US city name
+          City not found. Try &quot;St.&quot; as &quot;Saint&quot; or check spelling.
         </p>
       )}
 
@@ -183,7 +183,7 @@ export default function CitySelector({ value, onChange, state }) {
         color: theme.colors.gray[500],
         marginTop: '0.5rem',
       }}>
-        Type at least 2 characters to see suggestions
+        Type at least 3 characters (US, Mexico, Canada supported)
       </p>
     </div>
   );
