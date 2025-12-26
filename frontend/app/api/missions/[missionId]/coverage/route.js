@@ -5,7 +5,7 @@
  * Returns all historical search paths for map visualization
  *
  * Response includes:
- * - All completed search sessions with GPS paths
+ * - ALL search sessions with GPS paths (regardless of how they ended)
  * - User info for color assignment
  * - Timestamps for time decay calculation
  */
@@ -33,24 +33,27 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
-    // Fetch all completed search sessions with their paths
-    // Only include sessions with actual GPS data
+    // Fetch ALL search sessions that have GPS data - not just "COMPLETED"
+    // Include sessions that were force-ended, timed out, or abandoned
+    // The important thing is they have location pings
     const searchSessions = await prisma.searchSession.findMany({
       where: {
         missionId,
-        status: 'COMPLETED',
+        status: { not: 'ACTIVE' }, // Any non-active session (COMPLETED, etc.)
         isVerified: true, // Only GPS-verified sessions
+        locationPings: {
+          some: {}, // Must have at least one ping
+        },
       },
       select: {
         id: true,
         userId: true,
         startedAt: true,
         endedAt: true,
+        endReason: true,
         validatedDistanceMiles: true,
         locationPings: {
-          where: {
-            isValid: true, // Only valid pings
-          },
+          // Include ALL pings, not just "valid" ones - let the map show where they walked
           select: {
             latitude: true,
             longitude: true,
@@ -85,7 +88,6 @@ export async function GET(request, { params }) {
           orderBy: {
             createdAt: 'asc',
           },
-          take: 100, // Limit for performance
         },
       },
     });
