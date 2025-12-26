@@ -189,6 +189,41 @@ function calculateZoneMultiplier(pings, lastSeenLat, lastSeenLng, baseRadius) {
 }
 
 /**
+ * Calculate total distance from all location pings
+ * This gives accurate distance even if accumulated values were missed
+ */
+function calculateDistanceFromPings(pings) {
+  if (!pings || pings.length < 2) {
+    return { total: 0, validated: 0 };
+  }
+
+  let totalDistance = 0;
+  let validatedDistance = 0;
+
+  for (let i = 1; i < pings.length; i++) {
+    const prev = pings[i - 1];
+    const curr = pings[i];
+
+    const dist = calculateDistance(
+      prev.latitude, prev.longitude,
+      curr.latitude, curr.longitude
+    );
+
+    // Skip obvious GPS glitches (jumps > 0.5 miles between pings)
+    if (dist > 0.5) continue;
+
+    totalDistance += dist;
+
+    // Only count validated distance if both points are valid
+    if (prev.isValid && curr.isValid) {
+      validatedDistance += dist;
+    }
+  }
+
+  return { total: totalDistance, validated: validatedDistance };
+}
+
+/**
  * Auto-cleanup old sessions for a user/mission
  * Returns number of sessions cleaned
  */
@@ -444,7 +479,8 @@ async function handleEnd(userId, missionId, body) {
       lastSeenLat: true,
       lastSeenLng: true,
       locationPings: {
-        select: { latitude: true, longitude: true, isValid: true },
+        select: { latitude: true, longitude: true, isValid: true, createdAt: true },
+        orderBy: { createdAt: 'asc' }, // Order by time to calculate distance correctly
       },
       mission: {
         select: {
@@ -466,13 +502,28 @@ async function handleEnd(userId, missionId, body) {
     return NextResponse.json({ success: true, message: 'Session already ended' });
   }
 
-  // Calculate stats
+  // Calculate stats - RECALCULATE distance from pings for accuracy
+  // This ensures we get correct distance even if some pings were missed during accumulation
   const durationMinutes = Math.round((Date.now() - new Date(session.startedAt).getTime()) / 60000);
+  const recalculatedDistance = calculateDistanceFromPings(session.locationPings);
+
+  // Use the GREATER of accumulated or recalculated distance
+  // (in case recalculation missed some valid segments due to glitch filtering)
+  const finalValidatedDistance = Math.max(
+    session.validatedDistanceMiles || 0,
+    recalculatedDistance.validated
+  );
+  const finalTotalDistance = Math.max(
+    session.totalDistanceMiles || 0,
+    recalculatedDistance.total
+  );
+
+  console.log(`[Search] Distance calculation: accumulated=${session.validatedDistanceMiles?.toFixed(3)}, recalculated=${recalculatedDistance.validated.toFixed(3)}, final=${finalValidatedDistance.toFixed(3)}, pings=${session.locationPings.length}`);
 
   const stats = {
     durationMinutes,
-    totalDistanceMiles: session.totalDistanceMiles || 0,
-    validatedDistanceMiles: session.validatedDistanceMiles || 0,
+    totalDistanceMiles: finalTotalDistance,
+    validatedDistanceMiles: finalValidatedDistance,
     gridCellsCovered: session.gridCellsCovered || 0,
   };
 
