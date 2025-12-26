@@ -4807,3 +4807,41 @@ model UserBadge {
   @@index([userId])
   @@index([badgeId])
 }
+
+// ============================================================================
+// CITY REQUESTS - User-submitted missing cities
+// ============================================================================
+
+model CityRequest {
+  id              String   @id @default(cuid())
+
+  cityName        String   // What user typed
+  userIp          String?  // For rate limiting
+  userId          String?  // If logged in
+
+  // Admin review
+  status          CityRequestStatus @default(PENDING)
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  reviewNotes     String?
+
+  // Resolution
+  addedToDatabase Boolean  @default(false)
+  resolvedCityName String? // Actual city name if found/added
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([cityName])
+  @@index([createdAt])
+}
+
+enum CityRequestStatus {
+  PENDING
+  REVIEWING
+  ADDED
+  ALREADY_EXISTS
+  INVALID
+  DUPLICATE
+}
