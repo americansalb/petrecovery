@@ -3,8 +3,11 @@ import { Inter } from 'next/font/google';
 import SessionProvider from './components/SessionProvider';
 import { ModeProvider } from './contexts/ModeContext';
 import Navigation from './components/Navigation';
+import GlobalBottomNav from './components/GlobalBottomNav';
 import ErrorBoundary from './components/ErrorBoundary';
 import OfflineBanner from '@/components/OfflineBanner';
+import PushNotificationProvider from './components/PushNotificationProvider';
+import { GPSProvider } from './lib/gpsService';
 
 // Load Inter font with optimal settings
 const inter = Inter({
@@ -36,11 +39,18 @@ export default function RootLayout({ children }) {
       <body className="m-0 p-0 font-sans antialiased bg-midnight-50 text-midnight-900">
         <SessionProvider>
           <ModeProvider>
-            <ErrorBoundary>
-              <OfflineBanner />
-              <Navigation />
-              {children}
-            </ErrorBoundary>
+            <PushNotificationProvider>
+              <GPSProvider>
+                <ErrorBoundary>
+                  <OfflineBanner />
+                  <Navigation />
+                  <main className="pb-16 lg:pb-0">
+                    {children}
+                  </main>
+                  <GlobalBottomNav />
+                </ErrorBoundary>
+              </GPSProvider>
+            </PushNotificationProvider>
           </ModeProvider>
         </SessionProvider>
       </body>

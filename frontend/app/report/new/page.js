@@ -13,7 +13,7 @@ import {
   Dog, Cat, Bird, Rabbit, MapPin, Clock,
   Camera, Check, ChevronLeft, ChevronRight,
   AlertTriangle, Loader2, X, Navigation, ExternalLink,
-  Sparkles, Heart, Mail, User, Search
+  Sparkles, Heart, Mail, User, Search, Home, Trees
 } from 'lucide-react';
 import ColorSelector from '../../components/ColorSelector';
 
@@ -22,6 +22,20 @@ const PET_TYPES = [
   { type: 'cat', label: 'Cat', icon: Cat, emoji: '🐈' },
   { type: 'bird', label: 'Bird', icon: Bird, emoji: '🦜' },
   { type: 'other', label: 'Other', icon: Rabbit, emoji: '🐰' },
+];
+
+// Size options - different for dogs vs cats
+const DOG_SIZE_OPTIONS = [
+  { value: 'TINY', label: 'Tiny', sublabel: 'Under 10 lbs', example: 'Chihuahua, Yorkie' },
+  { value: 'SMALL', label: 'Small', sublabel: '10-25 lbs', example: 'Beagle, Pug' },
+  { value: 'MEDIUM', label: 'Medium', sublabel: '25-60 lbs', example: 'Border Collie, Bulldog' },
+  { value: 'LARGE', label: 'Large', sublabel: '60-90 lbs', example: 'Lab, Golden Retriever' },
+  { value: 'GIANT', label: 'Giant', sublabel: 'Over 90 lbs', example: 'Great Dane, Mastiff' },
+];
+
+const CAT_LIVING_OPTIONS = [
+  { value: 'indoor', label: 'Indoor Only', sublabel: 'Never goes outside', icon: Home },
+  { value: 'outdoor', label: 'Goes Outside', sublabel: 'Has outdoor access', icon: Trees },
 ];
 
 const TIME_OPTIONS = [
@@ -56,6 +70,8 @@ export default function ReportLostPet() {
   const [selectedPet, setSelectedPet] = useState(null);
   const [petType, setPetType] = useState('');
   const [petName, setPetName] = useState('');
+  const [petSize, setPetSize] = useState(''); // For dogs: TINY, SMALL, MEDIUM, LARGE, GIANT
+  const [isIndoorCat, setIsIndoorCat] = useState(null); // For cats: true = indoor only, false = goes outside
   const [timeElapsed, setTimeElapsed] = useState('');
   const [color, setColor] = useState('');
   const [photos, setPhotos] = useState([]);
@@ -301,17 +317,27 @@ export default function ReportLostPet() {
   const handleSelectPet = (pet) => {
     setSelectedPet(pet);
     const typeMap = { 'DOG': 'dog', 'CAT': 'cat', 'BIRD': 'bird' };
-    setPetType(typeMap[pet.species] || 'other');
+    const species = typeMap[pet.species] || 'other';
+    setPetType(species);
     setPetName(pet.name);
     setColor(pet.color || '');
     if (pet.primaryPhotoUrl) setPhotos([pet.primaryPhotoUrl]);
-    setStep(4); // Skip name step since we have it
+    // Set size/indoor from existing pet data if available
+    if (species === 'dog' && pet.size) {
+      setPetSize(pet.size);
+    }
+    if (species === 'cat' && pet.isIndoor !== undefined && pet.isIndoor !== null) {
+      setIsIndoorCat(pet.isIndoor);
+    }
+    setStep(5); // Skip name and pet details steps since we have that info
   };
 
   const handleSelectPetType = (type) => {
     setSelectedPet(null);
     setPetType(type);
     setPetName('');
+    setPetSize('');
+    setIsIndoorCat(null);
     setColor('');
     setPhotos([]);
     setStep(3); // Go to name step
@@ -374,6 +400,8 @@ export default function ReportLostPet() {
           radiusMiles: 0.1,
           timeElapsed,
           petType: petType.toUpperCase(),
+          petSize: petType === 'dog' ? petSize : undefined,
+          isIndoorCat: petType === 'cat' ? isIndoorCat : undefined,
           photos,
           locationType: 'address',
           cityName,
@@ -385,7 +413,7 @@ export default function ReportLostPet() {
       if (!response.ok) throw new Error(data.error || 'Failed to create report');
 
       setReportResult(data);
-      setStep(8); // Success step
+      setStep(9); // Success step
     } catch (err) {
       setError(err.message);
     } finally {
@@ -401,28 +429,40 @@ export default function ReportLostPet() {
       case 1: return !!center;
       case 2: return !!petType;
       case 3: return !!petName.trim();
-      case 4: return !!timeElapsed;
-      case 5: return !!color;
-      case 6: return true; // Photo is optional
-      case 7: return true;
+      case 4: // Pet details - size for dogs, indoor/outdoor for cats
+        if (petType === 'dog') return !!petSize;
+        if (petType === 'cat') return isIndoorCat !== null;
+        return true; // Birds/other skip this step
+      case 5: return !!timeElapsed;
+      case 6: return !!color;
+      case 7: return true; // Photo is optional
+      case 8: return true;
       default: return false;
     }
   };
 
-  const totalSteps = isLoggedIn ? 7 : 8;
+  const totalSteps = isLoggedIn ? 8 : 9;
   const displayStep = isLoggedIn ? step : step + 1;
 
   const nextStep = () => {
-    if (canProceed() && step < 7) setStep(step + 1);
-    if (step === 7) handleSubmit();
+    // For birds/other, skip the pet details step (step 4)
+    if (step === 3 && petType !== 'dog' && petType !== 'cat') {
+      setStep(5); // Skip to "when" step
+      return;
+    }
+    if (canProceed() && step < 8) setStep(step + 1);
+    if (step === 8) handleSubmit();
   };
 
   const prevStep = () => {
     const minStep = isLoggedIn ? 1 : 0;
     if (step > minStep) {
       // If we came from selecting existing pet, go back to step 2
-      if (step === 4 && selectedPet) {
+      if (step === 5 && selectedPet) {
         setStep(2);
+      // For birds/other, skip back over the pet details step
+      } else if (step === 5 && petType !== 'dog' && petType !== 'cat') {
+        setStep(3);
       } else {
         setStep(step - 1);
       }
@@ -444,7 +484,7 @@ export default function ReportLostPet() {
   }
 
   // Success screen
-  if (step === 8 && reportResult) {
+  if (step === 9 && reportResult) {
     return (
       <div className="h-[100dvh] bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-6">
         <div className="text-center max-w-sm">
@@ -475,8 +515,8 @@ export default function ReportLostPet() {
 
   const minStep = isLoggedIn ? 1 : 0;
   const stepLabels = isLoggedIn
-    ? ['Location', 'Pet', 'Name', 'When', 'Color', 'Photo', 'Review']
-    : ['Contact', 'Location', 'Pet', 'Name', 'When', 'Color', 'Photo', 'Review'];
+    ? ['Location', 'Pet', 'Name', 'Details', 'When', 'Color', 'Photo', 'Review']
+    : ['Contact', 'Location', 'Pet', 'Name', 'Details', 'When', 'Color', 'Photo', 'Review'];
 
   return (
     <div className="h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50 flex flex-col overflow-hidden">
@@ -748,8 +788,98 @@ export default function ReportLostPet() {
           </div>
         )}
 
-        {/* Step 4: When */}
+        {/* Step 4: Pet Details (Size for dogs, Indoor/Outdoor for cats) */}
         {step === 4 && (
+          <div className="flex-1 px-6 py-4 overflow-y-auto">
+            {petType === 'dog' && (
+              <>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-200 flex-shrink-0">
+                    <Dog size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-bold text-gray-900">How big is {petName}?</h1>
+                    <p className="text-sm text-gray-500">This helps with search planning</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {DOG_SIZE_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setPetSize(opt.value)}
+                      className={`w-full p-4 rounded-2xl border-2 text-left transition-all ${
+                        petSize === opt.value
+                          ? 'border-orange-400 bg-orange-50 shadow-lg shadow-orange-100'
+                          : 'border-gray-100 bg-white hover:border-orange-200 hover:shadow-md'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className={`font-semibold text-lg ${petSize === opt.value ? 'text-orange-600' : 'text-gray-900'}`}>
+                            {opt.label}
+                          </p>
+                          <p className="text-sm text-gray-500">{opt.sublabel}</p>
+                        </div>
+                        <p className="text-xs text-gray-400">{opt.example}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {petType === 'cat' && (
+              <>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-200 flex-shrink-0">
+                    <Cat size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-bold text-gray-900">Is {petName} an indoor cat?</h1>
+                    <p className="text-sm text-gray-500">This affects where they may have gone</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {CAT_LIVING_OPTIONS.map(opt => {
+                    const Icon = opt.icon;
+                    const isSelected = (opt.value === 'indoor' && isIndoorCat === true) ||
+                                       (opt.value === 'outdoor' && isIndoorCat === false);
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => setIsIndoorCat(opt.value === 'indoor')}
+                        className={`w-full p-4 rounded-2xl border-2 text-left transition-all ${
+                          isSelected
+                            ? 'border-purple-400 bg-purple-50 shadow-lg shadow-purple-100'
+                            : 'border-gray-100 bg-white hover:border-purple-200 hover:shadow-md'
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                            isSelected ? 'bg-purple-100' : 'bg-gray-100'
+                          }`}>
+                            <Icon size={24} className={isSelected ? 'text-purple-600' : 'text-gray-500'} />
+                          </div>
+                          <div>
+                            <p className={`font-semibold text-lg ${isSelected ? 'text-purple-600' : 'text-gray-900'}`}>
+                              {opt.label}
+                            </p>
+                            <p className="text-sm text-gray-500">{opt.sublabel}</p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Step 5: When */}
+        {step === 5 && (
           <div className="flex-1 px-6 py-4 overflow-y-auto">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mb-3 shadow-lg shadow-amber-200">
               <Clock size={24} className="text-white" />
@@ -783,8 +913,8 @@ export default function ReportLostPet() {
           </div>
         )}
 
-        {/* Step 5: Color */}
-        {step === 5 && (
+        {/* Step 6: Color */}
+        {step === 6 && (
           <div className="flex-1 px-6 py-4 overflow-y-auto">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-200 flex-shrink-0">
@@ -808,8 +938,8 @@ export default function ReportLostPet() {
           </div>
         )}
 
-        {/* Step 6: Photo */}
-        {step === 6 && (
+        {/* Step 7: Photo */}
+        {step === 7 && (
           <div className="flex-1 px-6 py-4 overflow-y-auto">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mb-3 shadow-lg shadow-sky-200">
               <Camera size={24} className="text-white" />
@@ -859,7 +989,7 @@ export default function ReportLostPet() {
             )}
 
             <button
-              onClick={() => setStep(7)}
+              onClick={() => setStep(8)}
               className="mt-6 w-full py-3 text-gray-500 text-sm hover:text-gray-700 transition-colors"
             >
               Skip for now — you can add later
@@ -867,8 +997,8 @@ export default function ReportLostPet() {
           </div>
         )}
 
-        {/* Step 7: Confirm */}
-        {step === 7 && (
+        {/* Step 8: Confirm */}
+        {step === 8 && (
           <div className="flex-1 px-6 py-4 overflow-y-auto">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center mb-3 shadow-lg shadow-violet-200">
               <Sparkles size={24} className="text-white" />
@@ -949,7 +1079,7 @@ export default function ReportLostPet() {
       </div>
 
       {/* Footer with Next button */}
-      {step >= minStep && step < 8 && (
+      {step >= minStep && step < 9 && (
         <div className="px-6 pb-6 pt-4 flex-shrink-0 bg-gradient-to-t from-white via-white to-transparent">
           <button
             onClick={nextStep}
@@ -965,7 +1095,7 @@ export default function ReportLostPet() {
                 <Loader2 size={20} className="animate-spin" />
                 <span>Creating alert...</span>
               </>
-            ) : step === 7 ? (
+            ) : step === 8 ? (
               <>
                 <Sparkles size={20} />
                 <span>Send Alert</span>

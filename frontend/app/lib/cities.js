@@ -1,22 +1,61 @@
 /**
- * US Cities Database - Complete coverage of ~29k US cities
+ * Cities Database - US, Puerto Rico, Mexico, Canada, and more
  *
  * Data shape:
  * {
  *   city: string;        // "Lynwood"
- *   state_id: string;    // "IL"
- *   state_name: string;  // "Illinois"
- *   zips: string[];      // ["60411"]
+ *   state_id: string;    // "IL" or "CDMX"
+ *   state_name: string;  // "Illinois" or "Ciudad de México"
+ *   zips: string[];      // ["60411"] - may be empty for international
+ *   country?: string;    // "US", "MX", "CA", etc.
  * }
  */
 
-// Import JSON directly - works in both Node.js and webpack/browser
-import allCitiesDataRaw from './uscities.full.json';
+// Import all city data files
+import usCitiesRaw from './uscities.full.json';
+import prCitiesRaw from './prcities.json';
+import mxCitiesRaw from './mxcities.json';
+import caCitiesRaw from './cacities.json';
+import coCitiesRaw from './cocities.json';
+import naCitiesRaw from './nacities.json';
 
-const allCitiesData = allCitiesDataRaw || [];
-console.log(`[Cities] Loaded ${allCitiesData.length} cities`);
+// Normalize city format - ensure all have zips array and country code
+function normalizeCities(cities, country) {
+  return (cities || []).map(c => ({
+    ...c,
+    zips: c.zips || [],
+    country: c.country || country,
+  }));
+}
+
+// Merge all city data
+const allCitiesData = [
+  ...normalizeCities(usCitiesRaw, 'US'),
+  ...normalizeCities(prCitiesRaw, 'US'),  // PR is US territory
+  ...normalizeCities(mxCitiesRaw, 'MX'),
+  ...normalizeCities(caCitiesRaw, 'CA'),
+  ...normalizeCities(coCitiesRaw, 'CO'),
+  ...normalizeCities(naCitiesRaw, 'NA'),  // Cuba, Dominican Republic, etc.
+];
+
+console.log(`[Cities] Loaded ${allCitiesData.length} cities (US: ${(usCitiesRaw?.length || 0) + (prCitiesRaw?.length || 0)}, MX: ${mxCitiesRaw?.length || 0}, CA: ${caCitiesRaw?.length || 0})`);
 
 const ZIP_REGEX = /^\d{5}$/;
+
+/**
+ * Normalize city name for search matching
+ * Handles: St. → Saint, hyphens → spaces, etc.
+ */
+function normalizeForSearch(str) {
+  return str
+    .toLowerCase()
+    .replace(/\bst\.\s*/gi, 'saint ')  // St. Louis → Saint Louis
+    .replace(/\bmt\.\s*/gi, 'mount ')  // Mt. Vernon → Mount Vernon
+    .replace(/\bft\.\s*/gi, 'fort ')   // Ft. Worth → Fort Worth
+    .replace(/-/g, ' ')                 // Winston-Salem → Winston Salem
+    .replace(/\s+/g, ' ')               // Multiple spaces → single
+    .trim();
+}
 
 /**
  * Create a canonical key for a city (for storage/validation)
@@ -60,15 +99,15 @@ export function searchCityOrZip(input) {
 
   // ZIP search
   if (ZIP_REGEX.test(trimmed)) {
-    return allCitiesData.filter(c => c.zips.includes(trimmed));
+    return allCitiesData.filter(c => (c.zips || []).includes(trimmed));
   }
 
-  // City search (with optional ", ST" format)
-  const q = trimmed.toLowerCase();
+  // City search with normalization (handles St. → Saint, hyphens, etc.)
+  const q = normalizeForSearch(trimmed);
   return allCitiesData.filter(c => {
-    const cityMatch = c.city.toLowerCase().startsWith(q);
-    const fullMatch = `${c.city}, ${c.state_id}`.toLowerCase().startsWith(q);
-    return cityMatch || fullMatch;
+    const normalizedCity = normalizeForSearch(c.city);
+    const normalizedFull = normalizeForSearch(`${c.city}, ${c.state_id}`);
+    return normalizedCity.startsWith(q) || normalizedFull.startsWith(q);
   }).slice(0, 50); // Limit results for performance
 }
 
@@ -92,7 +131,7 @@ export function getCitySuggestions(query, limit = 10) {
  */
 export function getCitiesByZip(zipCode) {
   if (!zipCode || !ZIP_REGEX.test(zipCode)) return [];
-  return allCitiesData.filter(c => c.zips.includes(zipCode));
+  return allCitiesData.filter(c => (c.zips || []).includes(zipCode));
 }
 
 /**
@@ -104,29 +143,30 @@ export function getCitiesByZip(zipCode) {
 export function getCityByName(cityName, stateId = null) {
   if (!cityName) return null;
 
-  let normalized = cityName.trim();
+  let inputCity = cityName.trim();
   let state = stateId;
 
   // Handle "City, ST" format
-  if (!state && normalized.includes(',')) {
-    const parts = normalized.split(',').map(p => p.trim());
+  if (!state && inputCity.includes(',')) {
+    const parts = inputCity.split(',').map(p => p.trim());
     if (parts.length === 2 && parts[1].length === 2) {
-      normalized = parts[0];
+      inputCity = parts[0];
       state = parts[1];
     }
   }
 
-  normalized = normalized.toLowerCase();
+  // Normalize for comparison (St. → Saint, etc.)
+  const normalizedInput = normalizeForSearch(inputCity);
 
   if (state) {
     return allCitiesData.find(
-      c => c.city.toLowerCase() === normalized &&
+      c => normalizeForSearch(c.city) === normalizedInput &&
            c.state_id.toUpperCase() === state.toUpperCase()
     );
   }
 
   // Without state, return first match
-  return allCitiesData.find(c => c.city.toLowerCase() === normalized);
+  return allCitiesData.find(c => normalizeForSearch(c.city) === normalizedInput);
 }
 
 /**
@@ -172,11 +212,29 @@ export function getCityFromZip(zipCode) {
 /**
  * Format city for display
  * @param {Object} city - City record
- * @returns {string} - e.g., "Lynwood, IL (60411)"
+ * @returns {string} - e.g., "Lynwood, IL (60411)" or "Toronto, ON, Canada"
  */
 export function formatCityDisplay(city) {
-  const zipPart = city.zips.length > 0 ? ` (${city.zips[0]})` : '';
-  return `${city.city}, ${city.state_id}${zipPart}`;
+  const zips = city.zips || [];
+  const zipPart = zips.length > 0 ? ` (${zips[0]})` : '';
+  const countryPart = city.country && city.country !== 'US' ? `, ${getCountryName(city.country)}` : '';
+  return `${city.city}, ${city.state_id}${zipPart}${countryPart}`;
+}
+
+/**
+ * Get country display name
+ */
+function getCountryName(code) {
+  const names = {
+    'US': 'USA',
+    'MX': 'Mexico',
+    'CA': 'Canada',
+    'CO': 'Colombia',
+    'CU': 'Cuba',
+    'DO': 'Dominican Republic',
+    'NA': 'Caribbean',
+  };
+  return names[code] || code;
 }
 
 /**

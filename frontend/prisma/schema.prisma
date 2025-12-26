@@ -3956,3 +3956,892 @@ model CaseOutcome {
   @@index([foundMethod])
   @@index([createdAt])
 }
+
+// ============================================================================
+// OWNER-FINDER MESSAGING SYSTEM
+// ============================================================================
+// Secure communication channel between pet owners and finders
+// Created when a match is found between lost and found pet reports
+
+model Conversation {
+  id              String   @id @default(cuid())
+
+  // The two cases being connected
+  lostCaseId      String   // The LOST pet case (owner's case)
+  foundCaseId     String   // The FOUND pet case (finder's case)
+
+  // Participants
+  ownerId         String   // User who lost their pet
+  finderId        String   // User who found a pet
+
+  // Match context
+  matchScore      Int      // The algorithm match score (0-100)
+  matchDetails    String   @default("{}") // JSON: score breakdown
+
+  // Conversation status
+  status          ConversationStatus @default(ACTIVE)
+
+  // Privacy settings
+  ownerRevealed   Boolean  @default(false) // Owner chose to share contact info
+  finderRevealed  Boolean  @default(false) // Finder chose to share contact info
+
+  // Verification
+  ownerVerified   Boolean  @default(false) // Owner provided proof of ownership
+  reunionConfirmed Boolean @default(false) // Both parties confirmed reunion
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastMessageAt   DateTime @default(now())
+
+  // Soft close (conversation can be reopened)
+  closedAt        DateTime?
+  closedBy        String?  // User ID who closed
+  closeReason     String?  // "reunited", "not_my_pet", "no_response", "spam"
+
+  // Relations
+  messages        DirectMessage[]
+
+  @@unique([lostCaseId, foundCaseId]) // Only one conversation per match
+  @@index([ownerId])
+  @@index([finderId])
+  @@index([status])
+  @@index([lastMessageAt])
+  @@index([lostCaseId])
+  @@index([foundCaseId])
+}
+
+enum ConversationStatus {
+  ACTIVE           // Conversation is open
+  PENDING_OWNER    // Waiting for owner to respond
+  PENDING_FINDER   // Waiting for finder to respond
+  REUNION_PENDING  // Arranging meetup
+  REUNITED         // Pet successfully returned
+  CLOSED           // Conversation closed (not a match, etc.)
+}
+
+model DirectMessage {
+  id              String   @id @default(cuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Sender
+  senderId        String   // User ID of sender
+  senderRole      MessageSenderRole // OWNER or FINDER
+
+  // Content
+  content         String
+  messageType     DirectMessageType @default(TEXT)
+
+  // Attachments
+  photoUrls       String   @default("[]") // JSON array of image URLs
+  locationData    String?  // JSON: { lat, lng, address } for meetup coordination
+
+  // Read status
+  readAt          DateTime?
+
+  // Moderation
+  isHidden        Boolean  @default(false) // Hidden by moderator
+  hiddenReason    String?
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  editedAt        DateTime?
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+enum MessageSenderRole {
+  OWNER    // Pet owner
+  FINDER   // Person who found the pet
+  SYSTEM   // System-generated message
+}
+
+enum DirectMessageType {
+  TEXT             // Regular text message
+  PHOTO            // Photo message
+  LOCATION         // Location share (for meetup)
+  CONTACT_SHARED   // User shared their contact info
+  VERIFICATION     // Ownership verification (photos, docs)
+  REUNION_PROPOSED // Proposed meetup time/place
+  REUNION_CONFIRMED // Confirmed reunion happened
+  SYSTEM           // System notification
+}
+
+// ============================================================================
+// RESCUE HUB - COMMUNITY FORUM
+// ============================================================================
+// A community space for pet rescuers to connect, learn, and coordinate
+
+model ForumCategory {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  slug            String   @unique
+  description     String
+  icon            String?  // Emoji or icon name
+  color           String   @default("#6366f1") // Brand color for category
+  displayOrder    Int      @default(0)
+
+  // Nesting (for sub-categories)
+  parentId        String?
+  parent          ForumCategory? @relation("CategoryChildren", fields: [parentId], references: [id])
+  children        ForumCategory[] @relation("CategoryChildren")
+
+  // Permissions
+  requiredTrustLevel Int @default(1) // Minimum trust level to post
+  isModOnly       Boolean @default(false) // Only mods can post
+  isReadOnly      Boolean @default(false) // Archived, no new posts
+
+  // Metadata
+  threadCount     Int      @default(0)
+  postCount       Int      @default(0)
+  lastActivityAt  DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  threads         ForumThread[]
+
+  @@index([slug])
+  @@index([displayOrder])
+  @@index([parentId])
+}
+
+model ForumThread {
+  id              String   @id @default(cuid())
+  title           String
+  slug            String   @unique
+
+  // Category
+  categoryId      String
+  category        ForumCategory @relation(fields: [categoryId], references: [id])
+
+  // Author
+  authorId        String
+
+  // Content (first post is stored here for efficiency)
+  content         String   @db.Text
+  contentHtml     String?  @db.Text // Pre-rendered HTML
+
+  // Embedded content
+  embeddedPetId   String?  // Link to a pet case
+  embeddedShelterId String? // Link to a shelter
+
+  // Location tagging
+  locationTag     String?  // City, State or region
+  latitude        Float?
+  longitude       Float?
+
+  // Status flags
+  isPinned        Boolean  @default(false)
+  isLocked        Boolean  @default(false)
+  isSolved        Boolean  @default(false)
+  isHidden        Boolean  @default(false)
+  hiddenReason    String?
+  hiddenBy        String?
+
+  // Urgency (for time-sensitive posts)
+  urgencyLevel    ThreadUrgency @default(NORMAL)
+
+  // Engagement
+  viewCount       Int      @default(0)
+  replyCount      Int      @default(0)
+  helpfulCount    Int      @default(0) // Sum of helpful reactions
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastActivityAt  DateTime @default(now())
+  bumpedAt        DateTime? // For mod-bumped threads
+
+  // Relations
+  posts           ForumPost[]
+  bookmarks       ForumBookmark[]
+
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([slug])
+  @@index([isPinned, lastActivityAt])
+  @@index([urgencyLevel])
+  @@index([locationTag])
+  @@index([createdAt])
+}
+
+enum ThreadUrgency {
+  NORMAL
+  URGENT      // Needs attention soon
+  CRITICAL    // Emergency (disaster, immediate danger)
+}
+
+model ForumPost {
+  id              String   @id @default(cuid())
+
+  // Thread
+  threadId        String
+  thread          ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  // Author
+  authorId        String
+
+  // Reply hierarchy (optional nesting)
+  replyToId       String?
+  replyTo         ForumPost? @relation("PostReplies", fields: [replyToId], references: [id])
+  replies         ForumPost[] @relation("PostReplies")
+
+  // Content
+  content         String   @db.Text
+  contentHtml     String?  @db.Text // Pre-rendered HTML
+
+  // Embedded content
+  embeddedPetId   String?
+  embeddedShelterId String?
+  imageUrls       String   @default("[]") // JSON array
+
+  // Status
+  isHidden        Boolean  @default(false)
+  hiddenReason    String?
+  hiddenBy        String?
+  isSolution      Boolean  @default(false) // Marked as answer
+
+  // Engagement
+  helpfulCount    Int      @default(0)
+  heartCount      Int      @default(0)
+  thanksCount     Int      @default(0)
+  reportCount     Int      @default(0)
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  editedAt        DateTime?
+
+  // Relations
+  reactions       ForumReaction[]
+  reports         ForumReport[]
+
+  @@index([threadId])
+  @@index([authorId])
+  @@index([replyToId])
+  @@index([createdAt])
+}
+
+model ForumReaction {
+  id              String   @id @default(cuid())
+
+  postId          String
+  post            ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  userId          String
+  type            ReactionType
+
+  createdAt       DateTime @default(now())
+
+  @@unique([postId, userId, type])
+  @@index([postId])
+  @@index([userId])
+}
+
+enum ReactionType {
+  HELPFUL
+  HEART
+  THANKS
+}
+
+model ForumReport {
+  id              String   @id @default(cuid())
+
+  postId          String
+  post            ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  reporterId      String
+  reason          ReportReason
+  details         String?
+
+  // Resolution
+  status          ReportStatus @default(PENDING)
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  resolution      String?  // Mod notes on resolution
+
+  createdAt       DateTime @default(now())
+
+  @@index([postId])
+  @@index([reporterId])
+  @@index([status])
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  MISINFORMATION
+  OFF_TOPIC
+  INAPPROPRIATE
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  ACTION_TAKEN
+  DISMISSED
+}
+
+model ForumBookmark {
+  id              String   @id @default(cuid())
+
+  threadId        String
+  thread          ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  userId          String
+
+  createdAt       DateTime @default(now())
+
+  @@unique([threadId, userId])
+  @@index([userId])
+}
+
+// User's forum-specific profile
+model ForumProfile {
+  userId          String   @id
+
+  // Display
+  bio             String?
+  location        String?
+
+  // Trust system
+  trustLevel      Int      @default(0) // 0-4
+  reputation      Int      @default(0)
+
+  // Badges (JSON array of badge IDs)
+  badges          String   @default("[]")
+
+  // Stats
+  postsCount      Int      @default(0)
+  threadsCount    Int      @default(0)
+  helpfulReceived Int      @default(0)
+  solutionsCount  Int      @default(0)
+
+  // Flags
+  isVerifiedShelter Boolean @default(false)
+  isVerifiedRescue  Boolean @default(false)
+  isModerator       Boolean @default(false)
+  isBanned          Boolean @default(false)
+  bannedAt          DateTime?
+  bannedReason      String?
+  bannedUntil       DateTime? // Null = permanent
+
+  // Activity tracking
+  lastActiveAt      DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([trustLevel])
+  @@index([isVerifiedShelter])
+  @@index([isModerator])
+  @@index([lastActiveAt])
+}
+
+model ForumNotification {
+  id              String   @id @default(cuid())
+
+  userId          String
+  type            ForumNotificationType
+
+  // Reference to source
+  threadId        String?
+  postId          String?
+
+  // Content preview
+  title           String
+  body            String
+
+  // Actor (who triggered the notification)
+  actorId         String?
+
+  // Status
+  readAt          DateTime?
+
+  createdAt       DateTime @default(now())
+
+  @@index([userId, readAt])
+  @@index([createdAt])
+}
+
+enum ForumNotificationType {
+  REPLY_TO_THREAD    // Someone replied to your thread
+  REPLY_TO_POST      // Someone replied to your post
+  MENTION            // Someone @mentioned you
+  REACTION           // Someone reacted to your post
+  SOLUTION_MARKED    // Your post marked as solution
+  THREAD_PINNED      // Your thread was pinned
+  MOD_ACTION         // Moderator action on your content
+  TRUST_LEVEL_UP     // You reached a new trust level
+  BADGE_EARNED       // You earned a badge
+}
+
+// Mod audit log
+model ForumModAction {
+  id              String   @id @default(cuid())
+
+  moderatorId     String
+  actionType      ModActionType
+
+  // Target
+  targetUserId    String?
+  targetThreadId  String?
+  targetPostId    String?
+
+  // Details
+  reason          String?
+  details         String?  // JSON with before/after state
+
+  createdAt       DateTime @default(now())
+
+  @@index([moderatorId])
+  @@index([targetUserId])
+  @@index([createdAt])
+}
+
+enum ModActionType {
+  HIDE_POST
+  UNHIDE_POST
+  LOCK_THREAD
+  UNLOCK_THREAD
+  PIN_THREAD
+  UNPIN_THREAD
+  DELETE_THREAD
+  WARN_USER
+  BAN_USER
+  UNBAN_USER
+  ADJUST_TRUST
+  MOVE_THREAD
+}
+
+// Site-wide announcements
+model ForumAnnouncement {
+  id              String   @id @default(cuid())
+
+  title           String
+  body            String
+
+  // Display options
+  style           AnnouncementStyle @default(INFO)
+  displayLocations String  @default("[\"hub\"]") // JSON: ["hub", "all", "shelter"]
+
+  // Targeting
+  minTrustLevel   Int      @default(0)
+
+  // Scheduling
+  startsAt        DateTime @default(now())
+  expiresAt       DateTime?
+
+  // Status
+  isActive        Boolean  @default(true)
+
+  // Author
+  createdBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive, startsAt, expiresAt])
+}
+
+enum AnnouncementStyle {
+  INFO
+  WARNING
+  URGENT
+  SUCCESS
+}
+
+// ============================================================================
+// RESCUE HUB - TRANSPORT NETWORK
+// ============================================================================
+// Coordinate animal transport across regions
+
+model TransportRequest {
+  id              String   @id @default(cuid())
+
+  // Requester
+  requesterId     String
+
+  // Animal info
+  animalName      String?
+  species         String
+  breed           String?
+  size            String?  // SMALL, MEDIUM, LARGE
+  description     String?
+  photoUrls       String   @default("[]") // JSON array
+
+  // Special requirements
+  specialNeeds    String?  // Medical, behavioral notes
+  crateProvided   Boolean  @default(false)
+
+  // Route
+  originAddress   String
+  originCity      String
+  originState     String
+  originLat       Float?
+  originLng       Float?
+
+  destAddress     String
+  destCity        String
+  destState       String
+  destLat         Float?
+  destLng         Float?
+
+  // Timeline
+  neededBy        DateTime?
+  flexibleDates   Boolean  @default(true)
+
+  // Status
+  status          TransportStatus @default(OPEN)
+
+  // Coordination
+  coordinatorNotes String?
+
+  // Link to forum thread for discussion
+  forumThreadId   String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  completedAt     DateTime?
+
+  // Relations
+  legs            TransportLeg[]
+
+  @@index([status])
+  @@index([originState, destState])
+  @@index([neededBy])
+  @@index([requesterId])
+}
+
+enum TransportStatus {
+  OPEN            // Needs volunteers
+  PARTIALLY_FILLED // Some legs claimed
+  FULLY_FILLED    // All legs claimed
+  IN_PROGRESS     // Transport underway
+  COMPLETED       // Successfully completed
+  CANCELLED       // Cancelled
+}
+
+model TransportLeg {
+  id              String   @id @default(cuid())
+
+  transportId     String
+  transport       TransportRequest @relation(fields: [transportId], references: [id], onDelete: Cascade)
+
+  // Leg order
+  legNumber       Int
+
+  // Route segment
+  fromAddress     String
+  fromCity        String
+  fromState       String
+  fromLat         Float?
+  fromLng         Float?
+
+  toAddress       String
+  toCity          String
+  toState         String
+  toLat           Float?
+  toLng           Float?
+
+  // Distance (calculated)
+  distanceMiles   Float?
+  estimatedMinutes Int?
+
+  // Schedule
+  scheduledDate   DateTime?
+  scheduledTime   String?  // "morning", "afternoon", "evening", or specific time
+
+  // Volunteer
+  volunteerId     String?
+  volunteerName   String?
+  volunteerPhone  String?
+  volunteerNotes  String?
+
+  // Status
+  status          LegStatus @default(OPEN)
+
+  // Completion
+  startedAt       DateTime?
+  completedAt     DateTime?
+  handoffNotes    String?
+  handoffPhotoUrl String?  // Photo at handoff point
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([transportId, legNumber])
+  @@index([transportId])
+  @@index([volunteerId])
+  @@index([status])
+  @@index([fromState, toState])
+}
+
+enum LegStatus {
+  OPEN            // Needs volunteer
+  CLAIMED         // Volunteer signed up
+  CONFIRMED       // Volunteer confirmed
+  IN_PROGRESS     // Currently driving
+  COMPLETED       // Leg finished
+  CANCELLED       // Volunteer cancelled
+}
+
+// ============================================================================
+// RESCUE HUB - SHELTER MANAGEMENT
+// ============================================================================
+// Extend shelter model with claim/ownership and donation tracking
+
+model ShelterClaim {
+  id              String   @id @default(cuid())
+
+  shelterId       String
+  claimantId      String   // User claiming ownership
+
+  // Verification
+  verificationMethod String  // EMAIL, PHONE, DOCUMENT
+  verificationData   String? // Encrypted verification details
+  verificationCode   String? // Code sent to verify
+  verificationExpiry DateTime?
+
+  // Status
+  status          ClaimStatus @default(PENDING)
+
+  // Review
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  reviewNotes     String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([shelterId, claimantId])
+  @@index([shelterId])
+  @@index([claimantId])
+  @@index([status])
+}
+
+enum ClaimStatus {
+  PENDING         // Awaiting verification
+  VERIFICATION_SENT // Code sent, awaiting response
+  UNDER_REVIEW    // Admin reviewing
+  APPROVED        // Claim approved
+  REJECTED        // Claim rejected
+}
+
+// Shelter profile extensions (for claimed shelters)
+model ShelterProfile {
+  shelterId       String   @id
+
+  // Public profile
+  about           String?  @db.Text
+  mission         String?
+  logoUrl         String?
+  coverPhotoUrl   String?
+
+  // Social links
+  facebookUrl     String?
+  instagramUrl    String?
+  twitterUrl      String?
+
+  // Donations
+  donationsEnabled Boolean @default(false)
+  stripeAccountId  String? // Stripe Connect account
+  donationMessage  String? // Custom thank you message
+
+  // Stats (public)
+  totalAnimalsHelped Int    @default(0)
+  animalsCurrently   Int    @default(0)
+
+  // Owner
+  claimedById     String?
+  claimedAt       DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([claimedById])
+  @@index([donationsEnabled])
+}
+
+model ShelterDonation {
+  id              String   @id @default(cuid())
+
+  shelterId       String
+
+  // Donor info (anonymous allowed)
+  donorId         String?  // Null if anonymous
+  donorName       String?
+  donorEmail      String?
+  isAnonymous     Boolean  @default(false)
+
+  // Amount
+  amountCents     Int
+  currency        String   @default("usd")
+
+  // Payment
+  stripePaymentId String?
+  stripeStatus    String?
+
+  // Message
+  message         String?
+
+  // Fees (for transparency)
+  platformFeeCents Int     @default(0)
+  stripeFeeCents   Int     @default(0)
+  netAmountCents   Int     // Amount shelter receives
+
+  createdAt       DateTime @default(now())
+
+  @@index([shelterId])
+  @@index([donorId])
+  @@index([createdAt])
+}
+
+// Shelter animal (simpler than ShelterIntake for manually added)
+model ShelterAnimal {
+  id              String   @id @default(cuid())
+
+  shelterId       String
+
+  // Basic info
+  name            String?
+  species         String
+  breed           String?
+  color           String?
+  size            String?  // SMALL, MEDIUM, LARGE, XLARGE
+  age             String?  // BABY, YOUNG, ADULT, SENIOR
+  gender          String?  // MALE, FEMALE, UNKNOWN
+
+  // Description
+  description     String?  @db.Text
+  photoUrls       String   @default("[]") // JSON array
+
+  // Status
+  status          AnimalStatus @default(AVAILABLE)
+
+  // Intake info
+  intakeDate      DateTime @default(now())
+  intakeType      String?  // STRAY, SURRENDER, TRANSFER, RESCUE
+  foundLocation   String?
+
+  // Medical
+  isSpayedNeutered Boolean?
+  isVaccinated     Boolean?
+  isMicrochipped   Boolean?
+  microchipNumber  String?
+  specialNeeds     String?
+
+  // Matching to lost pets
+  matchedCaseId   String?
+  matchScore      Float?
+  matchNotifiedAt DateTime?
+
+  // Adoption
+  adoptionFee     Int?     // In cents
+  adoptedAt       DateTime?
+  adoptedBy       String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([shelterId])
+  @@index([species])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum AnimalStatus {
+  AVAILABLE       // Ready for adoption
+  PENDING         // Adoption pending
+  ADOPTED         // Found a home
+  FOSTER          // In foster care
+  MEDICAL_HOLD    // Getting treatment
+  RESCUE_ONLY     // Transfer to rescue
+  RECLAIMED       // Returned to owner
+  UNAVAILABLE     // Other (deceased, transferred, etc.)
+}
+
+// ============================================================================
+// RESCUE HUB - BADGES
+// ============================================================================
+
+model Badge {
+  id              String   @id @default(cuid())
+
+  name            String   @unique
+  slug            String   @unique
+  description     String
+  icon            String   // Emoji or icon name
+  color           String   @default("#6366f1")
+
+  // Criteria (null = manually awarded)
+  criteriaType    String?  // POSTS, REUNIONS, TRANSPORT, HELPFUL, TENURE
+  criteriaValue   Int?     // Threshold value
+
+  // Display
+  isRare          Boolean  @default(false)
+  displayOrder    Int      @default(0)
+
+  createdAt       DateTime @default(now())
+
+  @@index([slug])
+}
+
+model UserBadge {
+  id              String   @id @default(cuid())
+
+  userId          String
+  badgeId         String
+
+  // Award info
+  awardedBy       String?  // Null if automatic
+  awardReason     String?
+
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@index([badgeId])
+}
+
+// ============================================================================
+// CITY REQUESTS - User-submitted missing cities
+// ============================================================================
+
+model CityRequest {
+  id              String   @id @default(cuid())
+
+  cityName        String   // What user typed
+  userIp          String?  // For rate limiting
+  userId          String?  // If logged in
+
+  // Admin review
+  status          CityRequestStatus @default(PENDING)
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  reviewNotes     String?
+
+  // Resolution
+  addedToDatabase Boolean  @default(false)
+  resolvedCityName String? // Actual city name if found/added
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([cityName])
+  @@index([createdAt])
+}
+
+enum CityRequestStatus {
+  PENDING
+  REVIEWING
+  ADDED
+  ALREADY_EXISTS
+  INVALID
+  DUPLICATE
+}

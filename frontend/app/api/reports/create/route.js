@@ -20,8 +20,14 @@ export async function POST(request) {
       email, phone, firstName,
       petName, breed, color, size, distinctiveMarks,
       lastSeenAddress, center, radiusMiles, timeElapsed, petType,
+      petSize, isIndoorCat, // New fields for probability zones
       photos, locationType, cityName, selectedPetId
     } = body;
+
+    // For dogs, use petSize if provided (more specific than generic size)
+    if (petType?.toUpperCase() === 'DOG' && petSize) {
+      size = petSize;
+    }
 
     // Default locationType to 'address' for backwards compatibility
     locationType = locationType || 'address';
@@ -126,7 +132,7 @@ export async function POST(request) {
           data: {
             ownerId: user.id,
             name: petName,
-            species: petType.toUpperCase(),
+            species: (petType || 'OTHER').toUpperCase(),
             breed: breed || '',
             color,
             size: size || 'MEDIUM', // Default to medium if not provided
@@ -143,6 +149,14 @@ export async function POST(request) {
       const caseNumber = `CASE-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
       const petSizeValue = size || 'MEDIUM';
 
+      // Build pet description including indoor/outdoor status for cats
+      const petTypeNormalized = (petType || 'OTHER').toUpperCase();
+      let petDescription = distinctiveMarks || `${color} ${petType || 'pet'}${breed ? ` - ${breed}` : ''}`;
+      if (petTypeNormalized === 'CAT' && isIndoorCat !== undefined && isIndoorCat !== null) {
+        const indoorStatus = isIndoorCat ? 'Indoor cat' : 'Outdoor access cat';
+        petDescription = `${indoorStatus}. ${petDescription}`;
+      }
+
       const report = await tx.case.create({
         data: {
           caseNumber,
@@ -150,12 +164,12 @@ export async function POST(request) {
           reporterId: user.id,
           reportType: 'LOST',
           petName,
-          petSpecies: petType.toUpperCase(),
+          petSpecies: petTypeNormalized,
           petBreed: breed || 'Unknown',
           petColor: color,
           petSize: petSizeValue,
           petPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
-          petDescription: distinctiveMarks || `${color} ${petType}${breed ? ` - ${breed}` : ''}`,
+          petDescription,
           ownerName: firstName,
           ownerPhone: phone || 'Not provided',
           ownerEmail: email,
@@ -362,15 +376,16 @@ export async function POST(request) {
             const distanceText = squad.distance ? `~${squad.distance.toFixed(1)} miles away` : '';
 
             let postContent;
+            const petTypeDisplay = petType || 'pet';
             if (squad.isAutoCreated) {
               // Welcome post for newly auto-created squad
-              postContent = `🎉 **Welcome to ${squad.name}!** 🎉\n\nThis squad was just created to help find ${petName}!\n\n🚨 **First Case:** ${petName}, a ${color} ${petType}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nJoin this squad to help reunite pets with their families in your community! 🐾`;
+              postContent = `🎉 **Welcome to ${squad.name}!** 🎉\n\nThis squad was just created to help find ${petName}!\n\n🚨 **First Case:** ${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nJoin this squad to help reunite pets with their families in your community! 🐾`;
             } else if (isNearbyAssist) {
               // Nearby assist post
-              postContent = `🆘 **Nearby Assist Request!** 🆘\n\n${petName}, a ${color} ${petType}${breed ? ` (${breed})` : ''}, went missing ${distanceText} from your coverage area.\n\n📍 Location: ${lastSeenAddress}\n📋 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nNo local squad in that area yet - your help could make the difference! 🙏`;
+              postContent = `🆘 **Nearby Assist Request!** 🆘\n\n${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, went missing ${distanceText} from your coverage area.\n\n📍 Location: ${lastSeenAddress}\n📋 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nNo local squad in that area yet - your help could make the difference! 🙏`;
             } else {
               // Regular case alert
-              postContent = `🚨 **New Case Alert!** 🚨\n\n${petName}, a ${color} ${petType}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nIf you're in the area, please keep an eye out and report any sightings. Every pair of eyes helps! 👀`;
+              postContent = `🚨 **New Case Alert!** 🚨\n\n${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nIf you're in the area, please keep an eye out and report any sightings. Every pair of eyes helps! 👀`;
             }
 
             await prisma.squadPost.create({

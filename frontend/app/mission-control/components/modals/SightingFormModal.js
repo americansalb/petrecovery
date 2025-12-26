@@ -103,7 +103,7 @@ export default function SightingFormModal({ missionId, onClose, onSuccess }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[700] flex items-end sm:items-center justify-center"
       onClick={onClose}
     >
       <div

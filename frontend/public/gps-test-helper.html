@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GPS Spoofing Helper</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 500px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #eee;
+    }
+    h1 { color: #3b82f6; font-size: 24px; }
+    .info { background: #2d2d44; padding: 15px; border-radius: 8px; margin: 15px 0; }
+    .coords {
+      font-family: monospace;
+      font-size: 18px;
+      background: #0f0f1a;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      user-select: all;
+    }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; margin: 15px 0; }
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    button:hover { transform: scale(1.05); }
+    button:active { transform: scale(0.95); }
+    .direction { background: #3b82f6; color: white; flex: 1; min-width: 80px; }
+    .action { background: #10b981; color: white; }
+    .reset { background: #ef4444; color: white; }
+    input {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background: #0f0f1a;
+      color: #eee;
+      margin: 5px 0;
+    }
+    label { display: block; margin-top: 10px; color: #888; }
+    .step-size { display: flex; gap: 10px; align-items: center; }
+    .step-size input { width: 120px; }
+    .history {
+      max-height: 150px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+      background: #0f0f1a;
+      padding: 10px;
+      border-radius: 6px;
+    }
+    .history div { padding: 2px 0; border-bottom: 1px solid #222; }
+    .copy-btn {
+      background: #8b5cf6;
+      color: white;
+      padding: 8px 16px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 GPS Spoofing Helper</h1>
+
+  <div class="info">
+    <strong>How to use:</strong>
+    <ol style="margin: 10px 0; padding-left: 20px;">
+      <li>Open Chrome DevTools (F12)</li>
+      <li>Press Cmd+Shift+P → "Show Sensors"</li>
+      <li>Set starting coordinates below</li>
+      <li>Copy coordinates to DevTools Sensors panel</li>
+      <li>Click direction buttons to "walk"</li>
+      <li>Copy new coords to DevTools after each step</li>
+    </ol>
+  </div>
+
+  <label>Starting Latitude:</label>
+  <input type="number" id="startLat" step="0.0001" value="37.7749" onchange="resetToStart()">
+
+  <label>Starting Longitude:</label>
+  <input type="number" id="startLng" step="0.0001" value="-122.4194" onchange="resetToStart()">
+
+  <div class="step-size">
+    <label style="margin: 0;">Step size:</label>
+    <input type="number" id="stepSize" step="0.0001" value="0.0003">
+    <span style="color: #888;">≈ 33 meters</span>
+  </div>
+
+  <h3 style="margin-top: 20px;">Current Position:</h3>
+  <div class="coords" id="currentCoords">
+    Lat: 37.7749<br>
+    Lng: -122.4194
+  </div>
+
+  <button class="copy-btn" onclick="copyCoords()">📋 Copy Coordinates</button>
+
+  <h3>Walk Direction:</h3>
+  <div class="controls">
+    <button class="direction" onclick="move('north')">⬆️ North</button>
+    <button class="direction" onclick="move('south')">⬇️ South</button>
+    <button class="direction" onclick="move('east')">➡️ East</button>
+    <button class="direction" onclick="move('west')">⬅️ West</button>
+  </div>
+
+  <div class="controls">
+    <button class="direction" onclick="move('ne')">↗️ NE</button>
+    <button class="direction" onclick="move('nw')">↖️ NW</button>
+    <button class="direction" onclick="move('se')">↘️ SE</button>
+    <button class="direction" onclick="move('sw')">↙️ SW</button>
+  </div>
+
+  <div class="controls">
+    <button class="reset" onclick="resetToStart()">🔄 Reset to Start</button>
+  </div>
+
+  <h3>Movement History:</h3>
+  <div class="history" id="history"></div>
+
+  <script>
+    let currentLat = 37.7749;
+    let currentLng = -122.4194;
+    let stepCount = 0;
+
+    function updateDisplay() {
+      document.getElementById('currentCoords').innerHTML =
+        `Lat: ${currentLat.toFixed(6)}<br>Lng: ${currentLng.toFixed(6)}`;
+    }
+
+    function getStepSize() {
+      return parseFloat(document.getElementById('stepSize').value) || 0.0003;
+    }
+
+    function move(direction) {
+      const step = getStepSize();
+      const diagonal = step * 0.707; // √2/2 for diagonal movement
+
+      switch(direction) {
+        case 'north': currentLat += step; break;
+        case 'south': currentLat -= step; break;
+        case 'east': currentLng += step; break;
+        case 'west': currentLng -= step; break;
+        case 'ne': currentLat += diagonal; currentLng += diagonal; break;
+        case 'nw': currentLat += diagonal; currentLng -= diagonal; break;
+        case 'se': currentLat -= diagonal; currentLng += diagonal; break;
+        case 'sw': currentLat -= diagonal; currentLng -= diagonal; break;
+      }
+
+      stepCount++;
+      updateDisplay();
+      addToHistory(direction);
+      copyCoords();
+    }
+
+    function addToHistory(direction) {
+      const history = document.getElementById('history');
+      const entry = document.createElement('div');
+      entry.textContent = `Step ${stepCount}: ${direction.toUpperCase()} → (${currentLat.toFixed(6)}, ${currentLng.toFixed(6)})`;
+      history.insertBefore(entry, history.firstChild);
+    }
+
+    function resetToStart() {
+      currentLat = parseFloat(document.getElementById('startLat').value);
+      currentLng = parseFloat(document.getElementById('startLng').value);
+      stepCount = 0;
+      updateDisplay();
+      document.getElementById('history').innerHTML = '<div>Reset to starting position</div>';
+    }
+
+    function copyCoords() {
+      const text = `${currentLat.toFixed(6)}, ${currentLng.toFixed(6)}`;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.textContent = '✅ Copied!';
+        setTimeout(() => { btn.textContent = '📋 Copy Coordinates'; }, 1000);
+      });
+    }
+
+    // Initialize
+    updateDisplay();
+  </script>
+</body>
+</html>

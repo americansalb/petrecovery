@@ -1,49 +1,31 @@
 'use client';
 
 /**
- * useSearchSession - GPS Search Session Management Hook
+ * useSearchSession - Simplified GPS Search Hook
  *
- * Handles all GPS search functionality:
- * - Start/end search sessions
- * - Location pings with validation
- * - Real-time stats (distance, time, points)
- * - Proximity and speed validation
- * - Grid cell tracking
+ * Simple state machine:
+ * - IDLE: No active search
+ * - SEARCHING: GPS tracking active
+ *
+ * Server is ALWAYS the source of truth.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-// Configuration
+import { getPointsMultiplier } from '@/app/lib/searchProbability';
+import { useGPS, GPS_MODE } from '@/app/lib/gpsService';
+
 const CONFIG = {
-  PING_INTERVAL_MS: 15000, // 15 seconds between pings
-  MAX_WALKING_SPEED_MPH: 5, // Above this = driving
-  MIN_MOVEMENT_SPEED_MPH: 0.05, // Below this = stationary
-  SEARCH_RADIUS_MILES: 2, // Default search zone radius
+  MAX_WALKING_SPEED_MPH: 5,
+  SEARCH_RADIUS_MILES: 2,
   MIN_SESSION_MINUTES: 5,
   MIN_SESSION_MILES: 0.1,
   POINTS_PER_MILE: 100,
-  GRID_CELL_SIZE_METERS: 100,
-  PING_RETRY_ATTEMPTS: 3,
-  PING_RETRY_DELAY_MS: 2000,
 };
 
-// Geolocation error codes
-const GEO_ERROR = {
-  PERMISSION_DENIED: 1,
-  POSITION_UNAVAILABLE: 2,
-  TIMEOUT: 3,
-};
-
-// Check if browser is online
-function isOnline() {
-  return typeof navigator !== 'undefined' && navigator.onLine !== false;
-}
-
-/**
- * Calculate distance between two points using Haversine formula
- */
+// Calculate distance between two points (miles)
 function haversineDistance(lat1, lon1, lat2, lon2) {
-  const R = 3959; // Earth's radius in miles
+  const R = 3959;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a =
@@ -54,93 +36,14 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-/**
- * Get grid cell ID for a location
- */
-function getGridCellId(lat, lng, baseLat, baseLng) {
-  const metersPerDegreeLat = 111000;
-  const metersPerDegreeLng = 111000 * Math.cos(baseLat * Math.PI / 180);
+export default function useSearchSession(missionId, lastSeenLocation, probabilityZones = null) {
+  // Centralized GPS service
+  const { location: gpsLocation, startTracking, subscribe, getPosition, isSupported: gpsSupported, error: gpsServiceError } = useGPS();
+  const gpsUnsubscribeRef = useRef(null);
 
-  const latOffset = Math.floor((lat - baseLat) * metersPerDegreeLat / CONFIG.GRID_CELL_SIZE_METERS);
-  const lngOffset = Math.floor((lng - baseLng) * metersPerDegreeLng / CONFIG.GRID_CELL_SIZE_METERS);
-
-  return `${latOffset}_${lngOffset}`;
-}
-
-/**
- * Determine transportation method based on average speed
- */
-function getTransportMethod(avgSpeedMph) {
-  if (avgSpeedMph < 0.5) return 'stationary';
-  if (avgSpeedMph < 4) return 'walking';
-  if (avgSpeedMph < 7) return 'jogging';
-  if (avgSpeedMph < 15) return 'cycling';
-  return 'driving';
-}
-
-/**
- * Get transportation method display info
- */
-function getTransportInfo(method) {
-  const info = {
-    stationary: { label: 'Stationary', icon: '⏸️', color: 'text-slate-400', thorough: 'N/A' },
-    walking: { label: 'Walking', icon: '🚶', color: 'text-green-400', thorough: 'Excellent' },
-    jogging: { label: 'Jogging', icon: '🏃', color: 'text-amber-400', thorough: 'Good' },
-    cycling: { label: 'Cycling', icon: '🚴', color: 'text-orange-400', thorough: 'Fair' },
-    driving: { label: 'Driving', icon: '🚗', color: 'text-red-400', thorough: 'Low' },
-  };
-  return info[method] || info.stationary;
-}
-
-/**
- * Validate movement between two pings
- * Also detects GPS glitches (teleportation) when connection drops
- */
-function validateMovement(prevPing, currentPing) {
-  if (!prevPing) return { valid: true, distance: 0, speed: 0, isGpsGlitch: false };
-
-  const timeDeltaHours = (currentPing.timestamp - prevPing.timestamp) / 3600000;
-  const timeDeltaSeconds = (currentPing.timestamp - prevPing.timestamp) / 1000;
-
-  if (timeDeltaHours <= 0) {
-    return { valid: false, reason: 'INVALID_TIME', distance: 0, speed: 0, isGpsGlitch: false };
-  }
-
-  const distance = haversineDistance(
-    prevPing.latitude,
-    prevPing.longitude,
-    currentPing.latitude,
-    currentPing.longitude
-  );
-
-  const speed = distance / timeDeltaHours;
-
-  // GPS glitch detection: If moved > 0.2 miles in < 30 seconds, it's a GPS jump
-  // (0.2 miles in 30 seconds = 24 mph, impossible for walking)
-  if (distance > 0.2 && timeDeltaSeconds < 30) {
-    return { valid: false, reason: 'GPS_GLITCH', distance, speed, isGpsGlitch: true };
-  }
-
-  // Also check for poor GPS accuracy (> 100 meters = unreliable)
-  if (currentPing.accuracy && currentPing.accuracy > 100) {
-    return { valid: false, reason: 'LOW_ACCURACY', distance, speed, isGpsGlitch: true };
-  }
-
-  if (speed > CONFIG.MAX_WALKING_SPEED_MPH) {
-    return { valid: false, reason: 'DRIVING', distance, speed, isGpsGlitch: false };
-  }
-
-  if (speed < CONFIG.MIN_MOVEMENT_SPEED_MPH && distance < 0.001) {
-    return { valid: false, reason: 'STATIONARY', distance: 0, speed: 0, isGpsGlitch: false };
-  }
-
-  return { valid: true, distance, speed, isGpsGlitch: false };
-}
-
-export default function useSearchSession(missionId, lastSeenLocation) {
-  // Session state
-  const [session, setSession] = useState(null);
-  const [isActive, setIsActive] = useState(false);
+  // Core state - kept minimal
+  const [isSearching, setIsSearching] = useState(false);
+  const [sessionId, setSessionId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
@@ -153,353 +56,312 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     validatedDistanceMiles: 0,
     estimatedPoints: 0,
     gridCellsCovered: 0,
-    // Rolling speed tracking (last 30 seconds)
-    recentSpeeds: [], // Array of { speed, timestamp }
-    avgSpeed30s: 0, // Average speed over last 30 seconds (mph)
-    transportMethod: 'stationary', // 'stationary', 'walking', 'jogging', 'cycling', 'driving'
+    zoneMultiplier: 1.0, // Average zone multiplier for searched area
   });
 
-  // Path for visualization
+  // Path for map visualization
   const [path, setPath] = useState([]);
 
-  // Validation state
-  const [validation, setValidation] = useState({
-    inZone: true,
-    validSpeed: true,
-    distanceFromZone: 0,
-    currentSpeed: 0,
-    lastWarning: null,
-  });
-
-  // Refs for intervals
-  const pingIntervalRef = useRef(null);
-  const durationIntervalRef = useRef(null);
+  // Refs for session management
+  const timerRef = useRef(null);
   const lastPingRef = useRef(null);
-  const visitedCellsRef = useRef(new Set());
-  const watchIdRef = useRef(null);
+  const currentMissionRef = useRef(missionId);
+  const isSearchingRef = useRef(false);
+  const sessionIdRef = useRef(null);
+  const sessionStartedAtRef = useRef(null); // Track when session started for accurate duration
 
-  // Check if location is within search zone
-  const isWithinSearchZone = useCallback((lat, lng) => {
-    if (!lastSeenLocation?.lat || !lastSeenLocation?.lng) return true;
+  // Keep refs in sync with state - still needed for async callbacks
+  useEffect(() => {
+    isSearchingRef.current = isSearching;
+  }, [isSearching]);
 
-    const distance = haversineDistance(
-      lat, lng,
-      lastSeenLocation.lat, lastSeenLocation.lng
-    );
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
 
-    return distance <= CONFIG.SEARCH_RADIUS_MILES;
-  }, [lastSeenLocation]);
-
-  // Fetch active session on mount
+  // Check for existing session on mount
   useEffect(() => {
     if (!missionId) return;
 
-    const fetchSession = async () => {
+    // Reset if mission changed
+    if (missionId !== currentMissionRef.current) {
+      currentMissionRef.current = missionId;
+      // Clear refs first
+      isSearchingRef.current = false;
+      sessionIdRef.current = null;
+      setIsSearching(false);
+      setSessionId(null);
+      setStats({
+        durationSeconds: 0,
+        totalDistanceMiles: 0,
+        validatedDistanceMiles: 0,
+        estimatedPoints: 0,
+        gridCellsCovered: 0,
+      });
+      setPath([]);
+      setError(null);
+    }
+
+    const checkSession = async () => {
       try {
         const res = await fetch(`/api/mission/${missionId}/search`);
         if (res.ok) {
           const data = await res.json();
           if (data.activeSession) {
-            setSession(data.activeSession);
-            setIsActive(true);
+            // Resume existing session - set refs FIRST
+            sessionIdRef.current = data.activeSession.id;
+            isSearchingRef.current = true;
+            sessionStartedAtRef.current = new Date(data.activeSession.startedAt).getTime();
 
-            // Restore stats
-            const elapsed = Math.floor(
-              (Date.now() - new Date(data.activeSession.startedAt).getTime()) / 1000
-            );
+            setSessionId(data.activeSession.id);
+            setIsSearching(true);
+
+            // Use server's distance values (they're accumulated on server)
             setStats(prev => ({
               ...prev,
-              durationSeconds: elapsed,
+              durationSeconds: Math.floor((Date.now() - sessionStartedAtRef.current) / 1000),
               validatedDistanceMiles: data.activeSession.validatedDistanceMiles || 0,
               totalDistanceMiles: data.activeSession.totalDistanceMiles || 0,
               gridCellsCovered: data.activeSession.gridCellsCovered || 0,
             }));
-
-            // Restore path if available
-            if (data.activeSession.path) {
-              setPath(data.activeSession.path);
-            }
           }
         }
       } catch (err) {
-        console.error('Error fetching search session:', err);
+        console.error('Error checking session:', err);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchSession();
+    checkSession();
   }, [missionId]);
 
-  // Duration timer
+  // Duration timer - calculates from session start time (works even after backgrounding)
   useEffect(() => {
-    if (isActive) {
-      durationIntervalRef.current = setInterval(() => {
+    if (isSearching && sessionStartedAtRef.current) {
+      timerRef.current = setInterval(() => {
+        // Calculate from actual start time, not incremental
+        // This ensures accurate time even if app was backgrounded
+        const elapsed = Math.floor((Date.now() - sessionStartedAtRef.current) / 1000);
         setStats(prev => ({
           ...prev,
-          durationSeconds: prev.durationSeconds + 1,
+          durationSeconds: elapsed,
         }));
       }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     }
 
     return () => {
-      if (durationIntervalRef.current) {
-        clearInterval(durationIntervalRef.current);
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isActive]);
+  }, [isSearching]);
 
-  // Calculate estimated points
+  // Calculate average zone multiplier from path
   useEffect(() => {
-    const basePoints = stats.validatedDistanceMiles * CONFIG.POINTS_PER_MILE;
-    const gridBonus = stats.gridCellsCovered * 5;
-    const timeBonus = Math.min(Math.floor(stats.durationSeconds / 900) * 10, 40); // 10 pts per 15 min
-
-    setStats(prev => ({
-      ...prev,
-      estimatedPoints: Math.round(basePoints + gridBonus + timeBonus),
-    }));
-  }, [stats.validatedDistanceMiles, stats.gridCellsCovered, stats.durationSeconds]);
-
-  // Process a location update
-  const processLocationUpdate = useCallback(async (position) => {
-    if (!session?.id || !isActive) return;
-
-    const currentPing = {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      accuracy: position.coords.accuracy,
-      heading: position.coords.heading,
-      speed: position.coords.speed,
-      timestamp: Date.now(),
-    };
-
-    // Check if within search zone
-    const inZone = isWithinSearchZone(currentPing.latitude, currentPing.longitude);
-    const distanceFromLastSeen = lastSeenLocation
-      ? haversineDistance(
-          currentPing.latitude, currentPing.longitude,
-          lastSeenLocation.lat, lastSeenLocation.lng
-        )
-      : 0;
-
-    // Validate movement
-    const movementValidation = validateMovement(lastPingRef.current, currentPing);
-
-    // Update validation state
-    setValidation({
-      inZone,
-      validSpeed: movementValidation.valid || movementValidation.reason !== 'DRIVING',
-      distanceFromZone: Math.max(0, distanceFromLastSeen - CONFIG.SEARCH_RADIUS_MILES),
-      currentSpeed: movementValidation.speed,
-      lastWarning: !inZone ? 'OUTSIDE_ZONE' :
-                   movementValidation.reason === 'DRIVING' ? 'DRIVING' : null,
-    });
-
-    // Skip GPS glitches entirely - don't add them to the visual path
-    // This prevents "teleportation" lines when connection drops and reconnects
-    if (movementValidation.isGpsGlitch) {
-      console.log('GPS glitch detected, skipping point:', movementValidation.reason);
-      return; // Don't add to path, don't update stats, don't send to server
-    }
-
-    // Add to path with timestamp for duration calculation
-    setPath(prev => [...prev, {
-      lat: currentPing.latitude,
-      lng: currentPing.longitude,
-      valid: inZone && movementValidation.valid,
-      timestamp: currentPing.timestamp,
-      speed: movementValidation.speed,
-      distance: movementValidation.distance,
-    }]);
-
-    // Update grid cells
-    if (inZone && lastSeenLocation) {
-      const cellId = getGridCellId(
-        currentPing.latitude,
-        currentPing.longitude,
-        lastSeenLocation.lat,
-        lastSeenLocation.lng
-      );
-
-      if (!visitedCellsRef.current.has(cellId)) {
-        visitedCellsRef.current.add(cellId);
-        setStats(prev => ({
-          ...prev,
-          gridCellsCovered: visitedCellsRef.current.size,
-        }));
-      }
-    }
-
-    // Update distance stats and rolling speed
-    setStats(prev => {
-      // Add new speed to recent speeds (with safeguard for undefined)
-      const now = Date.now();
-      const previousSpeeds = prev.recentSpeeds || [];
-      const newSpeeds = [
-        ...previousSpeeds.filter(s => now - s.timestamp < 30000), // Keep last 30 seconds
-        { speed: movementValidation.speed, timestamp: now }
-      ];
-
-      // Calculate average speed over last 30 seconds
-      const avgSpeed30s = newSpeeds.length > 0
-        ? newSpeeds.reduce((sum, s) => sum + s.speed, 0) / newSpeeds.length
-        : 0;
-
-      // Determine transportation method
-      const transportMethod = getTransportMethod(avgSpeed30s);
-
-      return {
-        ...prev,
-        totalDistanceMiles: prev.totalDistanceMiles + movementValidation.distance,
-        validatedDistanceMiles: movementValidation.valid && inZone
-          ? prev.validatedDistanceMiles + movementValidation.distance
-          : prev.validatedDistanceMiles,
-        recentSpeeds: newSpeeds,
-        avgSpeed30s,
-        transportMethod,
-      };
-    });
-
-    // Store as last ping
-    lastPingRef.current = currentPing;
-
-    // Send ping to server with retry logic
-    const sendPingWithRetry = async (attempts = 0) => {
-      // Check if online first
-      if (!isOnline()) {
-        console.warn('Offline - ping will be retried when online');
-        setValidation(prev => ({ ...prev, lastWarning: 'OFFLINE' }));
-        return;
-      }
-
-      try {
-        const res = await fetch(`/api/mission/${missionId}/search`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'ping',
-            sessionId: session.id,
-            latitude: currentPing.latitude,
-            longitude: currentPing.longitude,
-            accuracy: currentPing.accuracy,
-            heading: currentPing.heading,
-            speed: currentPing.speed,
-            isValid: inZone && movementValidation.valid,
-            invalidReason: !inZone ? 'OUTSIDE_ZONE' : movementValidation.reason,
-            gridCellId: lastSeenLocation
-              ? getGridCellId(currentPing.latitude, currentPing.longitude, lastSeenLocation.lat, lastSeenLocation.lng)
-              : null,
-          }),
-        });
-
-        if (!res.ok && attempts < CONFIG.PING_RETRY_ATTEMPTS) {
-          // Retry on server error
-          setTimeout(() => sendPingWithRetry(attempts + 1), CONFIG.PING_RETRY_DELAY_MS);
-        }
-      } catch (err) {
-        console.error('Error sending ping:', err);
-        if (attempts < CONFIG.PING_RETRY_ATTEMPTS) {
-          // Retry on network error
-          setTimeout(() => sendPingWithRetry(attempts + 1), CONFIG.PING_RETRY_DELAY_MS);
-        } else {
-          setValidation(prev => ({ ...prev, lastWarning: 'SYNC_ERROR' }));
-        }
-      }
-    };
-
-    sendPingWithRetry();
-  }, [session?.id, isActive, missionId, isWithinSearchZone, lastSeenLocation]);
-
-  // Start GPS watching
-  useEffect(() => {
-    if (!isActive || !session?.id) return;
-
-    if (!('geolocation' in navigator)) {
-      setError('GPS not available on this device');
+    if (!path.length || !probabilityZones) {
+      setStats(prev => ({ ...prev, zoneMultiplier: 1.0 }));
       return;
     }
 
-    // Start watching position
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      processLocationUpdate,
-      (err) => {
-        console.error('Geolocation error:', err);
-        // Handle specific error codes
-        let warningType = 'GPS_ERROR';
-        let errorMessage = 'GPS error occurred';
+    // Calculate multiplier for each valid point in path
+    const validPoints = path.filter(p => p.valid);
+    if (!validPoints.length) return;
 
-        switch (err.code) {
-          case GEO_ERROR.PERMISSION_DENIED:
-            warningType = 'GPS_PERMISSION_DENIED';
-            errorMessage = 'Location permission denied. Please enable in settings.';
-            break;
-          case GEO_ERROR.POSITION_UNAVAILABLE:
-            warningType = 'GPS_UNAVAILABLE';
-            errorMessage = 'GPS signal unavailable. Try moving to an open area.';
-            break;
-          case GEO_ERROR.TIMEOUT:
-            warningType = 'GPS_TIMEOUT';
-            errorMessage = 'GPS timed out. Retrying...';
-            break;
-        }
+    const totalMultiplier = validPoints.reduce((sum, point) => {
+      const mult = getPointsMultiplier([point.lat, point.lng], probabilityZones);
+      return sum + mult;
+    }, 0);
 
-        setValidation(prev => ({
-          ...prev,
-          lastWarning: warningType,
-          errorMessage,
-        }));
-        setError(errorMessage);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 5000,
+    const avgMultiplier = totalMultiplier / validPoints.length;
+    setStats(prev => ({ ...prev, zoneMultiplier: avgMultiplier }));
+  }, [path, probabilityZones]);
+
+  // Estimated points calculation - only show if minimum requirements met
+  useEffect(() => {
+    const durationMinutes = stats.durationSeconds / 60;
+    const meetsMinimum = durationMinutes >= CONFIG.MIN_SESSION_MINUTES &&
+                         stats.validatedDistanceMiles >= CONFIG.MIN_SESSION_MILES;
+
+    if (!meetsMinimum) {
+      setStats(prev => ({ ...prev, estimatedPoints: 0 }));
+      return;
+    }
+
+    const basePoints = stats.validatedDistanceMiles * CONFIG.POINTS_PER_MILE;
+    const gridBonus = stats.gridCellsCovered * 5;
+    const timeBonus = Math.min(Math.floor(stats.durationSeconds / 900) * 10, 40);
+
+    // Apply zone multiplier to base points
+    const zoneBonus = basePoints * (stats.zoneMultiplier - 1); // Only the bonus part
+
+    setStats(prev => ({
+      ...prev,
+      estimatedPoints: Math.round(basePoints + zoneBonus + gridBonus + timeBonus),
+    }));
+  }, [stats.validatedDistanceMiles, stats.gridCellsCovered, stats.durationSeconds, stats.zoneMultiplier]);
+
+  // Process GPS update
+  const processLocation = useCallback(async (position) => {
+    // CRITICAL: Check refs, not state! State values are stale in watchPosition callback
+    const currentSessionId = sessionIdRef.current;
+    const currentlySearching = isSearchingRef.current;
+
+    if (!currentSessionId || !currentlySearching) {
+      console.log('[GPS] Ignoring ping - search not active (session:', currentSessionId, 'searching:', currentlySearching, ')');
+      return;
+    }
+
+    const { latitude, longitude, accuracy, heading, speed } = position.coords;
+    const timestamp = Date.now();
+
+    // Calculate distance from previous
+    let distance = 0;
+    let speedMph = 0;
+    if (lastPingRef.current) {
+      distance = haversineDistance(
+        lastPingRef.current.lat, lastPingRef.current.lng,
+        latitude, longitude
+      );
+      const timeDeltaHours = (timestamp - lastPingRef.current.timestamp) / 3600000;
+      if (timeDeltaHours > 0) {
+        speedMph = distance / timeDeltaHours;
       }
-    );
+    }
+
+    // Check if in search zone
+    let inZone = true;
+    if (lastSeenLocation?.lat && lastSeenLocation?.lng) {
+      const distFromLastSeen = haversineDistance(
+        latitude, longitude,
+        lastSeenLocation.lat, lastSeenLocation.lng
+      );
+      inZone = distFromLastSeen <= CONFIG.SEARCH_RADIUS_MILES;
+    }
+
+    // Validate speed (ignore GPS glitches)
+    const isValid = speedMph <= CONFIG.MAX_WALKING_SPEED_MPH && inZone && distance < 0.5;
+
+    // Skip obvious GPS glitches (but update lastPingRef so we can recover)
+    if (distance > 0.5 || speedMph > 20) {
+      console.log('GPS glitch detected, skipping (but updating baseline for next ping)');
+      // Still update lastPingRef so subsequent pings have a valid baseline
+      lastPingRef.current = { lat: latitude, lng: longitude, timestamp };
+      return;
+    }
+
+    // Update local path
+    setPath(prev => [...prev, {
+      lat: latitude,
+      lng: longitude,
+      valid: isValid,
+      timestamp,
+    }]);
+
+    // Update local stats
+    if (isValid && distance > 0.001) {
+      setStats(prev => ({
+        ...prev,
+        totalDistanceMiles: prev.totalDistanceMiles + distance,
+        validatedDistanceMiles: prev.validatedDistanceMiles + distance,
+      }));
+    }
+
+    // Store as last ping
+    lastPingRef.current = { lat: latitude, lng: longitude, timestamp };
+
+    // Send to server (fire and forget)
+    try {
+      await fetch(`/api/mission/${missionId}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'ping',
+          sessionId: currentSessionId,
+          latitude,
+          longitude,
+          accuracy,
+          heading,
+          speed,
+          isValid,
+        }),
+      });
+    } catch (err) {
+      console.error('Ping failed:', err);
+    }
+  }, [missionId, lastSeenLocation]); // Removed sessionId, isSearching - we use refs now
+
+  // GPS watching effect - uses centralized GPS service
+  useEffect(() => {
+    if (!isSearching || !sessionId) {
+      // Unsubscribe from GPS service
+      if (gpsUnsubscribeRef.current) {
+        gpsUnsubscribeRef.current();
+        gpsUnsubscribeRef.current = null;
+      }
+      return;
+    }
+
+    if (!gpsSupported) {
+      setError('GPS not available');
+      return;
+    }
+
+    // Start high accuracy tracking for search sessions
+    startTracking(GPS_MODE.HIGH_ACCURACY);
+
+    // Subscribe to location updates from centralized service
+    gpsUnsubscribeRef.current = subscribe((location) => {
+      // Create a position-like object for processLocation
+      const position = {
+        coords: {
+          latitude: location.lat,
+          longitude: location.lng,
+          accuracy: location.accuracy || 50,
+          heading: null,
+          speed: null,
+        },
+      };
+      processLocation(position);
+    });
 
     return () => {
-      if (watchIdRef.current) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
+      if (gpsUnsubscribeRef.current) {
+        gpsUnsubscribeRef.current();
+        gpsUnsubscribeRef.current = null;
       }
     };
-  }, [isActive, session?.id, processLocationUpdate]);
+  }, [isSearching, sessionId, gpsSupported, startTracking, subscribe, processLocation]);
 
-  // Start a new search session
+  // Start search
   const startSearch = useCallback(async () => {
-    if (!missionId) return { success: false, error: 'No case ID' };
+    console.log('[useSearchSession] startSearch called, missionId:', missionId, 'isStarting:', isStarting);
+
+    if (!missionId || isStarting) {
+      console.log('[useSearchSession] Cannot start - no missionId or already starting');
+      return { success: false };
+    }
+
+    if (!gpsSupported) {
+      setError('GPS not available on this device');
+      return { success: false, error: 'GPS not available' };
+    }
 
     setIsStarting(true);
     setError(null);
+    console.log('[useSearchSession] Set isStarting to true');
 
     try {
-      // Get current position
-      const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 15000,
-        });
-      });
+      // Get current position from centralized GPS service
+      const location = await getPosition();
+      console.log('[useSearchSession] Got position via GPS service:', location.lat, location.lng);
 
-      const { latitude, longitude } = position.coords;
+      const { lat: latitude, lng: longitude } = location;
 
-      // Check if within search zone
-      const inZone = isWithinSearchZone(latitude, longitude);
-      if (!inZone) {
-        const distance = lastSeenLocation
-          ? haversineDistance(latitude, longitude, lastSeenLocation.lat, lastSeenLocation.lng)
-          : 0;
-
-        setValidation(prev => ({
-          ...prev,
-          inZone: false,
-          distanceFromZone: distance - CONFIG.SEARCH_RADIUS_MILES,
-        }));
-
-        // Still allow starting, but warn
-      }
-
-      // Call API to start session
+      // Call API - it will force-end any existing sessions
       const res = await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -507,216 +369,226 @@ export default function useSearchSession(missionId, lastSeenLocation) {
           action: 'start',
           latitude,
           longitude,
-          lastSeenLat: lastSeenLocation?.lat,
-          lastSeenLng: lastSeenLocation?.lng,
         }),
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to start search');
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to start');
       }
 
       const data = await res.json();
+      console.log('[useSearchSession] Start API response:', data);
 
-      // Initialize session
-      setSession({
-        id: data.sessionId,
-        status: 'ACTIVE',
-        startedAt: data.startedAt,
-      });
-      setIsActive(true);
+      // Set refs FIRST - ensures callbacks see correct values immediately
+      const startTime = Date.now();
+      sessionIdRef.current = data.sessionId;
+      isSearchingRef.current = true;
+      sessionStartedAtRef.current = startTime;
+      console.log('[useSearchSession] Set refs, sessionId:', data.sessionId);
+
+      // Set state
+      setSessionId(data.sessionId);
+      setIsSearching(true);
+      console.log('[useSearchSession] Set state, isSearching now true');
       setStats({
         durationSeconds: 0,
         totalDistanceMiles: 0,
         validatedDistanceMiles: 0,
         estimatedPoints: 0,
-        gridCellsCovered: 0,
-        recentSpeeds: [],
-        avgSpeed30s: 0,
-        transportMethod: 'stationary',
+        gridCellsCovered: 0, // Start at 0 - earn by moving
+        zoneMultiplier: 1.0,
       });
-      setPath([{ lat: latitude, lng: longitude, valid: inZone, timestamp: Date.now(), speed: 0, distance: 0 }]);
-      visitedCellsRef.current = new Set();
-      lastPingRef.current = {
-        latitude,
-        longitude,
-        timestamp: Date.now(),
-      };
-
-      // Add initial grid cell
-      if (lastSeenLocation) {
-        const cellId = getGridCellId(latitude, longitude, lastSeenLocation.lat, lastSeenLocation.lng);
-        visitedCellsRef.current.add(cellId);
-        setStats(prev => ({ ...prev, gridCellsCovered: 1 }));
-      }
+      setPath([{ lat: latitude, lng: longitude, valid: true, timestamp: startTime }]);
+      lastPingRef.current = { lat: latitude, lng: longitude, timestamp: startTime };
 
       return { success: true, sessionId: data.sessionId };
     } catch (err) {
-      // Handle specific geolocation error codes
-      let errorMsg = err.message || 'Failed to start search';
-
-      if (err.code === GEO_ERROR.PERMISSION_DENIED || err.message === 'User denied Geolocation') {
-        errorMsg = 'Location permission denied. Please enable in your device settings.';
-      } else if (err.code === GEO_ERROR.POSITION_UNAVAILABLE) {
-        errorMsg = 'GPS unavailable. Please move to an open area and try again.';
-      } else if (err.code === GEO_ERROR.TIMEOUT) {
-        errorMsg = 'GPS timed out. Please wait a moment and try again.';
-      }
-
-      setError(errorMsg);
-      return { success: false, error: errorMsg };
+      const msg = err.code === 1 ? 'Location permission denied' :
+                  err.code === 2 ? 'GPS unavailable' :
+                  err.message || 'Failed to start';
+      setError(msg);
+      return { success: false, error: msg };
     } finally {
       setIsStarting(false);
     }
-  }, [missionId, isWithinSearchZone, lastSeenLocation]);
+  }, [missionId, isStarting, gpsSupported, getPosition]);
 
-  // End the search session
+  // End search
   const endSearch = useCallback(async () => {
-    if (!session?.id) return { success: false, error: 'No active session' };
+    console.log('[useSearchSession] endSearch called, isEnding:', isEnding, 'sessionIdRef:', sessionIdRef.current);
+
+    if (isEnding) {
+      console.log('[useSearchSession] Already ending, returning early');
+      return { success: false };
+    }
 
     setIsEnding(true);
+    console.log('[useSearchSession] Set isEnding to true');
 
+    // CRITICAL: Update refs FIRST - this stops pending callbacks immediately
+    const currentSessionId = sessionIdRef.current;
+    isSearchingRef.current = false;
+    sessionIdRef.current = null;
+    sessionStartedAtRef.current = null;
+    console.log('[useSearchSession] Cleared refs, currentSessionId:', currentSessionId);
+
+    // Unsubscribe from GPS service
+    if (gpsUnsubscribeRef.current) {
+      gpsUnsubscribeRef.current();
+      gpsUnsubscribeRef.current = null;
+    }
+
+    // Stop timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    // Capture stats before resetting
+    const currentStats = { ...stats };
+
+    // Reset UI state
+    setIsSearching(false);
+    setSessionId(null);
+    console.log('[useSearchSession] Reset UI state, isSearching now false');
+
+    // Fire API call in background (don't block UI)
     try {
-      // Stop watching position
-      if (watchIdRef.current) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-
-      // Stop timers
-      if (durationIntervalRef.current) {
-        clearInterval(durationIntervalRef.current);
-        durationIntervalRef.current = null;
-      }
-
-      // Call API to end session
+      console.log('[useSearchSession] Calling end API for session:', currentSessionId);
       const res = await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'end',
-          sessionId: session.id,
+          sessionId: currentSessionId,
         }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to end search');
-      }
+      const data = await res.json().catch(() => ({}));
+      console.log('[useSearchSession] API response:', data);
 
-      const data = await res.json();
-
-      // Clear session
-      setSession(null);
-      setIsActive(false);
-
-      // Include meetsMinimum for summary screen
-      const meetsMinimum = (data.stats?.durationMinutes >= CONFIG.MIN_SESSION_MINUTES) &&
-                           (data.stats?.validatedDistanceMiles >= CONFIG.MIN_SESSION_MILES);
-
+      setIsEnding(false);
+      console.log('[useSearchSession] endSearch complete, success');
       return {
         success: true,
-        stats: data.stats || stats,
-        points: data.points || { total: stats.estimatedPoints, distance: 0, gridBonus: 0, timeBonus: 0, multiplier: 1 },
-        meetsMinimum,
+        stats: data.stats || currentStats,
+        points: data.points || { total: currentStats.estimatedPoints },
+        meetsMinimum: data.meetsMinimum,
       };
     } catch (err) {
-      setError(err.message || 'Failed to end search');
-      return { success: false, error: err.message };
-    } finally {
+      console.error('[useSearchSession] End search error:', err);
       setIsEnding(false);
+      return { success: false, error: err.message };
     }
-  }, [session?.id, missionId]);
+  }, [missionId, isEnding, stats]); // Removed sessionId - we use ref now
 
-  // Cancel search (no points)
-  const cancelSearch = useCallback(async () => {
-    if (!session?.id) return;
+  // Force stop (used for cleanup)
+  const forceStop = useCallback(async () => {
+    // CRITICAL: Update refs FIRST - stops pending callbacks immediately
+    const currentSessionId = sessionIdRef.current;
+    isSearchingRef.current = false;
+    sessionIdRef.current = null;
+    sessionStartedAtRef.current = null;
 
-    // Stop watching
-    if (watchIdRef.current) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
+    // Unsubscribe from GPS service
+    if (gpsUnsubscribeRef.current) {
+      gpsUnsubscribeRef.current();
+      gpsUnsubscribeRef.current = null;
     }
 
-    // Stop timers
-    if (durationIntervalRef.current) {
-      clearInterval(durationIntervalRef.current);
+    // Stop timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
 
-    try {
-      await fetch(`/api/mission/${missionId}/search`, {
+    // End on server (don't wait)
+    if (currentSessionId) {
+      fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'cancel',
-          sessionId: session.id,
-        }),
-      });
-    } catch (err) {
-      console.error('Error cancelling search:', err);
+        body: JSON.stringify({ action: 'end', sessionId: currentSessionId }),
+      }).catch(() => {});
     }
 
-    setSession(null);
-    setIsActive(false);
+    // Reset state
+    setIsSearching(false);
+    setSessionId(null);
     setStats({
       durationSeconds: 0,
       totalDistanceMiles: 0,
       validatedDistanceMiles: 0,
       estimatedPoints: 0,
       gridCellsCovered: 0,
-      recentSpeeds: [],
-      avgSpeed30s: 0,
-      transportMethod: 'stationary',
     });
     setPath([]);
-  }, [session?.id, missionId]);
+    lastPingRef.current = null;
+  }, [missionId]); // Removed sessionId - we use ref now
 
-  // Format duration for display
-  const formatDuration = useCallback((seconds) => {
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Clear refs first to stop any pending callbacks
+      isSearchingRef.current = false;
+      sessionIdRef.current = null;
+
+      // Unsubscribe from GPS service
+      if (gpsUnsubscribeRef.current) {
+        gpsUnsubscribeRef.current();
+        gpsUnsubscribeRef.current = null;
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
+
+  // Format duration
+  const formatDuration = (seconds) => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-
     if (hrs > 0) {
       return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }, []);
-
-  // Check if session meets minimum requirements
-  const meetsMinimumRequirements = stats.durationSeconds >= CONFIG.MIN_SESSION_MINUTES * 60 &&
-    stats.validatedDistanceMiles >= CONFIG.MIN_SESSION_MILES;
+  };
 
   return {
     // State
-    session,
-    isActive,
+    isSearching,
     isLoading,
     isStarting,
     isEnding,
     error,
+    session: sessionId ? { id: sessionId } : null,
+    isActive: isSearching, // Alias for compatibility
 
     // Stats
     stats,
     formattedDuration: formatDuration(stats.durationSeconds),
-
-    // Path for map
     path,
 
-    // Validation
-    validation,
-    meetsMinimumRequirements,
-
-    // Config (for UI)
-    config: CONFIG,
+    // Validation state (simplified - always valid for now)
+    validation: {
+      inZone: true,
+      validSpeed: true,
+      distanceFromZone: 0,
+      currentSpeed: 0,
+      lastWarning: error,
+    },
 
     // Actions
     startSearch,
     endSearch,
-    cancelSearch,
+    cancelSearch: forceStop, // Alias for compatibility
+    forceStop,
 
-    // Helpers
-    isWithinSearchZone,
+    // Config
+    config: CONFIG,
+    meetsMinimumRequirements:
+      stats.durationSeconds >= CONFIG.MIN_SESSION_MINUTES * 60 &&
+      stats.validatedDistanceMiles >= CONFIG.MIN_SESSION_MILES,
   };
 }

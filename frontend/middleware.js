@@ -16,13 +16,22 @@ const rateLimitMap = new Map();
 
 /**
  * Rate limiter configuration
+ * Routes not listed here use the default config
  */
 const RATE_LIMIT_CONFIG = {
+  // Strict: Auth endpoints
   '/api/auth/register': { windowMs: 60000, maxRequests: 5 },
   '/api/auth/login': { windowMs: 60000, maxRequests: 10 },
-  '/api/missions': { windowMs: 60000, maxRequests: 120 },
+  '/api/auth/forgot-password': { windowMs: 60000, maxRequests: 5 },
   '/api/contact': { windowMs: 60000, maxRequests: 5 },
-  default: { windowMs: 60000, maxRequests: 100 },
+  // Lenient: Frequently accessed endpoints
+  '/api/dashboard': { windowMs: 60000, maxRequests: 30 },
+  '/api/public/homepage': { windowMs: 60000, maxRequests: 60 },
+  '/api/public/missions': { windowMs: 60000, maxRequests: 60 },
+  '/api/missions': { windowMs: 60000, maxRequests: 120 },
+  '/api/mission': { windowMs: 60000, maxRequests: 120 },
+  // Default for other API routes
+  default: { windowMs: 60000, maxRequests: 60 },
 };
 
 /**
@@ -178,7 +187,8 @@ export async function middleware(request) {
       .find(key => pathname.startsWith(key));
 
     const config = RATE_LIMIT_CONFIG[configKey || 'default'];
-    const rateLimitKey = `${clientIp}:${configKey || 'default'}`;
+    // Use specific route path for rate limit bucket, not shared "default"
+    const rateLimitKey = `${clientIp}:${configKey || pathname}`;
 
     const rateLimit = checkRateLimit(rateLimitKey, config);
 

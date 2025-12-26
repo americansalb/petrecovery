@@ -369,6 +369,66 @@ export async function GET(request) {
         }
       }));
 
+    // First, cleanup any stale GPS sessions (older than 30 minutes)
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    await prisma.searchSession.updateMany({
+      where: {
+        userId: user.id,
+        status: { in: ['READY', 'ACTIVE'] },
+        startedAt: { lt: thirtyMinutesAgo },
+      },
+      data: {
+        status: 'COMPLETED',
+        endedAt: new Date(),
+        endReason: 'AUTO_CLEANUP',
+      },
+    });
+
+    // Fetch ONLY recent active GPS search sessions (started within last 30 min)
+    const activeSearchSessions = await prisma.searchSession.findMany({
+      where: {
+        userId: user.id,
+        status: 'ACTIVE',
+        startedAt: { gte: thirtyMinutesAgo },
+      },
+      select: {
+        id: true,
+        missionId: true,
+        status: true,
+        startedAt: true,
+        validatedDistanceMiles: true,
+      },
+    });
+
+    // Get case details for active searches
+    const activeSearchCaseIds = activeSearchSessions.map(s => s.missionId);
+    const activeSearchCases = activeSearchCaseIds.length > 0
+      ? await prisma.case.findMany({
+          where: { id: { in: activeSearchCaseIds } },
+          select: {
+            id: true,
+            petName: true,
+            petSpecies: true,
+            caseNumber: true,
+          },
+        })
+      : [];
+
+    const activeSearchCaseMap = Object.fromEntries(
+      activeSearchCases.map(c => [c.id, c])
+    );
+
+    const activeSearches = activeSearchSessions.map(session => ({
+      id: session.id,
+      missionId: session.missionId,
+      petName: activeSearchCaseMap[session.missionId]?.petName || 'Unknown',
+      petSpecies: activeSearchCaseMap[session.missionId]?.petSpecies || 'PET',
+      caseNumber: activeSearchCaseMap[session.missionId]?.caseNumber,
+      startedAt: session.startedAt,
+      durationMinutes: Math.floor((Date.now() - new Date(session.startedAt).getTime()) / 60000),
+      distanceMiles: session.validatedDistanceMiles || 0,
+    }));
+
     // Admin: Fetch all registered members
     let allMembers = [];
     const isAdmin = user.role === 'ADMIN';
@@ -441,6 +501,7 @@ export async function GET(request) {
       squads, // Squads user belongs to
       activeMissions, // Cases user is actively helping with
       missions, // Unified list: all cases user is involved with (owner or volunteer)
+      activeSearches, // Active GPS search sessions
       // Admin-only data
       ...(isAdmin && { allMembers }),
     });

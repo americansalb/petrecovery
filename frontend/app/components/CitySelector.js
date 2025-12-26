@@ -9,8 +9,30 @@ export default function CitySelector({ value, onChange, state }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [filteredCities, setFilteredCities] = useState([]);
   const [isValid, setIsValid] = useState(true);
+  const [requestStatus, setRequestStatus] = useState(null); // null, 'sending', 'sent', 'error'
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
+
+  const handleRequestCity = async () => {
+    if (!inputValue || inputValue.trim().length < 2) return;
+
+    setRequestStatus('sending');
+    try {
+      const res = await fetch('/api/cities/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cityName: inputValue.trim() }),
+      });
+
+      if (res.ok) {
+        setRequestStatus('sent');
+      } else {
+        setRequestStatus('error');
+      }
+    } catch {
+      setRequestStatus('error');
+    }
+  };
 
   // Initialize state from value
   useEffect(() => {
@@ -49,6 +71,7 @@ export default function CitySelector({ value, onChange, state }) {
     setInputValue(newValue);
     onChange(newValue);
     setShowDropdown(true);
+    setRequestStatus(null); // Reset request status when typing
   };
 
   const handleCitySelect = (city) => {
@@ -90,7 +113,7 @@ export default function CitySelector({ value, onChange, state }) {
           color: '#ef4444',
           marginTop: '0.5rem',
         }}>
-          Please enter a valid US city name
+          City not found. Try &quot;St.&quot; as &quot;Saint&quot; or check spelling.
         </p>
       )}
 
@@ -155,9 +178,10 @@ export default function CitySelector({ value, onChange, state }) {
         </div>
       )}
 
-      {/* No matches message */}
-      {showDropdown && inputValue && filteredCities.length === 0 && (
+      {/* No matches message with request option */}
+      {showDropdown && inputValue && inputValue.length >= 3 && filteredCities.length === 0 && (
         <div
+          ref={dropdownRef}
           style={{
             position: 'absolute',
             top: 'calc(100% + 0.25rem)',
@@ -170,10 +194,39 @@ export default function CitySelector({ value, onChange, state }) {
             boxShadow: theme.shadows.lg,
             zIndex: 1000,
             textAlign: 'center',
-            color: theme.colors.gray[600],
           }}
         >
-          No matching cities found. Please check spelling.
+          <p style={{ color: theme.colors.gray[600], marginBottom: '0.75rem' }}>
+            No matching cities found.
+          </p>
+
+          {requestStatus === 'sent' ? (
+            <p style={{ color: '#10b981', fontSize: '0.9rem', fontWeight: '500' }}>
+              ✓ Request submitted! We&apos;ll review it soon.
+            </p>
+          ) : requestStatus === 'error' ? (
+            <p style={{ color: '#ef4444', fontSize: '0.9rem' }}>
+              Failed to submit. Please try again.
+            </p>
+          ) : (
+            <button
+              onClick={handleRequestCity}
+              disabled={requestStatus === 'sending'}
+              style={{
+                background: theme.colors.primary,
+                color: 'white',
+                border: 'none',
+                padding: '0.5rem 1rem',
+                borderRadius: theme.radius.md,
+                fontSize: '0.9rem',
+                fontWeight: '500',
+                cursor: requestStatus === 'sending' ? 'wait' : 'pointer',
+                opacity: requestStatus === 'sending' ? 0.7 : 1,
+              }}
+            >
+              {requestStatus === 'sending' ? 'Submitting...' : "Don't see your city? Request it!"}
+            </button>
+          )}
         </div>
       )}
 
@@ -183,7 +236,7 @@ export default function CitySelector({ value, onChange, state }) {
         color: theme.colors.gray[500],
         marginTop: '0.5rem',
       }}>
-        Type at least 2 characters to see suggestions
+        Type at least 3 characters (US, Mexico, Canada supported)
       </p>
     </div>
   );

@@ -93,6 +93,10 @@ function MissionControlV4Content() {
     setIsGPSTracking,
     isJoining,
 
+    // GPS state from centralized service
+    gpsLocation,
+    gpsError,
+
     // Computed values
     timeMissing,
     isUrgent,
@@ -334,6 +338,7 @@ function MissionControlV4Content() {
             onStopGPS={stopGPSTracking}
             onReportSighting={() => setShowSightingForm(true)}
             showNotification={showNotification}
+            gpsError={gpsError}
           />
         )}
 

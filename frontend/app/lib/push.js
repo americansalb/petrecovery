@@ -101,6 +101,25 @@ export async function sendPushToMany(subscriptions, payload) {
  */
 export const PUSH_TEMPLATES = {
   /**
+   * Match found alert - when a found pet matches a lost pet
+   */
+  MATCH_ALERT: (petName, matchScore, location, conversationId) => ({
+    title: `🎉 Potential Match for ${petName}!`,
+    body: `Someone found a pet that's a ${matchScore}% match near ${location}. Tap to connect!`,
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/badge-72x72.png',
+    tag: `match-${conversationId}`,
+    type: 'MATCH_ALERT',
+    url: `/messages/${conversationId}`,
+    requireInteraction: true,
+    actions: [
+      { action: 'view', title: 'View Match' },
+      { action: 'dismiss', title: 'Not Now' }
+    ],
+    data: { conversationId, type: 'MATCH_ALERT' },
+  }),
+
+  /**
    * New sighting alert
    */
   SIGHTING_ALERT: (petName, location, missionId) => ({
@@ -177,6 +196,32 @@ export const PUSH_TEMPLATES = {
     type: 'SQUAD_ACTIVITY',
     url: `/rescue-squads/${squadId}`,
     data: { squadId, type: 'SQUAD_ACTIVITY' },
+  }),
+
+  /**
+   * Forum reply notification
+   */
+  FORUM_REPLY: (authorName, threadTitle, threadSlug) => ({
+    title: `💬 New reply from ${authorName}`,
+    body: `In: ${threadTitle.length > 50 ? threadTitle.substring(0, 47) + '...' : threadTitle}`,
+    icon: '/icons/icon-192x192.png',
+    tag: `forum-${threadSlug}`,
+    type: 'FORUM_REPLY',
+    url: `/hub/thread/${threadSlug}`,
+    data: { threadSlug, type: 'FORUM_REPLY' },
+  }),
+
+  /**
+   * Forum mention notification
+   */
+  FORUM_MENTION: (authorName, threadTitle, threadSlug) => ({
+    title: `📢 ${authorName} mentioned you`,
+    body: `In: ${threadTitle.length > 50 ? threadTitle.substring(0, 47) + '...' : threadTitle}`,
+    icon: '/icons/icon-192x192.png',
+    tag: `forum-mention-${threadSlug}`,
+    type: 'FORUM_MENTION',
+    url: `/hub/thread/${threadSlug}`,
+    data: { threadSlug, type: 'FORUM_MENTION' },
   }),
 
   /**

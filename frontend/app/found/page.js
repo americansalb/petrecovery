@@ -14,9 +14,106 @@ import {
   Camera, Check, ChevronLeft, ChevronRight,
   Loader2, X, Navigation, ExternalLink,
   Sparkles, Heart, Mail, User, Search, PawPrint,
-  Calendar, FileText, CheckCircle
+  Calendar, FileText, CheckCircle, MessageCircle
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import ColorSelector from '../components/ColorSelector';
+
+/**
+ * MatchCard Component - Shows a potential match with message button
+ */
+function MatchCard({ match, foundReportId, index }) {
+  const router = useRouter();
+  const [starting, setStarting] = useState(false);
+
+  const startConversation = async () => {
+    try {
+      setStarting(true);
+      const response = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lostCaseId: match.reportId,
+          foundCaseId: foundReportId,
+          matchScore: match.matchScore,
+          matchDetails: {
+            distance: match.distance,
+            quality: match.matchQuality?.label
+          }
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to start conversation');
+      }
+
+      // Navigate to the conversation
+      router.push(`/messages/${data.conversation.id}`);
+    } catch (err) {
+      alert(err.message);
+      setStarting(false);
+    }
+  };
+
+  const qualityColor = match.matchQuality?.color || '#64748b';
+  const qualityBg = match.matchQuality?.bg || '#f1f5f9';
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+      <div className="flex">
+        {/* Pet Photo */}
+        {match.petPhoto ? (
+          <img
+            src={match.petPhoto}
+            alt={match.petName}
+            className="w-24 h-24 object-cover flex-shrink-0"
+          />
+        ) : (
+          <div className="w-24 h-24 bg-gray-100 flex items-center justify-center flex-shrink-0">
+            <Dog size={32} className="text-gray-300" />
+          </div>
+        )}
+
+        {/* Details */}
+        <div className="flex-1 p-3 min-w-0">
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <h3 className="font-semibold text-gray-900 truncate">{match.petName}</h3>
+            <span
+              className="text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-medium"
+              style={{ backgroundColor: qualityBg, color: qualityColor }}
+            >
+              {match.matchScore}%
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 truncate mb-1">
+            {match.petBreed || match.petColor}
+          </p>
+          <p className="text-xs text-gray-400 truncate">
+            {match.distance ? `${match.distance.toFixed(1)} mi away` : match.lastSeenAddress}
+          </p>
+        </div>
+      </div>
+
+      {/* Action Button */}
+      <div className="px-3 pb-3">
+        <button
+          onClick={startConversation}
+          disabled={starting}
+          className="w-full py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+        >
+          {starting ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <MessageCircle size={16} />
+          )}
+          {starting ? 'Starting...' : 'Message Owner'}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const PET_TYPES = [
   { type: 'dog', label: 'Dog', icon: Dog, emoji: '🐕' },
@@ -391,33 +488,47 @@ export default function ReportFoundPet() {
   // Success screen
   if (step === 7 && reportResult) {
     return (
-      <div className="h-[100dvh] bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-6">
-        <div className="text-center max-w-sm">
-          <div className="relative mb-8">
-            <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-200">
-              <Check size={48} className="text-white" strokeWidth={3} />
+      <div className="h-[100dvh] bg-gradient-to-br from-green-50 via-white to-emerald-50 overflow-y-auto">
+        <div className="max-w-md mx-auto p-6 py-12">
+          <div className="text-center mb-8">
+            <div className="relative inline-block mb-6">
+              <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-200">
+                <Check size={48} className="text-white" strokeWidth={3} />
+              </div>
+              <Sparkles className="absolute -top-2 -right-2 text-yellow-400" size={24} />
+              <Sparkles className="absolute -bottom-1 -left-3 text-green-400" size={20} />
             </div>
-            <Sparkles className="absolute -top-2 -right-2 text-yellow-400" size={24} />
-            <Sparkles className="absolute -bottom-1 -left-3 text-green-400" size={20} />
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Thank You!</h1>
+            <p className="text-gray-600 text-lg">
+              Your found pet report has been submitted
+            </p>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Thank You!</h1>
-          <p className="text-gray-600 mb-4 text-lg">
-            Your found pet report has been submitted
-          </p>
 
-          {reportResult.potentialMatches?.length > 0 && (
-            <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-4 mb-6 text-left">
-              <p className="font-bold text-green-800 flex items-center gap-2 mb-2">
-                <CheckCircle size={20} />
-                Potential Matches Found!
-              </p>
-              <p className="text-sm text-green-700">
-                We found {reportResult.potentialMatches.length} potential match(es) and notified {reportResult.matchesNotified} owner(s).
-              </p>
+          {reportResult.potentialMatches?.length > 0 ? (
+            <div className="space-y-4 mb-6">
+              <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-4">
+                <p className="font-bold text-green-800 flex items-center gap-2 mb-2">
+                  <CheckCircle size={20} />
+                  Potential Matches Found!
+                </p>
+                <p className="text-sm text-green-700">
+                  We found {reportResult.potentialMatches.length} potential match(es). Contact the owners below!
+                </p>
+              </div>
+
+              {/* Match Cards */}
+              <div className="space-y-3">
+                {reportResult.potentialMatches.slice(0, 5).map((match, index) => (
+                  <MatchCard
+                    key={match.reportId}
+                    match={match}
+                    foundReportId={reportResult.reportId}
+                    index={index}
+                  />
+                ))}
+              </div>
             </div>
-          )}
-
-          {(!reportResult.potentialMatches || reportResult.potentialMatches.length === 0) && (
+          ) : (
             <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 mb-6">
               <p className="text-sm text-amber-800">
                 No matching lost pet reports found yet. If someone reports a matching pet, they'll be notified!
@@ -427,13 +538,13 @@ export default function ReportFoundPet() {
 
           <Link
             href="/database"
-            className="block w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl font-semibold text-lg shadow-lg shadow-green-200 hover:shadow-xl transition-all"
+            className="block w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl font-semibold text-lg shadow-lg shadow-green-200 hover:shadow-xl transition-all text-center"
           >
             View Pet Database
           </Link>
           <button
             onClick={() => window.location.reload()}
-            className="mt-3 text-green-600 font-medium"
+            className="mt-3 w-full text-green-600 font-medium py-2"
           >
             Report Another Found Pet
           </button>
