@@ -580,10 +580,26 @@ export default function SARMapView({
       return;
     }
 
-    console.log('[Map] Rendering', coverageTrails.length, 'coverage trails');
+    // Filter out current user's ACTIVE session - it's already rendered via gpsPath prop
+    // This prevents duplicate rendering (purple gpsPath + blue coverage trail)
+    const trailsToRender = coverageTrails.filter(trail => {
+      // Skip current user's active session - already shown via gpsPath
+      if (trail.isCurrentUser && trail.isActive) {
+        console.log('[Map] Skipping current user active trail (already rendered via gpsPath)');
+        return false;
+      }
+      return true;
+    });
+
+    if (trailsToRender.length === 0) {
+      console.log('[Map] No coverage trails to render after filtering');
+      return;
+    }
+
+    console.log('[Map] Rendering', trailsToRender.length, 'coverage trails');
 
     // Render each team member's trail
-    coverageTrails.forEach(trail => {
+    trailsToRender.forEach(trail => {
       if (!trail.path || trail.path.length < 2) {
         console.log('[Map] Skipping trail with insufficient points:', trail.path?.length || 0);
         return;
