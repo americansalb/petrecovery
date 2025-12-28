@@ -13,9 +13,11 @@ import {
   Dog, Cat, Bird, Rabbit, MapPin, Clock,
   Camera, Check, ChevronLeft, ChevronRight,
   AlertTriangle, Loader2, X, Navigation, ExternalLink,
-  Sparkles, Heart, Mail, User, Search, Home, Trees
+  Sparkles, Heart, Mail, User, Search, Home, Trees,
+  Share2, Printer, Footprints, Users, MessageCircle
 } from 'lucide-react';
 import ColorSelector from '../../components/ColorSelector';
+import ShareModal from '../../components/ShareModal';
 
 const PET_TYPES = [
   { type: 'dog', label: 'Dog', icon: Dog, emoji: '🐕' },
@@ -46,6 +48,16 @@ const TIME_OPTIONS = [
   { value: '3_to_7_days', label: 'This week', sublabel: '3-7 days ago', urgent: false },
   { value: 'more_than_2_weeks', label: 'Longer', sublabel: 'More than a week', urgent: false },
 ];
+
+// Get recommended search radius based on pet type
+const getSearchRadius = (petType) => {
+  switch (petType) {
+    case 'cat': return { miles: 0.5, text: 'half a mile' };
+    case 'dog': return { miles: 1, text: '1 mile' };
+    case 'bird': return { miles: 2, text: '2 miles' };
+    default: return { miles: 1, text: '1 mile' };
+  }
+};
 
 export default function ReportLostPet() {
   const { data: session, status: authStatus } = useSession();
@@ -79,6 +91,7 @@ export default function ReportLostPet() {
   const [addressSearch, setAddressSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Map refs
   const mapRef = useRef(null);
@@ -485,30 +498,132 @@ export default function ReportLostPet() {
 
   // Success screen
   if (step === 9 && reportResult) {
+    const radius = getSearchRadius(petType);
+    const displayName = petName || 'your pet';
+    const caseNumber = reportResult.caseNumber || reportResult.case?.caseNumber;
+
+    // Pet data for ShareModal
+    const petDataForShare = {
+      name: petName,
+      type: petType,
+      color: color,
+      lastSeenAddress: lastSeenAddress,
+      city: cityName,
+      caseNumber: caseNumber,
+      lastSeenAt: new Date(),
+    };
+
+    const handlePrintFlyer = () => {
+      if (caseNumber) {
+        window.open(`/flyer/${caseNumber}`, '_blank');
+      } else {
+        window.open('/dashboard', '_blank');
+      }
+    };
+
     return (
-      <div className="h-[100dvh] bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-6">
-        <div className="text-center max-w-sm">
-          <div className="relative mb-8">
-            <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-200">
-              <Check size={48} className="text-white" strokeWidth={3} />
+      <div className="min-h-[100dvh] bg-gradient-to-br from-green-50 via-white to-emerald-50 overflow-y-auto">
+        <div className="max-w-md mx-auto px-6 py-8">
+          {/* Success Header */}
+          <div className="text-center mb-8">
+            <div className="relative inline-block mb-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-200">
+                <Check size={40} className="text-white" strokeWidth={3} />
+              </div>
+              <Sparkles className="absolute -top-1 -right-1 text-yellow-400" size={20} />
             </div>
-            <Sparkles className="absolute -top-2 -right-2 text-yellow-400" size={24} />
-            <Sparkles className="absolute -bottom-1 -left-3 text-green-400" size={20} />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">{displayName}'s Alert is Live!</h1>
+            <p className="text-gray-600">
+              {reportResult.squadsNotified || 0} rescue team{reportResult.squadsNotified === 1 ? '' : 's'} notified in your area
+            </p>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Alert Sent!</h1>
-          <p className="text-gray-600 mb-8 text-lg">
-            {reportResult.squadsNotified || 0} rescue team{reportResult.squadsNotified === 1 ? '' : 's'} notified in your area
-          </p>
+
+          {/* What to do RIGHT NOW */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-6">
+            <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <span className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
+                <AlertTriangle size={14} className="text-amber-600" />
+              </span>
+              What to do RIGHT NOW
+            </h2>
+
+            <div className="space-y-4">
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Footprints size={16} className="text-blue-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Walk your neighborhood</p>
+                  <p className="text-sm text-gray-500">
+                    {displayName} is most likely within {radius.text}. Check hiding spots, under porches, in bushes.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                  <Users size={16} className="text-purple-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Tell your neighbors</p>
+                  <p className="text-sm text-gray-500">
+                    Knock on doors. Show them {displayName}'s photo. Leave your number.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
+                  <MessageCircle size={16} className="text-rose-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Share everywhere</p>
+                  <p className="text-sm text-gray-500">
+                    Post on Facebook, Nextdoor, local groups. The more people who see this, the better.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="space-y-3 mb-6">
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="w-full py-4 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-2xl font-semibold text-lg shadow-lg shadow-blue-200 hover:shadow-xl transition-all flex items-center justify-center gap-2"
+            >
+              <Share2 size={20} />
+              Share {displayName}'s Alert
+            </button>
+
+            <button
+              onClick={handlePrintFlyer}
+              className="w-full py-4 bg-white text-gray-700 rounded-2xl font-semibold text-lg border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+            >
+              <Printer size={20} />
+              Print Flyers
+            </button>
+          </div>
+
+          {/* Dashboard Link */}
           <Link
             href="/dashboard"
-            className="block w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl font-semibold text-lg shadow-lg shadow-green-200 hover:shadow-xl transition-all"
+            className="block w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl font-semibold text-lg shadow-lg shadow-green-200 hover:shadow-xl transition-all text-center"
           >
-            View Dashboard
+            Go to Dashboard
           </Link>
-          <p className="mt-4 text-sm text-gray-500">
-            We'll notify you of any sightings
+
+          <p className="mt-4 text-sm text-gray-500 text-center">
+            We'll notify you immediately if anyone spots {displayName}
           </p>
         </div>
+
+        {/* Share Modal */}
+        <ShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          pet={petDataForShare}
+        />
       </div>
     );
   }
