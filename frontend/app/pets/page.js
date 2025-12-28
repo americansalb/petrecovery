@@ -303,7 +303,7 @@ export default function MyPetsPage() {
                       ) : (
                         <Button
                           variant="primary"
-                          href={`/missions/${pet.cases[0].caseNumber}`}
+                          href={`/cases/${pet.cases[0].caseNumber}`}
                           size="sm"
                           className="flex-[2]"
                         >

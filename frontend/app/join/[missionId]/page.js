@@ -156,7 +156,7 @@ export default function JoinMissionPage() {
           <p style={styles.errorText}>
             This search isn't active right now. The pet may have been found already!
           </p>
-          <a href={`/missions/${missionId}`} style={styles.linkButton}>
+          <a href={`/cases/${missionId}`} style={styles.linkButton}>
             View Case Details
           </a>
         </div>
@@ -173,7 +173,7 @@ export default function JoinMissionPage() {
           <p style={styles.successText}>
             This search has ended. The pet may have been found!
           </p>
-          <a href={`/missions/${missionId}`} style={styles.linkButton}>
+          <a href={`/cases/${missionId}`} style={styles.linkButton}>
             View Case Details
           </a>
         </div>

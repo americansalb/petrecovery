@@ -1109,7 +1109,7 @@ export async function notifyUserSighting({ userId, petName, missionNumber, locat
     title: `New sighting of ${petName}!`,
     message: `Someone reported seeing ${petName} near ${location}. Confidence: ${confidence}/10`,
     data: { missionNumber, location, confidence },
-    actionUrl: `/missions/${missionNumber}`,
+    actionUrl: `/cases/${missionNumber}`,
   });
 }
 
@@ -1122,7 +1122,7 @@ export async function notifySquadCaseAssignment({ memberIds, squadName, petName,
     title: `${squadName}: New case assigned`,
     message: `Your squad has taken on a new case: ${petName} in ${location}. Join the search effort!`,
     data: { squadName, missionNumber, petName, location },
-    actionUrl: `/missions/${missionNumber}/coordinate`,
+    actionUrl: `/cases/${missionNumber}/coordinate`,
   });
 }
 

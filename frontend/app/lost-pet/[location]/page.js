@@ -348,7 +348,7 @@ function StatCard({ icon, value, label }) {
 function MissionCard({ missionData }) {
   return (
     <Link
-      href={`/missions/${missionData.missionNumber}`}
+      href={`/cases/${missionData.missionNumber}`}
       style={{
         display: 'block',
         background: 'white',

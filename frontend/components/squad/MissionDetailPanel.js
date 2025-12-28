@@ -231,7 +231,7 @@ export default function MissionDetailPanel() {
         )}
 
         <a
-          href={`/missions/${selectedMission.id}`}
+          href={`/cases/${selectedMission.missionNumber}`}
           target="_blank"
           rel="noopener noreferrer"
           className="w-full py-3 rounded-xl bg-[var(--hub-bg-card)] border border-[var(--hub-border)] text-[var(--hub-text-secondary)] text-sm font-medium transition-all hover:border-[var(--hub-border-glow)] hover:text-[var(--hub-text-primary)] flex items-center justify-center gap-2"

@@ -257,7 +257,7 @@ export default function MatchesPanel({ missionNumber }) {
                   alignItems: 'center',
                 }}>
                   <Link
-                    href={`/missions/${match.missionNumber}`}
+                    href={`/cases/${match.missionNumber}`}
                     style={{
                       padding: '0.375rem 0.75rem',
                       background: '#2563eb',
