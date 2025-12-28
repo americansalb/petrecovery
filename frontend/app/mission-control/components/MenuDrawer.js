@@ -45,7 +45,7 @@ export default function MenuDrawer({ mission, isOwner, onClose, onNavigate, rout
       label: 'Case Details',
       icon: Info,
       description: 'View full pet information',
-      onClick: () => router?.push(`/cases/${mission?.id}`),
+      onClick: () => router?.push(`/cases/${mission?.caseNumber}`),
     },
   ];
 
@@ -55,7 +55,7 @@ export default function MenuDrawer({ mission, isOwner, onClose, onNavigate, rout
       label: 'Edit Case',
       icon: Settings,
       description: 'Update pet info or location',
-      onClick: () => router?.push(`/cases/${mission?.id}/edit`),
+      onClick: () => router?.push(`/cases/${mission?.caseNumber}/edit`),
     },
     {
       id: 'close',
@@ -63,7 +63,7 @@ export default function MenuDrawer({ mission, isOwner, onClose, onNavigate, rout
       icon: CheckCircle,
       description: 'Mark as reunited or close',
       color: 'text-emerald-400',
-      onClick: () => router?.push(`/cases/${mission?.id}/close`),
+      onClick: () => router?.push(`/cases/${mission?.caseNumber}/close`),
     },
   ];
 

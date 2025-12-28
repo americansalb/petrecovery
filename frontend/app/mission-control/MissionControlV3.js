@@ -483,11 +483,11 @@ function MissionControlV3Content() {
             }}
             onEditCase={() => {
               // TODO: Implement edit case
-              router.push(`/cases/${activeMission.id}/edit`);
+              router.push(`/cases/${activeMission.caseNumber}/edit`);
             }}
             onGenerateFlyer={() => {
               // TODO: Implement generate flyer
-              router.push(`/cases/${activeMission.id}/flyer`);
+              router.push(`/cases/${activeMission.caseNumber}/flyer`);
             }}
             onAddPhotos={() => {
               // TODO: Implement add photos

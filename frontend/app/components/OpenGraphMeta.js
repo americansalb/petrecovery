@@ -75,7 +75,7 @@ export function generateCaseMetadata(missionData) {
     openGraph: {
       title: `Help Find ${missionData.petName}!`,
       description: `Missing ${missionData.petSpecies}: ${missionData.petName}. Last seen near ${missionData.lastSeenAddress}. Please share to help bring them home!`,
-      url: `${baseUrl}/cases/${missionData.id}`,
+      url: `${baseUrl}/cases/${missionData.caseNumber}`,
       siteName: 'PetRecovery.org',
       images: missionData.petPhotoUrl ? [
         {
@@ -99,7 +99,7 @@ export function generateCaseMetadata(missionData) {
       follow: true,
     },
     alternates: {
-      canonical: `${baseUrl}/cases/${missionData.id}`,
+      canonical: `${baseUrl}/cases/${missionData.caseNumber}`,
     },
   };
 }
@@ -132,7 +132,7 @@ export function generateCaseStructuredData(missionData) {
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `${baseUrl}/cases/${missionData.id}`
+      '@id': `${baseUrl}/cases/${missionData.caseNumber}`
     }
   };
 }

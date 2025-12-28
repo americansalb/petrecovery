@@ -82,7 +82,7 @@ export function generateFlyerHTML(missionData, options = {}) {
 
   const preset = FLYER_PRESETS[format] || FLYER_PRESETS.LETTER;
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://petrecovery.org';
-  const caseUrl = `${baseUrl}/cases/${missionData.id}`;
+  const caseUrl = `${baseUrl}/cases/${missionData.caseNumber || missionData.missionNumber || missionData.id}`;
 
   // Format phone number
   const formatPhone = (phone) => {
