@@ -267,7 +267,7 @@ function CasesContent() {
               {cases.map((caseItem) => (
                 <Link
                   key={caseItem.id}
-                  href={`/missions/${caseItem.caseNumber}`}
+                  href={`/cases/${caseItem.caseNumber}`}
                   className="block group"
                 >
                   <Card className="overflow-hidden hover:shadow-card-hover transition-all duration-300 h-full">

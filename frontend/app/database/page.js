@@ -342,7 +342,7 @@ export default function PublicDatabasePage() {
             {filteredReports.map((report) => (
               <Link
                 key={report.id}
-                href={`/reports/${report.id}`}
+                href={`/cases/${report.caseNumber}`}
                 style={{
                   display: 'block',
                   background: 'white',

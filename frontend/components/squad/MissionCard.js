@@ -113,7 +113,7 @@ export default function MissionCard({ caseItem, compact = false }) {
         {/* Helper badge or Help button */}
         {caseItem.isUserHelper ? (
           <a
-            href={`/missions/${caseItem.missionNumber}`}
+            href={`/cases/${caseItem.missionNumber}`}
             onClick={(e) => e.stopPropagation()}
             className="px-3 py-1.5 rounded-full bg-[var(--hub-status-success)] text-white text-[10px] font-semibold hover:opacity-90 transition-opacity"
           >
@@ -200,7 +200,7 @@ export default function MissionCard({ caseItem, compact = false }) {
         {/* Primary Action - high contrast CTA */}
         {caseItem.isUserHelper ? (
           <a
-            href={`/missions/${caseItem.missionNumber}`}
+            href={`/cases/${caseItem.missionNumber}`}
             onClick={(e) => e.stopPropagation()}
             className="w-full py-2.5 rounded-lg bg-[var(--hub-status-success)] text-white text-sm font-semibold text-center block hover:opacity-90 transition-opacity"
           >
@@ -228,7 +228,7 @@ export default function MissionCard({ caseItem, compact = false }) {
             Chat
           </button>
           <a
-            href={`/missions/${caseItem.missionNumber}`}
+            href={`/cases/${caseItem.missionNumber}`}
             onClick={(e) => e.stopPropagation()}
             className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] bg-[var(--hub-accent-primary)]/10 text-[var(--hub-accent-primary)] hover:bg-[var(--hub-accent-primary)]/20 rounded-lg transition-colors font-medium"
           >
