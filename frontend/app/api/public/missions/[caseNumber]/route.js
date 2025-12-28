@@ -25,13 +25,13 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request, { params }) {
   const startTime = Date.now();
-  const { missionNumber } = params;
+  const { caseNumber } = params;
 
   try {
-    // Fetch case by missionNumber from the main Case model
+    // Fetch case by caseNumber from the main Case model
     // This is where /api/reports/create writes data
     const missionData = await prisma.case.findUnique({
-      where: { missionNumber },
+      where: { caseNumber },
       select: {
         id: true,
         caseNumber: true,
@@ -71,10 +71,10 @@ export async function GET(request, { params }) {
         action: 'read',
         result: 'failure',
         error_code: 'CASE_NOT_FOUND',
-        error_message: `Case ${missionNumber} not found`,
+        error_message: `Case ${caseNumber} not found`,
         actor_role: null,
         metadata: {
-          missionNumber,
+          caseNumber,
           found: false
         }
       });
@@ -157,7 +157,7 @@ export async function GET(request, { params }) {
       result: 'success',
       actor_role: null, // anonymous public user
       metadata: {
-        missionNumber,
+        caseNumber,
         missionId: missionData.id,
         city,
         state,
@@ -181,7 +181,7 @@ export async function GET(request, { params }) {
       error_message: error.message,
       actor_role: null, // anonymous public user
       metadata: {
-        missionNumber,
+        caseNumber,
         error_stack: error.stack?.substring(0, 500)
       }
     });
