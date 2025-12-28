@@ -20,7 +20,6 @@ import {
   Megaphone, TrendingUp, ExternalLink
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import MainNavigation from '@/app/components/Navigation';
 
 // Dynamically import map to avoid SSR issues
 const PetMap = dynamic(() => import('@/app/components/PetMap'), { ssr: false });
@@ -110,7 +109,6 @@ export default function PublicCasePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-midnight-50 to-white">
-        <MainNavigation />
         <div className="flex items-center justify-center py-32">
           <div className="text-center">
             <Loader2 className="w-12 h-12 text-midnight-400 animate-spin mx-auto mb-4" />
@@ -125,7 +123,6 @@ export default function PublicCasePage() {
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-midnight-50 to-white">
-        <MainNavigation />
         <div className="max-w-lg mx-auto px-4 py-32 text-center">
           <div className="bg-white rounded-3xl shadow-lg p-8">
             <AlertCircle className="w-16 h-16 text-midnight-300 mx-auto mb-6" />
@@ -158,8 +155,6 @@ export default function PublicCasePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-midnight-50 to-white">
-      <MainNavigation />
-
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-rose-500 to-rose-600 text-white overflow-hidden">
         <div className="absolute inset-0 opacity-10">
@@ -406,7 +401,7 @@ export default function PublicCasePage() {
               transition={{ delay: 0.2 }}
             >
               <Link
-                href={`/cases/${caseNumber}/fund`}
+                href={`/mission-control?mission=${caseNumber}&tab=boost`}
                 className="block w-full bg-gradient-to-br from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 text-midnight-900 rounded-2xl p-5 border-2 border-emerald-200 shadow transition group"
               >
                 <div className="flex items-center gap-4">
