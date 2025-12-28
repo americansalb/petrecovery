@@ -1,10 +1,11 @@
 'use client';
 
 /**
- * Public Case Page
+ * Public Case Page - Pet's Landing Page
  *
- * Public-facing page for strangers who click on shared links.
- * Uses the site's design system and integrates with existing components.
+ * THE central hub for a lost pet's recovery campaign.
+ * Designed for strangers clicking shared links from social media.
+ * Drives actions: sighting reports, sharing, joining search, crowdfunding ads.
  */
 
 import { useState, useEffect } from 'react';
@@ -13,9 +14,10 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   MapPin, Clock, Share2, MessageCircle, Eye, Search,
-  DollarSign, ArrowRight, Phone, Mail, ChevronRight,
-  Loader2, AlertCircle, X, Users, Shield, CheckCircle,
-  Camera, Navigation as NavIcon, ExternalLink
+  Heart, ArrowRight, Phone, Mail, ChevronRight,
+  Loader2, AlertCircle, X, Users, Building2,
+  Camera, Printer, Facebook, Twitter, Copy, Check,
+  Megaphone, TrendingUp, ExternalLink
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import MainNavigation from '@/app/components/Navigation';
@@ -50,6 +52,8 @@ export default function PublicCasePage() {
   const [error, setError] = useState(null);
   const [showContactModal, setShowContactModal] = useState(false);
   const [showSightingModal, setShowSightingModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!caseNumber) return;
@@ -77,19 +81,28 @@ export default function PublicCasePage() {
     fetchCase();
   }, [caseNumber]);
 
-  const handleShare = async () => {
-    const shareUrl = window.location.href;
-    const shareText = `Help find ${caseData?.petName || 'this pet'}! Last seen near ${caseData?.lastSeenAddress || 'unknown location'}.`;
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const shareText = `Help find ${caseData?.petName || 'this pet'}! Last seen near ${caseData?.lastSeenAddress || 'unknown location'}.`;
 
+  const handleCopyLink = async () => {
+    await navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleNativeShare = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({ title: `Lost ${caseData?.petSpecies}: ${caseData?.petName}`, text: shareText, url: shareUrl });
+        await navigator.share({
+          title: `Help Find ${caseData?.petName}!`,
+          text: shareText,
+          url: shareUrl
+        });
       } catch (err) {
         // User cancelled
       }
     } else {
-      await navigator.clipboard.writeText(shareUrl);
-      alert('Link copied to clipboard!');
+      setShowShareModal(true);
     }
   };
 
@@ -134,6 +147,14 @@ export default function PublicCasePage() {
   const petName = caseData?.petName || 'Unknown';
   const petSpecies = caseData?.petSpecies || 'Pet';
   const isLost = caseData?.reportType === 'LOST';
+
+  // Mock ad fund data (would come from API)
+  const adFund = {
+    raised: caseData?.adFundRaised || 45,
+    goal: caseData?.adFundGoal || 100,
+    contributors: caseData?.adFundContributors || 3
+  };
+  const fundProgress = Math.min((adFund.raised / adFund.goal) * 100, 100);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-midnight-50 to-white">
@@ -186,7 +207,7 @@ export default function PublicCasePage() {
                 </span>
               </div>
 
-              <h1 className="text-4xl lg:text-5xl font-bold mb-4">{petName}</h1>
+              <h1 className="text-4xl lg:text-5xl font-bold mb-4">Help Find {petName}</h1>
 
               <div className="flex flex-wrap justify-center lg:justify-start gap-3 mb-6">
                 {caseData?.petBreed && (
@@ -206,19 +227,16 @@ export default function PublicCasePage() {
 
               <div className="flex flex-wrap justify-center lg:justify-start gap-3">
                 <button
-                  onClick={handleShare}
-                  className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl transition"
-                >
-                  <Share2 className="w-4 h-4" />
-                  Share
-                </button>
-                <button
                   onClick={() => setShowContactModal(true)}
                   className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl transition"
                 >
                   <MessageCircle className="w-4 h-4" />
                   Contact Owner
                 </button>
+                <div className="text-white/60 text-sm flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Missing {formatTimeAgo(caseData?.lastSeenAt)}
+                </div>
               </div>
             </motion.div>
           </div>
@@ -268,50 +286,74 @@ export default function PublicCasePage() {
               )}
             </motion.div>
 
-            {/* Case Stats */}
+            {/* Campaign Stats */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="grid grid-cols-3 gap-4"
+              className="grid grid-cols-4 gap-4"
             >
               <div className="bg-white rounded-2xl p-4 text-center shadow border border-midnight-100">
                 <p className="text-2xl font-bold text-midnight-900">{caseData?.viewCount || 0}</p>
-                <p className="text-sm text-midnight-500">Views</p>
+                <p className="text-xs text-midnight-500">Views</p>
               </div>
               <div className="bg-white rounded-2xl p-4 text-center shadow border border-midnight-100">
                 <p className="text-2xl font-bold text-midnight-900">{caseData?.shareCount || 0}</p>
-                <p className="text-sm text-midnight-500">Shares</p>
+                <p className="text-xs text-midnight-500">Shares</p>
               </div>
               <div className="bg-white rounded-2xl p-4 text-center shadow border border-midnight-100">
                 <p className="text-2xl font-bold text-midnight-900">{caseData?.activeSearchers || 0}</p>
-                <p className="text-sm text-midnight-500">Helpers</p>
+                <p className="text-xs text-midnight-500">Helpers</p>
+              </div>
+              <div className="bg-white rounded-2xl p-4 text-center shadow border border-midnight-100">
+                <p className="text-2xl font-bold text-emerald-600">${adFund.raised}</p>
+                <p className="text-xs text-midnight-500">Ad Fund</p>
               </div>
             </motion.div>
           </div>
 
-          {/* Right Column - Action Buttons */}
+          {/* Right Column - Actions */}
           <div className="space-y-4">
-            {/* Primary CTA - Report Sighting */}
+            {/* PRIMARY: Report Sighting */}
             <motion.button
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               onClick={() => setShowSightingModal(true)}
-              className="w-full bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-2xl p-6 text-left shadow-lg shadow-rose-200 transition group"
+              className="w-full bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-2xl p-5 text-left shadow-lg shadow-rose-200 transition group"
             >
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
-                  <Eye className="w-7 h-7" />
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
+                  <Eye className="w-6 h-6" />
                 </div>
-                <div>
-                  <p className="font-bold text-xl">I've Seen {petName}</p>
-                  <p className="text-rose-100 text-sm">Report a sighting now</p>
+                <div className="flex-1">
+                  <p className="font-bold text-lg">I've Seen {petName}</p>
+                  <p className="text-rose-100 text-sm">Report a sighting</p>
                 </div>
-                <ChevronRight className="w-6 h-6 ml-auto opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition" />
+                <ChevronRight className="w-5 h-5 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition" />
               </div>
             </motion.button>
 
-            {/* Secondary CTA - Join Search */}
+            {/* SHARE: Spread the Word */}
+            <motion.button
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+              onClick={handleNativeShare}
+              className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-2xl p-5 text-left shadow-lg shadow-blue-200 transition group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
+                  <Share2 className="w-6 h-6" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-lg">Share This Alert</p>
+                  <p className="text-blue-100 text-sm">Help spread the word</p>
+                </div>
+                <ChevronRight className="w-5 h-5 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition" />
+              </div>
+            </motion.button>
+
+            {/* JOIN: Search Party */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -319,40 +361,93 @@ export default function PublicCasePage() {
             >
               <Link
                 href={`/mission-control?mission=${caseNumber}`}
-                className="block w-full bg-midnight-900 hover:bg-midnight-800 text-white rounded-2xl p-6 shadow-lg transition group"
+                className="block w-full bg-midnight-900 hover:bg-midnight-800 text-white rounded-2xl p-5 shadow-lg transition group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-flash-400 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
-                    <Users className="w-7 h-7 text-midnight-900" />
+                  <div className="w-12 h-12 bg-flash-400 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
+                    <Users className="w-6 h-6 text-midnight-900" />
                   </div>
-                  <div>
-                    <p className="font-bold text-xl">Join the Search</p>
-                    <p className="text-midnight-300 text-sm">Help coordinate the effort</p>
+                  <div className="flex-1">
+                    <p className="font-bold text-lg">Join Search Party</p>
+                    <p className="text-midnight-300 text-sm">Coordinate with others</p>
                   </div>
-                  <ChevronRight className="w-6 h-6 ml-auto opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition" />
+                  <ChevronRight className="w-5 h-5 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition" />
                 </div>
               </Link>
             </motion.div>
 
-            {/* Tertiary CTA - Boost with Ads */}
+            {/* PRINT: Flyers */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              <Link
+                href={`/mission-control?mission=${caseNumber}&tab=flyer`}
+                className="block w-full bg-white hover:bg-midnight-50 text-midnight-900 rounded-2xl p-5 border-2 border-midnight-200 shadow transition group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
+                    <Printer className="w-6 h-6 text-amber-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-lg">Print Flyers</p>
+                    <p className="text-midnight-500 text-sm">Post in your neighborhood</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-midnight-300 group-hover:text-midnight-600 group-hover:translate-x-1 transition" />
+                </div>
+              </Link>
+            </motion.div>
+
+            {/* FUND: Chip in for Ads */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
               <Link
-                href={`/cases/${caseNumber}/boost`}
-                className="block w-full bg-white hover:bg-midnight-50 text-midnight-900 rounded-2xl p-6 border-2 border-midnight-200 shadow transition group"
+                href={`/cases/${caseNumber}/fund`}
+                className="block w-full bg-gradient-to-br from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 text-midnight-900 rounded-2xl p-5 border-2 border-emerald-200 shadow transition group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-amber-100 to-amber-200 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
-                    <DollarSign className="w-7 h-7 text-amber-600" />
+                  <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
+                    <Heart className="w-6 h-6 text-white" />
                   </div>
-                  <div>
-                    <p className="font-bold text-xl">Boost with Ads</p>
-                    <p className="text-midnight-500 text-sm">Reach more people nearby</p>
+                  <div className="flex-1">
+                    <p className="font-bold text-lg">Chip in for Ads</p>
+                    <p className="text-midnight-500 text-sm">{adFund.contributors} neighbors contributed</p>
+                    {/* Progress bar */}
+                    <div className="mt-2 h-2 bg-emerald-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full transition-all"
+                        style={{ width: `${fundProgress}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-emerald-600 mt-1 font-medium">${adFund.raised} of ${adFund.goal} goal</p>
                   </div>
-                  <ChevronRight className="w-6 h-6 ml-auto text-midnight-300 group-hover:text-midnight-600 group-hover:translate-x-1 transition" />
+                </div>
+              </Link>
+            </motion.div>
+
+            {/* SHELTERS: Check Nearby */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+            >
+              <Link
+                href={`/shelters?location=${encodeURIComponent(caseData?.lastSeenAddress || '')}`}
+                className="block w-full bg-white hover:bg-midnight-50 text-midnight-900 rounded-2xl p-5 border border-midnight-200 shadow transition group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
+                    <Building2 className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-lg">Check Nearby Shelters</p>
+                    <p className="text-midnight-500 text-sm">Pets sometimes end up here</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-midnight-300 group-hover:text-midnight-600 group-hover:translate-x-1 transition" />
                 </div>
               </Link>
             </motion.div>
@@ -464,8 +559,8 @@ export default function PublicCasePage() {
               <div className="w-16 h-16 bg-gradient-to-br from-rose-500 to-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Eye className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-midnight-900">Report a Sighting</h2>
-              <p className="text-midnight-500 mt-2">Help reunite {petName} with their family</p>
+              <h2 className="text-2xl font-bold text-midnight-900">You've Seen {petName}?</h2>
+              <p className="text-midnight-500 mt-2">This could help reunite them with their family!</p>
             </div>
 
             <div className="space-y-4">
@@ -483,19 +578,85 @@ export default function PublicCasePage() {
                 <ChevronRight className="w-5 h-5 text-midnight-400" />
               </Link>
 
+              {caseData?.contact?.phone && (
+                <a
+                  href={`tel:${caseData.contact.phone}`}
+                  className="flex items-center gap-4 p-4 bg-midnight-50 rounded-xl hover:bg-midnight-100 transition"
+                >
+                  <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center">
+                    <Phone className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-midnight-900">Call Owner Now</p>
+                    <p className="text-midnight-500 text-sm">For live sightings</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-midnight-400" />
+                </a>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowShareModal(false)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 z-10"
+          >
+            <button
+              onClick={() => setShowShareModal(false)}
+              className="absolute top-4 right-4 text-midnight-400 hover:text-midnight-600 transition"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Share2 className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-midnight-900">Share This Alert</h2>
+              <p className="text-midnight-500 mt-2">Every share increases the chance of finding {petName}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <a
-                href={`tel:${caseData?.contact?.phone || ''}`}
-                className="flex items-center gap-4 p-4 bg-midnight-50 rounded-xl hover:bg-midnight-100 transition"
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 p-4 bg-[#1877F2] text-white rounded-xl hover:opacity-90 transition font-semibold"
               >
-                <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center">
-                  <Phone className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-midnight-900">Call Owner Directly</p>
-                  <p className="text-midnight-500 text-sm">For immediate sightings</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-midnight-400" />
+                <Facebook className="w-5 h-5" />
+                Facebook
               </a>
+              <a
+                href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 p-4 bg-[#1DA1F2] text-white rounded-xl hover:opacity-90 transition font-semibold"
+              >
+                <Twitter className="w-5 h-5" />
+                Twitter
+              </a>
+              <a
+                href={`https://nextdoor.com/share/?url=${encodeURIComponent(shareUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 p-4 bg-[#8ED500] text-white rounded-xl hover:opacity-90 transition font-semibold"
+              >
+                <ExternalLink className="w-5 h-5" />
+                Nextdoor
+              </a>
+              <button
+                onClick={handleCopyLink}
+                className="flex items-center justify-center gap-2 p-4 bg-midnight-100 text-midnight-900 rounded-xl hover:bg-midnight-200 transition font-semibold"
+              >
+                {copied ? <Check className="w-5 h-5 text-emerald-600" /> : <Copy className="w-5 h-5" />}
+                {copied ? 'Copied!' : 'Copy Link'}
+              </button>
             </div>
           </motion.div>
         </div>
