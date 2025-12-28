@@ -3,19 +3,22 @@
 /**
  * Public Case Page
  *
- * A public-facing page for strangers who click on shared links.
- * Shows pet info, allows sighting reports, search joining, and ad boosting.
+ * Public-facing page for strangers who click on shared links.
+ * Uses the site's design system and integrates with existing components.
  */
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import {
   MapPin, Clock, Share2, MessageCircle, Eye, Search,
-  DollarSign, ArrowLeft, Phone, Mail, ChevronRight,
-  Loader2, AlertCircle
+  DollarSign, ArrowRight, Phone, Mail, ChevronRight,
+  Loader2, AlertCircle, X, Users, Shield, CheckCircle,
+  Camera, Navigation as NavIcon, ExternalLink
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import MainNavigation from '@/app/components/Navigation';
 
 // Dynamically import map to avoid SSR issues
 const PetMap = dynamic(() => import('@/app/components/PetMap'), { ssr: false });
@@ -30,17 +33,11 @@ const formatTimeAgo = (date) => {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 60) return `${diffMins} min ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffMins < 60) return `${diffMins} minutes ago`;
+  if (diffHours < 24) return `${diffHours} hours ago`;
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays} days ago`;
   return then.toLocaleDateString();
-};
-
-// Format pet type label
-const formatPetType = (species) => {
-  if (!species) return 'PET';
-  return species.toUpperCase();
 };
 
 export default function PublicCasePage() {
@@ -52,6 +49,7 @@ export default function PublicCasePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showSightingModal, setShowSightingModal] = useState(false);
 
   useEffect(() => {
     if (!caseNumber) return;
@@ -95,25 +93,16 @@ export default function PublicCasePage() {
     }
   };
 
-  const handleReportSighting = () => {
-    router.push(`/sighting/report?case=${caseNumber}`);
-  };
-
-  const handleJoinSearch = () => {
-    router.push(`/mission-control?mission=${caseNumber}`);
-  };
-
-  const handleBoostAds = () => {
-    router.push(`/cases/${caseNumber}/boost`);
-  };
-
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 text-gray-400 animate-spin mx-auto mb-3" />
-          <p className="text-gray-500">Loading case...</p>
+      <div className="min-h-screen bg-gradient-to-b from-midnight-50 to-white">
+        <MainNavigation />
+        <div className="flex items-center justify-center py-32">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 text-midnight-400 animate-spin mx-auto mb-4" />
+            <p className="text-midnight-500 text-lg">Loading case details...</p>
+          </div>
         </div>
       </div>
     );
@@ -122,232 +111,393 @@ export default function PublicCasePage() {
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="text-center max-w-sm">
-          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-gray-900 mb-2">{error}</h1>
-          <p className="text-gray-500 mb-6">This case may have been resolved or removed.</p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-blue-600 font-medium"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Go to homepage
-          </Link>
+      <div className="min-h-screen bg-gradient-to-b from-midnight-50 to-white">
+        <MainNavigation />
+        <div className="max-w-lg mx-auto px-4 py-32 text-center">
+          <div className="bg-white rounded-3xl shadow-lg p-8">
+            <AlertCircle className="w-16 h-16 text-midnight-300 mx-auto mb-6" />
+            <h1 className="text-2xl font-bold text-midnight-900 mb-3">{error}</h1>
+            <p className="text-midnight-500 mb-8">This case may have been resolved or removed.</p>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 bg-midnight-900 hover:bg-midnight-800 text-white px-6 py-3 rounded-xl font-semibold transition"
+            >
+              Go to Homepage
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
 
   const petName = caseData?.petName || 'Unknown';
-  const petType = formatPetType(caseData?.petSpecies);
-  const petDetails = [caseData?.petBreed, caseData?.petColor, caseData?.petSize]
-    .filter(Boolean)
-    .join(' · ');
+  const petSpecies = caseData?.petSpecies || 'Pet';
+  const isLost = caseData?.reportType === 'LOST';
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="text-gray-500 hover:text-gray-700">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <span className="inline-block px-2 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded">
-                LOST {petType}
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleShare}
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition"
-              aria-label="Share"
+    <div className="min-h-screen bg-gradient-to-b from-midnight-50 to-white">
+      <MainNavigation />
+
+      {/* Hero Section */}
+      <section className="relative bg-gradient-to-br from-rose-500 to-rose-600 text-white overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }} />
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 py-8 relative z-10">
+          <div className="flex flex-col lg:flex-row gap-8 items-center">
+            {/* Pet Photo */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full lg:w-80 flex-shrink-0"
             >
-              <Share2 className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setShowContactModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition"
+              <div className="relative aspect-square rounded-3xl overflow-hidden shadow-2xl border-4 border-white/20">
+                {caseData?.petPhotoUrl ? (
+                  <img
+                    src={caseData.petPhotoUrl}
+                    alt={petName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-rose-400 flex items-center justify-center">
+                    <Search className="w-24 h-24 text-white/50" />
+                  </div>
+                )}
+                {caseData?.isUrgent && (
+                  <div className="absolute top-4 left-4 px-4 py-2 bg-flash-400 text-midnight-900 text-sm font-bold rounded-full shadow-lg">
+                    URGENT
+                  </div>
+                )}
+              </div>
+            </motion.div>
+
+            {/* Pet Info */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex-1 text-center lg:text-left"
             >
-              <MessageCircle className="w-4 h-4" />
-              Message Owner
-            </button>
+              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-4">
+                <span className="w-2 h-2 bg-flash-400 rounded-full animate-pulse" />
+                <span className="font-semibold text-sm uppercase tracking-wide">
+                  {isLost ? 'Lost' : 'Found'} {petSpecies}
+                </span>
+              </div>
+
+              <h1 className="text-4xl lg:text-5xl font-bold mb-4">{petName}</h1>
+
+              <div className="flex flex-wrap justify-center lg:justify-start gap-3 mb-6">
+                {caseData?.petBreed && (
+                  <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-medium">{caseData.petBreed}</span>
+                )}
+                {caseData?.petColor && (
+                  <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-medium capitalize">{caseData.petColor}</span>
+                )}
+                {caseData?.petSize && (
+                  <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-medium capitalize">{caseData.petSize.toLowerCase()}</span>
+                )}
+              </div>
+
+              {caseData?.petDescription && (
+                <p className="text-white/90 text-lg max-w-xl mb-6">{caseData.petDescription}</p>
+              )}
+
+              <div className="flex flex-wrap justify-center lg:justify-start gap-3">
+                <button
+                  onClick={handleShare}
+                  className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl transition"
+                >
+                  <Share2 className="w-4 h-4" />
+                  Share
+                </button>
+                <button
+                  onClick={() => setShowContactModal(true)}
+                  className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl transition"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Contact Owner
+                </button>
+              </div>
+            </motion.div>
           </div>
         </div>
-      </header>
+      </section>
 
       {/* Main Content */}
-      <main className="max-w-lg mx-auto">
-        {/* Pet Photo */}
-        <div className="aspect-square bg-gray-200 relative">
-          {caseData?.petPhotoUrl ? (
-            <img
-              src={caseData.petPhotoUrl}
-              alt={petName}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-              <Search className="w-20 h-20 text-gray-300" />
-            </div>
-          )}
-          {caseData?.isUrgent && (
-            <div className="absolute top-4 left-4 px-3 py-1 bg-red-600 text-white text-sm font-bold rounded-full">
-              URGENT
-            </div>
-          )}
-        </div>
+      <section className="max-w-6xl mx-auto px-4 py-12">
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Left Column - Location & Map */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Last Seen Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-3xl shadow-lg p-6 border border-midnight-100"
+            >
+              <h2 className="text-lg font-bold text-midnight-900 mb-4 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-rose-500" />
+                Last Seen Location
+              </h2>
 
-        {/* Pet Info */}
-        <div className="bg-white px-4 py-5 border-b border-gray-100">
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">{petName}</h1>
-          {petDetails && (
-            <p className="text-gray-500">{petDetails}</p>
-          )}
-          {caseData?.petDescription && (
-            <p className="text-gray-600 mt-2 text-sm">{caseData.petDescription}</p>
-          )}
-        </div>
+              <div className="mb-4">
+                <p className="text-midnight-900 font-medium text-lg">{caseData?.lastSeenAddress || 'Unknown location'}</p>
+                <p className="text-midnight-500 flex items-center gap-2 mt-1">
+                  <Clock className="w-4 h-4" />
+                  {formatTimeAgo(caseData?.lastSeenAt)}
+                </p>
+              </div>
 
-        {/* Last Seen */}
-        <div className="bg-white px-4 py-4 border-b border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Last Seen</h2>
-          <div className="flex items-start gap-3">
-            <MapPin className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-gray-900 font-medium">{caseData?.lastSeenAddress || 'Unknown location'}</p>
-              <p className="text-gray-500 text-sm flex items-center gap-1 mt-1">
-                <Clock className="w-3.5 h-3.5" />
-                {formatTimeAgo(caseData?.lastSeenAt)}
-              </p>
-            </div>
+              {/* Map */}
+              {caseData?.lastSeenLatitude && caseData?.lastSeenLongitude && (
+                <div className="rounded-2xl overflow-hidden border border-midnight-100">
+                  <PetMap
+                    center={[caseData.lastSeenLatitude, caseData.lastSeenLongitude]}
+                    zoom={14}
+                    height="300px"
+                    markers={[
+                      {
+                        position: [caseData.lastSeenLatitude, caseData.lastSeenLongitude],
+                        type: 'lastSeen',
+                        popup: `Last seen: ${caseData.lastSeenAddress || 'Here'}`
+                      }
+                    ]}
+                  />
+                </div>
+              )}
+            </motion.div>
+
+            {/* Case Stats */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="grid grid-cols-3 gap-4"
+            >
+              <div className="bg-white rounded-2xl p-4 text-center shadow border border-midnight-100">
+                <p className="text-2xl font-bold text-midnight-900">{caseData?.viewCount || 0}</p>
+                <p className="text-sm text-midnight-500">Views</p>
+              </div>
+              <div className="bg-white rounded-2xl p-4 text-center shadow border border-midnight-100">
+                <p className="text-2xl font-bold text-midnight-900">{caseData?.shareCount || 0}</p>
+                <p className="text-sm text-midnight-500">Shares</p>
+              </div>
+              <div className="bg-white rounded-2xl p-4 text-center shadow border border-midnight-100">
+                <p className="text-2xl font-bold text-midnight-900">{caseData?.activeSearchers || 0}</p>
+                <p className="text-sm text-midnight-500">Helpers</p>
+              </div>
+            </motion.div>
           </div>
 
-          {/* Map Preview */}
-          {caseData?.lastSeenLatitude && caseData?.lastSeenLongitude && (
-            <div className="mt-4">
-              <PetMap
-                center={[caseData.lastSeenLatitude, caseData.lastSeenLongitude]}
-                zoom={14}
-                height="150px"
-                markers={[
-                  {
-                    position: [caseData.lastSeenLatitude, caseData.lastSeenLongitude],
-                    type: 'lastSeen',
-                    popup: `Last seen: ${caseData.lastSeenAddress || 'Here'}`
-                  }
-                ]}
-              />
-            </div>
-          )}
+          {/* Right Column - Action Buttons */}
+          <div className="space-y-4">
+            {/* Primary CTA - Report Sighting */}
+            <motion.button
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              onClick={() => setShowSightingModal(true)}
+              className="w-full bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-2xl p-6 text-left shadow-lg shadow-rose-200 transition group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
+                  <Eye className="w-7 h-7" />
+                </div>
+                <div>
+                  <p className="font-bold text-xl">I've Seen {petName}</p>
+                  <p className="text-rose-100 text-sm">Report a sighting now</p>
+                </div>
+                <ChevronRight className="w-6 h-6 ml-auto opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition" />
+              </div>
+            </motion.button>
+
+            {/* Secondary CTA - Join Search */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <Link
+                href={`/mission-control?mission=${caseNumber}`}
+                className="block w-full bg-midnight-900 hover:bg-midnight-800 text-white rounded-2xl p-6 shadow-lg transition group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-flash-400 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
+                    <Users className="w-7 h-7 text-midnight-900" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-xl">Join the Search</p>
+                    <p className="text-midnight-300 text-sm">Help coordinate the effort</p>
+                  </div>
+                  <ChevronRight className="w-6 h-6 ml-auto opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition" />
+                </div>
+              </Link>
+            </motion.div>
+
+            {/* Tertiary CTA - Boost with Ads */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Link
+                href={`/cases/${caseNumber}/boost`}
+                className="block w-full bg-white hover:bg-midnight-50 text-midnight-900 rounded-2xl p-6 border-2 border-midnight-200 shadow transition group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-amber-100 to-amber-200 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
+                    <DollarSign className="w-7 h-7 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-xl">Boost with Ads</p>
+                    <p className="text-midnight-500 text-sm">Reach more people nearby</p>
+                  </div>
+                  <ChevronRight className="w-6 h-6 ml-auto text-midnight-300 group-hover:text-midnight-600 group-hover:translate-x-1 transition" />
+                </div>
+              </Link>
+            </motion.div>
+
+            {/* Case Info */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-midnight-50 rounded-2xl p-4 text-center"
+            >
+              <p className="text-sm text-midnight-500">
+                Case #{caseData?.missionNumber}
+              </p>
+              <p className="text-xs text-midnight-400 mt-1">
+                Reported {new Date(caseData?.createdAt).toLocaleDateString()}
+              </p>
+            </motion.div>
+          </div>
         </div>
-
-        {/* Action Buttons */}
-        <div className="p-4 space-y-3">
-          {/* Primary: Report Sighting */}
-          <button
-            onClick={handleReportSighting}
-            className="w-full py-4 bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-red-200 transition flex items-center justify-center gap-2"
-          >
-            <Eye className="w-5 h-5" />
-            I've Seen {petName}
-          </button>
-
-          {/* Secondary: Join Search */}
-          <button
-            onClick={handleJoinSearch}
-            className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-2xl font-semibold text-lg transition flex items-center justify-center gap-2"
-          >
-            <Search className="w-5 h-5" />
-            Join the Search
-          </button>
-
-          {/* Tertiary: Boost with Ads */}
-          <button
-            onClick={handleBoostAds}
-            className="w-full py-3 bg-white hover:bg-gray-50 text-gray-700 rounded-xl font-medium border-2 border-gray-200 transition flex items-center justify-center gap-2"
-          >
-            <DollarSign className="w-5 h-5" />
-            Boost with Ads
-          </button>
-        </div>
-
-        {/* Footer */}
-        <div className="px-4 pb-8 pt-2">
-          <p className="text-center text-sm text-gray-400">
-            Case #{caseData?.missionNumber}
-          </p>
-        </div>
-      </main>
+      </section>
 
       {/* Contact Owner Modal */}
       {showContactModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setShowContactModal(false)}
-          />
-          <div className="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl p-6 z-10">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Contact Owner</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowContactModal(false)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 z-10"
+          >
+            <button
+              onClick={() => setShowContactModal(false)}
+              className="absolute top-4 right-4 text-midnight-400 hover:text-midnight-600 transition"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <h2 className="text-2xl font-bold text-midnight-900 mb-6">Contact Owner</h2>
 
             {caseData?.contact ? (
               <div className="space-y-4">
                 {caseData.contact.name && (
-                  <p className="text-gray-600">
-                    <span className="font-medium text-gray-900">{caseData.contact.name}</span> is looking for {petName}.
+                  <p className="text-midnight-600">
+                    <span className="font-semibold text-midnight-900">{caseData.contact.name}</span> is looking for {petName}.
                   </p>
                 )}
 
                 {caseData.contact.phone && (
                   <a
                     href={`tel:${caseData.contact.phone}`}
-                    className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition"
+                    className="flex items-center gap-4 p-4 bg-midnight-50 rounded-xl hover:bg-midnight-100 transition"
                   >
-                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                      <Phone className="w-5 h-5 text-green-600" />
+                    <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+                      <Phone className="w-6 h-6 text-emerald-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">Call</p>
-                      <p className="text-sm text-gray-500">{caseData.contact.phone}</p>
+                      <p className="font-semibold text-midnight-900">Call</p>
+                      <p className="text-midnight-500">{caseData.contact.phone}</p>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
+                    <ChevronRight className="w-5 h-5 text-midnight-400 ml-auto" />
                   </a>
                 )}
 
                 {caseData.contact.email && (
                   <a
                     href={`mailto:${caseData.contact.email}?subject=Regarding ${petName} - Case ${caseNumber}`}
-                    className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition"
+                    className="flex items-center gap-4 p-4 bg-midnight-50 rounded-xl hover:bg-midnight-100 transition"
                   >
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Mail className="w-5 h-5 text-blue-600" />
+                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                      <Mail className="w-6 h-6 text-blue-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">Email</p>
-                      <p className="text-sm text-gray-500">{caseData.contact.email}</p>
+                      <p className="font-semibold text-midnight-900">Email</p>
+                      <p className="text-midnight-500">{caseData.contact.email}</p>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
+                    <ChevronRight className="w-5 h-5 text-midnight-400 ml-auto" />
                   </a>
                 )}
 
-                <p className="text-xs text-gray-400 mt-4">
+                <p className="text-xs text-midnight-400 mt-4 p-3 bg-amber-50 rounded-lg">
                   {caseData.contact.disclaimer}
                 </p>
               </div>
             ) : (
-              <p className="text-gray-500">Contact information not available.</p>
+              <p className="text-midnight-500">Contact information not available.</p>
             )}
+          </motion.div>
+        </div>
+      )}
 
+      {/* Report Sighting Modal */}
+      {showSightingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowSightingModal(false)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 z-10"
+          >
             <button
-              onClick={() => setShowContactModal(false)}
-              className="w-full mt-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition"
+              onClick={() => setShowSightingModal(false)}
+              className="absolute top-4 right-4 text-midnight-400 hover:text-midnight-600 transition"
             >
-              Close
+              <X className="w-6 h-6" />
             </button>
-          </div>
+
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-to-br from-rose-500 to-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Eye className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-midnight-900">Report a Sighting</h2>
+              <p className="text-midnight-500 mt-2">Help reunite {petName} with their family</p>
+            </div>
+
+            <div className="space-y-4">
+              <Link
+                href={`/mission-control?mission=${caseNumber}&action=sighting`}
+                className="flex items-center gap-4 p-4 bg-rose-50 border-2 border-rose-200 rounded-xl hover:bg-rose-100 transition"
+              >
+                <div className="w-12 h-12 bg-rose-500 rounded-xl flex items-center justify-center">
+                  <Camera className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-midnight-900">Submit Full Report</p>
+                  <p className="text-midnight-500 text-sm">Add photos, location & details</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-midnight-400" />
+              </Link>
+
+              <a
+                href={`tel:${caseData?.contact?.phone || ''}`}
+                className="flex items-center gap-4 p-4 bg-midnight-50 rounded-xl hover:bg-midnight-100 transition"
+              >
+                <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center">
+                  <Phone className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-midnight-900">Call Owner Directly</p>
+                  <p className="text-midnight-500 text-sm">For immediate sightings</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-midnight-400" />
+              </a>
+            </div>
+          </motion.div>
         </div>
       )}
     </div>
