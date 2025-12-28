@@ -15,6 +15,10 @@ import {
   DollarSign, ArrowLeft, Phone, Mail, ChevronRight,
   Loader2, AlertCircle
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+// Dynamically import map to avoid SSR issues
+const PetMap = dynamic(() => import('@/app/components/PetMap'), { ssr: false });
 
 // Format time ago
 const formatTimeAgo = (date) => {
@@ -224,14 +228,18 @@ export default function PublicCasePage() {
 
           {/* Map Preview */}
           {caseData?.lastSeenLatitude && caseData?.lastSeenLongitude && (
-            <div className="mt-4 rounded-xl overflow-hidden border border-gray-200 h-32 bg-gray-100">
-              <img
-                src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-l+ef4444(${caseData.lastSeenLongitude},${caseData.lastSeenLatitude})/${caseData.lastSeenLongitude},${caseData.lastSeenLatitude},14,0/400x150@2x?access_token=pk.eyJ1IjoicGV0cmVjb3ZlcnkiLCJhIjoiY2x4eWpybjNxMDAwMzJrcXpwcml5MnVvYSJ9.placeholder`}
-                alt="Map"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
+            <div className="mt-4">
+              <PetMap
+                center={[caseData.lastSeenLatitude, caseData.lastSeenLongitude]}
+                zoom={14}
+                height="150px"
+                markers={[
+                  {
+                    position: [caseData.lastSeenLatitude, caseData.lastSeenLongitude],
+                    type: 'lastSeen',
+                    popup: `Last seen: ${caseData.lastSeenAddress || 'Here'}`
+                  }
+                ]}
               />
             </div>
           )}
