@@ -68,6 +68,7 @@ export async function GET(request) {
     // Format response
     const formattedReports = filteredCases.map(c => ({
       id: c.id,
+      caseNumber: c.caseNumber,
       reportType: c.reportType,
       status: c.status,
       petName: c.petName,
