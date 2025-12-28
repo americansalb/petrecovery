@@ -69,6 +69,7 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
   const isSearchingRef = useRef(false);
   const sessionIdRef = useRef(null);
   const sessionStartedAtRef = useRef(null); // Track when session started for accurate duration
+  const isEndingRef = useRef(false); // Prevent race condition with checkSession
 
   // Keep refs in sync with state - still needed for async callbacks
   useEffect(() => {
@@ -103,11 +104,19 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
     }
 
     const checkSession = async () => {
+      // Don't check if we're in the middle of ending a session (race condition prevention)
+      if (isEndingRef.current) {
+        console.log('[useSearchSession] Skipping checkSession - ending in progress');
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const res = await fetch(`/api/mission/${missionId}/search`);
         if (res.ok) {
           const data = await res.json();
-          if (data.activeSession) {
+          // Double-check we're still not ending (API call took time)
+          if (data.activeSession && !isEndingRef.current) {
             // Resume existing session - set refs FIRST
             sessionIdRef.current = data.activeSession.id;
             isSearchingRef.current = true;
@@ -418,13 +427,15 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
   const endSearch = useCallback(async () => {
     console.log('[useSearchSession] endSearch called, isEnding:', isEnding, 'sessionIdRef:', sessionIdRef.current);
 
-    if (isEnding) {
+    if (isEnding || isEndingRef.current) {
       console.log('[useSearchSession] Already ending, returning early');
       return { success: false };
     }
 
+    // Set BOTH state and ref to prevent race conditions
     setIsEnding(true);
-    console.log('[useSearchSession] Set isEnding to true');
+    isEndingRef.current = true;
+    console.log('[useSearchSession] Set isEnding to true (both state and ref)');
 
     // CRITICAL: Update refs FIRST - this stops pending callbacks immediately
     const currentSessionId = sessionIdRef.current;
@@ -453,7 +464,7 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
     setSessionId(null);
     console.log('[useSearchSession] Reset UI state, isSearching now false');
 
-    // Fire API call in background (don't block UI)
+    // Call API and WAIT for it to complete before clearing isEnding flag
     try {
       console.log('[useSearchSession] Calling end API for session:', currentSessionId);
       const res = await fetch(`/api/mission/${missionId}/search`, {
@@ -468,8 +479,11 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
       const data = await res.json().catch(() => ({}));
       console.log('[useSearchSession] API response:', data);
 
+      // Only clear the ending flag AFTER API confirms session is ended
       setIsEnding(false);
-      console.log('[useSearchSession] endSearch complete, success');
+      isEndingRef.current = false;
+      console.log('[useSearchSession] endSearch complete, success - cleared isEnding flag');
+
       return {
         success: true,
         stats: data.stats || currentStats,
@@ -478,13 +492,18 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
       };
     } catch (err) {
       console.error('[useSearchSession] End search error:', err);
+      // Still clear the flag on error so user can retry
       setIsEnding(false);
+      isEndingRef.current = false;
       return { success: false, error: err.message };
     }
   }, [missionId, isEnding, stats]); // Removed sessionId - we use ref now
 
   // Force stop (used for cleanup)
   const forceStop = useCallback(async () => {
+    // Set ending flag to prevent race conditions
+    isEndingRef.current = true;
+
     // CRITICAL: Update refs FIRST - stops pending callbacks immediately
     const currentSessionId = sessionIdRef.current;
     isSearchingRef.current = false;
@@ -503,18 +522,24 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
       timerRef.current = null;
     }
 
-    // End on server (don't wait)
+    // End on server and wait for it
     if (currentSessionId) {
-      fetch(`/api/mission/${missionId}/search`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'end', sessionId: currentSessionId }),
-      }).catch(() => {});
+      try {
+        await fetch(`/api/mission/${missionId}/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'end', sessionId: currentSessionId }),
+        });
+      } catch (e) {
+        console.error('[useSearchSession] forceStop API error:', e);
+      }
     }
 
     // Reset state
     setIsSearching(false);
     setSessionId(null);
+    setIsEnding(false);
+    isEndingRef.current = false;
     setStats({
       durationSeconds: 0,
       totalDistanceMiles: 0,

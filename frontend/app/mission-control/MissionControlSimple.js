@@ -141,7 +141,8 @@ function MissionControlContent() {
   // Search coverage - historical trails from all team members
   // Pass current user ID so we can highlight their paths
   const coverage = useSearchCoverage(activeMission?.id, session?.user?.id);
-  const coverageData = coverage.getMapCoverageData();
+  // Memoize coverage data to prevent re-renders causing trails to jitter
+  const coverageData = useMemo(() => coverage.getMapCoverageData(), [coverage.coverage]);
 
   // POIs - nearby shelters, vets, animal control
   const { pois } = usePOIs(activeMission?.id);
