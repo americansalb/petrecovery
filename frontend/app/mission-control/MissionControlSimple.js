@@ -116,7 +116,7 @@ function MissionControlContent() {
       species: activeMission.petSpecies,
       size: activeMission.petSize,
       isIndoorCat: activeMission.petDescription?.includes('Indoor cat') ? true :
-                    activeMission.petDescription?.includes('Outdoor access') ? false : null,
+        activeMission.petDescription?.includes('Outdoor access') ? false : null,
       timeElapsed: getTimeElapsedCategory(activeMission.lastSeenAt),
       lastSeenLocation: [lastSeenLocation.lat, lastSeenLocation.lng],
     });
@@ -158,6 +158,39 @@ function MissionControlContent() {
     setActiveTab(tab);
   }, []);
 
+  // Handle download flyer - MOVED UP to avoid TDZ error
+  const handleDownloadFlyer = useCallback(() => {
+    if (!activeMission) {
+      showNotification('error', 'No mission data available');
+      return;
+    }
+
+    try {
+      printFlyer({
+        petName: activeMission.petName,
+        petSpecies: activeMission.petSpecies,
+        petBreed: activeMission.petBreed,
+        petColor: activeMission.petColor,
+        petSize: activeMission.petSize,
+        petDescription: activeMission.petDescription,
+        petPhotoUrl: activeMission.petPhotoUrl,
+        lastSeenAt: activeMission.lastSeenAt,
+        lastSeenAddress: activeMission.lastSeenAddress,
+        hasReward: activeMission.hasReward,
+        rewardAmount: activeMission.rewardAmount,
+        ownerPhone: activeMission.ownerPhone,
+        ownerEmail: activeMission.ownerEmail,
+        missionNumber: activeMission.missionNumber || activeMission.caseNumber,
+        id: activeMission.id,
+      });
+      showNotification('success', 'Flyer opened for printing!');
+      setCompletedTasks(prev => [...prev, 'flyer']);
+    } catch (err) {
+      console.error('Failed to generate flyer:', err);
+      showNotification('error', 'Failed to generate flyer');
+    }
+  }, [activeMission, showNotification]);
+
   // Handle quick actions from map panel
   const handleQuickAction = useCallback((actionId) => {
     switch (actionId) {
@@ -175,7 +208,7 @@ function MissionControlContent() {
             title: `Help find ${activeMission?.petName}!`,
             text: `Please help us find our missing pet. Share to spread the word!`,
             url: window.location.href
-          }).catch(() => {});
+          }).catch(() => { });
         } else {
           navigator.clipboard.writeText(window.location.href);
           showNotification('success', 'Link copied to clipboard!');
@@ -235,45 +268,12 @@ function MissionControlContent() {
         title: `Help find ${activeMission?.petName}!`,
         text: `Please help us find our missing pet. Share to spread the word!`,
         url: window.location.href
-      }).catch(() => {});
+      }).catch(() => { });
     } else {
       navigator.clipboard.writeText(window.location.href);
       showNotification('success', 'Link copied to clipboard!');
     }
     setCompletedTasks(prev => [...prev, 'share']);
-  }, [activeMission, showNotification]);
-
-  // Handle download flyer
-  const handleDownloadFlyer = useCallback(() => {
-    if (!activeMission) {
-      showNotification('error', 'No mission data available');
-      return;
-    }
-
-    try {
-      printFlyer({
-        petName: activeMission.petName,
-        petSpecies: activeMission.petSpecies,
-        petBreed: activeMission.petBreed,
-        petColor: activeMission.petColor,
-        petSize: activeMission.petSize,
-        petDescription: activeMission.petDescription,
-        petPhotoUrl: activeMission.petPhotoUrl,
-        lastSeenAt: activeMission.lastSeenAt,
-        lastSeenAddress: activeMission.lastSeenAddress,
-        hasReward: activeMission.hasReward,
-        rewardAmount: activeMission.rewardAmount,
-        ownerPhone: activeMission.ownerPhone,
-        ownerEmail: activeMission.ownerEmail,
-        missionNumber: activeMission.missionNumber || activeMission.caseNumber,
-        id: activeMission.id,
-      });
-      showNotification('success', 'Flyer opened for printing!');
-      setCompletedTasks(prev => [...prev, 'flyer']);
-    } catch (err) {
-      console.error('Failed to generate flyer:', err);
-      showNotification('error', 'Failed to generate flyer');
-    }
   }, [activeMission, showNotification]);
 
   // Handle view map from overview
@@ -389,11 +389,10 @@ function MissionControlContent() {
             {!isSearching && lastSeenLocation && (
               <button
                 onClick={() => setShowProbabilityZones(!showProbabilityZones)}
-                className={`absolute top-[200px] left-4 z-[500] flex items-center gap-2 px-4 py-3 rounded-xl shadow-xl transition-all border-2 ${
-                  showProbabilityZones
-                    ? 'bg-emerald-600 text-white border-emerald-500 hover:bg-emerald-500'
-                    : 'bg-slate-800/95 backdrop-blur text-slate-300 hover:text-white border-slate-600'
-                }`}
+                className={`absolute top-[200px] left-4 z-[500] flex items-center gap-2 px-4 py-3 rounded-xl shadow-xl transition-all border-2 ${showProbabilityZones
+                  ? 'bg-emerald-600 text-white border-emerald-500 hover:bg-emerald-500'
+                  : 'bg-slate-800/95 backdrop-blur text-slate-300 hover:text-white border-slate-600'
+                  }`}
               >
                 <Target size={20} />
                 <span className="font-bold text-sm">
@@ -625,11 +624,10 @@ function MissionControlContent() {
           {!isSearching && lastSeenLocation && (
             <button
               onClick={() => setShowProbabilityZones(!showProbabilityZones)}
-              className={`absolute bottom-28 left-6 z-[500] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg transition-all ${
-                showProbabilityZones
-                  ? 'bg-emerald-600 text-white hover:bg-emerald-500'
-                  : 'bg-slate-800/95 backdrop-blur text-slate-300 hover:text-white border border-slate-700'
-              }`}
+              className={`absolute bottom-28 left-6 z-[500] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg transition-all ${showProbabilityZones
+                ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                : 'bg-slate-800/95 backdrop-blur text-slate-300 hover:text-white border border-slate-700'
+                }`}
             >
               <Target size={20} />
               <span className="font-semibold text-sm">
@@ -692,11 +690,10 @@ function MissionControlContent() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 py-3 px-2 text-sm font-medium transition-all ${
-                  activeTab === tab.id || (activeTab === 'search' && tab.id === 'home')
-                    ? 'text-amber-400 border-b-2 border-amber-400 bg-slate-800/50'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
-                }`}
+                className={`flex-1 py-3 px-2 text-sm font-medium transition-all ${activeTab === tab.id || (activeTab === 'search' && tab.id === 'home')
+                  ? 'text-amber-400 border-b-2 border-amber-400 bg-slate-800/50'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+                  }`}
               >
                 {tab.label}
               </button>
@@ -734,8 +731,8 @@ function MissionControlContent() {
           ${notification.type === 'success'
             ? 'bg-slate-900/95 border-emerald-500/50 text-emerald-400'
             : notification.type === 'error'
-            ? 'bg-slate-900/95 border-red-500/50 text-red-400'
-            : 'bg-slate-900/95 border-slate-700 text-slate-300'
+              ? 'bg-slate-900/95 border-red-500/50 text-red-400'
+              : 'bg-slate-900/95 border-slate-700 text-slate-300'
           }
         `}>
           <p className="font-medium text-sm">{notification.message}</p>
