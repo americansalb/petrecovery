@@ -10,6 +10,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
+import { sendEmail } from '@/app/lib/email';
+import { sendPushToUser, isPushConfigured } from '@/app/lib/push';
+import { getEmailBaseUrl } from '@/app/lib/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -112,14 +115,39 @@ export async function POST(request, { params }) {
       }, { status: 400 });
     }
 
-    // Find case
+    // Find case with owner info for notifications
     const isId = isIdFormat(params.id);
 
     const missionData = await prisma.case.findFirst({
       where: isId
         ? { id: params.id }
         : { caseNumber: params.id },
-      select: { id: true, caseNumber: true, status: true }
+      select: {
+        id: true,
+        caseNumber: true,
+        status: true,
+        petName: true,
+        reportedBy: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true
+          }
+        },
+        assignments: {
+          where: { status: 'ACTIVE' },
+          select: {
+            squadId: true,
+            participants: {
+              select: {
+                user: {
+                  select: { id: true, email: true, firstName: true }
+                }
+              }
+            }
+          }
+        }
+      }
     });
 
     if (!missionData) {
@@ -183,6 +211,109 @@ export async function POST(request, { params }) {
           isUpdate: true
         }
       });
+    }
+
+    // Send notifications (non-blocking)
+    const baseUrl = getEmailBaseUrl();
+    const missionUrl = `${baseUrl}/mission-control?mission=${missionData.id}`;
+    const confidenceLabel = confidence === 'HIGH' ? 'high confidence' : confidence === 'MEDIUM' ? 'medium confidence' : 'possible';
+
+    // Notify case owner
+    if (missionData.reportedBy?.email && missionData.reportedBy.id !== reportedById) {
+      const ownerEmail = missionData.reportedBy.email;
+      const ownerName = missionData.reportedBy.firstName || 'there';
+      const petName = missionData.petName || 'your pet';
+
+      // Email notification (non-blocking)
+      sendEmail({
+        to: ownerEmail,
+        subject: `🚨 New Sighting of ${petName}!`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: #dc2626; color: white; padding: 20px; text-align: center;">
+              <h1 style="margin: 0;">🚨 New Sighting Reported!</h1>
+            </div>
+
+            <div style="padding: 20px; background: #fef2f2; border-left: 4px solid #dc2626;">
+              <p>Hi ${ownerName},</p>
+              <p>Someone just reported a <strong>${confidenceLabel}</strong> sighting of <strong>${petName}</strong>!</p>
+
+              <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <p style="margin: 5px 0;"><strong>📍 Location:</strong> ${address || 'See map for details'}</p>
+                ${description ? `<p style="margin: 5px 0;"><strong>📝 Notes:</strong> ${description}</p>` : ''}
+                ${behavior ? `<p style="margin: 5px 0;"><strong>🐾 Behavior:</strong> ${behavior.toLowerCase().replace('_', ' ')}</p>` : ''}
+                ${directionOfTravel ? `<p style="margin: 5px 0;"><strong>➡️ Direction:</strong> Heading ${directionOfTravel.toLowerCase()}</p>` : ''}
+              </div>
+
+              <p>
+                <a href="${missionUrl}" style="display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                  View on Map
+                </a>
+              </p>
+            </div>
+
+            <p style="color: #6b7280; font-size: 12px; padding: 20px;">
+              Case #${missionData.caseNumber} • PetRecovery.org
+            </p>
+          </div>
+        `
+      }).catch(err => console.error('[Sighting] Owner email failed:', err));
+
+      // Push notification (non-blocking)
+      if (isPushConfigured()) {
+        sendPushToUser(missionData.reportedBy.id, {
+          title: `🚨 New Sighting of ${petName}!`,
+          body: `${confidenceLabel.charAt(0).toUpperCase() + confidenceLabel.slice(1)} sighting reported ${address ? `near ${address}` : 'nearby'}`,
+          url: missionUrl
+        }).catch(err => console.error('[Sighting] Owner push failed:', err));
+      }
+    }
+
+    // Notify team members (all active participants except the reporter)
+    const teamMembers = missionData.assignments
+      ?.flatMap(a => a.participants?.map(p => p.user) || [])
+      .filter(u => u && u.id !== reportedById && u.email) || [];
+
+    if (teamMembers.length > 0) {
+      const petName = missionData.petName || 'the pet';
+
+      // Send to each team member
+      for (const member of teamMembers) {
+        // Email (non-blocking)
+        sendEmail({
+          to: member.email,
+          subject: `📍 New Sighting - ${petName} (Case #${missionData.caseNumber})`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #059669;">New Sighting Reported</h2>
+              <p>Hi ${member.firstName || 'Team Member'},</p>
+              <p>A <strong>${confidenceLabel}</strong> sighting of <strong>${petName}</strong> was just reported!</p>
+
+              <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <p style="margin: 5px 0;"><strong>📍 Location:</strong> ${address || 'See map'}</p>
+                ${description ? `<p style="margin: 5px 0;"><strong>📝 Notes:</strong> ${description}</p>` : ''}
+              </div>
+
+              <p>Check the mission control to coordinate with your team.</p>
+
+              <p>
+                <a href="${missionUrl}" style="display: inline-block; background: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                  View Mission
+                </a>
+              </p>
+            </div>
+          `
+        }).catch(err => console.error('[Sighting] Team email failed:', err));
+
+        // Push (non-blocking)
+        if (isPushConfigured()) {
+          sendPushToUser(member.id, {
+            title: `📍 New Sighting - ${petName}`,
+            body: `${confidenceLabel.charAt(0).toUpperCase() + confidenceLabel.slice(1)} sighting ${address ? `near ${address}` : 'reported'}`,
+            url: missionUrl
+          }).catch(err => console.error('[Sighting] Team push failed:', err));
+        }
+      }
     }
 
     const responseTime = Date.now() - startTime;
