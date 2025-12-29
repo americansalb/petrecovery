@@ -596,7 +596,10 @@ export default function Home() {
               <img
                 src={LOGO_PRIMARY}
                 alt="ReunitePets"
-                className="h-32 md:h-40 w-auto mx-auto drop-shadow-2xl"
+                className="h-32 md:h-40 w-auto mx-auto"
+                style={{
+                  filter: 'drop-shadow(0 20px 25px rgba(0, 0, 0, 0.25)) drop-shadow(0 8px 10px rgba(0, 0, 0, 0.15))'
+                }}
               />
             </motion.div>
 
