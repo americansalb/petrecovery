@@ -16,3 +16,5 @@ export { default as ActionsTab } from './ActionsTab';
 export { default as DashboardTab } from './DashboardTab';
 export { default as MapTabV2 } from './MapTabV2';
 export { default as ActionsTabV2 } from './ActionsTabV2';
+export { default as SaramaTab } from './SaramaTab';
+
