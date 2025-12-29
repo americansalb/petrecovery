@@ -31,7 +31,7 @@ import {
   CheckCircle,
   Eye,
 } from 'lucide-react';
-import { LOGO_ICON } from '@/lib/brandAssets';
+import { SARAMA_AVATAR } from '@/lib/brandAssets';
 
 // Auth Modal Component
 const AuthModal = ({ isOpen, onClose, squadToJoin, onAuthSuccess }) => {
@@ -530,7 +530,7 @@ export default function Home() {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src={LOGO_ICON} alt="PetRecovery" className="h-9 w-auto" />
+            <img src={SARAMA_AVATAR} alt="PetRecovery" className="h-9 w-auto" />
             <span className="font-bold text-lg text-gray-900 hidden sm:inline">PetRecovery</span>
           </Link>
 
@@ -1388,7 +1388,7 @@ export default function Home() {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div className="md:col-span-2">
               <div className="flex items-center gap-2 mb-4">
-                <img src={LOGO_ICON} alt="PetRecovery" className="h-8 w-auto" />
+                <img src={SARAMA_AVATAR} alt="PetRecovery" className="h-8 w-auto" />
                 <span className="font-bold">PetRecovery</span>
               </div>
               <p className="text-gray-400 text-sm max-w-sm">
