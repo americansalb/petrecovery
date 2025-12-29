@@ -90,7 +90,7 @@ export default function CommunityModeV2({
                         <img
                           src={SARAMA_AVATAR}
                           alt="Sarama"
-                          className="w-14 h-14 rounded-full object-cover border-2 border-purple-400/50 shadow-lg bg-gradient-to-br from-purple-500 to-purple-600"
+                          className="w-14 h-14 object-contain"
                           onError={(e) => {
                             e.target.style.display = 'none';
                             e.target.nextSibling.style.display = 'flex';

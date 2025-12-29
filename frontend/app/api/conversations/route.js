@@ -10,6 +10,7 @@ import { getServerSession } from 'next-auth';
 import prisma from '@/app/lib/prisma';
 import { sendEmail } from '@/app/lib/email';
 import { sendPushToUser, PUSH_TEMPLATES, isPushConfigured } from '@/app/lib/push';
+import { getEmailBaseUrl } from '@/app/lib/config';
 
 /**
  * POST /api/conversations
@@ -137,7 +138,7 @@ export async function POST(request) {
             </div>
 
             <p>
-              <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/messages/${conversation.id}"
+              <a href="${getEmailBaseUrl()}/messages/${conversation.id}"
                  style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
                 View Conversation
               </a>

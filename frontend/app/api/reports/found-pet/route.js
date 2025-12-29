@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { sendEmail } from '../../../lib/email';
 import { getServerSession } from 'next-auth';
 import { findMatches, getMatchQuality } from '@/app/lib/matching';
+import { getEmailBaseUrl } from '@/app/lib/config';
 
 export async function POST(request) {
   try {
@@ -297,7 +298,7 @@ export async function POST(request) {
               </ul>
             </div>
 
-            <p><a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/login" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Login to Dashboard</a></p>
+            <p><a href="${getEmailBaseUrl()}/login" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Login to Dashboard</a></p>
 
             <p><small style="color: #6b7280;">Please keep the pet safe until the owner contacts you. If no one claims the pet, consider local animal shelters or rescue organizations.</small></p>
           </div>

@@ -43,6 +43,7 @@ import {
   Sparkles,
   Shield,
 } from 'lucide-react';
+import { SARAMA_AVATAR } from '@/lib/brandAssets';
 
 // Lazy load map for better performance
 const MapView = dynamic(() => import('./SARMapView'), {

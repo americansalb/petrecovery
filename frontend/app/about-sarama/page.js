@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Heart, Sparkles, Home, Shield } from 'lucide-react';
+import { SARAMA_AVATAR } from '@/lib/brandAssets';
 
 export default function AboutSarama() {
   return (
@@ -36,7 +37,7 @@ export default function AboutSarama() {
             className="mb-8 flex justify-center"
           >
             <img
-              src="https://petrescue.b-cdn.net/Untitled%20design%20(13).svg"
+              src={SARAMA_AVATAR}
               alt="Sarama"
               className="h-64 w-auto drop-shadow-2xl"
             />

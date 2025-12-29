@@ -5,6 +5,7 @@ import { sendEmail } from '../../../lib/email';
 import { getServerSession } from 'next-auth';
 import { logEvent } from '@/lib/logging';
 import crypto from 'crypto';
+import { getEmailBaseUrl } from '@/app/lib/config';
 
 // Allow large body for base64 image uploads and longer timeout
 export const maxDuration = 30;
@@ -487,6 +488,8 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       reportId: report.id,
+      caseNumber: report.caseNumber,
+      petName: report.petName,
       accountCreated,
       patrolAlerted: nearbyPatrol.length,
       assignedSquad,
@@ -540,7 +543,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 function buildWelcomeEmail(firstName, petName, email, tempPassword, patrolCount) {
-  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const baseUrl = getEmailBaseUrl();
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #dc2626;">Lost Pet Alert Created</h2>

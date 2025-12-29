@@ -37,6 +37,7 @@ import TeamChatPanel from './components/simple/TeamChatPanel';
 import ActionsPanel from './components/simple/ActionsPanel';
 import TipsPanel from './components/simple/TipsPanel';
 import SightingFormModal from './components/modals/SightingFormModal';
+import { printFlyer } from '@/app/lib/flyerGenerator';
 
 // Dynamic import for map (no SSR)
 const SARMapView = dynamic(
@@ -180,10 +181,13 @@ function MissionControlContent() {
           showNotification('success', 'Link copied to clipboard!');
         }
         break;
+      case 'flyer':
+        handleDownloadFlyer();
+        break;
       default:
-        showNotification('info', `${actionId} - coming soon!`);
+        console.warn(`Unknown quick action: ${actionId}`);
     }
-  }, [activeMission, lastSeenLocation, setShowSightingForm, showNotification]);
+  }, [activeMission, lastSeenLocation, setShowSightingForm, showNotification, handleDownloadFlyer]);
 
   // Handle start search
   const handleStartSearch = useCallback(async () => {
@@ -241,8 +245,36 @@ function MissionControlContent() {
 
   // Handle download flyer
   const handleDownloadFlyer = useCallback(() => {
-    showNotification('info', 'Flyer download coming soon!');
-  }, [showNotification]);
+    if (!activeMission) {
+      showNotification('error', 'No mission data available');
+      return;
+    }
+
+    try {
+      printFlyer({
+        petName: activeMission.petName,
+        petSpecies: activeMission.petSpecies,
+        petBreed: activeMission.petBreed,
+        petColor: activeMission.petColor,
+        petSize: activeMission.petSize,
+        petDescription: activeMission.petDescription,
+        petPhotoUrl: activeMission.petPhotoUrl,
+        lastSeenAt: activeMission.lastSeenAt,
+        lastSeenAddress: activeMission.lastSeenAddress,
+        hasReward: activeMission.hasReward,
+        rewardAmount: activeMission.rewardAmount,
+        ownerPhone: activeMission.ownerPhone,
+        ownerEmail: activeMission.ownerEmail,
+        missionNumber: activeMission.missionNumber || activeMission.caseNumber,
+        id: activeMission.id,
+      });
+      showNotification('success', 'Flyer opened for printing!');
+      setCompletedTasks(prev => [...prev, 'flyer']);
+    } catch (err) {
+      console.error('Failed to generate flyer:', err);
+      showNotification('error', 'Failed to generate flyer');
+    }
+  }, [activeMission, showNotification]);
 
   // Handle view map from overview
   const handleViewMap = useCallback(() => {
