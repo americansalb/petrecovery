@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { createDonationSession } from '@/app/lib/payments/stripe';
+import { getBaseUrl } from '@/app/lib/config';
 
 /**
  * POST /api/payments/donate
@@ -30,7 +31,7 @@ export async function POST(request) {
       caseName = missionData?.petName;
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = getBaseUrl();
     const successUrl = `${baseUrl}/donate/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}/donate/cancel`;
 

@@ -5,8 +5,9 @@ import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/ra
 import { logEvent } from '@/lib/logging';
 import { sendVerificationEmail } from '@/app/lib/email';
 import crypto from 'crypto';
+import { getEmailBaseUrl } from '@/app/lib/config';
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+const BASE_URL = getEmailBaseUrl();
 
 // Email validation regex (RFC 5322 simplified)
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

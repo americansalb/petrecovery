@@ -21,6 +21,12 @@ const CONFIG = {
   MIN_SESSION_MINUTES: 5,
   MIN_SESSION_MILES: 0.1,
   POINTS_PER_MILE: 100,
+  // GPS validation thresholds
+  MAX_JUMP_DISTANCE_MILES: 0.5, // Skip pings that jump more than this
+  MAX_GLITCH_SPEED_MPH: 20, // Obvious GPS glitch if faster than this
+  // Ping retry configuration
+  PING_MAX_RETRIES: 3,
+  PING_RETRY_DELAYS: [1000, 2000, 4000], // Exponential backoff in ms
 };
 
 // Calculate distance between two points (miles)
@@ -34,6 +40,45 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+}
+
+// Retry a ping with exponential backoff
+async function sendPingWithRetry(url, body, maxRetries = CONFIG.PING_MAX_RETRIES) {
+  let lastError;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        return { success: true, data: await res.json() };
+      }
+
+      // Server returned error - don't retry for client errors (4xx)
+      if (res.status >= 400 && res.status < 500) {
+        const data = await res.json().catch(() => ({}));
+        return { success: false, error: data.error || `Server error: ${res.status}` };
+      }
+
+      // Server error (5xx) - retry
+      lastError = new Error(`Server error: ${res.status}`);
+    } catch (err) {
+      lastError = err;
+    }
+
+    // Wait before retry (exponential backoff)
+    if (attempt < maxRetries) {
+      const delay = CONFIG.PING_RETRY_DELAYS[attempt] || 4000;
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  console.error('[GPS] Ping failed after retries:', lastError);
+  return { success: false, error: lastError?.message || 'Network error' };
 }
 
 export default function useSearchSession(missionId, lastSeenLocation, probabilityZones = null) {
@@ -251,56 +296,53 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
       inZone = distFromLastSeen <= CONFIG.SEARCH_RADIUS_MILES;
     }
 
-    // Validate speed (ignore GPS glitches)
-    const isValid = speedMph <= CONFIG.MAX_WALKING_SPEED_MPH && inZone && distance < 0.5;
+    // STEP 1: Detect GPS glitches (obvious errors we should ignore entirely)
+    const isGlitch = distance > CONFIG.MAX_JUMP_DISTANCE_MILES || speedMph > CONFIG.MAX_GLITCH_SPEED_MPH;
 
-    // Skip obvious GPS glitches (but update lastPingRef so we can recover)
-    if (distance > 0.5 || speedMph > 20) {
-      console.log('GPS glitch detected, skipping (but updating baseline for next ping)');
-      // Still update lastPingRef so subsequent pings have a valid baseline
+    if (isGlitch) {
+      // GPS glitch detected - update baseline so next ping has a fresh start
+      // but don't record this point in the path or send to server
+      console.log(`[GPS] Glitch detected: distance=${distance.toFixed(3)}mi, speed=${speedMph.toFixed(1)}mph - resetting baseline`);
       lastPingRef.current = { lat: latitude, lng: longitude, timestamp };
       return;
     }
 
-    // Update local path
+    // STEP 2: Validate for points (walking speed + in zone = earns points)
+    const isValidForPoints = speedMph <= CONFIG.MAX_WALKING_SPEED_MPH && inZone;
+
+    // Update local path (record all non-glitch points, mark validity for visualization)
     setPath(prev => [...prev, {
       lat: latitude,
       lng: longitude,
-      valid: isValid,
+      valid: isValidForPoints,
       timestamp,
     }]);
 
-    // Update local stats
-    if (isValid && distance > 0.001) {
+    // Update local stats (only count validated distance)
+    if (distance > 0.001) {
       setStats(prev => ({
         ...prev,
         totalDistanceMiles: prev.totalDistanceMiles + distance,
-        validatedDistanceMiles: prev.validatedDistanceMiles + distance,
+        validatedDistanceMiles: isValidForPoints
+          ? prev.validatedDistanceMiles + distance
+          : prev.validatedDistanceMiles,
       }));
     }
 
     // Store as last ping
     lastPingRef.current = { lat: latitude, lng: longitude, timestamp };
 
-    // Send to server (fire and forget)
-    try {
-      await fetch(`/api/mission/${missionId}/search`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'ping',
-          sessionId: currentSessionId,
-          latitude,
-          longitude,
-          accuracy,
-          heading,
-          speed,
-          isValid,
-        }),
-      });
-    } catch (err) {
-      console.error('Ping failed:', err);
-    }
+    // Send to server with retry (don't lose data on spotty networks)
+    sendPingWithRetry(`/api/mission/${missionId}/search`, {
+      action: 'ping',
+      sessionId: currentSessionId,
+      latitude,
+      longitude,
+      accuracy,
+      heading,
+      speed,
+      isValid: isValidForPoints,
+    });
   }, [missionId, lastSeenLocation]); // Removed sessionId, isSearching - we use refs now
 
   // GPS watching effect - uses centralized GPS service

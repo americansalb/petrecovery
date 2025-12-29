@@ -8,6 +8,7 @@ import {
   getSubscription,
   SUBSCRIPTION_TIERS,
 } from '@/app/lib/payments/stripe';
+import { getBaseUrl } from '@/app/lib/config';
 
 /**
  * GET /api/payments/subscription
@@ -104,7 +105,7 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = getBaseUrl();
     const successUrl = `${baseUrl}/account/subscription?success=true`;
     const cancelUrl = `${baseUrl}/pricing`;
 

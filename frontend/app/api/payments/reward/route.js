@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { createRewardEscrow, captureEscrow, releaseEscrow } from '@/app/lib/payments/stripe';
+import { getBaseUrl } from '@/app/lib/config';
 
 /**
  * POST /api/payments/reward
@@ -47,7 +48,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Case already reunited' }, { status: 400 });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = getBaseUrl();
     const successUrl = `${baseUrl}/cases/${missionId}?reward=success`;
     const cancelUrl = `${baseUrl}/cases/${missionId}?reward=cancel`;
 

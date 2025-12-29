@@ -12,10 +12,11 @@ import { sendEmail, sendVerificationEmail } from '@/app/lib/email';
 import { logEvent } from '@/lib/logging';
 import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import crypto from 'crypto';
+import { getEmailBaseUrl } from '@/app/lib/config';
 
 export const dynamic = 'force-dynamic';
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+const BASE_URL = getEmailBaseUrl();
 
 /**
  * POST - Verify email with token
