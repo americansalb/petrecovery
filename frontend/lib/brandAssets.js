@@ -18,8 +18,8 @@ export const BRAND_ASSETS = {
 
   // PetRecovery logos
   logos: {
-    primary: `${CDN_BASE}/ReunitePets%20Official%20Logo.svg`,
-    icon: `${CDN_BASE}/Logos.svg`,
+    primary: `${CDN_BASE}/ReunitePets%20Official%20Logo%20(1).png`,  // Front page hero
+    icon: `${CDN_BASE}/ReunitePets%20Official%20Logo.svg`,  // Nav bar
     alt1: `${CDN_BASE}/Logos%20(1).svg`,
     alt2: `${CDN_BASE}/Logos%20(2).svg`,
   },

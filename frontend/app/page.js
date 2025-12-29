@@ -31,7 +31,7 @@ import {
   CheckCircle,
   Eye,
 } from 'lucide-react';
-import { SARAMA_AVATAR, LOGO_PRIMARY } from '@/lib/brandAssets';
+import { SARAMA_AVATAR, LOGO_PRIMARY, LOGO_ICON } from '@/lib/brandAssets';
 
 // Auth Modal Component
 const AuthModal = ({ isOpen, onClose, squadToJoin, onAuthSuccess }) => {
@@ -530,7 +530,7 @@ export default function Home() {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src={SARAMA_AVATAR} alt="PetRecovery" className="h-9 w-auto" />
+            <img src={LOGO_ICON} alt="ReunitePets" className="h-9 w-auto" />
             <span className="font-bold text-lg text-gray-900 hidden sm:inline">PetRecovery</span>
           </Link>
 
@@ -1061,14 +1061,14 @@ export default function Home() {
                       transition={{ delay: i * 0.05 }}
                       whileHover={{ scale: 1.02, y: -2 }}
                       className={`backdrop-blur-sm border rounded-2xl p-5 transition-all ${squad.exists
-                          ? 'bg-midnight-700/50 border-midnight-600 hover:border-flash-400/50 hover:bg-midnight-700/70'
-                          : 'bg-flash-400/10 border-flash-400/30 hover:bg-flash-400/20'
+                        ? 'bg-midnight-700/50 border-midnight-600 hover:border-flash-400/50 hover:bg-midnight-700/70'
+                        : 'bg-flash-400/10 border-flash-400/30 hover:bg-flash-400/20'
                         }`}
                     >
                       <div className="flex items-center gap-4 mb-4">
                         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${squad.exists
-                            ? 'bg-gradient-to-br from-flash-400 to-amber-500'
-                            : 'bg-gradient-to-br from-emerald-400 to-green-500'
+                          ? 'bg-gradient-to-br from-flash-400 to-amber-500'
+                          : 'bg-gradient-to-br from-emerald-400 to-green-500'
                           }`}>
                           {squad.logoUrl ? (
                             <img src={squad.logoUrl} alt={squad.name} className="w-14 h-14 rounded-2xl object-cover" />
