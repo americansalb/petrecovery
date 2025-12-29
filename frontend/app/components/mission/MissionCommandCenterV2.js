@@ -978,7 +978,7 @@ function ActivityTab({ sightings, tasks, gpsPath, onLocationClick }) {
           {timelineItems.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               <img
-                src={SARAMA_AVATAR}
+                src="https://petrescue.b-cdn.net/Logos%20(1).svg"
                 alt="Sarama"
                 className="h-40 w-auto mx-auto mb-6 drop-shadow-xl"
               />
@@ -1392,7 +1392,7 @@ function TeamTab({ team, missionData, tasks, setTasks, gpsPath, setGpsPath, isGP
         {team.length === 0 ? (
           <div className="text-center py-8 text-slate-400">
             <img
-              src={SARAMA_AVATAR}
+              src="https://petrescue.b-cdn.net/Logos%20(2).svg"
               alt="Sarama"
               className="h-32 w-auto mx-auto mb-4 drop-shadow-xl"
             />

@@ -594,7 +594,7 @@ export default function Home() {
               className="mb-8"
             >
               <img
-                src={SARAMA_AVATAR}
+                src="https://petrescue.b-cdn.net/Logos%20(1).svg"
                 alt="Sarama"
                 className="h-32 md:h-40 w-auto mx-auto drop-shadow-2xl"
               />
