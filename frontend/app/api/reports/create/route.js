@@ -488,6 +488,8 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       reportId: report.id,
+      caseNumber: report.caseNumber,
+      petName: report.petName,
       accountCreated,
       patrolAlerted: nearbyPatrol.length,
       assignedSquad,

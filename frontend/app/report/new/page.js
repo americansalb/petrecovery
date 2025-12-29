@@ -486,28 +486,116 @@ export default function ReportLostPet() {
   // Success screen
   if (step === 9 && reportResult) {
     return (
-      <div className="h-[100dvh] bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-6">
-        <div className="text-center max-w-sm">
-          <div className="relative mb-8">
-            <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-200">
-              <Check size={48} className="text-white" strokeWidth={3} />
+      <div className="h-[100dvh] bg-gradient-to-br from-green-50 via-white to-emerald-50 flex flex-col overflow-y-auto">
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <div className="text-center max-w-md w-full">
+            {/* Success Icon */}
+            <div className="relative mb-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-200">
+                <Check size={40} className="text-white" strokeWidth={3} />
+              </div>
+              <Sparkles className="absolute -top-1 -right-1 text-yellow-400" size={20} />
+              <Sparkles className="absolute -bottom-0 -left-2 text-green-400" size={16} />
             </div>
-            <Sparkles className="absolute -top-2 -right-2 text-yellow-400" size={24} />
-            <Sparkles className="absolute -bottom-1 -left-3 text-green-400" size={20} />
+
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Alert Sent!</h1>
+
+            {/* Case Number Badge */}
+            {reportResult.caseNumber && (
+              <div className="inline-block bg-gray-100 px-4 py-2 rounded-lg mb-4">
+                <span className="text-sm text-gray-500">Case Number: </span>
+                <span className="font-mono font-bold text-gray-800">{reportResult.caseNumber}</span>
+              </div>
+            )}
+
+            <p className="text-gray-600 mb-6">
+              {reportResult.squadsNotified || 0} rescue team{reportResult.squadsNotified === 1 ? '' : 's'} notified for <strong>{reportResult.petName || petName}</strong>
+            </p>
+
+            {/* Account Created Notice */}
+            {reportResult.accountCreated && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-left">
+                <div className="flex items-start gap-3">
+                  <Mail size={20} className="text-blue-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-blue-800">Check your email!</p>
+                    <p className="text-sm text-blue-600">
+                      We sent your login details to your email. Use them to track sightings and manage your case.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* What Happens Next */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6 text-left">
+              <h3 className="font-semibold text-gray-800 mb-3">What happens next:</h3>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-emerald-600 text-sm font-bold">1</span>
+                  </div>
+                  <p className="text-gray-600 text-sm">Volunteers in your area are being notified now</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-emerald-600 text-sm font-bold">2</span>
+                  </div>
+                  <p className="text-gray-600 text-sm">You'll get an email/text when someone spots your pet</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-emerald-600 text-sm font-bold">3</span>
+                  </div>
+                  <p className="text-gray-600 text-sm">Use Mission Control to coordinate with your search team</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Primary CTA - Mission Control */}
+            <Link
+              href={`/mission-control?mission=${reportResult.reportId}`}
+              className="block w-full py-4 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-2xl font-semibold text-lg shadow-lg shadow-green-200 hover:shadow-xl transition-all mb-3"
+            >
+              Open Mission Control
+            </Link>
+
+            {/* Secondary CTA - Dashboard */}
+            <Link
+              href="/dashboard"
+              className="block w-full py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all"
+            >
+              Go to Dashboard
+            </Link>
+
+            {/* Share Buttons */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <p className="text-sm text-gray-500 mb-3">Share to spread the word:</p>
+              <div className="flex justify-center gap-3">
+                <button
+                  onClick={() => {
+                    const url = `${window.location.origin}/cases/${reportResult.caseNumber || reportResult.reportId}`;
+                    if (navigator.share) {
+                      navigator.share({ title: `Help find ${reportResult.petName || petName}!`, url });
+                    } else {
+                      navigator.clipboard.writeText(url);
+                    }
+                  }}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-all"
+                >
+                  Copy Link
+                </button>
+                <a
+                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.origin : ''}/cases/${reportResult.caseNumber || reportResult.reportId}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all"
+                >
+                  Share on Facebook
+                </a>
+              </div>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Alert Sent!</h1>
-          <p className="text-gray-600 mb-8 text-lg">
-            {reportResult.squadsNotified || 0} rescue team{reportResult.squadsNotified === 1 ? '' : 's'} notified in your area
-          </p>
-          <Link
-            href="/dashboard"
-            className="block w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl font-semibold text-lg shadow-lg shadow-green-200 hover:shadow-xl transition-all"
-          >
-            View Dashboard
-          </Link>
-          <p className="mt-4 text-sm text-gray-500">
-            We'll notify you of any sightings
-          </p>
         </div>
       </div>
     );
