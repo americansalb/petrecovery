@@ -11,19 +11,27 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Dog, Sparkles } from 'lucide-react';
+import { Send, Loader2, Sparkles } from 'lucide-react';
+import { SARAMA_AVATAR } from '@/lib/brandAssets';
 
-// Sarama's avatar - a friendly golden retriever guide
+// Sarama's avatar - official mascot logo
 function SaramaAvatar({ size = 'md', isThinking = false }) {
-  const sizeClasses = {
-    sm: 'w-8 h-8',
-    md: 'w-10 h-10',
-    lg: 'w-14 h-14',
+  const sizes = {
+    sm: 32,
+    md: 40,
+    lg: 56,
   };
 
   return (
-    <div className={`${sizeClasses[size]} rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg relative`}>
-      <Dog size={size === 'lg' ? 28 : size === 'md' ? 20 : 16} className="text-white" />
+    <div className="relative">
+      <img
+        src={SARAMA_AVATAR}
+        alt="Sarama"
+        width={sizes[size]}
+        height={sizes[size]}
+        className={isThinking ? 'animate-pulse' : ''}
+        style={{ width: sizes[size], height: sizes[size] }}
+      />
       {isThinking && (
         <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow">
           <Loader2 size={10} className="text-amber-500 animate-spin" />

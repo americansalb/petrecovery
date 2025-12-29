@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ColorSelector from '../components/ColorSelector';
+import { SARAMA_AVATAR } from '@/lib/brandAssets';
 
 /**
  * MatchCard Component - Shows a potential match with message button
@@ -476,9 +477,11 @@ export default function ReportFoundPet() {
     return (
       <div className="h-[100dvh] bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <Heart size={28} className="text-white" />
-          </div>
+          <img
+            src={SARAMA_AVATAR}
+            alt="Sarama"
+            className="w-16 h-16 mx-auto mb-4 animate-pulse"
+          />
           <p className="text-gray-500">Loading...</p>
         </div>
       </div>
