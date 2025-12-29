@@ -43,6 +43,7 @@ import {
   Sparkles,
   Shield,
 } from 'lucide-react';
+import { SARAMA_AVATAR } from '@/lib/brandAssets';
 
 // Lazy load map for better performance
 const MapView = dynamic(() => import('./SARMapView'), {
@@ -977,7 +978,7 @@ function ActivityTab({ sightings, tasks, gpsPath, onLocationClick }) {
           {timelineItems.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               <img
-                src="https://petrescue.b-cdn.net/Logos%20(1).svg"
+                src={SARAMA_AVATAR}
                 alt="Sarama"
                 className="h-40 w-auto mx-auto mb-6 drop-shadow-xl"
               />
@@ -1391,7 +1392,7 @@ function TeamTab({ team, missionData, tasks, setTasks, gpsPath, setGpsPath, isGP
         {team.length === 0 ? (
           <div className="text-center py-8 text-slate-400">
             <img
-              src="https://petrescue.b-cdn.net/Logos%20(2).svg"
+              src={SARAMA_AVATAR}
               alt="Sarama"
               className="h-32 w-auto mx-auto mb-4 drop-shadow-xl"
             />

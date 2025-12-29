@@ -9,6 +9,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Mail, ArrowLeft, CheckCircle, Send } from 'lucide-react';
 import { Button, Card } from '@/components/ui';
+import { SARAMA_AVATAR } from '@/lib/brandAssets';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -59,7 +60,7 @@ export default function ForgotPasswordPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-midnight-900 font-bold text-2xl">
-            <img src="https://petrescue.b-cdn.net/Logos.svg" alt="Sarama" className="h-12 w-auto" />
+            <img src={SARAMA_AVATAR} alt="Sarama" className="h-12 w-auto" />
             PetRecovery
           </Link>
         </div>
