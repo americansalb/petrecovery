@@ -60,7 +60,7 @@ export default function PostCard({ post, onVote, onComment, currentUserId }) {
                 <img
                   src={SARAMA_AVATAR}
                   alt="Sarama"
-                  className="w-14 h-14 rounded-full object-cover shadow-lg ring-2 ring-purple-400/50 bg-gradient-to-br from-purple-500 to-purple-600"
+                  className="w-14 h-14 object-contain"
                   onError={(e) => {
                     e.target.style.display = 'none';
                     e.target.nextSibling.style.display = 'flex';

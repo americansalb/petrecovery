@@ -12,7 +12,7 @@ export default function AboutPage() {
           <img
             src={SARAMA_AVATAR}
             alt="Sarama"
-            className="h-32 w-32 mx-auto mb-6 rounded-full"
+            className="h-32 w-auto mx-auto mb-6"
           />
           <h1 className="text-4xl md:text-5xl font-black mb-4">Meet Sarama</h1>
           <p className="text-xl text-white/90">Our guide and guardian</p>
