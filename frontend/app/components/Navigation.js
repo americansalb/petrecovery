@@ -106,7 +106,7 @@ export default function Navigation() {
       <nav className="sticky top-0 z-50 bg-midnight-900 border-b border-midnight-800">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl">
-            <img src={SARAMA_AVATAR} alt="PetRecovery" className="h-8 w-auto" />
+            <img src={SARAMA_AVATAR} alt="PetRecovery" className="h-8 w-auto" style={{ background: 'transparent' }} />
             <span>PetRecovery</span>
           </Link>
 
@@ -155,7 +155,7 @@ export default function Navigation() {
           <div className="h-16 flex items-center justify-between gap-4">
             {/* Logo - always links to home */}
             <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl shrink-0">
-              <img src={SARAMA_AVATAR} alt="PetRecovery" className="h-8 w-auto" />
+              <img src={SARAMA_AVATAR} alt="PetRecovery" className="h-8 w-auto" style={{ background: 'transparent' }} />
               <span className="hidden sm:inline">PetRecovery</span>
             </Link>
 
