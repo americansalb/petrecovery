@@ -10,7 +10,8 @@ const CDN_BASE = 'https://petrescue.b-cdn.net';
 export const BRAND_ASSETS = {
   // Sarama mascot - the divine guide (Sanskrit: सरमा, "the fleet one")
   sarama: {
-    avatar: `${CDN_BASE}/Logos_4_fixed.svg`,
+    avatar: `${CDN_BASE}/Logos%20(6).svg`,  // Transparent version
+    avatarAlt: `${CDN_BASE}/Logos_4_fixed.svg`,  // Original
     name: 'Sarama',
     tagline: 'Your Guide Home',
   },
