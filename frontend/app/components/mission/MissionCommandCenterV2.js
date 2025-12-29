@@ -360,58 +360,58 @@ export default function MissionCommandCenterV2({ missionId, missionNumber, onClo
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header - conditional rendering based on hideHeader */}
       {!hideHeader && (
-      <div className="bg-slate-900/80 backdrop-blur-xl border-b-2 border-slate-800/60 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            {/* Back button + Pet name */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={onClose || (() => window.history.back())}
-                className="p-2 rounded-xl bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-800 transition"
-              >
-                <ChevronLeft size={20} />
-              </button>
+        <div className="bg-slate-900/80 backdrop-blur-xl border-b-2 border-slate-800/60 sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              {/* Back button + Pet name */}
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={onClose || (() => window.history.back())}
+                  className="p-2 rounded-xl bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                >
+                  <ChevronLeft size={20} />
+                </button>
 
-              <div className="flex items-center gap-3">
-                {missionData?.petPhotoUrl ? (
-                  <img
-                    src={normalizePhotoUrl(missionData.petPhotoUrl)}
-                    alt={missionData.petName}
-                    className="w-12 h-12 rounded-xl object-cover border-2 border-flash-500/30"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-2xl border-2 border-slate-700">
-                    {missionData?.petSpecies === 'DOG' ? '🐕' : missionData?.petSpecies === 'CAT' ? '🐈' : '🐾'}
-                  </div>
-                )}
+                <div className="flex items-center gap-3">
+                  {missionData?.petPhotoUrl ? (
+                    <img
+                      src={normalizePhotoUrl(missionData.petPhotoUrl)}
+                      alt={missionData.petName}
+                      className="w-12 h-12 rounded-xl object-cover border-2 border-flash-500/30"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-2xl border-2 border-slate-700">
+                      {missionData?.petSpecies === 'DOG' ? '🐕' : missionData?.petSpecies === 'CAT' ? '🐈' : '🐾'}
+                    </div>
+                  )}
 
-                <div>
-                  <h1 className="text-xl font-bold text-white">{missionData?.petName || 'Unknown'}</h1>
-                  <div className="flex items-center gap-2 text-sm text-slate-400">
-                    <span>Case #{missionData?.missionNumber || missionData?.id?.slice(0, 8).toUpperCase()}</span>
-                    {timeMissing && (
-                      <>
-                        <span>•</span>
-                        <span className={isUrgent ? 'text-red-400 font-semibold' : 'text-amber-400'}>
-                          ⏱ {timeMissing} missing
-                        </span>
-                      </>
-                    )}
+                  <div>
+                    <h1 className="text-xl font-bold text-white">{missionData?.petName || 'Unknown'}</h1>
+                    <div className="flex items-center gap-2 text-sm text-slate-400">
+                      <span>Case #{missionData?.missionNumber || missionData?.id?.slice(0, 8).toUpperCase()}</span>
+                      {timeMissing && (
+                        <>
+                          <span>•</span>
+                          <span className={isUrgent ? 'text-red-400 font-semibold' : 'text-amber-400'}>
+                            ⏱ {timeMissing} missing
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Status badge */}
-            {isReunited && (
-              <div className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-500 text-white font-bold flex items-center gap-2">
-                <Heart size={18} />
-                Reunited!
-              </div>
-            )}
+              {/* Status badge */}
+              {isReunited && (
+                <div className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-500 text-white font-bold flex items-center gap-2">
+                  <Heart size={18} />
+                  Reunited!
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
       )}
 
       {/* Tabs - ALWAYS VISIBLE */}
@@ -424,11 +424,10 @@ export default function MissionCommandCenterV2({ missionId, missionNumber, onClo
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all whitespace-nowrap ${
-                    activeTab === tab.id
+                  className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all whitespace-nowrap ${activeTab === tab.id
                       ? 'bg-flash-500/20 text-flash-400 border-2 border-flash-500/50 shadow-lg shadow-flash-500/20'
                       : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                  }`}
+                    }`}
                 >
                   <Icon size={18} />
                   {tab.label}
@@ -840,11 +839,10 @@ function ActivityTab({ sightings, tasks, gpsPath, onLocationClick }) {
                 <p className="text-slate-300 text-sm mb-2">{s.description || 'Sighting reported'}</p>
                 <p className="text-slate-500 text-xs mb-2">📍 {s.address}</p>
                 {s.confidence && (
-                  <span className={`inline-block text-xs px-2 py-1 rounded font-semibold ${
-                    s.confidence === 'HIGH' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' :
-                    s.confidence === 'MEDIUM' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' :
-                    'bg-slate-500/20 text-slate-400 border border-slate-500/50'
-                  }`}>
+                  <span className={`inline-block text-xs px-2 py-1 rounded font-semibold ${s.confidence === 'HIGH' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' :
+                      s.confidence === 'MEDIUM' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' :
+                        'bg-slate-500/20 text-slate-400 border border-slate-500/50'
+                    }`}>
                     {s.confidence} confidence
                   </span>
                 )}
@@ -893,9 +891,9 @@ function ActivityTab({ sightings, tasks, gpsPath, onLocationClick }) {
                     {details.shelterResult && (
                       <p className="text-slate-300">
                         {details.shelterResult === 'POSSIBLE_MATCH' ? '🎉 They might have them!' :
-                         details.shelterResult === 'VISITED' ? '✓ Visited in person - no match yet' :
-                         details.shelterResult === 'CALLED' ? '📞 Called - no match yet' :
-                         details.shelterResult === 'LEFT_INFO' ? '📝 Left contact info' : details.shelterResult}
+                          details.shelterResult === 'VISITED' ? '✓ Visited in person - no match yet' :
+                            details.shelterResult === 'CALLED' ? '📞 Called - no match yet' :
+                              details.shelterResult === 'LEFT_INFO' ? '📝 Left contact info' : details.shelterResult}
                       </p>
                     )}
                     {details.shelterContact && <p className="text-slate-400 text-xs">Contact: {details.shelterContact}</p>}
@@ -978,7 +976,7 @@ function ActivityTab({ sightings, tasks, gpsPath, onLocationClick }) {
           {timelineItems.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               <img
-                src="https://petrescue.b-cdn.net/Logos%20(1).svg"
+                src={SARAMA_AVATAR}
                 alt="Sarama"
                 className="h-40 w-auto mx-auto mb-6 drop-shadow-xl"
               />
@@ -1232,10 +1230,10 @@ function TeamTab({ team, missionData, tasks, setTasks, gpsPath, setGpsPath, isGP
     setTasks(prev => prev.map(t =>
       t.id === selectedTask.id
         ? {
-            ...t,
-            completed: true,
-            completions: [...t.completions, completionWithUser]
-          }
+          ...t,
+          completed: true,
+          completions: [...t.completions, completionWithUser]
+        }
         : t
     ));
   };
@@ -1392,7 +1390,7 @@ function TeamTab({ team, missionData, tasks, setTasks, gpsPath, setGpsPath, isGP
         {team.length === 0 ? (
           <div className="text-center py-8 text-slate-400">
             <img
-              src="https://petrescue.b-cdn.net/Logos%20(2).svg"
+              src={SARAMA_AVATAR}
               alt="Sarama"
               className="h-32 w-auto mx-auto mb-4 drop-shadow-xl"
             />
@@ -1527,17 +1525,15 @@ function TeamTab({ team, missionData, tasks, setTasks, gpsPath, setGpsPath, isGP
                     <button
                       key={task.id}
                       onClick={() => handleTaskClick(task)}
-                      className={`w-full text-left p-3 rounded-lg transition flex items-center gap-3 ${
-                        task.completed
+                      className={`w-full text-left p-3 rounded-lg transition flex items-center gap-3 ${task.completed
                           ? 'bg-emerald-500/10 border border-emerald-500/30'
                           : 'bg-slate-800/50 border border-slate-700 hover:bg-slate-800'
-                      }`}
+                        }`}
                     >
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        task.completed
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${task.completed
                           ? 'bg-emerald-500 text-white'
                           : 'bg-slate-700 border-2 border-slate-600'
-                      }`}>
+                        }`}>
                         {task.completed && '✓'}
                       </div>
                       <span className={`flex-1 text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-white'}`}>
@@ -1688,7 +1684,7 @@ function SightingFormModal({ missionId, onClose, onSuccess }) {
           fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`)
             .then(r => r.json())
             .then(data => setAddress(data.display_name || ''))
-            .catch(() => {});
+            .catch(() => { });
         },
         () => setGettingLocation(false),
         { enableHighAccuracy: true }
@@ -1774,13 +1770,12 @@ function SightingFormModal({ missionId, onClose, onSuccess }) {
                 <button
                   key={opt.value}
                   onClick={() => setConfidence(opt.value)}
-                  className={`py-3 px-2 rounded-xl text-sm font-bold transition ${
-                    confidence === opt.value
+                  className={`py-3 px-2 rounded-xl text-sm font-bold transition ${confidence === opt.value
                       ? opt.color === 'emerald' ? 'bg-emerald-500/30 text-emerald-400 border-2 border-emerald-500/50'
                         : opt.color === 'amber' ? 'bg-amber-500/30 text-amber-400 border-2 border-amber-500/50'
-                        : 'bg-slate-700 text-slate-300 border-2 border-slate-600'
+                          : 'bg-slate-700 text-slate-300 border-2 border-slate-600'
                       : 'bg-slate-800 text-slate-500 border-2 border-slate-700 hover:border-slate-600'
-                  }`}
+                    }`}
                 >
                   {opt.label}
                 </button>
@@ -1812,11 +1807,10 @@ function SightingFormModal({ missionId, onClose, onSuccess }) {
           <button
             onClick={handleSubmit}
             disabled={!location || submitting}
-            className={`flex-1 py-3 font-bold rounded-xl transition ${
-              location && !submitting
+            className={`flex-1 py-3 font-bold rounded-xl transition ${location && !submitting
                 ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/50'
                 : 'bg-slate-800 text-slate-600 cursor-not-allowed'
-            }`}
+              }`}
           >
             {submitting ? 'Submitting...' : 'Submit Sighting'}
           </button>
@@ -1961,11 +1955,10 @@ function CustomActionModal({ onClose, onComplete }) {
           <button
             onClick={handleSubmit}
             disabled={!actionName.trim()}
-            className={`flex-1 py-3 font-bold rounded-xl transition ${
-              actionName.trim()
+            className={`flex-1 py-3 font-bold rounded-xl transition ${actionName.trim()
                 ? 'bg-gradient-to-r from-flash-500 to-blue-500 text-white shadow-lg shadow-flash-500/30 hover:shadow-xl hover:shadow-flash-500/50'
                 : 'bg-slate-800 text-slate-600 cursor-not-allowed'
-            }`}
+              }`}
           >
             Log Action
           </button>

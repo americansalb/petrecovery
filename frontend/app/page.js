@@ -31,7 +31,7 @@ import {
   CheckCircle,
   Eye,
 } from 'lucide-react';
-import { SARAMA_AVATAR } from '@/lib/brandAssets';
+import { SARAMA_AVATAR, LOGO_PRIMARY } from '@/lib/brandAssets';
 
 // Auth Modal Component
 const AuthModal = ({ isOpen, onClose, squadToJoin, onAuthSuccess }) => {
@@ -575,13 +575,13 @@ export default function Home() {
 
         {/* Subtle paw prints decoration */}
         <svg className="absolute top-20 left-[10%] w-16 h-16 text-flash-300/20 transform -rotate-12" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 6c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z"/>
+          <path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 6c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z" />
         </svg>
         <svg className="absolute bottom-32 right-[15%] w-14 h-14 text-flash-300/20 transform rotate-12" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 6c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z"/>
+          <path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 6c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z" />
         </svg>
         <svg className="absolute top-1/3 right-[8%] w-12 h-12 text-amber-200/30 transform rotate-45" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 6c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z"/>
+          <path d="M12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 6c-2.2 0-4 1.8-4 4h8c0-2.2-1.8-4-4-4z" />
         </svg>
 
         <div className="max-w-6xl mx-auto px-4 relative z-10">
@@ -594,8 +594,8 @@ export default function Home() {
               className="mb-8"
             >
               <img
-                src="https://petrescue.b-cdn.net/Logos%20(1).svg"
-                alt="Sarama"
+                src={LOGO_PRIMARY}
+                alt="ReunitePets"
                 className="h-32 md:h-40 w-auto mx-auto drop-shadow-2xl"
               />
             </motion.div>
@@ -1060,18 +1060,16 @@ export default function Home() {
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: i * 0.05 }}
                       whileHover={{ scale: 1.02, y: -2 }}
-                      className={`backdrop-blur-sm border rounded-2xl p-5 transition-all ${
-                        squad.exists
+                      className={`backdrop-blur-sm border rounded-2xl p-5 transition-all ${squad.exists
                           ? 'bg-midnight-700/50 border-midnight-600 hover:border-flash-400/50 hover:bg-midnight-700/70'
                           : 'bg-flash-400/10 border-flash-400/30 hover:bg-flash-400/20'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-4 mb-4">
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${
-                          squad.exists
+                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${squad.exists
                             ? 'bg-gradient-to-br from-flash-400 to-amber-500'
                             : 'bg-gradient-to-br from-emerald-400 to-green-500'
-                        }`}>
+                          }`}>
                           {squad.logoUrl ? (
                             <img src={squad.logoUrl} alt={squad.name} className="w-14 h-14 rounded-2xl object-cover" />
                           ) : squad.exists ? (
