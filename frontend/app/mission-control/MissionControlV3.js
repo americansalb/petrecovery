@@ -32,7 +32,6 @@ import {
   MapTab,
   ManageTab,
   ActionsTab,
-  SaramaTab,
 } from './components/tabs';
 
 // Extracted Modal Components
@@ -61,7 +60,6 @@ import {
   AlertCircle,
   RefreshCw,
   Shield,
-  Heart,
   ChevronLeft,
   ChevronRight,
   Crown,
@@ -171,7 +169,7 @@ function MissionControlV3Content() {
       species: activeMission.petSpecies,
       size: activeMission.petSize,
       isIndoorCat: activeMission.petDescription?.includes('Indoor cat') ? true :
-        activeMission.petDescription?.includes('Outdoor access') ? false : null,
+                    activeMission.petDescription?.includes('Outdoor access') ? false : null,
       timeElapsed: getTimeElapsedCategory(activeMission.lastSeenAt),
       lastSeenLocation: [lastSeenLocation.lat, lastSeenLocation.lng],
     });
@@ -280,10 +278,9 @@ function MissionControlV3Content() {
     );
   }
 
-  // Define tabs - simplified to 3 main views + Sarama companion
+  // Define tabs - simplified to 3 main views
   const tabs = [
     { id: 'overview', label: 'Home', icon: AlertCircle },
-    { id: 'sarama', label: 'Sarama', icon: Heart },
     { id: 'map', label: 'Map', icon: MapPin },
     { id: 'actions', label: 'Actions', icon: Star },
   ];
@@ -307,10 +304,11 @@ function MissionControlV3Content() {
 
       {/* Toast Notification Banner */}
       {notification && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-full mx-4 px-4 py-3 rounded-xl shadow-lg backdrop-blur-sm flex items-center gap-3 animate-in slide-in-from-top-2 ${notification.type === 'success' ? 'bg-emerald-500/90 text-white' :
-            notification.type === 'error' ? 'bg-red-500/90 text-white' :
-              'bg-blue-500/90 text-white'
-          }`}>
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-full mx-4 px-4 py-3 rounded-xl shadow-lg backdrop-blur-sm flex items-center gap-3 animate-in slide-in-from-top-2 ${
+          notification.type === 'success' ? 'bg-emerald-500/90 text-white' :
+          notification.type === 'error' ? 'bg-red-500/90 text-white' :
+          'bg-blue-500/90 text-white'
+        }`}>
           {notification.type === 'success' && <CheckCircle size={20} />}
           {notification.type === 'error' && <AlertCircle size={20} />}
           {notification.type === 'info' && <Info size={20} />}
@@ -351,8 +349,9 @@ function MissionControlV3Content() {
                   {activeMission.petName}
                 </h1>
                 {timeMissing && !isReunited && (
-                  <span className={`px-2 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1 ${isUrgent ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-flash-500/20 text-flash-400 border border-flash-500/30'
-                    }`}>
+                  <span className={`px-2 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1 ${
+                    isUrgent ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-flash-500/20 text-flash-400 border border-flash-500/30'
+                  }`}>
                     <Clock size={10} />
                     {timeMissing.text}
                   </span>
@@ -409,10 +408,11 @@ function MissionControlV3Content() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 rounded-lg font-semibold text-xs transition min-h-[52px] ${activeTab === tab.id
+                  className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 rounded-lg font-semibold text-xs transition min-h-[52px] ${
+                    activeTab === tab.id
                       ? 'bg-flash-500/20 text-flash-400 border border-flash-500/30'
                       : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-                    }`}
+                  }`}
                 >
                   <Icon size={20} />
                   <span className="truncate">{tab.label}</span>
@@ -441,14 +441,6 @@ function MissionControlV3Content() {
             onStartSearch={handleStartSearch}
             isSearchActive={searchSession.isActive}
             isStartingSearch={searchSession.isStarting}
-          />
-        )}
-
-        {activeTab === 'sarama' && (
-          <SaramaTab
-            mission={activeMission}
-            showNotification={(type, message) => showNotification({ type, message })}
-            session={session}
           />
         )}
 
