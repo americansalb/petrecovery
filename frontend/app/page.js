@@ -596,7 +596,7 @@ export default function Home() {
               <img
                 src={LOGO_PRIMARY}
                 alt="ReunitePets"
-                className="w-full max-w-md md:max-w-lg mx-auto h-auto"
+                className="h-56 md:h-72 w-auto mx-auto"
                 style={{
                   filter: 'drop-shadow(0 20px 25px rgba(0, 0, 0, 0.25)) drop-shadow(0 8px 10px rgba(0, 0, 0, 0.15))'
                 }}
