@@ -3,6 +3,8 @@
  *
  * All brand imagery should be imported from here to ensure consistency
  * and make future URL changes easy.
+ * 
+ * FINAL 2025 LOGOS - Updated Dec 2025
  */
 
 const CDN_BASE = 'https://petrescue.b-cdn.net';
@@ -10,29 +12,30 @@ const CDN_BASE = 'https://petrescue.b-cdn.net';
 export const BRAND_ASSETS = {
   // Sarama mascot - the divine guide (Sanskrit: सरमा, "the fleet one")
   sarama: {
-    avatar: `${CDN_BASE}/Logos%20(6).svg`,  // Transparent version
-    avatarAlt: `${CDN_BASE}/Logos_4_fixed.svg`,  // Original
+    avatar: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025.svg`,  // Main logo SVG
+    avatarPng: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(1).png`,  // Hero PNG
     name: 'Sarama',
     tagline: 'Your Guide Home',
   },
 
-  // PetRecovery logos
+  // PetRecovery logos - FINAL 2025
   logos: {
-    primary: `${CDN_BASE}/ReunitePets%20Official%20Logo%20(1).png`,  // Front page hero
-    icon: `${CDN_BASE}/ReunitePets%20Official%20Logo.svg`,  // Nav bar
-    alt1: `${CDN_BASE}/Logos%20(1).svg`,
-    alt2: `${CDN_BASE}/Logos%20(2).svg`,
+    primary: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(1).png`,  // Front page hero (PNG)
+    icon: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025.svg`,  // Nav bar & favicon (SVG)
+    favicon: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025.svg`,  // Browser tab
+    ogImage: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(1).png`,  // Social sharing
   },
 };
 
 // Convenience exports
 export const SARAMA_AVATAR = BRAND_ASSETS.sarama.avatar;
+export const SARAMA_AVATAR_PNG = BRAND_ASSETS.sarama.avatarPng;
 export const SARAMA_NAME = BRAND_ASSETS.sarama.name;
 export const SARAMA_TAGLINE = BRAND_ASSETS.sarama.tagline;
 
-// Legacy aliases (deprecated - use SARAMA_* instead)
-export const SURUMAA_AVATAR = SARAMA_AVATAR;
-export const SURUMAA_NAME = SARAMA_NAME;
-export const SURUMAA_TAGLINE = SARAMA_TAGLINE;
+// Logo exports
 export const LOGO_PRIMARY = BRAND_ASSETS.logos.primary;
 export const LOGO_ICON = BRAND_ASSETS.logos.icon;
+export const LOGO_FAVICON = BRAND_ASSETS.logos.favicon;
+export const LOGO_OG_IMAGE = BRAND_ASSETS.logos.ogImage;
+

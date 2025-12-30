@@ -25,6 +25,23 @@ export const metadata = {
     maximumScale: 1,
     userScalable: false,
   },
+  icons: {
+    icon: 'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025.svg',
+    shortcut: 'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025.svg',
+    apple: 'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(1).png',
+  },
+  openGraph: {
+    title: 'PetRecovery.org - Reunite Lost Pets with Their Families',
+    description: 'Beautiful community-powered pet recovery. Get instant help finding your lost pet.',
+    images: ['https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(1).png'],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PetRecovery.org - Reunite Lost Pets',
+    description: 'Beautiful community-powered pet recovery. Get instant help finding your lost pet.',
+    images: ['https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(1).png'],
+  },
 };
 
 export default function RootLayout({ children }) {
