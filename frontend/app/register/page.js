@@ -109,8 +109,8 @@ export default function RegisterPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-midnight-900 font-bold text-2xl">
-            <img src={LOGO_ICON} alt="PetRecovery" className="h-12 w-auto" />
-            PetRecovery
+            <img src={LOGO_ICON} alt="ReunitePets" className="h-12 w-auto" />
+            ReunitePets
           </Link>
         </div>
 
@@ -265,11 +265,10 @@ export default function RegisterPage() {
                     aria-required="true"
                     className="sr-only peer"
                   />
-                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition ${
-                    acceptedTerms
+                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition ${acceptedTerms
                       ? 'bg-flash-400 border-flash-400'
                       : 'bg-white border-midnight-300 peer-focus:ring-2 peer-focus:ring-flash-400'
-                  }`}>
+                    }`}>
                     {acceptedTerms && <Check className="w-3 h-3 text-midnight-900" strokeWidth={3} />}
                   </div>
                 </div>

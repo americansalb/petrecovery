@@ -91,7 +91,7 @@ export default function ReportFoundPet() {
       }).addTo(map);
       circleRef.current = circle;
 
-      marker.on('dragend', function(e) {
+      marker.on('dragend', function (e) {
         const pos = e.target.getLatLng();
         setCenter([pos.lat, pos.lng]);
       });
@@ -257,7 +257,7 @@ export default function ReportFoundPet() {
               textDecoration: 'none',
             }}
           >
-            ← PetRecovery
+            ← ReunitePets
           </Link>
           {session?.user && (
             <div style={{
@@ -1090,9 +1090,9 @@ export default function ReportFoundPet() {
                         gap: '1rem',
                         padding: '1rem',
                         background: match.matchQuality === 'high' ? '#fef3c7' :
-                                   match.matchQuality === 'medium' ? '#f3f4f6' : '#f9fafb',
+                          match.matchQuality === 'medium' ? '#f3f4f6' : '#f9fafb',
                         border: `2px solid ${match.matchQuality === 'high' ? '#f59e0b' :
-                                             match.matchQuality === 'medium' ? '#9ca3af' : '#e5e7eb'}`,
+                          match.matchQuality === 'medium' ? '#9ca3af' : '#e5e7eb'}`,
                         borderRadius: theme.radius.lg,
                       }}
                     >
@@ -1136,9 +1136,9 @@ export default function ReportFoundPet() {
                         padding: '0.5rem 1rem',
                         borderRadius: theme.radius.md,
                         background: match.matchQuality === 'high' ? '#fef3c7' :
-                                   match.matchQuality === 'medium' ? '#e5e7eb' : '#f3f4f6',
+                          match.matchQuality === 'medium' ? '#e5e7eb' : '#f3f4f6',
                         color: match.matchQuality === 'high' ? '#92400e' :
-                               match.matchQuality === 'medium' ? '#374151' : '#6b7280',
+                          match.matchQuality === 'medium' ? '#374151' : '#6b7280',
                         fontWeight: '600',
                         fontSize: '0.85rem',
                       }}>

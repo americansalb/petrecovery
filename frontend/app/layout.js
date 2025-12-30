@@ -17,7 +17,7 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: 'PetRecovery.org - Reunite Lost Pets with Their Families',
+  title: 'ReunitePets.org - Reunite Lost Pets with Their Families',
   description: 'Beautiful community-powered pet recovery. Get instant help finding your lost pet.',
   viewport: {
     width: 'device-width',
@@ -26,19 +26,19 @@ export const metadata = {
     userScalable: false,
   },
   icons: {
-    icon: 'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025.svg',
-    shortcut: 'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025.svg',
+    icon: 'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(2).svg',
+    shortcut: 'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(2).svg',
     apple: 'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(1).png',
   },
   openGraph: {
-    title: 'PetRecovery.org - Reunite Lost Pets with Their Families',
+    title: 'ReunitePets.org - Reunite Lost Pets with Their Families',
     description: 'Beautiful community-powered pet recovery. Get instant help finding your lost pet.',
     images: ['https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(1).png'],
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'PetRecovery.org - Reunite Lost Pets',
+    title: 'ReunitePets.org - Reunite Lost Pets',
     description: 'Beautiful community-powered pet recovery. Get instant help finding your lost pet.',
     images: ['https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(1).png'],
   },

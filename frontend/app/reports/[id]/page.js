@@ -342,7 +342,7 @@ export default function ReportDetailPage() {
               textDecoration: 'none',
             }}
           >
-            ← PetRecovery
+            ← ReunitePets
           </Link>
         </div>
       </div>

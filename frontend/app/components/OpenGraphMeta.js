@@ -15,9 +15,9 @@ export default function OpenGraphMeta({
   imageUrl,
   url,
   type = 'article',
-  siteName = 'PetRecovery.org',
+  siteName = 'ReunitePets.org',
   twitterCard = 'summary_large_image',
-  twitterSite = '@PetRecoveryOrg'
+  twitterSite = '@ReunitePetsOrg'
 }) {
   useEffect(() => {
     // Update document title
@@ -70,13 +70,13 @@ export function generateCaseMetadata(missionData) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://petrecovery.org';
 
   return {
-    title: `Help Find ${missionData.petName}! - Missing ${missionData.petSpecies} | PetRecovery.org`,
+    title: `Help Find ${missionData.petName}! - Missing ${missionData.petSpecies} | ReunitePets.org`,
     description: `${missionData.petSpecies} ${missionData.petBreed || ''} named ${missionData.petName} went missing near ${missionData.lastSeenAddress}. ${missionData.petDescription?.substring(0, 150)}...`,
     openGraph: {
       title: `Help Find ${missionData.petName}!`,
       description: `Missing ${missionData.petSpecies}: ${missionData.petName}. Last seen near ${missionData.lastSeenAddress}. Please share to help bring them home!`,
       url: `${baseUrl}/cases/${missionData.caseNumber}`,
-      siteName: 'PetRecovery.org',
+      siteName: 'ReunitePets.org',
       images: missionData.petPhotoUrl ? [
         {
           url: missionData.petPhotoUrl,
@@ -120,11 +120,11 @@ export function generateCaseStructuredData(missionData) {
     dateModified: missionData.updatedAt,
     author: {
       '@type': 'Organization',
-      name: 'PetRecovery.org'
+      name: 'ReunitePets.org'
     },
     publisher: {
       '@type': 'Organization',
-      name: 'PetRecovery.org',
+      name: 'ReunitePets.org',
       logo: {
         '@type': 'ImageObject',
         url: `${baseUrl}/logo.png`

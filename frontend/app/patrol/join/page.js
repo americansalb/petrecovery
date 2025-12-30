@@ -102,7 +102,7 @@ export default function JoinPatrol() {
       circleRef.current = circle;
 
       // Handle marker drag
-      marker.on('dragend', function(e) {
+      marker.on('dragend', function (e) {
         const pos = e.target.getLatLng();
         setCenter([pos.lat, pos.lng]);
       });
@@ -483,7 +483,7 @@ export default function JoinPatrol() {
               textDecoration: 'none',
             }}
           >
-            ← PetRecovery
+            ← ReunitePets
           </Link>
         </div>
       </div>
@@ -1080,19 +1080,19 @@ export default function JoinPatrol() {
                 lineHeight: '1.7',
                 margin: 0,
               }}>
-                By joining the PetRecovery Patrol, you acknowledge and agree that:
-                <br/><br/>
-                <strong>1. Voluntary Participation:</strong> Your participation in the PetRecovery Patrol program is entirely voluntary. You are not required to take any action beyond reporting sightings of lost pets.
-                <br/><br/>
-                <strong>2. No Guarantee of Safety:</strong> PetRecovery.org makes no guarantees regarding your safety while participating in patrol activities. You assume all risks associated with looking for, observing, or reporting lost pets.
-                <br/><br/>
-                <strong>3. Release of Liability:</strong> You release, waive, discharge, and covenant not to sue PetRecovery.org, its officers, employees, and agents from any and all liability, claims, demands, actions, and causes of action whatsoever arising out of or related to any loss, damage, or injury that may be sustained by you while participating in the patrol program.
-                <br/><br/>
+                By joining the ReunitePets Patrol, you acknowledge and agree that:
+                <br /><br />
+                <strong>1. Voluntary Participation:</strong> Your participation in the ReunitePets Patrol program is entirely voluntary. You are not required to take any action beyond reporting sightings of lost pets.
+                <br /><br />
+                <strong>2. No Guarantee of Safety:</strong> ReunitePets.org makes no guarantees regarding your safety while participating in patrol activities. You assume all risks associated with looking for, observing, or reporting lost pets.
+                <br /><br />
+                <strong>3. Release of Liability:</strong> You release, waive, discharge, and covenant not to sue ReunitePets.org, its officers, employees, and agents from any and all liability, claims, demands, actions, and causes of action whatsoever arising out of or related to any loss, damage, or injury that may be sustained by you while participating in the patrol program.
+                <br /><br />
                 <strong>4. Assumption of Risk:</strong> You acknowledge that participation in the patrol program involves inherent risks including, but not limited to, animal bites, scratches, disease transmission, property disputes, and traffic hazards. You expressly assume all such risks.
-                <br/><br/>
+                <br /><br />
                 <strong>5. Compliance with Laws:</strong> You agree to comply with all local, state, and federal laws while participating in the patrol program, including trespassing and animal control laws.
-                <br/><br/>
-                <strong>6. Indemnification:</strong> You agree to indemnify and hold harmless PetRecovery.org from any claims, damages, or expenses arising from your participation in the patrol program.
+                <br /><br />
+                <strong>6. Indemnification:</strong> You agree to indemnify and hold harmless ReunitePets.org from any claims, damages, or expenses arising from your participation in the patrol program.
               </p>
             </div>
 
@@ -1154,7 +1154,7 @@ export default function JoinPatrol() {
                   color: theme.colors.gray[600],
                   marginBottom: '1.5rem',
                 }}>
-                  We'll create your PetRecovery account to complete your patrol signup
+                  We'll create your ReunitePets account to complete your patrol signup
                 </p>
 
                 <div style={{ marginBottom: '1rem' }}>

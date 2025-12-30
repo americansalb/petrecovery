@@ -106,8 +106,8 @@ export default function Navigation() {
       <nav className="sticky top-0 z-50 bg-midnight-900 border-b border-midnight-800">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl">
-            <img src={LOGO_ICON} alt="ReunitePets" className="h-8 w-auto" />
-            <span>PetRecovery</span>
+            <img src={LOGO_ICON} alt="ReunitePets" className="h-10 w-auto" />
+            <span>ReunitePets</span>
           </Link>
 
           <div className="flex items-center gap-2">
@@ -155,8 +155,8 @@ export default function Navigation() {
           <div className="h-16 flex items-center justify-between gap-4">
             {/* Logo - always links to home */}
             <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl shrink-0">
-              <img src={LOGO_ICON} alt="ReunitePets" className="h-8 w-auto" />
-              <span className="hidden sm:inline">PetRecovery</span>
+              <img src={LOGO_ICON} alt="ReunitePets" className="h-10 w-auto" />
+              <span className="hidden sm:inline">ReunitePets</span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -484,8 +484,8 @@ function NavLink({ href, active, children }) {
     <Link
       href={href}
       className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition ${active
-          ? 'bg-midnight-800 text-white'
-          : 'text-midnight-300 hover:bg-midnight-800 hover:text-white'
+        ? 'bg-midnight-800 text-white'
+        : 'text-midnight-300 hover:bg-midnight-800 hover:text-white'
         }`}
     >
       {children}
@@ -499,8 +499,8 @@ function NavDropdown({ label, icon: Icon, active, isOpen, onToggle, badge, child
       <button
         onClick={onToggle}
         className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition ${active
-            ? 'bg-midnight-800 text-white'
-            : 'text-midnight-300 hover:bg-midnight-800 hover:text-white'
+          ? 'bg-midnight-800 text-white'
+          : 'text-midnight-300 hover:bg-midnight-800 hover:text-white'
           }`}
       >
         <Icon className="w-4 h-4" />
@@ -545,8 +545,8 @@ function MobileNavLink({ href, icon: Icon, label, active, onClick }) {
       href={href}
       onClick={onClick}
       className={`flex items-center gap-3 px-4 py-3 transition ${active
-          ? 'bg-flash-50 text-midnight-900 border-l-4 border-flash-400'
-          : 'text-midnight-700 hover:bg-midnight-50 border-l-4 border-transparent'
+        ? 'bg-flash-50 text-midnight-900 border-l-4 border-flash-400'
+        : 'text-midnight-700 hover:bg-midnight-50 border-l-4 border-transparent'
         }`}
     >
       <Icon className="w-5 h-5" />

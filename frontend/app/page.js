@@ -530,8 +530,8 @@ export default function Home() {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src={LOGO_ICON} alt="ReunitePets" className="h-9 w-auto" />
-            <span className="font-bold text-lg text-gray-900 hidden sm:inline">PetRecovery</span>
+            <img src={LOGO_ICON} alt="ReunitePets" className="h-10 w-auto" />
+            <span className="font-bold text-lg text-gray-900 hidden sm:inline">ReunitePets</span>
           </Link>
 
           <nav className="flex items-center gap-2 sm:gap-3 text-sm">
@@ -1389,8 +1389,8 @@ export default function Home() {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div className="md:col-span-2">
               <div className="flex items-center gap-2 mb-4">
-                <img src={SARAMA_AVATAR} alt="PetRecovery" className="h-8 w-auto" />
-                <span className="font-bold">PetRecovery</span>
+                <img src={SARAMA_AVATAR} alt="ReunitePets" className="h-10 w-auto" />
+                <span className="font-bold">ReunitePets</span>
               </div>
               <p className="text-gray-400 text-sm max-w-sm">
                 Coordinated pet search and rescue. GPS-tracked volunteers. Live sighting network.
@@ -1416,7 +1416,7 @@ export default function Home() {
             </div>
           </div>
           <div className="border-t border-gray-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-            <p>© {new Date().getFullYear()} PetRecovery.org</p>
+            <p>© {new Date().getFullYear()} ReunitePets.org</p>
             <div className="flex items-center gap-6">
               <Link href="/privacy" className="hover:text-white transition">Privacy</Link>
               <Link href="/terms" className="hover:text-white transition">Terms</Link>
