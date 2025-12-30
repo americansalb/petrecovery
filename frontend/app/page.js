@@ -526,38 +526,38 @@ export default function Home() {
       {/* Reunion Ticker */}
       <ReunionTicker reunions={ticker} loading={loading} />
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+      {/* Header - Navy Blue matching dashboard */}
+      <header className="sticky top-0 z-50 bg-midnight-900 border-b border-midnight-800">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl">
             <img src={LOGO_ICON} alt="ReunitePets" className="h-12 w-auto" />
-            <span className="font-bold text-lg text-gray-900 hidden sm:inline">Reunite<span className="text-amber-600">Pets</span></span>
+            <span className="hidden sm:inline">Reunite<span className="text-flash-400">Pets</span></span>
           </Link>
 
           <nav className="flex items-center gap-2 sm:gap-3 text-sm">
-            <Link href="/database" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition">
+            <Link href="/database" className="flex items-center gap-1.5 px-3 py-2 bg-midnight-800 hover:bg-midnight-700 text-midnight-200 hover:text-white rounded-lg font-medium transition">
               <Search className="w-4 h-4" />
               <span className="hidden sm:inline">Search</span>
             </Link>
-            <Link href="/rescue-squads/search" className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition">
+            <Link href="/rescue-squads/search" className="flex items-center gap-1.5 px-3 py-2 bg-midnight-800 hover:bg-midnight-700 text-midnight-200 hover:text-white rounded-lg font-medium transition">
               <Shield className="w-4 h-4" />
               <span className="hidden sm:inline">Squads</span>
             </Link>
-            <Link href="/shelters" className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition">
+            <Link href="/shelters" className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-midnight-800 hover:bg-midnight-700 text-midnight-200 hover:text-white rounded-lg font-medium transition">
               <Building2 className="w-4 h-4" />
               Shelters
             </Link>
             {session ? (
               <Link
                 href="/dashboard"
-                className="flex items-center gap-1.5 bg-flash-400 text-gray-900 px-4 py-2 rounded-xl font-bold hover:bg-flash-500 transition shadow-sm"
+                className="flex items-center gap-1.5 bg-flash-400 text-midnight-900 px-4 py-2 rounded-xl font-bold hover:bg-flash-500 transition shadow-sm"
               >
                 Dashboard
               </Link>
             ) : (
               <Link
                 href="/login"
-                className="bg-gray-900 text-white px-4 py-2 rounded-xl font-medium hover:bg-gray-800 transition"
+                className="bg-flash-400 text-midnight-900 px-4 py-2 rounded-xl font-bold hover:bg-flash-500 transition"
               >
                 Login
               </Link>
