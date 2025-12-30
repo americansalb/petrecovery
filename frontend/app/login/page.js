@@ -60,7 +60,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-midnight-900 font-bold text-2xl">
-            <img src={LOGO_ICON} alt="ReunitePets" className="h-12 w-auto" />
+            <img src={LOGO_ICON} alt="ReunitePets" className="h-14 w-auto" />
             ReunitePets
           </Link>
         </div>
