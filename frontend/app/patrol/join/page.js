@@ -462,10 +462,10 @@ export default function JoinPatrol() {
     }}>
       {/* Header */}
       <div style={{
-        background: 'white',
+        background: '#0f172a', // midnight-900
         padding: '1.5rem 2rem',
         boxShadow: theme.shadows.sm,
-        borderBottom: '1px solid #f1f5f9',
+        borderBottom: '1px solid #1e293b',
       }}>
         <div style={{
           maxWidth: '900px',
@@ -479,11 +479,14 @@ export default function JoinPatrol() {
             style={{
               fontSize: '1.75rem',
               fontWeight: '800',
-              color: '#1e293b',
+              color: 'white',
               textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
             }}
           >
-            ← ReunitePets
+            <span style={{ color: '#fbbf24' }}>←</span> Reunite<span style={{ color: '#fbbf24' }}>Pets</span>
           </Link>
         </div>
       </div>

@@ -236,10 +236,10 @@ export default function ReportFoundPet() {
     }}>
       {/* Header */}
       <div style={{
-        background: 'white',
+        background: '#0f172a', // midnight-900
         padding: '1.5rem 2rem',
         boxShadow: theme.shadows.sm,
-        borderBottom: '1px solid #f1f5f9',
+        borderBottom: '1px solid #1e293b',
       }}>
         <div style={{
           maxWidth: '900px',
@@ -253,21 +253,24 @@ export default function ReportFoundPet() {
             style={{
               fontSize: '1.75rem',
               fontWeight: '800',
-              color: '#1e293b',
+              color: 'white',
               textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
             }}
           >
-            ← ReunitePets
+            <span style={{ color: '#fbbf24' }}>←</span> Reunite<span style={{ color: '#fbbf24' }}>Pets</span>
           </Link>
           {session?.user && (
             <div style={{
               padding: '0.5rem 1rem',
-              background: '#f0fdf4',
-              border: '2px solid #10b981',
+              background: '#0f172a',
+              border: '1px solid #334155',
               borderRadius: theme.radius.lg,
               fontSize: '0.9rem',
               fontWeight: '600',
-              color: '#065f46',
+              color: '#94a3b8',
             }}>
               ✓ Logged in as {session.user.email}
             </div>
