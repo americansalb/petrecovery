@@ -106,8 +106,8 @@ export default function Navigation() {
       <nav className="sticky top-0 z-50 bg-midnight-900 border-b border-midnight-800">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl">
-            <img src={LOGO_ICON} alt="ReunitePets" className="h-10 w-auto" />
-            <span>ReunitePets</span>
+            <img src={LOGO_ICON} alt="ReunitePets" className="h-12 w-auto" />
+            <span>Reunite<span className="text-flash-400">Pets</span></span>
           </Link>
 
           <div className="flex items-center gap-2">
@@ -155,8 +155,8 @@ export default function Navigation() {
           <div className="h-16 flex items-center justify-between gap-4">
             {/* Logo - always links to home */}
             <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl shrink-0">
-              <img src={LOGO_ICON} alt="ReunitePets" className="h-10 w-auto" />
-              <span className="hidden sm:inline">ReunitePets</span>
+              <img src={LOGO_ICON} alt="ReunitePets" className="h-12 w-auto" />
+              <span className="hidden sm:inline">Reunite<span className="text-flash-400">Pets</span></span>
             </Link>
 
             {/* Desktop Navigation */}

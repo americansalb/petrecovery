@@ -530,8 +530,8 @@ export default function Home() {
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src={LOGO_ICON} alt="ReunitePets" className="h-10 w-auto" />
-            <span className="font-bold text-lg text-gray-900 hidden sm:inline">ReunitePets</span>
+            <img src={LOGO_ICON} alt="ReunitePets" className="h-12 w-auto" />
+            <span className="font-bold text-lg text-gray-900 hidden sm:inline">Reunite<span className="text-amber-500">Pets</span></span>
           </Link>
 
           <nav className="flex items-center gap-2 sm:gap-3 text-sm">
@@ -1389,8 +1389,8 @@ export default function Home() {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div className="md:col-span-2">
               <div className="flex items-center gap-2 mb-4">
-                <img src={SARAMA_AVATAR} alt="ReunitePets" className="h-10 w-auto" />
-                <span className="font-bold">ReunitePets</span>
+                <img src={SARAMA_AVATAR} alt="ReunitePets" className="h-12 w-auto" />
+                <span className="font-bold">Reunite<span className="text-amber-400">Pets</span></span>
               </div>
               <p className="text-gray-400 text-sm max-w-sm">
                 Coordinated pet search and rescue. GPS-tracked volunteers. Live sighting network.
