@@ -21,8 +21,8 @@ export const BRAND_ASSETS = {
   // PetRecovery logos - FINAL 2025
   logos: {
     primary: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(1).png`,  // Front page hero (PNG)
-    icon: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(5).svg`,  // Nav bar & favicon (SVG)
-    favicon: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(3).svg`,  // Browser tab
+    icon: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(6).svg`,  // Nav bar & favicon (SVG)
+    favicon: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(6).svg`,  // Browser tab
     ogImage: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(1).png`,  // Social sharing
   },
 };
