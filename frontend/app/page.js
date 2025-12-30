@@ -531,7 +531,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <img src={LOGO_ICON} alt="ReunitePets" className="h-12 w-auto" />
-            <span className="font-bold text-lg text-gray-900 hidden sm:inline">Reunite<span className="text-amber-500">Pets</span></span>
+            <span className="font-bold text-lg text-gray-900 hidden sm:inline">Reunite<span className="text-amber-600">Pets</span></span>
           </Link>
 
           <nav className="flex items-center gap-2 sm:gap-3 text-sm">
