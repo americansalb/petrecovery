@@ -54,6 +54,7 @@ export default function OverviewPanel({
   onViewMap,
   onCallShelters,
   hideSearchButton = false, // Hide on desktop since map has its own button
+  isSearching = false,
 }) {
   const pet = mission || {};
   const hoursMissing = timeMissing?.hours || 0;
@@ -143,7 +144,7 @@ export default function OverviewPanel({
 
         <div className="grid grid-cols-2 gap-3">
           {/* Start Search - Primary (hidden on desktop where map has its own button) */}
-          {!hideSearchButton && (
+          {!hideSearchButton && !isSearching && (
             <button
               onClick={onStartSearch}
               className="col-span-2 p-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold flex items-center justify-center gap-3 shadow-lg shadow-amber-500/20 active:scale-[0.98] transition"
@@ -193,9 +194,9 @@ export default function OverviewPanel({
               <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-900/50 border border-slate-800">
                 <div className="p-1.5 rounded-lg bg-slate-800 text-slate-400">
                   {activity.type === 'sighting' ? <Eye size={14} /> :
-                   activity.type === 'search' ? <Navigation size={14} /> :
-                   activity.type === 'message' ? <AlertCircle size={14} /> :
-                   <Zap size={14} />}
+                    activity.type === 'search' ? <Navigation size={14} /> :
+                      activity.type === 'message' ? <AlertCircle size={14} /> :
+                        <Zap size={14} />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-white truncate">{activity.text}</p>

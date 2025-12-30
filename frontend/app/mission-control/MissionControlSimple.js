@@ -37,6 +37,7 @@ import TeamChatPanel from './components/simple/TeamChatPanel';
 import ActionsPanel from './components/simple/ActionsPanel';
 import TipsPanel from './components/simple/TipsPanel';
 import SightingFormModal from './components/modals/SightingFormModal';
+import ProbabilityZoneToggle from './components/simple/ProbabilityZoneToggle';
 import { printFlyer } from '@/app/lib/flyerGenerator';
 
 // Dynamic import for map (no SSR)
@@ -343,29 +344,16 @@ function MissionControlContent() {
     ? Math.floor((Date.now() - new Date(activeMission.lastSeenAt).getTime()) / 3600000)
     : 24;
 
-  // Render the active panel based on tab
-  const renderPanel = () => {
-    switch (activeTab) {
-      case 'home':
-        return (
-          <OverviewPanel
-            mission={activeMission}
-            timeMissing={timeMissing}
-            sightingsCount={sightings?.length || 0}
-            teamCount={team?.length || 0}
-            searchersActive={activeParticipants?.length || 0}
-            recentActivity={[]} // TODO: Wire up activity feed
-            onStartSearch={handleStartSearch}
-            onReportSighting={() => setShowSightingForm(true)}
-            onShare={handleShare}
-            onViewMap={handleViewMap}
-            onCallShelters={handleCallShelters}
-          />
-        );
-
-      case 'search':
-        return (
-          <div className="flex-1 relative">
+  // Render mobile layout with persistent map
+  const renderMobileLayout = () => {
+    return (
+      <div className="flex-1 relative overflow-hidden h-full">
+        {/* 1. Persistent Map Layer (Always mounted) */}
+        <div
+          className={`absolute inset-0 w-full h-full transition-opacity duration-300 ${activeTab === 'search' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+            }`}
+        >
+          <div className="flex-1 relative h-full">
             <SARMapView
               center={lastSeenLocation
                 ? [lastSeenLocation.lat, lastSeenLocation.lng]
@@ -380,28 +368,21 @@ function MissionControlContent() {
               activeSearchersCount={coverageData.activeSearchersCount}
               pois={pois}
               showLegend={!isSearching}
-              interactive={true}
+              interactive={activeTab === 'search'} // Only interactive when visible
               showProbabilityZones={showProbabilityZones}
               probabilityZones={probabilityZones}
             />
 
-            {/* Probability Zones Toggle - show when not searching */}
+            {/* Mobile Probability Toggle */}
             {!isSearching && lastSeenLocation && (
-              <button
-                onClick={() => setShowProbabilityZones(!showProbabilityZones)}
-                className={`absolute top-[200px] left-4 z-[500] flex items-center gap-2 px-4 py-3 rounded-xl shadow-xl transition-all border-2 ${showProbabilityZones
-                  ? 'bg-emerald-600 text-white border-emerald-500 hover:bg-emerald-500'
-                  : 'bg-slate-800/95 backdrop-blur text-slate-300 hover:text-white border-slate-600'
-                  }`}
-              >
-                <Target size={20} />
-                <span className="font-bold text-sm">
-                  {showProbabilityZones ? 'Hide Zones' : 'Show Zones'}
-                </span>
-              </button>
+              <ProbabilityZoneToggle
+                show={showProbabilityZones}
+                onToggle={() => setShowProbabilityZones(!showProbabilityZones)}
+                className="absolute top-[200px] left-4"
+              />
             )}
 
-            {/* Search controls */}
+            {/* Mobile Search Controls */}
             {isSearching ? (
               <LiveSearchOverlay
                 formattedDuration={formattedDuration}
@@ -420,65 +401,89 @@ function MissionControlContent() {
               />
             )}
           </div>
-        );
+        </div>
 
-      case 'team':
-        return (
-          <TeamChatPanel
-            team={team}
-            activeParticipants={activeParticipants}
-            messages={chat.messages}
-            onSendMessage={async (msg) => {
-              const result = await chat.sendMessage(msg);
-              if (!result.success) {
-                showNotification('error', result.error || 'Failed to send message');
-              }
-            }}
-            onShareLocation={() => {
-              if ('geolocation' in navigator) {
-                navigator.geolocation.getCurrentPosition(
-                  (pos) => {
-                    const locationMsg = `📍 My location: https://maps.google.com/?q=${pos.coords.latitude},${pos.coords.longitude}`;
-                    chat.sendMessage(locationMsg);
-                  },
-                  () => showNotification('error', 'Could not get location')
-                );
-              }
-            }}
-            currentUserId={session?.user?.id}
-            isLoading={chat.isLoading || chat.isSending}
-          />
-        );
+        {/* 2. Other Panels (Mount/Unmount is fine for these) */}
+        {activeTab === 'home' && (
+          <div className="absolute inset-0 z-20 bg-slate-950 overflow-y-auto">
+            <OverviewPanel
+              mission={activeMission}
+              timeMissing={timeMissing}
+              sightingsCount={sightings?.length || 0}
+              teamCount={team?.length || 0}
+              searchersActive={activeParticipants?.length || 0}
+              recentActivity={[]}
+              onStartSearch={handleStartSearch}
+              onReportSighting={() => setShowSightingForm(true)}
+              onShare={handleShare}
+              onViewMap={handleViewMap}
+              onCallShelters={handleCallShelters}
+              isSearching={isSearching}
+            />
+          </div>
+        )}
 
-      case 'actions':
-        return (
-          <ActionsPanel
-            mission={activeMission}
-            completedActions={completedTasks}
-            onShare={handleShare}
-            onDownloadFlyer={handleDownloadFlyer}
-            onCallShelter={(shelter) => {
-              showNotification('info', `Calling ${shelter.name}...`);
-            }}
-          />
-        );
+        {activeTab === 'team' && (
+          <div className="absolute inset-0 z-20 bg-slate-950 h-full flex flex-col">
+            <TeamChatPanel
+              team={team}
+              activeParticipants={activeParticipants}
+              messages={chat.messages}
+              onSendMessage={async (msg) => {
+                const result = await chat.sendMessage(msg);
+                if (!result.success) {
+                  showNotification('error', result.error || 'Failed to send message');
+                }
+              }}
+              onShareLocation={() => {
+                if ('geolocation' in navigator) {
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      const locationMsg = `📍 My location: https://maps.google.com/?q=${pos.coords.latitude},${pos.coords.longitude}`;
+                      chat.sendMessage(locationMsg);
+                    },
+                    () => showNotification('error', 'Could not get location')
+                  );
+                }
+              }}
+              currentUserId={session?.user?.id}
+              isLoading={chat.isLoading || chat.isSending}
+            />
+          </div>
+        )}
 
-      case 'tips':
-        return (
-          <TipsPanel
-            petSpecies={activeMission.petSpecies || 'DOG'}
-            hoursMissing={hoursElapsed}
-          />
-        );
+        {activeTab === 'actions' && (
+          <div className="absolute inset-0 z-20 bg-slate-950 overflow-y-auto">
+            <ActionsPanel
+              mission={activeMission}
+              completedActions={completedTasks}
+              onShare={handleShare}
+              onDownloadFlyer={handleDownloadFlyer}
+              onCallShelter={(shelter) => {
+                showNotification('info', `Calling ${shelter.name}...`);
+              }}
+            />
+          </div>
+        )}
 
-      default:
-        return null;
-    }
+        {activeTab === 'tips' && (
+          <div className="absolute inset-0 z-20 bg-slate-950 overflow-y-auto">
+            <TipsPanel
+              petSpecies={activeMission.petSpecies || 'DOG'}
+              hoursMissing={hoursElapsed}
+            />
+          </div>
+        )}
+      </div>
+    );
   };
 
   // Render sidebar panel content (for desktop)
   const renderSidebarPanel = () => {
-    switch (activeTab) {
+    // On desktop, 'search' tab just means we are on the map, but sidebar should show Overview
+    const effectiveTab = activeTab === 'search' ? 'home' : activeTab;
+
+    switch (effectiveTab) {
       case 'home':
         return (
           <OverviewPanel
@@ -493,7 +498,8 @@ function MissionControlContent() {
             onShare={handleShare}
             onViewMap={() => setActiveTab('search')}
             onCallShelters={() => setActiveTab('actions')}
-            hideSearchButton={true} // Map has its own button on desktop
+            // hideSearchButton=prop removed so button shows in sidebar
+            isSearching={isSearching}
           />
         );
       case 'team':
@@ -543,22 +549,7 @@ function MissionControlContent() {
           />
         );
       default:
-        return (
-          <OverviewPanel
-            mission={activeMission}
-            timeMissing={timeMissing}
-            sightingsCount={sightings?.length || 0}
-            teamCount={team?.length || 0}
-            searchersActive={activeParticipants?.length || 0}
-            recentActivity={[]}
-            onStartSearch={handleStartSearch}
-            onReportSighting={() => setShowSightingForm(true)}
-            onShare={handleShare}
-            onViewMap={() => setActiveTab('search')}
-            onCallShelters={() => setActiveTab('actions')}
-            hideSearchButton={true} // Map has its own button on desktop
-          />
-        );
+        return null;
     }
   };
 
@@ -622,22 +613,15 @@ function MissionControlContent() {
 
           {/* Probability Zones Toggle - Desktop */}
           {!isSearching && lastSeenLocation && (
-            <button
-              onClick={() => setShowProbabilityZones(!showProbabilityZones)}
-              className={`absolute bottom-28 left-6 z-[500] flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg transition-all ${showProbabilityZones
-                ? 'bg-emerald-600 text-white hover:bg-emerald-500'
-                : 'bg-slate-800/95 backdrop-blur text-slate-300 hover:text-white border border-slate-700'
-                }`}
-            >
-              <Target size={20} />
-              <span className="font-semibold text-sm">
-                {showProbabilityZones ? 'Hide Zones' : 'Search Zones'}
-              </span>
-            </button>
+            <ProbabilityZoneToggle
+              show={showProbabilityZones}
+              onToggle={() => setShowProbabilityZones(!showProbabilityZones)}
+              className="absolute bottom-28 left-6"
+            />
           )}
 
           {/* Search controls overlay on map */}
-          {isSearching ? (
+          {isSearching && (
             <LiveSearchOverlay
               formattedDuration={formattedDuration}
               durationSeconds={stats.durationSeconds}
@@ -646,34 +630,6 @@ function MissionControlContent() {
               isEnding={isEnding}
               onEndSearch={handleEndSearch}
             />
-          ) : (
-            <div className="absolute bottom-6 left-6 right-6 z-[400]">
-              <div className="flex gap-3">
-                <button
-                  onClick={handleStartSearch}
-                  disabled={isStarting || loading}
-                  className="flex-1 py-4 px-6 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-                >
-                  {isStarting ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Starting...
-                    </>
-                  ) : (
-                    <>
-                      <MapPin className="w-5 h-5" />
-                      Start GPS Search
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={() => setShowSightingForm(true)}
-                  className="py-4 px-6 bg-amber-500 hover:bg-amber-400 text-white font-bold rounded-xl shadow-lg transition-all"
-                >
-                  Report Sighting
-                </button>
-              </div>
-            </div>
           )}
         </div>
 
@@ -690,7 +646,7 @@ function MissionControlContent() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 py-3 px-2 text-sm font-medium transition-all ${activeTab === tab.id || (activeTab === 'search' && tab.id === 'home')
+                className={`flex-1 py-3 px-2 text-sm font-medium transition-all ${(activeTab === 'search' ? 'home' : activeTab) === tab.id
                   ? 'text-amber-400 border-b-2 border-amber-400 bg-slate-800/50'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
                   }`}
@@ -707,10 +663,8 @@ function MissionControlContent() {
         </div>
       </div>
 
-      {/* MOBILE LAYOUT (< lg): Original single-column design */}
-      <div className="lg:hidden flex-1 flex flex-col overflow-hidden">
-        {renderPanel()}
-      </div>
+      {/* MOBILE LAYOUT (< lg): Refactored for persistency */}
+      {renderMobileLayout()}
 
       {/* Bottom Navigation - mobile only */}
       <div className="lg:hidden">
