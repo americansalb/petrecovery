@@ -347,7 +347,7 @@ function MissionControlContent() {
   // Render mobile layout with persistent map
   const renderMobileLayout = () => {
     return (
-      <div className="flex-1 relative overflow-hidden h-full">
+      <div className="lg:hidden flex-1 relative overflow-hidden h-full">
         {/* 1. Persistent Map Layer (Always mounted) */}
         <div
           className={`absolute inset-0 w-full h-full transition-opacity duration-300 ${activeTab === 'search' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
