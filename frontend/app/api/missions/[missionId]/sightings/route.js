@@ -34,12 +34,12 @@ export async function GET(request, { params }) {
     // But limit information for non-authenticated users
 
     // Support both ID (UUID/CUID) and case number
-    const isId = isIdFormat(params.id);
+    const isId = isIdFormat(params.missionId);
 
     const missionData = await prisma.case.findFirst({
       where: isId
-        ? { id: params.id }
-        : { caseNumber: params.id },
+        ? { id: params.missionId }
+        : { caseNumber: params.missionId },
       select: { id: true, caseNumber: true }
     });
 
@@ -116,12 +116,12 @@ export async function POST(request, { params }) {
     }
 
     // Find case with owner info for notifications
-    const isId = isIdFormat(params.id);
+    const isId = isIdFormat(params.missionId);
 
     const missionData = await prisma.case.findFirst({
       where: isId
-        ? { id: params.id }
-        : { caseNumber: params.id },
+        ? { id: params.missionId }
+        : { caseNumber: params.missionId },
       select: {
         id: true,
         caseNumber: true,
@@ -347,7 +347,7 @@ export async function POST(request, { params }) {
     await logEvent({
       event_type: 'case.sighting_report_failed',
       resource_type: 'mission',
-      resource_id: params.id,
+      resource_id: params.missionId,
       action: 'create',
       result: 'failure',
       error_code: 'INTERNAL_ERROR',

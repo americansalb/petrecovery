@@ -23,7 +23,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const missionId = params.id;
+    const missionId = params.missionId;
 
     // Check case exists
     const existingCase = await prisma.case.findUnique({
