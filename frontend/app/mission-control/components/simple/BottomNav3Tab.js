@@ -6,7 +6,7 @@
  * Replaces the 5-tab navigation with:
  * - Home: Overview with key info at a glance
  * - Map: GPS tracking + map view
- * - Crew: Team + chat + sharing + shelters
+ * - Team: Members + chat + sharing + shelters (merged Team + Actions)
  *
  * Tips are distributed as contextual hints in each tab.
  */

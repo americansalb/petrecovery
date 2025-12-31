@@ -181,7 +181,7 @@ export default function TeamPanel({
                 className="flex flex-col items-center gap-1 shrink-0"
               >
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold ${
+                  className={`relative w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold ${
                     isActive
                       ? 'bg-emerald-500/20 text-emerald-400 ring-2 ring-emerald-500'
                       : 'bg-slate-800 text-slate-400'
