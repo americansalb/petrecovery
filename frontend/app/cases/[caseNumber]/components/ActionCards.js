@@ -3,19 +3,19 @@
 /**
  * ActionCards - Primary ways to help find the pet
  *
- * Priority order based on research:
+ * Priority order:
  * 1. Report Sighting (primary conversion) - in hero/sticky
  * 2. Share Alert (amplification)
- * 3. Check Shelters (many pets end up there!)
- * 4. Print Flyers
- * 5. Join Search
- * 6. Contribute to Ads (when real)
+ * 3. Boost This Search (fund digital reach - when enabled)
+ * 4. Check Shelters (many pets end up there!)
+ * 5. Print Flyers
+ * 6. Join Search Party
  */
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-  Share2, Building2, Printer, Users, Heart,
+  Share2, Building2, Printer, Users, Zap,
   ChevronRight, Phone, ExternalLink
 } from 'lucide-react';
 
@@ -119,7 +119,20 @@ export default function ActionCards({
           priority="primary"
         />
 
-        {/* 2. Check Shelters - PROMOTED from position 5 */}
+        {/* 2. Boost This Search - Help fund digital reach */}
+        {caseData?.adFundEnabled && (
+          <ActionCard
+            href={`/mission-control?mission=${caseNumber}&tab=boost`}
+            icon={Zap}
+            iconBg="bg-flash-400"
+            iconColor="text-midnight-900"
+            title="Boost This Search"
+            description="Help reach thousands more neighbors nearby"
+            priority="secondary"
+          />
+        )}
+
+        {/* 3. Check Shelters */}
         <ActionCard
           href={`/shelters?location=${locationQuery}&case=${caseNumber}`}
           icon={Building2}
@@ -131,7 +144,7 @@ export default function ActionCards({
           priority="secondary"
         />
 
-        {/* 3. Print Flyers */}
+        {/* 4. Print Flyers */}
         <ActionCard
           href={`/mission-control?mission=${caseNumber}&tab=flyer`}
           icon={Printer}
@@ -142,29 +155,16 @@ export default function ActionCards({
           priority="secondary"
         />
 
-        {/* 4. Join Search Party */}
+        {/* 5. Join Search Party */}
         <ActionCard
           href={`/mission-control?mission=${caseNumber}`}
           icon={Users}
-          iconBg="bg-flash-400"
-          iconColor="text-midnight-900"
+          iconBg="bg-emerald-100"
+          iconColor="text-emerald-700"
           title="Join Search Party"
           description={`${caseData?.activeSearchers || 0} people actively searching`}
           priority="secondary"
         />
-
-        {/* 5. Contribute to Ads - Only show if ad fund is active */}
-        {caseData?.adFundEnabled && (
-          <ActionCard
-            href={`/mission-control?mission=${caseNumber}&tab=boost`}
-            icon={Heart}
-            iconBg="bg-emerald-500"
-            iconColor="text-white"
-            title="Boost with Ads"
-            description="Fund targeted social media ads"
-            priority="tertiary"
-          />
-        )}
       </div>
 
       {/* Contact Owner - Secondary action */}
