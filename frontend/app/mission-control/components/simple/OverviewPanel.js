@@ -1,14 +1,16 @@
 'use client';
 
 /**
- * OverviewPanel - Mission home base
+ * OverviewPanel - Mission home base (3-tab structure)
  *
  * Shows at-a-glance info:
  * - Pet photo and details
- * - Time missing with urgency indicator
+ * - Time missing with urgency indicator + contextual tip
  * - Key stats (sightings, searchers, area covered)
  * - Quick action buttons
  * - Recent activity feed
+ *
+ * Now includes contextual tips based on time elapsed (replaces Tips tab).
  */
 
 import {
@@ -22,7 +24,9 @@ import {
   ChevronRight,
   Zap,
   Phone,
+  Lightbulb,
 } from 'lucide-react';
+import ContextualTip, { TIPS } from './ContextualTip';
 
 // Time urgency levels
 function getUrgencyLevel(hoursMissing) {
@@ -41,6 +45,13 @@ function formatTimeMissing(hours) {
   return `${weeks} week${weeks !== 1 ? 's' : ''}`;
 }
 
+// Get time-based contextual tip
+function getTimeBasedTip(hoursMissing) {
+  if (hoursMissing < 24) return TIPS.FIRST_24_HOURS;
+  if (hoursMissing < 72) return TIPS.EXPAND_SEARCH;
+  return null; // After 72 hours, the urgency banner message is enough
+}
+
 export default function OverviewPanel({
   mission,
   timeMissing,
@@ -55,10 +66,12 @@ export default function OverviewPanel({
   onCallShelters,
   hideSearchButton = false, // Hide on desktop since map has its own button
   isSearching = false,
+  petSpecies = 'DOG',
 }) {
   const pet = mission || {};
   const hoursMissing = timeMissing?.hours || 0;
   const urgency = getUrgencyLevel(hoursMissing);
+  const timeTip = getTimeBasedTip(hoursMissing);
 
   const urgencyColors = {
     red: 'from-red-500/20 to-red-600/10 border-red-500/30 text-red-400',
@@ -136,6 +149,13 @@ export default function OverviewPanel({
             </div>
           </div>
         </div>
+
+        {/* Time-Based Contextual Tip */}
+        {timeTip && (
+          <div className="mt-4">
+            <ContextualTip {...timeTip} />
+          </div>
+        )}
       </div>
 
       {/* Command Deck */}

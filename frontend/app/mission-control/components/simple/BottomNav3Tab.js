@@ -16,7 +16,7 @@ import { Home, Map, Users } from 'lucide-react';
 const NAV_ITEMS = [
   { id: 'home', icon: Home, label: 'Home' },
   { id: 'map', icon: Map, label: 'Map' },
-  { id: 'crew', icon: Users, label: 'Crew' },
+  { id: 'team', icon: Users, label: 'Team' },
 ];
 
 export default function BottomNav3Tab({
@@ -33,8 +33,8 @@ export default function BottomNav3Tab({
         {NAV_ITEMS.map(item => {
           const isActive = activeTab === item.id;
 
-          // Show badge on Crew tab for unread messages
-          const badge = item.id === 'crew' ? unreadChat : 0;
+          // Show badge on Team tab for unread messages
+          const badge = item.id === 'team' ? unreadChat : 0;
 
           // Show live indicator on Map when GPS is active
           const showLive = isSearching && item.id === 'map';
@@ -98,7 +98,7 @@ export default function BottomNav3Tab({
 export const TAB_IDS = {
   HOME: 'home',
   MAP: 'map',
-  CREW: 'crew',
+  TEAM: 'team',
 };
 
 /**
@@ -108,8 +108,8 @@ export function migrateTabId(oldTabId) {
   const migration = {
     'home': 'home',
     'search': 'map',
-    'team': 'crew',
-    'actions': 'crew',
+    'team': 'team',
+    'actions': 'team',
     'tips': 'home', // Tips distributed, default to home
   };
   return migration[oldTabId] || 'home';

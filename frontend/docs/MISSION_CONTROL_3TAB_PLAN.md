@@ -5,7 +5,7 @@
 This plan consolidates Mission Control from 5 tabs to 3 tabs while preserving 100% of features. The goal is to reduce cognitive load for stressed pet owners while maintaining full functionality.
 
 **Current:** Home | Search | Team | Actions | Tips (5 tabs)
-**Proposed:** Home | Map | Crew (3 tabs)
+**Proposed:** Home | Map | Team (3 tabs)
 
 ---
 
@@ -60,7 +60,7 @@ if (species === 'DOG') → "Dogs travel 2-5 miles/day in one direction"
 
 ---
 
-### Tab 3: CREW
+### Tab 3: TEAM
 **Purpose:** People, coordination, outreach, getting help
 **Mental Model:** "Who's helping and how do I get more help?"
 
@@ -108,7 +108,7 @@ Instead of a dedicated Tips tab, tips become **contextual hints** woven into eac
 └─────────────────────────────────────┘
 ```
 
-### Crew Tab: Section Headers
+### Team Tab: Section Headers
 ```
 ┌─ Share Section ─────────────────────┐
 │ 💡 Nextdoor posts reach 80% of     │
@@ -133,18 +133,18 @@ Instead of a dedicated Tips tab, tips become **contextual hints** woven into eac
 │  Content Area                       │
 │  ├─ Home → OverviewPanel           │
 │  ├─ Map  → SARMapView (fullscreen) │
-│  └─ Crew → CrewPanel               │
+│  └─ Team → TeamPanel               │
 │                                     │
 ├─────────────────────────────────────┤
 │ BottomNav (3 tabs)                  │
-│ [🏠 Home] [🗺️ Map] [👥 Crew]        │
+│ [🏠 Home] [🗺️ Map] [👥 Team]        │
 └─────────────────────────────────────┘
 ```
 
 **Behavior:**
 - Home: OverviewPanel covers map, scrollable
 - Map: Map fullscreen with GPS controls at bottom
-- Crew: CrewPanel covers map, scrollable with sections
+- Team: TeamPanel covers map, scrollable with sections
 
 ---
 
@@ -157,14 +157,14 @@ Instead of a dedicated Tips tab, tips become **contextual hints** woven into eac
 │ GPS Banner (if searching)                               │
 ├───────────────────────────────────┬─────────────────────┤
 │                                   │ Tab Nav             │
-│                                   │ [Overview] [Crew]   │
+│                                   │ [Overview] [Team]   │
 │                                   ├─────────────────────┤
 │  SARMapView                       │                     │
 │  (always visible)                 │  Sidebar Panel      │
 │                                   │  (420px)            │
 │                                   │                     │
 │                                   │  ├─ OverviewPanel   │
-│  [Contextual tip overlay]         │  └─ CrewPanel       │
+│  [Contextual tip overlay]         │  └─ TeamPanel       │
 │                                   │                     │
 │                                   │                     │
 └───────────────────────────────────┴─────────────────────┘
@@ -172,7 +172,7 @@ Instead of a dedicated Tips tab, tips become **contextual hints** woven into eac
 
 **Behavior:**
 - Map always visible on left (no "Map" tab in sidebar)
-- Sidebar toggles between Overview and Crew
+- Sidebar toggles between Overview and Team
 - Mobile "Map" tab = Desktop focuses map (sidebar stays)
 
 ---
@@ -205,12 +205,12 @@ Reusable dismissible tip banner.
 />
 ```
 
-#### 2. `CrewPanel.js`
+#### 2. `TeamPanel.js`
 Merged Team + Actions panel with sections.
 
 ```javascript
 // Structure
-<CrewPanel>
+<TeamPanel>
   {/* Team Section */}
   <TeamMembersList />
   <ActiveSearcherBadge />
@@ -228,7 +228,7 @@ Merged Team + Actions panel with sections.
   {/* Shelters Section */}
   <ContextualTip tip="Call daily - new animals arrive" />
   <SheltersList />
-</CrewPanel>
+</TeamPanel>
 ```
 
 ### Modified Components
@@ -236,37 +236,37 @@ Merged Team + Actions panel with sections.
 #### 1. `MissionControlSimple.js`
 - Change tab state from 5 options to 3
 - Update renderMobileLayout() for 3 tabs
-- Update desktop sidebar for 2 panels (Overview, Crew)
+- Update desktop sidebar for 2 panels (Overview, Team)
 - Remove ActionsPanel and TipsPanel renders
 
 #### 2. `BottomNav.js`
 - Reduce NAV_ITEMS from 5 to 3
-- Update icons: Home (🏠), Map (🗺️), Crew (👥)
+- Update icons: Home (🏠), Map (🗺️), Team (👥)
 - Keep live indicator on Map when GPS active
 
 ```javascript
 const NAV_ITEMS = [
   { id: 'home', icon: Home, label: 'Home' },
   { id: 'map', icon: Map, label: 'Map' },   // was 'search'
-  { id: 'crew', icon: Users, label: 'Crew' }, // was 'team'
+  { id: 'team', icon: Users, label: 'Team' }, // was 'team'
 ];
 ```
 
 #### 3. `OverviewPanel.js`
 - Add ContextualTip component for time-phase advice
 - Keep all existing content
-- Update "Find Shelters" link to go to Crew tab
+- Update "Find Shelters" link to go to Team tab
 
 #### 4. `TeamChatPanel.js`
-- Rename to `ChatSection.js` (used inside CrewPanel)
-- Remove team members list (moved to top of CrewPanel)
+- Rename to `ChatSection.js` (used inside TeamPanel)
+- Remove team members list (moved to top of TeamPanel)
 - Keep chat functionality intact
 
 ### Deprecated Components
 
 | Component | Replacement |
 |-----------|-------------|
-| `ActionsPanel.js` | Merged into `CrewPanel.js` |
+| `ActionsPanel.js` | Merged into `TeamPanel.js` |
 | `TipsPanel.js` | Distributed as `ContextualTip` instances |
 
 ---
@@ -312,24 +312,24 @@ const dismissTip = (tipId) => {
 | Stats grid | Home | Home |
 | Start GPS Search | Home | Home + Map |
 | Report Sighting | Home | Home (+ Map header) |
-| Share Case | Home + Actions | Home + Crew |
-| Find Shelters | Home + Actions | Crew |
+| Share Case | Home + Actions | Home + Team |
+| Find Shelters | Home + Actions | Team |
 | Full map | Search | Map |
 | GPS tracking | Search | Map |
 | Live overlay | Search | Map |
 | Sighting markers | Search | Map |
 | Coverage trails | Search | Map |
 | Probability zones | Search | Map |
-| Team members | Team | Crew |
-| Live chat | Team | Crew |
-| Quick messages | Team | Crew |
-| Location share | Team | Crew |
-| Share buttons | Actions | Crew |
-| Flyer download | Actions | Crew |
-| Shelter list | Actions | Crew |
+| Team members | Team | Team |
+| Live chat | Team | Team |
+| Quick messages | Team | Team |
+| Location share | Team | Team |
+| Share buttons | Actions | Team |
+| Flyer download | Actions | Team |
+| Shelter list | Actions | Team |
 | Search pattern tips | Tips | Map (contextual) |
 | Time-based advice | Tips | Home (contextual) |
-| Attracting tips | Tips | Crew (contextual) |
+| Attracting tips | Tips | Team (contextual) |
 | When spotted tips | Tips | Map (contextual) |
 
 **Result:** 100% feature preservation, 40% tab reduction
@@ -343,16 +343,16 @@ const dismissTip = (tipId) => {
 |------|-----|---------|
 | Any | Home | Tap Home tab |
 | Any | Map | Tap Map tab |
-| Any | Crew | Tap Crew tab |
+| Any | Team | Tap Team tab |
 | Home | Map | Tap "Start GPS Search" |
-| Home | Crew | Tap "Find Shelters" |
+| Home | Team | Tap "Find Shelters" |
 | Map | Home | End search → auto-navigate |
 
 ### Desktop Navigation
 | From | To | Trigger |
 |------|-----|---------|
-| Overview | Crew | Click Crew tab |
-| Crew | Overview | Click Overview tab |
+| Overview | Team | Click Team tab |
+| Team | Overview | Click Overview tab |
 | Any | Map focus | Click on map area |
 
 ---
@@ -369,7 +369,7 @@ const dismissTip = (tipId) => {
 - Fade out on dismiss (200ms)
 - Remember dismissal in localStorage
 
-### CrewPanel Sections
+### TeamPanel Sections
 - Collapsible sections with smooth height transition
 - Section headers always visible
 
@@ -377,7 +377,7 @@ const dismissTip = (tipId) => {
 
 ## Accessibility Considerations
 
-1. **Tab Order:** Home → Map → Crew (logical flow)
+1. **Tab Order:** Home → Map → Team (logical flow)
 2. **ARIA Labels:** Update for new tab names
 3. **Focus Management:** Focus first interactive element on tab switch
 4. **Screen Reader:** Announce tab changes
@@ -418,7 +418,7 @@ const dismissTip = (tipId) => {
 
 ### Phase 1: Foundation (Day 1)
 1. Create `ContextualTip.js` component
-2. Create `CrewPanel.js` with sections
+2. Create `TeamPanel.js` with sections
 3. Extract `ChatSection.js` from TeamChatPanel
 
 ### Phase 2: Integration (Day 2)
@@ -429,7 +429,7 @@ const dismissTip = (tipId) => {
 
 ### Phase 3: Tips Distribution (Day 3)
 8. Add map contextual tip (species-aware)
-9. Add crew section tips (share, shelters)
+9. Add team section tips (share, shelters)
 10. Implement tip dismissal with localStorage
 
 ### Phase 4: Polish (Day 4)
@@ -467,7 +467,7 @@ const USE_3_TAB_LAYOUT = process.env.NEXT_PUBLIC_USE_3_TAB_LAYOUT === 'true';
 
 1. **Desktop Map Tab:** Should clicking map in nav collapse sidebar for full-screen map?
 2. **Tip Frequency:** How often should dismissed tips reappear? (Never? After 7 days?)
-3. **Crew Tab Name:** "Crew" vs "Team" vs "Help" vs "Squad"?
+3. **Team Tab Name:** "Team" vs "Team" vs "Help" vs "Squad"?
 
 ---
 
@@ -477,12 +477,12 @@ const USE_3_TAB_LAYOUT = process.env.NEXT_PUBLIC_USE_3_TAB_LAYOUT === 'true';
 |-----|------|-------------|
 | Home | 🏠 | `Home` |
 | Map | 🗺️ | `Map` |
-| Crew | 👥 | `Users` |
+| Team | 👥 | `Users` |
 
 Or with filled variants for active state:
 - Home: `Home` → `HomeFilled` (custom)
 - Map: `Map` → `MapPin` when searching
-- Crew: `Users` → `UsersRound` (custom)
+- Team: `Users` → `UsersRound` (custom)
 
 ---
 
