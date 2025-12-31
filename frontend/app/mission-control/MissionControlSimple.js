@@ -17,7 +17,7 @@ import { useState, useCallback, useMemo, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { Loader2, AlertTriangle, MapPin, Target } from 'lucide-react';
+import { Loader2, AlertTriangle, MapPin } from 'lucide-react';
 
 // Hooks
 import useMissionControl from './hooks/useMissionControl';
@@ -569,7 +569,7 @@ function MissionControlContent() {
           <div className="flex items-center gap-3">
             <span className="w-3 h-3 bg-white rounded-full animate-pulse" />
             <span className="text-white font-bold text-sm">GPS SEARCH ACTIVE</span>
-            <span className="text-white/80 text-sm">{formattedDuration} • {stats.validatedDistanceMiles.toFixed(2)} mi</span>
+            <span className="text-white/80 text-sm">{formattedDuration} • {(stats?.validatedDistanceMiles || 0).toFixed(2)} mi</span>
           </div>
           <button
             onClick={(e) => {

@@ -24,7 +24,6 @@ import {
   ChevronRight,
   Zap,
   Phone,
-  Lightbulb,
 } from 'lucide-react';
 import ContextualTip, { TIPS } from './ContextualTip';
 

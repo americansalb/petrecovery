@@ -18,7 +18,6 @@ import {
   Send,
   MapPin,
   Users,
-  CheckCheck,
   Circle,
   Navigation,
   Share2,
@@ -126,9 +125,14 @@ export default function TeamPanel({
   };
 
   const handleCopyPhone = async (shelter) => {
-    await navigator.clipboard.writeText(shelter.phone);
-    setCopiedPhone(shelter.id);
-    setTimeout(() => setCopiedPhone(null), 2000);
+    try {
+      await navigator.clipboard.writeText(shelter.phone);
+      setCopiedPhone(shelter.id);
+      setTimeout(() => setCopiedPhone(null), 2000);
+    } catch (err) {
+      // Fallback for browsers that don't support clipboard API
+      console.warn('Clipboard copy failed:', err);
+    }
   };
 
   // Share handler
@@ -223,7 +227,12 @@ export default function TeamPanel({
           <div className="px-4 pb-4">
             {/* Messages */}
             <div className="h-48 overflow-y-auto bg-slate-900/50 rounded-xl p-3 mb-3 space-y-2">
-              {messages.length === 0 ? (
+              {isLoadingChat ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                  <span className="ml-2 text-xs text-slate-500">Loading messages...</span>
+                </div>
+              ) : messages.length === 0 ? (
                 <p className="text-xs text-slate-500 text-center py-8">
                   No messages yet. Say hi to your team!
                 </p>
