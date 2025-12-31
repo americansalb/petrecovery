@@ -61,8 +61,8 @@ function MissionControlContent() {
   // Navigation state - start on search (the main feature)
   const [activeTab, setActiveTab] = useState('search');
 
-  // Probability zones toggle - ON by default to guide searchers
-  const [showProbabilityZones, setShowProbabilityZones] = useState(true);
+  // Probability zones toggle - OFF by default to reduce clutter
+  const [showProbabilityZones, setShowProbabilityZones] = useState(false);
 
   // Main mission state
   const mission = useMissionControl(session);
@@ -649,8 +649,8 @@ function MissionControlContent() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex-1 py-2 px-3 text-xs font-bold uppercase tracking-wide rounded-lg transition-all duration-200 ${isActive
-                      ? 'bg-gradient-to-br from-indigo-500/20 to-blue-500/10 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.15)] ring-1 ring-indigo-500/30'
-                      : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800'
+                    ? 'bg-gradient-to-br from-indigo-500/20 to-blue-500/10 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.15)] ring-1 ring-indigo-500/30'
+                    : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800'
                     }`}
                 >
                   {tab.label}
