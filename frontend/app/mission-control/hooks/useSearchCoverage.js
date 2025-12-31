@@ -33,6 +33,12 @@ export default function useSearchCoverage(missionId, currentUserId = null) {
     try {
       const res = await fetch(`/api/missions/${missionId}/coverage`);
       if (!res.ok) {
+        // Handle 401 gracefully - user not logged in, just return empty data
+        if (res.status === 401) {
+          console.log('[Coverage] Not authenticated, skipping coverage fetch');
+          setIsLoading(false);
+          return;
+        }
         throw new Error('Failed to fetch coverage');
       }
 
