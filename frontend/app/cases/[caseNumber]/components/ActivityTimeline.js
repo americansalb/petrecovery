@@ -59,8 +59,8 @@ const getActivityStyle = (type, certaintyLevel = null) => {
     case 'created':
       return {
         icon: AlertCircle,
-        bgColor: 'bg-rose-100',
-        iconColor: 'text-rose-600',
+        bgColor: 'bg-flash-100',
+        iconColor: 'text-flash-600',
         label: 'Case Created'
       };
     default:

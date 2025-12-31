@@ -1,38 +1,48 @@
 'use client';
 
 /**
- * HeroSection - The identity of the lost pet
+ * HeroSection - Premium Lost Pet Hero
  *
- * Above-the-fold content that makes the pet unforgettable in 3 seconds.
- * Shows: photo, name, species/breed, urgency, reward, location, time missing
+ * Design: Clean, light background with pet photo as the star.
+ * Color palette: Midnight blue + Flash yellow (NO red/rose)
+ *
+ * Key elements:
+ * - Large pet photo with subtle shadow
+ * - Urgency badge in flash yellow
+ * - Clear pet identity
+ * - Time missing with actual date
+ * - Reward if available
  */
 
 import { motion } from 'framer-motion';
-import { Clock, MapPin, AlertTriangle, DollarSign } from 'lucide-react';
+import { Clock, MapPin, AlertTriangle, Gift } from 'lucide-react';
 
 // Calculate urgency level based on time elapsed
-const getUrgencyLevel = (lastSeenAt) => {
-  if (!lastSeenAt) return { level: 'ACTIVE', color: 'blue', bgColor: 'bg-blue-500', pulse: false };
+const getUrgencyConfig = (lastSeenAt) => {
+  if (!lastSeenAt) return { level: 'MISSING', urgencyClass: 'bg-midnight-800', textClass: 'text-white', pulse: false };
 
   const now = new Date();
   const then = new Date(lastSeenAt);
   const hoursAgo = (now - then) / (1000 * 60 * 60);
 
+  if (hoursAgo < 6) {
+    return { level: 'JUST LOST', urgencyClass: 'bg-flash-400', textClass: 'text-midnight-900', pulse: true };
+  }
   if (hoursAgo < 24) {
-    return { level: 'CRITICAL', color: 'red', bgColor: 'bg-red-500', pulse: true, label: 'Just Lost' };
+    return { level: 'URGENT', urgencyClass: 'bg-flash-400', textClass: 'text-midnight-900', pulse: true };
   }
   if (hoursAgo < 72) {
-    return { level: 'HIGH', color: 'orange', bgColor: 'bg-orange-500', pulse: false, label: 'Missing 1-3 days' };
+    return { level: 'HIGH PRIORITY', urgencyClass: 'bg-flash-500', textClass: 'text-midnight-900', pulse: false };
   }
   if (hoursAgo < 168) {
-    return { level: 'MODERATE', color: 'yellow', bgColor: 'bg-amber-500', pulse: false, label: 'Missing 3-7 days' };
+    return { level: 'ACTIVE SEARCH', urgencyClass: 'bg-midnight-700', textClass: 'text-white', pulse: false };
   }
-  return { level: 'ACTIVE', color: 'blue', bgColor: 'bg-blue-500', pulse: false, label: 'Active Search' };
+  return { level: 'MISSING', urgencyClass: 'bg-midnight-800', textClass: 'text-white', pulse: false };
 };
 
 // Format time since missing with both relative and absolute
 const formatTimeMissing = (lastSeenAt) => {
-  if (!lastSeenAt) return { relative: 'Unknown', absolute: '' };
+  if (!lastSeenAt) return { relative: 'Unknown', absolute: '', days: 0 };
 
   const now = new Date();
   const then = new Date(lastSeenAt);
@@ -41,14 +51,18 @@ const formatTimeMissing = (lastSeenAt) => {
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
   let relative;
-  if (diffHours < 1) relative = 'Less than an hour';
+  if (diffHours < 1) relative = 'Less than 1 hour';
   else if (diffHours < 24) relative = `${diffHours} hour${diffHours !== 1 ? 's' : ''}`;
   else if (diffDays === 1) relative = '1 day';
   else if (diffDays < 7) relative = `${diffDays} days`;
-  else if (diffDays < 30) relative = `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) !== 1 ? 's' : ''}`;
-  else relative = `${Math.floor(diffDays / 30)} month${Math.floor(diffDays / 30) !== 1 ? 's' : ''}`;
+  else if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7);
+    relative = `${weeks} week${weeks !== 1 ? 's' : ''}`;
+  } else {
+    const months = Math.floor(diffDays / 30);
+    relative = `${months} month${months !== 1 ? 's' : ''}`;
+  }
 
-  // Format absolute date
   const absolute = then.toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
@@ -57,82 +71,100 @@ const formatTimeMissing = (lastSeenAt) => {
     minute: '2-digit'
   });
 
-  return { relative, absolute };
+  return { relative, absolute, days: diffDays };
 };
 
-export default function HeroSection({ caseData, onContactOwner }) {
+// Get pet emoji based on species
+const getPetEmoji = (species) => {
+  switch (species?.toUpperCase()) {
+    case 'DOG': return '🐕';
+    case 'CAT': return '🐈';
+    case 'BIRD': return '🦜';
+    case 'RABBIT': return '🐰';
+    default: return '🐾';
+  }
+};
+
+export default function HeroSection({ caseData }) {
   if (!caseData) return null;
 
   const petName = caseData.petName || 'Unknown';
   const isLost = caseData.reportType === 'LOST';
-  const urgency = getUrgencyLevel(caseData.lastSeenAt);
+  const urgency = getUrgencyConfig(caseData.lastSeenAt);
   const timeMissing = formatTimeMissing(caseData.lastSeenAt);
+  const petEmoji = getPetEmoji(caseData.petSpecies);
 
-  // Extract city from address for cleaner display
-  const getLocationShort = (address) => {
-    if (!address) return 'Unknown location';
+  // Extract city from address
+  const getCity = (address) => {
+    if (!address) return '';
     const parts = address.split(',');
     if (parts.length >= 2) {
-      return parts.slice(-2).join(',').trim();
+      return parts[parts.length - 2]?.trim() || '';
     }
     return address;
   };
 
+  const city = getCity(caseData.lastSeenAddress);
+
   return (
-    <section className="relative bg-gradient-to-br from-rose-500 via-rose-600 to-rose-700 text-white overflow-hidden">
-      {/* Subtle pattern overlay */}
-      <div className="absolute inset-0 opacity-5">
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
-            backgroundSize: '24px 24px'
-          }}
-        />
-      </div>
+    <section className="bg-gradient-to-b from-midnight-50 to-white">
+      <div className="max-w-5xl mx-auto px-4 pt-8 pb-6">
 
-      <div className="max-w-6xl mx-auto px-4 py-8 lg:py-12 relative z-10">
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 items-center">
+        {/* Top Bar: Species + Urgency */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between mb-6"
+        >
+          {/* Species Badge */}
+          <div className="flex items-center gap-2 px-4 py-2 bg-midnight-100 rounded-full">
+            <span className="text-lg">{petEmoji}</span>
+            <span className="text-sm font-semibold text-midnight-700 uppercase tracking-wide">
+              {isLost ? 'Lost' : 'Found'} {caseData.petSpecies || 'Pet'}
+            </span>
+          </div>
 
-          {/* Pet Photo */}
+          {/* Urgency Badge */}
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm ${urgency.urgencyClass} ${urgency.textClass}`}>
+            {urgency.pulse && (
+              <span className="w-2 h-2 bg-current rounded-full animate-pulse opacity-80" />
+            )}
+            <AlertTriangle className="w-4 h-4" />
+            {urgency.level}
+          </div>
+        </motion.div>
+
+        {/* Main Hero Grid */}
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
+
+          {/* Pet Photo - The Star */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3 }}
-            className="w-full max-w-xs lg:max-w-sm flex-shrink-0"
+            transition={{ duration: 0.4 }}
+            className="w-full lg:w-[380px] flex-shrink-0"
           >
-            <div className="relative aspect-square rounded-3xl overflow-hidden shadow-2xl border-4 border-white/20">
-              {caseData.petPhotoUrl ? (
-                <img
-                  src={caseData.petPhotoUrl}
-                  alt={`${petName} - Lost ${caseData.petSpecies || 'Pet'}`}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-rose-400 flex items-center justify-center">
-                  <span className="text-8xl">
-                    {caseData.petSpecies === 'DOG' ? '🐕' :
-                     caseData.petSpecies === 'CAT' ? '🐈' :
-                     caseData.petSpecies === 'BIRD' ? '🦜' :
-                     caseData.petSpecies === 'RABBIT' ? '🐰' : '🐾'}
-                  </span>
-                </div>
-              )}
-
-              {/* Urgency Badge */}
-              <div className={`absolute top-4 left-4 px-3 py-1.5 ${urgency.bgColor} text-white text-sm font-bold rounded-full shadow-lg flex items-center gap-1.5`}>
-                {urgency.pulse && (
-                  <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+            <div className="relative">
+              {/* Photo Container */}
+              <div className="aspect-square rounded-3xl overflow-hidden shadow-2xl shadow-midnight-200/50 border-4 border-white">
+                {caseData.petPhotoUrl ? (
+                  <img
+                    src={caseData.petPhotoUrl}
+                    alt={`${petName} - Lost ${caseData.petSpecies || 'Pet'}`}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-midnight-100 to-midnight-200 flex items-center justify-center">
+                    <span className="text-9xl opacity-50">{petEmoji}</span>
+                  </div>
                 )}
-                <AlertTriangle className="w-4 h-4" />
-                {urgency.level}
               </div>
 
-              {/* Reward Badge */}
+              {/* Reward Badge - Positioned on photo */}
               {caseData.hasReward && caseData.rewardAmount > 0 && (
-                <div className="absolute bottom-4 right-4 px-4 py-2 bg-flash-400 text-midnight-900 font-bold rounded-full shadow-lg flex items-center gap-1">
-                  <DollarSign className="w-4 h-4" />
-                  {caseData.rewardAmount} REWARD
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-6 py-2 bg-flash-400 text-midnight-900 font-bold rounded-full shadow-lg shadow-flash-400/30 flex items-center gap-2">
+                  <Gift className="w-5 h-5" />
+                  ${caseData.rewardAmount} REWARD
                 </div>
               )}
             </div>
@@ -142,71 +174,69 @@ export default function HeroSection({ caseData, onContactOwner }) {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
-            className="flex-1 text-center lg:text-left"
+            transition={{ duration: 0.4, delay: 0.1 }}
+            className="flex-1 lg:pt-4"
           >
-            {/* Status Badge */}
-            <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm px-4 py-2 rounded-full mb-4">
-              <span className={`w-2 h-2 ${urgency.bgColor} rounded-full ${urgency.pulse ? 'animate-pulse' : ''}`} />
-              <span className="font-semibold text-sm uppercase tracking-wide">
-                {isLost ? 'Lost' : 'Found'} {caseData.petSpecies || 'Pet'}
-              </span>
-            </div>
-
             {/* Pet Name - The Hook */}
-            <h1 className="text-4xl lg:text-6xl font-bold mb-4 leading-tight">
-              Help Find {petName}
+            <h1 className="text-4xl lg:text-5xl font-bold text-midnight-900 mb-4 leading-tight">
+              Help Find <span className="text-midnight-700">{petName}</span>
             </h1>
 
             {/* Identifying Tags */}
-            <div className="flex flex-wrap justify-center lg:justify-start gap-2 mb-5">
+            <div className="flex flex-wrap gap-2 mb-6">
               {caseData.petBreed && (
-                <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-medium">
+                <span className="px-4 py-2 bg-midnight-100 text-midnight-700 rounded-full text-sm font-medium">
                   {caseData.petBreed}
                 </span>
               )}
               {caseData.petColor && (
-                <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-medium capitalize">
+                <span className="px-4 py-2 bg-midnight-100 text-midnight-700 rounded-full text-sm font-medium capitalize">
                   {caseData.petColor}
                 </span>
               )}
               {caseData.petSize && (
-                <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-medium capitalize">
+                <span className="px-4 py-2 bg-midnight-100 text-midnight-700 rounded-full text-sm font-medium capitalize">
                   {caseData.petSize.toLowerCase()}
                 </span>
               )}
             </div>
 
-            {/* Key Info Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 max-w-lg mx-auto lg:mx-0">
+            {/* Key Info Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
               {/* Location */}
-              <div className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-3">
-                <MapPin className="w-5 h-5 text-rose-200 flex-shrink-0" />
-                <div className="text-left overflow-hidden">
-                  <p className="text-xs text-rose-200 uppercase tracking-wide">Last Seen</p>
-                  <p className="font-semibold truncate">{getLocationShort(caseData.lastSeenAddress)}</p>
+              <div className="flex items-center gap-3 bg-white border border-midnight-200 rounded-2xl px-4 py-3 shadow-sm">
+                <div className="w-10 h-10 bg-midnight-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <MapPin className="w-5 h-5 text-midnight-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-midnight-500 uppercase tracking-wide font-medium">Last Seen</p>
+                  <p className="font-semibold text-midnight-900 truncate">{city || caseData.lastSeenAddress || 'Unknown'}</p>
                 </div>
               </div>
 
-              {/* Time */}
-              <div className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-3">
-                <Clock className="w-5 h-5 text-rose-200 flex-shrink-0" />
-                <div className="text-left">
-                  <p className="text-xs text-rose-200 uppercase tracking-wide">Missing</p>
-                  <p className="font-semibold">{timeMissing.relative}</p>
+              {/* Time Missing */}
+              <div className="flex items-center gap-3 bg-white border border-midnight-200 rounded-2xl px-4 py-3 shadow-sm">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                  timeMissing.days < 3 ? 'bg-flash-100' : 'bg-midnight-100'
+                }`}>
+                  <Clock className={`w-5 h-5 ${timeMissing.days < 3 ? 'text-flash-600' : 'text-midnight-600'}`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-midnight-500 uppercase tracking-wide font-medium">Missing</p>
+                  <p className="font-semibold text-midnight-900">{timeMissing.relative}</p>
                 </div>
               </div>
             </div>
 
-            {/* Description if available */}
+            {/* Description */}
             {caseData.petDescription && (
-              <p className="text-white/90 text-base lg:text-lg max-w-xl mb-4 leading-relaxed">
+              <p className="text-midnight-600 text-base leading-relaxed mb-4">
                 {caseData.petDescription}
               </p>
             )}
 
-            {/* Secondary info - exact date */}
-            <p className="text-rose-200 text-sm">
+            {/* Exact Date/Time */}
+            <p className="text-sm text-midnight-400">
               Last seen: {timeMissing.absolute}
             </p>
           </motion.div>

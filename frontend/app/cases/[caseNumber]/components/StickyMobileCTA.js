@@ -54,7 +54,7 @@ export default function StickyMobileCTA({
               {/* Primary CTA - Report Sighting */}
               <button
                 onClick={onReportSighting}
-                className="flex-1 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-rose-200 flex items-center justify-center gap-2 transition active:scale-[0.98]"
+                className="flex-1 bg-flash-400 hover:bg-flash-500 text-midnight-900 font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-flash-400/30 flex items-center justify-center gap-2 transition active:scale-[0.98]"
               >
                 <Eye className="w-5 h-5" />
                 <span>I've Seen {petName}</span>

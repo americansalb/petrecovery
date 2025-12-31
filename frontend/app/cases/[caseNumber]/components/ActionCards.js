@@ -35,7 +35,7 @@ function ActionCard({
   const baseStyles = "block w-full rounded-2xl p-4 transition group text-left";
 
   const priorityStyles = {
-    primary: "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg shadow-blue-200",
+    primary: "bg-midnight-900 hover:bg-midnight-800 text-white shadow-lg",
     secondary: "bg-white hover:bg-midnight-50 border border-midnight-200 shadow text-midnight-900",
     tertiary: "bg-midnight-50 hover:bg-midnight-100 border border-midnight-100 text-midnight-900"
   };
