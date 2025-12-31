@@ -636,24 +636,27 @@ function MissionControlContent() {
         {/* Sidebar - Panel content */}
         <div className="w-[420px] flex flex-col border-l border-slate-800 bg-slate-900">
           {/* Sidebar Tab Navigation */}
-          <div className="flex border-b border-slate-800">
+          <div className="flex gap-2 p-3 border-b border-slate-800 bg-slate-900/50">
             {[
               { id: 'home', label: 'Overview' },
-              { id: 'team', label: 'Team Chat' },
+              { id: 'team', label: 'Team' },
               { id: 'actions', label: 'Actions' },
               { id: 'tips', label: 'Tips' },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 py-3 px-2 text-sm font-medium transition-all ${(activeTab === 'search' ? 'home' : activeTab) === tab.id
-                  ? 'text-amber-400 border-b-2 border-amber-400 bg-slate-800/50'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
-                  }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+            ].map(tab => {
+              const isActive = (activeTab === 'search' ? 'home' : activeTab) === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 py-2 px-3 text-xs font-bold uppercase tracking-wide rounded-lg transition-all duration-200 ${isActive
+                      ? 'bg-gradient-to-br from-indigo-500/20 to-blue-500/10 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.15)] ring-1 ring-indigo-500/30'
+                      : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800'
+                    }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Sidebar Panel Content */}

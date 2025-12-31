@@ -138,48 +138,63 @@ export default function OverviewPanel({
         </div>
       </div>
 
-      {/* Quick Actions */}
+      {/* Command Deck */}
       <div className="px-4 pb-4">
-        <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Quick Actions</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Command Deck</h2>
+          <div className="h-[1px] flex-1 bg-slate-800 ml-3" />
+        </div>
 
         <div className="grid grid-cols-2 gap-3">
-          {/* Start Search - Primary (hidden on desktop where map has its own button) */}
+          {/* Primary Action: Start Search */}
           {!hideSearchButton && !isSearching && (
             <button
               onClick={onStartSearch}
-              className="col-span-2 p-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold flex items-center justify-center gap-3 shadow-lg shadow-amber-500/20 active:scale-[0.98] transition"
+              className="col-span-2 group relative overflow-hidden p-0 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold shadow-[0_0_20px_rgba(245,158,11,0.2)] transition-all hover:shadow-[0_0_30px_rgba(245,158,11,0.4)] active:scale-[0.99]"
             >
-              <Navigation size={20} />
-              <span>Start GPS Search</span>
+              <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 group-hover:opacity-30 transition-opacity" />
+              <div className="relative py-4 px-6 flex items-center justify-center gap-3">
+                <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm group-hover:bg-white/30 transition-colors">
+                  <Navigation size={20} className="text-white" />
+                </div>
+                <div className="flex flex-col items-start -space-y-0.5">
+                  <span className="text-sm font-extrabold tracking-wide uppercase">Start GPS Search</span>
+                  <span className="text-[10px] text-amber-100/90 font-medium">Track & Log Coverage</span>
+                </div>
+              </div>
             </button>
           )}
 
           {/* Report Sighting */}
           <button
             onClick={onReportSighting}
-            className="p-3 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 transition flex flex-col items-center gap-2"
+            className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:bg-emerald-900/20 hover:border-emerald-500/30 transition-all group flex flex-col items-center gap-2"
           >
-            <Eye size={20} className="text-emerald-400" />
-            <span className="text-sm text-white">Report Sighting</span>
+            <div className="p-2 rounded-full bg-slate-900/50 group-hover:bg-emerald-500/20 transition-colors">
+              <Eye size={18} className="text-emerald-400" />
+            </div>
+            <span className="text-xs font-semibold text-slate-300 group-hover:text-emerald-300">Log Sighting</span>
           </button>
 
           {/* Share */}
           <button
             onClick={onShare}
-            className="p-3 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 transition flex flex-col items-center gap-2"
+            className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:bg-blue-900/20 hover:border-blue-500/30 transition-all group flex flex-col items-center gap-2"
           >
-            <Share2 size={20} className="text-blue-400" />
-            <span className="text-sm text-white">Share Case</span>
+            <div className="p-2 rounded-full bg-slate-900/50 group-hover:bg-blue-500/20 transition-colors">
+              <Share2 size={18} className="text-blue-400" />
+            </div>
+            <span className="text-xs font-semibold text-slate-300 group-hover:text-blue-300">Share Case</span>
           </button>
 
-          {/* Call Shelters */}
+          {/* Find Shelters */}
           <button
             onClick={onCallShelters}
-            className="col-span-2 p-3 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 transition flex items-center justify-center gap-2"
+            className="col-span-2 p-3 rounded-xl bg-slate-800/30 border border-slate-800 hover:bg-slate-800 hover:border-slate-700 transition flex items-center justify-center gap-2 group"
           >
-            <Phone size={18} className="text-slate-400" />
-            <span className="text-sm text-white">Find Nearby Shelters</span>
-            <ChevronRight size={16} className="text-slate-500" />
+            <Phone size={14} className="text-slate-500 group-hover:text-slate-400" />
+            <span className="text-xs font-medium text-slate-400 group-hover:text-slate-300">Find Nearby Shelters & Vets</span>
+            <ChevronRight size={14} className="text-slate-600 group-hover:text-slate-500" />
           </button>
         </div>
       </div>

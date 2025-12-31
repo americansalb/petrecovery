@@ -15,6 +15,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import MapLegend from './MapLegend';
 import { useGPS, GPS_MODE } from '@/app/lib/gpsService';
+import { Map as MapIcon, Satellite, Locate, Maximize, Layers } from 'lucide-react';
 
 // Travel speeds (miles per hour) for search radius calculation
 const PET_SPEEDS = {
@@ -35,8 +36,8 @@ function getDistanceMeters(lat1, lng1, lat2, lng2) {
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLng = (lng2 - lng1) * Math.PI / 180;
   const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
@@ -779,100 +780,104 @@ export default function SARMapView({
       {/* Layer Toggle & Location Buttons - Always show for interactive maps */}
       {interactive && (
         <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2">
+          {/* Layer Toggle */}
           <button
             onClick={() => setMapLayer(mapLayer === 'satellite' ? 'street' : 'satellite')}
-            className="bg-slate-900/90 backdrop-blur border border-slate-700 rounded-xl px-4 py-2.5 text-white font-semibold text-sm hover:bg-slate-800 transition flex items-center gap-2 shadow-lg"
+            className="group w-12 h-12 flex items-center justify-center rounded-xl bg-slate-900/60 backdrop-blur-md border border-white/10 text-white shadow-xl hover:bg-slate-900/90 active:scale-95 transition-all"
+            title="Switch Map View"
           >
             {mapLayer === 'satellite' ? (
-              <>
-                <span>🗺️</span>
-                <span>Street View</span>
-              </>
+              <MapIcon size={20} className="text-slate-200 group-hover:text-white" />
             ) : (
-              <>
-                <span>🛰️</span>
-                <span>Satellite</span>
-              </>
+              <Satellite size={20} className="text-slate-200 group-hover:text-white" />
             )}
           </button>
+
           {/* Center on my location button */}
           <button
             onClick={async () => {
-              if (!mapInstance.current) return;
-              if (userLocation) {
-                mapInstance.current.setView(userLocation, 17, { animate: true });
+              // Pulse animation
+              const btn = document.getElementById('my-loc-btn');
+              if (btn) btn.classList.add('animate-pulse');
+
+              const pos = await getPosition();
+              if (pos && mapInstance.current) {
+                mapInstance.current.flyTo([pos.latitude, pos.longitude], 17, {
+                  animate: true,
+                  duration: 1
+                });
               } else {
-                // Try to get location via GPS service
-                try {
-                  const loc = await getPosition();
-                  if (loc?.coords) {
-                    mapInstance.current.setView(loc.coords, 17, { animate: true });
-                  }
-                } catch (err) {
-                  console.error('[Map] Failed to get location:', err);
-                  alert(gpsError || 'Could not get your location. Please check GPS permissions.');
-                }
+                startTracking(GPS_MODE.HIGH_ACCURACY);
               }
+
+              setTimeout(() => {
+                if (btn) btn.classList.remove('animate-pulse');
+              }, 1000);
             }}
-            className="bg-blue-600/90 backdrop-blur border border-blue-500 rounded-xl px-4 py-2.5 text-white font-semibold text-sm hover:bg-blue-500 transition flex items-center gap-2 shadow-lg"
+            id="my-loc-btn"
+            className="group w-12 h-12 flex items-center justify-center rounded-xl bg-blue-600/80 backdrop-blur-md border border-white/10 text-white shadow-xl hover:bg-blue-500/90 active:scale-95 transition-all"
+            title="My Location"
           >
-            <span>📍</span>
-            <span>My Location</span>
+            <Locate size={20} className="text-white" />
           </button>
-          {/* Fit all locations button */}
+
+          {/* Fit Bounds */}
           <button
             onClick={() => {
-              if (!mapInstance.current) return;
-              const bounds = L.latLngBounds([]);
-              if (lastSeen?.lat && lastSeen?.lng) bounds.extend([lastSeen.lat, lastSeen.lng]);
-              if (userLocation) bounds.extend(userLocation);
-              if (bounds.isValid()) {
-                mapInstance.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+              if (mapInstance.current && lastSeen) {
+                const bounds = L.latLngBounds([lastSeen.lat, lastSeen.lng]);
+                if (userLocation) bounds.extend(userLocation);
+                mapInstance.current.fitBounds(bounds, { padding: [50, 50] });
               }
             }}
-            className="bg-slate-900/90 backdrop-blur border border-slate-700 rounded-xl px-4 py-2.5 text-white font-semibold text-sm hover:bg-slate-800 transition flex items-center gap-2 shadow-lg"
+            className="group w-12 h-12 flex items-center justify-center rounded-xl bg-slate-900/60 backdrop-blur-md border border-white/10 text-white shadow-xl hover:bg-slate-900/90 active:scale-95 transition-all"
+            title="Fit All"
           >
-            <span>🎯</span>
-            <span>Fit All</span>
+            <Maximize size={20} className="text-slate-200 group-hover:text-white" />
           </button>
         </div>
-      )}
+      )
+      }
 
       {/* Legend - Collapsible, positioned top-left */}
-      {showLegend && (
-        <MapLegend
-          showSightings={sightings.length > 0}
-          showSearchPath={gpsPath && gpsPath.length > 0 || coverageTrails.length > 0}
-          showActiveSearches={activeSearchersCount > 0}
-          showPOIs={pois.length > 0}
-          activeSearchersCount={activeSearchersCount}
-        />
-      )}
+      {
+        showLegend && (
+          <MapLegend
+            showSightings={sightings.length > 0}
+            showSearchPath={gpsPath && gpsPath.length > 0 || coverageTrails.length > 0}
+            showActiveSearches={activeSearchersCount > 0}
+            showPOIs={pois.length > 0}
+            activeSearchersCount={activeSearchersCount}
+          />
+        )
+      }
 
       {/* Zoom Controls (if enabled) */}
-      {showControls && (
-        <div className="absolute top-4 right-4 flex flex-col gap-2 z-[400]">
-          <button
-            onClick={() => mapInstance.current?.zoomIn()}
-            className="w-10 h-10 bg-slate-900/90 backdrop-blur text-white rounded-xl flex items-center justify-center hover:bg-slate-800"
-          >
-            +
-          </button>
-          <button
-            onClick={() => mapInstance.current?.zoomOut()}
-            className="w-10 h-10 bg-slate-900/90 backdrop-blur text-white rounded-xl flex items-center justify-center hover:bg-slate-800"
-          >
-            −
-          </button>
-          <button
-            onClick={() => userLocation && mapInstance.current?.setView(userLocation, 17)}
-            className="w-10 h-10 bg-slate-900/90 backdrop-blur text-white rounded-xl flex items-center justify-center hover:bg-slate-800"
-            title="Center on my location"
-          >
-            📍
-          </button>
-        </div>
-      )}
-    </div>
+      {
+        showControls && (
+          <div className="absolute top-4 right-4 flex flex-col gap-2 z-[400]">
+            <button
+              onClick={() => mapInstance.current?.zoomIn()}
+              className="w-10 h-10 bg-slate-900/90 backdrop-blur text-white rounded-xl flex items-center justify-center hover:bg-slate-800"
+            >
+              +
+            </button>
+            <button
+              onClick={() => mapInstance.current?.zoomOut()}
+              className="w-10 h-10 bg-slate-900/90 backdrop-blur text-white rounded-xl flex items-center justify-center hover:bg-slate-800"
+            >
+              −
+            </button>
+            <button
+              onClick={() => userLocation && mapInstance.current?.setView(userLocation, 17)}
+              className="w-10 h-10 bg-slate-900/90 backdrop-blur text-white rounded-xl flex items-center justify-center hover:bg-slate-800"
+              title="Center on my location"
+            >
+              📍
+            </button>
+          </div>
+        )
+      }
+    </div >
   );
 }
