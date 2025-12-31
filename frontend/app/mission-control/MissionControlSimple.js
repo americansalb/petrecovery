@@ -301,18 +301,30 @@ function MissionControlContent() {
 
   // Error state
   if (error) {
+    const isAuthError = error.toLowerCase().includes('log in') || error.includes('401');
     return (
       <div className="h-[100dvh] flex items-center justify-center bg-slate-950 px-4">
         <div className="text-center max-w-md">
           <AlertTriangle size={48} className="text-red-400 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-white mb-2">Unable to Load Mission</h2>
           <p className="text-slate-400 mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition"
-          >
-            Retry
-          </button>
+          <div className="flex gap-3 justify-center">
+            {isAuthError ? (
+              <a
+                href={`/login?callbackUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`}
+                className="px-6 py-2 bg-amber-500 text-white rounded-xl font-semibold hover:bg-amber-400 transition"
+              >
+                Log In
+              </a>
+            ) : (
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition"
+              >
+                Retry
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
