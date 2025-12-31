@@ -30,6 +30,7 @@ export async function GET(request, { params }) {
   try {
     // Fetch case by caseNumber from the main Case model
     // This is where /api/reports/create writes data
+    // Include sightings and updates for the activity timeline
     const missionData = await prisma.case.findUnique({
       where: { caseNumber },
       select: {
@@ -60,6 +61,41 @@ export async function GET(request, { params }) {
         ownerName: true,
         ownerPhone: true,
         ownerEmail: true,
+        // Engagement metrics
+        viewCount: true,
+        shareCount: true,
+        activeSearchers: true,
+        // Sightings for map and timeline
+        sightings: {
+          orderBy: { sightedAt: 'desc' },
+          take: 20,
+          select: {
+            id: true,
+            sightedAt: true,
+            latitude: true,
+            longitude: true,
+            address: true,
+            description: true,
+            certaintyLevel: true,
+            photoUrls: true,
+            isVerified: true,
+            reportedBy: {
+              select: { firstName: true }
+            }
+          }
+        },
+        // Updates for timeline
+        updates: {
+          where: { isUpdate: true },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            isPinned: true
+          }
+        }
       }
     });
 
@@ -128,6 +164,26 @@ export async function GET(request, { params }) {
       isUrgent: missionData.priority === 'URGENT',
       // Reporter ID (for checking ownership)
       reporterId: missionData.reporterId,
+      // Engagement metrics
+      viewCount: missionData.viewCount || 0,
+      shareCount: missionData.shareCount || 0,
+      activeSearchers: missionData.activeSearchers || 0,
+      // Sightings for map and timeline
+      sightings: (missionData.sightings || []).map(s => ({
+        id: s.id,
+        sightedAt: s.sightedAt,
+        latitude: s.latitude,
+        longitude: s.longitude,
+        address: s.address,
+        description: s.description,
+        certaintyLevel: s.certaintyLevel,
+        photoUrls: s.photoUrls,
+        isVerified: s.isVerified,
+        reporterName: s.reportedBy?.firstName || 'Community member'
+      })),
+      sightingsCount: missionData.sightings?.length || 0,
+      // Updates for timeline
+      updates: missionData.updates || []
     };
 
     // Include contact info for LOST reports (owner wants to be contacted)
