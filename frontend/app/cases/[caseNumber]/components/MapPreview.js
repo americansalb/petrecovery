@@ -1,24 +1,26 @@
 'use client';
 
 /**
- * MapPreview - Gateway to Mission Control map
+ * MapPreview - Same map as Mission Control, just smaller
  *
- * Shows a preview of the search area and strongly encourages
- * users to open the full Mission Control for real-time data.
- * This is NOT meant to duplicate Mission Control - it's a teaser.
+ * Uses the exact same SARMapView component as Mission Control
+ * so all data stays in sync.
  */
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
-// Dynamically import map to avoid SSR issues
-const MapEmbed = dynamic(() => import('./MapEmbed'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full bg-midnight-100 animate-pulse" />
-  )
-});
+// Dynamically import to avoid SSR issues with Leaflet
+const SARMapView = dynamic(
+  () => import('@/app/components/mission/SARMapView'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full bg-midnight-100 animate-pulse" />
+    )
+  }
+);
 
 export default function MapPreview({
   caseNumber,
@@ -26,16 +28,29 @@ export default function MapPreview({
   lastSeenLongitude,
   lastSeenAddress,
   sightings = [],
-  searchRadius = 5
+  petSpecies = 'DOG',
+  hoursElapsed = 24
 }) {
   const hasLocation = lastSeenLatitude && lastSeenLongitude;
   const sightingsCount = sightings?.length || 0;
 
-  // Get most recent sighting time
-  const latestSighting = sightings?.[0];
-  const latestSightingTime = latestSighting?.sightedAt
-    ? formatTimeAgo(new Date(latestSighting.sightedAt))
-    : null;
+  // Format sightings for SARMapView
+  const formattedSightings = sightings.map(s => ({
+    id: s.id,
+    latitude: s.latitude,
+    longitude: s.longitude,
+    sightedAt: s.sightedAt,
+    description: s.description,
+    address: s.address,
+    certaintyLevel: s.certaintyLevel
+  }));
+
+  // Last seen object for SARMapView
+  const lastSeen = hasLocation ? {
+    latitude: lastSeenLatitude,
+    longitude: lastSeenLongitude,
+    address: lastSeenAddress
+  } : null;
 
   return (
     <motion.div
@@ -53,87 +68,44 @@ export default function MapPreview({
               <p className="text-sm text-midnight-500 mt-0.5 line-clamp-2">{lastSeenAddress}</p>
             )}
           </div>
+          {sightingsCount > 0 && (
+            <span className="text-sm text-amber-600 font-medium whitespace-nowrap">
+              {sightingsCount} sighting{sightingsCount !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Map with Click-to-Open Overlay */}
+      {/* Map - Same SARMapView as Mission Control */}
       {hasLocation ? (
-        <Link
-          href={`/mission-control?mission=${caseNumber}`}
-          className="block relative group"
-        >
-          {/* The Map */}
-          <div className="h-52 md:h-64">
-            <MapEmbed
-              center={[lastSeenLatitude, lastSeenLongitude]}
-              sightings={sightings}
-            />
-          </div>
-
-          {/* Hover Overlay */}
-          <div className="absolute inset-0 bg-midnight-900/0 group-hover:bg-midnight-900/60 transition-all duration-300 flex items-center justify-center">
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-center">
-              <div className="bg-white text-midnight-900 font-bold px-6 py-3 rounded-xl shadow-xl">
-                Open Full Search Map →
-              </div>
-              <p className="text-white/90 text-sm mt-2">
-                Live updates • Sightings • Coverage
-              </p>
-            </div>
-          </div>
-        </Link>
+        <div className="h-64 md:h-80">
+          <SARMapView
+            center={[lastSeenLatitude, lastSeenLongitude]}
+            lastSeen={lastSeen}
+            sightings={formattedSightings}
+            petSpecies={petSpecies}
+            hoursElapsed={hoursElapsed}
+            showControls={false}
+            showLegend={false}
+            showProbabilityCircles={false}
+            interactive={true}
+          />
+        </div>
       ) : (
-        <div className="h-52 bg-midnight-50 flex items-center justify-center">
+        <div className="h-64 bg-midnight-50 flex items-center justify-center">
           <p className="text-midnight-400">No location data available</p>
         </div>
       )}
 
-      {/* Footer Stats */}
+      {/* Footer - Link to full Mission Control */}
       {hasLocation && (
-        <div className="px-5 py-3 bg-midnight-50 border-t border-midnight-100">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-4">
-              {/* Last Seen indicator */}
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 bg-midnight-700 rounded-full" />
-                <span className="text-midnight-600">Last seen</span>
-              </div>
-
-              {/* Sightings indicator */}
-              {sightingsCount > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 bg-amber-500 rounded-full" />
-                  <span className="text-midnight-600">
-                    {sightingsCount} sighting{sightingsCount !== 1 ? 's' : ''}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Latest activity */}
-            {latestSightingTime && (
-              <span className="text-midnight-400 text-xs">
-                Latest: {latestSightingTime}
-              </span>
-            )}
-          </div>
-        </div>
+        <Link
+          href={`/mission-control?mission=${caseNumber}`}
+          className="block px-5 py-3 bg-midnight-50 border-t border-midnight-100 text-center text-sm font-medium text-midnight-600 hover:text-midnight-900 hover:bg-midnight-100 transition"
+        >
+          Open Full Map in Mission Control →
+        </Link>
       )}
     </motion.div>
   );
-}
-
-// Helper for relative time
-function formatTimeAgo(date) {
-  const now = new Date();
-  const diffMs = now - date;
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays === 1) return 'yesterday';
-  return `${diffDays}d ago`;
 }
