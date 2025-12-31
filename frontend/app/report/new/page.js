@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import ColorSelector from '../../components/ColorSelector';
 import { SARAMA_AVATAR } from '@/lib/brandAssets';
+import { searchAutocomplete, getPlaceFromAutocomplete } from '@/app/lib/maps/appleMapKit';
 
 const PET_TYPES = [
   { type: 'dog', label: 'Dog', icon: Dog, emoji: '🐕' },
@@ -259,7 +260,7 @@ export default function ReportLostPet() {
   const searchTimeoutRef = useRef(null);
 
   const searchAddress = async (query) => {
-    if (!query.trim() || query.length < 3) {
+    if (!query.trim() || query.length < 2) {
       setSearchResults([]);
       return;
     }
@@ -273,13 +274,16 @@ export default function ReportLostPet() {
     searchTimeoutRef.current = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}&limit=5&addressdetails=1`);
-        if (response.ok) {
-          const results = await response.json();
-          setSearchResults(Array.isArray(results) ? results : []);
-        }
+        // Use Apple Maps autocomplete for better results (businesses, addresses, etc.)
+        const results = await searchAutocomplete(query, {
+          latitude: center?.[0],
+          longitude: center?.[1],
+          limit: 5
+        });
+        setSearchResults(results);
       } catch (err) {
         console.error('Search error:', err);
+        setSearchResults([]);
       } finally {
         setIsSearching(false);
       }
@@ -287,20 +291,36 @@ export default function ReportLostPet() {
   };
 
   const selectSearchResult = async (result) => {
-    const lat = parseFloat(result.lat);
-    const lon = parseFloat(result.lon);
-    setCenter([lat, lon]);
-    setLastSeenAddress(result.display_name);
-    const addr = result.address || {};
-    setCityName(addr.city || addr.town || addr.village || addr.municipality || '');
+    setIsSearching(true);
     setSearchResults([]);
     setAddressSearch('');
 
-    // Update map if it exists
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.setView([lat, lon], 17);
-      if (markerRef.current) markerRef.current.setLatLng([lat, lon]);
-      if (circleRef.current) circleRef.current.setLatLng([lat, lon]);
+    try {
+      // Get full place details with coordinates
+      const place = await getPlaceFromAutocomplete(result);
+
+      if (place && place.latitude && place.longitude) {
+        const lat = place.latitude;
+        const lon = place.longitude;
+        setCenter([lat, lon]);
+        setLastSeenAddress(place.address || result.address);
+
+        // Extract city from address
+        const addressParts = (place.address || '').split(',');
+        const city = addressParts.length >= 2 ? addressParts[addressParts.length - 2]?.trim() : '';
+        setCityName(city);
+
+        // Update map if it exists
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setView([lat, lon], 17);
+          if (markerRef.current) markerRef.current.setLatLng([lat, lon]);
+          if (circleRef.current) circleRef.current.setLatLng([lat, lon]);
+        }
+      }
+    } catch (err) {
+      console.error('Error selecting result:', err);
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -708,7 +728,7 @@ export default function ReportLostPet() {
         {/* Step 1: Location */}
         {step === 1 && (
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="px-6 py-3">
+            <div className="px-6 py-3 relative z-30">
               <h1 className="text-xl font-bold text-gray-900 mb-1">Where was {petName || 'your pet'} last seen?</h1>
 
               {/* Address Search */}
@@ -728,17 +748,17 @@ export default function ReportLostPet() {
                   <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />
                 )}
 
-                {/* Search Results Dropdown */}
+                {/* Search Results Dropdown - Apple Maps autocomplete */}
                 {searchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
                     {searchResults.map((result, idx) => (
                       <button
                         key={idx}
                         onClick={() => selectSearchResult(result)}
                         className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0"
                       >
-                        <p className="font-medium text-gray-900 truncate">{result.display_name?.split(',')[0]}</p>
-                        <p className="text-xs text-gray-500 truncate">{result.display_name}</p>
+                        <p className="font-medium text-gray-900 truncate">{result.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{result.address}</p>
                       </button>
                     ))}
                   </div>
@@ -746,7 +766,7 @@ export default function ReportLostPet() {
               </div>
             </div>
 
-            <div className="flex-1 relative mx-4 mb-2 rounded-2xl overflow-hidden shadow-lg border border-gray-100 min-h-[300px]">
+            <div className="flex-1 relative z-10 mx-4 mb-2 rounded-2xl overflow-hidden shadow-lg border border-gray-100 min-h-[300px]">
               {isGettingLocation ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
                   <div className="text-center">
