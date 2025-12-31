@@ -157,7 +157,7 @@ export default function SARMapView({
   const [showPOIs, setShowPOIs] = useState(false); // Toggle POI visibility (Off by default for cleaner map)
   const [mapLayer, setMapLayer] = useState('satellite');
   const baseLayersRef = useRef({});
-  const [showCoverage, setShowCoverage] = useState(false); // Toggle coverage overlay (Off by default for cleaner map)
+  const [showCoverage, setShowCoverage] = useState(true); // Toggle coverage overlay (On by default to show search trails)
   const heatmapLayersRef = useRef([]);
 
   // Use centralized GPS service instead of local watchPosition

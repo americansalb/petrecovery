@@ -28,7 +28,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const missionId = params.id;
+    const missionId = params.missionId;
 
     const assignments = await prisma.caseAssignment.findMany({
       where: { missionId },
@@ -78,7 +78,7 @@ export async function DELETE(request, { params }) {
       }, { status: 403 });
     }
 
-    const missionId = params.id;
+    const missionId = params.missionId;
     let squadId = null;
 
     try {
@@ -138,7 +138,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const missionId = params.id;
+    const missionId = params.missionId;
     const body = await request.json();
     const { squadId } = body;
 
@@ -270,7 +270,7 @@ export async function POST(request, { params }) {
     await logEvent({
       event_type: 'case.squad_assignment_failed',
       resource_type: 'mission',
-      resource_id: params.id,
+      resource_id: params.missionId,
       action: 'update',
       result: 'failure',
       error_code: 'ASSIGNMENT_ERROR',

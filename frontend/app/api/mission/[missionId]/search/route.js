@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import prisma from '@/app/lib/prisma';
 import { getPointsService } from '@/lib/actions';
+import { quickJoinCase } from '@/app/lib/volunteer/quickJoin';
 
 // =============================================================================
 // CONFIGURATION
@@ -337,6 +338,35 @@ async function handleStart(userId, missionId, body) {
     where: { id: missionId },
     select: { lastSeenLatitude: true, lastSeenLongitude: true },
   });
+
+  // Auto-join team: Ensure user is a participant before starting search
+  try {
+    // Check if user is already a participant in any assignment for this mission
+    const existingParticipant = await prisma.caseParticipant.findFirst({
+      where: {
+        assignment: { missionId },
+        userId,
+        isActive: true,
+      },
+    });
+
+    if (!existingParticipant) {
+      // Use quickJoinCase to properly join with squad assignment
+      const joinResult = await quickJoinCase(missionId, {
+        userId,
+        location: latitude && longitude ? { lat: latitude, lng: longitude } : null,
+      });
+
+      if (joinResult.success) {
+        console.log(`[Search] Auto-joined user ${userId} to mission ${missionId}: ${joinResult.message}`);
+      } else {
+        console.warn(`[Search] Could not auto-join user ${userId}: ${joinResult.error}`);
+      }
+    }
+  } catch (err) {
+    // Don't block search start if auto-join fails
+    console.warn(`[Search] Auto-join failed for user ${userId}:`, err.message);
+  }
 
   // Create new session
   const searchSession = await prisma.searchSession.create({
