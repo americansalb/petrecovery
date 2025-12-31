@@ -61,8 +61,8 @@ function MissionControlContent() {
   // Navigation state - start on search (the main feature)
   const [activeTab, setActiveTab] = useState('search');
 
-  // Probability zones toggle - OFF by default to reduce clutter
-  const [showProbabilityZones, setShowProbabilityZones] = useState(false);
+  // Probability zones toggle - ON by default to guide searchers
+  const [showProbabilityZones, setShowProbabilityZones] = useState(true);
 
   // Main mission state
   const mission = useMissionControl(session);

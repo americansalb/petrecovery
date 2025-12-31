@@ -154,10 +154,10 @@ export default function SARMapView({
   const coverageLayersRef = useRef([]); // For team coverage trails
   const poiMarkersRef = useRef([]); // For shelter/vet markers
   const userMarkerRef = useRef(null);
-  const [showPOIs, setShowPOIs] = useState(true); // Toggle POI visibility
+  const [showPOIs, setShowPOIs] = useState(false); // Toggle POI visibility (Off by default for cleaner map)
   const [mapLayer, setMapLayer] = useState('satellite');
   const baseLayersRef = useRef({});
-  const [showCoverage, setShowCoverage] = useState(true); // Toggle coverage overlay
+  const [showCoverage, setShowCoverage] = useState(false); // Toggle coverage overlay (Off by default for cleaner map)
   const heatmapLayersRef = useRef([]);
 
   // Use centralized GPS service instead of local watchPosition
