@@ -67,7 +67,7 @@ export default function MapPreview({
       <div className="px-5 py-4 border-b border-midnight-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-rose-500" />
+            <MapPin className="w-5 h-5 text-midnight-600" />
             <h2 className="font-bold text-midnight-900">Search Area</h2>
           </div>
           {sightings.length > 0 && (
@@ -114,7 +114,7 @@ export default function MapPreview({
       {hasLocation && (
         <div className="px-5 py-3 bg-midnight-50 border-t border-midnight-100 flex flex-wrap gap-4 text-xs text-midnight-600">
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 bg-rose-500 rounded-full" />
+            <span className="w-3 h-3 bg-midnight-700 rounded-full" />
             Last Seen
           </div>
           {sightings.length > 0 && (

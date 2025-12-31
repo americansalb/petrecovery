@@ -108,7 +108,7 @@ export default function CasePageClient() {
       <div className="min-h-screen bg-gradient-to-b from-midnight-50 to-white">
         <div className="flex items-center justify-center py-32">
           <div className="text-center">
-            <Loader2 className="w-12 h-12 text-rose-500 animate-spin mx-auto mb-4" />
+            <Loader2 className="w-12 h-12 text-flash-500 animate-spin mx-auto mb-4" />
             <p className="text-midnight-500 text-lg">Loading case details...</p>
           </div>
         </div>
@@ -169,21 +169,21 @@ export default function CasePageClient() {
         onContactOwner={() => setShowContactModal(true)}
       />
 
-      {/* Primary CTA - Report Sighting (Mobile: in hero area, Desktop: prominent) */}
-      <div className="max-w-6xl mx-auto px-4 -mt-6 relative z-20">
+      {/* Primary CTA - Report Sighting */}
+      <div className="max-w-5xl mx-auto px-4 py-6">
         <motion.button
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           onClick={() => setShowSightingModal(true)}
-          className="w-full lg:w-auto bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-2xl p-5 shadow-xl shadow-rose-200 transition group"
+          className="w-full bg-flash-400 hover:bg-flash-500 text-midnight-900 rounded-2xl p-5 shadow-xl shadow-flash-400/30 transition group"
         >
-          <div className="flex items-center justify-center lg:justify-start gap-4">
-            <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
+          <div className="flex items-center justify-center gap-4">
+            <div className="w-14 h-14 bg-midnight-900/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
               <Eye className="w-7 h-7" />
             </div>
             <div className="text-left">
               <p className="font-bold text-xl">I've Seen {petName}</p>
-              <p className="text-rose-100">Report a sighting to help bring them home</p>
+              <p className="text-midnight-700">Report a sighting to help bring them home</p>
             </div>
             <ChevronRight className="w-6 h-6 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition hidden lg:block" />
           </div>
@@ -348,8 +348,8 @@ export default function CasePageClient() {
             </button>
 
             <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-rose-500 to-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Eye className="w-8 h-8 text-white" />
+              <div className="w-16 h-16 bg-flash-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Eye className="w-8 h-8 text-midnight-900" />
               </div>
               <h2 className="text-2xl font-bold text-midnight-900">You've Seen {petName}?</h2>
               <p className="text-midnight-500 mt-2">This could help reunite them with their family!</p>
@@ -359,10 +359,10 @@ export default function CasePageClient() {
               {/* Quick sighting with location */}
               <Link
                 href={`/mission-control?mission=${caseNumber}&action=sighting`}
-                className="flex items-center gap-4 p-4 bg-rose-50 border-2 border-rose-200 rounded-xl hover:bg-rose-100 transition"
+                className="flex items-center gap-4 p-4 bg-flash-50 border-2 border-flash-300 rounded-xl hover:bg-flash-100 transition"
               >
-                <div className="w-12 h-12 bg-rose-500 rounded-xl flex items-center justify-center">
-                  <MapPin className="w-6 h-6 text-white" />
+                <div className="w-12 h-12 bg-flash-400 rounded-xl flex items-center justify-center">
+                  <MapPin className="w-6 h-6 text-midnight-900" />
                 </div>
                 <div className="flex-1">
                   <p className="font-semibold text-midnight-900">Submit Sighting Report</p>
