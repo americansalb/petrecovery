@@ -618,12 +618,12 @@ export default function SARMapView({
         return;
       }
 
-      // Use sightedAt, fall back to createdAt, or default to now
+      // Use sightedAt if available, fall back to createdAt (when report was submitted)
       const sightingTime = sighting.sightedAt || sighting.createdAt || new Date().toISOString();
       const hoursSinceSighting = (Date.now() - new Date(sightingTime).getTime()) / 3600000;
 
-      // Determine if sighting is confirmed
-      const isConfirmed = sighting.isConfirmed === true;
+      // Determine if sighting is confirmed (use 'verified' from DB, fall back to 'isConfirmed')
+      const isConfirmed = sighting.verified === true || sighting.isConfirmed === true;
 
       // Zone color: blue for unconfirmed, green for confirmed
       const zoneColor = isConfirmed ? '#22c55e' : '#3b82f6';
@@ -682,9 +682,9 @@ export default function SARMapView({
               "${sighting.description.slice(0, 60)}${sighting.description.length > 60 ? '...' : ''}"
             </div>
           ` : ''}
-          ${includePhoto && sighting.photoUrl ? `
+          ${includePhoto && (sighting.photoUrl || sighting.photoUrls) ? `
             <div style="margin-top:8px;">
-              <a href="${sighting.photoUrl}" target="_blank" style="color:#3b82f6;font-size:11px;text-decoration:none;">
+              <a href="${sighting.photoUrl || (Array.isArray(sighting.photoUrls) ? sighting.photoUrls[0] : JSON.parse(sighting.photoUrls || '[]')[0])}" target="_blank" style="color:#3b82f6;font-size:11px;text-decoration:none;">
                 📷 View Photo
               </a>
             </div>
