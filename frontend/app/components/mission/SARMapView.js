@@ -517,6 +517,67 @@ export default function SARMapView({
           polygon.bringToBack();
           circlesRef.current.push(polygon);
         });
+
+        // Draw octant divider lines (8 sections: N, NE, E, SE, S, SW, W, NW)
+        const outermostRadius = milesToMeters(sortedZones[sortedZones.length - 1].radius);
+        const octantAngles = [
+          { angle: 0, label: 'N' },
+          { angle: 45, label: 'NE' },
+          { angle: 90, label: 'E' },
+          { angle: 135, label: 'SE' },
+          { angle: 180, label: 'S' },
+          { angle: 225, label: 'SW' },
+          { angle: 270, label: 'W' },
+          { angle: 315, label: 'NW' },
+        ];
+
+        octantAngles.forEach(({ angle, label }) => {
+          // Convert angle to radians (0° = North, clockwise)
+          const radians = ((90 - angle) * Math.PI) / 180;
+
+          // Calculate end point of line
+          const [centerLat, centerLng] = zoneCenter;
+          const endLatOffset = (outermostRadius / 111320) * Math.sin(radians);
+          const endLngOffset = (outermostRadius / (111320 * Math.cos(centerLat * Math.PI / 180))) * Math.cos(radians);
+          const endPoint = [centerLat + endLatOffset, centerLng + endLngOffset];
+
+          // Draw subtle divider line
+          const line = L.polyline([zoneCenter, endPoint], {
+            color: '#ffffff',
+            weight: 1,
+            opacity: 0.4,
+            dashArray: '4, 8',
+          });
+          line.addTo(mapInstance.current);
+          circlesRef.current.push(line);
+
+          // Add direction label at 85% of the way to the edge (inside the outermost ring)
+          const labelLatOffset = endLatOffset * 0.85;
+          const labelLngOffset = endLngOffset * 0.85;
+          const labelPoint = [centerLat + labelLatOffset, centerLng + labelLngOffset];
+
+          const labelIcon = L.divIcon({
+            className: 'octant-label',
+            html: `<div style="
+              background: rgba(15, 23, 42, 0.7);
+              color: white;
+              font-size: 11px;
+              font-weight: 600;
+              padding: 2px 6px;
+              border-radius: 4px;
+              white-space: nowrap;
+            ">${label}</div>`,
+            iconSize: [24, 16],
+            iconAnchor: [12, 8],
+          });
+
+          const labelMarker = L.marker(labelPoint, {
+            icon: labelIcon,
+            interactive: false, // Don't interfere with map clicks
+          });
+          labelMarker.addTo(mapInstance.current);
+          circlesRef.current.push(labelMarker);
+        });
       } else if (showProbabilityZones) {
         console.log('[Map] Probability zones enabled but no zone data:', { showProbabilityZones, zones: probabilityZones?.zones });
       }
