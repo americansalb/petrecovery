@@ -609,45 +609,135 @@ export default function SARMapView({
       }
     }
 
-    // Add sighting markers
+    // Add sighting markers with expanding zones
     sightings.forEach((sighting, index) => {
       const hoursSinceSighting = sighting.sightedAt
-        ? Math.floor((Date.now() - new Date(sighting.sightedAt).getTime()) / 3600000)
+        ? (Date.now() - new Date(sighting.sightedAt).getTime()) / 3600000
         : 0;
 
-      // Color based on recency
-      let color = '#f59e0b'; // amber default
-      if (hoursSinceSighting < 1) color = '#ef4444'; // red - very recent
-      else if (hoursSinceSighting < 6) color = '#f97316'; // orange
-      else if (hoursSinceSighting < 24) color = '#eab308'; // yellow
-      else color = '#6b7280'; // gray - old
+      // Determine if sighting is confirmed
+      const isConfirmed = sighting.isConfirmed || false;
 
+      // Zone color: blue for unconfirmed, green for confirmed
+      const zoneColor = isConfirmed ? '#22c55e' : '#3b82f6';
+
+      // Calculate expanding radius based on time since sighting
+      // Starts at ~500ft (0.1 miles), grows ~0.25 miles per hour, caps at 3 miles
+      const baseRadiusMiles = 0.1;
+      const growthRatePerHour = 0.25;
+      const maxRadiusMiles = 3;
+      const radiusMiles = Math.min(baseRadiusMiles + (hoursSinceSighting * growthRatePerHour), maxRadiusMiles);
+      const radiusMeters = radiusMiles * 1609.34;
+
+      // Draw the expanding sighting zone
+      const sightingZone = L.circle([sighting.latitude, sighting.longitude], {
+        radius: radiusMeters,
+        color: zoneColor,
+        fillColor: zoneColor,
+        fillOpacity: 0.12,
+        weight: 2,
+        opacity: 0.7,
+        dashArray: isConfirmed ? null : '6, 4', // Solid for confirmed, dashed for unconfirmed
+      });
+
+      // Format time ago text
+      const timeAgoText = hoursSinceSighting < 1
+        ? 'Just now'
+        : hoursSinceSighting < 24
+          ? `${Math.floor(hoursSinceSighting)}h ago`
+          : `${Math.floor(hoursSinceSighting / 24)}d ago`;
+
+      // Format radius text
+      const radiusText = radiusMiles < 0.5
+        ? `${Math.round(radiusMiles * 5280)} ft radius`
+        : `${radiusMiles.toFixed(1)} mi radius`;
+
+      // Popup content for the zone
+      const statusLabel = isConfirmed ? '✓ CONFIRMED' : 'UNCONFIRMED';
+      const statusColor = isConfirmed ? '#22c55e' : '#3b82f6';
+
+      sightingZone.bindPopup(`
+        <div style="text-align:center;padding:6px;min-width:160px;">
+          <div style="font-weight:700;color:${statusColor};font-size:12px;margin-bottom:4px;">
+            👁 ${statusLabel}
+          </div>
+          <div style="font-size:14px;font-weight:600;color:#333;">
+            ${timeAgoText} • ${radiusText}
+          </div>
+          ${isConfirmed && sighting.confirmedBy ? `
+            <div style="font-size:11px;color:#666;margin-top:4px;">
+              Verified by ${sighting.confirmedBy}
+            </div>
+          ` : ''}
+          ${sighting.description ? `
+            <div style="font-size:11px;color:#666;margin-top:6px;padding-top:6px;border-top:1px solid #eee;">
+              "${sighting.description.slice(0, 60)}${sighting.description.length > 60 ? '...' : ''}"
+            </div>
+          ` : ''}
+          ${!isConfirmed ? `
+            <div style="font-size:10px;color:#888;margin-top:6px;">
+              Owner can confirm this sighting
+            </div>
+          ` : ''}
+        </div>
+      `);
+
+      sightingZone.addTo(mapInstance.current);
+      sightingZone.bringToBack();
+      circlesRef.current.push(sightingZone);
+
+      // Add eye marker at center of sighting
       const sightingIcon = L.divIcon({
         className: 'sighting-marker',
         html: `
           <div style="
-            width: 28px;
-            height: 28px;
-            background: ${color};
-            border: 2px solid white;
+            width: 32px;
+            height: 32px;
+            background: ${zoneColor};
+            border: 3px solid white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 0 10px ${color}80;
-            font-size: 14px;
+            box-shadow: 0 2px 10px ${zoneColor}80;
+            font-size: 16px;
           ">👁</div>
         `,
-        iconSize: [28, 28],
-        iconAnchor: [14, 14]
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
       });
 
-      const marker = L.marker([sighting.latitude, sighting.longitude], { icon: sightingIcon })
+      const marker = L.marker([sighting.latitude, sighting.longitude], { icon: sightingIcon, zIndexOffset: 500 })
         .bindPopup(`
-          <div style="max-width:200px">
-            <b style="color:${color}">Sighting #${index + 1}</b>
-            <small style="color:#666;display:block">${hoursSinceSighting < 1 ? 'Just now' : hoursSinceSighting < 24 ? `${hoursSinceSighting}h ago` : `${Math.floor(hoursSinceSighting / 24)}d ago`}</small>
-            ${sighting.description ? `<p style="margin:4px 0 0;font-size:12px">${sighting.description.slice(0, 80)}${sighting.description.length > 80 ? '...' : ''}</p>` : ''}
+          <div style="text-align:center;padding:6px;min-width:160px;">
+            <div style="font-weight:700;color:${statusColor};font-size:12px;margin-bottom:4px;">
+              👁 ${statusLabel}
+            </div>
+            <div style="font-size:14px;font-weight:600;color:#333;">
+              ${timeAgoText} • ${radiusText}
+            </div>
+            ${isConfirmed && sighting.confirmedBy ? `
+              <div style="font-size:11px;color:#666;margin-top:4px;">
+                Verified by ${sighting.confirmedBy}
+              </div>
+            ` : ''}
+            ${sighting.description ? `
+              <div style="font-size:11px;color:#666;margin-top:6px;padding-top:6px;border-top:1px solid #eee;">
+                "${sighting.description.slice(0, 60)}${sighting.description.length > 60 ? '...' : ''}"
+              </div>
+            ` : ''}
+            ${sighting.photoUrl ? `
+              <div style="margin-top:8px;">
+                <a href="${sighting.photoUrl}" target="_blank" style="color:#3b82f6;font-size:11px;text-decoration:none;">
+                  📷 View Photo
+                </a>
+              </div>
+            ` : ''}
+            ${!isConfirmed ? `
+              <div style="font-size:10px;color:#888;margin-top:6px;">
+                Owner can confirm this sighting
+              </div>
+            ` : ''}
           </div>
         `)
         .addTo(mapInstance.current);
@@ -1023,6 +1113,7 @@ export default function SARMapView({
             showSearchPath={gpsPath && gpsPath.length > 0 || coverageTrails.length > 0}
             showActiveSearches={activeSearchersCount > 0}
             showPOIs={pois.length > 0}
+            showProbabilityZones={showProbabilityZones}
             activeSearchersCount={activeSearchersCount}
           />
         )
