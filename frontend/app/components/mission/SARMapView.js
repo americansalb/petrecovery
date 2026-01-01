@@ -485,14 +485,14 @@ export default function SARMapView({
 
         // Octant definitions (8 sections, 45° each)
         const octants = [
-          { name: 'N', startAngle: -22.5, endAngle: 22.5 },
-          { name: 'NE', startAngle: 22.5, endAngle: 67.5 },
-          { name: 'E', startAngle: 67.5, endAngle: 112.5 },
-          { name: 'SE', startAngle: 112.5, endAngle: 157.5 },
-          { name: 'S', startAngle: 157.5, endAngle: 202.5 },
-          { name: 'SW', startAngle: 202.5, endAngle: 247.5 },
-          { name: 'W', startAngle: 247.5, endAngle: 292.5 },
-          { name: 'NW', startAngle: 292.5, endAngle: 337.5 },
+          { name: 'N', fullName: 'North', startAngle: -22.5, endAngle: 22.5 },
+          { name: 'NE', fullName: 'Northeast', startAngle: 22.5, endAngle: 67.5 },
+          { name: 'E', fullName: 'East', startAngle: 67.5, endAngle: 112.5 },
+          { name: 'SE', fullName: 'Southeast', startAngle: 112.5, endAngle: 157.5 },
+          { name: 'S', fullName: 'South', startAngle: 157.5, endAngle: 202.5 },
+          { name: 'SW', fullName: 'Southwest', startAngle: 202.5, endAngle: 247.5 },
+          { name: 'W', fullName: 'West', startAngle: 247.5, endAngle: 292.5 },
+          { name: 'NW', fullName: 'Northwest', startAngle: 292.5, endAngle: 337.5 },
         ];
 
         sortedZones.forEach((zone, zoneIndex) => {
@@ -520,7 +520,6 @@ export default function SARMapView({
             });
 
             // Calculate octant-specific probability (individual zone probability / 8)
-            // Use probabilityPercent (individual) not cumulativePercent (cumulative)
             const zoneProbability = zone.probabilityPercent || zone.cumulativePercent;
             const octantProbability = (zoneProbability / 8).toFixed(1);
 
@@ -528,13 +527,31 @@ export default function SARMapView({
               ? `${Math.round(zone.radius * 5280)} feet`
               : `${zone.radius.toFixed(1)} miles`;
 
+            // User-friendly zone descriptions
+            const zoneDescriptions = {
+              HIGH: { label: 'HIGH PROBABILITY', tip: 'Best place to search first!' },
+              MEDIUM: { label: 'MEDIUM PROBABILITY', tip: 'Good area to search' },
+              LOW: { label: 'LOW PROBABILITY', tip: 'Less likely, but worth checking' },
+              EXTENDED: { label: 'EXTENDED SEARCH', tip: 'Outer edge of search area' },
+            };
+            const zoneInfo = zoneDescriptions[zone.name] || { label: zone.name, tip: '' };
+
             polygon.bindPopup(`
-              <div style="text-align:center;padding:4px;min-width:120px;">
-                <b style="color:${zone.color}">${zone.name}</b>
-                <span style="color:#666;font-size:12px;"> • ${octant.name}</span><br>
-                <span style="font-size:18px;font-weight:bold">${octantProbability}%</span><br>
-                <small style="color:#666">of ${zoneProbability}% zone</small><br>
-                <small style="color:#888">within ${radiusText}</small>
+              <div style="text-align:center;padding:8px;min-width:180px;">
+                <div style="font-weight:700;color:${zone.color};font-size:13px;margin-bottom:2px;">
+                  ${zoneInfo.label}
+                </div>
+                <div style="font-size:11px;color:#666;margin-bottom:8px;">
+                  ${octant.fullName} Section
+                </div>
+                <div style="background:#f8f9fa;border-radius:8px;padding:8px;margin-bottom:8px;">
+                  <div style="font-size:11px;color:#666;">Chance pet is in this zone</div>
+                  <div style="font-size:22px;font-weight:700;color:${zone.color};">${zoneProbability}%</div>
+                  <div style="font-size:10px;color:#888;">Within ${radiusText} of last seen</div>
+                </div>
+                <div style="font-size:11px;color:#22c55e;font-weight:500;">
+                  ${zoneInfo.tip}
+                </div>
               </div>
             `);
 
@@ -759,10 +776,11 @@ export default function SARMapView({
 
         // Draw visible corridor showing search area covered (vision radius ~14m = ~45ft)
         // Width scales with zoom to maintain real-world size
+        // High opacity so it fully covers probability zones beneath
         const searchCorridor = L.polyline(segmentCoords, {
           color: '#a855f7', // Purple
           weight: Math.max(corridorWidth, 4), // Dynamic width, min 4px
-          opacity: 0.45, // 45% - clearly visible but not overwhelming
+          opacity: 0.85, // High opacity to overlay zones beneath
           smoothFactor: 1,
           lineJoin: 'round',
           lineCap: 'round'
