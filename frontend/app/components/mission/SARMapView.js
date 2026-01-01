@@ -441,84 +441,109 @@ export default function SARMapView({
       }
 
       // Add research-based probability zones (NEW - toggleable)
-      // Draw as rings (donuts) so colors don't overlap
+      // Draw as octant segments so each section is clickable with its own info
       if (showProbabilityZones && probabilityZones?.zones) {
         console.log('[Map] Rendering probability zones:', probabilityZones.zones.length, 'zones');
         const milesToMeters = (miles) => miles * 1609.34;
         const zoneCenter = probabilityZones.center || [lastSeen.lat, lastSeen.lng];
         console.log('[Map] Zone center:', zoneCenter);
 
-        // Helper to generate circle coordinates for polygons
-        const generateCircleCoords = (center, radiusMeters, numPoints = 64) => {
+        // Helper to generate arc coordinates for a pie slice
+        const generateArcCoords = (center, innerRadius, outerRadius, startAngle, endAngle, numPoints = 16) => {
           const coords = [];
           const [lat, lng] = center;
+
+          // Outer arc (from startAngle to endAngle)
           for (let i = 0; i <= numPoints; i++) {
-            const angle = (i / numPoints) * 2 * Math.PI;
-            // Convert meters to degrees (approximate)
-            const latOffset = (radiusMeters / 111320) * Math.cos(angle);
-            const lngOffset = (radiusMeters / (111320 * Math.cos(lat * Math.PI / 180))) * Math.sin(angle);
+            const angle = startAngle + (i / numPoints) * (endAngle - startAngle);
+            const radians = ((90 - angle) * Math.PI) / 180;
+            const latOffset = (outerRadius / 111320) * Math.sin(radians);
+            const lngOffset = (outerRadius / (111320 * Math.cos(lat * Math.PI / 180))) * Math.cos(radians);
             coords.push([lat + latOffset, lng + lngOffset]);
           }
+
+          // Inner arc (from endAngle back to startAngle) - or center point if innerRadius is 0
+          if (innerRadius > 0) {
+            for (let i = numPoints; i >= 0; i--) {
+              const angle = startAngle + (i / numPoints) * (endAngle - startAngle);
+              const radians = ((90 - angle) * Math.PI) / 180;
+              const latOffset = (innerRadius / 111320) * Math.sin(radians);
+              const lngOffset = (innerRadius / (111320 * Math.cos(lat * Math.PI / 180))) * Math.cos(radians);
+              coords.push([lat + latOffset, lng + lngOffset]);
+            }
+          } else {
+            // For innermost zone, close to center
+            coords.push(center);
+          }
+
           return coords;
         };
 
         // Sort zones from smallest to largest for ring creation
         const sortedZones = [...probabilityZones.zones].sort((a, b) => a.radius - b.radius);
-        const ZONE_OPACITY = 0.12; // Subtle, consistent opacity for all zones
+        const ZONE_OPACITY = 0.15; // Subtle, consistent opacity for all zones
 
-        sortedZones.forEach((zone, index) => {
-          console.log('[Map] Drawing zone ring:', zone.name, 'radius:', zone.radius, 'miles, color:', zone.color);
+        // Octant definitions (8 sections, 45° each)
+        const octants = [
+          { name: 'N', startAngle: -22.5, endAngle: 22.5 },
+          { name: 'NE', startAngle: 22.5, endAngle: 67.5 },
+          { name: 'E', startAngle: 67.5, endAngle: 112.5 },
+          { name: 'SE', startAngle: 112.5, endAngle: 157.5 },
+          { name: 'S', startAngle: 157.5, endAngle: 202.5 },
+          { name: 'SW', startAngle: 202.5, endAngle: 247.5 },
+          { name: 'W', startAngle: 247.5, endAngle: 292.5 },
+          { name: 'NW', startAngle: 292.5, endAngle: 337.5 },
+        ];
+
+        sortedZones.forEach((zone, zoneIndex) => {
+          console.log('[Map] Drawing zone octants:', zone.name, 'radius:', zone.radius, 'miles');
 
           const outerRadius = milesToMeters(zone.radius);
-          const outerCoords = generateCircleCoords(zoneCenter, outerRadius);
+          const innerRadius = zoneIndex === 0 ? 0 : milesToMeters(sortedZones[zoneIndex - 1].radius);
 
-          let polygon;
-          if (index === 0) {
-            // Innermost zone - draw as filled circle
-            polygon = L.polygon(outerCoords, {
+          // Create 8 octant segments for this zone
+          octants.forEach((octant) => {
+            const sliceCoords = generateArcCoords(
+              zoneCenter,
+              innerRadius,
+              outerRadius,
+              octant.startAngle,
+              octant.endAngle
+            );
+
+            const polygon = L.polygon(sliceCoords, {
               color: zone.color,
               fillColor: zone.color,
               fillOpacity: ZONE_OPACITY,
-              weight: 2,
-              opacity: 0.8,
-              dashArray: '6, 3',
+              weight: 1,
+              opacity: 0.6,
             });
-          } else {
-            // Outer zones - draw as ring (donut) with hole for inner zone
-            const innerRadius = milesToMeters(sortedZones[index - 1].radius);
-            const innerCoords = generateCircleCoords(zoneCenter, innerRadius).reverse(); // Reverse for hole
 
-            polygon = L.polygon([outerCoords, innerCoords], {
-              color: zone.color,
-              fillColor: zone.color,
-              fillOpacity: ZONE_OPACITY,
-              weight: 2,
-              opacity: 0.8,
-              dashArray: '6, 3',
-            });
-          }
+            // Calculate octant-specific probability (zone probability / 8)
+            const zoneProbability = zone.cumulativePercent || zone.probabilityPercent;
+            const octantProbability = (zoneProbability / 8).toFixed(1);
 
-          // Add popup with zone info
-          const radiusText = zone.radius < 1
-            ? `${Math.round(zone.radius * 5280)} feet`
-            : `${zone.radius.toFixed(1)} miles`;
+            const radiusText = zone.radius < 1
+              ? `${Math.round(zone.radius * 5280)} feet`
+              : `${zone.radius.toFixed(1)} miles`;
 
-          const displayPercent = zone.cumulativePercent || zone.probabilityPercent;
+            polygon.bindPopup(`
+              <div style="text-align:center;padding:4px;min-width:120px;">
+                <b style="color:${zone.color}">${zone.name}</b>
+                <span style="color:#666;font-size:12px;"> • ${octant.name}</span><br>
+                <span style="font-size:18px;font-weight:bold">${octantProbability}%</span><br>
+                <small style="color:#666">of ${zoneProbability}% zone</small><br>
+                <small style="color:#888">within ${radiusText}</small>
+              </div>
+            `);
 
-          polygon.bindPopup(`
-            <div style="text-align:center;padding:4px;">
-              <b style="color:${zone.color}">${zone.name}</b><br>
-              <span style="font-size:16px;font-weight:bold">${displayPercent}%</span><br>
-              <small style="color:#666">within ${radiusText}</small>
-            </div>
-          `);
-
-          polygon.addTo(mapInstance.current);
-          polygon.bringToBack();
-          circlesRef.current.push(polygon);
+            polygon.addTo(mapInstance.current);
+            polygon.bringToBack();
+            circlesRef.current.push(polygon);
+          });
         });
 
-        // Draw octant divider lines (8 sections: N, NE, E, SE, S, SW, W, NW)
+        // Draw octant divider lines (more visible now)
         const outermostRadius = milesToMeters(sortedZones[sortedZones.length - 1].radius);
         const octantAngles = [
           { angle: 0, label: 'N' },
@@ -541,39 +566,40 @@ export default function SARMapView({
           const endLngOffset = (outermostRadius / (111320 * Math.cos(centerLat * Math.PI / 180))) * Math.cos(radians);
           const endPoint = [centerLat + endLatOffset, centerLng + endLngOffset];
 
-          // Draw subtle divider line
+          // Draw more visible divider line
           const line = L.polyline([zoneCenter, endPoint], {
             color: '#ffffff',
-            weight: 1,
-            opacity: 0.4,
-            dashArray: '4, 8',
+            weight: 2,
+            opacity: 0.7,
+            dashArray: '8, 6',
           });
           line.addTo(mapInstance.current);
           circlesRef.current.push(line);
 
-          // Add direction label at 85% of the way to the edge (inside the outermost ring)
-          const labelLatOffset = endLatOffset * 0.85;
-          const labelLngOffset = endLngOffset * 0.85;
+          // Add direction label at 90% of the way to the edge
+          const labelLatOffset = endLatOffset * 0.90;
+          const labelLngOffset = endLngOffset * 0.90;
           const labelPoint = [centerLat + labelLatOffset, centerLng + labelLngOffset];
 
           const labelIcon = L.divIcon({
             className: 'octant-label',
             html: `<div style="
-              background: rgba(15, 23, 42, 0.7);
+              background: rgba(15, 23, 42, 0.85);
               color: white;
-              font-size: 11px;
-              font-weight: 600;
-              padding: 2px 6px;
-              border-radius: 4px;
+              font-size: 12px;
+              font-weight: 700;
+              padding: 3px 8px;
+              border-radius: 6px;
+              border: 1px solid rgba(255,255,255,0.3);
               white-space: nowrap;
             ">${label}</div>`,
-            iconSize: [24, 16],
-            iconAnchor: [12, 8],
+            iconSize: [28, 20],
+            iconAnchor: [14, 10],
           });
 
           const labelMarker = L.marker(labelPoint, {
             icon: labelIcon,
-            interactive: false, // Don't interfere with map clicks
+            interactive: false,
           });
           labelMarker.addTo(mapInstance.current);
           circlesRef.current.push(labelMarker);
