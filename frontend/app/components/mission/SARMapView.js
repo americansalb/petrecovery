@@ -27,6 +27,19 @@ const PET_SPEEDS = {
 // Vision radius for coverage (14 meters = ~45 feet)
 const VISION_RADIUS_METERS = 14;
 
+// Convert meters to pixels at a given zoom level and latitude
+// This ensures the corridor width stays consistent in real-world size
+function metersToPixels(meters, lat, zoom) {
+  // Earth circumference at equator in meters
+  const earthCircumference = 40075016.686;
+  // Meters per pixel at equator at zoom 0
+  const metersPerPixelAtZoom0 = earthCircumference / 256;
+  // Adjust for latitude (map gets compressed toward poles)
+  const latRadians = lat * Math.PI / 180;
+  const metersPerPixel = metersPerPixelAtZoom0 * Math.cos(latRadians) / Math.pow(2, zoom);
+  return meters / metersPerPixel;
+}
+
 // Max distance between consecutive points before we consider it a GPS jump (meters)
 const MAX_POINT_GAP_METERS = 100; // ~330 feet - if gap is bigger, don't draw a line
 
@@ -154,6 +167,7 @@ export default function SARMapView({
   const coverageLayersRef = useRef([]); // For team coverage trails
   const poiMarkersRef = useRef([]); // For shelter/vet markers
   const userMarkerRef = useRef(null);
+  const corridorLayersRef = useRef([]); // For zoom-adjustable corridors
   const [showPOIs, setShowPOIs] = useState(false); // Toggle POI visibility (Off by default for cleaner map)
   const [mapLayer, setMapLayer] = useState('satellite');
   const baseLayersRef = useRef({});
@@ -206,6 +220,20 @@ export default function SARMapView({
 
     // Add default layer (satellite)
     baseLayersRef.current[mapLayer].addTo(mapInstance.current);
+
+    // Handle zoom changes - update corridor widths to maintain real-world size
+    mapInstance.current.on('zoomend', () => {
+      const zoom = mapInstance.current.getZoom();
+      const mapCenter = mapInstance.current.getCenter();
+      const corridorWidth = metersToPixels(VISION_RADIUS_METERS * 2, mapCenter.lat, zoom);
+
+      // Update all corridor layers with new width
+      corridorLayersRef.current.forEach(layer => {
+        if (layer.setStyle) {
+          layer.setStyle({ weight: Math.max(corridorWidth, 4) }); // Minimum 4px for visibility
+        }
+      });
+    });
 
     // Start GPS tracking via centralized service (balanced mode for map viewing)
     startTracking(GPS_MODE.BALANCED);
@@ -502,6 +530,9 @@ export default function SARMapView({
     gpsLayersRef.current.forEach(layer => layer.remove());
     gpsLayersRef.current = [];
 
+    // Clear corridor refs when redrawing
+    corridorLayersRef.current = [];
+
     if (gpsPath && gpsPath.length > 1) {
       // Convert GPS path to leaflet format
       const pathCoords = gpsPath.map(point => [point.lat, point.lng]);
@@ -514,20 +545,29 @@ export default function SARMapView({
       const endTime = gpsPath[gpsPath.length - 1].timestamp;
       const durationMinutes = Math.round((endTime - startTime) / 60000);
 
+      // Calculate corridor width based on current zoom (14m vision radius = 28m corridor width)
+      const zoom = mapInstance.current.getZoom();
+      const mapCenter = mapInstance.current.getCenter();
+      const corridorWidth = metersToPixels(VISION_RADIUS_METERS * 2, mapCenter.lat, zoom);
+
       // Draw each segment separately
       segments.forEach((segmentCoords, idx) => {
         if (segmentCoords.length < 2) return;
 
         // Draw visible corridor showing search area covered (vision radius ~14m = ~45ft)
+        // Width scales with zoom to maintain real-world size
         const searchCorridor = L.polyline(segmentCoords, {
           color: '#a855f7', // Purple
-          weight: 50, // Wide corridor to show search area
+          weight: Math.max(corridorWidth, 4), // Dynamic width, min 4px
           opacity: 0.45, // 45% - clearly visible but not overwhelming
           smoothFactor: 1,
           lineJoin: 'round',
           lineCap: 'round'
         }).addTo(mapInstance.current);
         searchCorridor.bringToFront();
+
+        // Store reference for zoom updates
+        corridorLayersRef.current.push(searchCorridor);
 
         // Add click handler to show details (only on first segment)
         if (idx === 0) {
@@ -624,6 +664,11 @@ export default function SARMapView({
       const lineColor = isCurrentUser ? '#3b82f6' : trail.color;
       const lineOpacity = trail.isActive ? 0.9 : Math.max(decayedOpacity * 4, 0.3);
 
+      // Calculate corridor width based on current zoom
+      const zoom = mapInstance.current.getZoom();
+      const mapCenter = mapInstance.current.getCenter();
+      const corridorWidth = metersToPixels(VISION_RADIUS_METERS * 2, mapCenter.lat, zoom);
+
       // Draw each segment separately
       segments.forEach(segmentCoords => {
         if (segmentCoords.length < 2) return;
@@ -633,13 +678,16 @@ export default function SARMapView({
 
         const coverageCorridor = L.polyline(segmentCoords, {
           color: corridorColor,
-          weight: 50, // Wide corridor matching active search
+          weight: Math.max(corridorWidth, 4), // Dynamic width, min 4px
           opacity: corridorOpacity,
           smoothFactor: 1,
           lineJoin: 'round',
           lineCap: 'round',
         }).addTo(mapInstance.current);
         coverageCorridor.bringToFront();
+
+        // Store reference for zoom updates
+        corridorLayersRef.current.push(coverageCorridor);
 
         // Add click handler for popup
         coverageCorridor.on('click', (e) => {
