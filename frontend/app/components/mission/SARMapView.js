@@ -442,20 +442,23 @@ export default function SARMapView({
 
       // Add research-based probability zones (NEW - toggleable)
       if (showProbabilityZones && probabilityZones?.zones) {
+        console.log('[Map] Rendering probability zones:', probabilityZones.zones.length, 'zones');
         const milesToMeters = (miles) => miles * 1609.34;
         const zoneCenter = probabilityZones.center || [lastSeen.lat, lastSeen.lng];
+        console.log('[Map] Zone center:', zoneCenter);
 
         // Render zones from largest to smallest so smaller ones appear on top
         const sortedZones = [...probabilityZones.zones].sort((a, b) => b.radius - a.radius);
 
         sortedZones.forEach(zone => {
+          console.log('[Map] Drawing zone:', zone.name, 'radius:', zone.radius, 'miles, color:', zone.color);
           const circle = L.circle(zoneCenter, {
             radius: milesToMeters(zone.radius),
             color: zone.color,
             fillColor: zone.color,
-            fillOpacity: zone.fillOpacity,
-            weight: 3, // Visible border
-            opacity: 0.8, // Strong border visibility
+            fillOpacity: Math.max(zone.fillOpacity, 0.15), // Minimum 15% opacity for visibility
+            weight: 4, // Thicker border for visibility
+            opacity: 1.0, // Full border opacity
             dashArray: '8, 4', // Dashed border
           });
 
@@ -476,8 +479,11 @@ export default function SARMapView({
           `);
 
           circle.addTo(mapInstance.current);
+          circle.bringToBack(); // Put zones behind markers but above map tiles
           circlesRef.current.push(circle);
         });
+      } else if (showProbabilityZones) {
+        console.log('[Map] Probability zones enabled but no zone data:', { showProbabilityZones, zones: probabilityZones?.zones });
       }
     }
 

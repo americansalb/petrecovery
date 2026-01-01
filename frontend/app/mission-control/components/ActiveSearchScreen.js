@@ -29,7 +29,9 @@ import {
   Grid3X3,
   Zap,
   ArrowLeft,
+  Target,
 } from 'lucide-react';
+import { calculateProbabilityZones } from '@/app/lib/searchProbability';
 
 // Lazy load map
 const SARMapView = dynamic(() => import('@/app/components/mission/SARMapView'), {
@@ -92,6 +94,33 @@ export default function ActiveSearchScreen({
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [showStats, setShowStats] = useState(true);
   const [endResult, setEndResult] = useState(null);
+  const [showProbabilityZones, setShowProbabilityZones] = useState(false);
+
+  // Helper to convert lastSeenAt to time category
+  function getTimeElapsedCategory(lastSeenAt) {
+    if (!lastSeenAt) return '6_to_24_hours';
+    const hoursAgo = (Date.now() - new Date(lastSeenAt).getTime()) / (1000 * 60 * 60);
+    if (hoursAgo < 1) return 'less_than_hour';
+    if (hoursAgo < 6) return '1_to_6_hours';
+    if (hoursAgo < 24) return '6_to_24_hours';
+    if (hoursAgo < 72) return '1_to_3_days';
+    if (hoursAgo < 168) return '3_to_7_days';
+    if (hoursAgo < 336) return '1_to_2_weeks';
+    return 'more_than_2_weeks';
+  }
+
+  // Calculate probability zones based on mission data
+  const probabilityZones = useMemo(() => {
+    if (!mission?.lastSeenLatitude || !mission?.lastSeenLongitude) return null;
+    return calculateProbabilityZones({
+      species: mission.petSpecies,
+      size: mission.petSize,
+      isIndoorCat: mission.petDescription?.includes('Indoor cat') ? true :
+                    mission.petDescription?.includes('Outdoor access') ? false : null,
+      timeElapsed: getTimeElapsedCategory(mission.lastSeenAt),
+      lastSeenLocation: [mission.lastSeenLatitude, mission.lastSeenLongitude],
+    });
+  }, [mission]);
 
   // Get contextual tip
   const currentTip = useMemo(() =>
@@ -183,7 +212,26 @@ export default function ActiveSearchScreen({
           showControls={false}
           showLegend={false}
           interactive={true}
+          showProbabilityZones={showProbabilityZones}
+          probabilityZones={probabilityZones}
         />
+
+        {/* Search Zones Toggle */}
+        {mission?.lastSeenLatitude && (
+          <button
+            onClick={() => setShowProbabilityZones(!showProbabilityZones)}
+            className={`absolute bottom-4 left-4 z-20 flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg transition-all ${
+              showProbabilityZones
+                ? 'bg-red-500 text-white'
+                : 'bg-slate-800/90 backdrop-blur text-slate-300'
+            }`}
+          >
+            <Target size={18} />
+            <span className="font-medium text-sm">
+              {showProbabilityZones ? 'Hide' : 'Zones'}
+            </span>
+          </button>
+        )}
 
         {/* Validation Warning Overlay */}
         {validation.lastWarning && (
