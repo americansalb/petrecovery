@@ -260,27 +260,112 @@ export default function ReportLostPet() {
   const searchTimeoutRef = useRef(null);
 
   // Fallback to Nominatim (OpenStreetMap) for autocomplete
+  // Uses structured query parameters for better results
   const searchWithNominatim = async (query) => {
     try {
+      // Try structured search first for better address matching
       const params = new URLSearchParams({
         q: query,
         format: 'json',
-        limit: '5',
+        limit: '8',
         addressdetails: '1',
-        countrycodes: 'us', // Bias toward US results
+        countrycodes: 'us',
+        'accept-language': 'en',
+        dedupe: '1',
       });
+
       const response = await fetch(`/api/geocode?${params.toString()}`);
       if (!response.ok) return [];
       const data = await response.json();
-      return (Array.isArray(data) ? data : []).map(result => ({
-        name: result.name || result.display_name?.split(',')[0] || query,
-        address: result.display_name || '',
-        latitude: parseFloat(result.lat),
-        longitude: parseFloat(result.lon),
-        _source: 'nominatim',
-      }));
+
+      return (Array.isArray(data) ? data : []).map(result => {
+        // Build a cleaner display name
+        const addr = result.address || {};
+        const parts = [];
+
+        // Add place name if different from road
+        if (result.name && result.name !== addr.road) {
+          parts.push(result.name);
+        }
+
+        // Add house number and road
+        if (addr.house_number && addr.road) {
+          parts.push(`${addr.house_number} ${addr.road}`);
+        } else if (addr.road) {
+          parts.push(addr.road);
+        }
+
+        // Add city
+        const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
+        if (city) parts.push(city);
+
+        // Add state
+        if (addr.state) parts.push(addr.state);
+
+        const displayName = parts.length > 0 ? parts.join(', ') : result.display_name;
+
+        return {
+          name: result.name || parts[0] || query,
+          address: displayName,
+          latitude: parseFloat(result.lat),
+          longitude: parseFloat(result.lon),
+          _source: 'nominatim',
+          _type: result.type,
+          _class: result.class,
+        };
+      });
     } catch (err) {
       console.error('Nominatim search error:', err);
+      return [];
+    }
+  };
+
+  // Photon geocoder (komoot) - often better for POI/business search
+  const searchWithPhoton = async (query) => {
+    try {
+      const params = new URLSearchParams({
+        q: query,
+        limit: '6',
+        lang: 'en',
+      });
+      // Bias toward user's location if available
+      if (center?.[0] && center?.[1]) {
+        params.append('lat', center[0].toString());
+        params.append('lon', center[1].toString());
+      }
+
+      const response = await fetch(`https://photon.komoot.io/api/?${params.toString()}`);
+      if (!response.ok) return [];
+      const data = await response.json();
+
+      return (data.features || []).map(feature => {
+        const props = feature.properties || {};
+        const coords = feature.geometry?.coordinates || [];
+
+        // Build display name
+        const parts = [];
+        if (props.name) parts.push(props.name);
+        if (props.housenumber && props.street) {
+          parts.push(`${props.housenumber} ${props.street}`);
+        } else if (props.street) {
+          parts.push(props.street);
+        }
+        if (props.city || props.town || props.village) {
+          parts.push(props.city || props.town || props.village);
+        }
+        if (props.state) parts.push(props.state);
+
+        return {
+          name: props.name || parts[0] || query,
+          address: parts.join(', '),
+          latitude: coords[1],
+          longitude: coords[0],
+          _source: 'photon',
+          _type: props.osm_value,
+        };
+      }).filter(r => r.latitude && r.longitude);
+    } catch (err) {
+      console.error('Photon search error:', err);
       return [];
     }
   };
@@ -296,28 +381,55 @@ export default function ReportLostPet() {
       clearTimeout(searchTimeoutRef.current);
     }
 
-    // Wait 300ms before searching
+    // Wait 250ms before searching
     searchTimeoutRef.current = setTimeout(async () => {
       setIsSearching(true);
       try {
-        // Try Apple Maps autocomplete first (better business/place results)
-        let results = [];
-        try {
-          results = await searchAutocomplete(query, {
+        // Use multiple geocoding services in parallel for best results
+        const [photonResults, nominatimResults, appleResults] = await Promise.allSettled([
+          searchWithPhoton(query),
+          searchWithNominatim(query),
+          searchAutocomplete(query, {
             latitude: center?.[0],
             longitude: center?.[1],
             limit: 5
-          });
-        } catch (appleErr) {
-          console.warn('Apple Maps autocomplete failed, falling back to Nominatim:', appleErr);
+          }).catch(() => []),
+        ]);
+
+        // Combine results, prioritizing Apple > Photon > Nominatim
+        let results = [];
+
+        // Add Apple results first (if any)
+        if (appleResults.status === 'fulfilled' && appleResults.value?.length > 0) {
+          results = [...appleResults.value];
         }
 
-        // Fallback to Nominatim if Apple Maps returns no results or fails
-        if (!results || results.length === 0) {
-          results = await searchWithNominatim(query);
+        // Add Photon results
+        if (photonResults.status === 'fulfilled' && photonResults.value?.length > 0) {
+          // Avoid duplicates by checking coordinates
+          const existing = new Set(results.map(r => `${r.latitude?.toFixed(4)},${r.longitude?.toFixed(4)}`));
+          for (const r of photonResults.value) {
+            const key = `${r.latitude?.toFixed(4)},${r.longitude?.toFixed(4)}`;
+            if (!existing.has(key)) {
+              results.push(r);
+              existing.add(key);
+            }
+          }
         }
 
-        setSearchResults(results);
+        // Add Nominatim results if we still don't have enough
+        if (results.length < 5 && nominatimResults.status === 'fulfilled' && nominatimResults.value?.length > 0) {
+          const existing = new Set(results.map(r => `${r.latitude?.toFixed(4)},${r.longitude?.toFixed(4)}`));
+          for (const r of nominatimResults.value) {
+            const key = `${r.latitude?.toFixed(4)},${r.longitude?.toFixed(4)}`;
+            if (!existing.has(key) && results.length < 8) {
+              results.push(r);
+              existing.add(key);
+            }
+          }
+        }
+
+        setSearchResults(results.slice(0, 8));
       } catch (err) {
         console.error('Search error:', err);
         // Last resort: try Nominatim directly
@@ -330,7 +442,7 @@ export default function ReportLostPet() {
       } finally {
         setIsSearching(false);
       }
-    }, 300);
+    }, 250);
   };
 
   const selectSearchResult = async (result) => {

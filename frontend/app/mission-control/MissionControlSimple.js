@@ -17,7 +17,7 @@ import { useState, useCallback, useMemo, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { Loader2, AlertTriangle, MapPin, Target } from 'lucide-react';
+import { Loader2, AlertTriangle, MapPin, Target, Settings } from 'lucide-react';
 
 // Hooks
 import useMissionControl from './hooks/useMissionControl';
@@ -38,6 +38,7 @@ import ActionsPanel from './components/simple/ActionsPanel';
 import TipsPanel from './components/simple/TipsPanel';
 import SightingFormModal from './components/modals/SightingFormModal';
 import ProbabilityZoneToggle from './components/simple/ProbabilityZoneToggle';
+import ProbabilityZoneAdjuster from '@/app/components/mission/ProbabilityZoneAdjuster';
 import { printFlyer } from '@/app/lib/flyerGenerator';
 
 // Dynamic import for map (no SSR)
@@ -63,6 +64,8 @@ function MissionControlContent() {
 
   // Probability zones toggle - ON by default to guide searchers
   const [showProbabilityZones, setShowProbabilityZones] = useState(true);
+  const [showZoneAdjuster, setShowZoneAdjuster] = useState(false);
+  const [zoneSettingsOverride, setZoneSettingsOverride] = useState({});
 
   // Main mission state
   const mission = useMissionControl(session);
@@ -97,31 +100,44 @@ function MissionControlContent() {
     return null;
   }, [activeMission?.lastSeenLatitude, activeMission?.lastSeenLongitude, activeMission?.lastSeenLat, activeMission?.lastSeenLng]);
 
+  // Helper to get time elapsed category
+  const getTimeElapsedCategory = useCallback((lastSeenAt) => {
+    if (!lastSeenAt) return '6_to_24_hours';
+    const hoursAgo = (Date.now() - new Date(lastSeenAt).getTime()) / (1000 * 60 * 60);
+    if (hoursAgo < 1) return 'less_than_hour';
+    if (hoursAgo < 6) return '1_to_6_hours';
+    if (hoursAgo < 24) return '6_to_24_hours';
+    if (hoursAgo < 72) return '1_to_3_days';
+    if (hoursAgo < 168) return '3_to_7_days';
+    if (hoursAgo < 336) return '1_to_2_weeks';
+    return 'more_than_2_weeks';
+  }, []);
+
+  // Current zone settings (mission data + overrides)
+  const currentZoneSettings = useMemo(() => {
+    const baseIsIndoorCat = activeMission?.petDescription?.includes('Indoor cat') ? true :
+                            activeMission?.petDescription?.includes('Outdoor access') ? false : null;
+    return {
+      size: zoneSettingsOverride.size || activeMission?.petSize || 'MEDIUM',
+      isIndoorCat: zoneSettingsOverride.isIndoorCat ?? baseIsIndoorCat,
+      timeElapsed: zoneSettingsOverride.timeElapsed || getTimeElapsedCategory(activeMission?.lastSeenAt),
+      age: zoneSettingsOverride.age || 'adult',
+    };
+  }, [activeMission, zoneSettingsOverride, getTimeElapsedCategory]);
+
   // Calculate probability zones for points multiplier
   const probabilityZones = useMemo(() => {
     if (!activeMission || !lastSeenLocation) return null;
 
-    const getTimeElapsedCategory = (lastSeenAt) => {
-      if (!lastSeenAt) return '6_to_24_hours';
-      const hoursAgo = (Date.now() - new Date(lastSeenAt).getTime()) / (1000 * 60 * 60);
-      if (hoursAgo < 1) return 'less_than_hour';
-      if (hoursAgo < 6) return '1_to_6_hours';
-      if (hoursAgo < 24) return '6_to_24_hours';
-      if (hoursAgo < 72) return '1_to_3_days';
-      if (hoursAgo < 168) return '3_to_7_days';
-      if (hoursAgo < 336) return '1_to_2_weeks';
-      return 'more_than_2_weeks';
-    };
-
     return calculateProbabilityZones({
       species: activeMission.petSpecies,
-      size: activeMission.petSize,
-      isIndoorCat: activeMission.petDescription?.includes('Indoor cat') ? true :
-        activeMission.petDescription?.includes('Outdoor access') ? false : null,
-      timeElapsed: getTimeElapsedCategory(activeMission.lastSeenAt),
+      size: currentZoneSettings.size,
+      isIndoorCat: currentZoneSettings.isIndoorCat,
+      timeElapsed: currentZoneSettings.timeElapsed,
+      age: currentZoneSettings.age,
       lastSeenLocation: [lastSeenLocation.lat, lastSeenLocation.lng],
     });
-  }, [activeMission, lastSeenLocation]);
+  }, [activeMission, lastSeenLocation, currentZoneSettings]);
 
   const searchSession = useSearchSession(activeMission?.id, lastSeenLocation, probabilityZones);
   const {
@@ -373,13 +389,24 @@ function MissionControlContent() {
               probabilityZones={probabilityZones}
             />
 
-            {/* Mobile Probability Toggle */}
+            {/* Mobile Probability Toggle + Settings */}
             {!isSearching && lastSeenLocation && (
-              <ProbabilityZoneToggle
-                show={showProbabilityZones}
-                onToggle={() => setShowProbabilityZones(!showProbabilityZones)}
-                className="absolute top-[200px] left-4"
-              />
+              <div className="absolute top-[200px] left-4 z-[500] flex items-center gap-2">
+                <ProbabilityZoneToggle
+                  show={showProbabilityZones}
+                  onToggle={() => setShowProbabilityZones(!showProbabilityZones)}
+                />
+                {/* Settings button - only show when zones are visible */}
+                {showProbabilityZones && (
+                  <button
+                    onClick={() => setShowZoneAdjuster(true)}
+                    className="flex items-center justify-center w-12 h-12 rounded-xl bg-slate-900/80 backdrop-blur-md border border-white/10 text-slate-200 shadow-xl hover:bg-slate-800 hover:text-white transition"
+                    title="Adjust zone settings"
+                  >
+                    <Settings size={20} />
+                  </button>
+                )}
+              </div>
             )}
 
             {/* Mobile Search Controls */}
@@ -611,13 +638,23 @@ function MissionControlContent() {
             probabilityZones={probabilityZones}
           />
 
-          {/* Probability Zones Toggle - Desktop */}
+          {/* Probability Zones Toggle + Settings - Desktop */}
           {!isSearching && lastSeenLocation && (
-            <ProbabilityZoneToggle
-              show={showProbabilityZones}
-              onToggle={() => setShowProbabilityZones(!showProbabilityZones)}
-              className="absolute bottom-28 left-6"
-            />
+            <div className="absolute bottom-28 left-6 z-[500] flex items-center gap-2">
+              <ProbabilityZoneToggle
+                show={showProbabilityZones}
+                onToggle={() => setShowProbabilityZones(!showProbabilityZones)}
+              />
+              {showProbabilityZones && (
+                <button
+                  onClick={() => setShowZoneAdjuster(true)}
+                  className="flex items-center justify-center w-12 h-12 rounded-xl bg-slate-900/80 backdrop-blur-md border border-white/10 text-slate-200 shadow-xl hover:bg-slate-800 hover:text-white transition"
+                  title="Adjust zone settings"
+                >
+                  <Settings size={20} />
+                </button>
+              )}
+            </div>
           )}
 
           {/* Search controls overlay on map */}
@@ -704,6 +741,17 @@ function MissionControlContent() {
           onSuccess={handleSightingSuccess}
         />
       )}
+
+      {/* Probability Zone Adjuster Modal */}
+      <ProbabilityZoneAdjuster
+        isOpen={showZoneAdjuster}
+        onClose={() => setShowZoneAdjuster(false)}
+        petSpecies={activeMission?.petSpecies}
+        currentSettings={currentZoneSettings}
+        onSettingsChange={(newSettings) => {
+          setZoneSettingsOverride(newSettings);
+        }}
+      />
     </div>
   );
 }
