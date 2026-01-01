@@ -14,7 +14,7 @@
  */
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, MapPin, Eye, User, Radio, Building2, Target, Info } from 'lucide-react';
+import { ChevronDown, ChevronUp, MapPin, Building2, Info } from 'lucide-react';
 
 export default function MapLegend({
   showSightings = false,

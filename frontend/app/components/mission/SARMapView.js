@@ -519,8 +519,9 @@ export default function SARMapView({
               opacity: 0.6,
             });
 
-            // Calculate octant-specific probability (zone probability / 8)
-            const zoneProbability = zone.cumulativePercent || zone.probabilityPercent;
+            // Calculate octant-specific probability (individual zone probability / 8)
+            // Use probabilityPercent (individual) not cumulativePercent (cumulative)
+            const zoneProbability = zone.probabilityPercent || zone.cumulativePercent;
             const octantProbability = (zoneProbability / 8).toFixed(1);
 
             const radiusText = zone.radius < 1
@@ -611,12 +612,18 @@ export default function SARMapView({
 
     // Add sighting markers with expanding zones
     sightings.forEach((sighting, index) => {
-      const hoursSinceSighting = sighting.sightedAt
-        ? (Date.now() - new Date(sighting.sightedAt).getTime()) / 3600000
-        : 0;
+      // Skip sightings without valid coordinates
+      if (!sighting.latitude || !sighting.longitude) {
+        console.warn('[Map] Skipping sighting without coordinates:', sighting);
+        return;
+      }
+
+      // Use sightedAt, fall back to createdAt, or default to now
+      const sightingTime = sighting.sightedAt || sighting.createdAt || new Date().toISOString();
+      const hoursSinceSighting = (Date.now() - new Date(sightingTime).getTime()) / 3600000;
 
       // Determine if sighting is confirmed
-      const isConfirmed = sighting.isConfirmed || false;
+      const isConfirmed = sighting.isConfirmed === true;
 
       // Zone color: blue for unconfirmed, green for confirmed
       const zoneColor = isConfirmed ? '#22c55e' : '#3b82f6';
@@ -626,7 +633,7 @@ export default function SARMapView({
       const baseRadiusMiles = 0.1;
       const growthRatePerHour = 0.25;
       const maxRadiusMiles = 3;
-      const radiusMiles = Math.min(baseRadiusMiles + (hoursSinceSighting * growthRatePerHour), maxRadiusMiles);
+      const radiusMiles = Math.min(baseRadiusMiles + (Math.max(0, hoursSinceSighting) * growthRatePerHour), maxRadiusMiles);
       const radiusMeters = radiusMiles * 1609.34;
 
       // Draw the expanding sighting zone
@@ -637,7 +644,7 @@ export default function SARMapView({
         fillOpacity: 0.12,
         weight: 2,
         opacity: 0.7,
-        dashArray: isConfirmed ? null : '6, 4', // Solid for confirmed, dashed for unconfirmed
+        dashArray: isConfirmed ? '' : '6, 4', // Empty string for solid, dashed for unconfirmed
       });
 
       // Format time ago text
@@ -656,7 +663,8 @@ export default function SARMapView({
       const statusLabel = isConfirmed ? '✓ CONFIRMED' : 'UNCONFIRMED';
       const statusColor = isConfirmed ? '#22c55e' : '#3b82f6';
 
-      sightingZone.bindPopup(`
+      // Shared popup content builder
+      const buildPopupContent = (includePhoto = false) => `
         <div style="text-align:center;padding:6px;min-width:160px;">
           <div style="font-weight:700;color:${statusColor};font-size:12px;margin-bottom:4px;">
             👁 ${statusLabel}
@@ -674,14 +682,22 @@ export default function SARMapView({
               "${sighting.description.slice(0, 60)}${sighting.description.length > 60 ? '...' : ''}"
             </div>
           ` : ''}
+          ${includePhoto && sighting.photoUrl ? `
+            <div style="margin-top:8px;">
+              <a href="${sighting.photoUrl}" target="_blank" style="color:#3b82f6;font-size:11px;text-decoration:none;">
+                📷 View Photo
+              </a>
+            </div>
+          ` : ''}
           ${!isConfirmed ? `
             <div style="font-size:10px;color:#888;margin-top:6px;">
               Owner can confirm this sighting
             </div>
           ` : ''}
         </div>
-      `);
+      `;
 
+      sightingZone.bindPopup(buildPopupContent(true));
       sightingZone.addTo(mapInstance.current);
       sightingZone.bringToBack();
       circlesRef.current.push(sightingZone);
@@ -708,38 +724,7 @@ export default function SARMapView({
       });
 
       const marker = L.marker([sighting.latitude, sighting.longitude], { icon: sightingIcon, zIndexOffset: 500 })
-        .bindPopup(`
-          <div style="text-align:center;padding:6px;min-width:160px;">
-            <div style="font-weight:700;color:${statusColor};font-size:12px;margin-bottom:4px;">
-              👁 ${statusLabel}
-            </div>
-            <div style="font-size:14px;font-weight:600;color:#333;">
-              ${timeAgoText} • ${radiusText}
-            </div>
-            ${isConfirmed && sighting.confirmedBy ? `
-              <div style="font-size:11px;color:#666;margin-top:4px;">
-                Verified by ${sighting.confirmedBy}
-              </div>
-            ` : ''}
-            ${sighting.description ? `
-              <div style="font-size:11px;color:#666;margin-top:6px;padding-top:6px;border-top:1px solid #eee;">
-                "${sighting.description.slice(0, 60)}${sighting.description.length > 60 ? '...' : ''}"
-              </div>
-            ` : ''}
-            ${sighting.photoUrl ? `
-              <div style="margin-top:8px;">
-                <a href="${sighting.photoUrl}" target="_blank" style="color:#3b82f6;font-size:11px;text-decoration:none;">
-                  📷 View Photo
-                </a>
-              </div>
-            ` : ''}
-            ${!isConfirmed ? `
-              <div style="font-size:10px;color:#888;margin-top:6px;">
-                Owner can confirm this sighting
-              </div>
-            ` : ''}
-          </div>
-        `)
+        .bindPopup(buildPopupContent(true))
         .addTo(mapInstance.current);
       markersRef.current.push(marker);
     });
