@@ -30,8 +30,10 @@ import {
   Zap,
   ArrowLeft,
   Target,
+  Settings,
 } from 'lucide-react';
 import { calculateProbabilityZones } from '@/app/lib/searchProbability';
+import ProbabilityZoneAdjuster from '@/app/components/mission/ProbabilityZoneAdjuster';
 
 // Lazy load map
 const SARMapView = dynamic(() => import('@/app/components/mission/SARMapView'), {
@@ -95,6 +97,8 @@ export default function ActiveSearchScreen({
   const [showStats, setShowStats] = useState(true);
   const [endResult, setEndResult] = useState(null);
   const [showProbabilityZones, setShowProbabilityZones] = useState(false);
+  const [showZoneAdjuster, setShowZoneAdjuster] = useState(false);
+  const [zoneSettingsOverride, setZoneSettingsOverride] = useState({});
 
   // Helper to convert lastSeenAt to time category
   function getTimeElapsedCategory(lastSeenAt) {
@@ -109,18 +113,30 @@ export default function ActiveSearchScreen({
     return 'more_than_2_weeks';
   }
 
-  // Calculate probability zones based on mission data
+  // Current zone settings (mission data + any overrides)
+  const currentZoneSettings = useMemo(() => {
+    const baseIsIndoorCat = mission?.petDescription?.includes('Indoor cat') ? true :
+                            mission?.petDescription?.includes('Outdoor access') ? false : null;
+    return {
+      size: zoneSettingsOverride.size || mission?.petSize || 'MEDIUM',
+      isIndoorCat: zoneSettingsOverride.isIndoorCat ?? baseIsIndoorCat,
+      timeElapsed: zoneSettingsOverride.timeElapsed || getTimeElapsedCategory(mission?.lastSeenAt),
+      age: zoneSettingsOverride.age || 'adult',
+    };
+  }, [mission, zoneSettingsOverride]);
+
+  // Calculate probability zones based on mission data + overrides
   const probabilityZones = useMemo(() => {
     if (!mission?.lastSeenLatitude || !mission?.lastSeenLongitude) return null;
     return calculateProbabilityZones({
       species: mission.petSpecies,
-      size: mission.petSize,
-      isIndoorCat: mission.petDescription?.includes('Indoor cat') ? true :
-                    mission.petDescription?.includes('Outdoor access') ? false : null,
-      timeElapsed: getTimeElapsedCategory(mission.lastSeenAt),
+      size: currentZoneSettings.size,
+      isIndoorCat: currentZoneSettings.isIndoorCat,
+      timeElapsed: currentZoneSettings.timeElapsed,
+      age: currentZoneSettings.age,
       lastSeenLocation: [mission.lastSeenLatitude, mission.lastSeenLongitude],
     });
-  }, [mission]);
+  }, [mission, currentZoneSettings]);
 
   // Get contextual tip
   const currentTip = useMemo(() =>
@@ -216,21 +232,34 @@ export default function ActiveSearchScreen({
           probabilityZones={probabilityZones}
         />
 
-        {/* Search Zones Toggle */}
+        {/* Search Zones Controls */}
         {mission?.lastSeenLatitude && (
-          <button
-            onClick={() => setShowProbabilityZones(!showProbabilityZones)}
-            className={`absolute bottom-4 left-4 z-20 flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg transition-all ${
-              showProbabilityZones
-                ? 'bg-red-500 text-white'
-                : 'bg-slate-800/90 backdrop-blur text-slate-300'
-            }`}
-          >
-            <Target size={18} />
-            <span className="font-medium text-sm">
-              {showProbabilityZones ? 'Hide' : 'Zones'}
-            </span>
-          </button>
+          <div className="absolute bottom-4 left-4 z-20 flex items-center gap-2">
+            <button
+              onClick={() => setShowProbabilityZones(!showProbabilityZones)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg transition-all ${
+                showProbabilityZones
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-slate-800/90 backdrop-blur text-slate-300'
+              }`}
+            >
+              <Target size={18} />
+              <span className="font-medium text-sm">
+                {showProbabilityZones ? 'Zones On' : 'Zones'}
+              </span>
+            </button>
+
+            {/* Settings button - only show when zones are visible */}
+            {showProbabilityZones && (
+              <button
+                onClick={() => setShowZoneAdjuster(true)}
+                className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-800/90 backdrop-blur text-slate-300 shadow-lg hover:bg-slate-700 transition"
+                title="Adjust zone settings"
+              >
+                <Settings size={18} />
+              </button>
+            )}
+          </div>
         )}
 
         {/* Validation Warning Overlay */}
@@ -448,6 +477,17 @@ export default function ActiveSearchScreen({
           </div>
         </div>
       )}
+
+      {/* Probability Zone Adjuster Modal */}
+      <ProbabilityZoneAdjuster
+        isOpen={showZoneAdjuster}
+        onClose={() => setShowZoneAdjuster(false)}
+        petSpecies={mission?.petSpecies}
+        currentSettings={currentZoneSettings}
+        onSettingsChange={(newSettings) => {
+          setZoneSettingsOverride(newSettings);
+        }}
+      />
     </div>
   );
 }

@@ -259,6 +259,32 @@ export default function ReportLostPet() {
   // Debounce search
   const searchTimeoutRef = useRef(null);
 
+  // Fallback to Nominatim (OpenStreetMap) for autocomplete
+  const searchWithNominatim = async (query) => {
+    try {
+      const params = new URLSearchParams({
+        q: query,
+        format: 'json',
+        limit: '5',
+        addressdetails: '1',
+        countrycodes: 'us', // Bias toward US results
+      });
+      const response = await fetch(`/api/geocode?${params.toString()}`);
+      if (!response.ok) return [];
+      const data = await response.json();
+      return (Array.isArray(data) ? data : []).map(result => ({
+        name: result.name || result.display_name?.split(',')[0] || query,
+        address: result.display_name || '',
+        latitude: parseFloat(result.lat),
+        longitude: parseFloat(result.lon),
+        _source: 'nominatim',
+      }));
+    } catch (err) {
+      console.error('Nominatim search error:', err);
+      return [];
+    }
+  };
+
   const searchAddress = async (query) => {
     if (!query.trim() || query.length < 2) {
       setSearchResults([]);
@@ -274,16 +300,33 @@ export default function ReportLostPet() {
     searchTimeoutRef.current = setTimeout(async () => {
       setIsSearching(true);
       try {
-        // Use Apple Maps autocomplete for better results (businesses, addresses, etc.)
-        const results = await searchAutocomplete(query, {
-          latitude: center?.[0],
-          longitude: center?.[1],
-          limit: 5
-        });
+        // Try Apple Maps autocomplete first (better business/place results)
+        let results = [];
+        try {
+          results = await searchAutocomplete(query, {
+            latitude: center?.[0],
+            longitude: center?.[1],
+            limit: 5
+          });
+        } catch (appleErr) {
+          console.warn('Apple Maps autocomplete failed, falling back to Nominatim:', appleErr);
+        }
+
+        // Fallback to Nominatim if Apple Maps returns no results or fails
+        if (!results || results.length === 0) {
+          results = await searchWithNominatim(query);
+        }
+
         setSearchResults(results);
       } catch (err) {
         console.error('Search error:', err);
-        setSearchResults([]);
+        // Last resort: try Nominatim directly
+        try {
+          const fallbackResults = await searchWithNominatim(query);
+          setSearchResults(fallbackResults);
+        } catch {
+          setSearchResults([]);
+        }
       } finally {
         setIsSearching(false);
       }
@@ -296,17 +339,29 @@ export default function ReportLostPet() {
     setAddressSearch('');
 
     try {
-      // Get full place details with coordinates
-      const place = await getPlaceFromAutocomplete(result);
+      let lat, lon, address;
 
-      if (place && place.latitude && place.longitude) {
-        const lat = place.latitude;
-        const lon = place.longitude;
+      // If result already has coordinates (from Nominatim or Apple autocomplete with coords)
+      if (result.latitude && result.longitude) {
+        lat = result.latitude;
+        lon = result.longitude;
+        address = result.address || result.name;
+      } else {
+        // Get full place details from Apple Maps (for results without coords)
+        const place = await getPlaceFromAutocomplete(result);
+        if (place && place.latitude && place.longitude) {
+          lat = place.latitude;
+          lon = place.longitude;
+          address = place.address || result.address;
+        }
+      }
+
+      if (lat && lon) {
         setCenter([lat, lon]);
-        setLastSeenAddress(place.address || result.address);
+        setLastSeenAddress(address);
 
         // Extract city from address
-        const addressParts = (place.address || '').split(',');
+        const addressParts = (address || '').split(',');
         const city = addressParts.length >= 2 ? addressParts[addressParts.length - 2]?.trim() : '';
         setCityName(city);
 
@@ -630,7 +685,7 @@ export default function ReportLostPet() {
     : ['Contact', 'Location', 'Pet', 'Name', 'Details', 'When', 'Color', 'Photo', 'Review'];
 
   return (
-    <div className="h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50 flex flex-col overflow-hidden">
+    <div className="min-h-[100dvh] max-h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50 flex flex-col overflow-hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       {/* Header */}
       <header className="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
         <button
@@ -669,8 +724,8 @@ export default function ReportLostPet() {
         <div className="w-10" />
       </header>
 
-      {/* Content */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      {/* Content - scrollable with room for footer */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden">
 
         {/* Step 0: Contact Info (non-logged-in users) */}
         {step === 0 && (
@@ -1189,13 +1244,13 @@ export default function ReportLostPet() {
         )}
       </div>
 
-      {/* Footer with Next button */}
+      {/* Footer with Next button - fixed at bottom on mobile */}
       {step >= minStep && step < 9 && (
-        <div className="px-6 pb-6 pt-4 flex-shrink-0 bg-gradient-to-t from-white via-white to-transparent">
+        <div className="px-4 sm:px-6 pb-4 sm:pb-6 pt-3 sm:pt-4 flex-shrink-0 bg-gradient-to-t from-white via-white to-transparent sticky bottom-0" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 16px))' }}>
           <button
             onClick={nextStep}
             disabled={!canProceed() || isSubmitting}
-            className={`w-full py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2 transition-all ${
+            className={`w-full py-3.5 sm:py-4 rounded-2xl font-semibold text-base sm:text-lg flex items-center justify-center gap-2 transition-all ${
               canProceed() && !isSubmitting
                 ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-200 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
                 : 'bg-gray-200 text-gray-400'
