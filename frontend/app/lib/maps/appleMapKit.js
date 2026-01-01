@@ -13,7 +13,7 @@ const MAPKIT_JS_URL = 'https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.js';
 // Token - In production, this should come from an environment variable
 // or be fetched from a secure backend endpoint
 const MAPKIT_TOKEN = process.env.NEXT_PUBLIC_APPLE_MAPKIT_TOKEN ||
-  'eyJraWQiOiJWM0xWNVNMNEJBIiwidHlwIjoiSldUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJCRjIzTjRINjdWIiwiaWF0IjoxNzY1MzEyNDI3LCJvcmlnaW4iOiJwZXRyZWNvdmVyeS5vbnJlbmRlci5jb20ifQ.UTZplSiKmf2hhBbGtCpaQ-50F2tRuCbrpSXuorelsS9wxvp--hl3n5qFMgL_RHxOcigAPWfRVA0hkazq2uuaFA';
+  'eyJraWQiOiI3ODg3N1dWNlo3IiwidHlwIjoiSldUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJCRjIzTjRINjdWIiwiaWF0IjoxNzY3MzA5NTY4LCJvcmlnaW4iOiJyZXVuaXRlcGV0cy5vcmcifQ.zqtlPpm1wfmlfq-BmdxWgsBS9xhAoMQNWFg-ZMzJroyINHPML609QTfjTKAOyX_GrtWoy444YjRt6MnkhUXC5A';
 
 // Track initialization state
 let mapkitInitialized = false;
