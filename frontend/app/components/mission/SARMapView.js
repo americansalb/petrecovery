@@ -441,36 +441,71 @@ export default function SARMapView({
       }
 
       // Add research-based probability zones (NEW - toggleable)
+      // Draw as rings (donuts) so colors don't overlap
       if (showProbabilityZones && probabilityZones?.zones) {
         console.log('[Map] Rendering probability zones:', probabilityZones.zones.length, 'zones');
         const milesToMeters = (miles) => miles * 1609.34;
         const zoneCenter = probabilityZones.center || [lastSeen.lat, lastSeen.lng];
         console.log('[Map] Zone center:', zoneCenter);
 
-        // Render zones from largest to smallest so smaller ones appear on top
-        const sortedZones = [...probabilityZones.zones].sort((a, b) => b.radius - a.radius);
+        // Helper to generate circle coordinates for polygons
+        const generateCircleCoords = (center, radiusMeters, numPoints = 64) => {
+          const coords = [];
+          const [lat, lng] = center;
+          for (let i = 0; i <= numPoints; i++) {
+            const angle = (i / numPoints) * 2 * Math.PI;
+            // Convert meters to degrees (approximate)
+            const latOffset = (radiusMeters / 111320) * Math.cos(angle);
+            const lngOffset = (radiusMeters / (111320 * Math.cos(lat * Math.PI / 180))) * Math.sin(angle);
+            coords.push([lat + latOffset, lng + lngOffset]);
+          }
+          return coords;
+        };
 
-        sortedZones.forEach(zone => {
-          console.log('[Map] Drawing zone:', zone.name, 'radius:', zone.radius, 'miles, color:', zone.color);
-          const circle = L.circle(zoneCenter, {
-            radius: milesToMeters(zone.radius),
-            color: zone.color,
-            fillColor: zone.color,
-            fillOpacity: Math.max(zone.fillOpacity, 0.15), // Minimum 15% opacity for visibility
-            weight: 4, // Thicker border for visibility
-            opacity: 1.0, // Full border opacity
-            dashArray: '8, 4', // Dashed border
-          });
+        // Sort zones from smallest to largest for ring creation
+        const sortedZones = [...probabilityZones.zones].sort((a, b) => a.radius - b.radius);
+        const ZONE_OPACITY = 0.12; // Subtle, consistent opacity for all zones
+
+        sortedZones.forEach((zone, index) => {
+          console.log('[Map] Drawing zone ring:', zone.name, 'radius:', zone.radius, 'miles, color:', zone.color);
+
+          const outerRadius = milesToMeters(zone.radius);
+          const outerCoords = generateCircleCoords(zoneCenter, outerRadius);
+
+          let polygon;
+          if (index === 0) {
+            // Innermost zone - draw as filled circle
+            polygon = L.polygon(outerCoords, {
+              color: zone.color,
+              fillColor: zone.color,
+              fillOpacity: ZONE_OPACITY,
+              weight: 2,
+              opacity: 0.8,
+              dashArray: '6, 3',
+            });
+          } else {
+            // Outer zones - draw as ring (donut) with hole for inner zone
+            const innerRadius = milesToMeters(sortedZones[index - 1].radius);
+            const innerCoords = generateCircleCoords(zoneCenter, innerRadius).reverse(); // Reverse for hole
+
+            polygon = L.polygon([outerCoords, innerCoords], {
+              color: zone.color,
+              fillColor: zone.color,
+              fillOpacity: ZONE_OPACITY,
+              weight: 2,
+              opacity: 0.8,
+              dashArray: '6, 3',
+            });
+          }
 
           // Add popup with zone info
           const radiusText = zone.radius < 1
             ? `${Math.round(zone.radius * 5280)} feet`
             : `${zone.radius.toFixed(1)} miles`;
 
-          // Use cumulative percent - "X% chance pet is within this distance"
           const displayPercent = zone.cumulativePercent || zone.probabilityPercent;
 
-          circle.bindPopup(`
+          polygon.bindPopup(`
             <div style="text-align:center;padding:4px;">
               <b style="color:${zone.color}">${zone.name}</b><br>
               <span style="font-size:16px;font-weight:bold">${displayPercent}%</span><br>
@@ -478,9 +513,9 @@ export default function SARMapView({
             </div>
           `);
 
-          circle.addTo(mapInstance.current);
-          circle.bringToBack(); // Put zones behind markers but above map tiles
-          circlesRef.current.push(circle);
+          polygon.addTo(mapInstance.current);
+          polygon.bringToBack();
+          circlesRef.current.push(polygon);
         });
       } else if (showProbabilityZones) {
         console.log('[Map] Probability zones enabled but no zone data:', { showProbabilityZones, zones: probabilityZones?.zones });
