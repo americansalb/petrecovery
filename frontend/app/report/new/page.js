@@ -156,9 +156,10 @@ export default function ReportLostPet() {
   useEffect(() => {
     if (typeof window === 'undefined' || !center || step !== 1) return;
 
-    // If map already exists, just update view
+    // If map already exists, just update marker position (preserve zoom level)
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.setView(center, 17);
+      const currentZoom = mapInstanceRef.current.getZoom();
+      mapInstanceRef.current.setView(center, currentZoom);
       if (markerRef.current) markerRef.current.setLatLng(center);
       if (circleRef.current) circleRef.current.setLatLng(center);
       return;
@@ -909,7 +910,7 @@ export default function ReportLostPet() {
                     searchAddress(e.target.value);
                   }}
                   placeholder="Search address..."
-                  className="w-full pl-10 pr-4 py-3 text-sm bg-white border border-gray-200 rounded-xl focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none"
+                  className="w-full pl-10 pr-4 py-3 text-base bg-white border border-gray-200 rounded-xl focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none"
                 />
                 {isSearching && (
                   <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />
@@ -1056,7 +1057,7 @@ export default function ReportLostPet() {
                 setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
               }}
               placeholder="Enter name..."
-              className="w-full text-2xl font-medium py-4 border-b-2 border-gray-200 focus:border-pink-400 outline-none bg-transparent placeholder:text-gray-300 transition-colors"
+              className="w-full text-base sm:text-2xl font-medium px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-pink-400 outline-none bg-white placeholder:text-gray-300 transition-colors"
               autoFocus
             />
             <p className="text-sm text-gray-400 mt-2">e.g., Max, Bella, Charlie</p>
