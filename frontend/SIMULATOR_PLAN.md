@@ -162,6 +162,67 @@ Individual simulation run:
 | Friendly dog | WANDERING | May approach people (detection boost) |
 | Senior pet | HIDING | Limited mobility reduces transitions |
 
+### Human Transport Event (Friendly Dogs)
+
+**Critical insight:** Friendly dogs often approach strangers, get "rescued" by good samaritans, and end up at shelters or homes miles from where they were lost. This is a major source of "false negatives" in search predictions.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    TRANSPORT EVENT MODEL                            │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   Friendly dog in WANDERING state                                   │
+│              │                                                      │
+│              ▼                                                      │
+│   Encounters human (probability based on population density)        │
+│              │                                                      │
+│              ▼                                                      │
+│   P(pickup) = friendliness × human_type × dog_condition            │
+│              │                                                      │
+│              ├──── Not picked up (80-95%) ──── Continue WANDERING  │
+│              │                                                      │
+│              └──── Picked up (5-20%) ───┐                          │
+│                                         │                           │
+│                    ┌────────────────────┼────────────────────┐      │
+│                    ▼                    ▼                    ▼      │
+│              Taken home           Taken to shelter     Posted online│
+│              (kept/fostered)      (0-10 miles away)    (may reunite)│
+│                                                                     │
+│   Result: Pet is now at NEW LOCATION, not findable by local search │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Probability Modifiers:**
+
+| Factor | Condition | Effect on P(pickup) |
+|--------|-----------|---------------------|
+| Friendliness | Very friendly, approaches | 2.0x |
+| | Normal | 1.0x |
+| | Shy/avoidant | 0.2x |
+| Dog condition | Clean, collar, appears owned | 1.5x (people want to "help") |
+| | Dirty, no collar | 0.8x (may seem stray) |
+| | Injured | 2.5x (urgency to rescue) |
+| Human type | Dog walker/pet owner | 1.5x |
+| | General pedestrian | 1.0x |
+| | In vehicle | 0.3x |
+| Time of day | Daylight | 1.0x |
+| | Night | 0.4x |
+
+**Transport Destinations:**
+- 40% taken to local shelter (within 5 miles)
+- 30% taken home by finder (kept temporarily)
+- 20% posted on social media/Nextdoor (may lead to reunion)
+- 10% taken to distant shelter/rescue (5-20 miles)
+
+**Simulation Impact:**
+When transport event occurs:
+1. Log `TRANSPORTED` event with pickup location
+2. Move pet to destination (shelter coordinates or random home)
+3. Pet enters `SHELTERED` state (no longer moving)
+4. Search in original area will fail
+5. Reunion now depends on: shelter check, microchip scan, online post match
+
 ### Environmental Variables
 
 **Time of Day Effects:**
@@ -405,9 +466,95 @@ After running a batch of simulations, display:
 - Predicted vs. actual zone distribution
 - Recommendations for adjusting model parameters
 
+### Confidence Intervals in User-Facing Output
+
+**Don't show:** "73% probability she's in this zone"
+
+**Do show:** "60-80% probability (based on 47 similar cases)"
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    PREDICTION DISPLAY FORMAT                        │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   HIGH PROBABILITY ZONE                                             │
+│   ████████████████████░░░░░  65-75%                                │
+│   Based on 47 similar cases (medium-sized dog, suburban, 24-48h)   │
+│                                                                     │
+│   MEDIUM PROBABILITY ZONE                                           │
+│   ██████████░░░░░░░░░░░░░░░  15-25%                                │
+│                                                                     │
+│   EXTENDED ZONE                                                     │
+│   ███░░░░░░░░░░░░░░░░░░░░░░  5-12%                                 │
+│                                                                     │
+│   ⓘ Model confidence: MEDIUM                                       │
+│     We have good data for this pet type but limited cases          │
+│     in rural environments.                                          │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Confidence Level Indicators:**
+
+| Sample Size | Confidence Label | Interval Width |
+|-------------|------------------|----------------|
+| 0-10 cases | LOW ("limited data") | ±20% |
+| 11-50 cases | MEDIUM | ±10% |
+| 51-200 cases | HIGH | ±5% |
+| 200+ cases | VERY HIGH | ±3% |
+
+**Implementation:**
+```javascript
+function formatPrediction(probability, sampleSize) {
+  const intervalWidth = getIntervalWidth(sampleSize);
+  const lower = Math.max(0, probability - intervalWidth);
+  const upper = Math.min(100, probability + intervalWidth);
+
+  return {
+    range: `${lower}-${upper}%`,
+    confidence: getConfidenceLabel(sampleSize),
+    sampleSize,
+    disclaimer: sampleSize < 20
+      ? "Limited historical data for this scenario"
+      : null
+  };
+}
+```
+
+**Why this matters:**
+- Builds user trust through transparency
+- Sets appropriate expectations
+- Highlights where the model needs more data
+- Avoids false precision that undermines credibility
+
 ---
 
 ## Implementation Phases
+
+### Phase 0: Parameter Research Document (REQUIRED BEFORE CODING)
+
+**Deliverable:** A spreadsheet/document with every tunable parameter, including sources and confidence levels.
+
+Before writing any simulation code, complete this research phase to avoid "making up numbers that feel right."
+
+| Parameter | Default Value | Source | Confidence | Notes |
+|-----------|---------------|--------|------------|-------|
+| Cat hiding radius (indoor, 0-24h) | 3-5 houses | Albrecht 2010 | HIGH | MARN research |
+| Cat hiding radius (indoor, 24-72h) | 5-10 houses | Albrecht 2010 | HIGH | Expands with hunger |
+| Dog displacement (small, 24h) | 0.3-0.5 mi | Estimated | MEDIUM | Needs validation |
+| Dog homing attempt probability | 0.6/day | Reunion data | MEDIUM | Observed return rate |
+| Friendly dog pickup probability | 0.15/day | Estimated | LOW | Good samaritan transport |
+| Searcher fatigue onset | 2 hours | General research | MEDIUM | Attention degradation |
+| ... | ... | ... | ... | ... |
+
+**Required columns:**
+- Parameter name (exact variable name in code)
+- Default value (with units)
+- Source (research paper, expert interview, platform data, or "ESTIMATED")
+- Confidence level (HIGH/MEDIUM/LOW)
+- Validation method (how we'll verify this is correct)
+
+**Exit criteria:** Document reviewed by team, all HIGH-confidence parameters have citations.
 
 ### Phase 1: Foundation
 - [ ] Add Prisma models (SimulationConfig, SimulationBatch, Simulation)
@@ -416,11 +563,21 @@ After running a batch of simulations, display:
 - [ ] Create `/api/simulator` routes (CRUD operations)
 - [ ] Create `/app/simulator/page.js` with basic layout
 
-### Phase 2: Simulation Engine
-- [ ] Implement all 4 pet behavior profiles (WANDERER, HIDER, RUNNER, TERRITORIAL)
+### Phase 2: Simulation Engine + Basic Terrain
+- [ ] Implement pet behavior state machine (FLEEING, HIDING, FORAGING, WANDERING, TERRITORIAL)
+- [ ] Implement state transition triggers
 - [ ] Implement all 4 search strategies (GRID, SPIRAL, RANDOM, PROBABILITY)
-- [ ] Add terrain modifiers (URBAN, SUBURBAN, RURAL)
-- [ ] Integrate with existing `searchProbability.js` values
+- [ ] **Basic OSM integration (REQUIRED, not future):**
+  - [ ] Query Overpass API for major roads within search radius
+  - [ ] Query water bodies (rivers, lakes, ponds)
+  - [ ] Create barrier layer that affects movement probability
+  - [ ] Cache terrain data per location (avoid repeated API calls)
+- [ ] Implement attraction/repulsion force model
+- [ ] Implement homing behavior with species-specific weights
+- [ ] **Add human transport event for friendly dogs:**
+  - [ ] P(pickup) when WANDERING near humans
+  - [ ] Transport to random shelter/home within N miles
+  - [ ] Log as "TRANSPORTED" event for playback
 - [ ] Add batch processing capability
 
 ### Phase 3: Visual Playback
@@ -566,11 +723,13 @@ Before deploying the simulator to real users:
    - Neural network for complex pattern recognition
    - Automatic parameter optimization
 
-2. **Real Terrain Data (OpenStreetMap Integration)**
-   - Query OSM for actual barriers (roads, water, fences)
+2. **Advanced Terrain Data (beyond Phase 2 basics)**
    - Building footprints for urban hiding spots
    - Elevation data for rural areas
    - Park boundaries and green spaces
+   - Fence detection from satellite imagery
+   - Population density heat layers
+   - Note: Basic roads/water are in Phase 2; this is for advanced features
 
 3. **Weather API Integration**
    - Temperature affects pet movement (hot = less active)
