@@ -223,6 +223,59 @@ When transport event occurs:
 4. Search in original area will fail
 5. Reunion now depends on: shelter check, microchip scan, online post match
 
+### SHELTERED State Reunion Pathways
+
+When a pet enters `SHELTERED` state (picked up by good samaritan), they can still be reunited—just not by walking search. Model these alternative reunion channels:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    SHELTERED REUNION MODEL                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   Pet in SHELTERED state                                            │
+│              │                                                      │
+│              ├──── At shelter ────────────────────────────────────┐ │
+│              │                                                    │ │
+│              │     P(microchip_reunion) = 0.7                     │ │
+│              │       × microchip_registered (0 or 1)              │ │
+│              │       × shelter_scan_rate (0.9)                    │ │
+│              │     → ~60% of chipped pets reunite within 72h      │ │
+│              │                                                    │ │
+│              ├──── At finder's home ──────────────────────────────┤ │
+│              │                                                    │ │
+│              │     P(social_media_reunion) = 0.3                  │ │
+│              │       × finder_posts_online (0.6)                  │ │
+│              │       × owner_searching_online (0.8)               │ │
+│              │     → ~15% reunite via Nextdoor/Facebook           │ │
+│              │                                                    │ │
+│              │     P(listing_match_reunion) = 0.4                 │ │
+│              │       × platform_has_case (1.0 for our users)      │ │
+│              │       × finder_checks_listings (0.3)               │ │
+│              │     → ~12% reunite via lost pet platforms          │ │
+│              │       (THIS IS WHERE WE ADD VALUE)                 │ │
+│              │                                                    │ │
+│              └────────────────────────────────────────────────────┘ │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Outcome Categories (mutually exclusive):**
+
+| Outcome | Description | Counted As |
+|---------|-------------|------------|
+| `FOUND_BY_SEARCHER` | Searcher detection event triggered | Search success |
+| `RETURNED_HOME` | Pet reached home via homing behavior | Self-reunion |
+| `FOUND_VIA_SHELTER` | Microchip scanned at shelter | Shelter reunion |
+| `FOUND_VIA_SOCIAL` | Posted online, owner responded | Social reunion |
+| `FOUND_VIA_PLATFORM` | Finder checked our listings | Platform value |
+| `TIMEOUT_SEARCHING` | Max time, pet still in search area | Search failure |
+| `TIMEOUT_SHELTERED` | Max time, pet sheltered but not matched | System gap |
+
+**Why this matters:**
+- Simulation shouldn't show "search failed" when pet was reunited via shelter
+- Allows measuring platform value (how many reunions came through our listings?)
+- More accurate success metrics across all reunion channels
+
 ### Environmental Variables
 
 **Time of Day Effects:**
@@ -555,6 +608,13 @@ Before writing any simulation code, complete this research phase to avoid "makin
 - Validation method (how we'll verify this is correct)
 
 **Exit criteria:** Document reviewed by team, all HIGH-confidence parameters have citations.
+
+**⚠️ IMPORTANT: Don't over-engineer this phase.**
+- Target: 1-2 week research sprint, not a month
+- Use reasonable estimates for LOW-confidence parameters
+- Perfect parameters on day one is impossible
+- Phase 5 calibration will fix inevitable mistakes
+- A working system that improves > a perfect spec that never ships
 
 ### Phase 1: Foundation
 - [ ] Add Prisma models (SimulationConfig, SimulationBatch, Simulation)
