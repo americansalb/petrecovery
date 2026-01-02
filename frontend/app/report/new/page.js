@@ -68,6 +68,7 @@ export default function ReportLostPet() {
   const [lastSeenAddress, setLastSeenAddress] = useState('');
   const [cityName, setCityName] = useState('');
   const [isGettingLocation, setIsGettingLocation] = useState(true);
+  const [locationLocked, setLocationLocked] = useState(false); // Once user confirms location, lock it
   const [myPets, setMyPets] = useState([]);
   const [selectedPet, setSelectedPet] = useState(null);
   const [petType, setPetType] = useState('');
@@ -124,9 +125,9 @@ export default function ReportLostPet() {
     }
   }, []);
 
-  // Auto-detect location
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
+  // Auto-detect location (only on first load, respects locationLocked)
+  const detectLocation = async () => {
+    if (locationLocked) return; // Don't override user's manual selection
 
     setIsGettingLocation(true);
 
@@ -150,6 +151,11 @@ export default function ReportLostPet() {
       // No geolocation - user will need to search
       setIsGettingLocation(false);
     }
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    detectLocation();
   }, []);
 
   // Initialize map
@@ -204,13 +210,14 @@ export default function ReportLostPet() {
         fillColor: '#ef4444',
         fillOpacity: 0.1,
         weight: 2,
-        radius: 100,
+        radius: 50, // 50 meter radius
       }).addTo(map);
       circleRef.current = circle;
 
       marker.on('dragend', async (e) => {
         const pos = e.target.getLatLng();
         setCenter([pos.lat, pos.lng]);
+        setLocationLocked(true); // Lock location after manual adjustment
         circle.setLatLng(pos);
         const result = await reverseGeocode(pos.lat, pos.lng);
         setLastSeenAddress(result.address);
@@ -220,6 +227,7 @@ export default function ReportLostPet() {
       map.on('click', async (e) => {
         const pos = e.latlng;
         setCenter([pos.lat, pos.lng]);
+        setLocationLocked(true); // Lock location after manual selection
         marker.setLatLng(pos);
         circle.setLatLng(pos);
         const result = await reverseGeocode(pos.lat, pos.lng);
@@ -471,6 +479,7 @@ export default function ReportLostPet() {
 
       if (lat && lon) {
         setCenter([lat, lon]);
+        setLocationLocked(true); // Lock location after search selection
         setLastSeenAddress(address);
 
         // Extract city from address
@@ -961,14 +970,26 @@ export default function ReportLostPet() {
 
             {center && (
               <div className="px-6 pb-4 flex-shrink-0">
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                  <p className="text-sm text-gray-600 truncate mb-2">{lastSeenAddress || 'Location set'}</p>
-                  <button
-                    onClick={openInMaps}
-                    className="text-sm text-blue-600 font-medium flex items-center gap-1.5 hover:text-blue-700"
-                  >
-                    <ExternalLink size={14} /> Open in Maps to set exact address
-                  </button>
+                <div className={`rounded-2xl p-4 shadow-sm border ${locationLocked ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      {locationLocked && (
+                        <div className="flex items-center gap-1.5 text-green-600 text-xs font-medium mb-1">
+                          <Check size={12} /> Location confirmed
+                        </div>
+                      )}
+                      <p className="text-sm text-gray-600 truncate">{lastSeenAddress || 'Location set'}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setLocationLocked(false);
+                        detectLocation();
+                      }}
+                      className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 flex-shrink-0"
+                    >
+                      <Navigation size={12} /> Re-detect
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
