@@ -115,6 +115,7 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
   const sessionIdRef = useRef(null);
   const sessionStartedAtRef = useRef(null); // Track when session started for accurate duration
   const isEndingRef = useRef(false); // Prevent race condition with checkSession
+  const processLocationRef = useRef(null); // Stable ref for processLocation callback
 
   // Keep refs in sync with state - still needed for async callbacks
   useEffect(() => {
@@ -345,6 +346,11 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
     });
   }, [missionId, lastSeenLocation]); // Removed sessionId, isSearching - we use refs now
 
+  // Keep processLocation ref updated so GPS subscription always has latest version
+  useEffect(() => {
+    processLocationRef.current = processLocation;
+  }, [processLocation]);
+
   // GPS watching effect - uses centralized GPS service
   useEffect(() => {
     if (!isSearching || !sessionId) {
@@ -365,6 +371,7 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
     startTracking(GPS_MODE.HIGH_ACCURACY);
 
     // Subscribe to location updates from centralized service
+    // Use ref to get latest processLocation - prevents resubscription when callback changes
     gpsUnsubscribeRef.current = subscribe((location) => {
       // Create a position-like object for processLocation
       const position = {
@@ -376,7 +383,8 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
           speed: null,
         },
       };
-      processLocation(position);
+      // Use ref to call latest processLocation without dependency
+      processLocationRef.current?.(position);
     });
 
     return () => {
@@ -385,7 +393,7 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
         gpsUnsubscribeRef.current = null;
       }
     };
-  }, [isSearching, sessionId, gpsSupported, startTracking, subscribe, processLocation]);
+  }, [isSearching, sessionId, gpsSupported, startTracking, subscribe]); // Removed processLocation - use ref
 
   // Start search
   const startSearch = useCallback(async () => {

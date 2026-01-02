@@ -157,14 +157,23 @@ export function GPSProvider({ children }) {
     console.log('[GPS Service] Stopped tracking');
   }, []);
 
+  // Keep a ref to current location for subscribe's initial callback
+  // This prevents subscribe from recreating when location changes
+  const locationRef = useRef(location);
+  useEffect(() => {
+    locationRef.current = location;
+  }, [location]);
+
   // Subscribe to location updates
+  // IMPORTANT: No dependencies on location - use ref instead
+  // This prevents infinite subscribe/unsubscribe cycles
   const subscribe = useCallback((callback) => {
     subscribersRef.current.add(callback);
 
-    // Immediately call with current location if available
-    if (location) {
+    // Immediately call with current location if available (use ref, not state)
+    if (locationRef.current) {
       try {
-        callback(location);
+        callback(locationRef.current);
       } catch (err) {
         console.error('[GPS Service] Subscriber initial call error:', err);
       }
@@ -174,7 +183,7 @@ export function GPSProvider({ children }) {
     return () => {
       subscribersRef.current.delete(callback);
     };
-  }, [location]);
+  }, []); // Empty deps - stable reference
 
   // Request single position (one-shot)
   const getPosition = useCallback(() => {

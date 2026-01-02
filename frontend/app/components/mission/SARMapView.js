@@ -173,6 +173,7 @@ export default function SARMapView({
   const baseLayersRef = useRef({});
   const [showCoverage, setShowCoverage] = useState(false); // Toggle coverage overlay (Off by default for cleaner map)
   const heatmapLayersRef = useRef([]);
+  const renderGenRef = useRef(0); // Track render generation for cleanup race conditions
 
   // Use centralized GPS service instead of local watchPosition
   const { location: gpsLocation, error: gpsError, startTracking, getPosition, isSupported } = useGPS();
@@ -315,9 +316,19 @@ export default function SARMapView({
   // Fit bounds to show both user location and last seen
   // Only mark as done when we have BOTH locations
   const hasFitBoundsRef = useRef(false);
+  const lastSeenKeyRef = useRef(null);
+
   useEffect(() => {
     if (!mapInstance.current) return;
     if (!lastSeen) return;
+
+    // Track lastSeen by key to reset bounds when mission changes
+    const lastSeenKey = `${lastSeen.lat?.toFixed(5)},${lastSeen.lng?.toFixed(5)}`;
+    if (lastSeenKeyRef.current !== lastSeenKey) {
+      // Mission changed - reset fit bounds flag
+      hasFitBoundsRef.current = false;
+      lastSeenKeyRef.current = lastSeenKey;
+    }
 
     // If we already fit with user location, don't do it again
     if (hasFitBoundsRef.current) return;
@@ -361,11 +372,22 @@ export default function SARMapView({
   useEffect(() => {
     if (!mapInstance.current) return;
 
-    // Clear existing markers and circles
-    markersRef.current.forEach(m => m.remove());
-    circlesRef.current.forEach(c => c.remove());
-    markersRef.current = [];
-    circlesRef.current = [];
+    // Increment generation to invalidate any in-progress async operations
+    const currentGen = ++renderGenRef.current;
+
+    // Robust cleanup - remove all layers synchronously before adding new ones
+    const cleanupLayers = () => {
+      markersRef.current.forEach(m => {
+        try { m.remove(); } catch (e) { /* already removed */ }
+      });
+      circlesRef.current.forEach(c => {
+        try { c.remove(); } catch (e) { /* already removed */ }
+      });
+      markersRef.current = [];
+      circlesRef.current = [];
+    };
+
+    cleanupLayers();
 
     // Add last seen marker - compact, no overlapping labels
     if (lastSeen) {
@@ -836,6 +858,13 @@ export default function SARMapView({
     heatmapLayersRef.current.forEach(layer => layer.remove());
     heatmapLayersRef.current = [];
 
+    // Return cleanup function - called when deps change or unmount
+    return () => {
+      // Only cleanup if this is still the current render generation
+      if (currentGen === renderGenRef.current) {
+        cleanupLayers();
+      }
+    };
   }, [lastSeen, sightings, petSpecies, hoursElapsed, gpsPath, showProbabilityZones, probabilityZones]);
 
   // Render team coverage trails
