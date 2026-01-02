@@ -4845,3 +4845,190 @@ enum CityRequestStatus {
   INVALID
   DUPLICATE
 }
+
+// ============================================================================
+// LOST PET SIMULATOR - Monte Carlo Simulation Engine
+// ============================================================================
+
+model SimulationConfig {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdById     String?
+
+  name            String?  // Optional name for saved configs
+
+  // Pet Configuration
+  petSpecies      PetSpecies @default(DOG)
+  petSize         PetSize    @default(MEDIUM)
+  petPersonality  String     @default("NEUTRAL") // FRIENDLY, NEUTRAL, SHY
+  isIndoorPet     Boolean    @default(false)
+  hasMicrochip    Boolean    @default(false)
+  hasCollar       Boolean    @default(true)
+
+  // Initial behavior state
+  initialState    String     @default("FLEEING") // FLEEING, HIDING, WANDERING, TERRITORIAL
+
+  // Environment Configuration
+  centerLatitude  Float
+  centerLongitude Float
+  terrainType     String     @default("SUBURBAN") // URBAN, SUBURBAN, RURAL
+  searchRadiusMiles Float    @default(2.0)
+
+  // Searcher Configuration
+  searcherCount   Int        @default(5)
+  searchStrategy  String     @default("GRID") // GRID, SPIRAL, RANDOM, PROBABILITY
+  searcherSpeedMph Float     @default(3.0)
+
+  // Time Configuration
+  maxSimulationHours Int     @default(72)
+  timeStepMinutes    Int     @default(5)
+  startHourOfDay     Int     @default(8) // What time of day the pet went missing
+
+  // Relations
+  simulations     Simulation[]
+  batches         SimulationBatch[]
+
+  @@index([createdById])
+}
+
+model SimulationBatch {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  configId        String
+  config          SimulationConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  // Batch parameters
+  totalRuns       Int      @default(100)
+  completedRuns   Int      @default(0)
+  status          SimulationBatchStatus @default(PENDING)
+
+  // Aggregate results (computed after completion)
+  successRate         Float?   // Percentage of simulations where pet was found
+  avgTimeToFindMins   Float?   // Average minutes to find (successful only)
+  medianTimeToFindMins Float?
+  avgPetDistanceMiles Float?   // Average distance pet traveled
+
+  // Outcome breakdown
+  foundBySearcherCount   Int @default(0)
+  returnedHomeCount      Int @default(0)
+  foundViaShelterCount   Int @default(0)
+  foundViaSocialCount    Int @default(0)
+  foundViaPlatformCount  Int @default(0)
+  timeoutSearchingCount  Int @default(0)
+  timeoutShelteredCount  Int @default(0)
+
+  // Analytics JSON (detailed breakdown)
+  analyticsJson   String?  @db.Text // JSON: {zoneStats, searchPatternEfficiency, etc.}
+
+  // Relations
+  simulations     Simulation[]
+
+  @@index([configId])
+  @@index([status])
+}
+
+enum SimulationBatchStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Simulation {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  configId        String
+  config          SimulationConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  batchId         String?
+  batch           SimulationBatch? @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  // Simulation state
+  status          SimulationStatus @default(PENDING)
+  randomSeed      Int      // For reproducibility
+
+  // Outcome
+  outcome         SimulationOutcome?
+  foundAtMinute   Int?     // Simulation minute when found (null if not found)
+  foundBySearcher Int?     // Which searcher found the pet (0-indexed)
+  foundLatitude   Float?
+  foundLongitude  Float?
+
+  // Path data (stored as compressed JSON)
+  petPathJson     String?  @db.Text // JSON array of {minute, lat, lng, state, energy, hunger}
+  searcherPathsJson String? @db.Text // JSON: [{searcherId, path: [{minute, lat, lng}]}]
+
+  // Statistics
+  petDistanceMiles    Float?  // Miles traveled by pet
+  searcherDistanceMiles Float? // Combined miles by all searchers
+  finalPetState       String? // What state pet was in at end/find
+  wasTransported      Boolean @default(false) // Was pet picked up by good samaritan?
+  transportedAtMinute Int?
+
+  // Events log
+  eventsJson      String?  @db.Text // JSON array of {minute, type, data}
+
+  @@index([configId])
+  @@index([batchId])
+  @@index([status])
+  @@index([outcome])
+}
+
+enum SimulationStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+}
+
+enum SimulationOutcome {
+  FOUND_BY_SEARCHER   // Searcher detection event triggered
+  RETURNED_HOME       // Pet reached home via homing behavior
+  FOUND_VIA_SHELTER   // Microchip scanned at shelter
+  FOUND_VIA_SOCIAL    // Posted online, owner responded
+  FOUND_VIA_PLATFORM  // Finder checked our listings
+  TIMEOUT_SEARCHING   // Max time, pet still in search area
+  TIMEOUT_SHELTERED   // Max time, pet sheltered but not matched
+}
+
+// Zone statistics for batch analytics
+model SimulationZoneStats {
+  id              String   @id @default(cuid())
+  batchId         String
+
+  // Zone identification
+  zoneName        String   // HIGH, MEDIUM, LOW, EXTENDED, OUTSIDE
+
+  // Statistics
+  foundCount      Int      @default(0)
+  foundPercent    Float?
+  avgTimeInZoneMins Float? // Average minutes pet spent in this zone
+
+  @@unique([batchId, zoneName])
+  @@index([batchId])
+}
+
+// Cached terrain data from OpenStreetMap
+model TerrainCache {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime
+
+  // Location identifier (grid cell)
+  centerLatitude  Float
+  centerLongitude Float
+  radiusMiles     Float
+
+  // Cached OSM data
+  roadsJson       String?  @db.Text // Major roads as GeoJSON
+  waterJson       String?  @db.Text // Water bodies as GeoJSON
+  barriersJson    String?  @db.Text // Fences, walls as GeoJSON (if available)
+
+  @@unique([centerLatitude, centerLongitude, radiusMiles])
+  @@index([expiresAt])
+}

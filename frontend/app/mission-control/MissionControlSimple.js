@@ -3,12 +3,12 @@
 /**
  * MissionControlSimple - Full-featured Mission Control with navigation
  *
- * 5-tab focused structure:
- * - Home: Overview with key info at a glance
- * - Search: Map + GPS tracking
- * - Team: Members + Chat combined
- * - Actions: Shelters, flyers, share
- * - Tips: Search strategies
+ * 3-tab simplified structure (consolidates 5 tabs while preserving all features):
+ * - Home: Overview with key info at a glance + contextual tips
+ * - Map: GPS tracking + map view + search controls
+ * - Team: Members + Chat + Share + Shelters (merged Team + Actions)
+ *
+ * Tips are now contextual hints woven into each tab instead of a dedicated tab.
  *
  * Design: Single-screen, no-scroll with bottom navigation
  */
@@ -17,7 +17,7 @@ import { useState, useCallback, useMemo, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { Loader2, AlertTriangle, MapPin, Target } from 'lucide-react';
+import { Loader2, AlertTriangle, MapPin } from 'lucide-react';
 
 // Hooks
 import useMissionControl from './hooks/useMissionControl';
@@ -29,17 +29,16 @@ import { calculateProbabilityZones } from '@/app/lib/searchProbability';
 
 // Components
 import CompactHeader from './components/simple/CompactHeader';
-import BottomNav from './components/simple/BottomNav';
+import BottomNav3Tab from './components/simple/BottomNav3Tab';
 import BottomPanel from './components/simple/BottomPanel';
 import LiveSearchOverlay from './components/simple/LiveSearchOverlay';
 import OverviewPanel from './components/simple/OverviewPanel';
-import TeamChatPanel from './components/simple/TeamChatPanel';
-import ActionsPanel from './components/simple/ActionsPanel';
-import TipsPanel from './components/simple/TipsPanel';
+import TeamPanel from './components/simple/TeamPanel';
 import SightingFormModal from './components/modals/SightingFormModal';
 import AppDownloadPrompt from './components/modals/AppDownloadPrompt';
 import ProbabilityZoneToggle from './components/simple/ProbabilityZoneToggle';
 import ProbabilityZoneSlider from '@/app/components/mission/ProbabilityZoneSlider';
+import ContextualTip, { TIPS } from './components/simple/ContextualTip';
 import { printFlyer } from '@/app/lib/flyerGenerator';
 import { isNativeAsync } from '@/app/lib/nativeGpsService';
 
@@ -61,8 +60,9 @@ function MissionControlContent() {
   const searchParams = useSearchParams();
   const missionId = searchParams.get('mission');
 
-  // Navigation state - start on search (the main feature)
-  const [activeTab, setActiveTab] = useState('search');
+  // Navigation state - start on home (overview) in 3-tab structure
+  // Tab IDs: 'home', 'map', 'team'
+  const [activeTab, setActiveTab] = useState('home');
 
   // Probability zones toggle - ON by default to guide searchers
   const [showProbabilityZones, setShowProbabilityZones] = useState(true);
@@ -268,7 +268,7 @@ function MissionControlContent() {
     }
 
     // Native app - proceed with GPS search
-    setActiveTab('search');
+    setActiveTab('map'); // Switch to map when starting GPS search
     const result = await startSearch();
     if (result.success) {
       showNotification('success', 'GPS search started! Your path is being tracked.');
@@ -332,14 +332,14 @@ function MissionControlContent() {
     setCompletedTasks(prev => [...prev, 'share']);
   }, [activeMission, showNotification]);
 
-  // Handle view map from overview
+  // Handle view map from overview - 3-tab uses 'map' instead of 'search'
   const handleViewMap = useCallback(() => {
-    setActiveTab('search');
+    setActiveTab('map');
   }, []);
 
-  // Handle call shelters
+  // Handle call shelters - now in Team tab (3-tab structure)
   const handleCallShelters = useCallback(() => {
-    setActiveTab('actions');
+    setActiveTab('team');
   }, []);
 
   // Loading state
@@ -356,18 +356,30 @@ function MissionControlContent() {
 
   // Error state
   if (error) {
+    const isAuthError = error.toLowerCase().includes('log in') || error.includes('401');
     return (
       <div className="h-[100dvh] flex items-center justify-center bg-slate-950 px-4">
         <div className="text-center max-w-md">
           <AlertTriangle size={48} className="text-red-400 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-white mb-2">Unable to Load Mission</h2>
           <p className="text-slate-400 mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition"
-          >
-            Retry
-          </button>
+          <div className="flex gap-3 justify-center">
+            {isAuthError ? (
+              <a
+                href={`/login?callbackUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`}
+                className="px-6 py-2 bg-amber-500 text-white rounded-xl font-semibold hover:bg-amber-400 transition"
+              >
+                Log In
+              </a>
+            ) : (
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition"
+              >
+                Retry
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -399,13 +411,18 @@ function MissionControlContent() {
     ? Math.floor((Date.now() - new Date(activeMission.lastSeenAt).getTime()) / 3600000)
     : 24;
 
-  // Render mobile layout with persistent map
+  // Render mobile layout with persistent map - 3-tab structure
   const renderMobileLayout = () => {
+    // Get species-specific tip for map view
+    const mapTip = activeMission.petSpecies === 'CAT'
+      ? TIPS.CAT_SEARCH_CLOSE
+      : TIPS.DOG_TRAVEL_DIRECTION;
+
     return (
       <div className="lg:hidden flex-1 relative overflow-hidden h-full">
-        {/* 1. Persistent Map Layer (Always mounted) */}
+        {/* 1. Persistent Map Layer (Always mounted) - Tab: 'map' */}
         <div
-          className={`absolute inset-0 w-full h-full transition-opacity duration-300 ${activeTab === 'search' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+          className={`absolute inset-0 w-full h-full transition-opacity duration-300 ${activeTab === 'map' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
             }`}
         >
           <div className="flex-1 relative h-full">
@@ -423,10 +440,17 @@ function MissionControlContent() {
               activeSearchersCount={coverageData.activeSearchersCount}
               pois={pois}
               showLegend={!isSearching}
-              interactive={activeTab === 'search'} // Only interactive when visible
+              interactive={activeTab === 'map'} // Only interactive when visible
               showProbabilityZones={showProbabilityZones}
               probabilityZones={probabilityZones}
             />
+
+            {/* Map Contextual Tip - Species-aware search guidance */}
+            {!isSearching && (
+              <div className="absolute top-4 left-4 right-4 z-20">
+                <ContextualTip {...mapTip} />
+              </div>
+            )}
 
             {/* Mobile Probability Toggle + Slider - moved to bottom left, out of the way */}
             {!isSearching && lastSeenLocation && (
@@ -469,7 +493,7 @@ function MissionControlContent() {
           </div>
         </div>
 
-        {/* 2. Other Panels (Mount/Unmount is fine for these) */}
+        {/* 2. Home Panel - Tab: 'home' */}
         {activeTab === 'home' && (
           <div className="absolute inset-0 z-20 bg-slate-950 overflow-y-auto">
             <OverviewPanel
@@ -485,13 +509,16 @@ function MissionControlContent() {
               onViewMap={handleViewMap}
               onCallShelters={handleCallShelters}
               isSearching={isSearching}
+              petSpecies={activeMission.petSpecies}
             />
           </div>
         )}
 
+        {/* 3. Team Panel - Tab: 'team' (merged Team + Actions + contextual tips) */}
         {activeTab === 'team' && (
           <div className="absolute inset-0 z-20 bg-slate-950 h-full flex flex-col">
-            <TeamChatPanel
+            <TeamPanel
+              mission={activeMission}
               team={team}
               activeParticipants={activeParticipants}
               messages={chat.messages}
@@ -513,16 +540,7 @@ function MissionControlContent() {
                 }
               }}
               currentUserId={session?.user?.id}
-              isLoading={chat.isLoading || chat.isSending}
-            />
-          </div>
-        )}
-
-        {activeTab === 'actions' && (
-          <div className="absolute inset-0 z-20 bg-slate-950 overflow-y-auto">
-            <ActionsPanel
-              mission={activeMission}
-              completedActions={completedTasks}
+              isLoadingChat={chat.isLoading || chat.isSending}
               onShare={handleShare}
               onDownloadFlyer={handleDownloadFlyer}
               onCallShelter={(shelter) => {
@@ -531,23 +549,14 @@ function MissionControlContent() {
             />
           </div>
         )}
-
-        {activeTab === 'tips' && (
-          <div className="absolute inset-0 z-20 bg-slate-950 overflow-y-auto">
-            <TipsPanel
-              petSpecies={activeMission.petSpecies || 'DOG'}
-              hoursMissing={hoursElapsed}
-            />
-          </div>
-        )}
       </div>
     );
   };
 
-  // Render sidebar panel content (for desktop)
+  // Render sidebar panel content (for desktop) - 3-tab structure with 2 sidebar panels
   const renderSidebarPanel = () => {
-    // On desktop, 'search' tab just means we are on the map, but sidebar should show Overview
-    const effectiveTab = activeTab === 'search' ? 'home' : activeTab;
+    // On desktop, 'map' tab means we focus the map, but sidebar should show Overview
+    const effectiveTab = activeTab === 'map' ? 'home' : activeTab;
 
     switch (effectiveTab) {
       case 'home':
@@ -562,15 +571,16 @@ function MissionControlContent() {
             onStartSearch={handleStartSearch}
             onReportSighting={() => setShowSightingForm(true)}
             onShare={handleShare}
-            onViewMap={() => setActiveTab('search')}
-            onCallShelters={() => setActiveTab('actions')}
-            // hideSearchButton=prop removed so button shows in sidebar
+            onViewMap={() => setActiveTab('map')}
+            onCallShelters={() => setActiveTab('team')}
             isSearching={isSearching}
+            petSpecies={activeMission.petSpecies}
           />
         );
       case 'team':
         return (
-          <TeamChatPanel
+          <TeamPanel
+            mission={activeMission}
             team={team}
             activeParticipants={activeParticipants}
             messages={chat.messages}
@@ -592,26 +602,12 @@ function MissionControlContent() {
               }
             }}
             currentUserId={session?.user?.id}
-            isLoading={chat.isLoading || chat.isSending}
-          />
-        );
-      case 'actions':
-        return (
-          <ActionsPanel
-            mission={activeMission}
-            completedActions={completedTasks}
+            isLoadingChat={chat.isLoading || chat.isSending}
             onShare={handleShare}
             onDownloadFlyer={handleDownloadFlyer}
             onCallShelter={(shelter) => {
               showNotification('info', `Calling ${shelter.name}...`);
             }}
-          />
-        );
-      case 'tips':
-        return (
-          <TipsPanel
-            petSpecies={activeMission.petSpecies || 'DOG'}
-            hoursMissing={hoursElapsed}
           />
         );
       default:
@@ -630,16 +626,16 @@ function MissionControlContent() {
         onShowSighting={() => setShowSightingForm(true)}
       />
 
-      {/* GPS Active Banner - Shows when searching but not on search tab */}
-      {isSearching && activeTab !== 'search' && (
+      {/* GPS Active Banner - Shows when searching but not on map tab */}
+      {isSearching && activeTab !== 'map' && (
         <div
-          onClick={() => setActiveTab('search')}
+          onClick={() => setActiveTab('map')}
           className="bg-red-600 px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-red-500 transition-colors"
         >
           <div className="flex items-center gap-3">
             <span className="w-3 h-3 bg-white rounded-full animate-pulse" />
             <span className="text-white font-bold text-sm">GPS SEARCH ACTIVE</span>
-            <span className="text-white/80 text-sm">{formattedDuration} • {stats.validatedDistanceMiles.toFixed(2)} mi</span>
+            <span className="text-white/80 text-sm">{formattedDuration} • {(stats?.validatedDistanceMiles || 0).toFixed(2)} mi</span>
           </div>
           <button
             onClick={(e) => {
@@ -712,15 +708,13 @@ function MissionControlContent() {
 
         {/* Sidebar - Panel content */}
         <div className="w-[420px] flex flex-col border-l border-slate-800 bg-slate-900">
-          {/* Sidebar Tab Navigation */}
+          {/* Sidebar Tab Navigation - 2 tabs (3-tab structure) */}
           <div className="flex gap-2 p-3 border-b border-slate-800 bg-slate-900/50">
             {[
               { id: 'home', label: 'Overview' },
               { id: 'team', label: 'Team' },
-              { id: 'actions', label: 'Actions' },
-              { id: 'tips', label: 'Tips' },
             ].map(tab => {
-              const isActive = (activeTab === 'search' ? 'home' : activeTab) === tab.id;
+              const isActive = (activeTab === 'map' ? 'home' : activeTab) === tab.id;
               return (
                 <button
                   key={tab.id}
@@ -746,12 +740,12 @@ function MissionControlContent() {
       {/* MOBILE LAYOUT (< lg): Refactored for persistency */}
       {renderMobileLayout()}
 
-      {/* Bottom Navigation - mobile only */}
+      {/* Bottom Navigation - mobile only (3-tab structure) */}
       <div className="lg:hidden">
-        <BottomNav
+        <BottomNav3Tab
           activeTab={activeTab}
           onTabChange={handleTabChange}
-          unreadChat={0}
+          unreadChat={chat.unreadCount || 0}
           isSearching={isSearching}
         />
       </div>

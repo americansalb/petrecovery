@@ -32,12 +32,12 @@ export async function POST(request, { params }) {
       await logEvent({
         event_type: 'case.status_change_failed',
         resource_type: 'mission',
-        resource_id: params.id,
+        resource_id: params.missionId,
         action: 'update',
         result: 'failure',
         error_code: 'UNAUTHORIZED',
         error_message: 'Attempted to update case status without authentication',
-        metadata: { missionId: params.id }
+        metadata: { missionId: params.missionId }
       });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -61,7 +61,7 @@ export async function POST(request, { params }) {
 
     // Fetch current case
     const currentMission = await prisma.case.findUnique({
-      where: { id: params.id },
+      where: { id: params.missionId },
       select: {
         id: true,
         caseNumber: true,
@@ -77,13 +77,13 @@ export async function POST(request, { params }) {
       await logEvent({
         event_type: 'case.status_change_failed',
         resource_type: 'mission',
-        resource_id: params.id,
+        resource_id: params.missionId,
         action: 'update',
         result: 'failure',
         error_code: 'NOT_FOUND',
-        error_message: 'Mission not found: ' + params.id,
+        error_message: 'Mission not found: ' + params.missionId,
         actor_user_id: session.user.id,
-        metadata: { missionId: params.id }
+        metadata: { missionId: params.missionId }
       });
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
@@ -96,13 +96,13 @@ export async function POST(request, { params }) {
       await logEvent({
         event_type: 'case.status_change_failed',
         resource_type: 'mission',
-        resource_id: params.id,
+        resource_id: params.missionId,
         action: 'update',
         result: 'failure',
         error_code: 'PERMISSION_DENIED',
         error_message: 'User is not owner or admin',
         actor_user_id: session.user.id,
-        metadata: { missionId: params.id, reporterId: currentMission.reporterId }
+        metadata: { missionId: params.missionId, reporterId: currentMission.reporterId }
       });
       return NextResponse.json({
         error: 'Permission denied',
@@ -145,7 +145,7 @@ export async function POST(request, { params }) {
     const updatedMission = await prisma.$transaction(async (tx) => {
       // Update case status
       const updated = await tx.case.update({
-        where: { id: params.id },
+        where: { id: params.missionId },
         data: updateData,
         select: {
           id: true,
@@ -166,7 +166,7 @@ export async function POST(request, { params }) {
       // Create status change note
       await tx.caseUpdate.create({
         data: {
-          missionId: params.id,
+          missionId: params.missionId,
           authorId: session.user.id,
           content: `Status changed from ${oldStatus} to ${status}${resolutionNotes ? '. Notes: ' + resolutionNotes : ''}`,
           isUpdate: true,
@@ -182,12 +182,12 @@ export async function POST(request, { params }) {
     await logEvent({
       event_type: 'case.status_changed',
       resource_type: 'mission',
-      resource_id: params.id,
+      resource_id: params.missionId,
       action: 'update',
       result: 'success',
       actor_user_id: session.user.id,
       metadata: {
-        missionId: params.id,
+        missionId: params.missionId,
         missionNumber: currentMission.caseNumber,
         oldStatus,
         newStatus: status,
@@ -208,14 +208,14 @@ export async function POST(request, { params }) {
     await logEvent({
       event_type: 'case.status_change_failed',
       resource_type: 'mission',
-      resource_id: params.id,
+      resource_id: params.missionId,
       action: 'update',
       result: 'failure',
       error_code: 'INTERNAL_ERROR',
       error_message: error.message,
       actor_user_id: session?.user?.id || null,
       metadata: {
-        missionId: params.id,
+        missionId: params.missionId,
         error_stack: error.stack?.substring(0, 500)
       }
     });

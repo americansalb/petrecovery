@@ -101,7 +101,9 @@ export default function useMissionControl(session) {
       const res = await fetchWithRetry(`/api/missions/${id}`);
 
       if (!res.ok) {
-        if (res.status === 404) {
+        if (res.status === 401) {
+          throw new Error('Please log in to view this mission');
+        } else if (res.status === 404) {
           throw new Error('Mission not found');
         } else if (res.status === 403) {
           let errorData = null;

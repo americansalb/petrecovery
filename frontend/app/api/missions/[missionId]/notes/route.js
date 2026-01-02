@@ -44,7 +44,7 @@ export async function POST(request, { params }) {
 
     // Verify case exists and check permissions
     const existingCase = await prisma.case.findUnique({
-      where: { id: params.id },
+      where: { id: params.missionId },
       select: {
         id: true,
         caseNumber: true,
@@ -81,7 +81,7 @@ export async function POST(request, { params }) {
     // Create update/note
     const update = await prisma.caseUpdate.create({
       data: {
-        missionId: params.id,
+        missionId: params.missionId,
         authorId: session.user.id,
         content: content.trim(),
         isUpdate: true,
@@ -103,12 +103,12 @@ export async function POST(request, { params }) {
     await logEvent({
       event_type: 'case.note_added',
       resource_type: 'mission',
-      resource_id: params.id,
+      resource_id: params.missionId,
       action: 'create',
       result: 'success',
       actor_user_id: session.user.id,
       metadata: {
-        missionId: params.id,
+        missionId: params.missionId,
         missionNumber: existingCase.caseNumber,
         updateId: update.id,
         contentLength: update.content.length,
@@ -128,14 +128,14 @@ export async function POST(request, { params }) {
     await logEvent({
       event_type: 'case.note_add_failed',
       resource_type: 'mission',
-      resource_id: params.id,
+      resource_id: params.missionId,
       action: 'create',
       result: 'failure',
       error_code: 'INTERNAL_ERROR',
       error_message: error.message,
       actor_user_id: session?.user?.id || null,
       metadata: {
-        missionId: params.id,
+        missionId: params.missionId,
         error_stack: error.stack?.substring(0, 500)
       }
     });
@@ -160,7 +160,7 @@ export async function GET(request, { params }) {
 
     // Get case updates/notes
     const updates = await prisma.caseUpdate.findMany({
-      where: { missionId: params.id },
+      where: { missionId: params.missionId },
       include: {
         author: {
           select: {
