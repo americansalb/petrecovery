@@ -523,9 +523,11 @@ export default function SARMapView({
             const zoneProbability = zone.probabilityPercent || zone.cumulativePercent;
             const octantProbability = (zoneProbability / 8).toFixed(1);
 
-            const radiusText = zone.radius < 1
-              ? `${Math.round(zone.radius * 5280)} feet`
-              : `${zone.radius.toFixed(1)} miles`;
+            // Use miles consistently (convert to decimal miles)
+            const radiusMiles = zone.radius;
+            const radiusText = radiusMiles < 0.1
+              ? `${(radiusMiles * 5280).toFixed(0)} ft`
+              : `${radiusMiles.toFixed(2)} mi`;
 
             // User-friendly zone descriptions
             const zoneDescriptions = {
@@ -537,17 +539,21 @@ export default function SARMapView({
             const zoneInfo = zoneDescriptions[zone.name] || { label: zone.name, tip: '' };
 
             polygon.bindPopup(`
-              <div style="text-align:center;padding:8px;min-width:180px;">
+              <div style="text-align:center;padding:8px;min-width:200px;">
                 <div style="font-weight:700;color:${zone.color};font-size:13px;margin-bottom:2px;">
                   ${zoneInfo.label}
                 </div>
                 <div style="font-size:11px;color:#666;margin-bottom:8px;">
                   ${octant.fullName} Section
                 </div>
-                <div style="background:#f8f9fa;border-radius:8px;padding:8px;margin-bottom:8px;">
-                  <div style="font-size:11px;color:#666;">Chance pet is in this zone</div>
-                  <div style="font-size:22px;font-weight:700;color:${zone.color};">${zoneProbability}%</div>
-                  <div style="font-size:10px;color:#888;">Within ${radiusText} of last seen</div>
+                <div style="background:#f8f9fa;border-radius:8px;padding:10px;margin-bottom:8px;">
+                  <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Full Zone</div>
+                  <div style="font-size:24px;font-weight:700;color:${zone.color};">${zoneProbability}%</div>
+                  <div style="font-size:10px;color:#888;margin-bottom:8px;">within ${radiusText}</div>
+                  <div style="border-top:1px solid #e5e7eb;padding-top:8px;margin-top:4px;">
+                    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">This Sector (${octant.name})</div>
+                    <div style="font-size:18px;font-weight:600;color:${zone.color};">${octantProbability}%</div>
+                  </div>
                 </div>
                 <div style="font-size:11px;color:#22c55e;font-weight:500;">
                   ${zoneInfo.tip}
