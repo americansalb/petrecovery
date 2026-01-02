@@ -57,6 +57,14 @@ function milesToMeters(miles) {
   return miles * 1609.34;
 }
 
+// Species-specific pet icons
+const PET_ICONS = {
+  DOG: '🐕',
+  CAT: '🐈',
+  BIRD: '🦜',
+  OTHER: '🐾',
+};
+
 export default function SimulatorMap({
   config,
   simulation,
@@ -196,26 +204,59 @@ export default function SimulatorMap({
       SHELTERED: '#6b7280',
     };
 
+    // Get species-specific emoji
+    const petEmoji = PET_ICONS[config.petSpecies] || PET_ICONS.OTHER;
+
+    // Add pulse animation and state-specific styling
+    const isMoving = petState === 'FLEEING' || petState === 'WANDERING' || petState === 'FORAGING';
+    const pulseAnimation = isMoving ? 'animation: pulse 1s infinite;' : '';
+
     const petIcon = L.divIcon({
       className: 'custom-marker',
       html: `
+        <style>
+          @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+          }
+          @keyframes hide {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+          }
+        </style>
         <div style="
-          width: 28px;
-          height: 28px;
+          width: 32px;
+          height: 32px;
           background: ${petColors[petState] || '#10b981'};
           border: 3px solid white;
           border-radius: 50%;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+          box-shadow: 0 2px 12px rgba(0,0,0,0.4);
           display: flex;
           align-items: center;
           justify-content: center;
-          animation: pulse 2s infinite;
+          ${isMoving ? 'animation: pulse 1s infinite;' : ''}
+          ${petState === 'HIDING' ? 'animation: hide 2s infinite; opacity: 0.8;' : ''}
         ">
-          <span style="font-size: 14px;">🐕</span>
+          <span style="font-size: 16px;">${petEmoji}</span>
         </div>
+        ${petState !== 'SHELTERED' ? `
+          <div style="
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 9px;
+            background: ${petColors[petState] || '#10b981'};
+            color: white;
+            padding: 1px 4px;
+            border-radius: 3px;
+            white-space: nowrap;
+            font-weight: 500;
+          ">${petState}</div>
+        ` : ''}
       `,
-      iconSize: [28, 28],
-      iconAnchor: [14, 14],
+      iconSize: [32, 40],
+      iconAnchor: [16, 16],
     });
 
     markersRef.current.pet = L.marker(

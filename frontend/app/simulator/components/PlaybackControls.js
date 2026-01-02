@@ -4,10 +4,11 @@
  * PlaybackControls - Animation controls for simulation playback
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   Play, Pause, SkipBack, SkipForward, FastForward,
-  RotateCcw, Target
+  RotateCcw, Target, Sun, Moon, Sunrise, Battery,
+  Drumstick, AlertCircle, Home, Eye
 } from 'lucide-react';
 
 const SPEED_OPTIONS = [
@@ -50,7 +51,13 @@ function interpolatePosition(path, minute) {
 
   // If exact match or same point, return it
   if (before.minute === after.minute || before.minute >= minute) {
-    return { lat: before.lat, lng: before.lng, state: before.state };
+    return {
+      lat: before.lat,
+      lng: before.lng,
+      state: before.state,
+      energy: before.energy,
+      hunger: before.hunger,
+    };
   }
 
   // Linear interpolation
@@ -58,9 +65,36 @@ function interpolatePosition(path, minute) {
   return {
     lat: before.lat + (after.lat - before.lat) * ratio,
     lng: before.lng + (after.lng - before.lng) * ratio,
-    state: after.state, // Use the next state
+    state: after.state,
+    energy: before.energy + (after.energy - before.energy) * ratio,
+    hunger: before.hunger + (after.hunger - before.hunger) * ratio,
   };
 }
+
+// Get time of day info
+function getTimeOfDay(minute, startHour) {
+  const currentHour = (startHour + Math.floor(minute / 60)) % 24;
+
+  if (currentHour >= 5 && currentHour < 7) {
+    return { period: 'dawn', icon: Sunrise, label: 'Dawn', color: 'text-orange-500' };
+  } else if (currentHour >= 7 && currentHour < 17) {
+    return { period: 'day', icon: Sun, label: 'Day', color: 'text-yellow-500' };
+  } else if (currentHour >= 17 && currentHour < 20) {
+    return { period: 'dusk', icon: Sunrise, label: 'Dusk', color: 'text-orange-500' };
+  } else {
+    return { period: 'night', icon: Moon, label: 'Night', color: 'text-indigo-500' };
+  }
+}
+
+// State labels for display
+const STATE_LABELS = {
+  FLEEING: { label: 'Panicked', color: 'text-red-600', bg: 'bg-red-100' },
+  HIDING: { label: 'Hiding', color: 'text-purple-600', bg: 'bg-purple-100' },
+  FORAGING: { label: 'Foraging', color: 'text-amber-600', bg: 'bg-amber-100' },
+  WANDERING: { label: 'Wandering', color: 'text-green-600', bg: 'bg-green-100' },
+  TERRITORIAL: { label: 'Territorial', color: 'text-blue-600', bg: 'bg-blue-100' },
+  SHELTERED: { label: 'Sheltered', color: 'text-gray-600', bg: 'bg-gray-100' },
+};
 
 export default function PlaybackControls({
   simulation,
@@ -273,32 +307,107 @@ export default function PlaybackControls({
         )}
       </div>
 
-      {/* Status Bar */}
-      <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-        <div>
-          State: <span className="font-medium text-gray-700">
-            {playbackState.petPosition?.state || 'Unknown'}
-          </span>
+      {/* Enhanced Status Bar */}
+      <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        {/* Time of Day */}
+        {(() => {
+          const timeInfo = getTimeOfDay(playbackState.currentMinute, 8);
+          const TimeIcon = timeInfo.icon;
+          return (
+            <div className="flex items-center gap-2">
+              <TimeIcon className={`w-4 h-4 ${timeInfo.color}`} />
+              <span className="text-gray-600">{timeInfo.label}</span>
+            </div>
+          );
+        })()}
+
+        {/* Pet State */}
+        {(() => {
+          const stateInfo = STATE_LABELS[playbackState.petPosition?.state] || STATE_LABELS.WANDERING;
+          return (
+            <div className={`flex items-center gap-2 px-2 py-1 rounded ${stateInfo.bg}`}>
+              <span className={`font-medium ${stateInfo.color}`}>{stateInfo.label}</span>
+            </div>
+          );
+        })()}
+
+        {/* Energy Bar */}
+        <div className="flex items-center gap-2">
+          <Battery className="w-4 h-4 text-green-500" />
+          <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all ${
+                (playbackState.petPosition?.energy || 0) > 0.5
+                  ? 'bg-green-500'
+                  : (playbackState.petPosition?.energy || 0) > 0.2
+                  ? 'bg-yellow-500'
+                  : 'bg-red-500'
+              }`}
+              style={{ width: `${(playbackState.petPosition?.energy || 0) * 100}%` }}
+            />
+          </div>
+          <span className="text-gray-500 w-8">{Math.round((playbackState.petPosition?.energy || 0) * 100)}%</span>
         </div>
-        <div>
-          Searchers: <span className="font-medium text-gray-700">
-            {playbackState.searcherPositions?.length || 0}
-          </span>
+
+        {/* Hunger Bar */}
+        <div className="flex items-center gap-2">
+          <Drumstick className="w-4 h-4 text-amber-500" />
+          <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all ${
+                (playbackState.petPosition?.hunger || 0) < 0.5
+                  ? 'bg-green-500'
+                  : (playbackState.petPosition?.hunger || 0) < 0.7
+                  ? 'bg-yellow-500'
+                  : 'bg-red-500'
+              }`}
+              style={{ width: `${(playbackState.petPosition?.hunger || 0) * 100}%` }}
+            />
+          </div>
+          <span className="text-gray-500 w-8">{Math.round((playbackState.petPosition?.hunger || 0) * 100)}%</span>
         </div>
+      </div>
+
+      {/* Event Alerts */}
+      <div className="mt-2 flex flex-wrap gap-2 text-xs">
         {simulation?.wasTransported && simulation?.transportedAtMinute && (
-          <div className="text-orange-600">
-            Picked up at {formatTime(simulation.transportedAtMinute)}
+          <div className={`flex items-center gap-1 px-2 py-1 rounded ${
+            playbackState.currentMinute >= simulation.transportedAtMinute
+              ? 'bg-orange-100 text-orange-700'
+              : 'bg-gray-100 text-gray-400'
+          }`}>
+            <AlertCircle className="w-3 h-3" />
+            {playbackState.currentMinute >= simulation.transportedAtMinute
+              ? `Picked up at ${formatTime(simulation.transportedAtMinute)}`
+              : `Will be picked up at ${formatTime(simulation.transportedAtMinute)}`
+            }
           </div>
         )}
+
         {simulation?.outcome && (
-          <div className={
-            simulation.outcome.startsWith('FOUND') || simulation.outcome === 'RETURNED_HOME'
-              ? 'text-green-600'
-              : 'text-orange-600'
-          }>
-            Outcome: {simulation.outcome.replace(/_/g, ' ')}
+          <div className={`flex items-center gap-1 px-2 py-1 rounded ${
+            playbackState.currentMinute >= (simulation.foundAtMinute || maxMinute)
+              ? (simulation.outcome.startsWith('FOUND') || simulation.outcome === 'RETURNED_HOME'
+                ? 'bg-green-100 text-green-700'
+                : 'bg-orange-100 text-orange-700')
+              : 'bg-gray-100 text-gray-400'
+          }`}>
+            {simulation.outcome === 'RETURNED_HOME' ? (
+              <Home className="w-3 h-3" />
+            ) : simulation.outcome.startsWith('FOUND') ? (
+              <Eye className="w-3 h-3" />
+            ) : (
+              <AlertCircle className="w-3 h-3" />
+            )}
+            {simulation.outcome.replace(/_/g, ' ')}
+            {simulation.foundAtMinute && ` at ${formatTime(simulation.foundAtMinute)}`}
           </div>
         )}
+
+        <div className="flex items-center gap-1 px-2 py-1 rounded bg-blue-50 text-blue-700">
+          <Target className="w-3 h-3" />
+          {playbackState.searcherPositions?.length || 0} searchers active
+        </div>
       </div>
     </div>
   );
