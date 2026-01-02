@@ -410,8 +410,8 @@ function MissionControlContent() {
                     onToggle={() => setShowProbabilityZones(!showProbabilityZones)}
                   />
                 </div>
-                {/* Zone adjustment slider - show when zones are visible */}
-                {showProbabilityZones && (
+                {/* Zone adjustment slider - only show when zones are visible */}
+                {showProbabilityZones && isOwner && (
                   <ProbabilityZoneSlider
                     originalSettings={originalZoneSettings}
                     currentMultiplier={zoneMultiplier}
@@ -659,8 +659,8 @@ function MissionControlContent() {
                 show={showProbabilityZones}
                 onToggle={() => setShowProbabilityZones(!showProbabilityZones)}
               />
-              {/* Zone adjustment slider - show when zones visible */}
-              {showProbabilityZones && (
+              {/* Zone adjustment slider - only show when zones visible and user is owner */}
+              {showProbabilityZones && isOwner && (
                 <ProbabilityZoneSlider
                   originalSettings={originalZoneSettings}
                   currentMultiplier={zoneMultiplier}
