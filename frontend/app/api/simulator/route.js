@@ -6,7 +6,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { SimulationEngine } from '@/app/lib/simulator/engine';
+import { SimulationEngine, loadTerrain } from '@/app/lib/simulator/engine';
 
 // For now, we'll run simulations in-memory without database
 // Once the schema is migrated, we can persist results
@@ -17,7 +17,7 @@ import { SimulationEngine } from '@/app/lib/simulator/engine';
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { config, mode = 'single' } = body;
+    const { config, mode = 'single', useTerrain = true } = body;
 
     if (!config) {
       return NextResponse.json(
@@ -32,6 +32,20 @@ export async function POST(request) {
         { error: 'Center location is required' },
         { status: 400 }
       );
+    }
+
+    // Load terrain data if enabled (Phase 2 feature)
+    let terrainInfo = null;
+    if (useTerrain) {
+      try {
+        terrainInfo = await loadTerrain(
+          config.centerLatitude,
+          config.centerLongitude,
+          config.searchRadiusMiles || 2.0
+        );
+      } catch (terrainError) {
+        console.warn('Terrain loading failed, continuing without:', terrainError.message);
+      }
     }
 
     // Run simulation
@@ -56,6 +70,7 @@ export async function POST(request) {
       petPathJson: JSON.stringify(result.petPath),
       searcherPathsJson: JSON.stringify(result.searcherPaths),
       eventsJson: JSON.stringify(result.events),
+      terrainJson: result.terrain ? JSON.stringify(result.terrain) : null,
       createdAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
     };
@@ -63,6 +78,7 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       simulation,
+      terrainInfo, // Include terrain loading stats
     });
 
   } catch (error) {

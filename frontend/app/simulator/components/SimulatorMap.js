@@ -71,7 +71,9 @@ export default function SimulatorMap({
     searchers: [],
     zones: [],
     paths: [],
+    terrain: [],
   });
+  const [showTerrain, setShowTerrain] = useState(true);
 
   // Initialize map
   useEffect(() => {
@@ -277,7 +279,74 @@ export default function SimulatorMap({
     }
   }, [simulation, playbackState.petPosition, playbackState.searcherPositions, playbackState.currentMinute]);
 
+  // Display terrain features (barriers and zones)
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !simulation?.terrainJson) return;
+
+    // Clear existing terrain
+    markersRef.current.terrain.forEach(layer => layer.remove());
+    markersRef.current.terrain = [];
+
+    if (!showTerrain) return;
+
+    try {
+      const terrain = JSON.parse(simulation.terrainJson);
+
+      // Draw zones first (underneath barriers)
+      if (terrain.zones) {
+        terrain.zones.forEach(zone => {
+          if (zone.coords && zone.coords.length > 2) {
+            const polygon = L.polygon(zone.coords, {
+              fillColor: zone.color,
+              fillOpacity: 0.15,
+              color: zone.color,
+              weight: 1,
+              opacity: 0.4,
+            }).addTo(map);
+            polygon.bindTooltip(zone.name, { sticky: true });
+            markersRef.current.terrain.push(polygon);
+          }
+        });
+      }
+
+      // Draw barriers on top
+      if (terrain.barriers) {
+        terrain.barriers.forEach(barrier => {
+          if (barrier.coords && barrier.coords.length > 1) {
+            const line = L.polyline(barrier.coords, {
+              color: barrier.color,
+              weight: barrier.type === 'WATER' ? 4 : 3,
+              opacity: 0.8,
+              dashArray: barrier.type === 'FENCE' ? '4, 4' : null,
+            }).addTo(map);
+            line.bindTooltip(barrier.name, { sticky: true });
+            markersRef.current.terrain.push(line);
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Failed to parse terrain data:', e);
+    }
+  }, [simulation?.terrainJson, showTerrain]);
+
   return (
-    <div ref={mapRef} className="w-full h-full min-h-[400px]" />
+    <div className="relative w-full h-full min-h-[400px]">
+      <div ref={mapRef} className="w-full h-full" />
+
+      {/* Terrain toggle button */}
+      {simulation?.terrainJson && (
+        <button
+          onClick={() => setShowTerrain(!showTerrain)}
+          className={`absolute top-4 right-4 z-[1000] px-3 py-1.5 rounded-lg shadow-md text-xs font-medium transition-colors ${
+            showTerrain
+              ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
+          }`}
+        >
+          {showTerrain ? 'Terrain ON' : 'Terrain OFF'}
+        </button>
+      )}
+    </div>
   );
 }

@@ -6,7 +6,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { SimulationEngine } from '@/app/lib/simulator/engine';
+import { SimulationEngine, loadTerrain } from '@/app/lib/simulator/engine';
 
 /**
  * Run batch and collect individual results
@@ -113,7 +113,7 @@ function aggregateResults(results, total) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { config, batchSize = 100, includeSimulations = true } = body;
+    const { config, batchSize = 100, includeSimulations = true, useTerrain = true } = body;
 
     if (!config) {
       return NextResponse.json(
@@ -124,6 +124,20 @@ export async function POST(request) {
 
     // Validate batch size
     const size = Math.min(Math.max(1, batchSize), 10000);
+
+    // Load terrain data if enabled (Phase 2 feature)
+    let terrainInfo = null;
+    if (useTerrain) {
+      try {
+        terrainInfo = await loadTerrain(
+          config.centerLatitude,
+          config.centerLongitude,
+          config.searchRadiusMiles || 2.0
+        );
+      } catch (terrainError) {
+        console.warn('Terrain loading failed, continuing without:', terrainError.message);
+      }
+    }
 
     // Run batch and collect individual results
     const { results, simulations } = await runBatchWithResults(config, size);
@@ -155,6 +169,7 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       batch,
+      terrainInfo, // Include terrain loading stats
     });
 
   } catch (error) {
