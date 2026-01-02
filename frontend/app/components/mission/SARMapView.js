@@ -481,7 +481,7 @@ export default function SARMapView({
 
         // Sort zones from smallest to largest for ring creation
         const sortedZones = [...probabilityZones.zones].sort((a, b) => a.radius - b.radius);
-        const ZONE_OPACITY = 0.15; // Subtle, consistent opacity for all zones
+        const ZONE_OPACITY = 0.35; // More visible opacity for zones on satellite
 
         // Octant definitions (8 sections, 45° each)
         const octants = [
