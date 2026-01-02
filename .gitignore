@@ -7,3 +7,20 @@ build
 dist
 .next
 *.tsbuildinfo
+
+# Capacitor / Native App
+# Keep ios/ and android/ directories but ignore build outputs
+ios/App/Pods/
+ios/App/Podfile.lock
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/DerivedData/
+ios/capacitor-cordova-ios-plugins/
+android/.gradle/
+android/app/build/
+android/build/
+android/capacitor-cordova-android-plugins/
+*.keystore
+*.jks
+
+# Keep the out directory for Capacitor but ignore Next.js static export
+frontend/out/_next/
