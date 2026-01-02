@@ -5,10 +5,10 @@
  * to generate probability distributions for where pets are likely to be found.
  */
 
-import { PetAgent } from './petBehavior.js';
-import { SearcherAgent } from './searcherBehavior.js';
-import { calculateDetectionProbability } from './detection.js';
-import { seededRandom } from './utils.js';
+import { PetAgent } from './petBehavior';
+import { SearcherAgent } from './searcherBehavior';
+import { calculateDetectionProbability } from './detection';
+import { seededRandom } from './utils';
 
 // Simulation outcomes
 export const OUTCOMES = {
