@@ -6,6 +6,9 @@
  * Provides background GPS tracking on iOS and Android using Capacitor.
  * This enables reliable GPS tracking even when the app is backgrounded.
  *
+ * IMPORTANT: All Capacitor imports are dynamic to avoid build errors
+ * when running in a web-only environment.
+ *
  * Features:
  * - Continuous GPS tracking in foreground AND background
  * - Foreground service notification on Android (prevents OS killing)
@@ -14,16 +17,53 @@
  * - Automatic reconnection
  */
 
-import { Capacitor } from '@capacitor/core';
-
-// Dynamic import for background geolocation (only works in native)
+// Cached module references (loaded dynamically)
+let Capacitor = null;
 let BackgroundGeolocation = null;
+let isCapacitorAvailable = null;
+
+/**
+ * Check if Capacitor is available (safely)
+ * Returns false if running in a web browser without Capacitor
+ */
+async function checkCapacitorAvailable() {
+  if (isCapacitorAvailable !== null) {
+    return isCapacitorAvailable;
+  }
+
+  try {
+    // Use a technique that bypasses webpack's static analysis
+    // This prevents webpack from trying to bundle @capacitor/core
+    const moduleName = '@capacitor/core';
+    const capacitorModule = await import(/* webpackIgnore: true */ moduleName);
+    Capacitor = capacitorModule.Capacitor;
+    isCapacitorAvailable = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+    return isCapacitorAvailable;
+  } catch (error) {
+    // Capacitor not available (web build without native dependencies)
+    console.log('[Native GPS] Capacitor not available - running in web mode');
+    isCapacitorAvailable = false;
+    return false;
+  }
+}
 
 /**
  * Check if running in a native Capacitor environment
  */
 export function isNative() {
-  return Capacitor.isNativePlatform();
+  // Synchronous check using cached value
+  if (isCapacitorAvailable !== null) {
+    return isCapacitorAvailable;
+  }
+  // If not yet checked, assume false (will be checked async on init)
+  return false;
+}
+
+/**
+ * Async version of isNative for when you need the definitive answer
+ */
+export async function isNativeAsync() {
+  return await checkCapacitorAvailable();
 }
 
 /**
@@ -31,14 +71,17 @@ export function isNative() {
  * Call this once on app startup
  */
 export async function initNativeGPS() {
-  if (!isNative()) {
+  const isAvailable = await checkCapacitorAvailable();
+
+  if (!isAvailable) {
     console.log('[Native GPS] Not running in native environment, skipping init');
     return false;
   }
 
   try {
-    // Dynamic import to avoid issues in web builds
-    const module = await import('@capacitor-community/background-geolocation');
+    // Use webpackIgnore to prevent webpack from trying to bundle this
+    const moduleName = '@capacitor-community/background-geolocation';
+    const module = await import(/* webpackIgnore: true */ moduleName);
     BackgroundGeolocation = module.BackgroundGeolocation;
     console.log('[Native GPS] Plugin loaded successfully');
     return true;
@@ -274,8 +317,9 @@ export class HybridGPSTracker {
       return true;
     }
 
-    // Check if native is available
-    if (isNative()) {
+    // Check if native is available (async check)
+    const nativeAvailable = await isNativeAsync();
+    if (nativeAvailable) {
       const initialized = await initNativeGPS();
       if (initialized) {
         this.useNative = true;
@@ -297,7 +341,7 @@ export class HybridGPSTracker {
     console.log('[Hybrid GPS] Using web geolocation');
     this.useNative = false;
 
-    if (!navigator.geolocation) {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
       console.error('[Hybrid GPS] Geolocation not supported');
       return false;
     }
@@ -337,7 +381,7 @@ export class HybridGPSTracker {
       this.watcherId = null;
     }
 
-    if (this.webWatchId !== null) {
+    if (this.webWatchId !== null && typeof navigator !== 'undefined') {
       navigator.geolocation.clearWatch(this.webWatchId);
       this.webWatchId = null;
     }
@@ -400,6 +444,7 @@ export function getGlobalTracker() {
 
 export default {
   isNative,
+  isNativeAsync,
   initNativeGPS,
   requestNativeGPSPermissions,
   startNativeGPSTracking,

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import {
-  isNative,
+  isNativeAsync,
   initNativeGPS,
   startNativeGPSTracking,
   stopNativeGPSTracking,
@@ -75,16 +75,18 @@ export function GPSProvider({ children }) {
   // Check if geolocation is supported
   const isSupported = typeof navigator !== 'undefined' && 'geolocation' in navigator;
 
-  // Initialize native GPS on mount
+  // Initialize native GPS on mount (async check)
   useEffect(() => {
-    if (isNative()) {
-      initNativeGPS().then((initialized) => {
-        isNativeRef.current = initialized;
-        if (initialized) {
-          console.log('[GPS Service] Native GPS available - background tracking enabled');
-        }
-      });
-    }
+    isNativeAsync().then((isNative) => {
+      if (isNative) {
+        initNativeGPS().then((initialized) => {
+          isNativeRef.current = initialized;
+          if (initialized) {
+            console.log('[GPS Service] Native GPS available - background tracking enabled');
+          }
+        });
+      }
+    });
   }, []);
 
   // Handle position update (supports both web geolocation and native GPS formats)
