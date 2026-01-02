@@ -37,9 +37,11 @@ import TeamChatPanel from './components/simple/TeamChatPanel';
 import ActionsPanel from './components/simple/ActionsPanel';
 import TipsPanel from './components/simple/TipsPanel';
 import SightingFormModal from './components/modals/SightingFormModal';
+import AppDownloadPrompt from './components/modals/AppDownloadPrompt';
 import ProbabilityZoneToggle from './components/simple/ProbabilityZoneToggle';
 import ProbabilityZoneSlider from '@/app/components/mission/ProbabilityZoneSlider';
 import { printFlyer } from '@/app/lib/flyerGenerator';
+import { isNativeAsync } from '@/app/lib/nativeGpsService';
 
 // Dynamic import for map (no SSR)
 const SARMapView = dynamic(
@@ -65,6 +67,9 @@ function MissionControlContent() {
   // Probability zones toggle - ON by default to guide searchers
   const [showProbabilityZones, setShowProbabilityZones] = useState(true);
   const [zoneMultiplier, setZoneMultiplier] = useState(1); // 1 = original, 0.5 = 50% smaller, 2 = 200% larger
+
+  // App download prompt - shown when web users try to start GPS search
+  const [showAppDownloadPrompt, setShowAppDownloadPrompt] = useState(false);
 
   // Main mission state
   const mission = useMissionControl(session);
@@ -251,12 +256,34 @@ function MissionControlContent() {
     }
   }, [activeMission, lastSeenLocation, setShowSightingForm, showNotification, handleDownloadFlyer]);
 
-  // Handle start search
+  // Handle start search - check if native app first
   const handleStartSearch = useCallback(async () => {
-    setActiveTab('search'); // Switch to search/map when starting
+    // Check if we're in the native app
+    const isNative = await isNativeAsync();
+
+    if (!isNative) {
+      // Show app download prompt for web users
+      setShowAppDownloadPrompt(true);
+      return;
+    }
+
+    // Native app - proceed with GPS search
+    setActiveTab('search');
     const result = await startSearch();
     if (result.success) {
       showNotification('success', 'GPS search started! Your path is being tracked.');
+    } else {
+      showNotification('error', result.error || 'Failed to start search');
+    }
+  }, [startSearch, showNotification]);
+
+  // Handle continuing with limited web GPS (user chose to proceed anyway)
+  const handleContinueWithWebGPS = useCallback(async () => {
+    setShowAppDownloadPrompt(false);
+    setActiveTab('search');
+    const result = await startSearch();
+    if (result.success) {
+      showNotification('info', 'GPS search started. Keep the app visible for tracking to work.');
     } else {
       showNotification('error', result.error || 'Failed to start search');
     }
@@ -754,6 +781,13 @@ function MissionControlContent() {
           onSuccess={handleSightingSuccess}
         />
       )}
+
+      {/* App Download Prompt - shown when web users try to start GPS search */}
+      <AppDownloadPrompt
+        isOpen={showAppDownloadPrompt}
+        onClose={() => setShowAppDownloadPrompt(false)}
+        onContinueAnyway={handleContinueWithWebGPS}
+      />
 
     </div>
   );
