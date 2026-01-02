@@ -107,14 +107,153 @@ Individual simulation run:
 
 ## Simulation Engine
 
-### Pet Behavior Profiles
+### Pet Behavior State Machine
 
-| Profile | Description | Typical Species | Movement Pattern |
-|---------|-------------|-----------------|------------------|
-| **WANDERER** | Explores consistently | Most dogs | Semi-random walk, follows "scents" |
-| **HIDER** | Finds spot and stays | Scared cats, small dogs | Initial movement → hide for hours |
-| **RUNNER** | Panicked flight | Any frightened pet | Fast initial burst, then slows |
-| **TERRITORIAL** | Stays in known area | Outdoor cats | Circular pattern, returns to center |
+**Critical insight:** Pets don't have fixed behavior profiles—they transition between states based on triggers. A scared dog might be a RUNNER for the first hour, then become a HIDER.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    PET STATE MACHINE                                │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   ┌──────────┐    energy depletes    ┌──────────┐                  │
+│   │ FLEEING  │ ────────────────────▶ │  HIDING  │                  │
+│   │ (panic)  │                       │ (scared) │                  │
+│   └──────────┘                       └────┬─────┘                  │
+│        │                                  │                         │
+│        │ calms down                       │ hunger threshold        │
+│        ▼                                  ▼                         │
+│   ┌──────────┐    finds resources    ┌──────────┐                  │
+│   │ WANDERING│ ◀──────────────────── │ FORAGING │                  │
+│   │ (explore)│                       │ (hungry) │                  │
+│   └────┬─────┘                       └──────────┘                  │
+│        │                                  ▲                         │
+│        │ establishes territory           │                         │
+│        ▼                                  │                         │
+│   ┌──────────┐    hunger rises      ─────┘                         │
+│   │TERRITORIAL                                                      │
+│   │(routine) │ ◀─────── probabilistic pull toward home ────────────│
+│   └──────────┘                                                      │
+│                                                                     │
+│   ANY STATE ──── HOMING (weighted attraction toward origin) ──────▶│
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**State Transition Triggers:**
+
+| From | To | Trigger |
+|------|-----|---------|
+| FLEEING | HIDING | Energy < 20%, or finds shelter |
+| FLEEING | WANDERING | Time > 2hrs AND no perceived threats |
+| HIDING | FORAGING | Hunger > 70% AND time_of_day is dawn/dusk |
+| FORAGING | WANDERING | Hunger < 30% |
+| FORAGING | HIDING | Perceived threat OR daylight |
+| WANDERING | TERRITORIAL | Time > 24hrs AND stable food source found |
+| ANY | HOMING | Random probability weighted by distance to home |
+
+**Initial State Selection (based on pet profile):**
+
+| Pet Type | Starting State | Typical Progression |
+|----------|---------------|---------------------|
+| Scared indoor cat | FLEEING → HIDING | May never leave HIDING |
+| Confident outdoor cat | TERRITORIAL | Stays TERRITORIAL, occasional FORAGING |
+| Panicked dog | FLEEING → WANDERING | Wide range, then stabilizes |
+| Friendly dog | WANDERING | May approach people (detection boost) |
+| Senior pet | HIDING | Limited mobility reduces transitions |
+
+### Environmental Variables
+
+**Time of Day Effects:**
+```
+┌────────────────────────────────────────────────────────────┐
+│  Hour:  0  2  4  6  8  10 12 14 16 18 20 22 24           │
+│         ▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░▓▓▓▓▓▓▓▓             │
+│         NIGHT  │DAWN│   DAY        │DUSK│NIGHT           │
+├────────────────────────────────────────────────────────────┤
+│  Pet Activity:     LOW during day, HIGH at dawn/dusk      │
+│  Cat Movement:     +50% at night, -30% midday             │
+│  Dog Movement:     +20% morning, normal otherwise         │
+│  Visibility:       LOW at night (detection penalty)       │
+│  Hiding Behavior:  +40% during daylight (cats)            │
+└────────────────────────────────────────────────────────────┘
+```
+
+**Attraction Factors (pull toward):**
+- **Home direction** — Dogs especially try to return; weighted by familiarity
+- **Food sources** — Dumpsters, restaurants, bird feeders, pet food left outside
+- **Water sources** — Creeks, ponds, fountains, puddles after rain
+- **Shelter** — Porches, sheds, under decks, drainage culverts, dense bushes
+- **Other animals** — Dogs may approach other dogs; cats avoid
+- **Familiar routes** — Regular walk paths, known territory boundaries
+
+**Repulsion Factors (push away from):**
+- **Busy roads** — Traffic noise/danger creates avoidance zone
+- **Construction** — Loud equipment drives pets away
+- **Predator cues** — Coyote scent, hawk territory (affects small pets)
+- **Unfamiliar humans** — Shy pets avoid populated areas
+- **Other aggressive animals** — Dogs barking, territorial cats
+
+**Barrier Modeling:**
+```
+Barriers affect movement probability, not absolute blocks:
+
+Fence (6ft):    Cat: 10% blocked, Dog: 90% blocked
+Fence (4ft):    Cat: 5% blocked,  Dog: 60% blocked
+Busy road:      Cat: 70% avoids,  Dog: 40% avoids
+Creek/river:    Cat: 95% blocked, Dog: 30% blocked (may swim)
+Highway:        Both: 85% blocked (danger zone)
+Building:       100% blocked (must go around)
+```
+
+### Goal-Seeking / Homing Behavior
+
+**Critical insight:** Pets aren't random walkers. Dogs especially try to return home. Cats return to familiar territory.
+
+**Homing Force Model:**
+```
+At each movement tick, apply weighted attraction toward known locations:
+
+homing_vector = Σ (attraction_weight × direction_to_location × distance_decay)
+
+Known locations (in priority order):
+1. Home (origin)           - weight: 0.3 for dogs, 0.1 for cats
+2. Regular walk routes     - weight: 0.15 (dogs only)
+3. Familiar parks/areas    - weight: 0.1
+4. Previous sighting spots - weight: 0.05 (if re-running with data)
+```
+
+**Species-Specific Homing:**
+
+| Species | Homing Strength | Notes |
+|---------|-----------------|-------|
+| Dogs | HIGH (0.3) | Strong desire to return; may travel miles toward home |
+| Outdoor Cats | LOW (0.1) | Stay in expanded territory; rarely travel home directly |
+| Indoor Cats | VERY LOW (0.05) | Too scared to navigate; hide close to escape point |
+| Birds | VARIABLE | Some species have strong homing; others follow food |
+
+**Homing Success Probability:**
+```
+P(successful_homing_attempt) = base_rate
+                              × distance_modifier
+                              × barrier_modifier
+                              × time_elapsed_modifier
+
+Where:
+- base_rate = 0.6 for dogs, 0.2 for cats
+- distance_modifier = 1.0 - (distance_miles × 0.1)  // decreases with distance
+- barrier_modifier = 0.3 if major road between pet and home, else 1.0
+- time_elapsed_modifier = 1.0 - (days × 0.05)  // decreases over time
+```
+
+**Implementation:**
+```javascript
+// Each tick, roll for homing attempt
+if (random() < homing_attempt_probability) {
+  // Apply vector toward home
+  pet.direction = lerp(pet.direction, direction_to_home, homing_strength);
+}
+```
 
 ### Search Strategies
 
@@ -125,17 +264,88 @@ Individual simulation run:
 | **RANDOM** | Uncoordinated movement | Simulating untrained volunteers |
 | **PROBABILITY** | Weighted toward likely zones | Optimal results |
 
+### Probabilistic Detection Model
+
+**Critical insight:** A hiding cat 5 feet away might never be found. A dog in an open field might be spotted from 200 yards. Detection isn't binary—it's probabilistic.
+
+```
+P(detection) = base_rate
+             × visibility_modifier(terrain)
+             × activity_modifier(pet_state)
+             × fatigue_modifier(searcher_hours)
+             × time_of_day_modifier(hour)
+             × distance_falloff(distance)
+```
+
+**Base Detection Rates by Distance:**
+```
+Distance    Base P(detection) per 5-min tick
+─────────────────────────────────────────────
+< 10 ft     0.95  (almost certain if pet visible)
+10-30 ft    0.70  (likely to notice)
+30-100 ft   0.40  (may spot movement)
+100-300 ft  0.15  (need open terrain)
+300+ ft     0.02  (unlikely without binoculars)
+```
+
+**Modifiers:**
+
+| Factor | Condition | Multiplier |
+|--------|-----------|------------|
+| **Pet State** | WANDERING/FORAGING | 1.0x |
+| | FLEEING (moving fast) | 1.2x (motion catches eye) |
+| | HIDING | 0.1x (very hard to find) |
+| | HOMING (approaching) | 1.5x (may approach searcher) |
+| **Terrain** | Open field | 1.5x |
+| | Suburban yard | 1.0x |
+| | Dense vegetation | 0.4x |
+| | Under structures | 0.2x |
+| **Time of Day** | Daylight | 1.0x |
+| | Dawn/Dusk | 0.7x |
+| | Night | 0.3x (without flashlight) |
+| | Night + flashlight | 0.5x |
+| **Searcher Fatigue** | Hour 0-2 | 1.0x (fresh) |
+| | Hour 2-4 | 0.9x |
+| | Hour 4-6 | 0.75x |
+| | Hour 6+ | 0.5x (diminishing returns) |
+| **Pet Personality** | Friendly | 1.3x (may approach humans) |
+| | Neutral | 1.0x |
+| | Shy/Scared | 0.6x (actively avoids) |
+
+**Example Calculation:**
+```
+Scenario: Shy cat hiding under a porch, night, searcher at 20ft after 3 hours
+
+P = 0.70 (base at 20ft)
+  × 0.1  (HIDING state)
+  × 0.2  (under structure)
+  × 0.3  (night)
+  × 0.9  (3 hours fatigue)
+  × 0.6  (shy personality)
+
+P = 0.70 × 0.1 × 0.2 × 0.3 × 0.9 × 0.6 = 0.00227 (0.2% chance per tick)
+
+→ Even passing within 20 feet, only ~0.2% chance of detection per check
+→ This matches reality: hiding cats are found by luck, traps, or cameras
+```
+
 ### Core Algorithm
 
 ```
-1. Initialize pet at last-seen location
+1. Initialize pet at last-seen location with starting state
 2. Initialize N searchers based on strategy
 3. For each time step (every 5 simulated minutes):
-   a. Move pet according to behavior model
-   b. Move each searcher according to strategy
-   c. Check if any searcher is within "vision radius" of pet
-   d. If found → record success, end simulation
-   e. Record all positions for playback
+   a. Update pet internal state (energy, hunger, fear)
+   b. Check for state transitions based on triggers
+   c. Move pet according to current state + environmental factors
+   d. Apply attraction/repulsion forces (food, home, barriers)
+   e. Move each searcher according to strategy
+   f. Apply searcher fatigue modifier
+   g. For each searcher within detection range:
+      - Calculate P(detection) using full model
+      - Roll random check against probability
+      - If success → record find, end simulation
+   h. Record all positions and states for playback
 4. If max time reached → record timeout
 5. Store path data as compressed JSON
 ```
@@ -228,11 +438,56 @@ After running a batch of simulations, display:
 - [ ] Create zone breakdown visualizations
 - [ ] Add CSV/JSON export functionality
 
-### Phase 5: Calibration System
-- [ ] Compare simulation predictions to actual `CaseOutcome` data
-- [ ] Create feedback loop to adjust base parameters
-- [ ] Build accuracy tracking over time
-- [ ] Document calibration methodology
+### Phase 5: Calibration System (CRITICAL FOR VALIDITY)
+
+This phase is the scientific foundation. Without proper calibration, we're simulating plausible-sounding fiction rather than reality.
+
+**5.1 Data Requirements Assessment**
+- [ ] Audit existing `CaseOutcome` records for usable data
+- [ ] Determine how many have accurate "found at" coordinates (not just "reunited")
+- [ ] Identify what metadata is available (species, size, time elapsed, terrain)
+- [ ] Estimate minimum sample size needed for statistical significance (~200+ per pet type)
+
+**5.2 Calibration Data Collection**
+- [ ] Add "found location" pin to case resolution flow (if not already precise)
+- [ ] Add "how was pet found" dropdown (walking search, trap, sighting report, returned home)
+- [ ] Track time elapsed from report to reunion
+- [ ] Record environmental conditions (urban/suburban/rural, weather if available)
+
+**5.3 Prediction vs. Reality Comparison**
+- [ ] For each resolved case, generate post-hoc simulation prediction
+- [ ] Compare: Was actual find location within predicted HIGH/MEDIUM/LOW/EXTENDED zone?
+- [ ] Calculate zone accuracy rates by pet type
+- [ ] Identify systematic biases (e.g., "cats found 30% closer than predicted")
+
+**5.4 Parameter Adjustment Methodology**
+```
+For each pet category (e.g., "small dog, suburban, 24-48 hours"):
+  1. Collect all resolved cases matching criteria
+  2. Calculate mean/median actual displacement
+  3. Compare to current model prediction
+  4. If actual < predicted: reduce base_radius by ratio
+  5. If actual > predicted: increase base_radius by ratio
+  6. Apply Bayesian smoothing to avoid overfitting to small samples
+```
+
+**5.5 Addressing Survivorship Bias**
+- [ ] Document limitation: We only know where FOUND pets were; not where unfound pets went
+- [ ] Hypothesis: Unfound pets may have traveled further (beyond search radius)
+- [ ] Mitigation: Weight recent finds more heavily (better data), track "not found" cases separately
+- [ ] Future: Partner with shelters to get "found as stray" location data
+
+**5.6 Ongoing Calibration Pipeline**
+- [ ] Weekly job: recalculate accuracy metrics as new cases resolve
+- [ ] Monthly review: adjust parameters if accuracy drops below threshold
+- [ ] Version model parameters (v1.0, v1.1) to track improvements
+- [ ] A/B test: show different users old vs. new model, measure reunion rates
+
+**5.7 Accuracy Dashboard**
+- [ ] Display current model accuracy by category
+- [ ] Show trend over time (is the model improving?)
+- [ ] Alert when accuracy drops significantly for any category
+- [ ] Provide transparency to users: "This prediction is based on N similar cases with X% accuracy"
 
 ---
 
@@ -260,6 +515,50 @@ After running a batch of simulations, display:
 
 ---
 
+## Pre-Implementation Research (RECOMMENDED)
+
+**Before finalizing behavior parameters, spend time researching actual lost pet recovery studies:**
+
+### Recommended Sources
+
+1. **Missing Animal Response Network (MARN)**
+   - Kat Albrecht's research on lost pet behavior
+   - Statistics on displacement distances by species
+   - Behavior profiles based on thousands of cases
+
+2. **Academic Studies**
+   - "Lost Cat Behaviour" studies (various university research)
+   - Animal behavior journals on displacement and homing
+   - GPS tracking studies on stray/feral animals
+
+3. **Shelter Data**
+   - ASPCA statistics on found pet locations
+   - Humane society reunion data
+   - Intake location vs. owner address analysis
+
+4. **Industry Data**
+   - Pet detective case files (if accessible)
+   - Microchip company reunion statistics
+   - Pet recovery service success rates
+
+### Key Questions to Answer
+
+- [ ] What is the actual median displacement for dogs by size at 24/48/72 hours?
+- [ ] What percentage of cats are found within 3 houses of escape point?
+- [ ] How does urban vs. rural environment affect displacement statistically?
+- [ ] What percentage of found pets returned home on their own vs. were found by searchers?
+- [ ] What time of day are most pets found? (validates our dawn/dusk hypothesis)
+
+### Validation Checkpoints
+
+Before deploying the simulator to real users:
+- [ ] Compare our base parameters to published research
+- [ ] Run simulations against known historical cases (if we have location data)
+- [ ] Get feedback from experienced pet recovery professionals
+- [ ] Document sources for each parameter value
+
+---
+
 ## Future Enhancements
 
 1. **Machine Learning Integration**
@@ -267,20 +566,26 @@ After running a batch of simulations, display:
    - Neural network for complex pattern recognition
    - Automatic parameter optimization
 
-2. **Real Terrain Data**
-   - Integrate OpenStreetMap for actual barriers (roads, water, fences)
+2. **Real Terrain Data (OpenStreetMap Integration)**
+   - Query OSM for actual barriers (roads, water, fences)
    - Building footprints for urban hiding spots
    - Elevation data for rural areas
+   - Park boundaries and green spaces
 
-3. **Weather Factors**
-   - Temperature affects pet movement
-   - Rain/snow changes behavior
-   - Day/night visibility differences
+3. **Weather API Integration**
+   - Temperature affects pet movement (hot = less active)
+   - Rain/snow changes behavior (seek shelter)
+   - Historical weather for past case analysis
 
-4. **Community Validation**
-   - Allow users to mark "pet found here" on resolved cases
-   - Compare to simulation predictions
-   - Crowdsource calibration data
+4. **Trap Simulation**
+   - Model humane trap placement strategies
+   - Simulate bait effectiveness over time
+   - Optimal trap checking schedules
+
+5. **Multi-Pet Households**
+   - Simulate pets that escaped together
+   - Model pack behavior for multiple dogs
+   - Separation scenarios
 
 ---
 
