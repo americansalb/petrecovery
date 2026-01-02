@@ -13,7 +13,7 @@ const MAPKIT_JS_URL = 'https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.js';
 // Token - In production, this should come from an environment variable
 // or be fetched from a secure backend endpoint
 const MAPKIT_TOKEN = process.env.NEXT_PUBLIC_APPLE_MAPKIT_TOKEN ||
-  'eyJraWQiOiJWM0xWNVNMNEJBIiwidHlwIjoiSldUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJCRjIzTjRINjdWIiwiaWF0IjoxNzY1MzEyNDI3LCJvcmlnaW4iOiJwZXRyZWNvdmVyeS5vbnJlbmRlci5jb20ifQ.UTZplSiKmf2hhBbGtCpaQ-50F2tRuCbrpSXuorelsS9wxvp--hl3n5qFMgL_RHxOcigAPWfRVA0hkazq2uuaFA';
+  'eyJraWQiOiI3ODg3N1dWNlo3IiwidHlwIjoiSldUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJCRjIzTjRINjdWIiwiaWF0IjoxNzY3MzA5NTY4LCJvcmlnaW4iOiJyZXVuaXRlcGV0cy5vcmcifQ.zqtlPpm1wfmlfq-BmdxWgsBS9xhAoMQNWFg-ZMzJroyINHPML609QTfjTKAOyX_GrtWoy444YjRt6MnkhUXC5A';
 
 // Track initialization state
 let mapkitInitialized = false;
@@ -421,6 +421,102 @@ export async function enrichSheltersWithDetails(shelters, maxToEnrich = 10) {
   return [...enriched, ...shelters.slice(maxToEnrich)];
 }
 
+/**
+ * Search for places with autocomplete
+ * Returns array of place suggestions for location picker
+ */
+export async function searchAutocomplete(query, options = {}) {
+  if (!query || query.length < 2) return [];
+
+  const mapkit = await initializeMapKit();
+
+  return new Promise((resolve) => {
+    const searchOptions = {
+      language: 'en-US',
+      includePointsOfInterest: true,
+      includeAddresses: true,
+    };
+
+    // If user location is provided, bias results toward it
+    if (options.latitude && options.longitude) {
+      searchOptions.region = new mapkit.CoordinateRegion(
+        new mapkit.Coordinate(options.latitude, options.longitude),
+        new mapkit.CoordinateSpan(0.5, 0.5) // ~30 mile radius
+      );
+    }
+
+    const search = new mapkit.Search(searchOptions);
+
+    search.autocomplete(query, (error, data) => {
+      if (error) {
+        console.error('[MapKit Autocomplete] Error:', error);
+        resolve([]);
+        return;
+      }
+
+      const results = (data?.results || []).slice(0, options.limit || 5).map(result => ({
+        // Primary display name (business name or address start)
+        name: result.displayLines?.[0] || result.completionLine || query,
+        // Full address
+        address: result.displayLines?.join(', ') || result.completionLine || '',
+        // Coordinate (if available from autocomplete)
+        latitude: result.coordinate?.latitude || null,
+        longitude: result.coordinate?.longitude || null,
+        // Original result for further lookup
+        _raw: result,
+      }));
+
+      resolve(results);
+    });
+  });
+}
+
+/**
+ * Get full place details from an autocomplete result
+ * Call this after user selects from autocomplete to get exact coordinates
+ */
+export async function getPlaceFromAutocomplete(autocompleteResult) {
+  if (!autocompleteResult) return null;
+
+  // If we already have coordinates, return them
+  if (autocompleteResult.latitude && autocompleteResult.longitude) {
+    return {
+      name: autocompleteResult.name,
+      address: autocompleteResult.address,
+      latitude: autocompleteResult.latitude,
+      longitude: autocompleteResult.longitude,
+    };
+  }
+
+  const mapkit = await initializeMapKit();
+
+  return new Promise((resolve) => {
+    const search = new mapkit.Search({
+      includePointsOfInterest: true,
+      includeAddresses: true,
+    });
+
+    // Search for the full query to get coordinates
+    const searchQuery = autocompleteResult.address || autocompleteResult.name;
+
+    search.search(searchQuery, (error, data) => {
+      if (error || !data?.places?.length) {
+        console.error('[MapKit Search] Error getting place details:', error);
+        resolve(null);
+        return;
+      }
+
+      const place = data.places[0];
+      resolve({
+        name: autocompleteResult.name,
+        address: place.formattedAddress || autocompleteResult.address,
+        latitude: place.coordinate?.latitude,
+        longitude: place.coordinate?.longitude,
+      });
+    });
+  });
+}
+
 export default {
   initializeMapKit,
   isMapKitInitialized,
@@ -435,6 +531,8 @@ export default {
   createPolygonOverlay,
   searchPlaceDetails,
   enrichSheltersWithDetails,
+  searchAutocomplete,
+  getPlaceFromAutocomplete,
   MapTypes,
   MapColors,
   DefaultMapOptions,

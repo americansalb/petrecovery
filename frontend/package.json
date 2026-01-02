@@ -17,7 +17,16 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --maxWorkers=2",
-    "lint": "next lint"
+    "lint": "next lint",
+    "cap:init": "npx cap init ReunitePets com.reunitepets.app --web-dir=out",
+    "cap:add:ios": "npx cap add ios",
+    "cap:add:android": "npx cap add android",
+    "cap:sync": "npx cap sync",
+    "cap:open:ios": "npx cap open ios",
+    "cap:open:android": "npx cap open android",
+    "mobile:build": "next build && next export && npx cap sync",
+    "mobile:ios": "npm run mobile:build && npx cap open ios",
+    "mobile:android": "npm run mobile:build && npx cap open android"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
@@ -58,5 +67,15 @@
     "eslint-config-next": "^14.0.0",
     "jest": "^29.7.0",
     "jest-environment-node": "^29.7.0"
+  },
+  "optionalDependencies": {
+    "@capacitor-community/background-geolocation": "^1.2.26",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "@capacitor/splash-screen": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0"
   }
 }

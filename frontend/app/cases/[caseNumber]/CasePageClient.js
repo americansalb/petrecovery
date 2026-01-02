@@ -206,14 +206,15 @@ export default function CasePageClient() {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column - Map & Timeline */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Map Preview */}
+            {/* Map Preview - Same map as Mission Control */}
             <MapPreview
               caseNumber={caseNumber}
               lastSeenLatitude={caseData?.lastSeenLatitude}
               lastSeenLongitude={caseData?.lastSeenLongitude}
               lastSeenAddress={caseData?.lastSeenAddress}
               sightings={caseData?.sightings || []}
-              searchRadius={caseData?.searchRadius || 5}
+              petSpecies={caseData?.petSpecies || 'DOG'}
+              hoursElapsed={caseData?.lastSeenAt ? Math.floor((Date.now() - new Date(caseData.lastSeenAt).getTime()) / (1000 * 60 * 60)) : 24}
             />
 
             {/* Activity Timeline */}

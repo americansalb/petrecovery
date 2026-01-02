@@ -35,9 +35,12 @@ import LiveSearchOverlay from './components/simple/LiveSearchOverlay';
 import OverviewPanel from './components/simple/OverviewPanel';
 import TeamPanel from './components/simple/TeamPanel';
 import SightingFormModal from './components/modals/SightingFormModal';
+import AppDownloadPrompt from './components/modals/AppDownloadPrompt';
 import ProbabilityZoneToggle from './components/simple/ProbabilityZoneToggle';
+import ProbabilityZoneSlider from '@/app/components/mission/ProbabilityZoneSlider';
 import ContextualTip, { TIPS } from './components/simple/ContextualTip';
 import { printFlyer } from '@/app/lib/flyerGenerator';
+import { isNativeAsync } from '@/app/lib/nativeGpsService';
 
 // Dynamic import for map (no SSR)
 const SARMapView = dynamic(
@@ -63,6 +66,10 @@ function MissionControlContent() {
 
   // Probability zones toggle - ON by default to guide searchers
   const [showProbabilityZones, setShowProbabilityZones] = useState(true);
+  const [zoneMultiplier, setZoneMultiplier] = useState(1); // 1 = original, 0.5 = 50% smaller, 2 = 200% larger
+
+  // App download prompt - shown when web users try to start GPS search
+  const [showAppDownloadPrompt, setShowAppDownloadPrompt] = useState(false);
 
   // Main mission state
   const mission = useMissionControl(session);
@@ -97,31 +104,57 @@ function MissionControlContent() {
     return null;
   }, [activeMission?.lastSeenLatitude, activeMission?.lastSeenLongitude, activeMission?.lastSeenLat, activeMission?.lastSeenLng]);
 
-  // Calculate probability zones for points multiplier
+  // Helper to get time elapsed category
+  const getTimeElapsedCategory = useCallback((lastSeenAt) => {
+    if (!lastSeenAt) return '6_to_24_hours';
+    const hoursAgo = (Date.now() - new Date(lastSeenAt).getTime()) / (1000 * 60 * 60);
+    if (hoursAgo < 1) return 'less_than_hour';
+    if (hoursAgo < 6) return '1_to_6_hours';
+    if (hoursAgo < 24) return '6_to_24_hours';
+    if (hoursAgo < 72) return '1_to_3_days';
+    if (hoursAgo < 168) return '3_to_7_days';
+    if (hoursAgo < 336) return '1_to_2_weeks';
+    return 'more_than_2_weeks';
+  }, []);
+
+  // Original zone settings (from mission data - read-only for info display)
+  const originalZoneSettings = useMemo(() => {
+    const baseIsIndoorCat = activeMission?.petDescription?.includes('Indoor cat') ? true :
+                            activeMission?.petDescription?.includes('Outdoor access') ? false : null;
+    return {
+      size: activeMission?.petSize || 'MEDIUM',
+      isIndoorCat: baseIsIndoorCat,
+      timeElapsed: getTimeElapsedCategory(activeMission?.lastSeenAt),
+      age: 'adult',
+    };
+  }, [activeMission, getTimeElapsedCategory]);
+
+  // Calculate probability zones with multiplier applied
   const probabilityZones = useMemo(() => {
     if (!activeMission || !lastSeenLocation) return null;
 
-    const getTimeElapsedCategory = (lastSeenAt) => {
-      if (!lastSeenAt) return '6_to_24_hours';
-      const hoursAgo = (Date.now() - new Date(lastSeenAt).getTime()) / (1000 * 60 * 60);
-      if (hoursAgo < 1) return 'less_than_hour';
-      if (hoursAgo < 6) return '1_to_6_hours';
-      if (hoursAgo < 24) return '6_to_24_hours';
-      if (hoursAgo < 72) return '1_to_3_days';
-      if (hoursAgo < 168) return '3_to_7_days';
-      if (hoursAgo < 336) return '1_to_2_weeks';
-      return 'more_than_2_weeks';
-    };
-
-    return calculateProbabilityZones({
+    const baseZones = calculateProbabilityZones({
       species: activeMission.petSpecies,
-      size: activeMission.petSize,
-      isIndoorCat: activeMission.petDescription?.includes('Indoor cat') ? true :
-        activeMission.petDescription?.includes('Outdoor access') ? false : null,
-      timeElapsed: getTimeElapsedCategory(activeMission.lastSeenAt),
+      size: originalZoneSettings.size,
+      isIndoorCat: originalZoneSettings.isIndoorCat,
+      timeElapsed: originalZoneSettings.timeElapsed,
+      age: originalZoneSettings.age,
       lastSeenLocation: [lastSeenLocation.lat, lastSeenLocation.lng],
     });
-  }, [activeMission, lastSeenLocation]);
+
+    // Apply multiplier to zone radii if not 1
+    if (baseZones && zoneMultiplier !== 1) {
+      return {
+        ...baseZones,
+        zones: baseZones.zones.map(zone => ({
+          ...zone,
+          radius: zone.radius * zoneMultiplier,
+        })),
+      };
+    }
+
+    return baseZones;
+  }, [activeMission, lastSeenLocation, originalZoneSettings, zoneMultiplier]);
 
   const searchSession = useSearchSession(activeMission?.id, lastSeenLocation, probabilityZones);
   const {
@@ -223,12 +256,34 @@ function MissionControlContent() {
     }
   }, [activeMission, lastSeenLocation, setShowSightingForm, showNotification, handleDownloadFlyer]);
 
-  // Handle start search - switch to map tab when starting GPS
+  // Handle start search - check if native app first
   const handleStartSearch = useCallback(async () => {
+    // Check if we're in the native app
+    const isNative = await isNativeAsync();
+
+    if (!isNative) {
+      // Show app download prompt for web users
+      setShowAppDownloadPrompt(true);
+      return;
+    }
+
+    // Native app - proceed with GPS search
     setActiveTab('map'); // Switch to map when starting GPS search
     const result = await startSearch();
     if (result.success) {
       showNotification('success', 'GPS search started! Your path is being tracked.');
+    } else {
+      showNotification('error', result.error || 'Failed to start search');
+    }
+  }, [startSearch, showNotification]);
+
+  // Handle continuing with limited web GPS (user chose to proceed anyway)
+  const handleContinueWithWebGPS = useCallback(async () => {
+    setShowAppDownloadPrompt(false);
+    setActiveTab('search');
+    const result = await startSearch();
+    if (result.success) {
+      showNotification('info', 'GPS search started. Keep the app visible for tracking to work.');
     } else {
       showNotification('error', result.error || 'Failed to start search');
     }
@@ -397,13 +452,24 @@ function MissionControlContent() {
               </div>
             )}
 
-            {/* Mobile Probability Toggle */}
+            {/* Mobile Probability Toggle + Slider - moved to bottom left, out of the way */}
             {!isSearching && lastSeenLocation && (
-              <ProbabilityZoneToggle
-                show={showProbabilityZones}
-                onToggle={() => setShowProbabilityZones(!showProbabilityZones)}
-                className="absolute top-[200px] left-4"
-              />
+              <div className="absolute bottom-36 left-4 z-[500] flex flex-col gap-2">
+                <ProbabilityZoneToggle
+                  show={showProbabilityZones}
+                  onToggle={() => setShowProbabilityZones(!showProbabilityZones)}
+                />
+                {/* Zone adjustment slider - show when zones are visible */}
+                {showProbabilityZones && (
+                  <ProbabilityZoneSlider
+                    originalSettings={originalZoneSettings}
+                    currentMultiplier={zoneMultiplier}
+                    onMultiplierChange={setZoneMultiplier}
+                    onReset={() => setZoneMultiplier(1)}
+                    petSpecies={activeMission?.petSpecies}
+                  />
+                )}
+              </div>
             )}
 
             {/* Mobile Search Controls */}
@@ -607,13 +673,24 @@ function MissionControlContent() {
             probabilityZones={probabilityZones}
           />
 
-          {/* Probability Zones Toggle - Desktop */}
+          {/* Probability Zones Toggle + Slider - Desktop */}
           {!isSearching && lastSeenLocation && (
-            <ProbabilityZoneToggle
-              show={showProbabilityZones}
-              onToggle={() => setShowProbabilityZones(!showProbabilityZones)}
-              className="absolute bottom-28 left-6"
-            />
+            <div className="absolute bottom-28 left-6 z-[500] flex flex-col gap-3 max-w-xs">
+              <ProbabilityZoneToggle
+                show={showProbabilityZones}
+                onToggle={() => setShowProbabilityZones(!showProbabilityZones)}
+              />
+              {/* Zone adjustment slider - show when zones visible */}
+              {showProbabilityZones && (
+                <ProbabilityZoneSlider
+                  originalSettings={originalZoneSettings}
+                  currentMultiplier={zoneMultiplier}
+                  onMultiplierChange={setZoneMultiplier}
+                  onReset={() => setZoneMultiplier(1)}
+                  petSpecies={activeMission?.petSpecies}
+                />
+              )}
+            </div>
           )}
 
           {/* Search controls overlay on map */}
@@ -698,6 +775,14 @@ function MissionControlContent() {
           onSuccess={handleSightingSuccess}
         />
       )}
+
+      {/* App Download Prompt - shown when web users try to start GPS search */}
+      <AppDownloadPrompt
+        isOpen={showAppDownloadPrompt}
+        onClose={() => setShowAppDownloadPrompt(false)}
+        onContinueAnyway={handleContinueWithWebGPS}
+      />
+
     </div>
   );
 }

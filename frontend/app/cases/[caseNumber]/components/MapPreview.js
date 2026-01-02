@@ -1,26 +1,180 @@
 'use client';
 
 /**
- * MapPreview - Simple map showing last seen and sightings
+ * MapPreview - Preview of the search area matching Mission Control style
  *
- * A preview that links to the full mission control map.
- * Shows: last seen location, recent sightings, search radius
+ * Uses the same visual styling as SARMapView but without GPS dependencies.
+ * Shows: last seen marker, sighting markers, search radius circles.
  */
 
+import { useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { MapPin, ExternalLink, Eye, Navigation } from 'lucide-react';
 
-// Dynamically import map to avoid SSR issues
-const PetMap = dynamic(() => import('@/app/components/PetMap'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full bg-midnight-100 flex items-center justify-center">
-      <div className="animate-pulse text-midnight-400">Loading map...</div>
-    </div>
-  )
-});
+// Simple map component without GPS dependencies
+function SimpleMap({ center, lastSeen, sightings = [], petSpecies = 'DOG', hoursElapsed = 24 }) {
+  const mapRef = useRef(null);
+  const mapInstance = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !mapRef.current) return;
+
+    // Dynamically import Leaflet
+    import('leaflet').then((L) => {
+      // Clean up existing map
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+
+      // Create map - same settings as SARMapView
+      const map = L.map(mapRef.current, {
+        center,
+        zoom: 15,
+        zoomControl: true,
+        attributionControl: true,
+        dragging: true,
+        touchZoom: true,
+        scrollWheelZoom: true,
+        doubleClickZoom: true,
+      });
+
+      // Same tile layer as SARMapView (CartoDB Voyager for light theme)
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap © CARTO'
+      }).addTo(map);
+
+      // Add search radius circle (simplified)
+      const radiusMiles = hoursElapsed <= 6 ? 0.5 : hoursElapsed <= 24 ? 1 : hoursElapsed <= 72 ? 2 : 3;
+      const radiusMeters = radiusMiles * 1609.34;
+
+      L.circle(center, {
+        radius: radiusMeters,
+        color: '#6366f1',
+        fillColor: '#6366f1',
+        fillOpacity: 0.1,
+        weight: 2,
+        dashArray: '5, 5'
+      }).addTo(map);
+
+      // Last seen marker - same style as SARMapView
+      if (lastSeen) {
+        const lastSeenIcon = L.divIcon({
+          className: 'custom-marker',
+          html: `
+            <div style="
+              position: relative;
+              width: 36px;
+              height: 36px;
+            ">
+              <div style="
+                position: absolute;
+                width: 36px;
+                height: 36px;
+                background: #ef4444;
+                border-radius: 50% 50% 50% 0;
+                transform: rotate(-45deg);
+                border: 3px solid white;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+              "></div>
+              <div style="
+                position: absolute;
+                top: 7px;
+                left: 7px;
+                width: 22px;
+                height: 22px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              ">
+                <span style="font-size: 14px;">📍</span>
+              </div>
+            </div>
+          `,
+          iconSize: [36, 36],
+          iconAnchor: [18, 36],
+        });
+
+        L.marker([lastSeen.latitude, lastSeen.longitude], { icon: lastSeenIcon })
+          .bindPopup(`<b>Last Seen</b><br/>${lastSeen.address || 'Location'}`)
+          .addTo(map);
+      }
+
+      // Sighting markers - same style as SARMapView
+      sightings.forEach((sighting, index) => {
+        if (!sighting.latitude || !sighting.longitude) return;
+
+        // Color based on recency (same logic as SARMapView)
+        const hoursAgo = sighting.sightedAt
+          ? (Date.now() - new Date(sighting.sightedAt).getTime()) / (1000 * 60 * 60)
+          : 999;
+
+        let color = '#94a3b8'; // gray for old
+        if (hoursAgo < 1) color = '#ef4444'; // red for very recent
+        else if (hoursAgo < 6) color = '#f97316'; // orange
+        else if (hoursAgo < 24) color = '#eab308'; // yellow
+
+        const sightingIcon = L.divIcon({
+          className: 'custom-marker',
+          html: `
+            <div style="
+              width: 24px;
+              height: 24px;
+              background: ${color};
+              border-radius: 50%;
+              border: 2px solid white;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            ">
+              <span style="font-size: 12px;">👁️</span>
+            </div>
+          `,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        });
+
+        L.marker([sighting.latitude, sighting.longitude], { icon: sightingIcon })
+          .bindPopup(`<b>Sighting ${index + 1}</b><br/>${sighting.description || sighting.address || 'Reported sighting'}`)
+          .addTo(map);
+      });
+
+      // Fit bounds if we have sightings
+      if (sightings.length > 0) {
+        const bounds = L.latLngBounds([center]);
+        sightings.forEach(s => {
+          if (s.latitude && s.longitude) {
+            bounds.extend([s.latitude, s.longitude]);
+          }
+        });
+        map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
+      }
+
+      mapInstance.current = map;
+    });
+
+    return () => {
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+    };
+  }, [center, lastSeen, sightings, hoursElapsed]);
+
+  return <div ref={mapRef} className="w-full h-full" />;
+}
+
+// Dynamic import wrapper
+const MapComponent = dynamic(
+  () => Promise.resolve(SimpleMap),
+  {
+    ssr: false,
+    loading: () => <div className="w-full h-full bg-midnight-100 animate-pulse" />
+  }
+);
 
 export default function MapPreview({
   caseNumber,
@@ -28,33 +182,17 @@ export default function MapPreview({
   lastSeenLongitude,
   lastSeenAddress,
   sightings = [],
-  searchRadius = 5
+  petSpecies = 'DOG',
+  hoursElapsed = 24
 }) {
-  // Build markers array
-  const markers = [];
-
-  // Last seen marker
-  if (lastSeenLatitude && lastSeenLongitude) {
-    markers.push({
-      position: [lastSeenLatitude, lastSeenLongitude],
-      type: 'lastSeen',
-      popup: `Last seen: ${lastSeenAddress || 'Here'}`
-    });
-  }
-
-  // Sighting markers (most recent first, limit to 5)
-  const recentSightings = sightings.slice(0, 5);
-  recentSightings.forEach((sighting, index) => {
-    if (sighting.latitude && sighting.longitude) {
-      markers.push({
-        position: [sighting.latitude, sighting.longitude],
-        type: 'sighting',
-        popup: sighting.description || `Sighting ${index + 1}`
-      });
-    }
-  });
-
   const hasLocation = lastSeenLatitude && lastSeenLongitude;
+  const sightingsCount = sightings?.length || 0;
+
+  const lastSeen = hasLocation ? {
+    latitude: lastSeenLatitude,
+    longitude: lastSeenLongitude,
+    address: lastSeenAddress
+  } : null;
 
   return (
     <motion.div
@@ -65,69 +203,46 @@ export default function MapPreview({
     >
       {/* Header */}
       <div className="px-5 py-4 border-b border-midnight-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-midnight-600" />
-            <h2 className="font-bold text-midnight-900">Search Area</h2>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-bold text-midnight-900 text-lg">Search Area</h2>
+            {lastSeenAddress && (
+              <p className="text-sm text-midnight-500 mt-0.5 line-clamp-2">{lastSeenAddress}</p>
+            )}
           </div>
-          {sightings.length > 0 && (
-            <span className="text-sm text-amber-600 font-medium flex items-center gap-1">
-              <Eye className="w-4 h-4" />
-              {sightings.length} sighting{sightings.length !== 1 ? 's' : ''}
+          {sightingsCount > 0 && (
+            <span className="text-sm text-amber-600 font-medium whitespace-nowrap">
+              {sightingsCount} sighting{sightingsCount !== 1 ? 's' : ''}
             </span>
           )}
         </div>
-        {lastSeenAddress && (
-          <p className="text-sm text-midnight-500 mt-1">{lastSeenAddress}</p>
-        )}
       </div>
 
       {/* Map */}
       {hasLocation ? (
-        <div className="relative">
-          <div className="h-48 md:h-64">
-            <PetMap
-              center={[lastSeenLatitude, lastSeenLongitude]}
-              zoom={14}
-              height="100%"
-              markers={markers}
-            />
-          </div>
-
-          {/* Overlay Link to Mission Control */}
-          <Link
-            href={`/mission-control?mission=${caseNumber}`}
-            className="absolute bottom-4 right-4 bg-midnight-900 hover:bg-midnight-800 text-white px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 text-sm font-medium transition"
-          >
-            <Navigation className="w-4 h-4" />
-            Open Full Map
-            <ExternalLink className="w-3 h-3" />
-          </Link>
+        <div className="h-64 md:h-80">
+          <MapComponent
+            center={[lastSeenLatitude, lastSeenLongitude]}
+            lastSeen={lastSeen}
+            sightings={sightings}
+            petSpecies={petSpecies}
+            hoursElapsed={hoursElapsed}
+          />
         </div>
       ) : (
-        <div className="h-48 bg-midnight-50 flex items-center justify-center">
+        <div className="h-64 bg-midnight-50 flex items-center justify-center">
           <p className="text-midnight-400">No location data available</p>
         </div>
       )}
 
-      {/* Map Legend */}
+      {/* Footer - Link to Mission Control */}
       {hasLocation && (
-        <div className="px-5 py-3 bg-midnight-50 border-t border-midnight-100 flex flex-wrap gap-4 text-xs text-midnight-600">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 bg-midnight-700 rounded-full" />
-            Last Seen
-          </div>
-          {sightings.length > 0 && (
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 bg-amber-500 rounded-full" />
-              Sightings
-            </div>
-          )}
-          <div className="flex items-center gap-1.5 text-midnight-400">
-            <span className="w-3 h-3 border-2 border-dashed border-blue-400 rounded-full" />
-            {searchRadius} mile radius
-          </div>
-        </div>
+        <Link
+          href={`/mission-control?mission=${caseNumber}`}
+          className="block px-5 py-3 bg-midnight-50 border-t border-midnight-100 text-center text-sm font-medium text-midnight-600 hover:text-midnight-900 hover:bg-midnight-100 transition"
+        >
+          Open Full Map in Mission Control →
+        </Link>
       )}
     </motion.div>
   );

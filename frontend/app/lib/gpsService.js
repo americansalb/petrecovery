@@ -1,6 +1,14 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import {
+  isNativeAsync,
+  initNativeGPS,
+  startNativeGPSTracking,
+  stopNativeGPSTracking,
+  getNativeGPSPosition,
+  openLocationSettings,
+} from './nativeGpsService';
 
 /**
  * Centralized GPS Service
@@ -8,9 +16,13 @@ import { createContext, useContext, useEffect, useState, useRef, useCallback } f
  * Solves the problem of multiple competing GPS watchers by providing
  * a single geolocation.watchPosition() that broadcasts to all subscribers.
  *
+ * On native platforms (iOS/Android via Capacitor), uses background
+ * geolocation for reliable tracking even when the app is backgrounded.
+ *
  * Benefits:
  * - Single browser resource (accurate, no conflicts)
  * - Consistent location across all components
+ * - Background GPS on native (foreground service on Android, always-on iOS)
  * - Proper cleanup on unmount
  * - Clear error states
  * - Battery-friendly (one watcher, not four)
@@ -51,28 +63,61 @@ export function GPSProvider({ children }) {
   const [isTracking, setIsTracking] = useState(false);
   const [accuracy, setAccuracy] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [usingNative, setUsingNative] = useState(false);
 
   // Refs for managing the watcher
   const watchIdRef = useRef(null);
+  const nativeWatcherIdRef = useRef(null);
   const subscribersRef = useRef(new Set());
   const currentModeRef = useRef(GPS_MODE.BALANCED);
+  const isNativeRef = useRef(false);
 
   // Check if geolocation is supported
   const isSupported = typeof navigator !== 'undefined' && 'geolocation' in navigator;
 
-  // Handle position update
+  // Initialize native GPS on mount (async check)
+  useEffect(() => {
+    isNativeAsync().then((isNative) => {
+      if (isNative) {
+        initNativeGPS().then((initialized) => {
+          isNativeRef.current = initialized;
+          if (initialized) {
+            console.log('[GPS Service] Native GPS available - background tracking enabled');
+          }
+        });
+      }
+    });
+  }, []);
+
+  // Handle position update (supports both web geolocation and native GPS formats)
   const handlePosition = useCallback((position) => {
-    const { latitude, longitude, accuracy: posAccuracy } = position.coords;
-    const newLocation = {
-      lat: latitude,
-      lng: longitude,
-      coords: [latitude, longitude],
-      accuracy: posAccuracy,
-      timestamp: position.timestamp,
-    };
+    let newLocation;
+
+    // Check if this is a native GPS location (has lat/lng directly)
+    if (position.lat !== undefined && position.lng !== undefined) {
+      newLocation = {
+        lat: position.lat,
+        lng: position.lng,
+        coords: [position.lat, position.lng],
+        accuracy: position.accuracy,
+        timestamp: position.timestamp || Date.now(),
+        isNative: position.isNative || false,
+      };
+    } else {
+      // Web geolocation format (position.coords)
+      const { latitude, longitude, accuracy: posAccuracy } = position.coords;
+      newLocation = {
+        lat: latitude,
+        lng: longitude,
+        coords: [latitude, longitude],
+        accuracy: posAccuracy,
+        timestamp: position.timestamp,
+        isNative: false,
+      };
+    }
 
     setLocation(newLocation);
-    setAccuracy(posAccuracy);
+    setAccuracy(newLocation.accuracy);
     setLastUpdate(Date.now());
     setError(null);
 
@@ -108,24 +153,57 @@ export function GPSProvider({ children }) {
   }, []);
 
   // Start tracking
-  const startTracking = useCallback((mode = GPS_MODE.BALANCED) => {
+  const startTracking = useCallback(async (mode = GPS_MODE.BALANCED) => {
+    // If already tracking with same mode, do nothing
+    if ((watchIdRef.current !== null || nativeWatcherIdRef.current !== null) &&
+        currentModeRef.current === mode) {
+      return true;
+    }
+
+    // Stop existing watchers if different mode requested
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    if (nativeWatcherIdRef.current !== null) {
+      await stopNativeGPSTracking(nativeWatcherIdRef.current);
+      nativeWatcherIdRef.current = null;
+    }
+
+    currentModeRef.current = mode;
+    const highAccuracy = mode === GPS_MODE.HIGH_ACCURACY || mode === GPS_MODE.BALANCED;
+
+    // Try native GPS first (for background support)
+    if (isNativeRef.current) {
+      console.log('[GPS Service] Starting native GPS tracking...');
+
+      const watcherId = await startNativeGPSTracking({
+        onLocation: handlePosition,
+        onError: (err) => handleError({ code: err.code, message: err.message }),
+        highAccuracy,
+        notificationTitle: 'ReunitePets Active Search',
+        notificationText: 'GPS tracking is on to help find lost pets',
+      });
+
+      if (watcherId) {
+        nativeWatcherIdRef.current = watcherId;
+        setIsTracking(true);
+        setUsingNative(true);
+        setError(null);
+        console.log('[GPS Service] Started native GPS tracking in', mode, 'mode');
+        return true;
+      }
+
+      console.log('[GPS Service] Native GPS failed, falling back to web geolocation');
+    }
+
+    // Fall back to web geolocation
     if (!isSupported) {
       setError('Geolocation is not supported by this browser');
       return false;
     }
 
-    // If already tracking with same mode, do nothing
-    if (watchIdRef.current !== null && currentModeRef.current === mode) {
-      return true;
-    }
-
-    // Stop existing watcher if different mode requested
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-    }
-
     const options = MODE_OPTIONS[mode] || MODE_OPTIONS[GPS_MODE.BALANCED];
-    currentModeRef.current = mode;
 
     // Get initial position quickly
     navigator.geolocation.getCurrentPosition(
@@ -142,29 +220,44 @@ export function GPSProvider({ children }) {
     );
 
     setIsTracking(true);
+    setUsingNative(false);
     setError(null);
-    console.log('[GPS Service] Started tracking in', mode, 'mode');
+    console.log('[GPS Service] Started web GPS tracking in', mode, 'mode');
     return true;
   }, [isSupported, handlePosition, handleError]);
 
   // Stop tracking
-  const stopTracking = useCallback(() => {
+  const stopTracking = useCallback(async () => {
+    if (nativeWatcherIdRef.current !== null) {
+      await stopNativeGPSTracking(nativeWatcherIdRef.current);
+      nativeWatcherIdRef.current = null;
+    }
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
     setIsTracking(false);
+    setUsingNative(false);
     console.log('[GPS Service] Stopped tracking');
   }, []);
 
+  // Keep a ref to current location for subscribe's initial callback
+  // This prevents subscribe from recreating when location changes
+  const locationRef = useRef(location);
+  useEffect(() => {
+    locationRef.current = location;
+  }, [location]);
+
   // Subscribe to location updates
+  // IMPORTANT: No dependencies on location - use ref instead
+  // This prevents infinite subscribe/unsubscribe cycles
   const subscribe = useCallback((callback) => {
     subscribersRef.current.add(callback);
 
-    // Immediately call with current location if available
-    if (location) {
+    // Immediately call with current location if available (use ref, not state)
+    if (locationRef.current) {
       try {
-        callback(location);
+        callback(locationRef.current);
       } catch (err) {
         console.error('[GPS Service] Subscriber initial call error:', err);
       }
@@ -174,7 +267,7 @@ export function GPSProvider({ children }) {
     return () => {
       subscribersRef.current.delete(callback);
     };
-  }, [location]);
+  }, []); // Empty deps - stable reference
 
   // Request single position (one-shot)
   const getPosition = useCallback(() => {
@@ -215,6 +308,10 @@ export function GPSProvider({ children }) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (nativeWatcherIdRef.current !== null) {
+        stopNativeGPSTracking(nativeWatcherIdRef.current);
+        nativeWatcherIdRef.current = null;
+      }
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
@@ -231,12 +328,14 @@ export function GPSProvider({ children }) {
     accuracy,
     lastUpdate,
     isSupported,
+    usingNative,
 
     // Actions
     startTracking,
     stopTracking,
     subscribe,
     getPosition,
+    openLocationSettings,
 
     // Constants
     GPS_MODE,

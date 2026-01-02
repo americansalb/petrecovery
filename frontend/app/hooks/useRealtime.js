@@ -27,6 +27,13 @@ export function useRealtime({
   const reconnectTimeoutRef = useRef(null);
   const reconnectAttemptsRef = useRef(0);
 
+  // Store handlers in refs to prevent reconnection when callbacks change
+  // This is critical - inline callbacks would cause constant reconnects
+  const handlersRef = useRef({ onNotification, onCaseUpdate, onSquadMessage, onSighting });
+  useEffect(() => {
+    handlersRef.current = { onNotification, onCaseUpdate, onSquadMessage, onSighting };
+  }, [onNotification, onCaseUpdate, onSquadMessage, onSighting]);
+
   const connect = useCallback(() => {
     if (!session?.user?.id || !enabled) return;
 
@@ -47,6 +54,8 @@ export function useRealtime({
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          // Use refs to get current handlers - they may have changed since connect()
+          const handlers = handlersRef.current;
 
           switch (data.type) {
             case 'connected':
@@ -58,19 +67,19 @@ export function useRealtime({
               break;
 
             case 'notification':
-              onNotification?.(data.payload);
+              handlers.onNotification?.(data.payload);
               break;
 
             case 'case_update':
-              onCaseUpdate?.(data.payload);
+              handlers.onCaseUpdate?.(data.payload);
               break;
 
             case 'squad_message':
-              onSquadMessage?.(data.payload);
+              handlers.onSquadMessage?.(data.payload);
               break;
 
             case 'sighting':
-              onSighting?.(data.payload);
+              handlers.onSighting?.(data.payload);
               break;
 
             default:
@@ -85,8 +94,10 @@ export function useRealtime({
         setConnected(false);
         eventSource.close();
 
-        // Exponential backoff reconnect
-        const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
+        // Exponential backoff reconnect with jitter to prevent thundering herd
+        const baseDelay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
+        const jitter = Math.random() * 1000; // 0-1s random jitter
+        const delay = baseDelay + jitter;
         reconnectAttemptsRef.current++;
 
         reconnectTimeoutRef.current = setTimeout(() => {
@@ -96,7 +107,7 @@ export function useRealtime({
     } catch (e) {
       console.error('Error creating EventSource:', e);
     }
-  }, [session?.user?.id, enabled, onNotification, onCaseUpdate, onSquadMessage, onSighting]);
+  }, [session?.user?.id, enabled]); // Only reconnect when session or enabled changes, NOT handlers
 
   useEffect(() => {
     connect();
@@ -104,9 +115,11 @@ export function useRealtime({
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
+        eventSourceRef.current = null;
       }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
     };
   }, [connect]);

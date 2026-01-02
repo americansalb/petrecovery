@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import ColorSelector from '../../components/ColorSelector';
 import { SARAMA_AVATAR } from '@/lib/brandAssets';
+import { searchAutocomplete, getPlaceFromAutocomplete } from '@/app/lib/maps/appleMapKit';
 
 const PET_TYPES = [
   { type: 'dog', label: 'Dog', icon: Dog, emoji: '🐕' },
@@ -67,6 +68,7 @@ export default function ReportLostPet() {
   const [lastSeenAddress, setLastSeenAddress] = useState('');
   const [cityName, setCityName] = useState('');
   const [isGettingLocation, setIsGettingLocation] = useState(true);
+  const [locationLocked, setLocationLocked] = useState(false); // Once user confirms location, lock it
   const [myPets, setMyPets] = useState([]);
   const [selectedPet, setSelectedPet] = useState(null);
   const [petType, setPetType] = useState('');
@@ -80,6 +82,39 @@ export default function ReportLostPet() {
   const [addressSearch, setAddressSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Load saved location from localStorage on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const saved = localStorage.getItem('reportLocation');
+      if (saved) {
+        const { center: savedCenter, address, city, locked } = JSON.parse(saved);
+        if (savedCenter && locked) {
+          setCenter(savedCenter);
+          setLastSeenAddress(address || '');
+          setCityName(city || '');
+          setLocationLocked(true);
+          setIsGettingLocation(false);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load saved location:', e);
+    }
+  }, []);
+
+  // Save location to localStorage when locked
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (locationLocked && center) {
+      localStorage.setItem('reportLocation', JSON.stringify({
+        center,
+        address: lastSeenAddress,
+        city: cityName,
+        locked: true
+      }));
+    }
+  }, [locationLocked, center, lastSeenAddress, cityName]);
 
   // Map refs
   const mapRef = useRef(null);
@@ -123,9 +158,9 @@ export default function ReportLostPet() {
     }
   }, []);
 
-  // Auto-detect location
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
+  // Auto-detect location (only on first load, respects locationLocked)
+  const detectLocation = async () => {
+    if (locationLocked) return; // Don't override user's manual selection
 
     setIsGettingLocation(true);
 
@@ -149,15 +184,24 @@ export default function ReportLostPet() {
       // No geolocation - user will need to search
       setIsGettingLocation(false);
     }
-  }, []);
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // Only auto-detect if no saved location
+    if (!locationLocked && !center) {
+      detectLocation();
+    }
+  }, [locationLocked]);
 
   // Initialize map
   useEffect(() => {
     if (typeof window === 'undefined' || !center || step !== 1) return;
 
-    // If map already exists, just update view
+    // If map already exists, just update marker position (preserve zoom level)
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.setView(center, 17);
+      const currentZoom = mapInstanceRef.current.getZoom();
+      mapInstanceRef.current.setView(center, currentZoom);
       if (markerRef.current) markerRef.current.setLatLng(center);
       if (circleRef.current) circleRef.current.setLatLng(center);
       return;
@@ -202,13 +246,14 @@ export default function ReportLostPet() {
         fillColor: '#ef4444',
         fillOpacity: 0.1,
         weight: 2,
-        radius: 100,
+        radius: 50, // 50 meter radius
       }).addTo(map);
       circleRef.current = circle;
 
       marker.on('dragend', async (e) => {
         const pos = e.target.getLatLng();
         setCenter([pos.lat, pos.lng]);
+        setLocationLocked(true); // Lock location after manual adjustment
         circle.setLatLng(pos);
         const result = await reverseGeocode(pos.lat, pos.lng);
         setLastSeenAddress(result.address);
@@ -218,6 +263,7 @@ export default function ReportLostPet() {
       map.on('click', async (e) => {
         const pos = e.latlng;
         setCenter([pos.lat, pos.lng]);
+        setLocationLocked(true); // Lock location after manual selection
         marker.setLatLng(pos);
         circle.setLatLng(pos);
         const result = await reverseGeocode(pos.lat, pos.lng);
@@ -258,8 +304,119 @@ export default function ReportLostPet() {
   // Debounce search
   const searchTimeoutRef = useRef(null);
 
+  // Fallback to Nominatim (OpenStreetMap) for autocomplete
+  // Uses structured query parameters for better results
+  const searchWithNominatim = async (query) => {
+    try {
+      // Try structured search first for better address matching
+      const params = new URLSearchParams({
+        q: query,
+        format: 'json',
+        limit: '8',
+        addressdetails: '1',
+        countrycodes: 'us',
+        'accept-language': 'en',
+        dedupe: '1',
+      });
+
+      const response = await fetch(`/api/geocode?${params.toString()}`);
+      if (!response.ok) return [];
+      const data = await response.json();
+
+      return (Array.isArray(data) ? data : []).map(result => {
+        // Build a cleaner display name
+        const addr = result.address || {};
+        const parts = [];
+
+        // Add place name if different from road
+        if (result.name && result.name !== addr.road) {
+          parts.push(result.name);
+        }
+
+        // Add house number and road
+        if (addr.house_number && addr.road) {
+          parts.push(`${addr.house_number} ${addr.road}`);
+        } else if (addr.road) {
+          parts.push(addr.road);
+        }
+
+        // Add city
+        const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
+        if (city) parts.push(city);
+
+        // Add state
+        if (addr.state) parts.push(addr.state);
+
+        const displayName = parts.length > 0 ? parts.join(', ') : result.display_name;
+
+        return {
+          name: result.name || parts[0] || query,
+          address: displayName,
+          latitude: parseFloat(result.lat),
+          longitude: parseFloat(result.lon),
+          _source: 'nominatim',
+          _type: result.type,
+          _class: result.class,
+        };
+      });
+    } catch (err) {
+      console.error('Nominatim search error:', err);
+      return [];
+    }
+  };
+
+  // Photon geocoder (komoot) - often better for POI/business search
+  const searchWithPhoton = async (query) => {
+    try {
+      const params = new URLSearchParams({
+        q: query,
+        limit: '6',
+        lang: 'en',
+      });
+      // Bias toward user's location if available
+      if (center?.[0] && center?.[1]) {
+        params.append('lat', center[0].toString());
+        params.append('lon', center[1].toString());
+      }
+
+      const response = await fetch(`https://photon.komoot.io/api/?${params.toString()}`);
+      if (!response.ok) return [];
+      const data = await response.json();
+
+      return (data.features || []).map(feature => {
+        const props = feature.properties || {};
+        const coords = feature.geometry?.coordinates || [];
+
+        // Build display name
+        const parts = [];
+        if (props.name) parts.push(props.name);
+        if (props.housenumber && props.street) {
+          parts.push(`${props.housenumber} ${props.street}`);
+        } else if (props.street) {
+          parts.push(props.street);
+        }
+        if (props.city || props.town || props.village) {
+          parts.push(props.city || props.town || props.village);
+        }
+        if (props.state) parts.push(props.state);
+
+        return {
+          name: props.name || parts[0] || query,
+          address: parts.join(', '),
+          latitude: coords[1],
+          longitude: coords[0],
+          _source: 'photon',
+          _type: props.osm_value,
+        };
+      }).filter(r => r.latitude && r.longitude);
+    } catch (err) {
+      console.error('Photon search error:', err);
+      return [];
+    }
+  };
+
   const searchAddress = async (query) => {
-    if (!query.trim() || query.length < 3) {
+    if (!query.trim() || query.length < 2) {
       setSearchResults([]);
       return;
     }
@@ -269,38 +426,114 @@ export default function ReportLostPet() {
       clearTimeout(searchTimeoutRef.current);
     }
 
-    // Wait 300ms before searching
+    // Wait 250ms before searching
     searchTimeoutRef.current = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}&limit=5&addressdetails=1`);
-        if (response.ok) {
-          const results = await response.json();
-          setSearchResults(Array.isArray(results) ? results : []);
+        // Use multiple geocoding services in parallel for best results
+        const [photonResults, nominatimResults, appleResults] = await Promise.allSettled([
+          searchWithPhoton(query),
+          searchWithNominatim(query),
+          searchAutocomplete(query, {
+            latitude: center?.[0],
+            longitude: center?.[1],
+            limit: 5
+          }).catch(() => []),
+        ]);
+
+        // Combine results, prioritizing Apple > Photon > Nominatim
+        let results = [];
+
+        // Add Apple results first (if any)
+        if (appleResults.status === 'fulfilled' && appleResults.value?.length > 0) {
+          results = [...appleResults.value];
         }
+
+        // Add Photon results
+        if (photonResults.status === 'fulfilled' && photonResults.value?.length > 0) {
+          // Avoid duplicates by checking coordinates
+          const existing = new Set(results.map(r => `${r.latitude?.toFixed(4)},${r.longitude?.toFixed(4)}`));
+          for (const r of photonResults.value) {
+            const key = `${r.latitude?.toFixed(4)},${r.longitude?.toFixed(4)}`;
+            if (!existing.has(key)) {
+              results.push(r);
+              existing.add(key);
+            }
+          }
+        }
+
+        // Add Nominatim results if we still don't have enough
+        if (results.length < 5 && nominatimResults.status === 'fulfilled' && nominatimResults.value?.length > 0) {
+          const existing = new Set(results.map(r => `${r.latitude?.toFixed(4)},${r.longitude?.toFixed(4)}`));
+          for (const r of nominatimResults.value) {
+            const key = `${r.latitude?.toFixed(4)},${r.longitude?.toFixed(4)}`;
+            if (!existing.has(key) && results.length < 8) {
+              results.push(r);
+              existing.add(key);
+            }
+          }
+        }
+
+        setSearchResults(results.slice(0, 8));
       } catch (err) {
         console.error('Search error:', err);
+        // Last resort: try Nominatim directly
+        try {
+          const fallbackResults = await searchWithNominatim(query);
+          setSearchResults(fallbackResults);
+        } catch {
+          setSearchResults([]);
+        }
       } finally {
         setIsSearching(false);
       }
-    }, 300);
+    }, 250);
   };
 
   const selectSearchResult = async (result) => {
-    const lat = parseFloat(result.lat);
-    const lon = parseFloat(result.lon);
-    setCenter([lat, lon]);
-    setLastSeenAddress(result.display_name);
-    const addr = result.address || {};
-    setCityName(addr.city || addr.town || addr.village || addr.municipality || '');
+    setIsSearching(true);
     setSearchResults([]);
     setAddressSearch('');
 
-    // Update map if it exists
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.setView([lat, lon], 17);
-      if (markerRef.current) markerRef.current.setLatLng([lat, lon]);
-      if (circleRef.current) circleRef.current.setLatLng([lat, lon]);
+    try {
+      let lat, lon, address;
+
+      // If result already has coordinates (from Nominatim or Apple autocomplete with coords)
+      if (result.latitude && result.longitude) {
+        lat = result.latitude;
+        lon = result.longitude;
+        address = result.address || result.name;
+      } else {
+        // Get full place details from Apple Maps (for results without coords)
+        const place = await getPlaceFromAutocomplete(result);
+        if (place && place.latitude && place.longitude) {
+          lat = place.latitude;
+          lon = place.longitude;
+          address = place.address || result.address;
+        }
+      }
+
+      if (lat && lon) {
+        setCenter([lat, lon]);
+        setLocationLocked(true); // Lock location after search selection
+        setLastSeenAddress(address);
+
+        // Extract city from address
+        const addressParts = (address || '').split(',');
+        const city = addressParts.length >= 2 ? addressParts[addressParts.length - 2]?.trim() : '';
+        setCityName(city);
+
+        // Update map if it exists
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setView([lat, lon], 17);
+          if (markerRef.current) markerRef.current.setLatLng([lat, lon]);
+          if (circleRef.current) circleRef.current.setLatLng([lat, lon]);
+        }
+      }
+    } catch (err) {
+      console.error('Error selecting result:', err);
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -413,6 +646,8 @@ export default function ReportLostPet() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to create report');
 
+      // Clear saved location for fresh start on next report
+      localStorage.removeItem('reportLocation');
       setReportResult(data);
       setStep(9); // Success step
     } catch (err) {
@@ -610,7 +845,7 @@ export default function ReportLostPet() {
     : ['Contact', 'Location', 'Pet', 'Name', 'Details', 'When', 'Color', 'Photo', 'Review'];
 
   return (
-    <div className="h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50 flex flex-col overflow-hidden">
+    <div className="h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50 flex flex-col">
       {/* Header */}
       <header className="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
         <button
@@ -649,8 +884,8 @@ export default function ReportLostPet() {
         <div className="w-10" />
       </header>
 
-      {/* Content */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      {/* Content - scrollable with room for footer */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
 
         {/* Step 0: Contact Info (non-logged-in users) */}
         {step === 0 && (
@@ -708,7 +943,7 @@ export default function ReportLostPet() {
         {/* Step 1: Location */}
         {step === 1 && (
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="px-6 py-3">
+            <div className="px-6 py-3 relative z-30">
               <h1 className="text-xl font-bold text-gray-900 mb-1">Where was {petName || 'your pet'} last seen?</h1>
 
               {/* Address Search */}
@@ -722,23 +957,23 @@ export default function ReportLostPet() {
                     searchAddress(e.target.value);
                   }}
                   placeholder="Search address..."
-                  className="w-full pl-10 pr-4 py-3 text-sm bg-white border border-gray-200 rounded-xl focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none"
+                  className="w-full pl-10 pr-4 py-3 text-base bg-white border border-gray-200 rounded-xl focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none"
                 />
                 {isSearching && (
                   <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />
                 )}
 
-                {/* Search Results Dropdown */}
+                {/* Search Results Dropdown - Apple Maps autocomplete */}
                 {searchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
                     {searchResults.map((result, idx) => (
                       <button
                         key={idx}
                         onClick={() => selectSearchResult(result)}
                         className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0"
                       >
-                        <p className="font-medium text-gray-900 truncate">{result.display_name?.split(',')[0]}</p>
-                        <p className="text-xs text-gray-500 truncate">{result.display_name}</p>
+                        <p className="font-medium text-gray-900 truncate">{result.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{result.address}</p>
                       </button>
                     ))}
                   </div>
@@ -746,7 +981,7 @@ export default function ReportLostPet() {
               </div>
             </div>
 
-            <div className="flex-1 relative mx-4 mb-2 rounded-2xl overflow-hidden shadow-lg border border-gray-100 min-h-[300px]">
+            <div className="flex-1 relative z-10 mx-4 mb-2 rounded-2xl overflow-hidden shadow-lg border border-gray-100 min-h-[300px]">
               {isGettingLocation ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
                   <div className="text-center">
@@ -773,14 +1008,28 @@ export default function ReportLostPet() {
 
             {center && (
               <div className="px-6 pb-4 flex-shrink-0">
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                  <p className="text-sm text-gray-600 truncate mb-2">{lastSeenAddress || 'Location set'}</p>
-                  <button
-                    onClick={openInMaps}
-                    className="text-sm text-blue-600 font-medium flex items-center gap-1.5 hover:text-blue-700"
-                  >
-                    <ExternalLink size={14} /> Open in Maps to set exact address
-                  </button>
+                <div className={`rounded-2xl p-4 shadow-sm border ${locationLocked ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      {locationLocked && (
+                        <div className="flex items-center gap-1.5 text-green-600 text-xs font-medium mb-1">
+                          <Check size={12} /> Location confirmed
+                        </div>
+                      )}
+                      <p className="text-sm text-gray-600 truncate">{lastSeenAddress || 'Location set'}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem('reportLocation');
+                        setLocationLocked(false);
+                        setCenter(null);
+                        detectLocation();
+                      }}
+                      className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 flex-shrink-0"
+                    >
+                      <Navigation size={12} /> Re-detect
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -869,7 +1118,7 @@ export default function ReportLostPet() {
                 setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
               }}
               placeholder="Enter name..."
-              className="w-full text-2xl font-medium py-4 border-b-2 border-gray-200 focus:border-pink-400 outline-none bg-transparent placeholder:text-gray-300 transition-colors"
+              className="w-full text-base sm:text-2xl font-medium px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-pink-400 outline-none bg-white placeholder:text-gray-300 transition-colors"
               autoFocus
             />
             <p className="text-sm text-gray-400 mt-2">e.g., Max, Bella, Charlie</p>
@@ -1169,15 +1418,15 @@ export default function ReportLostPet() {
         )}
       </div>
 
-      {/* Footer with Next button */}
+      {/* Footer with Next button - fixed at bottom, always visible */}
       {step >= minStep && step < 9 && (
-        <div className="px-6 pb-6 pt-4 flex-shrink-0 bg-gradient-to-t from-white via-white to-transparent">
+        <div className="flex-shrink-0 px-4 sm:px-6 pb-4 pt-3 bg-white border-t border-gray-100" style={{ paddingBottom: 'max(1rem, calc(env(safe-area-inset-bottom, 0px) + 16px))' }}>
           <button
             onClick={nextStep}
             disabled={!canProceed() || isSubmitting}
             className={`w-full py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2 transition-all ${
               canProceed() && !isSubmitting
-                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-200 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
+                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-200 hover:shadow-xl active:scale-[0.98]'
                 : 'bg-gray-200 text-gray-400'
             }`}
           >
