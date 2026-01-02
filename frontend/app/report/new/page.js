@@ -83,6 +83,39 @@ export default function ReportLostPet() {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  // Load saved location from localStorage on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const saved = localStorage.getItem('reportLocation');
+      if (saved) {
+        const { center: savedCenter, address, city, locked } = JSON.parse(saved);
+        if (savedCenter && locked) {
+          setCenter(savedCenter);
+          setLastSeenAddress(address || '');
+          setCityName(city || '');
+          setLocationLocked(true);
+          setIsGettingLocation(false);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load saved location:', e);
+    }
+  }, []);
+
+  // Save location to localStorage when locked
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (locationLocked && center) {
+      localStorage.setItem('reportLocation', JSON.stringify({
+        center,
+        address: lastSeenAddress,
+        city: cityName,
+        locked: true
+      }));
+    }
+  }, [locationLocked, center, lastSeenAddress, cityName]);
+
   // Map refs
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -155,8 +188,11 @@ export default function ReportLostPet() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    detectLocation();
-  }, []);
+    // Only auto-detect if no saved location
+    if (!locationLocked && !center) {
+      detectLocation();
+    }
+  }, [locationLocked]);
 
   // Initialize map
   useEffect(() => {
@@ -610,6 +646,8 @@ export default function ReportLostPet() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to create report');
 
+      // Clear saved location for fresh start on next report
+      localStorage.removeItem('reportLocation');
       setReportResult(data);
       setStep(9); // Success step
     } catch (err) {
@@ -982,7 +1020,9 @@ export default function ReportLostPet() {
                     </div>
                     <button
                       onClick={() => {
+                        localStorage.removeItem('reportLocation');
                         setLocationLocked(false);
+                        setCenter(null);
                         detectLocation();
                       }}
                       className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 flex-shrink-0"
