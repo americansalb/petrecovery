@@ -515,8 +515,8 @@ export default function SARMapView({
               color: zone.color,
               fillColor: zone.color,
               fillOpacity: ZONE_OPACITY,
-              weight: 1,
-              opacity: 0.6,
+              weight: 0, // No stroke - divider lines handle boundaries
+              opacity: 0,
             });
 
             // Calculate octant-specific probability (individual zone probability / 8)
@@ -561,9 +561,31 @@ export default function SARMapView({
           });
         });
 
-        // Draw octant divider lines (more visible now)
+        // Draw octant divider lines at BOUNDARIES (not centers)
         const outermostRadius = milesToMeters(sortedZones[sortedZones.length - 1].radius);
-        const octantAngles = [
+        const [centerLat, centerLng] = zoneCenter;
+
+        // Boundary angles between octants (where one octant ends and next begins)
+        const boundaryAngles = [22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5];
+
+        boundaryAngles.forEach((angle) => {
+          const radians = ((90 - angle) * Math.PI) / 180;
+          const endLatOffset = (outermostRadius / 111320) * Math.sin(radians);
+          const endLngOffset = (outermostRadius / (111320 * Math.cos(centerLat * Math.PI / 180))) * Math.cos(radians);
+          const endPoint = [centerLat + endLatOffset, centerLng + endLngOffset];
+
+          const line = L.polyline([zoneCenter, endPoint], {
+            color: '#ffffff',
+            weight: 2,
+            opacity: 0.7,
+            dashArray: '8, 6',
+          });
+          line.addTo(mapInstance.current);
+          circlesRef.current.push(line);
+        });
+
+        // Direction labels at octant CENTERS (not boundaries)
+        const octantLabels = [
           { angle: 0, label: 'N' },
           { angle: 45, label: 'NE' },
           { angle: 90, label: 'E' },
@@ -574,29 +596,10 @@ export default function SARMapView({
           { angle: 315, label: 'NW' },
         ];
 
-        octantAngles.forEach(({ angle, label }) => {
-          // Convert angle to radians (0° = North, clockwise)
+        octantLabels.forEach(({ angle, label }) => {
           const radians = ((90 - angle) * Math.PI) / 180;
-
-          // Calculate end point of line
-          const [centerLat, centerLng] = zoneCenter;
-          const endLatOffset = (outermostRadius / 111320) * Math.sin(radians);
-          const endLngOffset = (outermostRadius / (111320 * Math.cos(centerLat * Math.PI / 180))) * Math.cos(radians);
-          const endPoint = [centerLat + endLatOffset, centerLng + endLngOffset];
-
-          // Draw more visible divider line
-          const line = L.polyline([zoneCenter, endPoint], {
-            color: '#ffffff',
-            weight: 2,
-            opacity: 0.7,
-            dashArray: '8, 6',
-          });
-          line.addTo(mapInstance.current);
-          circlesRef.current.push(line);
-
-          // Add direction label at 90% of the way to the edge
-          const labelLatOffset = endLatOffset * 0.90;
-          const labelLngOffset = endLngOffset * 0.90;
+          const labelLatOffset = (outermostRadius / 111320) * Math.sin(radians) * 0.90;
+          const labelLngOffset = (outermostRadius / (111320 * Math.cos(centerLat * Math.PI / 180))) * Math.cos(radians) * 0.90;
           const labelPoint = [centerLat + labelLatOffset, centerLng + labelLngOffset];
 
           const labelIcon = L.divIcon({
