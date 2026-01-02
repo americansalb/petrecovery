@@ -248,9 +248,29 @@ export default function SARMapView({
     };
   }, [startTracking]);
 
-  // Note: We intentionally don't auto-pan on center changes during GPS tracking
-  // This was causing constant zooming/panning. Users can manually pan the map.
-  // Initial center is set during map initialization above.
+  // Center map on lastSeen when it becomes available (only once per mission)
+  // This fixes the issue where map shows world view when lastSeen loads async
+  const hasInitialCenterRef = useRef(false);
+  const lastSeenCenterKeyRef = useRef(null);
+  useEffect(() => {
+    if (!mapInstance.current || !lastSeen) return;
+
+    // Check if lastSeen has valid coordinates
+    if (!lastSeen.lat || !lastSeen.lng) return;
+
+    // Track by key so we re-center when mission changes
+    const key = `${lastSeen.lat.toFixed(4)},${lastSeen.lng.toFixed(4)}`;
+    if (lastSeenCenterKeyRef.current !== key) {
+      // Mission changed - reset and center
+      hasInitialCenterRef.current = false;
+      lastSeenCenterKeyRef.current = key;
+    }
+
+    if (!hasInitialCenterRef.current) {
+      mapInstance.current.setView([lastSeen.lat, lastSeen.lng], 15);
+      hasInitialCenterRef.current = true;
+    }
+  }, [lastSeen]);
 
   // Handle layer switching
   useEffect(() => {

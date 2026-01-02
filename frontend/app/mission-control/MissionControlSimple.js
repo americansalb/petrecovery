@@ -401,15 +401,13 @@ function MissionControlContent() {
               probabilityZones={probabilityZones}
             />
 
-            {/* Mobile Probability Toggle + Slider */}
+            {/* Mobile Probability Toggle + Slider - moved to bottom left, out of the way */}
             {!isSearching && lastSeenLocation && (
-              <div className="absolute top-[200px] left-4 right-4 z-[500] flex flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <ProbabilityZoneToggle
-                    show={showProbabilityZones}
-                    onToggle={() => setShowProbabilityZones(!showProbabilityZones)}
-                  />
-                </div>
+              <div className="absolute bottom-36 left-4 z-[500] flex flex-col gap-2">
+                <ProbabilityZoneToggle
+                  show={showProbabilityZones}
+                  onToggle={() => setShowProbabilityZones(!showProbabilityZones)}
+                />
                 {/* Zone adjustment slider - show when zones are visible */}
                 {showProbabilityZones && (
                   <ProbabilityZoneSlider

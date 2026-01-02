@@ -845,7 +845,7 @@ export default function ReportLostPet() {
     : ['Contact', 'Location', 'Pet', 'Name', 'Details', 'When', 'Color', 'Photo', 'Review'];
 
   return (
-    <div className="min-h-[100dvh] max-h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50 flex flex-col overflow-hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+    <div className="h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50 flex flex-col">
       {/* Header */}
       <header className="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
         <button
@@ -885,7 +885,7 @@ export default function ReportLostPet() {
       </header>
 
       {/* Content - scrollable with room for footer */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden">
+      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
 
         {/* Step 0: Contact Info (non-logged-in users) */}
         {step === 0 && (
@@ -1418,15 +1418,15 @@ export default function ReportLostPet() {
         )}
       </div>
 
-      {/* Footer with Next button - fixed at bottom on mobile */}
+      {/* Footer with Next button - fixed at bottom, always visible */}
       {step >= minStep && step < 9 && (
-        <div className="px-4 sm:px-6 pb-4 sm:pb-6 pt-3 sm:pt-4 flex-shrink-0 bg-gradient-to-t from-white via-white to-transparent sticky bottom-0" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 16px))' }}>
+        <div className="flex-shrink-0 px-4 sm:px-6 pb-4 pt-3 bg-white border-t border-gray-100" style={{ paddingBottom: 'max(1rem, calc(env(safe-area-inset-bottom, 0px) + 16px))' }}>
           <button
             onClick={nextStep}
             disabled={!canProceed() || isSubmitting}
-            className={`w-full py-3.5 sm:py-4 rounded-2xl font-semibold text-base sm:text-lg flex items-center justify-center gap-2 transition-all ${
+            className={`w-full py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2 transition-all ${
               canProceed() && !isSubmitting
-                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-200 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
+                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-200 hover:shadow-xl active:scale-[0.98]'
                 : 'bg-gray-200 text-gray-400'
             }`}
           >
