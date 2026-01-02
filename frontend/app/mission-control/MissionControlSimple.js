@@ -99,6 +99,14 @@ function MissionControlContent() {
     return null;
   }, [activeMission?.lastSeenLatitude, activeMission?.lastSeenLongitude, activeMission?.lastSeenLat, activeMission?.lastSeenLng]);
 
+  // Debug zone slider visibility
+  console.log('[ZoneSlider] Visibility check:', {
+    hasLastSeenLocation: !!lastSeenLocation,
+    showProbabilityZones,
+    isOwner,
+    activeMissionId: activeMission?.id,
+  });
+
   // Helper to get time elapsed category
   const getTimeElapsedCategory = useCallback((lastSeenAt) => {
     if (!lastSeenAt) return '6_to_24_hours';
