@@ -2,17 +2,24 @@
  * PetAgent - Simulates lost pet behavior with state machine
  *
  * States: FLEEING, HIDING, FORAGING, WANDERING, TERRITORIAL, SHELTERED
+ *
+ * RESEARCH-BASED CALIBRATION:
+ * - Indoor cats typically found within 50m (0.03mi) of escape point
+ * - Dogs: 42% found within 1 city block (~100m = 0.06mi)
+ * - Bimodal distribution: pets either very close OR transported far
+ * - "Silence Factor": displaced cats won't vocalize for 5-10 days
  */
 
 import { getTerrainCache } from './terrain';
 
 // Movement speeds by state (miles per 5 minutes)
+// CALIBRATED: Reduced to match research on displacement distances
 const STATE_SPEEDS = {
-  FLEEING: 0.15,    // ~1.8 mph - running
-  HIDING: 0.005,    // ~0.06 mph - occasional repositioning between hiding spots
-  FORAGING: 0.03,   // ~0.36 mph - slow, searching for food
-  WANDERING: 0.05,  // ~0.6 mph - casual exploration
-  TERRITORIAL: 0.02, // ~0.24 mph - patrolling
+  FLEEING: 0.08,    // ~0.96 mph - running but not marathon pace
+  HIDING: 0.002,    // ~0.024 mph - minimal movement between spots
+  FORAGING: 0.015,  // ~0.18 mph - slow, cautious searching
+  WANDERING: 0.025, // ~0.3 mph - casual but cautious
+  TERRITORIAL: 0.01, // ~0.12 mph - patrolling small area
   SHELTERED: 0.0,   // Stationary (at shelter/home)
 };
 
@@ -89,21 +96,27 @@ export class PetAgent {
     this.sizeModifier = SIZE_MODIFIERS[config.petSize] || 1.0;
     this.personalityMods = PERSONALITY_MODIFIERS[config.petPersonality] || PERSONALITY_MODIFIERS.NEUTRAL;
 
-    // Indoor cat modifier
+    // Indoor cat modifier - stays VERY close (research: 50m median)
     if (config.petSpecies === 'CAT' && config.isIndoorPet) {
       this.params = {
         ...this.params,
-        homingStrength: 0.05, // Very low - too scared to navigate
-        fleeingDuration: 30,  // Quick to hide
+        homingStrength: 0.02, // Almost never returns on own - too disoriented
+        fleeingDuration: 15,  // Panics briefly, then hides immediately
       };
-      this.sizeModifier = 0.5; // Stays very close
+      this.sizeModifier = 0.3; // Stays very close (50m target displacement)
     }
+
+    // Track time since escape (for Silence Factor)
+    this.minutesSinceEscape = 0;
   }
 
   /**
    * Update internal state (energy, hunger)
    */
   updateInternalState(minute, currentHour) {
+    // Track time since escape (for Silence Factor)
+    this.minutesSinceEscape = minute;
+
     // Energy decreases when moving
     if (this.state === 'FLEEING' || this.state === 'WANDERING') {
       this.energy -= this.params.energyDecayRate;
@@ -118,6 +131,26 @@ export class PetAgent {
     // Clamp values
     this.energy = Math.max(0, Math.min(1, this.energy));
     this.hunger = Math.max(0, Math.min(1, this.hunger));
+  }
+
+  /**
+   * Get the "Silence Factor" modifier for cat detection
+   * Displaced cats typically won't vocalize for 5-10 days due to stress
+   * This significantly reduces their detectability in early days
+   */
+  getSilenceFactor() {
+    if (this.config.petSpecies !== 'CAT') return 1.0;
+
+    const daysSinceEscape = this.minutesSinceEscape / (24 * 60);
+
+    // First 2 days: severely reduced vocalization
+    if (daysSinceEscape < 2) return 0.3;
+    // Days 2-5: gradually recovering
+    if (daysSinceEscape < 5) return 0.5;
+    // Days 5-10: mostly recovered
+    if (daysSinceEscape < 10) return 0.8;
+    // After 10 days: normal behavior
+    return 1.0;
   }
 
   /**
@@ -325,25 +358,48 @@ export class PetAgent {
 
   /**
    * Check for transport event (picked up by stranger)
+   * BIMODAL DISTRIBUTION: Pets are either found very close OR transported far
+   * Research suggests 74% of shelter intake is "over-the-counter" (citizen drop-off)
+   * This means "good samaritan teleportation" is a major factor
    */
   checkTransportEvent(currentHour, random) {
-    // Only friendly dogs in WANDERING state during daytime
-    if (this.state !== 'WANDERING') return false;
-    if (this.config.petSpecies !== 'DOG') return false;
-
     const isDay = currentHour >= 7 && currentHour <= 20;
-    const basePickupRate = 0.001; // Per tick
 
-    let probability = basePickupRate;
-    probability *= this.personalityMods.transportRisk;
-    probability *= isDay ? 1.0 : 0.4;
+    // Dogs: primarily when wandering
+    if (this.config.petSpecies === 'DOG') {
+      if (this.state !== 'WANDERING' && this.state !== 'FORAGING') return false;
 
-    // Collar increases pickup chance (people want to help)
-    if (this.config.hasCollar) {
-      probability *= 1.5;
+      const basePickupRate = 0.0015; // Per tick
+      let probability = basePickupRate;
+      probability *= this.personalityMods.transportRisk;
+      probability *= isDay ? 1.0 : 0.3;
+
+      // Collar increases pickup chance (people want to help)
+      if (this.config.hasCollar) probability *= 1.5;
+
+      return random() < probability;
     }
 
-    return random() < probability;
+    // Cats: can be picked up when visible (foraging/wandering) - less common
+    if (this.config.petSpecies === 'CAT') {
+      // Only friendly cats in visible states
+      if (this.state !== 'WANDERING' && this.state !== 'FORAGING') return false;
+      if (this.config.petPersonality === 'SHY') return false;
+
+      const basePickupRate = 0.0005; // Lower than dogs - cats are harder to catch
+      let probability = basePickupRate;
+      probability *= this.personalityMods.transportRisk;
+      probability *= isDay ? 1.0 : 0.2;
+
+      // Collar increases pickup - people recognize it as someone's pet
+      if (this.config.hasCollar) probability *= 2.0;
+      // Friendly cats much more likely to be picked up
+      if (this.config.petPersonality === 'FRIENDLY') probability *= 2.0;
+
+      return random() < probability;
+    }
+
+    return false;
   }
 
   /**
