@@ -39,14 +39,14 @@ const BASE_RATES = [
   { maxDistance: 0.006, rate: 0.10 },   // 10-30 ft - UNVERIFIED
   { maxDistance: 0.019, rate: 0.04 },   // 30-100 ft - UNVERIFIED
   { maxDistance: 0.057, rate: 0.01 },   // 100-300 ft - UNVERIFIED
-  { maxDistance: Infinity, rate: UNVERIFIED_PARAMS.DETECTION.baseRate }, // 300+ ft - UNVERIFIED
+  { maxDistance: Infinity, rate: UNVERIFIED_PARAMS.DETECTION.baseRate.value }, // 300+ ft - UNVERIFIED
 ];
 
 // Pet state modifiers
 // UNVERIFIED: All modifiers are empirically tuned
 const STATE_MODIFIERS = {
   FLEEING: 1.3,      // Motion catches eye - UNVERIFIED
-  HIDING: UNVERIFIED_PARAMS.DETECTION.hidingModifier, // Hard to find - UNVERIFIED
+  HIDING: UNVERIFIED_PARAMS.DETECTION.hidingModifier.value, // Hard to find - UNVERIFIED
   FORAGING: 1.1,     // Moving around - UNVERIFIED
   WANDERING: 1.0,    // Normal visibility - UNVERIFIED
   TERRITORIAL: 0.9,  // Slightly cautious - UNVERIFIED
