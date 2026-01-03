@@ -606,25 +606,35 @@ function calculateStatistics(values) {
 export function estimateUncertaintyBounds(nominalSuccessRate) {
   const rankedParams = rankParametersByUncertainty();
 
+  // Convert to proportion (0-1) for calculations
+  const rate = nominalSuccessRate / 100;
+
   // Sum of squared uncertainty contributions (simplified)
   let totalUncertainty = 0;
 
   for (const param of rankedParams) {
     // Estimate each parameter's contribution to output uncertainty
-    // Using a rough sensitivity coefficient
-    const paramUncertainty = param.uncertaintyScore * 0.03; // 3% per unit score
+    // Using a rough sensitivity coefficient (scaled down for proportion math)
+    const paramUncertainty = param.uncertaintyScore * 0.01; // 1% per unit score
     totalUncertainty += paramUncertainty * paramUncertainty;
   }
 
   // Combined standard deviation (root sum of squares)
-  const combinedStdDev = Math.sqrt(totalUncertainty) * nominalSuccessRate;
+  // Apply to proportion, accounting for binomial-like bounds near 0 and 1
+  const baseStdDev = Math.sqrt(totalUncertainty);
+  // Scale by rate * (1-rate) to narrow bounds near extremes (like binomial variance)
+  const scaleFactor = Math.sqrt(rate * (1 - rate) + 0.01); // +0.01 to avoid zero at extremes
+  const combinedStdDev = baseStdDev * scaleFactor;
+
+  // Convert back to percentage points
+  const stdDevPercent = combinedStdDev * 100;
 
   return {
     nominal: nominalSuccessRate,
-    estimatedStdDev: combinedStdDev,
-    ci95Lower: Math.max(0, nominalSuccessRate - 1.96 * combinedStdDev),
-    ci95Upper: Math.min(100, nominalSuccessRate + 1.96 * combinedStdDev),
-    warning: 'Quick estimate - run full Monte Carlo UQ for accurate bounds',
+    estimatedStdDev: stdDevPercent,
+    ci95Lower: Math.max(0, nominalSuccessRate - 1.96 * stdDevPercent),
+    ci95Upper: Math.min(100, nominalSuccessRate + 1.96 * stdDevPercent),
+    warning: 'Quick estimate based on parameter uncertainty - run full Monte Carlo UQ for accurate bounds',
     unverifiedParameterCount: rankedParams.length,
   };
 }
