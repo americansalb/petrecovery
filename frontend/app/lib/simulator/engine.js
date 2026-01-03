@@ -354,7 +354,11 @@ export class SimulationEngine {
    * Pet returns home when:
    * - It has first moved away from home (at least 0.05 miles)
    * - It's within a small radius of home (physically there)
+   * - It's the first tick of this visit (not already checked this visit)
    * - AND it has motivation to stay (hungry, tired, or familiar territory pull)
+   *
+   * IMPORTANT: We only check stay probability ONCE per home zone visit to prevent
+   * compounding probability (visiting home 10x with 30% stay = 97% cumulative).
    */
   checkSelfReturn() {
     const distanceFromHome = this.calculateDistance(
@@ -363,7 +367,7 @@ export class SimulationEngine {
     );
 
     // Track maximum distance from home to prevent immediate "return"
-    if (!this.maxDistanceFromHome) {
+    if (this.maxDistanceFromHome === undefined) {
       this.maxDistanceFromHome = 0;
     }
     this.maxDistanceFromHome = Math.max(this.maxDistanceFromHome, distanceFromHome);
@@ -376,13 +380,28 @@ export class SimulationEngine {
 
     // Pet must be very close to home (within ~50 meters = 0.03 miles)
     const homeRadius = 0.03;
-    if (distanceFromHome > homeRadius) {
+    const isInHomeZone = distanceFromHome <= homeRadius;
+
+    // Track whether pet was in home zone last tick
+    const wasInHomeZone = this.wasInHomeZone || false;
+    this.wasInHomeZone = isInHomeZone;
+
+    // Not in home zone
+    if (!isInHomeZone) {
       return false;
     }
 
-    // Pet is home! Check if it stays (based on internal state)
-    // Hungry or tired pets are more likely to stay home
-    const stayProbability = 0.3 + (this.pet.hunger * 0.4) + ((1 - this.pet.energy) * 0.3);
+    // Only check stay probability on FIRST tick of each visit
+    // This prevents compounding: 10 visits × 30% ≠ 97% cumulative
+    if (wasInHomeZone) {
+      // Already checked this visit, don't check again
+      return false;
+    }
+
+    // First tick in home zone this visit - check if pet stays
+    // Reduced base probability (was 0.3) to produce more realistic self-return rates
+    // Target: ~15% for dogs (Weiss 2012), ~59% for cats
+    const stayProbability = 0.15 + (this.pet.hunger * 0.25) + ((1 - this.pet.energy) * 0.15);
 
     return this.random() < stayProbability;
   }
@@ -394,6 +413,14 @@ export class SimulationEngine {
    * - Pet is in an active/visible state (not hiding)
    * - It's during daytime hours (more people around)
    * - Pet is in a populated area
+   *
+   * CALIBRATION NOTE: Base rate reduced 10x from original (0.01 → 0.001) to produce
+   * realistic encounter rates. At 0.01, virtually every pet had a stranger encounter
+   * within 72 hours, leading to ~100% social recovery via the stranger pathway.
+   *
+   * New rates:
+   * - Dog daytime: 0.001 × 1.5 = 0.15% per tick → ~50% over 72hr
+   * - Cat daytime: 0.001 × 0.7 = 0.07% per tick → ~30% over 72hr
    */
   checkStrangerEncounter(currentHour) {
     // Pet must be visible (not hiding)
@@ -402,8 +429,9 @@ export class SimulationEngine {
     }
 
     // More encounters during daytime (7am-9pm)
+    // REDUCED 10x: was 0.01/0.002, now 0.001/0.0002
     const isDaytime = currentHour >= 7 && currentHour < 21;
-    const baseEncounterRate = isDaytime ? 0.01 : 0.002; // per 5-minute tick
+    const baseEncounterRate = isDaytime ? 0.001 : 0.0002; // per 5-minute tick
 
     // Friendly pets are more likely to be noticed and approached
     const personalityMultiplier = this.config.petPersonality === 'friendly' ? 2.0
