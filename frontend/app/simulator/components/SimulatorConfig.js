@@ -574,17 +574,29 @@ export default function SimulatorConfig({
           <button
             onClick={() => onRunBatch(batchSize)}
             disabled={isRunning}
-            className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            className="flex-1 flex flex-col items-center justify-center gap-1 px-5 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium relative overflow-hidden"
           >
             {batchProgress ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                {batchProgress.completed}/{batchProgress.total}
+                {/* Progress bar background */}
+                <div
+                  className="absolute inset-0 bg-indigo-100 transition-all duration-300"
+                  style={{ width: `${batchProgress.percent || 0}%` }}
+                />
+                <div className="relative flex items-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>{batchProgress.percent || 0}%</span>
+                </div>
+                <span className="relative text-xs text-gray-500">
+                  {batchProgress.status || `${batchProgress.completed}/${batchProgress.total}`}
+                </span>
               </>
             ) : (
               <>
-                <Zap className="w-5 h-5" />
-                Run {batchSize}x Batch
+                <div className="flex items-center gap-2">
+                  <Zap className="w-5 h-5" />
+                  <span>Run {batchSize}x Batch</span>
+                </div>
               </>
             )}
           </button>

@@ -109,26 +109,64 @@ export default function SimulatorPage() {
     }
   }, [config]);
 
-  // Run a batch of simulations
+  // Run a batch of simulations with real-time progress via SSE
   const runBatchSimulation = useCallback(async (batchSize = 100) => {
     setIsRunning(true);
-    setBatchProgress({ completed: 0, total: batchSize });
+    setBatchProgress({ completed: 0, total: batchSize, percent: 0, status: 'Starting...' });
 
     try {
-      const response = await fetch('/api/simulator/batch', {
+      const response = await fetch('/api/simulator/batch/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config, batchSize, includeSimulations: true }),
+        body: JSON.stringify({ config, batchSize }),
       });
 
       if (!response.ok) throw new Error('Batch simulation failed');
 
-      const result = await response.json();
-      // Add batch to batches list (for Results tab)
-      setBatches(prev => [result.batch, ...prev]);
-      setSelectedBatch(result.batch);
-      // Switch to results tab to show the batch
-      setActiveTab('results');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            const eventType = line.slice(7);
+            const dataLine = lines[lines.indexOf(line) + 1];
+            if (dataLine?.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(dataLine.slice(6));
+
+                if (eventType === 'progress') {
+                  setBatchProgress({
+                    completed: data.completed,
+                    total: data.total,
+                    percent: data.percent,
+                    successRate: data.successRate,
+                    status: `${data.completed}/${data.total} simulations`,
+                  });
+                } else if (eventType === 'status') {
+                  setBatchProgress(prev => ({ ...prev, status: data.message }));
+                } else if (eventType === 'complete') {
+                  setBatches(prev => [data.batch, ...prev]);
+                  setSelectedBatch(data.batch);
+                  setActiveTab('results');
+                } else if (eventType === 'error') {
+                  console.error('Batch error:', data.error);
+                }
+              } catch (e) {
+                // Ignore parse errors for partial data
+              }
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error('Batch simulation error:', error);
     } finally {
