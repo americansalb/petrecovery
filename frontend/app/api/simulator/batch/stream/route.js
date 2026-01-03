@@ -4,15 +4,24 @@
  * POST /api/simulator/batch/stream - Run batch with SSE progress updates
  *
  * Returns a stream of events:
- * - progress: { completed, total, current outcome }
- * - complete: { batch results }
+ * - start: { total, requestId }
+ * - status: { message }
+ * - simulation: { individual simulation result - streamed as each completes }
+ * - progress: { completed, total, percent, successRate, outcomes }
+ * - complete: { batch summary with all simulations }
  * - error: { error message }
+ *
+ * Memory-safe: Uses incremental aggregation, streams results instead of storing.
+ * Supports up to 100,000 simulations (will take time but won't crash).
  */
 
 import { SimulationEngine, loadTerrain, OUTCOMES } from '@/app/lib/simulator/engine';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+// Maximum batch size - memory safe due to incremental aggregation
+const MAX_BATCH_SIZE = 100000;
 
 export async function POST(request) {
   const requestId = `stream_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -47,7 +56,13 @@ export async function POST(request) {
           return;
         }
 
-        const size = Math.min(Math.max(1, batchSize), 1000);
+        const size = Math.min(Math.max(1, batchSize), MAX_BATCH_SIZE);
+
+        // Warn for large batches
+        if (batchSize > 10000) {
+          const estimatedMinutes = Math.round((batchSize * 10) / 60000); // ~10ms per sim
+          console.log(`[${requestId}] ⚠️ Large batch: ~${estimatedMinutes} minutes estimated`);
+        }
 
         // Send initial event
         sendEvent('start', { total: size, requestId });
@@ -92,25 +107,48 @@ export async function POST(request) {
               timesToFind.push(result.foundAtMinute);
             }
 
-            // Send progress every simulation
-            const successSoFar = (i + 1) - (outcomes[OUTCOMES.TIMEOUT_SEARCHING] || 0) - (outcomes[OUTCOMES.TIMEOUT_SHELTERED] || 0);
-            sendEvent('progress', {
-              completed: i + 1,
-              total: size,
-              percent: Math.round(((i + 1) / size) * 100),
+            // Send the individual simulation result (without full path data to save bandwidth)
+            const simResult = {
+              id: `sim_${result.seed}_${i}`,
+              index: i,
+              randomSeed: result.seed,
               outcome: result.outcome,
-              successRate: ((successSoFar / (i + 1)) * 100).toFixed(1),
-              outcomes: { ...outcomes },
-            });
+              foundAtMinute: result.foundAtMinute,
+              foundLatitude: result.foundLatitude,
+              foundLongitude: result.foundLongitude,
+              petDistanceMiles: result.petDistanceMiles,
+              finalPetState: result.finalPetState,
+              wasTransported: result.wasTransported || false,
+              createdAt: new Date().toISOString(),
+            };
+            sendEvent('simulation', simResult);
+
+            // Send progress summary every 10 simulations (or every sim for small batches)
+            if (size <= 100 || (i + 1) % 10 === 0 || i === size - 1) {
+              const successSoFar = (i + 1) - (outcomes[OUTCOMES.TIMEOUT_SEARCHING] || 0) - (outcomes[OUTCOMES.TIMEOUT_SHELTERED] || 0);
+              sendEvent('progress', {
+                completed: i + 1,
+                total: size,
+                percent: Math.round(((i + 1) / size) * 100),
+                successRate: ((successSoFar / (i + 1)) * 100).toFixed(1),
+                outcomes: { ...outcomes },
+              });
+            }
 
           } catch (simError) {
             console.error(`[${requestId}] Sim ${i} failed:`, simError.message);
             sendEvent('simError', { index: i, error: simError.message });
           }
 
-          // Yield to allow stream flushing
+          // Yield to allow stream flushing and GC
           if (i % 5 === 0) {
             await new Promise(resolve => setTimeout(resolve, 0));
+          }
+
+          // Log progress for large batches
+          if (size > 1000 && (i + 1) % 1000 === 0) {
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            console.log(`[${requestId}] Progress: ${i + 1}/${size} (${elapsed}s)`);
           }
         }
 

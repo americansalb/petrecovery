@@ -110,9 +110,28 @@ export default function SimulatorPage() {
   }, [config]);
 
   // Run a batch of simulations with real-time progress via SSE
+  // Each simulation result streams in as it completes, populating the list live
   const runBatchSimulation = useCallback(async (batchSize = 100) => {
     setIsRunning(true);
     setBatchProgress({ completed: 0, total: batchSize, percent: 0, status: 'Starting...' });
+
+    // Create a running batch to accumulate results
+    const batchId = `batch_${Date.now()}`;
+    const runningBatch = {
+      id: batchId,
+      status: 'RUNNING',
+      totalRuns: batchSize,
+      simulations: [],
+      createdAt: new Date().toISOString(),
+    };
+
+    // Add the running batch immediately so user can see it populate
+    setBatches(prev => [runningBatch, ...prev]);
+    setSelectedBatch(runningBatch);
+    setActiveTab('results');
+
+    // Keep a local reference to accumulated simulations (for efficiency)
+    let accumulatedSims = [];
 
     try {
       const response = await fetch('/api/simulator/batch/stream', {
@@ -143,7 +162,27 @@ export default function SimulatorPage() {
               try {
                 const data = JSON.parse(dataLine.slice(6));
 
-                if (eventType === 'progress') {
+                if (eventType === 'simulation') {
+                  // Add each simulation as it completes
+                  accumulatedSims.push(data);
+
+                  // Update state every 10 sims (or every sim for small batches)
+                  // This batches React updates for better performance on large runs
+                  if (batchSize <= 100 || accumulatedSims.length % 10 === 0) {
+                    const currentSims = [...accumulatedSims];
+                    setBatches(prev => {
+                      const updated = [...prev];
+                      const batchIndex = updated.findIndex(b => b.id === batchId);
+                      if (batchIndex >= 0) {
+                        updated[batchIndex] = {
+                          ...updated[batchIndex],
+                          simulations: currentSims,
+                        };
+                      }
+                      return updated;
+                    });
+                  }
+                } else if (eventType === 'progress') {
                   setBatchProgress({
                     completed: data.completed,
                     total: data.total,
@@ -151,12 +190,45 @@ export default function SimulatorPage() {
                     successRate: data.successRate,
                     status: `${data.completed}/${data.total} simulations`,
                   });
+                  // Update running batch stats
+                  setBatches(prev => {
+                    const updated = [...prev];
+                    const batchIndex = updated.findIndex(b => b.id === batchId);
+                    if (batchIndex >= 0) {
+                      updated[batchIndex] = {
+                        ...updated[batchIndex],
+                        successRate: parseFloat(data.successRate),
+                        ...(data.outcomes && {
+                          foundBySearcherCount: data.outcomes.FOUND_BY_SEARCHER || 0,
+                          returnedHomeCount: data.outcomes.RETURNED_HOME || 0,
+                          foundViaShelterCount: data.outcomes.FOUND_VIA_SHELTER || 0,
+                          foundViaSocialCount: data.outcomes.FOUND_VIA_SOCIAL || 0,
+                          foundViaPlatformCount: data.outcomes.FOUND_VIA_PLATFORM || 0,
+                          timeoutSearchingCount: data.outcomes.TIMEOUT_SEARCHING || 0,
+                          timeoutShelteredCount: data.outcomes.TIMEOUT_SHELTERED || 0,
+                        }),
+                      };
+                      setSelectedBatch(updated[batchIndex]);
+                    }
+                    return updated;
+                  });
                 } else if (eventType === 'status') {
                   setBatchProgress(prev => ({ ...prev, status: data.message }));
                 } else if (eventType === 'complete') {
-                  setBatches(prev => [data.batch, ...prev]);
-                  setSelectedBatch(data.batch);
-                  setActiveTab('results');
+                  // Replace running batch with final results, keeping accumulated simulations
+                  setBatches(prev => {
+                    const updated = [...prev];
+                    const batchIndex = updated.findIndex(b => b.id === batchId);
+                    if (batchIndex >= 0) {
+                      updated[batchIndex] = {
+                        ...data.batch,
+                        id: batchId,
+                        simulations: accumulatedSims,
+                      };
+                      setSelectedBatch(updated[batchIndex]);
+                    }
+                    return updated;
+                  });
                 } else if (eventType === 'error') {
                   console.error('Batch error:', data.error);
                 }
@@ -169,6 +241,19 @@ export default function SimulatorPage() {
       }
     } catch (error) {
       console.error('Batch simulation error:', error);
+      // Mark batch as failed
+      setBatches(prev => {
+        const updated = [...prev];
+        const batchIndex = updated.findIndex(b => b.id === batchId);
+        if (batchIndex >= 0) {
+          updated[batchIndex] = {
+            ...updated[batchIndex],
+            status: 'FAILED',
+            simulations: accumulatedSims,
+          };
+        }
+        return updated;
+      });
     } finally {
       setIsRunning(false);
       setBatchProgress(null);

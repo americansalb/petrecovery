@@ -561,15 +561,32 @@ export default function SimulatorConfig({
           )}
         </button>
 
+        {/* Batch size presets */}
+        <div className="flex gap-1 mb-2">
+          {[100, 1000, 10000, 100000].map(size => (
+            <button
+              key={size}
+              onClick={() => setBatchSize(size)}
+              className={`flex-1 py-1 text-xs rounded transition-colors ${
+                batchSize === size
+                  ? 'bg-indigo-100 text-indigo-700 font-medium'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {size >= 1000 ? `${size / 1000}k` : size}
+            </button>
+          ))}
+        </div>
+
         <div className="flex gap-3">
           <input
             type="number"
             min="10"
-            max="1000"
+            max="100000"
             step="10"
             value={batchSize}
-            onChange={(e) => setBatchSize(Math.min(1000, Math.max(10, parseInt(e.target.value) || 100)))}
-            className="w-24 px-3 py-3 border border-gray-200 rounded-lg text-sm text-center"
+            onChange={(e) => setBatchSize(Math.min(100000, Math.max(10, parseInt(e.target.value) || 100)))}
+            className="w-28 px-3 py-3 border border-gray-200 rounded-lg text-sm text-center"
           />
           <button
             onClick={() => onRunBatch(batchSize)}
@@ -595,8 +612,13 @@ export default function SimulatorConfig({
               <>
                 <div className="flex items-center gap-2">
                   <Zap className="w-5 h-5" />
-                  <span>Run {batchSize}x Batch</span>
+                  <span>Run {batchSize >= 1000 ? `${(batchSize/1000).toFixed(batchSize % 1000 === 0 ? 0 : 1)}k` : batchSize}x</span>
                 </div>
+                {batchSize >= 10000 && (
+                  <span className="text-[10px] text-amber-600">
+                    ~{Math.round(batchSize * 10 / 60000)} min
+                  </span>
+                )}
               </>
             )}
           </button>
