@@ -2,17 +2,23 @@
  * PetAgent - Simulates lost pet behavior with state machine
  *
  * States: FLEEING, HIDING, FORAGING, WANDERING, TERRITORIAL, SHELTERED
+ *
+ * SPEED CALIBRATION (research-informed):
+ * - Lost dogs typically stay within 1-2 miles (most within 1 city block)
+ * - Lost cats typically stay within 0.1 miles (3-5 houses)
+ * - Speeds reduced to produce realistic displacement over 72h simulations
  */
 
 import { getTerrainCache } from './terrain';
 
 // Movement speeds by state (miles per 5 minutes)
+// CALIBRATED: Reduced significantly to prevent 40+ mile displacements
 const STATE_SPEEDS = {
-  FLEEING: 0.15,    // ~1.8 mph - running
-  HIDING: 0.005,    // ~0.06 mph - occasional repositioning between hiding spots
-  FORAGING: 0.03,   // ~0.36 mph - slow, searching for food
-  WANDERING: 0.05,  // ~0.6 mph - casual exploration
-  TERRITORIAL: 0.02, // ~0.24 mph - patrolling
+  FLEEING: 0.04,    // ~0.48 mph - panicked but not sprinting for hours
+  HIDING: 0.001,    // ~0.012 mph - minimal repositioning
+  FORAGING: 0.008,  // ~0.1 mph - slow, cautious searching
+  WANDERING: 0.015, // ~0.18 mph - casual exploration
+  TERRITORIAL: 0.005, // ~0.06 mph - patrolling small area
   SHELTERED: 0.0,   // Stationary (at shelter/home)
 };
 
@@ -316,9 +322,24 @@ export class PetAgent {
 
   /**
    * Check if pet has returned home
+   * Pet must have moved away first (at least 0.05 miles = 264 feet)
+   * before it can "return home"
    */
   checkHoming() {
     const distanceToHome = this.getDistanceTo(this.homeLat, this.homeLng);
+
+    // Track maximum distance from home
+    if (!this.maxDistanceFromHome) {
+      this.maxDistanceFromHome = 0;
+    }
+    this.maxDistanceFromHome = Math.max(this.maxDistanceFromHome, distanceToHome);
+
+    // Pet must have moved away at least 0.05 miles before it can "return"
+    // This prevents immediate "returned home" on first tick
+    if (this.maxDistanceFromHome < 0.05) {
+      return false;
+    }
+
     // Consider "home" if within 0.01 miles (~50 feet)
     return distanceToHome < 0.01;
   }
