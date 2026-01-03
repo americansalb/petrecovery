@@ -41,35 +41,40 @@ export class SearcherAgent {
 
   /**
    * Calculate starting position for searcher
+   * Searchers start at the "last seen" location edge, not at center
+   * This represents arriving at the search area perimeter
    */
   calculateStartPosition(id, config) {
     const count = config.searcherCount;
-    const baseRadius = 0.1; // Start 0.1 miles from center
+    // Start at search area edge, not center (more realistic - searchers arrive at perimeter)
+    const baseRadius = Math.min(0.3, config.searchRadiusMiles * 0.3); // 30% of search radius, min 0.3 miles
 
     switch (config.searchStrategy) {
       case 'GRID':
-        // Distribute in a grid pattern
+        // Distribute at edge of search area for grid coverage
         const gridSize = Math.ceil(Math.sqrt(count));
         const row = Math.floor(id / gridSize);
         const col = id % gridSize;
-        const spacing = config.searchRadiusMiles / (gridSize + 1);
+        // Start at edges and work inward
+        const edgeOffset = config.searchRadiusMiles * 0.8;
         return {
-          lat: config.centerLatitude + ((row - gridSize / 2) * spacing) / 69,
-          lng: config.centerLongitude + ((col - gridSize / 2) * spacing) / (69 * Math.cos(config.centerLatitude * Math.PI / 180)),
+          lat: config.centerLatitude + ((row - gridSize / 2) * (edgeOffset * 2 / gridSize)) / 69,
+          lng: config.centerLongitude + ((col - gridSize / 2) * (edgeOffset * 2 / gridSize)) / (69 * Math.cos(config.centerLatitude * Math.PI / 180)),
         };
 
       case 'SPIRAL':
-        // Start at center, spiral out
+        // Start at perimeter, spiral inward
         const angle = (id / count) * 360;
+        const spiralStartRadius = config.searchRadiusMiles * 0.4;
         return {
-          lat: config.centerLatitude + (baseRadius * Math.cos(angle * Math.PI / 180)) / 69,
-          lng: config.centerLongitude + (baseRadius * Math.sin(angle * Math.PI / 180)) / (69 * Math.cos(config.centerLatitude * Math.PI / 180)),
+          lat: config.centerLatitude + (spiralStartRadius * Math.cos(angle * Math.PI / 180)) / 69,
+          lng: config.centerLongitude + (spiralStartRadius * Math.sin(angle * Math.PI / 180)) / (69 * Math.cos(config.centerLatitude * Math.PI / 180)),
         };
 
       case 'PROBABILITY':
-        // Start in high probability zone
+        // Start spread out, converge on high probability zones
         const probAngle = (id / count) * 360;
-        const probRadius = baseRadius * 0.5; // Closer to center
+        const probRadius = baseRadius + (this.random() * baseRadius * 0.5);
         return {
           lat: config.centerLatitude + (probRadius * Math.cos(probAngle * Math.PI / 180)) / 69,
           lng: config.centerLongitude + (probRadius * Math.sin(probAngle * Math.PI / 180)) / (69 * Math.cos(config.centerLatitude * Math.PI / 180)),
@@ -77,9 +82,11 @@ export class SearcherAgent {
 
       case 'RANDOM':
       default:
-        // Random positions within search radius
+        // Random positions, but not too close to center
         const randAngle = this.random() * 360;
-        const randRadius = this.random() * config.searchRadiusMiles * 0.5;
+        const minRadius = config.searchRadiusMiles * 0.2;
+        const maxRadius = config.searchRadiusMiles * 0.8;
+        const randRadius = minRadius + this.random() * (maxRadius - minRadius);
         return {
           lat: config.centerLatitude + (randRadius * Math.cos(randAngle * Math.PI / 180)) / 69,
           lng: config.centerLongitude + (randRadius * Math.sin(randAngle * Math.PI / 180)) / (69 * Math.cos(config.centerLatitude * Math.PI / 180)),

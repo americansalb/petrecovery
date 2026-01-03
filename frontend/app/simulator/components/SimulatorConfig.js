@@ -390,6 +390,72 @@ export default function SimulatorConfig({
           </div>
         </section>
 
+        {/* Search Timing - Critical for realism */}
+        <section>
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">Search Timing</h3>
+          <div className="space-y-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Delay before search starts: {config.searchStartDelayHours}h
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="24"
+                step="1"
+                value={config.searchStartDelayHours}
+                onChange={(e) => updateConfig('searchStartDelayHours', parseInt(e.target.value))}
+                className="w-full accent-amber-600"
+              />
+              <p className="text-[10px] text-gray-500 mt-1">Time for owner to realize pet is missing</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Search hours: {config.searchHoursStart}:00 - {config.searchHoursEnd}:00
+                </label>
+                <div className="flex gap-1">
+                  <input
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={config.searchHoursStart}
+                    onChange={(e) => updateConfig('searchHoursStart', parseInt(e.target.value))}
+                    className="w-full px-2 py-1 border border-gray-200 rounded text-xs"
+                  />
+                  <span className="text-xs self-center">to</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={config.searchHoursEnd}
+                    onChange={(e) => updateConfig('searchHoursEnd', parseInt(e.target.value))}
+                    className="w-full px-2 py-1 border border-gray-200 rounded text-xs"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Volunteer ramp-up: {config.volunteerRampUpHours}h
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="72"
+                  step="1"
+                  value={config.volunteerRampUpHours}
+                  onChange={(e) => updateConfig('volunteerRampUpHours', parseInt(e.target.value))}
+                  className="w-full accent-amber-600"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-amber-700">
+              Start with {config.initialVolunteerPercent}% of volunteers, reach 100% in {config.volunteerRampUpHours}h
+            </p>
+          </div>
+        </section>
+
         {/* Advanced Settings */}
         <section>
           <button
@@ -435,6 +501,21 @@ export default function SimulatorConfig({
                   <span>Noon</span>
                   <span>11 PM</span>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Initial Volunteer %: {config.initialVolunteerPercent}%
+                </label>
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  step="10"
+                  value={config.initialVolunteerPercent}
+                  onChange={(e) => updateConfig('initialVolunteerPercent', parseInt(e.target.value))}
+                  className="w-full accent-indigo-600"
+                />
               </div>
 
               <div>

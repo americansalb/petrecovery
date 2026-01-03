@@ -56,6 +56,12 @@ export default function SimulatorPage() {
     maxSimulationHours: 72,
     timeStepMinutes: 5,
     startHourOfDay: 8,
+    // NEW: Realistic search timing variables
+    searchStartDelayHours: 2,      // Delay before search begins (owner realizes pet missing)
+    searchHoursStart: 7,           // Volunteers search from 7 AM
+    searchHoursEnd: 21,            // Volunteers search until 9 PM
+    volunteerRampUpHours: 24,      // Hours to reach full volunteer count
+    initialVolunteerPercent: 20,   // Start with 20% of volunteers, ramp up
   });
 
   // Simulation state

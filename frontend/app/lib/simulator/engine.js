@@ -3,6 +3,12 @@
  *
  * This engine simulates lost pet behavior and search team movements
  * to generate probability distributions for where pets are likely to be found.
+ *
+ * KEY TIMING VARIABLES:
+ * - searchStartDelayHours: Time between pet lost and search begins
+ * - searchHoursStart/End: Volunteers only search during these hours
+ * - volunteerRampUpHours: Time to reach full volunteer count
+ * - initialVolunteerPercent: Starting percentage of volunteers
  */
 
 import { PetAgent } from './petBehavior';
@@ -12,7 +18,7 @@ import { seededRandom } from './utils';
 import { getTerrainCache, resetTerrainCache } from './terrain';
 
 // Logging control - set to true to see detailed simulation logs
-const DEBUG_LOGGING = true;
+const DEBUG_LOGGING = false; // Disabled for batch performance
 const LOG_INTERVAL = 60; // Log every N minutes of simulation time
 
 function simLog(simId, ...args) {
@@ -37,13 +43,16 @@ export const OUTCOMES = {
  */
 export class SimulationEngine {
   constructor(config, seed = null) {
-    this.config = config;
+    this.config = this.applyConfigDefaults(config);
     this.seed = seed ?? Math.floor(Math.random() * 1000000);
     this.random = seededRandom(this.seed);
 
     // Initialize agents
-    this.pet = new PetAgent(config, this.random);
-    this.searchers = this.initializeSearchers(config);
+    this.pet = new PetAgent(this.config, this.random);
+    this.searchers = this.initializeSearchers(this.config);
+
+    // Calculate search start time in minutes
+    this.searchStartMinute = (this.config.searchStartDelayHours || 0) * 60;
 
     // State tracking
     this.minute = 0;
@@ -60,6 +69,54 @@ export class SimulationEngine {
     this.foundBySearcher = null;
     this.wasTransported = false;
     this.transportedAtMinute = null;
+  }
+
+  /**
+   * Apply default values for new config options
+   */
+  applyConfigDefaults(config) {
+    return {
+      searchStartDelayHours: 2,
+      searchHoursStart: 7,
+      searchHoursEnd: 21,
+      volunteerRampUpHours: 24,
+      initialVolunteerPercent: 20,
+      ...config,
+    };
+  }
+
+  /**
+   * Check if search has started (accounts for delay)
+   */
+  isSearchActive() {
+    return this.minute >= this.searchStartMinute;
+  }
+
+  /**
+   * Check if current hour is within volunteer search hours
+   */
+  isWithinSearchHours(currentHour) {
+    const start = this.config.searchHoursStart;
+    const end = this.config.searchHoursEnd;
+    return currentHour >= start && currentHour < end;
+  }
+
+  /**
+   * Get number of active searchers based on ramp-up
+   */
+  getActiveSearcherCount() {
+    if (!this.isSearchActive()) return 0;
+
+    const minutesSinceSearchStart = this.minute - this.searchStartMinute;
+    const hoursSinceSearchStart = minutesSinceSearchStart / 60;
+    const rampUpHours = this.config.volunteerRampUpHours || 24;
+    const initialPercent = (this.config.initialVolunteerPercent || 20) / 100;
+
+    // Linear ramp from initial to 100%
+    const rampProgress = Math.min(1, hoursSinceSearchStart / rampUpHours);
+    const activePercent = initialPercent + (1 - initialPercent) * rampProgress;
+
+    return Math.max(1, Math.floor(this.config.searcherCount * activePercent));
   }
 
   /**
@@ -170,16 +227,22 @@ export class SimulationEngine {
       }
     }
 
-    // 7. Move searchers
-    for (let i = 0; i < this.searchers.length; i++) {
-      const searcher = this.searchers[i];
-      searcher.move(this.minute, currentHour);
-      searcher.updateFatigue(this.minute);
+    // Determine if search is active (respects delay and hours)
+    const searchActive = this.isSearchActive() && this.isWithinSearchHours(currentHour);
+    const activeSearcherCount = searchActive ? this.getActiveSearcherCount() : 0;
+
+    // 7. Move searchers (only if within search hours)
+    if (searchActive) {
+      for (let i = 0; i < activeSearcherCount; i++) {
+        const searcher = this.searchers[i];
+        searcher.move(this.minute, currentHour);
+        searcher.updateFatigue(this.minute);
+      }
     }
 
-    // 8. Check for detection (only if pet not sheltered)
-    if (this.pet.state !== 'SHELTERED') {
-      for (let i = 0; i < this.searchers.length; i++) {
+    // 8. Check for detection (only if pet not sheltered AND search is active)
+    if (this.pet.state !== 'SHELTERED' && searchActive) {
+      for (let i = 0; i < activeSearcherCount; i++) {
         const searcher = this.searchers[i];
         const detected = this.checkDetection(searcher, currentHour);
 
