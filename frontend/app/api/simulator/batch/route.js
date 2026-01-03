@@ -13,6 +13,7 @@ import {
   LegacyEmergentSimulationEngine as SimulationEngine,
   OUTCOMES,
   loadTerrain,
+  runLegacyEmergentBatch,
 } from '@/app/lib/simulator/emergent/adapter';
 
 /**
