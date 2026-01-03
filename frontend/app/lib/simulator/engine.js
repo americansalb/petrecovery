@@ -430,17 +430,20 @@ export class SimulationEngine {
   checkStrangerReturn() {
     if (!this.encounteredByStranger) return false;
 
+    // Only check once per simulated hour (not every 5-minute tick)
+    if (this.minute % 60 !== 0) return false;
+
     const hoursSinceEncounter = (this.minute - this.strangerEncounterMinute) / 60;
 
     // Collar/tag return is fastest (within hours)
     if (this.config.hasCollar && hoursSinceEncounter >= 1 && hoursSinceEncounter < 24) {
-      const collarReturnProb = 0.15; // per hour check
+      const collarReturnProb = 0.15; // 15% chance per hour
       if (this.random() < collarReturnProb) return true;
     }
 
     // Social media takes longer (12-72 hours)
     if (hoursSinceEncounter >= 12) {
-      const socialMediaProb = 0.02; // per hour check
+      const socialMediaProb = 0.02; // 2% chance per hour
       if (this.random() < socialMediaProb) return true;
     }
 
