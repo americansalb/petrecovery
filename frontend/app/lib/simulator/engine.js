@@ -1,21 +1,20 @@
 /**
  * SimulationEngine - Core Monte Carlo simulation logic
  *
- * HYBRID ARCHITECTURE:
- * This engine uses a hybrid approach that separates statistical outcomes
- * from visual animation:
+ * EMERGENT OUTCOME ARCHITECTURE:
+ * This engine uses physics-based simulation where recovery outcomes
+ * EMERGE from the mechanics, not pre-determined from statistics.
  *
- * 1. FINAL DISPLACEMENT: Sampled from log-normal at simulation start
- *    - Guarantees outputs match Huang 2018 (cats) and Kremer 2021 (dogs)
- *    - Stored as finalPosition coordinates
+ * HOW IT WORKS:
+ * 1. Pet moves according to behavioral model (speed, hiding, territory)
+ * 2. Searchers move according to search strategy
+ * 3. Detection happens when searcher is close enough to pet (Koopman POD)
+ * 4. Self-return happens when pet's behavior leads it home
+ * 5. Recovery rate EMERGES from these mechanics
  *
- * 2. RECOVERY MODE: Determined at simulation start from Weiss 2012 data
- *    - Self-return, owner search, shelter, or other
- *    - Mode determines HOW the pet is found (or if at all)
- *
- * 3. STEP-BY-STEP ANIMATION: Runs for visual interest
- *    - Pet gradually migrates toward final position
- *    - Detection checks against final position, not animated position
+ * VALIDATION:
+ * - Compare emergent recovery rates against Weiss 2012 data
+ * - If rates don't match, adjust behavioral parameters (not outcomes)
  *
  * KEY TIMING VARIABLES:
  * - searchStartDelayHours: Time between pet lost and search begins
@@ -24,8 +23,7 @@
  * - initialVolunteerPercent: Starting percentage of volunteers
  *
  * See: researchConfig.js for verified parameters
- *      displacement.js for log-normal sampling
- *      recovery.js for recovery mode determination
+ *      displacement.js for behavioral movement parameters
  */
 
 import { PetAgent } from './petBehavior';
@@ -34,11 +32,9 @@ import { calculateDetectionProbability } from './detection';
 import { seededRandom } from './utils';
 import { getTerrainCache, resetTerrainCache } from './terrain';
 
-// Research-backed modules
+// Research-backed modules (for behavioral parameters, NOT pre-determined outcomes)
 import { sampleDisplacement, getProbabilityZones } from './displacement.js';
-import { determineRecoveryMode, sampleCatRecoveryDay, sampleDogRecoveryDay, RecoveryMode } from './recovery.js';
 import { processShelterIntake } from './shelter.js';
-import { RECOVERY_RATES } from './researchConfig.js';
 
 // Logging control - set to true to see detailed simulation logs
 const DEBUG_LOGGING = false; // Disabled for batch performance
@@ -78,57 +74,19 @@ export class SimulationEngine {
     this.searchStartMinute = (this.config.searchStartDelayHours || 0) * 60;
 
     // =========================================================================
-    // RESEARCH-BACKED OUTCOME DETERMINATION
-    // Statistical outcomes are locked in at simulation start
+    // EMERGENT OUTCOME ARCHITECTURE
+    // No pre-determined outcomes - recovery emerges from simulation mechanics
     // =========================================================================
 
-    // 1. Determine recovery mode (Weiss 2012)
     const species = this.config.petSpecies?.toLowerCase() || 'dog';
-    this.recoveryOutcome = determineRecoveryMode(species, this.random);
 
-    // 2. Sample final displacement from log-normal distribution
+    // Sample displacement parameters for behavioral guidance (NOT a destination)
+    // This informs how far the pet TENDS to roam, not where it WILL end up
     const lifestyle = this.config.isIndoorPet ? 'indoorOnly' : 'indoorOutdoor';
-    this.displacementResult = sampleDisplacement(species, lifestyle, this.random);
+    this.displacementParams = sampleDisplacement(species, lifestyle, this.random);
 
-    // 3. Calculate final position (where pet will be found if recovered)
-    this.finalPosition = this.calculateFinalPosition(
-      this.config.centerLatitude,
-      this.config.centerLongitude,
-      this.displacementResult.distanceMiles
-    );
-
-    // 4. Sample recovery time (scaled to simulation duration)
-    // Note: Research timelines (Huang 2018) can span weeks, but simulation is limited.
-    // We scale recovery time to fit within the simulation while preserving overall recovery rate.
-    const maxSimMinutes = (this.config.maxSimulationHours || 72) * 60;
-
-    if (this.recoveryOutcome.recovered) {
-      // Sample a recovery day from research distribution
-      const researchRecoveryDay = species === 'cat'
-        ? sampleCatRecoveryDay(this.random)
-        : sampleDogRecoveryDay(this.random);
-
-      // Scale recovery time to fit within simulation duration
-      // For timeline-based modes (self-return, etc.), distribute recovery times
-      // For search-based modes, recovery depends on detection (handled separately)
-      if (this.recoveryOutcome.requiresSearch) {
-        // Search-based modes: recover when searcher detects pet
-        // Use research day as a minimum wait, but cap to simulation
-        this.recoveryDay = Math.min(researchRecoveryDay, Math.floor(maxSimMinutes / 1440) || 1);
-        this.recoveryMinute = Math.min(researchRecoveryDay * 24 * 60, maxSimMinutes * 0.9);
-      } else {
-        // Timeline-based modes: scale recovery time to fit simulation
-        // Use proportional scaling so some recover early, some late
-        const scaleFactor = maxSimMinutes / (30 * 24 * 60); // Scale 30-day window to sim
-        const scaledMinutes = researchRecoveryDay * 24 * 60 * scaleFactor;
-        // Ensure recovery happens within simulation, with some buffer
-        this.recoveryMinute = Math.min(scaledMinutes, maxSimMinutes * 0.95);
-        this.recoveryDay = this.recoveryMinute / (24 * 60);
-      }
-    } else {
-      this.recoveryDay = null;
-      this.recoveryMinute = null;
-    }
+    // Set pet's roaming tendency based on research (affects behavior, not destination)
+    this.pet.setRoamingTendency(this.displacementParams.distanceMiles);
 
     // =========================================================================
     // STATE TRACKING
@@ -142,55 +100,22 @@ export class SimulationEngine {
       path: [],
     }));
 
-    // Outcome tracking
+    // Outcome tracking - all outcomes are EMERGENT, not pre-determined
     this.outcome = null;
     this.foundAtMinute = null;
     this.foundBySearcher = null;
     this.wasTransported = false;
     this.transportedAtMinute = null;
 
-    // Log research-backed initialization
+    // Track if pet has been detected by a stranger (for potential stranger return)
+    this.encounteredByStranger = false;
+    this.strangerEncounterMinute = null;
+
+    // Log initialization
     const simId = this.seed.toString().slice(-4);
-    simLog(simId, `📊 Research-backed initialization:`);
-    simLog(simId, `   Recovery mode: ${this.recoveryOutcome.mode} (${this.recoveryOutcome.recovered ? 'will recover' : 'will NOT recover'})`);
-    simLog(simId, `   Final displacement: ${(this.displacementResult.distance).toFixed(0)}m (${this.displacementResult.distanceMiles.toFixed(3)}mi)`);
-    simLog(simId, `   Expected recovery: ${this.recoveryDay ? `day ${this.recoveryDay}` : 'N/A'}`);
-  }
-
-  /**
-   * Calculate final position from displacement distance
-   * Uses terrain-aware direction selection to avoid barriers
-   */
-  calculateFinalPosition(centerLat, centerLng, distanceMiles) {
-    // Pick a random direction, biased away from major barriers
-    const terrain = getTerrainCache();
-    let direction = this.random() * 360;
-
-    // If terrain loaded, try to find a direction that avoids barriers
-    if (terrain.loaded) {
-      for (let attempt = 0; attempt < 8; attempt++) {
-        const testDir = (direction + attempt * 45) % 360;
-        const testLat = centerLat + (distanceMiles / 69.0) * Math.cos(testDir * Math.PI / 180);
-        const testLng = centerLng + (distanceMiles / (69.0 * Math.cos(centerLat * Math.PI / 180))) * Math.sin(testDir * Math.PI / 180);
-
-        const moveCheck = terrain.checkMovement(centerLat, centerLng, testLat, testLng, this.random);
-        if (!moveCheck.blocked) {
-          direction = testDir;
-          break;
-        }
-      }
-    }
-
-    // Calculate final coordinates
-    const latOffset = (distanceMiles / 69.0) * Math.cos(direction * Math.PI / 180);
-    const lngOffset = (distanceMiles / (69.0 * Math.cos(centerLat * Math.PI / 180))) * Math.sin(direction * Math.PI / 180);
-
-    return {
-      lat: centerLat + latOffset,
-      lng: centerLng + lngOffset,
-      direction,
-      distanceMiles
-    };
+    simLog(simId, `🎲 EMERGENT simulation initialized:`);
+    simLog(simId, `   Roaming tendency: ${this.displacementParams.distanceMiles.toFixed(3)}mi`);
+    simLog(simId, `   Outcomes will EMERGE from mechanics, not pre-determined`);
   }
 
   /**
@@ -305,16 +230,18 @@ export class SimulationEngine {
   /**
    * Execute one simulation tick
    *
-   * HYBRID ARCHITECTURE:
-   * - Step-by-step movement runs for animation
-   * - Recovery is determined by pre-sampled research-backed outcomes
-   * - Detection checks against final position, not animated position
+   * EMERGENT OUTCOME ARCHITECTURE:
+   * - Pet moves according to behavioral model
+   * - Searchers move according to search strategy
+   * - Detection happens based on actual proximity (Koopman POD)
+   * - Self-return happens when pet behavior leads it home
+   * - ALL outcomes emerge from these mechanics
    */
   tick() {
     const currentHour = (this.config.startHourOfDay + Math.floor(this.minute / 60)) % 24;
 
     // =========================================================================
-    // ANIMATION: Pet behavior simulation (for visual interest)
+    // PET BEHAVIOR SIMULATION
     // =========================================================================
 
     // 1. Update pet internal state (energy, hunger)
@@ -323,171 +250,195 @@ export class SimulationEngine {
     // 2. Check for pet state transitions
     this.pet.checkStateTransitions(this.minute, currentHour);
 
-    // 3. Move pet according to current state (animation only)
+    // 3. Move pet according to current state
     if (this.pet.state !== 'SHELTERED') {
       this.pet.move(this.minute, currentHour);
     }
 
     // =========================================================================
-    // RESEARCH-BACKED RECOVERY: Check if recovery should occur
+    // EMERGENT RECOVERY CHECKS
     // =========================================================================
 
-    // Check recovery based on pre-determined mode (Weiss 2012)
-    if (this.recoveryOutcome.recovered && !this.outcome) {
-      const recoveryResult = this.checkResearchBackedRecovery(currentHour);
-      if (recoveryResult) {
-        this.outcome = recoveryResult.outcome;
+    // Check 1: Self-return (pet made it home on its own)
+    if (!this.outcome) {
+      const selfReturn = this.checkSelfReturn();
+      if (selfReturn) {
+        this.outcome = OUTCOMES.RETURNED_HOME;
         this.foundAtMinute = this.minute;
-        this.foundBySearcher = recoveryResult.searcherId || null;
-        this.logEvent(recoveryResult.eventType, {
+        this.logEvent('SELF_RETURN', {
           minute: this.minute,
-          recoveryMode: this.recoveryOutcome.mode,
-          location: { lat: this.finalPosition.lat, lng: this.finalPosition.lng },
-          ...recoveryResult.eventData
+          location: { lat: this.pet.lat, lng: this.pet.lng }
         });
+        this.recordPositions();
+        return;
+      }
+    }
+
+    // Check 2: Shelter intake (pet entered a shelter zone)
+    if (!this.outcome && this.pet.state === 'SHELTERED') {
+      if (!this.wasTransported) {
+        this.wasTransported = true;
+        this.transportedAtMinute = this.minute;
+        this.logEvent('SHELTER_INTAKE', { minute: this.minute });
+      }
+
+      // Check shelter reunion pathways
+      const shelterResult = this.checkShelteredReunion();
+      if (shelterResult) {
+        this.outcome = shelterResult;
+        this.foundAtMinute = this.minute;
+        this.recordPositions();
+        return;
+      }
+    }
+
+    // Check 3: Stranger encounter (pet is visible and a stranger might help)
+    if (!this.outcome && !this.encounteredByStranger) {
+      const strangerEncounter = this.checkStrangerEncounter(currentHour);
+      if (strangerEncounter) {
+        this.encounteredByStranger = true;
+        this.strangerEncounterMinute = this.minute;
+        this.logEvent('STRANGER_ENCOUNTER', { minute: this.minute });
+      }
+    }
+
+    // Check 4: Stranger return (stranger who found pet contacts owner)
+    if (!this.outcome && this.encounteredByStranger) {
+      const strangerReturn = this.checkStrangerReturn();
+      if (strangerReturn) {
+        this.outcome = OUTCOMES.FOUND_VIA_SOCIAL;
+        this.foundAtMinute = this.minute;
+        this.logEvent('STRANGER_RETURN', { minute: this.minute });
+        this.recordPositions();
         return;
       }
     }
 
     // =========================================================================
-    // ANIMATION: Searcher movement (for visual interest)
+    // SEARCHER MOVEMENT AND DETECTION
     // =========================================================================
 
     const searchActive = this.isSearchActive() && this.isWithinSearchHours(currentHour);
     const activeSearcherCount = searchActive ? this.getActiveSearcherCount() : 0;
 
-    if (searchActive) {
+    if (searchActive && !this.outcome) {
       for (let i = 0; i < activeSearcherCount; i++) {
         const searcher = this.searchers[i];
         searcher.move(this.minute, currentHour);
         searcher.updateFatigue(this.minute);
+
+        // Check detection against ACTUAL pet position
+        const detected = this.checkDetection(searcher, currentHour);
+        if (detected) {
+          this.outcome = OUTCOMES.FOUND_BY_SEARCHER;
+          this.foundAtMinute = this.minute;
+          this.foundBySearcher = i;
+          this.logEvent('FOUND_BY_SEARCHER', {
+            minute: this.minute,
+            searcherId: i,
+            location: { lat: this.pet.lat, lng: this.pet.lng }
+          });
+          this.recordPositions();
+          return;
+        }
       }
     }
 
-    // 9. Record positions for playback
+    // Record positions for playback
     this.recordPositions();
   }
 
   /**
-   * Check if research-backed recovery should occur
+   * Check if pet has returned home (EMERGENT self-return)
    *
-   * Recovery modes from Weiss 2012:
-   * - SELF_RETURN: Pet returns home on its own (timeline-based)
-   * - OWNER_SEARCH / ACTIVE_SEARCH: Found by searcher near final position
-   * - SHELTER: Shelter pathway with microchip logic
-   * - OTHER / STRANGER_RETURN: Random chance per hour
+   * Pet returns home when:
+   * - It's within a small radius of home (physically there)
+   * - AND it has motivation to stay (hungry, tired, or familiar territory pull)
    */
-  checkResearchBackedRecovery(currentHour) {
-    const mode = this.recoveryOutcome.mode;
-    const searchActive = this.isSearchActive() && this.isWithinSearchHours(currentHour);
-
-    // Self-return modes: timeline-based (Huang 2018 for cats)
-    if (mode === RecoveryMode.CAT_SELF_RETURN || mode === RecoveryMode.DOG_SELF_RETURN) {
-      if (this.minute >= this.recoveryMinute) {
-        return {
-          outcome: OUTCOMES.RETURNED_HOME,
-          eventType: 'SELF_RETURN',
-          eventData: { recoveryDay: this.recoveryDay }
-        };
-      }
-      return null;
-    }
-
-    // Search-based modes: searcher must be near final position
-    if (mode === RecoveryMode.CAT_OWNER_SEARCH || mode === RecoveryMode.DOG_ACTIVE_SEARCH) {
-      if (!searchActive) return null;
-
-      // Check if any active searcher is near the final position
-      const activeSearcherCount = this.getActiveSearcherCount();
-      for (let i = 0; i < activeSearcherCount; i++) {
-        const searcher = this.searchers[i];
-        const detected = this.checkDetectionAtFinalPosition(searcher, currentHour);
-
-        if (detected) {
-          return {
-            outcome: OUTCOMES.FOUND_BY_SEARCHER,
-            eventType: 'FOUND_VIA_SEARCH',
-            searcherId: i,
-            eventData: { searcherId: i }
-          };
-        }
-      }
-      return null;
-    }
-
-    // Shelter modes: use research-backed shelter logic
-    if (mode === RecoveryMode.CAT_SHELTER || mode === RecoveryMode.DOG_SHELTER) {
-      // Pet must have been transported to shelter first
-      // For simulation purposes, assume transport happens around recovery day
-      if (this.minute >= this.recoveryMinute) {
-        const species = this.config.petSpecies?.toLowerCase() || 'dog';
-        const shelterResult = processShelterIntake({
-          species,
-          microchipped: this.config.hasMicrochip,
-          hasCollar: this.config.hasCollar
-        }, this.random);
-
-        if (shelterResult.identified) {
-          return {
-            outcome: OUTCOMES.FOUND_VIA_SHELTER,
-            eventType: 'SHELTER_REUNION',
-            eventData: {
-              method: shelterResult.method,
-              rtoHours: shelterResult.timeToRTO
-            }
-          };
-        }
-      }
-      return null;
-    }
-
-    // Stranger return / Other modes: probabilistic per hour
-    if (mode === RecoveryMode.DOG_STRANGER_RETURN || mode === RecoveryMode.CAT_OTHER || mode === RecoveryMode.DOG_OTHER) {
-      if (this.minute >= this.recoveryMinute) {
-        // High probability once recovery time is reached
-        if (this.random() < 0.3) {
-          return {
-            outcome: OUTCOMES.FOUND_VIA_SOCIAL,
-            eventType: 'STRANGER_RETURN',
-            eventData: {}
-          };
-        }
-      }
-      return null;
-    }
-
-    return null;
-  }
-
-  /**
-   * Check if a searcher detects the pet at the FINAL position
-   * (not the animated position)
-   *
-   * Uses the Koopman POD detection model with SAR-derived sweep widths.
-   */
-  checkDetectionAtFinalPosition(searcher, currentHour) {
-    const distance = this.calculateDistance(
-      this.finalPosition.lat, this.finalPosition.lng,
-      searcher.lat, searcher.lng
+  checkSelfReturn() {
+    const distanceFromHome = this.calculateDistance(
+      this.pet.lat, this.pet.lng,
+      this.pet.homeLat, this.pet.homeLng
     );
 
-    // Detection probability using Koopman POD model
-    const probability = calculateDetectionProbability({
-      distance,
-      petState: this.pet.state, // Use animated state for detection modifiers
-      petPersonality: this.config.petPersonality,
-      terrainType: this.config.terrainType,
-      currentHour,
-      searcherFatigueHours: searcher.hoursSearching,
-      species: this.config.petSpecies?.toLowerCase() || 'dog',
-      searcherStepDistance: 0.02, // ~100m per 5-minute step
-    });
+    // Pet must be very close to home (within ~50 meters = 0.03 miles)
+    const homeRadius = 0.03;
+    if (distanceFromHome > homeRadius) {
+      return false;
+    }
 
-    return this.random() < probability;
+    // Pet is home! Check if it stays (based on internal state)
+    // Hungry or tired pets are more likely to stay home
+    const stayProbability = 0.3 + (this.pet.hunger * 0.4) + ((1 - this.pet.energy) * 0.3);
+
+    return this.random() < stayProbability;
   }
 
   /**
-   * Check if a searcher detects the pet (legacy - uses animated position)
+   * Check if a stranger encounters the pet (EMERGENT stranger encounter)
+   *
+   * Strangers can encounter the pet when:
+   * - Pet is in an active/visible state (not hiding)
+   * - It's during daytime hours (more people around)
+   * - Pet is in a populated area
+   */
+  checkStrangerEncounter(currentHour) {
+    // Pet must be visible (not hiding)
+    if (this.pet.state === 'HIDING' || this.pet.state === 'RESTING') {
+      return false;
+    }
+
+    // More encounters during daytime (7am-9pm)
+    const isDaytime = currentHour >= 7 && currentHour < 21;
+    const baseEncounterRate = isDaytime ? 0.01 : 0.002; // per 5-minute tick
+
+    // Friendly pets are more likely to be noticed and approached
+    const personalityMultiplier = this.config.petPersonality === 'friendly' ? 2.0
+      : this.config.petPersonality === 'timid' ? 0.3
+      : 1.0;
+
+    // Dogs more visible than cats
+    const speciesMultiplier = this.config.petSpecies?.toLowerCase() === 'dog' ? 1.5 : 0.7;
+
+    const encounterProbability = baseEncounterRate * personalityMultiplier * speciesMultiplier;
+
+    return this.random() < encounterProbability;
+  }
+
+  /**
+   * Check if a stranger who found the pet returns it (EMERGENT stranger return)
+   *
+   * After a stranger encounter, there's a chance they:
+   * - Check collar/tags and call owner
+   * - Post on social media
+   * - Take to shelter
+   * - Keep the pet or do nothing
+   */
+  checkStrangerReturn() {
+    if (!this.encounteredByStranger) return false;
+
+    const hoursSinceEncounter = (this.minute - this.strangerEncounterMinute) / 60;
+
+    // Collar/tag return is fastest (within hours)
+    if (this.config.hasCollar && hoursSinceEncounter >= 1 && hoursSinceEncounter < 24) {
+      const collarReturnProb = 0.15; // per hour check
+      if (this.random() < collarReturnProb) return true;
+    }
+
+    // Social media takes longer (12-72 hours)
+    if (hoursSinceEncounter >= 12) {
+      const socialMediaProb = 0.02; // per hour check
+      if (this.random() < socialMediaProb) return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if a searcher detects the pet at its ACTUAL position
+   *
+   * Uses Koopman POD detection model with SAR-derived sweep widths.
+   * Detection probability depends on actual distance, pet state, terrain, etc.
    */
   checkDetection(searcher, currentHour) {
     const distance = this.calculateDistance(
@@ -638,13 +589,11 @@ export class SimulationEngine {
       zones: terrain.getZonesForDisplay(),
     } : null;
 
-    // Use final position for found location (research-backed)
-    const foundLat = this.outcome?.startsWith('FOUND') || this.outcome === OUTCOMES.RETURNED_HOME
-      ? this.finalPosition.lat
-      : null;
-    const foundLng = this.outcome?.startsWith('FOUND') || this.outcome === OUTCOMES.RETURNED_HOME
-      ? this.finalPosition.lng
-      : null;
+    // Use actual pet position for found location (emergent outcome)
+    const wasFound = this.outcome && !this.outcome.startsWith('TIMEOUT');
+    const lastPosition = effectivePetPath[effectivePetPath.length - 1];
+    const foundLat = wasFound ? lastPosition?.lat : null;
+    const foundLng = wasFound ? lastPosition?.lng : null;
 
     return {
       seed: this.seed,
@@ -663,16 +612,11 @@ export class SimulationEngine {
       events: this.events,
       terrain: terrainData,
 
-      // Research-backed outcome data
-      research: {
-        recoveryMode: this.recoveryOutcome.mode,
-        recoveryModeDescription: this.recoveryOutcome.description,
-        willRecover: this.recoveryOutcome.recovered,
-        displacementMeters: this.displacementResult.distance,
-        displacementMiles: this.displacementResult.distanceMiles,
-        displacementParams: this.displacementResult.params,
-        expectedRecoveryDay: this.recoveryDay,
-        finalPosition: this.finalPosition,
+      // Behavioral parameters (for reference, NOT pre-determined outcomes)
+      behavioralParams: {
+        roamingTendencyMiles: this.displacementParams.distanceMiles,
+        roamingTendencyMeters: this.displacementParams.distance,
+        distributionParams: this.displacementParams.params,
       },
     };
   }

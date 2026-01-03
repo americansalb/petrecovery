@@ -118,6 +118,34 @@ export class PetAgent {
       };
       this.sizeModifier = 0.5; // Stays very close
     }
+
+    // Roaming tendency (set later from displacement sampling)
+    this.roamingTendencyMiles = null;
+    this.territoryRadiusMiles = 0.2; // Default territory size
+  }
+
+  /**
+   * Set roaming tendency based on displacement sampling
+   *
+   * This influences HOW the pet moves (territory size, speed limits)
+   * NOT where it will end up - outcomes are EMERGENT, not pre-determined
+   *
+   * @param {number} tendencyMiles - Sampled displacement tendency in miles
+   */
+  setRoamingTendency(tendencyMiles) {
+    this.roamingTendencyMiles = tendencyMiles;
+
+    // Adjust territory size based on tendency
+    // Pets with higher roaming tendency have larger territories
+    this.territoryRadiusMiles = Math.min(tendencyMiles * 1.5, 2.0);
+
+    // Adjust homing strength - pets that roam far are less likely to come home
+    // This is a behavioral modifier, NOT a pre-determined outcome
+    const roamingFactor = Math.min(tendencyMiles / 0.5, 2.0); // Normalize to 0.5 mile baseline
+    this.params = {
+      ...this.params,
+      homingStrength: this.params.homingStrength / roamingFactor,
+    };
   }
 
   /**
