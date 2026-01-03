@@ -131,6 +131,18 @@ const STRATEGY_OPTIONS = [
   { value: 'RANDOM', label: 'Uncoordinated', desc: 'Random volunteer search' },
 ];
 
+// Escape type options - affects initial fear level and displacement
+// Based on emergent simulation escape types from config.js
+const ESCAPE_TYPE_OPTIONS = [
+  { value: 'DOOR_DASH', label: 'Door Dash', desc: 'Bolted out when door opened', fear: 0.6, icon: '🚪' },
+  { value: 'GATE_LEFT_OPEN', label: 'Gate Left Open', desc: 'Wandered out of unsecured yard', fear: 0.3, icon: '🚧' },
+  { value: 'CHASED_BY_ANIMAL', label: 'Chased by Animal', desc: 'Fled from another animal (dog, coyote)', fear: 0.9, icon: '🐕' },
+  { value: 'LOUD_NOISE_STARTLE', label: 'Loud Noise', desc: 'Fireworks, thunder, construction noise', fear: 0.85, icon: '💥' },
+  { value: 'DISASTER', label: 'Disaster/Emergency', desc: 'Fire, earthquake, tornado evacuation', fear: 0.95, icon: '⚠️' },
+  { value: 'FELL_FROM_VEHICLE', label: 'Fell from Vehicle', desc: 'Jumped or fell from moving car', fear: 0.8, icon: '🚗' },
+  { value: 'WANDERED', label: 'Gradually Wandered', desc: 'Slowly expanded territory over time', fear: 0.2, icon: '🚶' },
+];
+
 export default function SimulatorConfig({
   config,
   onChange,
@@ -250,18 +262,45 @@ export default function SimulatorConfig({
           </div>
         </section>
 
-        {/* Initial State - Species Specific */}
+        {/* Escape Type - How They Got Lost */}
         <section>
-          <h3 className="text-base font-semibold text-gray-700 mb-3">How They Got Lost</h3>
-          <select
-            value={config.initialState}
-            onChange={(e) => updateConfig('initialState', e.target.value)}
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          >
-            {speciesConfig.initialStates.map(({ value, label, desc }) => (
-              <option key={value} value={value}>{label} - {desc}</option>
-            ))}
-          </select>
+          <h3 className="text-base font-semibold text-gray-700 mb-3">
+            How They Got Lost
+            <span className="ml-2 text-xs font-normal text-gray-400">(affects initial fear level)</span>
+          </h3>
+          <div className="grid grid-cols-2 gap-2">
+            {ESCAPE_TYPE_OPTIONS.map(({ value, label, desc, fear, icon }) => {
+              const isSelected = config.escapeType === value;
+              // Fear level indicator: low (green), medium (yellow), high (red)
+              const fearColor = fear < 0.4 ? 'bg-green-100 text-green-700' :
+                               fear < 0.7 ? 'bg-yellow-100 text-yellow-700' :
+                               'bg-red-100 text-red-700';
+              return (
+                <button
+                  key={value}
+                  onClick={() => updateConfig('escapeType', value)}
+                  className={`p-3 rounded-lg border text-left transition-colors ${
+                    isSelected
+                      ? 'border-indigo-500 bg-indigo-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-sm font-medium ${isSelected ? 'text-indigo-700' : 'text-gray-700'}`}>
+                      {icon} {label}
+                    </span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${fearColor}`}>
+                      Fear: {Math.round(fear * 100)}%
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 line-clamp-1">{desc}</div>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-gray-400 mt-2 italic">
+            Higher fear = longer flee distance before hiding
+          </p>
         </section>
 
         {/* Toggles - Show only relevant ones */}
@@ -310,6 +349,78 @@ export default function SimulatorConfig({
               </label>
             )}
           </div>
+        </section>
+
+        {/* Outreach & Visibility - Affects stranger return probability */}
+        <section>
+          <h3 className="text-base font-semibold text-gray-700 mb-3">
+            Outreach Efforts
+            <span className="ml-2 text-xs font-normal text-gray-400">(affects stranger return rate)</span>
+          </h3>
+          <div className="grid grid-cols-2 gap-2">
+            <label
+              className={`flex items-center gap-2 px-3 py-3 rounded-lg border cursor-pointer transition-colors ${
+                config.postedOnSocialMedia ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'
+              }`}
+              title="Posts on Facebook, Nextdoor, local groups. +25% visibility"
+            >
+              <input
+                type="checkbox"
+                checked={config.postedOnSocialMedia || false}
+                onChange={(e) => updateConfig('postedOnSocialMedia', e.target.checked)}
+                className="rounded text-indigo-600 w-4 h-4"
+              />
+              <span className="text-sm font-medium">Posted on Social Media</span>
+            </label>
+
+            <label
+              className={`flex items-center gap-2 px-3 py-3 rounded-lg border cursor-pointer transition-colors ${
+                config.postedFlyers ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'
+              }`}
+              title="Physical flyers in neighborhood. +20% visibility"
+            >
+              <input
+                type="checkbox"
+                checked={config.postedFlyers || false}
+                onChange={(e) => updateConfig('postedFlyers', e.target.checked)}
+                className="rounded text-indigo-600 w-4 h-4"
+              />
+              <span className="text-sm font-medium">Posted Flyers</span>
+            </label>
+
+            <label
+              className={`flex items-center gap-2 px-3 py-3 rounded-lg border cursor-pointer transition-colors ${
+                config.contactedShelters ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'
+              }`}
+              title="Called local shelters and vets. +15% visibility"
+            >
+              <input
+                type="checkbox"
+                checked={config.contactedShelters || false}
+                onChange={(e) => updateConfig('contactedShelters', e.target.checked)}
+                className="rounded text-indigo-600 w-4 h-4"
+              />
+              <span className="text-sm font-medium">Contacted Shelters</span>
+            </label>
+
+            <label
+              className={`flex items-center gap-2 px-3 py-3 rounded-lg border cursor-pointer transition-colors ${
+                config.listedOnPetRecoveryPlatform ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'
+              }`}
+              title="Listed on PetFBI, Pawboost, etc. +15% visibility"
+            >
+              <input
+                type="checkbox"
+                checked={config.listedOnPetRecoveryPlatform || false}
+                onChange={(e) => updateConfig('listedOnPetRecoveryPlatform', e.target.checked)}
+                className="rounded text-indigo-600 w-4 h-4"
+              />
+              <span className="text-sm font-medium">Listed on Pet Recovery Site</span>
+            </label>
+          </div>
+          <p className="text-xs text-gray-400 mt-2 italic">
+            More outreach = higher chance strangers recognize your pet from postings
+          </p>
         </section>
 
         {/* Divider */}

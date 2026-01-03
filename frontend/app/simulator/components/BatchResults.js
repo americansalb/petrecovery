@@ -2,12 +2,23 @@
 
 /**
  * BatchResults - Analytics dashboard for batch simulation results
+ *
+ * OUTCOME HIERARCHY (Clearer Categories):
+ * 1. FOUND or NOT FOUND (binary)
+ * 2. If FOUND:
+ *    - Self-returned home
+ *    - Found by owner/searcher
+ *    - Found by stranger (taken to shelter or kept)
+ * 3. If NOT FOUND:
+ *    - Still searching (location unknown)
+ *    - Deceased
  */
 
 import React, { useState } from 'react';
 import {
-  Search, Home, Building2, Share2, Smartphone,
-  Clock, AlertTriangle, TrendingUp, BarChart3, PieChart, Info
+  Search, Home, Building2, Users, Skull,
+  Clock, AlertTriangle, TrendingUp, BarChart3, PieChart, Info,
+  Download, FileSpreadsheet, Eye
 } from 'lucide-react';
 
 // =============================================================================
@@ -210,15 +221,155 @@ function ConvergenceStatusPanel({ convergence, totalRuns }) {
   );
 }
 
+// =============================================================================
+// CLEARER OUTCOME CATEGORIES
+// =============================================================================
+
+/**
+ * Outcome hierarchy:
+ * FOUND (reunited with owner)
+ *   - Self-returned home (pet walked back)
+ *   - Owner/searcher found pet
+ *   - Stranger found pet → returned via shelter/contact
+ *
+ * NOT FOUND
+ *   - Still missing (location unknown)
+ *   - Deceased (traffic, exposure, etc.)
+ */
 const OUTCOME_LABELS = {
-  foundBySearcherCount: { label: 'Found by Searcher', color: '#10b981', icon: Search },
-  returnedHomeCount: { label: 'Returned Home', color: '#3b82f6', icon: Home },
-  foundViaShelterCount: { label: 'Found via Shelter', color: '#8b5cf6', icon: Building2 },
-  foundViaSocialCount: { label: 'Found via Social', color: '#ec4899', icon: Share2 },
-  foundViaPlatformCount: { label: 'Found via Platform', color: '#6366f1', icon: Smartphone },
-  timeoutSearchingCount: { label: 'Timeout (Searching)', color: '#f59e0b', icon: Clock },
-  timeoutShelteredCount: { label: 'Timeout (Sheltered)', color: '#6b7280', icon: AlertTriangle },
+  // FOUND OUTCOMES - Pet reunited with owner
+  returnedHomeCount: {
+    label: 'Self-Returned Home',
+    desc: 'Pet navigated back home on its own',
+    color: '#10b981',
+    icon: Home,
+    category: 'FOUND'
+  },
+  foundBySearcherCount: {
+    label: 'Found by Owner/Searcher',
+    desc: 'Owner or search team physically located pet',
+    color: '#3b82f6',
+    icon: Search,
+    category: 'FOUND'
+  },
+  foundViaShelterCount: {
+    label: 'Found via Shelter',
+    desc: 'Pet taken to shelter, matched via microchip/report',
+    color: '#8b5cf6',
+    icon: Building2,
+    category: 'FOUND'
+  },
+  foundViaSocialCount: {
+    label: 'Stranger Found & Returned',
+    desc: 'Stranger found pet and contacted owner directly',
+    color: '#f59e0b',
+    icon: Users,
+    category: 'FOUND'
+  },
+
+  // NOT FOUND OUTCOMES
+  timeoutSearchingCount: {
+    label: 'Still Missing',
+    desc: 'Pet not located within simulation timeframe',
+    color: '#6b7280',
+    icon: Clock,
+    category: 'NOT_FOUND'
+  },
+  timeoutShelteredCount: {
+    label: 'At Shelter (Not Matched)',
+    desc: 'Pet at shelter but owner hasn\'t checked',
+    color: '#9ca3af',
+    icon: Building2,
+    category: 'NOT_FOUND'
+  },
+  foundViaPlatformCount: {
+    label: 'Deceased',
+    desc: 'Pet died from traffic, exposure, dehydration, etc.',
+    color: '#ef4444',
+    icon: Skull,
+    category: 'NOT_FOUND'
+  },
 };
+
+// =============================================================================
+// EXPORT FUNCTIONALITY
+// =============================================================================
+
+/**
+ * Export batch results to CSV format
+ */
+function exportToCSV(batch, simulations) {
+  // Build CSV content
+  let csv = '';
+
+  // Summary section
+  csv += 'SIMULATION SUMMARY\n';
+  csv += `Total Simulations,${batch.totalRuns}\n`;
+  csv += `Success Rate,${batch.successRate?.toFixed(1)}%\n`;
+  csv += `Average Time to Find (mins),${batch.avgTimeToFindMins?.toFixed(1) || 'N/A'}\n`;
+  csv += `Median Time to Find (mins),${batch.medianTimeToFindMins?.toFixed(1) || 'N/A'}\n`;
+  csv += `Average Pet Displacement (miles),${batch.avgPetDistanceMiles?.toFixed(3) || 'N/A'}\n`;
+  csv += '\n';
+
+  // Outcome breakdown
+  csv += 'OUTCOME BREAKDOWN\n';
+  csv += 'Outcome,Count,Percentage\n';
+  Object.entries(OUTCOME_LABELS).forEach(([key, { label }]) => {
+    const count = batch[key] || 0;
+    const percent = batch.totalRuns > 0 ? ((count / batch.totalRuns) * 100).toFixed(1) : 0;
+    csv += `${label},${count},${percent}%\n`;
+  });
+  csv += '\n';
+
+  // Individual simulations if available
+  if (simulations && simulations.length > 0) {
+    csv += 'INDIVIDUAL SIMULATIONS\n';
+    csv += 'ID,Outcome,Found At (min),Pet Distance (mi),Final State\n';
+    simulations.forEach(sim => {
+      csv += `${sim.id || sim.randomSeed},${sim.outcome},${sim.foundAtMinute || 'N/A'},${sim.petDistanceMiles?.toFixed(3) || 'N/A'},${sim.finalPetState || 'N/A'}\n`;
+    });
+  }
+
+  // Download
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `simulation_results_${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+}
+
+/**
+ * Export to JSON format (more detailed)
+ */
+function exportToJSON(batch, simulations) {
+  const data = {
+    exportedAt: new Date().toISOString(),
+    summary: {
+      totalRuns: batch.totalRuns,
+      successRate: batch.successRate,
+      avgTimeToFindMins: batch.avgTimeToFindMins,
+      medianTimeToFindMins: batch.medianTimeToFindMins,
+      avgPetDistanceMiles: batch.avgPetDistanceMiles,
+      convergence: batch.convergence,
+    },
+    outcomes: Object.entries(OUTCOME_LABELS).reduce((acc, [key, { label, category }]) => {
+      acc[key] = {
+        label,
+        category,
+        count: batch[key] || 0,
+        percentage: batch.totalRuns > 0 ? ((batch[key] || 0) / batch.totalRuns) * 100 : 0,
+      };
+      return acc;
+    }, {}),
+    simulations: simulations || [],
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `simulation_results_${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+}
 
 function formatDuration(minutes) {
   if (!minutes) return 'N/A';
@@ -231,7 +382,9 @@ function formatDuration(minutes) {
   return `${days}d ${remainingHours}h`;
 }
 
-export default function BatchResults({ batch }) {
+export default function BatchResults({ batch, simulations = [] }) {
+  const [showMathLog, setShowMathLog] = useState(false);
+
   if (!batch) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
@@ -247,11 +400,18 @@ export default function BatchResults({ batch }) {
   }
 
   const total = batch.totalRuns;
-  const successCount = (batch.foundBySearcherCount || 0) +
+
+  // Calculate FOUND vs NOT FOUND (clearer binary outcome)
+  const foundCount = (batch.foundBySearcherCount || 0) +
     (batch.returnedHomeCount || 0) +
     (batch.foundViaShelterCount || 0) +
-    (batch.foundViaSocialCount || 0) +
-    (batch.foundViaPlatformCount || 0);
+    (batch.foundViaSocialCount || 0);
+
+  const notFoundCount = (batch.timeoutSearchingCount || 0) +
+    (batch.timeoutShelteredCount || 0) +
+    (batch.foundViaPlatformCount || 0);  // Deceased mapped here
+
+  const successCount = foundCount;  // For legacy compatibility
   const successRate = total > 0 ? ((successCount / total) * 100).toFixed(1) : 0;
 
   // Calculate Wilson score confidence interval (proper method for proportions)
@@ -381,6 +541,109 @@ export default function BatchResults({ batch }) {
             );
           })}
         </div>
+      </div>
+
+      {/* Export & Math Log */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-700">Export & Debug</h3>
+          <div className="flex gap-2">
+            <button
+              onClick={() => exportToCSV(batch, simulations)}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Export CSV
+            </button>
+            <button
+              onClick={() => exportToJSON(batch, simulations)}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export JSON
+            </button>
+          </div>
+        </div>
+
+        {/* Math Log Toggle */}
+        <button
+          onClick={() => setShowMathLog(!showMathLog)}
+          className="w-full flex items-center justify-between p-2 bg-gray-50 rounded-lg text-xs text-gray-600 hover:bg-gray-100 transition-colors"
+        >
+          <span className="flex items-center gap-2">
+            <Eye className="w-3.5 h-3.5" />
+            Show Simulation Math Log
+          </span>
+          <span>{showMathLog ? '▲' : '▼'}</span>
+        </button>
+
+        {showMathLog && (
+          <div className="mt-3 p-3 bg-gray-900 rounded-lg text-xs font-mono text-green-400 max-h-64 overflow-y-auto">
+            <div className="text-gray-500 mb-2"># Emergent Simulation Engine Log</div>
+            <div className="text-gray-400 mb-2">---</div>
+
+            <div className="mb-2">
+              <span className="text-yellow-400">CONFIGURATION:</span>
+              <div className="ml-2 text-gray-300">
+                Total simulations: {batch.totalRuns}<br/>
+                Time step: 5 minutes per tick<br/>
+                Max duration: 72 hours (864 ticks)
+              </div>
+            </div>
+
+            <div className="mb-2">
+              <span className="text-yellow-400">DISPLACEMENT MODEL (Huang 2018):</span>
+              <div className="ml-2 text-gray-300">
+                Indoor-only cats: median ~39m<br/>
+                Indoor-outdoor cats: median ~300m<br/>
+                Simulated avg: {(batch.avgPetDistanceMiles * 1609.34).toFixed(1)}m
+              </div>
+            </div>
+
+            <div className="mb-2">
+              <span className="text-yellow-400">FEAR DYNAMICS:</span>
+              <div className="ml-2 text-gray-300">
+                Initial fear: 0.8 (based on escape type)<br/>
+                Decay rate: 0.0003/min (half-life ~40hr)<br/>
+                Fear formula: F(t) = F₀ × e^(-λt)
+              </div>
+            </div>
+
+            <div className="mb-2">
+              <span className="text-yellow-400">STATE MACHINE:</span>
+              <div className="ml-2 text-gray-300">
+                FLEEING → HIDING → FORAGING → TRAVELING → SHELTERING<br/>
+                Transitions driven by fear threshold + physiological needs
+              </div>
+            </div>
+
+            <div className="mb-2">
+              <span className="text-yellow-400">OUTCOME FORMULA:</span>
+              <div className="ml-2 text-gray-300">
+                Self-return: Pet at home + fear &lt; threshold + energy &gt; 0.3<br/>
+                Stranger encounter: P = density × visibility × time_step<br/>
+                Detection: Koopman POD = 1 - e^(-W/D) where W=sweep, D=distance
+              </div>
+            </div>
+
+            {batch.emergentStats && (
+              <div className="mb-2">
+                <span className="text-yellow-400">EMERGENT STATS:</span>
+                <div className="ml-2 text-gray-300">
+                  Displacement median: {batch.emergentStats.displacementMedian?.toFixed(3)}mi<br/>
+                  Recovery rate: {batch.emergentStats.recoveryRate?.toFixed(1)}%<br/>
+                  Self-return rate: {batch.emergentStats.selfReturnRate?.toFixed(1)}%<br/>
+                  Execution time: {batch.emergentStats.executionTimeSeconds?.toFixed(1)}s
+                </div>
+              </div>
+            )}
+
+            <div className="text-gray-500 mt-2">
+              # All outcomes emerge from behavioral mechanics,<br/>
+              # NOT pre-determined probabilities.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Key Insights */}

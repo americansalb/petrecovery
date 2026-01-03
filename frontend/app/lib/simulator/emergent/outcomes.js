@@ -208,6 +208,8 @@ export class OutcomeTracker {
 
     // Sighting history
     this.sightings = [];
+    this.reportedSightings = [];  // Sightings reported to owner/search team
+    this.lastReportedSightingMinute = null;
 
     // Health tracking for deceased outcomes
     this.injury = 0;
@@ -225,7 +227,38 @@ export class OutcomeTracker {
       minute,
       confidence,  // HIGH, MEDIUM, LOW
       source,      // SEARCHER, STRANGER, CAMERA, etc.
+      reported: false,
     });
+  }
+
+  /**
+   * Record a reported sighting (to owner/search team)
+   * This will attract searchers to this location
+   */
+  recordReportedSighting(lat, lng, minute, source, visibilityScore) {
+    const sighting = {
+      lat,
+      lng,
+      minute,
+      source,
+      visibilityScore,
+    };
+    this.reportedSightings.push(sighting);
+    this.lastReportedSightingMinute = minute;
+
+    // Mark the original sighting as reported
+    const lastSighting = this.sightings[this.sightings.length - 1];
+    if (lastSighting) {
+      lastSighting.reported = true;
+    }
+  }
+
+  /**
+   * Get most recent reported sighting location for search team to focus on
+   */
+  getSearchFocusLocation() {
+    if (this.reportedSightings.length === 0) return null;
+    return this.reportedSightings[this.reportedSightings.length - 1];
   }
 
   /**

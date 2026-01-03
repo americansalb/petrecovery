@@ -418,17 +418,52 @@ export class EmergentSimulationEngine {
       'MEDIUM', 'STRANGER'
     );
 
-    // Pet may flee
+    // Will the stranger REPORT the sighting?
+    // Higher visibility score = more likely they recognize "this is someone's lost pet"
+    const visibilityScore = this.searcherConfig.visibilityScore || 0.1;
+
+    // Reporting probability based on:
+    // - Base 20% of people will post about a loose pet anyway
+    // - +visibility_score * 60% if owner has posted flyers/social media
+    // - Collar increases likelihood (+30%)
+    const baseReportProb = 0.20;
+    const visibilityBoost = visibilityScore * 0.60;
+    const collarBoost = this.pet.hasCollar ? 0.30 : 0;
+    const reportProb = Math.min(1, baseReportProb + visibilityBoost + collarBoost);
+
+    if (this.random() < reportProb) {
+      // Sighting is reported to search team / posted online
+      this.outcomes.recordReportedSighting(
+        this.pet.lat, this.pet.lng, this.currentMinute,
+        'STRANGER', visibilityScore
+      );
+
+      this.logEvent('SIGHTING_REPORTED', {
+        lat: this.pet.lat,
+        lng: this.pet.lng,
+        source: 'STRANGER',
+        reportProbability: reportProb,
+      });
+    }
+
+    // Pet may flee from the encounter
     const fleeProb = tempMods.flee_from_searcher_prob * this.pet.fear;
     if (this.random() < fleeProb) {
       // Spike fear and flee
       this.pet.spikeFear(this.pet.lat, this.pet.lng, this.currentMinute, 0.5);
       this.pet.transitionTo(BEHAVIOR_STATE.FLEEING, this.currentMinute);
+
+      this.logEvent('PET_FLED_FROM_STRANGER', {
+        lat: this.pet.lat,
+        lng: this.pet.lng,
+        fearLevel: this.pet.fear,
+      });
     }
 
     this.logEvent('STRANGER_ENCOUNTER_ESCAPE', {
       lat: this.pet.lat,
       lng: this.pet.lng,
+      wasReported: this.random() < reportProb,
     });
 
     return false;
@@ -436,9 +471,21 @@ export class EmergentSimulationEngine {
 
   /**
    * Handle stranger capture - determine what happens next
+   *
+   * VISIBILITY SCORE EFFECT:
+   * If owner posted on social media/flyers, strangers are more likely to:
+   * 1. Recognize the pet and contact owner directly
+   * 2. See owner's post when they post "found pet"
+   *
+   * visibility_score comes from searcher config and is based on:
+   * - Posted on social media (+25%)
+   * - Posted flyers (+20%)
+   * - Contacted shelters (+15%)
+   * - Listed on pet recovery platform (+15%)
    */
   handleStrangerCapture() {
-    // What does the stranger do?
+    // Get visibility score from searcher config
+    const visibilityScore = this.searcherConfig.visibilityScore || 0.1;
 
     // If pet has visible tags, high chance of direct contact
     if (this.pet.hasVisibleTags) {
@@ -461,6 +508,25 @@ export class EmergentSimulationEngine {
     }
 
     // No tags or didn't call - what happens?
+    // Visibility score affects whether stranger recognizes pet from postings
+    const recognizedFromPostings = this.random() < visibilityScore;
+
+    if (recognizedFromPostings) {
+      // Stranger saw owner's social media post / flyer
+      this.outcomes.setOutcome('REUNITED_STRANGER_DIRECT', this.currentMinute, {
+        lat: this.pet.lat,
+        lng: this.pet.lng,
+        method: 'social_media',
+      });
+
+      this.logEvent('STRANGER_RECOGNIZED_FROM_POSTING', {
+        visibilityScore,
+      });
+
+      return true;
+    }
+
+    // Stranger didn't recognize pet - what do they do?
     const roll = this.random();
 
     if (roll < 0.4) {
@@ -473,20 +539,33 @@ export class EmergentSimulationEngine {
 
     } else if (roll < 0.7) {
       // Posts online / keeps temporarily
-      // This could lead to reunion or adoption
       this.outcomes.isWithStranger = true;
       this.outcomes.strangerCaptureMinute = this.currentMinute;
 
-      // For now, assume social media post leads to reunion
-      // (simplified - full version would model delay and probability)
-      this.outcomes.setOutcome('REUNITED_STRANGER_POST', this.currentMinute, {
-        lat: this.pet.lat,
-        lng: this.pet.lng,
-      });
+      // Does owner see the stranger's "found pet" post?
+      // Higher visibility = higher chance owner is monitoring platforms
+      const ownerSeesPost = this.random() < (0.3 + visibilityScore * 0.5);
 
-      this.logEvent('STRANGER_POSTED_ONLINE', {});
+      if (ownerSeesPost) {
+        this.outcomes.setOutcome('REUNITED_STRANGER_POST', this.currentMinute, {
+          lat: this.pet.lat,
+          lng: this.pet.lng,
+        });
 
-      return true;
+        this.logEvent('OWNER_SAW_FOUND_POST', { visibilityScore });
+
+        return true;
+      } else {
+        // Owner didn't see post - pet stays with stranger
+        this.outcomes.setOutcome('WITH_STRANGER_PENDING', this.currentMinute, {
+          lat: this.pet.lat,
+          lng: this.pet.lng,
+        });
+
+        this.logEvent('STRANGER_POSTED_BUT_NO_MATCH', {});
+
+        return true;
+      }
 
     } else {
       // Keeps pet (no contact attempt)
@@ -554,13 +633,44 @@ export class EmergentSimulationEngine {
 
   /**
    * Check if a single searcher detects the pet
+   *
+   * SIGHTING FOCUS MECHANIC:
+   * If there's a reported sighting, searchers focus on that area.
+   * Detection probability is boosted if pet is near a reported sighting location.
    */
   checkSingleSearcherDetection(searcherId, currentHour) {
-    // Simplified detection model
-    // In full version, each searcher would have position and we'd check distance
-
     // Base detection probability per tick
-    const baseDetectionRate = 0.0001;  // Very low per tick
+    let baseDetectionRate = 0.0001;  // Very low per tick
+
+    // Check if there's a reported sighting to focus on
+    const focusLocation = this.outcomes.getSearchFocusLocation();
+
+    if (focusLocation) {
+      // Calculate distance from pet to last reported sighting
+      const distToSighting = this.calculateDistance(
+        this.pet.lat, this.pet.lng,
+        focusLocation.lat, focusLocation.lng
+      );
+
+      // Time since sighting (minutes)
+      const timeSinceSighting = this.currentMinute - focusLocation.minute;
+
+      // Sighting focus boost decays over time (24 hours = 1440 minutes)
+      // Max boost is 10x if pet is within 0.1 miles of sighting location
+      if (distToSighting < 0.5) {  // Within 0.5 miles of reported sighting
+        const proximityBoost = Math.max(1, 10 - (distToSighting * 18));  // 10x at 0, 1x at 0.5mi
+        const timeDecay = Math.exp(-timeSinceSighting / 720);  // Half-life of 12 hours
+        const sightingBoost = proximityBoost * timeDecay;
+
+        baseDetectionRate *= sightingBoost;
+
+        this.logEvent('SEARCH_FOCUS_BOOST', {
+          distToSighting,
+          timeSinceSighting,
+          sightingBoost,
+        });
+      }
+    }
 
     // Pet visibility
     const visibility = this.pet.getVisibility(this.environment, currentHour);
@@ -586,6 +696,20 @@ export class EmergentSimulationEngine {
     }
 
     return false;
+  }
+
+  /**
+   * Calculate distance between two points in miles (Haversine formula)
+   */
+  calculateDistance(lat1, lng1, lat2, lng2) {
+    const R = 3959;  // Earth radius in miles
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   }
 
   /**
@@ -718,6 +842,9 @@ export class EmergentSimulationEngine {
 
       // Sightings
       sightings: outcomeSummary.sightings,
+      reportedSightings: this.outcomes.reportedSightings,
+      sightingCount: outcomeSummary.sightingCount,
+      reportedSightingCount: this.outcomes.reportedSightings.length,
 
       // Path (for visualization)
       petPath: effectivePath,
