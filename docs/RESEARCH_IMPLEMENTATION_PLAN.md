@@ -64,12 +64,14 @@ The derived log-normal parameters (μ, σ) must reproduce these quantiles. The 0
 | Other (neighbor found, etc.) | 9% | VERIFIED |
 
 **Dogs:**
-| Mode | Percentage | Status |
-|------|------------|--------|
-| Active search | 49% | VERIFIED |
-| Stranger return | 26% | VERIFIED |
-| Self-return | 15% | VERIFIED |
-| Shelter intake | 10% | VERIFIED |
+| Mode | Percentage | Weiss 2012 Category | Status |
+|------|------------|---------------------|--------|
+| Active search | 49% | "Searched for pet" | VERIFIED |
+| Stranger return | 26% | "Good Samaritan found" | VERIFIED |
+| Self-return | 15% | "Pet returned on own" + "ID tag/microchip" | VERIFIED |
+| Shelter intake | 6% | "Local shelter" (CI: 2-12%) | VERIFIED |
+
+**Note:** Percentages adjusted to sum to 96% per Weiss; remaining 4% is "Other" category.
 
 ### Microchip Parameters (Lord 2009):
 
@@ -86,9 +88,9 @@ The derived log-normal parameters (μ, σ) must reproduce these quantiles. The 0
 
 | Parameter | Value | Source | Status |
 |-----------|-------|--------|--------|
-| Collar/tag recovery effect | +51.2% | Lord 2007 (needs page/table) | NEEDS VERIFICATION |
+| Collar/tag recovery effect | +51.2% | Lord 2007 | UNVERIFIED |
 
-**Action required:** Locate specific table/page in Lord 2007 or flag as UNVERIFIED.
+**Note:** Citation could not be verified to specific table/page. Including in sensitivity analysis (Phase 5) to assess impact. Will upgrade to VERIFIED if citation is located during Phase 0 research.
 
 ### Deliverable:
 ```javascript
@@ -385,7 +387,8 @@ frontend/app/lib/simulator/
 | Cat shelter intake | 11% | 2% (Weiss 2012) |
 | Recovery test timing | 72h | Overall recovery (no 72h benchmark exists) |
 | Microchip | Multiplier only | Added baseline rates + registration check |
-| Collar/tag | VERIFIED | NEEDS VERIFICATION (citation unclear) |
+| Dog shelter intake | 10% | 6% (Weiss 2012, CI: 2-12%) |
+| Collar/tag | VERIFIED | UNVERIFIED (citation unclear) |
 
 ---
 
