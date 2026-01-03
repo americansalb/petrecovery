@@ -7,47 +7,61 @@
  * - Lost dogs typically stay within 1-2 miles (most within 1 city block)
  * - Lost cats typically stay within 0.1 miles (3-5 houses)
  * - Speeds reduced to produce realistic displacement over 72h simulations
+ *
+ * DISPLACEMENT RESEARCH (see researchConfig.js):
+ * - Cats (indoor-only): median 39m, q75 137m (Huang 2018) - VERIFIED
+ * - Cats (indoor-outdoor): median 300m, q75 1609m (Huang 2018) - VERIFIED
+ * - Dogs: 42% within 122m, 70% within 1609m (Kremer 2021) - DERIVED
+ *
+ * See: researchConfig.js for verified parameters
+ *      displacement.js for log-normal sampling
+ *      sensitivity.js for UNVERIFIED parameter analysis
  */
 
 import { getTerrainCache } from './terrain';
+import { UNVERIFIED_PARAMS } from './researchConfig.js';
 
 // Movement speeds by state (miles per 5 minutes)
-// CALIBRATED: Reduced significantly to prevent 40+ mile displacements
+// UNVERIFIED: These speeds are empirically tuned, not from peer-reviewed research
+// Priority: HIGH for sensitivity analysis - see sensitivity.js
 const STATE_SPEEDS = {
-  FLEEING: 0.04,    // ~0.48 mph - panicked but not sprinting for hours
-  HIDING: 0.001,    // ~0.012 mph - minimal repositioning
-  FORAGING: 0.008,  // ~0.1 mph - slow, cautious searching
-  WANDERING: 0.015, // ~0.18 mph - casual exploration
-  TERRITORIAL: 0.005, // ~0.06 mph - patrolling small area
+  FLEEING: UNVERIFIED_PARAMS.STATE_SPEEDS.FLEEING,     // ~0.48 mph - UNVERIFIED
+  HIDING: UNVERIFIED_PARAMS.STATE_SPEEDS.HIDING,       // ~0.012 mph - UNVERIFIED
+  FORAGING: UNVERIFIED_PARAMS.STATE_SPEEDS.FORAGING,   // ~0.1 mph - UNVERIFIED
+  WANDERING: UNVERIFIED_PARAMS.STATE_SPEEDS.WANDERING, // ~0.18 mph - UNVERIFIED
+  TERRITORIAL: UNVERIFIED_PARAMS.STATE_SPEEDS.TERRITORIAL, // ~0.06 mph - UNVERIFIED
   SHELTERED: 0.0,   // Stationary (at shelter/home)
 };
 
 // Base parameters by species
-// CALIBRATION: Reduced homing strength to prevent pets always returning to searchers
+// UNVERIFIED: All values below are empirically tuned, not from peer-reviewed research
+// Note: Dog self-return is 15% of recoveries (Weiss 2012) - VERIFIED
+// Note: Cat self-return is 59% of recoveries (Weiss 2012) - VERIFIED
+// However, the homingStrength parameter that produces these rates is UNVERIFIED
 const SPECIES_PARAMS = {
   DOG: {
-    homingStrength: 0.15,    // Reduced from 0.3 - dogs wander more before returning
-    fleeingDuration: 120,    // minutes
-    energyDecayRate: 0.01,
-    hungerIncreaseRate: 0.02,
+    homingStrength: 0.15,    // UNVERIFIED - tuned to produce ~15% self-return
+    fleeingDuration: 120,    // minutes - UNVERIFIED
+    energyDecayRate: 0.01,   // UNVERIFIED
+    hungerIncreaseRate: 0.02, // UNVERIFIED
   },
   CAT: {
-    homingStrength: 0.08,    // Reduced from 0.1 - cats rarely return on their own
-    fleeingDuration: 60,
-    energyDecayRate: 0.008,
-    hungerIncreaseRate: 0.025, // Increased from 0.015 - cats get hungry faster, emerge sooner
+    homingStrength: 0.08,    // UNVERIFIED - tuned to produce ~59% self-return
+    fleeingDuration: 60,     // UNVERIFIED
+    energyDecayRate: 0.008,  // UNVERIFIED
+    hungerIncreaseRate: 0.025, // UNVERIFIED
   },
   BIRD: {
-    homingStrength: 0.4,
-    fleeingDuration: 30,
-    energyDecayRate: 0.02,
-    hungerIncreaseRate: 0.03,
+    homingStrength: 0.4,     // UNVERIFIED
+    fleeingDuration: 30,     // UNVERIFIED
+    energyDecayRate: 0.02,   // UNVERIFIED
+    hungerIncreaseRate: 0.03, // UNVERIFIED
   },
   OTHER: {
-    homingStrength: 0.15,
-    fleeingDuration: 90,
-    energyDecayRate: 0.01,
-    hungerIncreaseRate: 0.02,
+    homingStrength: 0.15,    // UNVERIFIED
+    fleeingDuration: 90,     // UNVERIFIED
+    energyDecayRate: 0.01,   // UNVERIFIED
+    hungerIncreaseRate: 0.02, // UNVERIFIED
   },
 };
 

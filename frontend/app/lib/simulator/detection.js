@@ -8,6 +8,9 @@
  *              × time_of_day_modifier(hour)
  *              × distance_falloff(distance)
  *
+ * VERIFICATION STATUS: All parameters in this file are UNVERIFIED
+ * Priority: HIGH for sensitivity analysis - see sensitivity.js
+ *
  * CALIBRATION NOTES:
  * - Original rates (0.95, 0.70, 0.40, 0.15, 0.02) were too high
  * - Over 864 ticks (72hrs), even 15% per tick = near-certain detection
@@ -17,51 +20,62 @@
  *   - Real-world search inefficiency and fatigue
  *   - Pets actively avoiding detection
  * - Target outcomes: 50-70% dog, 20-40% cat (per MARN research)
+ *
+ * RESEARCH BENCHMARKS (see researchConfig.js):
+ * - Dogs found via active search: 49% (Weiss 2012) - VERIFIED
+ * - Cats found via owner search: 30% (Weiss 2012) - VERIFIED
+ *
+ * See: researchConfig.js for verified parameters
+ *      sensitivity.js for parameter impact analysis
  */
 
+import { UNVERIFIED_PARAMS } from './researchConfig.js';
+
 // Base detection rates by distance (miles)
+// UNVERIFIED: These rates are empirically tuned, not from peer-reviewed research
 // These represent probability per 5-minute tick
-// Reduced to produce realistic outcomes over multi-day simulations
 const BASE_RATES = [
-  { maxDistance: 0.002, rate: 0.25 },   // < 10 ft (was 0.95) - still might miss hiding pet
-  { maxDistance: 0.006, rate: 0.10 },   // 10-30 ft (was 0.70)
-  { maxDistance: 0.019, rate: 0.04 },   // 30-100 ft (was 0.40)
-  { maxDistance: 0.057, rate: 0.01 },   // 100-300 ft (was 0.15)
-  { maxDistance: Infinity, rate: 0.001 }, // 300+ ft (was 0.02)
+  { maxDistance: 0.002, rate: 0.25 },   // < 10 ft - UNVERIFIED
+  { maxDistance: 0.006, rate: 0.10 },   // 10-30 ft - UNVERIFIED
+  { maxDistance: 0.019, rate: 0.04 },   // 30-100 ft - UNVERIFIED
+  { maxDistance: 0.057, rate: 0.01 },   // 100-300 ft - UNVERIFIED
+  { maxDistance: Infinity, rate: UNVERIFIED_PARAMS.DETECTION.baseRate }, // 300+ ft - UNVERIFIED
 ];
 
 // Pet state modifiers
-// CALIBRATION: Hiding increased from 0.1 to 0.25 - was causing 0% cat success
+// UNVERIFIED: All modifiers are empirically tuned
 const STATE_MODIFIERS = {
-  FLEEING: 1.3,      // Motion catches eye (slightly increased)
-  HIDING: 0.25,      // Hard to find but not impossible (was 0.1)
-  FORAGING: 1.1,     // Moving around, slightly easier to spot
-  WANDERING: 1.0,    // Normal visibility
-  TERRITORIAL: 0.9,  // Slightly cautious
+  FLEEING: 1.3,      // Motion catches eye - UNVERIFIED
+  HIDING: UNVERIFIED_PARAMS.DETECTION.hidingModifier, // Hard to find - UNVERIFIED
+  FORAGING: 1.1,     // Moving around - UNVERIFIED
+  WANDERING: 1.0,    // Normal visibility - UNVERIFIED
+  TERRITORIAL: 0.9,  // Slightly cautious - UNVERIFIED
   SHELTERED: 0.0,    // Not in search area
 };
 
 // Terrain modifiers
+// UNVERIFIED: All values are empirically tuned
 const TERRAIN_MODIFIERS = {
   URBAN: {
-    base: 0.8,        // Buildings provide cover
-    hiding: 0.15,     // Many hiding spots
+    base: 0.8,        // Buildings provide cover - UNVERIFIED
+    hiding: 0.15,     // Many hiding spots - UNVERIFIED
   },
   SUBURBAN: {
-    base: 1.0,        // Standard visibility
-    hiding: 0.1,      // Some cover
+    base: 1.0,        // Standard visibility - UNVERIFIED
+    hiding: 0.1,      // Some cover - UNVERIFIED
   },
   RURAL: {
-    base: 1.5,        // Open terrain, better visibility
-    hiding: 0.3,      // Fewer hiding spots
+    base: 1.5,        // Open terrain, better visibility - UNVERIFIED
+    hiding: 0.3,      // Fewer hiding spots - UNVERIFIED
   },
 };
 
 // Personality modifiers
+// UNVERIFIED: All values are empirically tuned
 const PERSONALITY_MODIFIERS = {
-  FRIENDLY: 1.3,     // May approach humans
-  NEUTRAL: 1.0,
-  SHY: 0.6,          // Actively avoids
+  FRIENDLY: 1.3,     // May approach humans - UNVERIFIED
+  NEUTRAL: 1.0,      // UNVERIFIED
+  SHY: 0.6,          // Actively avoids - UNVERIFIED
 };
 
 // Fatigue modifiers by hours searching
