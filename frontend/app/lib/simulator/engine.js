@@ -650,6 +650,9 @@ export class SimulationEngine {
 
 /**
  * Run a batch of simulations
+ *
+ * MEMORY OPTIMIZATION: We aggregate results incrementally and do NOT store
+ * full path data in memory. This prevents heap exhaustion on large batches.
  */
 export async function runBatch(config, count, onProgress) {
   console.log('═'.repeat(60));
@@ -659,13 +662,29 @@ export async function runBatch(config, count, onProgress) {
   console.log(`   Max Duration: ${config.maxSimulationHours} hours`);
   console.log('═'.repeat(60));
 
-  const results = [];
+  // Incremental aggregation to avoid memory buildup
+  const outcomes = {};
+  Object.values(OUTCOMES).forEach(o => outcomes[o] = 0);
+  let totalTimeToFind = 0;
+  let foundCount = 0;
+  let totalPetDistance = 0;
+  const timesToFind = [];
+
   const startTime = Date.now();
 
   for (let i = 0; i < count; i++) {
     const engine = new SimulationEngine(config);
     const result = engine.run();
-    results.push(result);
+
+    // Aggregate incrementally (don't store full results)
+    outcomes[result.outcome]++;
+    totalPetDistance += result.petDistanceMiles || 0;
+
+    if (result.foundAtMinute && !result.outcome.startsWith('TIMEOUT')) {
+      totalTimeToFind += result.foundAtMinute;
+      foundCount++;
+      timesToFind.push(result.foundAtMinute);
+    }
 
     if (onProgress) {
       onProgress(i + 1, count);
@@ -674,20 +693,38 @@ export async function runBatch(config, count, onProgress) {
     // Progress log every 10 simulations
     if ((i + 1) % 10 === 0 || i === count - 1) {
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-      const outcomes = results.reduce((acc, r) => {
-        acc[r.outcome] = (acc[r.outcome] || 0) + 1;
-        return acc;
-      }, {});
-      console.log(`📊 Progress: ${i + 1}/${count} (${elapsed}s) | Outcomes so far:`, outcomes);
+      console.log(`📊 Progress: ${i + 1}/${count} (${elapsed}s) | Outcomes so far:`, { ...outcomes });
     }
 
-    // Yield to prevent blocking
+    // Yield to prevent blocking and allow GC
     if (i % 10 === 0) {
       await new Promise(resolve => setTimeout(resolve, 0));
     }
   }
 
-  const aggregated = aggregateResults(results, count);
+  // Calculate final statistics
+  timesToFind.sort((a, b) => a - b);
+  const medianTimeToFind = timesToFind.length > 0
+    ? timesToFind[Math.floor(timesToFind.length / 2)]
+    : null;
+
+  const successCount = count - outcomes[OUTCOMES.TIMEOUT_SEARCHING] - outcomes[OUTCOMES.TIMEOUT_SHELTERED];
+
+  const aggregated = {
+    totalRuns: count,
+    successRate: (successCount / count) * 100,
+    avgTimeToFindMins: foundCount > 0 ? totalTimeToFind / foundCount : null,
+    medianTimeToFindMins: medianTimeToFind,
+    avgPetDistanceMiles: totalPetDistance / count,
+    foundBySearcherCount: outcomes[OUTCOMES.FOUND_BY_SEARCHER],
+    returnedHomeCount: outcomes[OUTCOMES.RETURNED_HOME],
+    foundViaShelterCount: outcomes[OUTCOMES.FOUND_VIA_SHELTER],
+    foundViaSocialCount: outcomes[OUTCOMES.FOUND_VIA_SOCIAL],
+    foundViaPlatformCount: outcomes[OUTCOMES.FOUND_VIA_PLATFORM],
+    timeoutSearchingCount: outcomes[OUTCOMES.TIMEOUT_SEARCHING],
+    timeoutShelteredCount: outcomes[OUTCOMES.TIMEOUT_SHELTERED],
+  };
+
   const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
 
   console.log('═'.repeat(60));
@@ -707,53 +744,6 @@ export async function runBatch(config, count, onProgress) {
   console.log('═'.repeat(60));
 
   return aggregated;
-}
-
-/**
- * Aggregate batch results into statistics
- */
-function aggregateResults(results, total) {
-  const outcomes = {};
-  Object.values(OUTCOMES).forEach(o => outcomes[o] = 0);
-
-  let totalTimeToFind = 0;
-  let foundCount = 0;
-  let totalPetDistance = 0;
-  const timesToFind = [];
-
-  for (const result of results) {
-    outcomes[result.outcome]++;
-    totalPetDistance += result.petDistanceMiles || 0;
-
-    if (result.foundAtMinute && !result.outcome.startsWith('TIMEOUT')) {
-      totalTimeToFind += result.foundAtMinute;
-      foundCount++;
-      timesToFind.push(result.foundAtMinute);
-    }
-  }
-
-  // Calculate median
-  timesToFind.sort((a, b) => a - b);
-  const medianTimeToFind = timesToFind.length > 0
-    ? timesToFind[Math.floor(timesToFind.length / 2)]
-    : null;
-
-  const successCount = total - outcomes[OUTCOMES.TIMEOUT_SEARCHING] - outcomes[OUTCOMES.TIMEOUT_SHELTERED];
-
-  return {
-    totalRuns: total,
-    successRate: (successCount / total) * 100,
-    avgTimeToFindMins: foundCount > 0 ? totalTimeToFind / foundCount : null,
-    medianTimeToFindMins: medianTimeToFind,
-    avgPetDistanceMiles: totalPetDistance / total,
-    foundBySearcherCount: outcomes[OUTCOMES.FOUND_BY_SEARCHER],
-    returnedHomeCount: outcomes[OUTCOMES.RETURNED_HOME],
-    foundViaShelterCount: outcomes[OUTCOMES.FOUND_VIA_SHELTER],
-    foundViaSocialCount: outcomes[OUTCOMES.FOUND_VIA_SOCIAL],
-    foundViaPlatformCount: outcomes[OUTCOMES.FOUND_VIA_PLATFORM],
-    timeoutSearchingCount: outcomes[OUTCOMES.TIMEOUT_SEARCHING],
-    timeoutShelteredCount: outcomes[OUTCOMES.TIMEOUT_SHELTERED],
-  };
 }
 
 /**

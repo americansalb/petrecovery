@@ -13,8 +13,8 @@ const nextConfig = {
     },
   },
 
-  // Also include in serverComponentsExternalPackages to ensure proper bundling
-  serverExternalPackages: [],
+  // Server components external packages (renamed from serverExternalPackages in Next.js 14)
+  serverComponentsExternalPackages: [],
 
   // Image optimization
   images: {
