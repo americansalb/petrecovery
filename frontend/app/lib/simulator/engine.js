@@ -399,9 +399,8 @@ export class SimulationEngine {
     }
 
     // First tick in home zone this visit - check if pet stays
-    // Reduced base probability (was 0.3) to produce more realistic self-return rates
-    // Target: ~15% for dogs (Weiss 2012), ~59% for cats
-    const stayProbability = 0.15 + (this.pet.hunger * 0.25) + ((1 - this.pet.energy) * 0.15);
+    // Based on: hungry/tired pets more motivated to stay, base willingness to settle
+    const stayProbability = 0.3 + (this.pet.hunger * 0.4) + ((1 - this.pet.energy) * 0.3);
 
     return this.random() < stayProbability;
   }
@@ -414,13 +413,10 @@ export class SimulationEngine {
    * - It's during daytime hours (more people around)
    * - Pet is in a populated area
    *
-   * CALIBRATION NOTE: Base rate reduced 10x from original (0.01 → 0.001) to produce
-   * realistic encounter rates. At 0.01, virtually every pet had a stranger encounter
-   * within 72 hours, leading to ~100% social recovery via the stranger pathway.
-   *
-   * New rates:
-   * - Dog daytime: 0.001 × 1.5 = 0.15% per tick → ~50% over 72hr
-   * - Cat daytime: 0.001 × 0.7 = 0.07% per tick → ~30% over 72hr
+   * ASSUMPTION: 1% base rate per 5-minute tick during daytime in suburban area.
+   * This is an unverified assumption - no empirical data exists on stranger
+   * encounter rates for lost pets. The emergent outcome (high encounter rate
+   * over 72 hours) is what the model predicts given this assumption.
    */
   checkStrangerEncounter(currentHour) {
     // Pet must be visible (not hiding)
@@ -429,9 +425,8 @@ export class SimulationEngine {
     }
 
     // More encounters during daytime (7am-9pm)
-    // REDUCED 10x: was 0.01/0.002, now 0.001/0.0002
     const isDaytime = currentHour >= 7 && currentHour < 21;
-    const baseEncounterRate = isDaytime ? 0.001 : 0.0002; // per 5-minute tick
+    const baseEncounterRate = isDaytime ? 0.01 : 0.002; // per 5-minute tick (UNVERIFIED)
 
     // Friendly pets are more likely to be noticed and approached
     const personalityMultiplier = this.config.petPersonality === 'friendly' ? 2.0
