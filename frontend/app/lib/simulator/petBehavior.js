@@ -9,7 +9,7 @@ import { getTerrainCache } from './terrain';
 // Movement speeds by state (miles per 5 minutes)
 const STATE_SPEEDS = {
   FLEEING: 0.15,    // ~1.8 mph - running
-  HIDING: 0.0,      // Stationary
+  HIDING: 0.005,    // ~0.06 mph - occasional repositioning between hiding spots
   FORAGING: 0.03,   // ~0.36 mph - slow, searching for food
   WANDERING: 0.05,  // ~0.6 mph - casual exploration
   TERRITORIAL: 0.02, // ~0.24 mph - patrolling
@@ -17,18 +17,19 @@ const STATE_SPEEDS = {
 };
 
 // Base parameters by species
+// CALIBRATION: Reduced homing strength to prevent pets always returning to searchers
 const SPECIES_PARAMS = {
   DOG: {
-    homingStrength: 0.3,
-    fleeingDuration: 120, // minutes
+    homingStrength: 0.15,    // Reduced from 0.3 - dogs wander more before returning
+    fleeingDuration: 120,    // minutes
     energyDecayRate: 0.01,
     hungerIncreaseRate: 0.02,
   },
   CAT: {
-    homingStrength: 0.1,
+    homingStrength: 0.08,    // Reduced from 0.1 - cats rarely return on their own
     fleeingDuration: 60,
     energyDecayRate: 0.008,
-    hungerIncreaseRate: 0.015,
+    hungerIncreaseRate: 0.025, // Increased from 0.015 - cats get hungry faster, emerge sooner
   },
   BIRD: {
     homingStrength: 0.4,
@@ -153,11 +154,20 @@ export class PetAgent {
       case 'HIDING':
         // Transition to FORAGING if hungry and it's dawn/dusk
         // More likely to forage if in commercial area (dumpsters)
-        if (this.hunger > 0.7 && isDawnDusk && this.random() < 0.2 * foragingBonus) {
+        // CALIBRATION: Increased probabilities so pets emerge more often
+        if (this.hunger > 0.5 && isDawnDusk && this.random() < 0.3 * foragingBonus) {
           this.transitionTo('FORAGING', minute);
         }
-        // Cats may venture out at night
-        if (this.config.petSpecies === 'CAT' && isNight && this.hunger > 0.5 && this.random() < 0.1 * foragingBonus) {
+        // Cats may venture out at night (primary hunting time)
+        if (this.config.petSpecies === 'CAT' && isNight && this.hunger > 0.4 && this.random() < 0.2 * foragingBonus) {
+          this.transitionTo('FORAGING', minute);
+        }
+        // Dogs are less patient - emerge sooner when hungry
+        if (this.config.petSpecies === 'DOG' && this.hunger > 0.6 && this.random() < 0.15 * foragingBonus) {
+          this.transitionTo('FORAGING', minute);
+        }
+        // Very hungry animals will emerge regardless of time
+        if (this.hunger > 0.85 && this.random() < 0.25) {
           this.transitionTo('FORAGING', minute);
         }
         break;

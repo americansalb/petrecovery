@@ -7,23 +7,35 @@
  *              × fatigue_modifier(searcher_hours)
  *              × time_of_day_modifier(hour)
  *              × distance_falloff(distance)
+ *
+ * CALIBRATION NOTES:
+ * - Original rates (0.95, 0.70, 0.40, 0.15, 0.02) were too high
+ * - Over 864 ticks (72hrs), even 15% per tick = near-certain detection
+ * - Reduced rates account for:
+ *   - Searcher not looking in right direction (only ~30% of 360°)
+ *   - Pet behind obstacles, vegetation, or structures
+ *   - Real-world search inefficiency and fatigue
+ *   - Pets actively avoiding detection
+ * - Target outcomes: 50-70% dog, 20-40% cat (per MARN research)
  */
 
 // Base detection rates by distance (miles)
 // These represent probability per 5-minute tick
+// Reduced to produce realistic outcomes over multi-day simulations
 const BASE_RATES = [
-  { maxDistance: 0.002, rate: 0.95 },   // < 10 ft
-  { maxDistance: 0.006, rate: 0.70 },   // 10-30 ft
-  { maxDistance: 0.019, rate: 0.40 },   // 30-100 ft
-  { maxDistance: 0.057, rate: 0.15 },   // 100-300 ft
-  { maxDistance: Infinity, rate: 0.02 }, // 300+ ft
+  { maxDistance: 0.002, rate: 0.25 },   // < 10 ft (was 0.95) - still might miss hiding pet
+  { maxDistance: 0.006, rate: 0.10 },   // 10-30 ft (was 0.70)
+  { maxDistance: 0.019, rate: 0.04 },   // 30-100 ft (was 0.40)
+  { maxDistance: 0.057, rate: 0.01 },   // 100-300 ft (was 0.15)
+  { maxDistance: Infinity, rate: 0.001 }, // 300+ ft (was 0.02)
 ];
 
 // Pet state modifiers
+// CALIBRATION: Hiding increased from 0.1 to 0.25 - was causing 0% cat success
 const STATE_MODIFIERS = {
-  FLEEING: 1.2,      // Motion catches eye
-  HIDING: 0.1,       // Very hard to find
-  FORAGING: 1.0,     // Normal visibility
+  FLEEING: 1.3,      // Motion catches eye (slightly increased)
+  HIDING: 0.25,      // Hard to find but not impossible (was 0.1)
+  FORAGING: 1.1,     // Moving around, slightly easier to spot
   WANDERING: 1.0,    // Normal visibility
   TERRITORIAL: 0.9,  // Slightly cautious
   SHELTERED: 0.0,    // Not in search area
