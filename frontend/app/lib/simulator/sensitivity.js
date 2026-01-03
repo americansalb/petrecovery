@@ -38,7 +38,7 @@ export const SENSITIVITY_PARAMS = {
   // Movement speeds
   FLEEING_SPEED: {
     name: 'Fleeing Speed',
-    baseline: UNVERIFIED_PARAMS.STATE_SPEEDS.FLEEING,
+    baseline: UNVERIFIED_PARAMS.STATE_SPEEDS.FLEEING.value,
     low: 0.01,
     high: 0.10,
     unit: 'mi/5min',
@@ -48,7 +48,7 @@ export const SENSITIVITY_PARAMS = {
 
   HIDING_SPEED: {
     name: 'Hiding Speed',
-    baseline: UNVERIFIED_PARAMS.STATE_SPEEDS.HIDING,
+    baseline: UNVERIFIED_PARAMS.STATE_SPEEDS.HIDING.value,
     low: 0.0005,
     high: 0.005,
     unit: 'mi/5min',
@@ -58,7 +58,7 @@ export const SENSITIVITY_PARAMS = {
 
   FORAGING_SPEED: {
     name: 'Foraging Speed',
-    baseline: UNVERIFIED_PARAMS.STATE_SPEEDS.FORAGING,
+    baseline: UNVERIFIED_PARAMS.STATE_SPEEDS.FORAGING.value,
     low: 0.002,
     high: 0.02,
     unit: 'mi/5min',
@@ -68,7 +68,7 @@ export const SENSITIVITY_PARAMS = {
 
   WANDERING_SPEED: {
     name: 'Wandering Speed',
-    baseline: UNVERIFIED_PARAMS.STATE_SPEEDS.WANDERING,
+    baseline: UNVERIFIED_PARAMS.STATE_SPEEDS.WANDERING.value,
     low: 0.005,
     high: 0.03,
     unit: 'mi/5min',
@@ -79,7 +79,7 @@ export const SENSITIVITY_PARAMS = {
   // Detection rates
   DETECTION_BASE_RATE: {
     name: 'Detection Base Rate',
-    baseline: UNVERIFIED_PARAMS.DETECTION.baseRate,
+    baseline: UNVERIFIED_PARAMS.DETECTION.baseRate.value,
     low: 0.001,
     high: 0.01,
     unit: 'per step',
@@ -89,7 +89,7 @@ export const SENSITIVITY_PARAMS = {
 
   HIDING_DETECTION_MODIFIER: {
     name: 'Hiding Detection Modifier',
-    baseline: UNVERIFIED_PARAMS.DETECTION.hidingModifier,
+    baseline: UNVERIFIED_PARAMS.DETECTION.hidingModifier.value,
     low: 0.1,
     high: 0.5,
     unit: 'multiplier',
@@ -100,7 +100,7 @@ export const SENSITIVITY_PARAMS = {
   // Search timing
   SEARCH_DELAY_HOURS: {
     name: 'Search Start Delay',
-    baseline: UNVERIFIED_PARAMS.SEARCH_TIMING.delayHours,
+    baseline: UNVERIFIED_PARAMS.SEARCH_TIMING.delayHours.value,
     low: 0.5,
     high: 8,
     unit: 'hours',
@@ -110,7 +110,7 @@ export const SENSITIVITY_PARAMS = {
 
   VOLUNTEER_RAMP_UP: {
     name: 'Volunteer Ramp-up Time',
-    baseline: UNVERIFIED_PARAMS.SEARCH_TIMING.volunteerRampUpHours,
+    baseline: UNVERIFIED_PARAMS.SEARCH_TIMING.volunteerRampUpHours.value,
     low: 6,
     high: 48,
     unit: 'hours',
@@ -120,7 +120,7 @@ export const SENSITIVITY_PARAMS = {
 
   INITIAL_VOLUNTEER_PERCENT: {
     name: 'Initial Volunteer %',
-    baseline: UNVERIFIED_PARAMS.SEARCH_TIMING.initialVolunteerPercent,
+    baseline: UNVERIFIED_PARAMS.SEARCH_TIMING.initialVolunteerPercent.value,
     low: 5,
     high: 50,
     unit: '%',
