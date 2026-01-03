@@ -74,11 +74,38 @@ const SIZE_MODIFIERS = {
   GIANT: 1.5,
 };
 
-// Personality modifiers
+// Species speed modifiers - dogs move faster than cats
+// UNVERIFIED but based on obvious biological differences
+const SPECIES_SPEED_MODIFIERS = {
+  DOG: 1.4,    // Dogs are generally faster movers
+  CAT: 0.7,    // Cats move more cautiously, shorter bursts
+  BIRD: 0.3,   // Birds on ground move slowly (flight not simulated)
+  OTHER: 1.0,  // Baseline
+};
+
+// Personality modifiers - affects BOTH detection AND behavior
 const PERSONALITY_MODIFIERS = {
-  FRIENDLY: { transportRisk: 2.0, homingBonus: 1.0 },
-  NEUTRAL: { transportRisk: 1.0, homingBonus: 1.0 },
-  SHY: { transportRisk: 0.2, homingBonus: 0.8 },
+  FRIENDLY: {
+    transportRisk: 2.0,      // More likely to be picked up by stranger
+    homingBonus: 1.0,        // Normal homing
+    hidingTendency: 0.5,     // Less likely to hide
+    wanderingTendency: 1.5,  // More likely to wander (visible)
+    fleeingDuration: 0.7,    // Calms down faster
+  },
+  NEUTRAL: {
+    transportRisk: 1.0,
+    homingBonus: 1.0,
+    hidingTendency: 1.0,
+    wanderingTendency: 1.0,
+    fleeingDuration: 1.0,
+  },
+  SHY: {
+    transportRisk: 0.2,      // Runs from strangers
+    homingBonus: 0.8,        // Harder to navigate when scared
+    hidingTendency: 2.0,     // Much more likely to hide
+    wanderingTendency: 0.5,  // Stays hidden more
+    fleeingDuration: 1.5,    // Stays panicked longer
+  },
 };
 
 export class PetAgent {
@@ -107,7 +134,14 @@ export class PetAgent {
     // Species-specific params
     this.params = SPECIES_PARAMS[config.petSpecies] || SPECIES_PARAMS.OTHER;
     this.sizeModifier = SIZE_MODIFIERS[config.petSize] || 1.0;
+    this.speciesSpeedMod = SPECIES_SPEED_MODIFIERS[config.petSpecies] || 1.0;
     this.personalityMods = PERSONALITY_MODIFIERS[config.petPersonality] || PERSONALITY_MODIFIERS.NEUTRAL;
+
+    // Apply personality modifier to fleeing duration
+    this.params = {
+      ...this.params,
+      fleeingDuration: this.params.fleeingDuration * this.personalityMods.fleeingDuration,
+    };
 
     // Indoor cat modifier
     if (config.petSpecies === 'CAT' && config.isIndoorPet) {
@@ -118,6 +152,34 @@ export class PetAgent {
       };
       this.sizeModifier = 0.5; // Stays very close
     }
+
+    // Roaming tendency (set later from displacement sampling)
+    this.roamingTendencyMiles = null;
+    this.territoryRadiusMiles = 0.2; // Default territory size
+  }
+
+  /**
+   * Set roaming tendency based on displacement sampling
+   *
+   * This influences HOW the pet moves (territory size, speed limits)
+   * NOT where it will end up - outcomes are EMERGENT, not pre-determined
+   *
+   * @param {number} tendencyMiles - Sampled displacement tendency in miles
+   */
+  setRoamingTendency(tendencyMiles) {
+    this.roamingTendencyMiles = tendencyMiles;
+
+    // Adjust territory size based on tendency
+    // Pets with higher roaming tendency have larger territories
+    this.territoryRadiusMiles = Math.min(tendencyMiles * 1.5, 2.0);
+
+    // Adjust homing strength - pets that roam far are less likely to come home
+    // This is a behavioral modifier, NOT a pre-determined outcome
+    const roamingFactor = Math.min(tendencyMiles / 0.5, 2.0); // Normalize to 0.5 mile baseline
+    this.params = {
+      ...this.params,
+      homingStrength: this.params.homingStrength / roamingFactor,
+    };
   }
 
   /**
@@ -142,6 +204,10 @@ export class PetAgent {
 
   /**
    * Check for state transitions based on triggers
+   *
+   * Personality affects transitions:
+   * - SHY pets: hidingTendency=2.0 (more likely to hide)
+   * - FRIENDLY pets: wanderingTendency=1.5 (more likely to stay visible)
    */
   checkStateTransitions(minute, currentHour) {
     const timeSinceStateChange = minute - this.lastStateChange;
@@ -154,52 +220,56 @@ export class PetAgent {
     const hidingBonus = zone.modifiers.hidingBonus;
     const foragingBonus = zone.modifiers.foragingBonus;
 
+    // Personality modifiers for state transitions
+    const hidingTendency = this.personalityMods.hidingTendency;
+    const wanderingTendency = this.personalityMods.wanderingTendency;
+
     switch (this.state) {
       case 'FLEEING':
         // Transition to HIDING if energy low or time elapsed
-        // More likely to hide if in good hiding spot (woods, park)
+        // SHY pets hide faster (higher hidingTendency)
         if (this.energy < 0.2 || timeSinceStateChange > this.params.fleeingDuration) {
           this.transitionTo('HIDING', minute);
         }
-        // Or calm down to WANDERING if time passed and no threats
-        else if (timeSinceStateChange > 120 && this.random() < 0.3 / hidingBonus) {
+        // FRIENDLY pets calm down to WANDERING faster (higher wanderingTendency)
+        else if (timeSinceStateChange > 120 && this.random() < 0.3 * wanderingTendency / hidingBonus) {
           this.transitionTo('WANDERING', minute);
         }
-        // More likely to hide in good hiding zones
-        else if (hidingBonus > 1.0 && this.random() < 0.1 * hidingBonus) {
+        // SHY pets more likely to hide in good hiding zones
+        else if (hidingBonus > 1.0 && this.random() < 0.1 * hidingBonus * hidingTendency) {
           this.transitionTo('HIDING', minute);
         }
         break;
 
       case 'HIDING':
         // Transition to FORAGING if hungry and it's dawn/dusk
-        // More likely to forage if in commercial area (dumpsters)
-        // CALIBRATION: Increased probabilities so pets emerge more often
-        if (this.hunger > 0.5 && isDawnDusk && this.random() < 0.3 * foragingBonus) {
+        // SHY pets stay hidden longer (divide by hidingTendency)
+        if (this.hunger > 0.5 && isDawnDusk && this.random() < (0.3 * foragingBonus) / hidingTendency) {
           this.transitionTo('FORAGING', minute);
         }
         // Cats may venture out at night (primary hunting time)
-        if (this.config.petSpecies === 'CAT' && isNight && this.hunger > 0.4 && this.random() < 0.2 * foragingBonus) {
+        if (this.config.petSpecies === 'CAT' && isNight && this.hunger > 0.4 && this.random() < (0.2 * foragingBonus) / hidingTendency) {
           this.transitionTo('FORAGING', minute);
         }
         // Dogs are less patient - emerge sooner when hungry
-        if (this.config.petSpecies === 'DOG' && this.hunger > 0.6 && this.random() < 0.15 * foragingBonus) {
+        if (this.config.petSpecies === 'DOG' && this.hunger > 0.6 && this.random() < (0.15 * foragingBonus) / hidingTendency) {
           this.transitionTo('FORAGING', minute);
         }
-        // Very hungry animals will emerge regardless of time
-        if (this.hunger > 0.85 && this.random() < 0.25) {
+        // Very hungry animals will emerge regardless of time (but SHY still slower)
+        if (this.hunger > 0.85 && this.random() < 0.25 / hidingTendency) {
           this.transitionTo('FORAGING', minute);
         }
         break;
 
       case 'FORAGING':
         // Return to HIDING if threatened or daytime
-        // More likely to stay out in commercial areas
-        if (!isDawnDusk && !isNight && this.random() < 0.3 / foragingBonus) {
+        // SHY pets return to hiding more easily
+        if (!isDawnDusk && !isNight && this.random() < (0.3 * hidingTendency) / foragingBonus) {
           this.transitionTo('HIDING', minute);
         }
         // Transition to WANDERING if hunger satisfied
-        if (this.hunger < 0.3 && this.random() < 0.2) {
+        // FRIENDLY pets more likely to wander
+        if (this.hunger < 0.3 && this.random() < 0.2 * wanderingTendency) {
           this.transitionTo('WANDERING', minute);
         }
         break;
@@ -209,9 +279,8 @@ export class PetAgent {
         if (timeSinceStateChange > 24 * 60 && this.random() < 0.1) { // After 24 hours
           this.transitionTo('TERRITORIAL', minute);
         }
-        // Hide if scared (low probability random event)
-        // More likely to hide if in good hiding spot
-        if (this.random() < 0.02 * hidingBonus) {
+        // SHY pets hide more easily while wandering
+        if (this.random() < 0.02 * hidingBonus * hidingTendency) {
           this.transitionTo('HIDING', minute);
         }
         break;
@@ -240,25 +309,32 @@ export class PetAgent {
 
   /**
    * Move the pet based on current state
+   *
+   * Speed is affected by:
+   * - Base state speed (FLEEING faster than WANDERING)
+   * - Species modifier (dogs faster than cats)
+   * - Size modifier (larger pets move faster)
+   * - Time of day (cats active at night, dogs during day)
    */
   move(minute, currentHour) {
     const baseSpeed = STATE_SPEEDS[this.state] || 0;
-    const speed = baseSpeed * this.sizeModifier;
+    // Apply BOTH species and size modifiers
+    const speed = baseSpeed * this.sizeModifier * this.speciesSpeedMod;
 
     if (speed === 0) return;
 
     // Apply time of day modifier
-    let speedModifier = 1.0;
+    let timeModifier = 1.0;
     const isDawnDusk = (currentHour >= 5 && currentHour <= 7) || (currentHour >= 17 && currentHour <= 20);
     const isNight = currentHour >= 21 || currentHour <= 4;
 
     if (this.config.petSpecies === 'CAT') {
-      speedModifier = isNight ? 1.5 : (isDawnDusk ? 1.2 : 0.7);
+      timeModifier = isNight ? 1.5 : (isDawnDusk ? 1.2 : 0.7);
     } else if (this.config.petSpecies === 'DOG') {
-      speedModifier = isDawnDusk ? 1.2 : 1.0;
+      timeModifier = isDawnDusk ? 1.2 : 1.0;
     }
 
-    const adjustedSpeed = speed * speedModifier;
+    const adjustedSpeed = speed * timeModifier;
 
     // Apply homing force
     if (this.random() < this.params.homingStrength * this.personalityMods.homingBonus) {
