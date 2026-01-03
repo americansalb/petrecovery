@@ -20,6 +20,9 @@ import { SimulationEngine, loadTerrain, OUTCOMES } from '@/app/lib/simulator/eng
  * - includeSimulations: boolean (default: false) - Include individual sims in response
  */
 export async function POST(request) {
+  const requestId = `batch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  console.log(`[${requestId}] 🚀 Batch simulation request received`);
+
   try {
     const body = await request.json();
     const {
@@ -31,7 +34,17 @@ export async function POST(request) {
       useTerrain = true
     } = body;
 
+    console.log(`[${requestId}] Config:`, {
+      species: config?.petSpecies,
+      size: config?.petSize,
+      batchSize,
+      save,
+      lat: config?.centerLatitude,
+      lng: config?.centerLongitude,
+    });
+
     if (!config) {
+      console.error(`[${requestId}] ❌ No config provided`);
       return NextResponse.json(
         { error: 'Configuration is required' },
         { status: 400 }
@@ -39,6 +52,7 @@ export async function POST(request) {
     }
 
     if (!config.centerLatitude || !config.centerLongitude) {
+      console.error(`[${requestId}] ❌ No location provided`);
       return NextResponse.json(
         { error: 'Center location is required' },
         { status: 400 }
@@ -47,18 +61,21 @@ export async function POST(request) {
 
     // Validate batch size (limit to 1000 for memory safety)
     const size = Math.min(Math.max(1, batchSize), 1000);
+    console.log(`[${requestId}] Running ${size} simulations`);
 
     // Load terrain data if enabled
     let terrainInfo = null;
     if (useTerrain) {
       try {
+        console.log(`[${requestId}] Loading terrain...`);
         terrainInfo = await loadTerrain(
           config.centerLatitude,
           config.centerLongitude,
           config.searchRadiusMiles || 2.0
         );
+        console.log(`[${requestId}] Terrain loaded:`, terrainInfo?.loaded ? 'success' : 'empty');
       } catch (terrainError) {
-        console.warn('Terrain loading failed, continuing without:', terrainError.message);
+        console.warn(`[${requestId}] ⚠️ Terrain loading failed:`, terrainError.message);
       }
     }
 
@@ -110,63 +127,77 @@ export async function POST(request) {
     const simulationsToSave = [];
     const simulationsForResponse = [];
 
+    let simulationErrors = 0;
     for (let i = 0; i < size; i++) {
-      const engine = new SimulationEngine(config);
-      const result = engine.run();
+      try {
+        const engine = new SimulationEngine(config);
+        const result = engine.run();
 
-      // Aggregate incrementally (don't store full results)
-      outcomes[result.outcome]++;
-      totalPetDistance += result.petDistanceMiles || 0;
+        // Aggregate incrementally (don't store full results)
+        outcomes[result.outcome]++;
+        totalPetDistance += result.petDistanceMiles || 0;
 
-      if (result.foundAtMinute && !result.outcome.startsWith('TIMEOUT')) {
-        totalTimeToFind += result.foundAtMinute;
-        foundCount++;
-        timesToFind.push(result.foundAtMinute);
-      }
-
-      // Prepare for database save if enabled
-      if (save) {
-        simulationsToSave.push({
-          configId: savedConfig.id,
-          batchId: batch.id,
-          status: 'COMPLETED',
-          completedAt: new Date(),
-          randomSeed: result.seed,
-          outcome: result.outcome,
-          foundAtMinute: result.foundAtMinute,
-          foundBySearcher: result.foundBySearcher,
-          foundLatitude: result.foundLatitude,
-          foundLongitude: result.foundLongitude,
-          petDistanceMiles: result.petDistanceMiles,
-          searcherDistanceMiles: result.searcherDistanceMiles,
-          finalPetState: result.finalPetState,
-          wasTransported: result.wasTransported || false,
-          transportedAtMinute: result.transportedAtMinute,
-          petPathJson: savePaths ? JSON.stringify(result.petPath) : null,
-          searcherPathsJson: savePaths ? JSON.stringify(result.searcherPaths) : null,
-          eventsJson: JSON.stringify(result.events),
-        });
-
-        // Batch insert every 50 to manage memory
-        if (simulationsToSave.length >= 50) {
-          await prisma.simulation.createMany({ data: simulationsToSave });
-          simulationsToSave.length = 0;
+        if (result.foundAtMinute && !result.outcome.startsWith('TIMEOUT')) {
+          totalTimeToFind += result.foundAtMinute;
+          foundCount++;
+          timesToFind.push(result.foundAtMinute);
         }
-      }
 
-      // Include in response if requested (limited data)
-      if (includeSimulations) {
-        simulationsForResponse.push({
-          id: `sim_${result.seed}_${i}`,
-          randomSeed: result.seed,
-          outcome: result.outcome,
-          foundAtMinute: result.foundAtMinute,
-          foundLatitude: result.foundLatitude,
-          foundLongitude: result.foundLongitude,
-          petDistanceMiles: result.petDistanceMiles,
-          finalPetState: result.finalPetState,
-          research: result.research,
-        });
+        // Prepare for database save if enabled
+        if (save) {
+          simulationsToSave.push({
+            configId: savedConfig.id,
+            batchId: batch.id,
+            status: 'COMPLETED',
+            completedAt: new Date(),
+            randomSeed: result.seed,
+            outcome: result.outcome,
+            foundAtMinute: result.foundAtMinute,
+            foundBySearcher: result.foundBySearcher,
+            foundLatitude: result.foundLatitude,
+            foundLongitude: result.foundLongitude,
+            petDistanceMiles: result.petDistanceMiles,
+            searcherDistanceMiles: result.searcherDistanceMiles,
+            finalPetState: result.finalPetState,
+            wasTransported: result.wasTransported || false,
+            transportedAtMinute: result.transportedAtMinute,
+            petPathJson: savePaths ? JSON.stringify(result.petPath) : null,
+            searcherPathsJson: savePaths ? JSON.stringify(result.searcherPaths) : null,
+            eventsJson: JSON.stringify(result.events),
+          });
+
+          // Batch insert every 50 to manage memory
+          if (simulationsToSave.length >= 50) {
+            await prisma.simulation.createMany({ data: simulationsToSave });
+            simulationsToSave.length = 0;
+          }
+        }
+
+        // Include in response if requested (limited data)
+        if (includeSimulations) {
+          simulationsForResponse.push({
+            id: `sim_${result.seed}_${i}`,
+            randomSeed: result.seed,
+            outcome: result.outcome,
+            foundAtMinute: result.foundAtMinute,
+            foundLatitude: result.foundLatitude,
+            foundLongitude: result.foundLongitude,
+            petDistanceMiles: result.petDistanceMiles,
+            finalPetState: result.finalPetState,
+            research: result.research,
+          });
+        }
+
+        // Progress log every 10 simulations
+        if ((i + 1) % 10 === 0) {
+          console.log(`[${requestId}] Progress: ${i + 1}/${size} (${simulationErrors} errors)`);
+        }
+      } catch (simError) {
+        simulationErrors++;
+        console.error(`[${requestId}] ❌ Simulation ${i} failed:`, simError.message);
+        if (simulationErrors >= 5) {
+          throw new Error(`Too many simulation failures (${simulationErrors}): ${simError.message}`);
+        }
       }
 
       // Yield to prevent blocking and allow GC
@@ -174,6 +205,8 @@ export async function POST(request) {
         await new Promise(resolve => setTimeout(resolve, 0));
       }
     }
+
+    console.log(`[${requestId}] ✅ Completed ${size} simulations (${simulationErrors} errors)`);
 
     // Save remaining simulations
     if (save && simulationsToSave.length > 0) {
@@ -240,6 +273,12 @@ export async function POST(request) {
       simulations: includeSimulations ? simulationsForResponse : undefined,
     };
 
+    console.log(`[${requestId}] 🎉 Batch complete:`, {
+      successRate: aggregated.successRate?.toFixed(1) + '%',
+      avgTimeHours: aggregated.avgTimeToFindMins ? (aggregated.avgTimeToFindMins / 60).toFixed(1) : 'N/A',
+      executionSeconds: totalTime,
+    });
+
     return NextResponse.json({
       success: true,
       batch: batchResponse,
@@ -247,9 +286,14 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error('Batch simulation error:', error);
+    console.error(`[${requestId}] ❌ Batch simulation error:`, error);
+    console.error(`[${requestId}] Stack:`, error.stack);
     return NextResponse.json(
-      { error: 'Batch simulation failed', details: error.message },
+      {
+        error: 'Batch simulation failed',
+        details: error.message,
+        requestId,
+      },
       { status: 500 }
     );
   }

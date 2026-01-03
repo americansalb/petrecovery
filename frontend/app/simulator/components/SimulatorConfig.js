@@ -561,30 +561,64 @@ export default function SimulatorConfig({
           )}
         </button>
 
+        {/* Batch size presets */}
+        <div className="flex gap-1 mb-2">
+          {[100, 1000, 10000, 100000].map(size => (
+            <button
+              key={size}
+              onClick={() => setBatchSize(size)}
+              className={`flex-1 py-1 text-xs rounded transition-colors ${
+                batchSize === size
+                  ? 'bg-indigo-100 text-indigo-700 font-medium'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {size >= 1000 ? `${size / 1000}k` : size}
+            </button>
+          ))}
+        </div>
+
         <div className="flex gap-3">
           <input
             type="number"
             min="10"
-            max="1000"
+            max="100000"
             step="10"
             value={batchSize}
-            onChange={(e) => setBatchSize(Math.min(1000, Math.max(10, parseInt(e.target.value) || 100)))}
-            className="w-24 px-3 py-3 border border-gray-200 rounded-lg text-sm text-center"
+            onChange={(e) => setBatchSize(Math.min(100000, Math.max(10, parseInt(e.target.value) || 100)))}
+            className="w-28 px-3 py-3 border border-gray-200 rounded-lg text-sm text-center"
           />
           <button
             onClick={() => onRunBatch(batchSize)}
             disabled={isRunning}
-            className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            className="flex-1 flex flex-col items-center justify-center gap-1 px-5 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium relative overflow-hidden"
           >
             {batchProgress ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                {batchProgress.completed}/{batchProgress.total}
+                {/* Progress bar background */}
+                <div
+                  className="absolute inset-0 bg-indigo-100 transition-all duration-300"
+                  style={{ width: `${batchProgress.percent || 0}%` }}
+                />
+                <div className="relative flex items-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>{batchProgress.percent || 0}%</span>
+                </div>
+                <span className="relative text-xs text-gray-500">
+                  {batchProgress.status || `${batchProgress.completed}/${batchProgress.total}`}
+                </span>
               </>
             ) : (
               <>
-                <Zap className="w-5 h-5" />
-                Run {batchSize}x Batch
+                <div className="flex items-center gap-2">
+                  <Zap className="w-5 h-5" />
+                  <span>Run {batchSize >= 1000 ? `${(batchSize/1000).toFixed(batchSize % 1000 === 0 ? 0 : 1)}k` : batchSize}x</span>
+                </div>
+                {batchSize >= 10000 && (
+                  <span className="text-[10px] text-amber-600">
+                    ~{Math.round(batchSize * 10 / 60000)} min
+                  </span>
+                )}
               </>
             )}
           </button>

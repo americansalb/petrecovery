@@ -13,9 +13,6 @@ const nextConfig = {
     },
   },
 
-  // Server components external packages (renamed from serverExternalPackages in Next.js 14)
-  serverComponentsExternalPackages: [],
-
   // Image optimization
   images: {
     remotePatterns: [

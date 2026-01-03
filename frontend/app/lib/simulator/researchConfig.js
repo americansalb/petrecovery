@@ -237,45 +237,228 @@ export const COLLAR_TAG = {
 };
 
 // =============================================================================
-// UNVERIFIED PARAMETERS (Phase 0 Research Required)
+// UNVERIFIED PARAMETERS WITH UNCERTAINTY BOUNDS
 // =============================================================================
+//
+// Each unverified parameter includes:
+// - value: Current best guess
+// - min/max: Plausible range for sensitivity analysis
+// - distribution: 'uniform' or 'lognormal' for Monte Carlo sampling
+// - sensitivityPriority: HIGH/MEDIUM/LOW - how much output depends on this
+//
+// These bounds enable:
+// 1. Sensitivity analysis (vary one param, measure output change)
+// 2. Monte Carlo error propagation (sample all params, get CI on outputs)
+// 3. Identification of high-priority research gaps
 
 export const UNVERIFIED_PARAMS = {
   // Movement speeds during different behavioral states
   STATE_SPEEDS: {
-    FLEEING: 0.04,        // mi/5min - UNVERIFIED: needs literature review
-    HIDING: 0.001,        // mi/5min - UNVERIFIED: needs literature review
-    FORAGING: 0.008,      // mi/5min - UNVERIFIED: needs literature review
-    WANDERING: 0.015,     // mi/5min - UNVERIFIED: needs literature review
-    TERRITORIAL: 0.005,   // mi/5min - UNVERIFIED: needs literature review
-    SHELTERED: 0.0,       // mi/5min - stationary
+    FLEEING: {
+      value: 0.04,        // mi/5min - UNVERIFIED
+      min: 0.02,          // Slowest plausible (injured, exhausted)
+      max: 0.08,          // Fastest plausible (panicked sprint)
+      distribution: 'uniform',
+    },
+    HIDING: {
+      value: 0.001,
+      min: 0.0,           // Completely stationary
+      max: 0.005,         // Slight repositioning
+      distribution: 'uniform',
+    },
+    FORAGING: {
+      value: 0.008,
+      min: 0.003,
+      max: 0.02,
+      distribution: 'uniform',
+    },
+    WANDERING: {
+      value: 0.015,
+      min: 0.005,
+      max: 0.03,
+      distribution: 'uniform',
+    },
+    TERRITORIAL: {
+      value: 0.005,
+      min: 0.002,
+      max: 0.015,
+      distribution: 'uniform',
+    },
+    SHELTERED: {
+      value: 0.0,
+      min: 0.0,
+      max: 0.0,           // Always stationary
+      distribution: 'uniform',
+    },
     unit: 'miles per 5 minutes',
     status: 'UNVERIFIED',
-    sensitivityPriority: 'HIGH'
+    sensitivityPriority: 'HIGH',
+    notes: 'Movement speed directly affects search coverage needed'
   },
 
-  // Detection rates during search
+  // Detection rates during search - CRITICAL for search effectiveness
   DETECTION: {
-    baseRate: 0.002,      // per searcher per step - UNVERIFIED
-    hidingModifier: 0.25, // reduction when pet is hiding - UNVERIFIED
+    baseRate: {
+      value: 0.002,       // per searcher per step
+      min: 0.0005,        // Very hard to spot (shy cat in dense area)
+      max: 0.01,          // Easy to spot (friendly dog in open area)
+      distribution: 'lognormal',
+    },
+    hidingModifier: {
+      value: 0.25,        // 75% reduction when hiding
+      min: 0.05,          // Almost impossible to find when hiding
+      max: 0.5,           // Moderately hidden
+      distribution: 'uniform',
+    },
+    nightModifier: {
+      value: 0.3,         // 70% reduction at night
+      min: 0.1,           // Very hard at night
+      max: 0.6,           // Easier with flashlights
+      distribution: 'uniform',
+    },
     status: 'UNVERIFIED',
-    sensitivityPriority: 'HIGH'
+    sensitivityPriority: 'HIGH',
+    notes: 'Detection rate is the #1 driver of search success - needs research'
   },
 
   // Search timing defaults
   SEARCH_TIMING: {
-    delayHours: 2,        // hours before search starts - UNVERIFIED
-    searchHoursStart: 7,  // 7 AM - reasonable default
-    searchHoursEnd: 21,   // 9 PM - reasonable default
-    volunteerRampUpHours: 24, // hours to reach full volunteer count - UNVERIFIED
-    initialVolunteerPercent: 20, // starting percentage of volunteers - UNVERIFIED
+    delayHours: {
+      value: 2,           // hours before search starts
+      min: 0.5,           // Immediate response
+      max: 12,            // Slow to realize pet is missing
+      distribution: 'lognormal',
+    },
+    volunteerRampUpHours: {
+      value: 24,
+      min: 6,             // Fast social media mobilization
+      max: 72,            // Slow word-of-mouth
+      distribution: 'uniform',
+    },
+    initialVolunteerPercent: {
+      value: 20,
+      min: 5,             // Very few initial helpers
+      max: 50,            // Strong immediate response
+      distribution: 'uniform',
+    },
+    // These are reasonable defaults, not uncertain
+    searchHoursStart: { value: 7, min: 5, max: 9, distribution: 'uniform' },
+    searchHoursEnd: { value: 21, min: 18, max: 23, distribution: 'uniform' },
     status: 'UNVERIFIED',
-    sensitivityPriority: 'MEDIUM'
+    sensitivityPriority: 'MEDIUM',
+    notes: 'Timing affects how much ground can be covered before pet moves'
   },
 
-  // Collar/tag effect (moved from separate section)
-  COLLAR_TAG_EFFECT: COLLAR_TAG
+  // Collar/tag effect
+  COLLAR_TAG_EFFECT: {
+    recoveryBoost: {
+      value: 0.512,       // +51.2% recovery
+      min: 0.2,           // Minimal effect
+      max: 0.8,           // Strong effect
+      distribution: 'uniform',
+    },
+    citation: 'LORD_2007',
+    status: 'UNVERIFIED',
+    sensitivityPriority: 'MEDIUM',
+    notes: 'Could not verify to specific table/page'
+  },
+
+  // Dog recovery timeline (no peer-reviewed data)
+  DOG_RECOVERY_TIMELINE: {
+    day3Recovery: {
+      value: 0.50,        // 50% found by day 3
+      min: 0.30,
+      max: 0.70,
+      distribution: 'uniform',
+    },
+    day7Recovery: {
+      value: 0.80,        // 80% found by day 7
+      min: 0.60,
+      max: 0.95,
+      distribution: 'uniform',
+    },
+    status: 'UNVERIFIED',
+    sensitivityPriority: 'MEDIUM',
+    notes: 'No peer-reviewed timeline for dogs - estimated based on higher activity'
+  }
 };
+
+// =============================================================================
+// UNCERTAINTY QUANTIFICATION HELPERS
+// =============================================================================
+
+/**
+ * Get all uncertain parameters as a flat list for sensitivity analysis
+ * @returns {Array} List of { path, value, min, max, priority }
+ */
+export function getUncertainParameters() {
+  const params = [];
+
+  const extractParams = (obj, path = '') => {
+    for (const [key, val] of Object.entries(obj)) {
+      if (key === 'status' || key === 'sensitivityPriority' || key === 'notes' ||
+          key === 'unit' || key === 'citation' || key === 'distribution') continue;
+
+      const fullPath = path ? `${path}.${key}` : key;
+
+      if (val && typeof val === 'object' && 'value' in val && 'min' in val) {
+        params.push({
+          path: fullPath,
+          ...val,
+          priority: obj.sensitivityPriority || 'MEDIUM'
+        });
+      } else if (val && typeof val === 'object') {
+        extractParams(val, fullPath);
+      }
+    }
+  };
+
+  extractParams(UNVERIFIED_PARAMS);
+  return params;
+}
+
+/**
+ * Sample a value from an uncertain parameter
+ * @param {object} param - Parameter with value, min, max, distribution
+ * @param {function} random - Random number generator
+ * @returns {number} Sampled value
+ */
+export function sampleUncertainParam(param, random) {
+  if (!param.min || !param.max || param.min === param.max) {
+    return param.value;
+  }
+
+  if (param.distribution === 'lognormal') {
+    // Log-normal: sample uniformly in log space
+    const logMin = Math.log(Math.max(param.min, 0.0001));
+    const logMax = Math.log(param.max);
+    return Math.exp(logMin + random() * (logMax - logMin));
+  }
+
+  // Default: uniform distribution
+  return param.min + random() * (param.max - param.min);
+}
+
+/**
+ * Calculate expected uncertainty contribution from each parameter
+ * Based on range and sensitivity priority
+ * @returns {Array} Parameters sorted by expected impact
+ */
+export function rankParametersByUncertainty() {
+  const params = getUncertainParameters();
+
+  return params.map(p => {
+    const range = p.max - p.min;
+    const relativeRange = range / (p.value || 1);
+    const priorityWeight = { HIGH: 3, MEDIUM: 2, LOW: 1 }[p.priority] || 1;
+
+    return {
+      ...p,
+      relativeRange,
+      uncertaintyScore: relativeRange * priorityWeight
+    };
+  }).sort((a, b) => b.uncertaintyScore - a.uncertaintyScore);
+}
 
 // =============================================================================
 // HELPER FUNCTIONS

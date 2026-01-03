@@ -4,12 +4,13 @@
  * SimulationList - List of completed simulations and batch groups
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   CheckCircle2, XCircle, Clock, Home, Building2,
   Share2, Smartphone, Search, AlertTriangle,
-  ChevronDown, ChevronRight, Layers, BarChart3, MapPin
+  ChevronDown, ChevronRight, Layers, BarChart3, MapPin, Info
 } from 'lucide-react';
+import { estimateUncertaintyBounds } from '@/app/lib/simulator/sensitivity';
 
 const OUTCOME_CONFIG = {
   FOUND_BY_SEARCHER: {
@@ -146,6 +147,16 @@ function BatchGroup({ batch, isSelected, isExpanded, onToggle, onSelect, onSelec
   const totalRuns = batch.totalRuns || 0;
   const successCount = totalRuns - (batch.timeoutSearchingCount || 0) - (batch.timeoutShelteredCount || 0);
 
+  // Calculate uncertainty bounds based on unverified parameters
+  const uncertainty = useMemo(() => {
+    if (!batch.successRate) return null;
+    try {
+      return estimateUncertaintyBounds(batch.successRate);
+    } catch (e) {
+      return null;
+    }
+  }, [batch.successRate]);
+
   return (
     <div className={`border-l-2 ${isSelected ? 'border-indigo-500' : 'border-transparent'}`}>
       {/* Batch Header */}
@@ -187,6 +198,14 @@ function BatchGroup({ batch, isSelected, isExpanded, onToggle, onSelect, onSelec
               {successRate}% success rate ({successCount}/{totalRuns} found)
             </div>
 
+            {/* Confidence interval based on parameter uncertainty */}
+            {uncertainty && (
+              <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1" title={uncertainty.warning}>
+                <Info className="w-3 h-3" />
+                <span>95% CI: {uncertainty.ci95Lower.toFixed(0)}% - {uncertainty.ci95Upper.toFixed(0)}%</span>
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-2 mt-2 text-[10px]">
               {batch.foundBySearcherCount > 0 && (
                 <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded">
@@ -203,9 +222,24 @@ function BatchGroup({ batch, isSelected, isExpanded, onToggle, onSelect, onSelec
                   {batch.foundViaShelterCount} shelter
                 </span>
               )}
+              {batch.foundViaSocialCount > 0 && (
+                <span className="px-1.5 py-0.5 bg-pink-100 text-pink-700 rounded">
+                  {batch.foundViaSocialCount} social
+                </span>
+              )}
+              {batch.foundViaPlatformCount > 0 && (
+                <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded">
+                  {batch.foundViaPlatformCount} platform
+                </span>
+              )}
               {batch.timeoutSearchingCount > 0 && (
                 <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded">
                   {batch.timeoutSearchingCount} timeout
+                </span>
+              )}
+              {batch.timeoutShelteredCount > 0 && (
+                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
+                  {batch.timeoutShelteredCount} sheltered
                 </span>
               )}
             </div>
