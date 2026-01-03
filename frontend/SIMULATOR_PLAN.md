@@ -776,6 +776,255 @@ Before deploying the simulator to real users:
 
 ---
 
+## Interdisciplinary Recovery Strategies
+
+Beyond simulation, we incorporate knowledge from multiple fields to guide actual recovery efforts. These strategies inform both the simulator's modeling AND the practical guidance we give to pet owners.
+
+---
+
+### Bayesian Search Theory (From Coast Guard SAR)
+
+**Principle:** Every search result—including *not finding* the pet—is data that updates where the pet likely is.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    BAYESIAN PROBABILITY UPDATE                       │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   Prior probability map (from simulation)                           │
+│              │                                                      │
+│              ▼                                                      │
+│   Volunteer searches Grid A-3 for 2 hours                           │
+│   Detection probability in that cell: 0.4                           │
+│   Result: NOT FOUND                                                 │
+│              │                                                      │
+│              ▼                                                      │
+│   P(pet in A-3 | not found) = P(A-3) × (1 - detection_prob)        │
+│                             = 0.15 × 0.6 = 0.09                     │
+│              │                                                      │
+│              ▼                                                      │
+│   Redistribute probability to unsearched cells                      │
+│   Updated map shows new HIGH priority areas                         │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Implementation:**
+- Track which grid cells have been searched and for how long
+- Calculate detection probability based on searcher time, terrain, and pet state likelihood
+- Update probability map after each search session
+- Show users: "Based on 4 hours of searching in the east quadrant, probability has shifted west"
+
+**Why this matters:**
+- Prevents volunteers from re-searching the same areas
+- Quantifies the value of "negative" search results
+- Guides resource allocation as the search evolves
+
+---
+
+### Scent Gradient Networks (From Wildlife Biology)
+
+**Principle:** Dogs can detect scent from 12+ miles downwind. Cats can smell their litter from 1-2 miles. Create a scent gradient that leads the pet home.
+
+```
+                    🏠 Home (primary scent source)
+                   ╱ │ ╲
+                  ◯  ◯  ◯   ← Scent stations (worn clothing, used litter)
+                 ╱│╲ │ ╱│╲
+                ◯ ◯ ◯ ◯ ◯   ← Neighbors place items creating gradient
+               ╱   │   ╲
+          [Pet follows scent toward increasing concentration]
+```
+
+**⚠️ Critical: Avoid Scent Noise**
+- Don't place scent items randomly—this creates confusion
+- Use a deliberate **gradient pattern**: strongest near home, weaker outward
+- All items should be from the SAME household (pet's own scent + owner's scent)
+- Remove items from one direction if sighting reported in another
+
+**Guidance to Users:**
+1. Place used litter box or bedding on porch/back door (primary beacon)
+2. Ask 3-5 neighbors in the HIGH probability zone to place a worn shirt on their porch
+3. Orient the gradient toward home, not scattered randomly
+4. Replace items every 24-48 hours (scent degrades)
+
+**Scent Survival (Mycology/Chemistry):**
+
+| Condition | Scent Duration | Action |
+|-----------|---------------|--------|
+| Dry, still air | 24-48 hours | Refresh daily |
+| Humid/damp | 4-7 days | Can leave longer |
+| After rain | Washed away | Refresh immediately |
+| Wind > 15 mph | Dispersed rapidly | Place in sheltered spots |
+
+---
+
+### Acoustic Lures (From Bioacoustics)
+
+**Principle:** Pets respond to familiar sounds. Strategically placed audio can draw them out of hiding, especially at optimal activity times.
+
+**Effective Sounds:**
+- Owner's voice calling pet's name (recorded, looped)
+- Treat bag/can opener sounds (Pavlovian response)
+- Other household pet sounds (for bonded animals)
+- Species-specific frequencies: cats respond to 55-79 Hz range
+
+**Timing (Circadian Biology):**
+```
+┌────────────────────────────────────────────────────────────────┐
+│  Hour:  0  2  4  6  8  10 12 14 16 18 20 22 24                │
+│         ▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░▓▓▓▓▓▓▓▓                  │
+│         NIGHT  │DAWN│   DAY        │DUSK│NIGHT                │
+├────────────────────────────────────────────────────────────────┤
+│  🔊 OPTIMAL AUDIO LURE TIMES:                                  │
+│     • 4:00-6:00 AM (pre-dawn, cats most active)               │
+│     • 5:30-7:30 PM (dusk, both species active)                │
+│     • Avoid: Midday (pets resting, low response)              │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**Guidance to Users:**
+1. Record yourself calling pet's name in calm voice (30 seconds, looped)
+2. Place phone/speaker at edge of HIGH probability zone
+3. Point sound INWARD toward home
+4. Set up during dawn/dusk windows when pet is most likely moving
+5. Sit quietly nearby to observe response
+
+---
+
+### Indigenous Tracking Wisdom (Traditional Knowledge)
+
+**Principle:** Traditional trackers don't just look for the animal—they read the landscape to know where animals *must* go.
+
+**Natural Travel Corridors:**
+Lost pets often follow paths of least resistance:
+
+| Corridor Type | Why Pets Use It | Search Priority |
+|---------------|-----------------|-----------------|
+| Fence lines | Easy to follow, provides cover | HIGH - check entire perimeter |
+| Creek/stream beds | Water source, natural path | HIGH - especially for dogs |
+| Railroad tracks | Open path, minimal obstacles | MEDIUM - check access points |
+| Power line cuts | Clear path through vegetation | MEDIUM - dogs especially |
+| Drainage ditches | Cover + leads to water | HIGH - cats hide here |
+| Hedge rows | Shelter while moving | HIGH for cats |
+
+**Shelter Wisdom:**
+Where hiding pets are actually found (not where people expect):
+
+```
+✓ ACTUALLY CHECK:                    ✗ OFTEN OVERLOOKED:
+- Under porches and decks            - Inside open garages
+- Inside dense bushes at base        - Under parked cars/boats
+- Drainage culverts                  - Inside sheds (door blown open)
+- Window wells                       - Under mobile homes
+- Behind AC units                    - Inside dumpster enclosures
+- Under stairs                       - Construction debris piles
+```
+
+**The 3-House Rule (Cats):**
+Research shows indoor cats are found within 3-5 houses of escape point 75% of the time. They don't travel—they hide.
+
+**Guidance to Users:**
+1. "Your cat is likely within 500 feet. Search EVERY hiding spot, not more ground."
+2. "Dogs follow fence lines. Walk every fence perimeter in the green zone."
+3. "Check the obvious spots people skip: under the neighbor's deck, inside their open garage."
+4. "At night, go silent. Listen for collar jingle, meow, whimper."
+
+---
+
+### Circadian Search Optimization
+
+**Principle:** Match search effort to pet activity patterns for maximum detection probability.
+
+**Optimal Search Windows:**
+
+| Pet Type | Best Search Time | Why | Detection Multiplier |
+|----------|------------------|-----|---------------------|
+| Indoor cat | 3-5 AM | Desperate hunger overrides fear | 2.0x |
+| Outdoor cat | Dusk (5-8 PM) | Natural hunting time | 1.5x |
+| Dog (any) | Dawn (5-7 AM) | Cooler, active, less traffic | 1.4x |
+| Dog (any) | Dusk (5-8 PM) | Second activity peak | 1.3x |
+| All pets | After rain stops | Emerge to dry off, hungry | 1.5x |
+
+**Anti-Patterns (Low Yield Times):**
+- Midday (10 AM - 4 PM): Pets resting, hidden deep
+- Late night (11 PM - 3 AM): Dark, pet sleeping, unsafe for humans
+- During rain: Everyone hiding
+
+**Guidance to Users:**
+1. "The best time to search is 5 AM. Set an alarm."
+2. "Don't search at noon—you'll exhaust yourself with minimal chance of success."
+3. "If it rained, go out immediately when it stops. They'll be moving."
+
+---
+
+### Integration with Simulator
+
+These strategies inform both the simulation AND the practical guidance:
+
+**In Simulator:**
+- Bayesian updates modify probability zones after searches
+- Scent lures can be modeled as attraction points
+- Time-of-day affects detection probability (already implemented)
+- Corridor data from OSM affects movement patterns
+
+**In User Guidance:**
+After running simulation, generate personalized recovery plan:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│           YOUR PERSONALIZED RECOVERY PLAN                           │
+│           Medium dog • Missing 18 hours • Suburban                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  🗺️ SEARCH PRIORITY (from simulation)                              │
+│     HIGH zone: Within 0.8 miles (67% probability)                  │
+│     Focus: East quadrant near creek bed                            │
+│                                                                     │
+│  👃 SCENT STRATEGY                                                  │
+│     • Place worn shirt on back porch (primary beacon)              │
+│     • Ask neighbors at [addresses] to place items                  │
+│     • Refresh every 24 hours                                        │
+│                                                                     │
+│  🔊 SOUND STRATEGY                                                  │
+│     • Best time: 5:30 AM or 6:00 PM                                │
+│     • Play recording near [location] facing home                   │
+│                                                                     │
+│  🚶 SEARCH STRATEGY                                                 │
+│     • Walk fence lines first (dogs follow them)                    │
+│     • Check under every deck/porch in green zone                   │
+│     • Creek access points are high priority                        │
+│                                                                     │
+│  ⏰ TIMING                                                          │
+│     • Search at dawn (5-7 AM) for 1.4x detection boost            │
+│     • Avoid midday searching (low yield)                           │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Future Enhancements (Technology-Dependent)
+
+These require partnerships, hardware, or significant infrastructure:
+
+### Doorbell Camera Network (Future)
+Partner with Ring/Nest to alert camera owners when a pet goes missing nearby. They opt-in to share 24-48 hours of footage for AI scanning.
+- **Dependency:** Corporate partnership
+- **Timeline:** When platform reaches critical mass
+
+### Humane Trap Network (Future)
+Trap lending libraries with optimal placement guidance based on simulation.
+- **Dependency:** Shelter partnerships for trap inventory
+- **Timeline:** After shelter CRM product launches
+
+### Thermal Drone Services (Future)
+Coordinate with drone operators for night searches of hiding cats.
+- **Dependency:** FAA regulations, operator network
+- **Timeline:** Long-term, case-by-case
+
+---
+
 ## Future Enhancements
 
 1. **Machine Learning Integration**
