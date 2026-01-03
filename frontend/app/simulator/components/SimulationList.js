@@ -8,7 +8,7 @@ import { useState, useMemo } from 'react';
 import {
   CheckCircle2, XCircle, Clock, Home, Building2,
   Share2, Smartphone, Search, AlertTriangle,
-  ChevronDown, ChevronRight, Layers, BarChart3, MapPin, Info
+  ChevronDown, ChevronRight, Layers, BarChart3, MapPin, Info, Loader2
 } from 'lucide-react';
 import { estimateUncertaintyBounds } from '@/app/lib/simulator/sensitivity';
 
@@ -292,6 +292,7 @@ export default function SimulationList({
   selectedBatchId,
   onSelectSimulation,
   onSelectBatch,
+  isRegenerating = false,
 }) {
   // Track which batches are expanded
   const [expandedBatches, setExpandedBatches] = useState(new Set());
@@ -337,9 +338,16 @@ export default function SimulationList({
         <h3 className="text-sm font-semibold text-gray-700">
           Results
         </h3>
-        <span className="text-xs text-gray-400">
-          {totalSims} total simulation{totalSims !== 1 ? 's' : ''}
-        </span>
+        {isRegenerating ? (
+          <span className="text-xs text-indigo-600 flex items-center gap-1">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            Loading animation...
+          </span>
+        ) : (
+          <span className="text-xs text-gray-400">
+            {totalSims} total simulation{totalSims !== 1 ? 's' : ''}
+          </span>
+        )}
       </div>
 
       <div className="divide-y divide-gray-100 max-h-[500px] overflow-auto">

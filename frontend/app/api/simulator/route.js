@@ -17,7 +17,7 @@ import { SimulationEngine, loadTerrain } from '@/app/lib/simulator/engine';
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { config, mode = 'single', useTerrain = true } = body;
+    const { config, mode = 'single', useTerrain = true, seed = null } = body;
 
     if (!config) {
       return NextResponse.json(
@@ -48,8 +48,8 @@ export async function POST(request) {
       }
     }
 
-    // Run simulation
-    const engine = new SimulationEngine(config);
+    // Run simulation (pass seed to regenerate identical simulation)
+    const engine = new SimulationEngine(config, seed);
     const result = engine.run();
 
     // Format response
@@ -67,6 +67,10 @@ export async function POST(request) {
       petDistanceMiles: result.petDistanceMiles,
       searcherDistanceMiles: result.searcherDistanceMiles,
       finalPetState: result.finalPetState,
+      // Include both raw arrays (for client use) and JSON (for DB storage)
+      petPath: result.petPath,
+      searcherPaths: result.searcherPaths,
+      events: result.events,
       petPathJson: JSON.stringify(result.petPath),
       searcherPathsJson: JSON.stringify(result.searcherPaths),
       eventsJson: JSON.stringify(result.events),
