@@ -21,7 +21,11 @@
  * Supports up to 100,000 simulations (will take time but won't crash).
  */
 
-import { SimulationEngine, loadTerrain, OUTCOMES } from '@/app/lib/simulator/engine';
+import {
+  LegacyEmergentSimulationEngine as SimulationEngine,
+  OUTCOMES,
+  loadTerrain,
+} from '@/app/lib/simulator/emergent/adapter';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
