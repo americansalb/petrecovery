@@ -524,11 +524,15 @@ async function handleEnd(userId, missionId, body) {
   });
 
   if (!session) {
-    // Session not found - that's fine, just return success
+    // Session not found - force end all as fallback (handles orphaned sessions)
+    console.log(`[Search] Session ${sessionId} not found, force-ending all sessions for user`);
+    await forceEndAllSessions(userId, missionId);
     return NextResponse.json({ success: true, message: 'Session already ended' });
   }
 
   if (session.status === 'COMPLETED') {
+    // Already completed - but force end any other orphaned sessions as fallback
+    await forceEndAllSessions(userId, missionId);
     return NextResponse.json({ success: true, message: 'Session already ended' });
   }
 
@@ -629,6 +633,9 @@ async function handleEnd(userId, missionId, body) {
   });
 
   console.log(`[Search] Ended session ${sessionId}, earned ${points.total} points (zone multiplier: ${zoneMultiplier.toFixed(1)}x)`);
+
+  // Final cleanup - end any other orphaned sessions for this user/mission
+  await forceEndAllSessions(userId, missionId);
 
   return NextResponse.json({
     success: true,

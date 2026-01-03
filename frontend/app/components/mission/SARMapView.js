@@ -27,6 +27,19 @@ const PET_SPEEDS = {
 // Vision radius for coverage (14 meters = ~45 feet)
 const VISION_RADIUS_METERS = 14;
 
+// Convert meters to pixels at a given zoom level and latitude
+// This ensures the corridor width stays consistent in real-world size
+function metersToPixels(meters, lat, zoom) {
+  // Earth circumference at equator in meters
+  const earthCircumference = 40075016.686;
+  // Meters per pixel at equator at zoom 0
+  const metersPerPixelAtZoom0 = earthCircumference / 256;
+  // Adjust for latitude (map gets compressed toward poles)
+  const latRadians = lat * Math.PI / 180;
+  const metersPerPixel = metersPerPixelAtZoom0 * Math.cos(latRadians) / Math.pow(2, zoom);
+  return meters / metersPerPixel;
+}
+
 // Max distance between consecutive points before we consider it a GPS jump (meters)
 const MAX_POINT_GAP_METERS = 100; // ~330 feet - if gap is bigger, don't draw a line
 
@@ -154,11 +167,13 @@ export default function SARMapView({
   const coverageLayersRef = useRef([]); // For team coverage trails
   const poiMarkersRef = useRef([]); // For shelter/vet markers
   const userMarkerRef = useRef(null);
+  const corridorLayersRef = useRef([]); // For zoom-adjustable corridors
   const [showPOIs, setShowPOIs] = useState(false); // Toggle POI visibility (Off by default for cleaner map)
   const [mapLayer, setMapLayer] = useState('satellite');
   const baseLayersRef = useRef({});
   const [showCoverage, setShowCoverage] = useState(true); // Toggle coverage overlay (On by default to show search trails)
   const heatmapLayersRef = useRef([]);
+  const renderGenRef = useRef(0); // Track render generation for cleanup race conditions
 
   // Use centralized GPS service instead of local watchPosition
   const { location: gpsLocation, error: gpsError, startTracking, getPosition, isSupported } = useGPS();
@@ -207,6 +222,20 @@ export default function SARMapView({
     // Add default layer (satellite)
     baseLayersRef.current[mapLayer].addTo(mapInstance.current);
 
+    // Handle zoom changes - update corridor widths to maintain real-world size
+    mapInstance.current.on('zoomend', () => {
+      const zoom = mapInstance.current.getZoom();
+      const mapCenter = mapInstance.current.getCenter();
+      const corridorWidth = metersToPixels(VISION_RADIUS_METERS * 2, mapCenter.lat, zoom);
+
+      // Update all corridor layers with new width
+      corridorLayersRef.current.forEach(layer => {
+        if (layer.setStyle) {
+          layer.setStyle({ weight: Math.max(corridorWidth, 4) }); // Minimum 4px for visibility
+        }
+      });
+    });
+
     // Start GPS tracking via centralized service (balanced mode for map viewing)
     startTracking(GPS_MODE.BALANCED);
 
@@ -219,9 +248,29 @@ export default function SARMapView({
     };
   }, [startTracking]);
 
-  // Note: We intentionally don't auto-pan on center changes during GPS tracking
-  // This was causing constant zooming/panning. Users can manually pan the map.
-  // Initial center is set during map initialization above.
+  // Center map on lastSeen when it becomes available (only once per mission)
+  // This fixes the issue where map shows world view when lastSeen loads async
+  const hasInitialCenterRef = useRef(false);
+  const lastSeenCenterKeyRef = useRef(null);
+  useEffect(() => {
+    if (!mapInstance.current || !lastSeen) return;
+
+    // Check if lastSeen has valid coordinates
+    if (!lastSeen.lat || !lastSeen.lng) return;
+
+    // Track by key so we re-center when mission changes
+    const key = `${lastSeen.lat.toFixed(4)},${lastSeen.lng.toFixed(4)}`;
+    if (lastSeenCenterKeyRef.current !== key) {
+      // Mission changed - reset and center
+      hasInitialCenterRef.current = false;
+      lastSeenCenterKeyRef.current = key;
+    }
+
+    if (!hasInitialCenterRef.current) {
+      mapInstance.current.setView([lastSeen.lat, lastSeen.lng], 15);
+      hasInitialCenterRef.current = true;
+    }
+  }, [lastSeen]);
 
   // Handle layer switching
   useEffect(() => {
@@ -287,9 +336,19 @@ export default function SARMapView({
   // Fit bounds to show both user location and last seen
   // Only mark as done when we have BOTH locations
   const hasFitBoundsRef = useRef(false);
+  const lastSeenKeyRef = useRef(null);
+
   useEffect(() => {
     if (!mapInstance.current) return;
     if (!lastSeen) return;
+
+    // Track lastSeen by key to reset bounds when mission changes
+    const lastSeenKey = `${lastSeen.lat?.toFixed(5)},${lastSeen.lng?.toFixed(5)}`;
+    if (lastSeenKeyRef.current !== lastSeenKey) {
+      // Mission changed - reset fit bounds flag
+      hasFitBoundsRef.current = false;
+      lastSeenKeyRef.current = lastSeenKey;
+    }
 
     // If we already fit with user location, don't do it again
     if (hasFitBoundsRef.current) return;
@@ -333,11 +392,22 @@ export default function SARMapView({
   useEffect(() => {
     if (!mapInstance.current) return;
 
-    // Clear existing markers and circles
-    markersRef.current.forEach(m => m.remove());
-    circlesRef.current.forEach(c => c.remove());
-    markersRef.current = [];
-    circlesRef.current = [];
+    // Increment generation to invalidate any in-progress async operations
+    const currentGen = ++renderGenRef.current;
+
+    // Robust cleanup - remove all layers synchronously before adding new ones
+    const cleanupLayers = () => {
+      markersRef.current.forEach(m => {
+        try { m.remove(); } catch (e) { /* already removed */ }
+      });
+      circlesRef.current.forEach(c => {
+        try { c.remove(); } catch (e) { /* already removed */ }
+      });
+      markersRef.current = [];
+      circlesRef.current = [];
+    };
+
+    cleanupLayers();
 
     // Add last seen marker - compact, no overlapping labels
     if (lastSeen) {
@@ -413,87 +483,316 @@ export default function SARMapView({
       }
 
       // Add research-based probability zones (NEW - toggleable)
+      // Draw as octant segments so each section is clickable with its own info
       if (showProbabilityZones && probabilityZones?.zones) {
+        console.log('[Map] Rendering probability zones:', probabilityZones.zones.length, 'zones');
         const milesToMeters = (miles) => miles * 1609.34;
         const zoneCenter = probabilityZones.center || [lastSeen.lat, lastSeen.lng];
+        console.log('[Map] Zone center:', zoneCenter);
 
-        // Render zones from largest to smallest so smaller ones appear on top
-        const sortedZones = [...probabilityZones.zones].sort((a, b) => b.radius - a.radius);
+        // Helper to generate arc coordinates for a pie slice
+        const generateArcCoords = (center, innerRadius, outerRadius, startAngle, endAngle, numPoints = 16) => {
+          const coords = [];
+          const [lat, lng] = center;
 
-        sortedZones.forEach(zone => {
-          const circle = L.circle(zoneCenter, {
-            radius: milesToMeters(zone.radius),
-            color: zone.color,
-            fillColor: zone.color,
-            fillOpacity: zone.fillOpacity,
-            weight: 3, // Visible border
-            opacity: 0.8, // Strong border visibility
-            dashArray: '8, 4', // Dashed border
+          // Outer arc (from startAngle to endAngle)
+          for (let i = 0; i <= numPoints; i++) {
+            const angle = startAngle + (i / numPoints) * (endAngle - startAngle);
+            const radians = ((90 - angle) * Math.PI) / 180;
+            const latOffset = (outerRadius / 111320) * Math.sin(radians);
+            const lngOffset = (outerRadius / (111320 * Math.cos(lat * Math.PI / 180))) * Math.cos(radians);
+            coords.push([lat + latOffset, lng + lngOffset]);
+          }
+
+          // Inner arc (from endAngle back to startAngle) - or center point if innerRadius is 0
+          if (innerRadius > 0) {
+            for (let i = numPoints; i >= 0; i--) {
+              const angle = startAngle + (i / numPoints) * (endAngle - startAngle);
+              const radians = ((90 - angle) * Math.PI) / 180;
+              const latOffset = (innerRadius / 111320) * Math.sin(radians);
+              const lngOffset = (innerRadius / (111320 * Math.cos(lat * Math.PI / 180))) * Math.cos(radians);
+              coords.push([lat + latOffset, lng + lngOffset]);
+            }
+          } else {
+            // For innermost zone, close to center
+            coords.push(center);
+          }
+
+          return coords;
+        };
+
+        // Sort zones from smallest to largest for ring creation
+        const sortedZones = [...probabilityZones.zones].sort((a, b) => a.radius - b.radius);
+        const ZONE_OPACITY = 0.35; // More visible opacity for zones on satellite
+
+        // Octant definitions (8 sections, 45° each)
+        const octants = [
+          { name: 'N', fullName: 'North', startAngle: -22.5, endAngle: 22.5 },
+          { name: 'NE', fullName: 'Northeast', startAngle: 22.5, endAngle: 67.5 },
+          { name: 'E', fullName: 'East', startAngle: 67.5, endAngle: 112.5 },
+          { name: 'SE', fullName: 'Southeast', startAngle: 112.5, endAngle: 157.5 },
+          { name: 'S', fullName: 'South', startAngle: 157.5, endAngle: 202.5 },
+          { name: 'SW', fullName: 'Southwest', startAngle: 202.5, endAngle: 247.5 },
+          { name: 'W', fullName: 'West', startAngle: 247.5, endAngle: 292.5 },
+          { name: 'NW', fullName: 'Northwest', startAngle: 292.5, endAngle: 337.5 },
+        ];
+
+        sortedZones.forEach((zone, zoneIndex) => {
+          console.log('[Map] Drawing zone octants:', zone.name, 'radius:', zone.radius, 'miles');
+
+          const outerRadius = milesToMeters(zone.radius);
+          const innerRadius = zoneIndex === 0 ? 0 : milesToMeters(sortedZones[zoneIndex - 1].radius);
+
+          // Create 8 octant segments for this zone
+          octants.forEach((octant) => {
+            const sliceCoords = generateArcCoords(
+              zoneCenter,
+              innerRadius,
+              outerRadius,
+              octant.startAngle,
+              octant.endAngle
+            );
+
+            const polygon = L.polygon(sliceCoords, {
+              color: zone.color,
+              fillColor: zone.color,
+              fillOpacity: ZONE_OPACITY,
+              weight: 0, // No stroke - divider lines handle boundaries
+              opacity: 0,
+            });
+
+            // Calculate octant-specific probability (individual zone probability / 8)
+            const zoneProbability = zone.probabilityPercent || zone.cumulativePercent;
+            const octantProbability = (zoneProbability / 8).toFixed(1);
+
+            // Use miles consistently (convert to decimal miles)
+            const radiusMiles = zone.radius;
+            const radiusText = radiusMiles < 0.1
+              ? `${(radiusMiles * 5280).toFixed(0)} ft`
+              : `${radiusMiles.toFixed(2)} mi`;
+
+            // User-friendly zone descriptions
+            const zoneDescriptions = {
+              HIGH: { label: 'HIGH PROBABILITY', tip: 'Best place to search first!' },
+              MEDIUM: { label: 'MEDIUM PROBABILITY', tip: 'Good area to search' },
+              LOW: { label: 'LOW PROBABILITY', tip: 'Less likely, but worth checking' },
+              EXTENDED: { label: 'EXTENDED SEARCH', tip: 'Outer edge of search area' },
+            };
+            const zoneInfo = zoneDescriptions[zone.name] || { label: zone.name, tip: '' };
+
+            polygon.bindPopup(`
+              <div style="text-align:center;padding:8px;min-width:200px;">
+                <div style="font-weight:700;color:${zone.color};font-size:13px;margin-bottom:2px;">
+                  ${zoneInfo.label}
+                </div>
+                <div style="font-size:11px;color:#666;margin-bottom:8px;">
+                  ${octant.fullName} Section
+                </div>
+                <div style="background:#f8f9fa;border-radius:8px;padding:10px;margin-bottom:8px;">
+                  <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Full Zone</div>
+                  <div style="font-size:24px;font-weight:700;color:${zone.color};">${zoneProbability}%</div>
+                  <div style="font-size:10px;color:#888;margin-bottom:8px;">within ${radiusText}</div>
+                  <div style="border-top:1px solid #e5e7eb;padding-top:8px;margin-top:4px;">
+                    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">This Sector (${octant.name})</div>
+                    <div style="font-size:18px;font-weight:600;color:${zone.color};">${octantProbability}%</div>
+                  </div>
+                </div>
+                <div style="font-size:11px;color:#22c55e;font-weight:500;">
+                  ${zoneInfo.tip}
+                </div>
+              </div>
+            `);
+
+            polygon.addTo(mapInstance.current);
+            polygon.bringToBack();
+            circlesRef.current.push(polygon);
+          });
+        });
+
+        // Draw octant divider lines at BOUNDARIES (not centers)
+        const outermostRadius = milesToMeters(sortedZones[sortedZones.length - 1].radius);
+        const [centerLat, centerLng] = zoneCenter;
+
+        // Boundary angles between octants (where one octant ends and next begins)
+        const boundaryAngles = [22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5];
+
+        boundaryAngles.forEach((angle) => {
+          const radians = ((90 - angle) * Math.PI) / 180;
+          const endLatOffset = (outermostRadius / 111320) * Math.sin(radians);
+          const endLngOffset = (outermostRadius / (111320 * Math.cos(centerLat * Math.PI / 180))) * Math.cos(radians);
+          const endPoint = [centerLat + endLatOffset, centerLng + endLngOffset];
+
+          const line = L.polyline([zoneCenter, endPoint], {
+            color: '#ffffff',
+            weight: 2,
+            opacity: 0.7,
+            dashArray: '8, 6',
+          });
+          line.addTo(mapInstance.current);
+          circlesRef.current.push(line);
+        });
+
+        // Direction labels at octant CENTERS (not boundaries)
+        const octantLabels = [
+          { angle: 0, label: 'N' },
+          { angle: 45, label: 'NE' },
+          { angle: 90, label: 'E' },
+          { angle: 135, label: 'SE' },
+          { angle: 180, label: 'S' },
+          { angle: 225, label: 'SW' },
+          { angle: 270, label: 'W' },
+          { angle: 315, label: 'NW' },
+        ];
+
+        octantLabels.forEach(({ angle, label }) => {
+          const radians = ((90 - angle) * Math.PI) / 180;
+          const labelLatOffset = (outermostRadius / 111320) * Math.sin(radians) * 0.90;
+          const labelLngOffset = (outermostRadius / (111320 * Math.cos(centerLat * Math.PI / 180))) * Math.cos(radians) * 0.90;
+          const labelPoint = [centerLat + labelLatOffset, centerLng + labelLngOffset];
+
+          const labelIcon = L.divIcon({
+            className: 'octant-label',
+            html: `<div style="
+              background: rgba(15, 23, 42, 0.85);
+              color: white;
+              font-size: 12px;
+              font-weight: 700;
+              padding: 3px 8px;
+              border-radius: 6px;
+              border: 1px solid rgba(255,255,255,0.3);
+              white-space: nowrap;
+            ">${label}</div>`,
+            iconSize: [28, 20],
+            iconAnchor: [14, 10],
           });
 
-          // Add popup with zone info
-          const radiusText = zone.radius < 1
-            ? `${Math.round(zone.radius * 5280)} feet`
-            : `${zone.radius.toFixed(1)} miles`;
-
-          // Use cumulative percent - "X% chance pet is within this distance"
-          const displayPercent = zone.cumulativePercent || zone.probabilityPercent;
-
-          circle.bindPopup(`
-            <div style="text-align:center;padding:4px;">
-              <b style="color:${zone.color}">${zone.name}</b><br>
-              <span style="font-size:16px;font-weight:bold">${displayPercent}%</span><br>
-              <small style="color:#666">within ${radiusText}</small>
-            </div>
-          `);
-
-          circle.addTo(mapInstance.current);
-          circlesRef.current.push(circle);
+          const labelMarker = L.marker(labelPoint, {
+            icon: labelIcon,
+            interactive: false,
+          });
+          labelMarker.addTo(mapInstance.current);
+          circlesRef.current.push(labelMarker);
         });
+      } else if (showProbabilityZones) {
+        console.log('[Map] Probability zones enabled but no zone data:', { showProbabilityZones, zones: probabilityZones?.zones });
       }
     }
 
-    // Add sighting markers
+    // Add sighting markers with expanding zones
     sightings.forEach((sighting, index) => {
-      const hoursSinceSighting = sighting.sightedAt
-        ? Math.floor((Date.now() - new Date(sighting.sightedAt).getTime()) / 3600000)
-        : 0;
+      // Skip sightings without valid coordinates
+      if (!sighting.latitude || !sighting.longitude) {
+        console.warn('[Map] Skipping sighting without coordinates:', sighting);
+        return;
+      }
 
-      // Color based on recency
-      let color = '#f59e0b'; // amber default
-      if (hoursSinceSighting < 1) color = '#ef4444'; // red - very recent
-      else if (hoursSinceSighting < 6) color = '#f97316'; // orange
-      else if (hoursSinceSighting < 24) color = '#eab308'; // yellow
-      else color = '#6b7280'; // gray - old
+      // Use sightedAt if available, fall back to createdAt (when report was submitted)
+      const sightingTime = sighting.sightedAt || sighting.createdAt || new Date().toISOString();
+      const hoursSinceSighting = (Date.now() - new Date(sightingTime).getTime()) / 3600000;
 
+      // Determine if sighting is confirmed (use 'verified' from DB, fall back to 'isConfirmed')
+      const isConfirmed = sighting.verified === true || sighting.isConfirmed === true;
+
+      // Zone color: blue for unconfirmed, green for confirmed
+      const zoneColor = isConfirmed ? '#22c55e' : '#3b82f6';
+
+      // Calculate expanding radius based on time since sighting
+      // Starts at ~500ft (0.1 miles), grows ~0.25 miles per hour, caps at 3 miles
+      const baseRadiusMiles = 0.1;
+      const growthRatePerHour = 0.25;
+      const maxRadiusMiles = 3;
+      const radiusMiles = Math.min(baseRadiusMiles + (Math.max(0, hoursSinceSighting) * growthRatePerHour), maxRadiusMiles);
+      const radiusMeters = radiusMiles * 1609.34;
+
+      // Draw the expanding sighting zone
+      const sightingZone = L.circle([sighting.latitude, sighting.longitude], {
+        radius: radiusMeters,
+        color: zoneColor,
+        fillColor: zoneColor,
+        fillOpacity: 0.12,
+        weight: 2,
+        opacity: 0.7,
+        dashArray: isConfirmed ? '' : '6, 4', // Empty string for solid, dashed for unconfirmed
+      });
+
+      // Format time ago text
+      const timeAgoText = hoursSinceSighting < 1
+        ? 'Just now'
+        : hoursSinceSighting < 24
+          ? `${Math.floor(hoursSinceSighting)}h ago`
+          : `${Math.floor(hoursSinceSighting / 24)}d ago`;
+
+      // Format radius text
+      const radiusText = radiusMiles < 0.5
+        ? `${Math.round(radiusMiles * 5280)} ft radius`
+        : `${radiusMiles.toFixed(1)} mi radius`;
+
+      // Popup content for the zone
+      const statusLabel = isConfirmed ? '✓ CONFIRMED' : 'UNCONFIRMED';
+      const statusColor = isConfirmed ? '#22c55e' : '#3b82f6';
+
+      // Shared popup content builder
+      const buildPopupContent = (includePhoto = false) => `
+        <div style="text-align:center;padding:6px;min-width:160px;">
+          <div style="font-weight:700;color:${statusColor};font-size:12px;margin-bottom:4px;">
+            👁 ${statusLabel}
+          </div>
+          <div style="font-size:14px;font-weight:600;color:#333;">
+            ${timeAgoText} • ${radiusText}
+          </div>
+          ${isConfirmed && sighting.confirmedBy ? `
+            <div style="font-size:11px;color:#666;margin-top:4px;">
+              Verified by ${sighting.confirmedBy}
+            </div>
+          ` : ''}
+          ${sighting.description ? `
+            <div style="font-size:11px;color:#666;margin-top:6px;padding-top:6px;border-top:1px solid #eee;">
+              "${sighting.description.slice(0, 60)}${sighting.description.length > 60 ? '...' : ''}"
+            </div>
+          ` : ''}
+          ${includePhoto && (sighting.photoUrl || sighting.photoUrls) ? `
+            <div style="margin-top:8px;">
+              <a href="${sighting.photoUrl || (Array.isArray(sighting.photoUrls) ? sighting.photoUrls[0] : JSON.parse(sighting.photoUrls || '[]')[0])}" target="_blank" style="color:#3b82f6;font-size:11px;text-decoration:none;">
+                📷 View Photo
+              </a>
+            </div>
+          ` : ''}
+          ${!isConfirmed ? `
+            <div style="font-size:10px;color:#888;margin-top:6px;">
+              Owner can confirm this sighting
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      sightingZone.bindPopup(buildPopupContent(true));
+      sightingZone.addTo(mapInstance.current);
+      sightingZone.bringToBack();
+      circlesRef.current.push(sightingZone);
+
+      // Add eye marker at center of sighting
       const sightingIcon = L.divIcon({
         className: 'sighting-marker',
         html: `
           <div style="
-            width: 28px;
-            height: 28px;
-            background: ${color};
-            border: 2px solid white;
+            width: 32px;
+            height: 32px;
+            background: ${zoneColor};
+            border: 3px solid white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 0 10px ${color}80;
-            font-size: 14px;
+            box-shadow: 0 2px 10px ${zoneColor}80;
+            font-size: 16px;
           ">👁</div>
         `,
-        iconSize: [28, 28],
-        iconAnchor: [14, 14]
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
       });
 
-      const marker = L.marker([sighting.latitude, sighting.longitude], { icon: sightingIcon })
-        .bindPopup(`
-          <div style="max-width:200px">
-            <b style="color:${color}">Sighting #${index + 1}</b>
-            <small style="color:#666;display:block">${hoursSinceSighting < 1 ? 'Just now' : hoursSinceSighting < 24 ? `${hoursSinceSighting}h ago` : `${Math.floor(hoursSinceSighting / 24)}d ago`}</small>
-            ${sighting.description ? `<p style="margin:4px 0 0;font-size:12px">${sighting.description.slice(0, 80)}${sighting.description.length > 80 ? '...' : ''}</p>` : ''}
-          </div>
-        `)
+      const marker = L.marker([sighting.latitude, sighting.longitude], { icon: sightingIcon, zIndexOffset: 500 })
+        .bindPopup(buildPopupContent(true))
         .addTo(mapInstance.current);
       markersRef.current.push(marker);
     });
@@ -501,6 +800,9 @@ export default function SARMapView({
     // Add GPS paths (search areas walked)
     gpsLayersRef.current.forEach(layer => layer.remove());
     gpsLayersRef.current = [];
+
+    // Clear corridor refs when redrawing
+    corridorLayersRef.current = [];
 
     if (gpsPath && gpsPath.length > 1) {
       // Convert GPS path to leaflet format
@@ -514,20 +816,30 @@ export default function SARMapView({
       const endTime = gpsPath[gpsPath.length - 1].timestamp;
       const durationMinutes = Math.round((endTime - startTime) / 60000);
 
+      // Calculate corridor width based on current zoom (14m vision radius = 28m corridor width)
+      const zoom = mapInstance.current.getZoom();
+      const mapCenter = mapInstance.current.getCenter();
+      const corridorWidth = metersToPixels(VISION_RADIUS_METERS * 2, mapCenter.lat, zoom);
+
       // Draw each segment separately
       segments.forEach((segmentCoords, idx) => {
         if (segmentCoords.length < 2) return;
 
         // Draw visible corridor showing search area covered (vision radius ~14m = ~45ft)
+        // Width scales with zoom to maintain real-world size
+        // High opacity so it fully covers probability zones beneath
         const searchCorridor = L.polyline(segmentCoords, {
           color: '#a855f7', // Purple
-          weight: 50, // Wide corridor to show search area
-          opacity: 0.45, // 45% - clearly visible but not overwhelming
+          weight: Math.max(corridorWidth, 4), // Dynamic width, min 4px
+          opacity: 0.85, // High opacity to overlay zones beneath
           smoothFactor: 1,
           lineJoin: 'round',
           lineCap: 'round'
         }).addTo(mapInstance.current);
         searchCorridor.bringToFront();
+
+        // Store reference for zoom updates
+        corridorLayersRef.current.push(searchCorridor);
 
         // Add click handler to show details (only on first segment)
         if (idx === 0) {
@@ -566,6 +878,13 @@ export default function SARMapView({
     heatmapLayersRef.current.forEach(layer => layer.remove());
     heatmapLayersRef.current = [];
 
+    // Return cleanup function - called when deps change or unmount
+    return () => {
+      // Only cleanup if this is still the current render generation
+      if (currentGen === renderGenRef.current) {
+        cleanupLayers();
+      }
+    };
   }, [lastSeen, sightings, petSpecies, hoursElapsed, gpsPath, showProbabilityZones, probabilityZones]);
 
   // Render team coverage trails
@@ -624,6 +943,11 @@ export default function SARMapView({
       const lineColor = isCurrentUser ? '#3b82f6' : trail.color;
       const lineOpacity = trail.isActive ? 0.9 : Math.max(decayedOpacity * 4, 0.3);
 
+      // Calculate corridor width based on current zoom
+      const zoom = mapInstance.current.getZoom();
+      const mapCenter = mapInstance.current.getCenter();
+      const corridorWidth = metersToPixels(VISION_RADIUS_METERS * 2, mapCenter.lat, zoom);
+
       // Draw each segment separately
       segments.forEach(segmentCoords => {
         if (segmentCoords.length < 2) return;
@@ -633,13 +957,16 @@ export default function SARMapView({
 
         const coverageCorridor = L.polyline(segmentCoords, {
           color: corridorColor,
-          weight: 50, // Wide corridor matching active search
+          weight: Math.max(corridorWidth, 4), // Dynamic width, min 4px
           opacity: corridorOpacity,
           smoothFactor: 1,
           lineJoin: 'round',
           lineCap: 'round',
         }).addTo(mapInstance.current);
         coverageCorridor.bringToFront();
+
+        // Store reference for zoom updates
+        corridorLayersRef.current.push(coverageCorridor);
 
         // Add click handler for popup
         coverageCorridor.on('click', (e) => {
@@ -847,6 +1174,7 @@ export default function SARMapView({
             showSearchPath={gpsPath && gpsPath.length > 0 || coverageTrails.length > 0}
             showActiveSearches={activeSearchersCount > 0}
             showPOIs={pois.length > 0}
+            showProbabilityZones={showProbabilityZones}
             activeSearchersCount={activeSearchersCount}
           />
         )

@@ -29,8 +29,10 @@ import {
   ChevronDown,
   AlertCircle,
   Target,
+  Settings,
 } from 'lucide-react';
 import { calculateProbabilityZones } from '@/app/lib/searchProbability';
+import ProbabilityZoneAdjuster from '@/app/components/mission/ProbabilityZoneAdjuster';
 
 // Dynamically import map to avoid SSR issues
 const MapView = dynamic(() => import('@/app/components/mission/SARMapView'), {
@@ -304,20 +306,10 @@ export default function MapTabV2({
   const [distance, setDistance] = useState(0);
   const [showLegend, setShowLegend] = useState(false);
   const [showProbabilityZones, setShowProbabilityZones] = useState(false);
+  const [showZoneAdjuster, setShowZoneAdjuster] = useState(false);
+  const [zoneSettingsOverride, setZoneSettingsOverride] = useState({});
   const [selectedMarker, setSelectedMarker] = useState(null);
   const durationInterval = useRef(null);
-
-  // Calculate probability zones based on mission data
-  const probabilityZones = mission ? calculateProbabilityZones({
-    species: mission.petSpecies,
-    size: mission.petSize,
-    isIndoorCat: mission.petDescription?.includes('Indoor cat') ? true :
-                  mission.petDescription?.includes('Outdoor access') ? false : null,
-    timeElapsed: getTimeElapsedCategory(mission.lastSeenAt),
-    lastSeenLocation: mission.lastSeenLatitude && mission.lastSeenLongitude
-      ? [mission.lastSeenLatitude, mission.lastSeenLongitude]
-      : null,
-  }) : null;
 
   // Helper to convert lastSeenAt to time category
   function getTimeElapsedCategory(lastSeenAt) {
@@ -331,6 +323,28 @@ export default function MapTabV2({
     if (hoursAgo < 336) return '1_to_2_weeks';
     return 'more_than_2_weeks';
   }
+
+  // Current zone settings (mission data + any overrides)
+  const baseIsIndoorCat = mission?.petDescription?.includes('Indoor cat') ? true :
+                          mission?.petDescription?.includes('Outdoor access') ? false : null;
+  const currentZoneSettings = {
+    size: zoneSettingsOverride.size || mission?.petSize || 'MEDIUM',
+    isIndoorCat: zoneSettingsOverride.isIndoorCat ?? baseIsIndoorCat,
+    timeElapsed: zoneSettingsOverride.timeElapsed || getTimeElapsedCategory(mission?.lastSeenAt),
+    age: zoneSettingsOverride.age || 'adult',
+  };
+
+  // Calculate probability zones based on mission data + overrides
+  const probabilityZones = mission && mission.lastSeenLatitude && mission.lastSeenLongitude
+    ? calculateProbabilityZones({
+        species: mission.petSpecies,
+        size: currentZoneSettings.size,
+        isIndoorCat: currentZoneSettings.isIndoorCat,
+        timeElapsed: currentZoneSettings.timeElapsed,
+        age: currentZoneSettings.age,
+        lastSeenLocation: [mission.lastSeenLatitude, mission.lastSeenLongitude],
+      })
+    : null;
 
   // Duration timer
   useEffect(() => {
@@ -486,21 +500,34 @@ export default function MapTabV2({
         <MapLegend visible={showLegend} onToggle={() => setShowLegend(!showLegend)} />
       )}
 
-      {/* Probability Zones Toggle */}
+      {/* Probability Zones Controls */}
       {hasLocation && !isGPSTracking && (
-        <button
-          onClick={() => setShowProbabilityZones(!showProbabilityZones)}
-          className={`absolute bottom-6 left-4 z-20 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg transition-all ${
-            showProbabilityZones
-              ? 'bg-red-500 text-white'
-              : 'bg-slate-800/90 backdrop-blur text-slate-300 hover:text-white'
-          }`}
-        >
-          <Target size={20} />
-          <span className="font-medium text-sm">
-            {showProbabilityZones ? 'Hide Zones' : 'Search Zones'}
-          </span>
-        </button>
+        <div className="absolute bottom-6 left-4 z-20 flex items-center gap-2">
+          <button
+            onClick={() => setShowProbabilityZones(!showProbabilityZones)}
+            className={`flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg transition-all ${
+              showProbabilityZones
+                ? 'bg-emerald-500 text-white'
+                : 'bg-slate-800/90 backdrop-blur text-slate-300 hover:text-white'
+            }`}
+          >
+            <Target size={20} />
+            <span className="font-medium text-sm">
+              {showProbabilityZones ? 'Zones On' : 'Search Zones'}
+            </span>
+          </button>
+
+          {/* Settings button - only show when zones are visible */}
+          {showProbabilityZones && (
+            <button
+              onClick={() => setShowZoneAdjuster(true)}
+              className="flex items-center justify-center w-12 h-12 rounded-xl bg-slate-800/90 backdrop-blur text-slate-300 shadow-lg hover:bg-slate-700 hover:text-white transition"
+              title="Adjust zone settings"
+            >
+              <Settings size={20} />
+            </button>
+          )}
+        </div>
       )}
 
       {/* Floating Action Buttons */}
@@ -512,6 +539,17 @@ export default function MapTabV2({
 
       {/* Selected Marker Info */}
       <MarkerInfoPanel marker={selectedMarker} onClose={() => setSelectedMarker(null)} />
+
+      {/* Probability Zone Adjuster Modal */}
+      <ProbabilityZoneAdjuster
+        isOpen={showZoneAdjuster}
+        onClose={() => setShowZoneAdjuster(false)}
+        petSpecies={mission?.petSpecies}
+        currentSettings={currentZoneSettings}
+        onSettingsChange={(newSettings) => {
+          setZoneSettingsOverride(newSettings);
+        }}
+      />
     </div>
   );
 }

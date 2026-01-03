@@ -29,7 +29,11 @@ import {
   Grid3X3,
   Zap,
   ArrowLeft,
+  Target,
+  Settings,
 } from 'lucide-react';
+import { calculateProbabilityZones } from '@/app/lib/searchProbability';
+import ProbabilityZoneAdjuster from '@/app/components/mission/ProbabilityZoneAdjuster';
 
 // Lazy load map
 const SARMapView = dynamic(() => import('@/app/components/mission/SARMapView'), {
@@ -92,6 +96,47 @@ export default function ActiveSearchScreen({
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [showStats, setShowStats] = useState(true);
   const [endResult, setEndResult] = useState(null);
+  const [showProbabilityZones, setShowProbabilityZones] = useState(false);
+  const [showZoneAdjuster, setShowZoneAdjuster] = useState(false);
+  const [zoneSettingsOverride, setZoneSettingsOverride] = useState({});
+
+  // Helper to convert lastSeenAt to time category
+  function getTimeElapsedCategory(lastSeenAt) {
+    if (!lastSeenAt) return '6_to_24_hours';
+    const hoursAgo = (Date.now() - new Date(lastSeenAt).getTime()) / (1000 * 60 * 60);
+    if (hoursAgo < 1) return 'less_than_hour';
+    if (hoursAgo < 6) return '1_to_6_hours';
+    if (hoursAgo < 24) return '6_to_24_hours';
+    if (hoursAgo < 72) return '1_to_3_days';
+    if (hoursAgo < 168) return '3_to_7_days';
+    if (hoursAgo < 336) return '1_to_2_weeks';
+    return 'more_than_2_weeks';
+  }
+
+  // Current zone settings (mission data + any overrides)
+  const currentZoneSettings = useMemo(() => {
+    const baseIsIndoorCat = mission?.petDescription?.includes('Indoor cat') ? true :
+                            mission?.petDescription?.includes('Outdoor access') ? false : null;
+    return {
+      size: zoneSettingsOverride.size || mission?.petSize || 'MEDIUM',
+      isIndoorCat: zoneSettingsOverride.isIndoorCat ?? baseIsIndoorCat,
+      timeElapsed: zoneSettingsOverride.timeElapsed || getTimeElapsedCategory(mission?.lastSeenAt),
+      age: zoneSettingsOverride.age || 'adult',
+    };
+  }, [mission, zoneSettingsOverride]);
+
+  // Calculate probability zones based on mission data + overrides
+  const probabilityZones = useMemo(() => {
+    if (!mission?.lastSeenLatitude || !mission?.lastSeenLongitude) return null;
+    return calculateProbabilityZones({
+      species: mission.petSpecies,
+      size: currentZoneSettings.size,
+      isIndoorCat: currentZoneSettings.isIndoorCat,
+      timeElapsed: currentZoneSettings.timeElapsed,
+      age: currentZoneSettings.age,
+      lastSeenLocation: [mission.lastSeenLatitude, mission.lastSeenLongitude],
+    });
+  }, [mission, currentZoneSettings]);
 
   // Get contextual tip
   const currentTip = useMemo(() =>
@@ -183,7 +228,39 @@ export default function ActiveSearchScreen({
           showControls={false}
           showLegend={false}
           interactive={true}
+          showProbabilityZones={showProbabilityZones}
+          probabilityZones={probabilityZones}
         />
+
+        {/* Search Zones Controls */}
+        {mission?.lastSeenLatitude && (
+          <div className="absolute bottom-4 left-4 z-20 flex items-center gap-2">
+            <button
+              onClick={() => setShowProbabilityZones(!showProbabilityZones)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg transition-all ${
+                showProbabilityZones
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-slate-800/90 backdrop-blur text-slate-300'
+              }`}
+            >
+              <Target size={18} />
+              <span className="font-medium text-sm">
+                {showProbabilityZones ? 'Zones On' : 'Zones'}
+              </span>
+            </button>
+
+            {/* Settings button - only show when zones are visible */}
+            {showProbabilityZones && (
+              <button
+                onClick={() => setShowZoneAdjuster(true)}
+                className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-800/90 backdrop-blur text-slate-300 shadow-lg hover:bg-slate-700 transition"
+                title="Adjust zone settings"
+              >
+                <Settings size={18} />
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Validation Warning Overlay */}
         {validation.lastWarning && (
@@ -400,6 +477,17 @@ export default function ActiveSearchScreen({
           </div>
         </div>
       )}
+
+      {/* Probability Zone Adjuster Modal */}
+      <ProbabilityZoneAdjuster
+        isOpen={showZoneAdjuster}
+        onClose={() => setShowZoneAdjuster(false)}
+        petSpecies={mission?.petSpecies}
+        currentSettings={currentZoneSettings}
+        onSettingsChange={(newSettings) => {
+          setZoneSettingsOverride(newSettings);
+        }}
+      />
     </div>
   );
 }

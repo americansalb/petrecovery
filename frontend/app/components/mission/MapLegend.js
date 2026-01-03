@@ -5,7 +5,8 @@
  *
  * Shows:
  * - Last seen location
- * - Sightings (with recency)
+ * - Sightings (confirmed/unconfirmed with expanding zones)
+ * - Probability zones (when enabled)
  * - You (user location)
  * - Area Searched (purple overlay)
  * - Active Searches (when team is searching)
@@ -13,17 +14,19 @@
  */
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, MapPin, Eye, User, Radio, Building2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, MapPin, Building2, Info } from 'lucide-react';
 
 export default function MapLegend({
   showSightings = false,
   showSearchPath = false,
   showActiveSearches = false,
   showPOIs = false,
+  showProbabilityZones = false,
   activeSearchersCount = 0,
-  isExpanded: initialExpanded = true,
+  isExpanded: initialExpanded = false, // Start collapsed by default
 }) {
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
+  const [showDetails, setShowDetails] = useState(false);
 
   return (
     <div className="absolute top-4 left-4 z-[400]">
@@ -39,7 +42,7 @@ export default function MapLegend({
         </button>
       ) : (
         /* Expanded legend */
-        <div className="bg-slate-900/95 backdrop-blur rounded-xl border border-slate-700 shadow-lg overflow-hidden min-w-[160px]">
+        <div className="bg-slate-900/95 backdrop-blur rounded-xl border border-slate-700 shadow-lg overflow-hidden min-w-[180px]">
           {/* Header with collapse button */}
           <button
             onClick={() => setIsExpanded(false)}
@@ -50,7 +53,7 @@ export default function MapLegend({
           </button>
 
           {/* Legend items */}
-          <div className="px-3 pb-3 space-y-2">
+          <div className="px-3 pb-3 space-y-2.5">
             {/* Last seen location */}
             <div className="flex items-center gap-2">
               <div className="w-5 h-5 rounded-full bg-red-500 border-2 border-white flex items-center justify-center text-[10px] shadow-sm">
@@ -59,18 +62,68 @@ export default function MapLegend({
               <span className="text-slate-200 text-xs font-medium">Last Seen</span>
             </div>
 
-            {/* Sightings */}
+            {/* Sightings section */}
             {showSightings && (
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center text-[10px] shadow-sm">
-                  👁
+              <>
+                {/* Confirmed Sighting */}
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <div className="w-5 h-5 rounded-full bg-green-500 border-2 border-white flex items-center justify-center text-[10px] shadow-sm">
+                      👁
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-slate-200 text-xs font-medium">Confirmed Sighting</span>
+                  </div>
                 </div>
-                <span className="text-slate-200 text-xs font-medium">Sightings</span>
-              </div>
+
+                {/* Unconfirmed Sighting */}
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <div className="w-5 h-5 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center text-[10px] shadow-sm">
+                      👁
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-slate-200 text-xs font-medium">Unconfirmed Sighting</span>
+                  </div>
+                </div>
+
+                {/* Sighting zone explanation */}
+                <div className="flex items-center gap-2 pl-1">
+                  <div className="w-4 h-4 rounded-full bg-blue-500/20 border border-blue-400 border-dashed" />
+                  <span className="text-slate-400 text-[10px]">Zone expands over time</span>
+                </div>
+              </>
+            )}
+
+            {/* Probability zones */}
+            {showProbabilityZones && (
+              <>
+                <div className="pt-1 border-t border-slate-700/50">
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wide">Search Zones</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full bg-green-500/30 border border-green-400" />
+                  <span className="text-slate-200 text-xs">HIGH (67.5%)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full bg-yellow-500/30 border border-yellow-400" />
+                  <span className="text-slate-200 text-xs">MEDIUM</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full bg-orange-500/30 border border-orange-400" />
+                  <span className="text-slate-200 text-xs">LOW</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full bg-red-500/30 border border-red-400" />
+                  <span className="text-slate-200 text-xs">EXTENDED</span>
+                </div>
+              </>
             )}
 
             {/* You (user location) */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pt-1 border-t border-slate-700/50">
               <div className="w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow-sm" />
               <span className="text-slate-200 text-xs font-medium">You</span>
             </div>
@@ -78,12 +131,6 @@ export default function MapLegend({
             {/* Search path elements - shown when there's a search path */}
             {showSearchPath && (
               <>
-                {/* Your Search Path */}
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-1 rounded bg-blue-500" />
-                  <span className="text-slate-200 text-xs font-medium">Your Path</span>
-                </div>
-
                 {/* Area Searched (purple corridor) */}
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-3 rounded bg-purple-500/40 border border-purple-400" />
@@ -100,7 +147,7 @@ export default function MapLegend({
                   <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
                 </div>
                 <span className="text-slate-200 text-xs font-medium">
-                  Team Searching ({activeSearchersCount - 1})
+                  Team ({activeSearchersCount - 1})
                 </span>
               </div>
             )}
@@ -112,6 +159,28 @@ export default function MapLegend({
                   <Building2 size={10} className="text-white" />
                 </div>
                 <span className="text-slate-200 text-xs font-medium">Shelters/Vets</span>
+              </div>
+            )}
+
+            {/* Details toggle */}
+            <button
+              onClick={() => setShowDetails(!showDetails)}
+              className="w-full flex items-center justify-center gap-1 pt-2 text-slate-500 hover:text-slate-300 text-[10px] transition"
+            >
+              <Info size={10} />
+              {showDetails ? 'Less info' : 'More info'}
+            </button>
+
+            {/* Expanded details */}
+            {showDetails && (
+              <div className="text-[10px] text-slate-500 space-y-1 pt-1 border-t border-slate-700/50">
+                <p>• <span className="text-green-400">Green zones</span> = confirmed sightings</p>
+                <p>• <span className="text-blue-400">Blue zones</span> = unconfirmed sightings</p>
+                <p>• Zones expand as time passes</p>
+                <p>• Tap any zone for details</p>
+                {showProbabilityZones && (
+                  <p>• Probability zones show likely pet location based on species, size, and time</p>
+                )}
               </div>
             )}
           </div>

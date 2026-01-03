@@ -3,91 +3,93 @@
 /**
  * ActionCards - Primary ways to help find the pet
  *
+ * Design: Typography-first with colored accents, no generic icons.
+ * Each action has a distinctive visual identity through color + text.
+ *
  * Priority order:
- * 1. Report Sighting (primary conversion) - in hero/sticky
- * 2. Share Alert (amplification)
- * 3. Boost This Search (fund digital reach - when enabled)
- * 4. Check Shelters (many pets end up there!)
- * 5. Print Flyers
- * 6. Join Search Party
+ * 1. Share Alert (amplification)
+ * 2. Boost This Search (fund digital reach - when enabled)
+ * 3. Check Shelters
+ * 4. Print Flyers
+ * 5. Join Search Party
  */
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import {
-  Share2, Building2, Printer, Users, Zap,
-  ChevronRight, Phone, ExternalLink
-} from 'lucide-react';
+import { ChevronRight, Phone } from 'lucide-react';
 
-// Action card component
+// Text-first action card with colored accent
 function ActionCard({
   href,
   onClick,
-  icon: Icon,
-  iconBg,
-  iconColor,
   title,
   description,
+  accentColor,
   badge,
+  emoji,
   external = false,
-  priority = 'secondary' // 'primary' | 'secondary' | 'tertiary'
+  variant = 'default' // 'default' | 'primary' | 'highlight'
 }) {
-  const baseStyles = "block w-full rounded-2xl p-4 transition group text-left";
+  const baseStyles = "block w-full rounded-2xl overflow-hidden transition group text-left";
 
-  const priorityStyles = {
+  const variantStyles = {
     primary: "bg-midnight-900 hover:bg-midnight-800 text-white shadow-lg",
-    secondary: "bg-white hover:bg-midnight-50 border border-midnight-200 shadow text-midnight-900",
-    tertiary: "bg-midnight-50 hover:bg-midnight-100 border border-midnight-100 text-midnight-900"
+    highlight: "bg-flash-50 hover:bg-flash-100 border-2 border-flash-300 text-midnight-900",
+    default: "bg-white hover:bg-midnight-50 border border-midnight-200 shadow-sm text-midnight-900"
   };
 
   const content = (
-    <div className="flex items-center gap-4">
-      <div className={`w-12 h-12 ${iconBg} rounded-xl flex items-center justify-center group-hover:scale-110 transition flex-shrink-0`}>
-        <Icon className={`w-6 h-6 ${iconColor}`} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="font-bold text-lg">{title}</p>
-          {badge && (
-            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">
-              {badge}
-            </span>
-          )}
+    <div className="flex items-stretch">
+      {/* Colored accent bar */}
+      <div className={`w-1.5 ${accentColor} flex-shrink-0`} />
+
+      {/* Content */}
+      <div className="flex-1 flex items-center gap-4 px-5 py-4">
+        {/* Emoji if provided */}
+        {emoji && (
+          <span className="text-2xl flex-shrink-0">{emoji}</span>
+        )}
+
+        {/* Text */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className={`font-bold text-lg ${variant === 'primary' ? 'text-white' : 'text-midnight-900'}`}>
+              {title}
+            </p>
+            {badge && (
+              <span className="px-2 py-0.5 bg-emerald-500 text-white text-xs font-bold rounded-full uppercase tracking-wide">
+                {badge}
+              </span>
+            )}
+          </div>
+          <p className={`text-sm mt-0.5 ${variant === 'primary' ? 'text-white/70' : 'text-midnight-500'}`}>
+            {description}
+          </p>
         </div>
-        <p className={`text-sm ${priority === 'primary' ? 'text-white/80' : 'text-midnight-500'}`}>
-          {description}
-        </p>
+
+        {/* Arrow */}
+        <ChevronRight className={`w-5 h-5 flex-shrink-0 group-hover:translate-x-1 transition ${
+          variant === 'primary' ? 'text-white/40' : 'text-midnight-300'
+        }`} />
       </div>
-      <ChevronRight className={`w-5 h-5 ${priority === 'primary' ? 'text-white/50' : 'text-midnight-300'} group-hover:translate-x-1 transition flex-shrink-0`} />
     </div>
   );
 
+  const className = `${baseStyles} ${variantStyles[variant]}`;
+
   if (onClick) {
-    return (
-      <button onClick={onClick} className={`${baseStyles} ${priorityStyles[priority]}`}>
-        {content}
-      </button>
-    );
+    return <button onClick={onClick} className={className}>{content}</button>;
   }
 
   if (external) {
     return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`${baseStyles} ${priorityStyles[priority]}`}
-      >
+      <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
         {content}
       </a>
     );
   }
 
-  return (
-    <Link href={href} className={`${baseStyles} ${priorityStyles[priority]}`}>
-      {content}
-    </Link>
-  );
+  return <Link href={href} className={className}>{content}</Link>;
 }
 
 export default function ActionCards({
@@ -97,6 +99,7 @@ export default function ActionCards({
   onReportSighting
 }) {
   const locationQuery = encodeURIComponent(caseData?.lastSeenAddress || '');
+  const searcherCount = caseData?.activeSearchers || 0;
 
   return (
     <motion.div
@@ -108,66 +111,55 @@ export default function ActionCards({
       <h2 className="font-bold text-midnight-900 text-lg">How You Can Help</h2>
 
       <div className="space-y-3">
-        {/* 1. Share Alert - Primary for amplification */}
+        {/* 1. Share Alert */}
         <ActionCard
           onClick={onShare}
-          icon={Share2}
-          iconBg="bg-white/20"
-          iconColor="text-white"
           title="Share This Alert"
-          description="Help spread the word to your community"
-          priority="primary"
+          description="Spread the word to your community"
+          accentColor="bg-midnight-600"
+          emoji="📣"
+          variant="primary"
         />
 
-        {/* 2. Boost This Search - Help fund digital reach */}
+        {/* 2. Boost This Search */}
         {caseData?.adFundEnabled && (
           <ActionCard
             href={`/mission-control?mission=${caseNumber}&tab=boost`}
-            icon={Zap}
-            iconBg="bg-flash-400"
-            iconColor="text-midnight-900"
             title="Boost This Search"
-            description="Help reach thousands more neighbors nearby"
-            priority="secondary"
+            description="Reach thousands more neighbors"
+            accentColor="bg-flash-400"
+            emoji="⚡"
+            variant="highlight"
           />
         )}
 
         {/* 3. Check Shelters */}
         <ActionCard
           href={`/shelters?location=${locationQuery}&case=${caseNumber}`}
-          icon={Building2}
-          iconBg="bg-purple-100"
-          iconColor="text-purple-600"
           title="Check Nearby Shelters"
-          description="Many lost pets end up at shelters"
+          description="Many lost pets are found here"
+          accentColor="bg-purple-500"
           badge="Important"
-          priority="secondary"
         />
 
         {/* 4. Print Flyers */}
         <ActionCard
           href={`/mission-control?mission=${caseNumber}&tab=flyer`}
-          icon={Printer}
-          iconBg="bg-amber-100"
-          iconColor="text-amber-600"
           title="Print Flyers"
-          description="Post in your neighborhood"
-          priority="secondary"
+          description="Post around the neighborhood"
+          accentColor="bg-amber-500"
         />
 
         {/* 5. Join Search Party */}
         <ActionCard
           href={`/mission-control?mission=${caseNumber}`}
-          icon={Users}
-          iconBg="bg-emerald-100"
-          iconColor="text-emerald-700"
           title="Join Search Party"
-          description={`${caseData?.activeSearchers || 0} people actively searching`}
-          priority="secondary"
+          description={searcherCount > 0 ? `${searcherCount} people searching now` : 'Be the first to join'}
+          accentColor="bg-emerald-500"
         />
       </div>
 
-      {/* Contact Owner - Secondary action */}
+      {/* Contact Owner */}
       {caseData?.contact?.phone && (
         <div className="pt-4 border-t border-midnight-100">
           <a
