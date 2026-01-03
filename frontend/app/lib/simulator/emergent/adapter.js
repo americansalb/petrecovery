@@ -109,6 +109,21 @@ function mapTerrainType(terrain) {
   return mapping[terrain?.toUpperCase()] || TERRAIN_TYPE.SUBURBAN;
 }
 
+// Map escape type from frontend to emergent escape type
+function mapEscapeType(escapeType) {
+  const mapping = {
+    'DOOR_DASH': ESCAPE_TYPE.DOOR_DASH,
+    'GATE_LEFT_OPEN': ESCAPE_TYPE.GATE_LEFT_OPEN,
+    'CHASED_BY_ANIMAL': ESCAPE_TYPE.CHASED_BY_ANIMAL,
+    'CHASED_BY_HUMAN': ESCAPE_TYPE.CHASED_BY_HUMAN,
+    'LOUD_NOISE_STARTLE': ESCAPE_TYPE.LOUD_NOISE_STARTLE,
+    'DISASTER': ESCAPE_TYPE.DISASTER,
+    'FELL_FROM_VEHICLE': ESCAPE_TYPE.FELL_FROM_VEHICLE,
+    'WANDERED': ESCAPE_TYPE.WANDERED,
+  };
+  return mapping[escapeType?.toUpperCase()] || ESCAPE_TYPE.DOOR_DASH;
+}
+
 /**
  * Convert old config format to new emergent config format
  */
@@ -124,7 +139,7 @@ export function convertLegacyConfig(legacyConfig) {
     ageCategory: AGE_CATEGORY.ADULT,
     temperament: mapPersonality(legacyConfig.petPersonality),
     isIndoorOnly: legacyConfig.isIndoorPet === true,
-    escapeType: ESCAPE_TYPE.DOOR_DASH,
+    escapeType: mapEscapeType(legacyConfig.escapeType),
     hasCollar: legacyConfig.hasCollar !== false,
     hasVisibleTags: legacyConfig.hasCollar !== false,
     hasMicrochip: legacyConfig.hasMicrochip === true,
