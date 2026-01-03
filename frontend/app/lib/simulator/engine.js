@@ -440,6 +440,8 @@ export class SimulationEngine {
   /**
    * Check if a searcher detects the pet at the FINAL position
    * (not the animated position)
+   *
+   * Uses the Koopman POD detection model with SAR-derived sweep widths.
    */
   checkDetectionAtFinalPosition(searcher, currentHour) {
     const distance = this.calculateDistance(
@@ -447,7 +449,7 @@ export class SimulationEngine {
       searcher.lat, searcher.lng
     );
 
-    // Detection probability based on all factors
+    // Detection probability using Koopman POD model
     const probability = calculateDetectionProbability({
       distance,
       petState: this.pet.state, // Use animated state for detection modifiers
@@ -455,13 +457,15 @@ export class SimulationEngine {
       terrainType: this.config.terrainType,
       currentHour,
       searcherFatigueHours: searcher.hoursSearching,
+      species: this.config.petSpecies?.toLowerCase() || 'dog',
+      searcherStepDistance: 0.02, // ~100m per 5-minute step
     });
 
     return this.random() < probability;
   }
 
   /**
-   * Check if a searcher detects the pet
+   * Check if a searcher detects the pet (legacy - uses animated position)
    */
   checkDetection(searcher, currentHour) {
     const distance = this.calculateDistance(
@@ -469,7 +473,7 @@ export class SimulationEngine {
       searcher.lat, searcher.lng
     );
 
-    // Detection probability based on all factors
+    // Detection probability using Koopman POD model
     const probability = calculateDetectionProbability({
       distance,
       petState: this.pet.state,
@@ -477,6 +481,8 @@ export class SimulationEngine {
       terrainType: this.config.terrainType,
       currentHour,
       searcherFatigueHours: searcher.hoursSearching,
+      species: this.config.petSpecies?.toLowerCase() || 'dog',
+      searcherStepDistance: 0.02,
     });
 
     return this.random() < probability;

@@ -335,6 +335,151 @@ export function runFullValidation(seed = 42) {
 }
 
 // =============================================================================
+// HOLDOUT VALIDATION FOR BATCH RESULTS
+// =============================================================================
+
+/**
+ * Validation benchmarks for comparing batch simulation outputs
+ * against research literature (Lord 2007a/b, Weiss 2012, etc.)
+ */
+export const BATCH_VALIDATION_BENCHMARKS = {
+  // Recovery rate benchmarks (Weiss 2012)
+  DOG_RECOVERY_RATE: {
+    name: 'Dog Recovery Rate',
+    source: 'Weiss 2012',
+    expected: 0.93,
+    tolerance: 0.10,
+    testFn: (batch) => batch.successRate / 100,
+  },
+  CAT_RECOVERY_RATE: {
+    name: 'Cat Recovery Rate',
+    source: 'Weiss 2012',
+    expected: 0.749,
+    tolerance: 0.15,
+    testFn: (batch) => batch.successRate / 100,
+  },
+
+  // Recovery mode distribution (Weiss 2012)
+  DOG_ACTIVE_SEARCH: {
+    name: 'Dog Found by Active Search',
+    source: 'Weiss 2012',
+    expected: 0.49,
+    tolerance: 0.15,
+    testFn: (batch) => {
+      const found = batch.totalRuns - batch.timeoutSearchingCount - batch.timeoutShelteredCount;
+      return found > 0 ? batch.foundBySearcherCount / found : 0;
+    },
+  },
+  CAT_SELF_RETURN: {
+    name: 'Cat Self-Return Rate',
+    source: 'Weiss 2012',
+    expected: 0.59,
+    tolerance: 0.15,
+    testFn: (batch) => {
+      const found = batch.totalRuns - batch.timeoutSearchingCount - batch.timeoutShelteredCount;
+      return found > 0 ? batch.returnedHomeCount / found : 0;
+    },
+  },
+
+  // Shelter rates (Weiss 2012)
+  DOG_SHELTER_RATE: {
+    name: 'Dog Found via Shelter',
+    source: 'Weiss 2012',
+    expected: 0.06,
+    tolerance: 0.50, // 50% tolerance due to low base rate
+    testFn: (batch) => {
+      const found = batch.totalRuns - batch.timeoutSearchingCount - batch.timeoutShelteredCount;
+      return found > 0 ? batch.foundViaShelterCount / found : 0;
+    },
+  },
+  CAT_SHELTER_RATE: {
+    name: 'Cat Found via Shelter',
+    source: 'Weiss 2012',
+    expected: 0.02,
+    tolerance: 0.50,
+    testFn: (batch) => {
+      const found = batch.totalRuns - batch.timeoutSearchingCount - batch.timeoutShelteredCount;
+      return found > 0 ? batch.foundViaShelterCount / found : 0;
+    },
+  },
+};
+
+/**
+ * Validate batch simulation results against research benchmarks
+ *
+ * @param {object} batchResult - Result from batch simulation
+ * @param {string} species - 'cat' or 'dog'
+ * @returns {object} Validation results
+ */
+export function validateBatchResults(batchResult, species = 'dog') {
+  const results = [];
+  const speciesUpper = species.toUpperCase();
+
+  for (const [key, benchmark] of Object.entries(BATCH_VALIDATION_BENCHMARKS)) {
+    // Only run benchmarks matching the species
+    if (key.startsWith('DOG') && species !== 'dog') continue;
+    if (key.startsWith('CAT') && species !== 'cat') continue;
+
+    const actual = benchmark.testFn(batchResult);
+    const expected = benchmark.expected;
+    const deviation = Math.abs(actual - expected) / expected;
+    const passed = deviation <= benchmark.tolerance;
+
+    results.push({
+      name: benchmark.name,
+      source: benchmark.source,
+      expected: (expected * 100).toFixed(1) + '%',
+      actual: (actual * 100).toFixed(1) + '%',
+      deviation: (deviation * 100).toFixed(1) + '%',
+      tolerance: (benchmark.tolerance * 100).toFixed(0) + '%',
+      passed,
+      status: passed ? 'PASS' : 'FAIL',
+    });
+  }
+
+  const passedCount = results.filter(r => r.passed).length;
+  const failedCount = results.filter(r => !r.passed).length;
+
+  return {
+    species,
+    results,
+    summary: {
+      passed: passedCount,
+      failed: failedCount,
+      total: results.length,
+      passRate: ((passedCount / results.length) * 100).toFixed(1) + '%',
+    },
+    allPassed: failedCount === 0,
+    recommendation: failedCount > 0
+      ? `${failedCount} validation(s) failed - review calibration of: ${results.filter(r => !r.passed).map(r => r.name).join(', ')}`
+      : 'All validations passed - simulation aligns with research benchmarks',
+  };
+}
+
+/**
+ * Generate markdown report of batch validation
+ *
+ * @param {object} validationResult - Result from validateBatchResults
+ * @returns {string} Markdown formatted report
+ */
+export function generateBatchValidationReport(validationResult) {
+  let report = `## Batch Validation Report (${validationResult.species})\n\n`;
+  report += `Pass Rate: **${validationResult.summary.passRate}** (${validationResult.summary.passed}/${validationResult.summary.total})\n\n`;
+
+  report += '| Benchmark | Source | Expected | Actual | Deviation | Status |\n';
+  report += '|-----------|--------|----------|--------|-----------|--------|\n';
+
+  for (const result of validationResult.results) {
+    const emoji = result.passed ? '✓' : '✗';
+    report += `| ${result.name} | ${result.source} | ${result.expected} | ${result.actual} | ${result.deviation} | ${emoji} ${result.status} |\n`;
+  }
+
+  report += '\n**Recommendation:** ' + validationResult.recommendation + '\n';
+
+  return report;
+}
+
+// =============================================================================
 // EXPORTS FOR TESTING
 // =============================================================================
 

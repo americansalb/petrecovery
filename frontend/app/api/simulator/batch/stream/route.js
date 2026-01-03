@@ -7,9 +7,15 @@
  * - start: { total, requestId }
  * - status: { message }
  * - simulation: { individual simulation result - streamed as each completes }
- * - progress: { completed, total, percent, successRate, outcomes }
+ * - progress: { completed, total, percent, successRate, outcomes, convergence }
+ * - converged: { message } - sent when CoV drops below threshold
  * - complete: { batch summary with all simulations }
  * - error: { error message }
+ *
+ * CONVERGENCE DIAGNOSTICS:
+ * Uses Coefficient of Variation (CoV) = std deviation / mean
+ * When CoV < 0.05 (5%), the estimate is considered converged.
+ * This is calculated incrementally using Welford's online algorithm.
  *
  * Memory-safe: Uses incremental aggregation, streams results instead of storing.
  * Supports up to 100,000 simulations (will take time but won't crash).
@@ -22,6 +28,78 @@ export const dynamic = 'force-dynamic';
 
 // Maximum batch size - memory safe due to incremental aggregation
 const MAX_BATCH_SIZE = 100000;
+
+// Convergence threshold - CoV must be below this for statistical convergence
+const CONVERGENCE_THRESHOLD = 0.05; // 5% relative precision
+
+/**
+ * Welford's Online Algorithm for calculating variance incrementally
+ * This allows us to calculate standard deviation without storing all values
+ *
+ * Reference: Welford, B.P. (1962). "Note on a method for calculating
+ * corrected sums of squares and products". Technometrics. 4(3): 419–420.
+ */
+class WelfordAggregator {
+  constructor() {
+    this.n = 0;
+    this.mean = 0;
+    this.M2 = 0; // Sum of squared differences from mean
+  }
+
+  /**
+   * Add a new value to the running statistics
+   * @param {number} x - New value to add
+   */
+  update(x) {
+    this.n++;
+    const delta = x - this.mean;
+    this.mean += delta / this.n;
+    const delta2 = x - this.mean;
+    this.M2 += delta * delta2;
+  }
+
+  /**
+   * Get current variance (sample variance, n-1 denominator)
+   */
+  get variance() {
+    if (this.n < 2) return 0;
+    return this.M2 / (this.n - 1);
+  }
+
+  /**
+   * Get current standard deviation
+   */
+  get stdDev() {
+    return Math.sqrt(this.variance);
+  }
+
+  /**
+   * Get Coefficient of Variation (CV or CoV)
+   * CV = std deviation / mean
+   * Lower is better - indicates more precise estimate
+   */
+  get coefficientOfVariation() {
+    if (this.mean === 0 || this.n < 2) return Infinity;
+    return this.stdDev / Math.abs(this.mean);
+  }
+
+  /**
+   * Get standard error of the mean
+   * SE = stdDev / sqrt(n)
+   */
+  get standardError() {
+    if (this.n < 2) return Infinity;
+    return this.stdDev / Math.sqrt(this.n);
+  }
+
+  /**
+   * Check if we've converged based on CoV threshold
+   * @param {number} threshold - CoV threshold (default 0.05 = 5%)
+   */
+  hasConverged(threshold = CONVERGENCE_THRESHOLD) {
+    return this.n >= 30 && this.coefficientOfVariation < threshold;
+  }
+}
 
 export async function POST(request) {
   const requestId = `stream_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -93,6 +171,13 @@ export async function POST(request) {
         const timesToFind = [];
         const startTime = Date.now();
 
+        // Convergence tracking using Welford's algorithm
+        // Track success rate as binary outcomes (1 = success, 0 = timeout)
+        const successRateAgg = new WelfordAggregator();
+        const timeToFindAgg = new WelfordAggregator();
+        let hasConverged = false;
+        let convergedAt = null;
+
         for (let i = 0; i < size; i++) {
           try {
             const engine = new SimulationEngine(config);
@@ -101,10 +186,29 @@ export async function POST(request) {
             outcomes[result.outcome]++;
             totalPetDistance += result.petDistanceMiles || 0;
 
+            // Track success as binary (1 = found, 0 = timeout)
+            const isSuccess = !result.outcome.startsWith('TIMEOUT') ? 1 : 0;
+            successRateAgg.update(isSuccess);
+
             if (result.foundAtMinute && !result.outcome.startsWith('TIMEOUT')) {
               totalTimeToFind += result.foundAtMinute;
               foundCount++;
               timesToFind.push(result.foundAtMinute);
+              timeToFindAgg.update(result.foundAtMinute);
+            }
+
+            // Check for convergence (only trigger once)
+            if (!hasConverged && successRateAgg.hasConverged()) {
+              hasConverged = true;
+              convergedAt = i + 1;
+              sendEvent('converged', {
+                message: `Statistical convergence reached at ${i + 1} simulations`,
+                runsToConvergence: i + 1,
+                finalCoV: (successRateAgg.coefficientOfVariation * 100).toFixed(2) + '%',
+                successRate: (successRateAgg.mean * 100).toFixed(1) + '%',
+                standardError: (successRateAgg.standardError * 100).toFixed(2) + '%',
+              });
+              console.log(`[${requestId}] ✅ Converged at ${i + 1} sims, CoV=${(successRateAgg.coefficientOfVariation * 100).toFixed(2)}%`);
             }
 
             // Send the individual simulation result (without full path data to save bandwidth)
@@ -126,12 +230,25 @@ export async function POST(request) {
             // Send progress summary every 10 simulations (or every sim for small batches)
             if (size <= 100 || (i + 1) % 10 === 0 || i === size - 1) {
               const successSoFar = (i + 1) - (outcomes[OUTCOMES.TIMEOUT_SEARCHING] || 0) - (outcomes[OUTCOMES.TIMEOUT_SHELTERED] || 0);
+
+              // Calculate convergence metrics
+              const cov = successRateAgg.n >= 2 ? successRateAgg.coefficientOfVariation : null;
+              const se = successRateAgg.n >= 2 ? successRateAgg.standardError : null;
+
               sendEvent('progress', {
                 completed: i + 1,
                 total: size,
                 percent: Math.round(((i + 1) / size) * 100),
                 successRate: ((successSoFar / (i + 1)) * 100).toFixed(1),
                 outcomes: { ...outcomes },
+                // Convergence diagnostics
+                convergence: {
+                  coefficientOfVariation: cov != null ? (cov * 100).toFixed(2) : null,
+                  standardError: se != null ? (se * 100).toFixed(2) : null,
+                  hasConverged,
+                  convergedAt,
+                  threshold: (CONVERGENCE_THRESHOLD * 100).toFixed(0) + '%',
+                },
               });
             }
 
@@ -177,6 +294,25 @@ export async function POST(request) {
           timeoutSearchingCount: outcomes[OUTCOMES.TIMEOUT_SEARCHING] || 0,
           timeoutShelteredCount: outcomes[OUTCOMES.TIMEOUT_SHELTERED] || 0,
           executionTimeSeconds: parseFloat(totalTime),
+          // Convergence diagnostics
+          convergence: {
+            coefficientOfVariation: (successRateAgg.coefficientOfVariation * 100).toFixed(2) + '%',
+            standardError: (successRateAgg.standardError * 100).toFixed(2) + '%',
+            hasConverged,
+            convergedAt,
+            threshold: (CONVERGENCE_THRESHOLD * 100).toFixed(0) + '%',
+            recommendation: hasConverged
+              ? 'Estimate is statistically stable'
+              : size < 100
+              ? 'Run more simulations for stable estimate (recommend 100+)'
+              : 'Estimate may still have high variance',
+          },
+          // Time to find statistics
+          timeToFindStats: foundCount >= 2 ? {
+            mean: timeToFindAgg.mean.toFixed(1),
+            stdDev: timeToFindAgg.stdDev.toFixed(1),
+            coefficientOfVariation: (timeToFindAgg.coefficientOfVariation * 100).toFixed(2) + '%',
+          } : null,
         };
 
         console.log(`[${requestId}] 🎉 Complete: ${batch.successRate.toFixed(1)}% in ${totalTime}s`);

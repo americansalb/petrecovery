@@ -18,6 +18,7 @@ import BatchResults from './components/BatchResults';
 import BatchCharts from './components/BatchCharts';
 import PlaybackControls from './components/PlaybackControls';
 import RecoveryGuidance from './components/RecoveryGuidance';
+import SensitivityPanel from './components/SensitivityPanel';
 import {
   Play, Pause, RotateCcw, BarChart3, Settings2,
   Map, List, FlaskConical, Info, LineChart, FileText, Lightbulb, Loader2
@@ -507,13 +508,23 @@ export default function SimulatorPage() {
               </div>
             </div>
 
-            {/* Playback Controls */}
+            {/* Playback Controls & Sensitivity Analysis */}
             {selectedSimulation && (
-              <PlaybackControls
-                simulation={selectedSimulation}
-                playbackState={playbackState}
-                onPlaybackChange={setPlaybackState}
-              />
+              <div className="flex flex-col xl:flex-row gap-4">
+                <div className="flex-1">
+                  <PlaybackControls
+                    simulation={selectedSimulation}
+                    playbackState={playbackState}
+                    onPlaybackChange={setPlaybackState}
+                  />
+                </div>
+                <div className="xl:w-80">
+                  <SensitivityPanel
+                    simulation={selectedSimulation}
+                    config={config}
+                  />
+                </div>
+              </div>
             )}
           </div>
         </div>
