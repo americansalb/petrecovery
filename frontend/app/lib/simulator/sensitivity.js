@@ -10,8 +10,15 @@
  * 3. Guide Phase 0 research toward parameters that matter most
  */
 
-import { UNVERIFIED_PARAMS, COLLAR_TAG } from './researchConfig.js';
+import {
+  UNVERIFIED_PARAMS,
+  COLLAR_TAG,
+  getUncertainParameters,
+  sampleUncertainParam,
+  rankParametersByUncertainty
+} from './researchConfig.js';
 import { createSeededRandom } from './validation.js';
+import { SimulationEngine, OUTCOMES } from './engine.js';
 
 // =============================================================================
 // SENSITIVITY ANALYSIS CONFIGURATION
@@ -461,9 +468,203 @@ export function mockSimulationRunner(params, samples, random) {
 }
 
 // =============================================================================
+// MONTE CARLO UNCERTAINTY QUANTIFICATION
+// =============================================================================
+
+/**
+ * Run Monte Carlo uncertainty quantification
+ *
+ * For each simulation, randomly sample ALL uncertain parameters from their
+ * distributions, then aggregate results to build output distributions.
+ *
+ * @param {object} baseConfig - Base simulation configuration
+ * @param {number} runs - Number of Monte Carlo runs (default 500)
+ * @param {function} progressCallback - Called with progress updates
+ * @returns {Promise<object>} Uncertainty quantification results with confidence intervals
+ */
+export async function runMonteCarloUQ(baseConfig, runs = 500, progressCallback = null) {
+  const uncertainParams = getUncertainParameters();
+  const successRates = [];
+  const timesToFind = [];
+  const allOutcomes = [];
+
+  const seededRandom = createSeededRandom(Date.now());
+
+  for (let i = 0; i < runs; i++) {
+    // Sample all uncertain parameters
+    const overrides = {};
+
+    for (const param of uncertainParams) {
+      const sampledValue = sampleUncertainParam(param, seededRandom);
+      overrides[param.path] = sampledValue;
+    }
+
+    // Run single simulation with sampled parameters
+    try {
+      const engine = new SimulationEngine({
+        ...baseConfig,
+        _parameterOverrides: overrides,
+      });
+      const result = engine.run();
+
+      const isSuccess = !result.outcome.startsWith('TIMEOUT');
+      successRates.push(isSuccess ? 1 : 0);
+      allOutcomes.push(result.outcome);
+
+      if (result.foundAtMinute && isSuccess) {
+        timesToFind.push(result.foundAtMinute);
+      }
+
+    } catch (e) {
+      console.warn(`Monte Carlo run ${i} failed:`, e.message);
+    }
+
+    if (progressCallback && (i + 1) % 10 === 0) {
+      progressCallback({
+        completed: i + 1,
+        total: runs,
+        percent: Math.round(((i + 1) / runs) * 100),
+      });
+    }
+
+    // Yield periodically to prevent blocking
+    if (i % 5 === 0) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+  }
+
+  // Calculate statistics
+  const stats = calculateStatistics(successRates);
+  const timeStats = timesToFind.length > 0 ? calculateStatistics(timesToFind) : null;
+
+  // Outcome distribution
+  const outcomeCounts = {};
+  for (const outcome of allOutcomes) {
+    outcomeCounts[outcome] = (outcomeCounts[outcome] || 0) + 1;
+  }
+
+  return {
+    runs,
+    successRate: {
+      mean: stats.mean * 100,
+      stdDev: stats.stdDev * 100,
+      ci95Lower: Math.max(0, (stats.mean - 1.96 * stats.stdError) * 100),
+      ci95Upper: Math.min(100, (stats.mean + 1.96 * stats.stdError) * 100),
+      ci99Lower: Math.max(0, (stats.mean - 2.576 * stats.stdError) * 100),
+      ci99Upper: Math.min(100, (stats.mean + 2.576 * stats.stdError) * 100),
+    },
+    timeToFind: timeStats ? {
+      mean: timeStats.mean,
+      stdDev: timeStats.stdDev,
+      median: timeStats.median,
+      ci95Lower: Math.max(0, timeStats.mean - 1.96 * timeStats.stdError),
+      ci95Upper: timeStats.mean + 1.96 * timeStats.stdError,
+    } : null,
+    outcomeDistribution: outcomeCounts,
+    parametersAnalyzed: uncertainParams.length,
+    analysisDate: new Date().toISOString(),
+  };
+}
+
+/**
+ * Calculate statistics for an array of numbers
+ */
+function calculateStatistics(values) {
+  if (values.length === 0) {
+    return { mean: 0, stdDev: 0, stdError: 0, median: 0 };
+  }
+
+  const n = values.length;
+  const mean = values.reduce((a, b) => a + b, 0) / n;
+
+  const squaredDiffs = values.map(v => (v - mean) ** 2);
+  const variance = squaredDiffs.reduce((a, b) => a + b, 0) / n;
+  const stdDev = Math.sqrt(variance);
+  const stdError = stdDev / Math.sqrt(n);
+
+  const sorted = [...values].sort((a, b) => a - b);
+  const median = n % 2 === 0
+    ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2
+    : sorted[Math.floor(n / 2)];
+
+  return { mean, stdDev, stdError, median, n };
+}
+
+// =============================================================================
+// QUICK UNCERTAINTY ESTIMATE
+// =============================================================================
+
+/**
+ * Get a quick uncertainty estimate without running full Monte Carlo
+ *
+ * Uses analytical approximation based on parameter uncertainty ranges.
+ * Less accurate but instant.
+ *
+ * @param {number} nominalSuccessRate - Success rate from nominal simulation (0-100)
+ * @returns {object} Estimated uncertainty bounds
+ */
+export function estimateUncertaintyBounds(nominalSuccessRate) {
+  const rankedParams = rankParametersByUncertainty();
+
+  // Sum of squared uncertainty contributions (simplified)
+  let totalUncertainty = 0;
+
+  for (const param of rankedParams) {
+    // Estimate each parameter's contribution to output uncertainty
+    // Using a rough sensitivity coefficient
+    const paramUncertainty = param.uncertaintyScore * 0.03; // 3% per unit score
+    totalUncertainty += paramUncertainty * paramUncertainty;
+  }
+
+  // Combined standard deviation (root sum of squares)
+  const combinedStdDev = Math.sqrt(totalUncertainty) * nominalSuccessRate;
+
+  return {
+    nominal: nominalSuccessRate,
+    estimatedStdDev: combinedStdDev,
+    ci95Lower: Math.max(0, nominalSuccessRate - 1.96 * combinedStdDev),
+    ci95Upper: Math.min(100, nominalSuccessRate + 1.96 * combinedStdDev),
+    warning: 'Quick estimate - run full Monte Carlo UQ for accurate bounds',
+    unverifiedParameterCount: rankedParams.length,
+  };
+}
+
+/**
+ * Format uncertainty analysis results for display
+ */
+export function formatUncertaintyReport(uqResults) {
+  const sr = uqResults.successRate;
+
+  return {
+    summary: `${sr.mean.toFixed(1)}% ± ${sr.stdDev.toFixed(1)}%`,
+    confidence95: `${sr.ci95Lower.toFixed(1)}% - ${sr.ci95Upper.toFixed(1)}%`,
+    confidence99: `${sr.ci99Lower.toFixed(1)}% - ${sr.ci99Upper.toFixed(1)}%`,
+    interpretation: getConfidenceInterpretation(sr),
+    timeToFind: uqResults.timeToFind
+      ? `${uqResults.timeToFind.mean.toFixed(0)} ± ${uqResults.timeToFind.stdDev.toFixed(0)} minutes`
+      : 'N/A',
+  };
+}
+
+function getConfidenceInterpretation(successRate) {
+  const range = successRate.ci95Upper - successRate.ci95Lower;
+
+  if (range < 5) {
+    return 'High confidence - results are robust to parameter uncertainty';
+  } else if (range < 15) {
+    return 'Moderate confidence - some sensitivity to uncertain parameters';
+  } else if (range < 30) {
+    return 'Low confidence - results significantly affected by uncertain parameters';
+  } else {
+    return 'Very low confidence - more research needed to validate parameters';
+  }
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
 export {
-  analyzeParameter as analyzeSingleParameter
+  analyzeParameter as analyzeSingleParameter,
+  calculateStatistics
 };
