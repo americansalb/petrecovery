@@ -104,9 +104,34 @@ export default function PlaybackControls({
   const animationRef = useRef(null);
   const lastTimeRef = useRef(null);
 
-  // Parse path data
-  const petPath = simulation?.petPathJson ? JSON.parse(simulation.petPathJson) : [];
-  const searcherPaths = simulation?.searcherPathsJson ? JSON.parse(simulation.searcherPathsJson) : [];
+  // Parse path data - check for both JSON string and direct array
+  const petPath = useMemo(() => {
+    if (simulation?.petPath && Array.isArray(simulation.petPath)) {
+      return simulation.petPath;
+    }
+    if (simulation?.petPathJson) {
+      try {
+        return JSON.parse(simulation.petPathJson);
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  }, [simulation?.petPath, simulation?.petPathJson]);
+
+  const searcherPaths = useMemo(() => {
+    if (simulation?.searcherPaths && Array.isArray(simulation.searcherPaths)) {
+      return simulation.searcherPaths;
+    }
+    if (simulation?.searcherPathsJson) {
+      try {
+        return JSON.parse(simulation.searcherPathsJson);
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  }, [simulation?.searcherPaths, simulation?.searcherPathsJson]);
   const maxMinute = petPath.length > 0 ? petPath[petPath.length - 1].minute : 0;
 
   // Update positions based on current minute

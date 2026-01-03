@@ -301,26 +301,25 @@ export default function SimulatorMap({
       markersRef.current.searchers.push(marker);
     });
 
-    // Draw pet path trail
-    if (simulation.petPathJson) {
-      try {
-        const petPath = JSON.parse(simulation.petPathJson);
-        const pathUpToCurrent = petPath
-          .filter(p => p.minute <= playbackState.currentMinute)
-          .map(p => [p.lat, p.lng]);
+    // Draw pet path trail - check for both array and JSON string
+    const petPath = simulation.petPath && Array.isArray(simulation.petPath)
+      ? simulation.petPath
+      : (simulation.petPathJson ? (() => { try { return JSON.parse(simulation.petPathJson); } catch(e) { return []; } })() : []);
 
-        if (pathUpToCurrent.length > 1) {
-          const trail = L.polyline(pathUpToCurrent, {
-            color: '#10b981',
-            weight: 3,
-            opacity: 0.6,
-            dashArray: '5, 5',
-          }).addTo(map);
+    if (petPath.length > 0) {
+      const pathUpToCurrent = petPath
+        .filter(p => p.minute <= playbackState.currentMinute)
+        .map(p => [p.lat, p.lng]);
 
-          markersRef.current.paths.push(trail);
-        }
-      } catch (e) {
-        console.error('Failed to parse pet path:', e);
+      if (pathUpToCurrent.length > 1) {
+        const trail = L.polyline(pathUpToCurrent, {
+          color: '#10b981',
+          weight: 3,
+          opacity: 0.6,
+          dashArray: '5, 5',
+        }).addTo(map);
+
+        markersRef.current.paths.push(trail);
       }
     }
   }, [simulation, playbackState.petPosition, playbackState.searcherPositions, playbackState.currentMinute]);
