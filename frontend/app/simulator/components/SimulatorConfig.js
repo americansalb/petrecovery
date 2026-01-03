@@ -176,33 +176,33 @@ export default function SimulatorConfig({
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-      <div className="p-4 space-y-5">
+      <div className="p-5 xl:p-6 space-y-6">
         {/* Species Selection */}
         <section>
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <h3 className="text-base font-semibold text-gray-700 mb-3 flex items-center gap-2">
             Pet Type
           </h3>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-3">
             {Object.entries(SPECIES_CONFIG).map(([key, { label, icon: Icon }]) => (
               <button
                 key={key}
                 onClick={() => handleSpeciesChange(key)}
-                className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all ${
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
                   config.petSpecies === key
                     ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm'
                     : 'border-gray-200 hover:border-gray-300 text-gray-600'
                 }`}
               >
-                <Icon className="w-6 h-6" />
-                <span className="text-xs font-medium">{label}</span>
+                <Icon className="w-7 h-7" />
+                <span className="text-sm font-medium">{label}</span>
               </button>
             ))}
           </div>
 
           {/* Species behavior hint */}
-          <div className="mt-3 p-2 bg-blue-50 rounded-lg">
-            <p className="text-xs text-blue-700 flex items-start gap-1">
-              <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
+          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-700 flex items-start gap-2">
+              <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
               {speciesConfig.typicalBehavior}
             </p>
           </div>
@@ -210,20 +210,20 @@ export default function SimulatorConfig({
 
         {/* Size - Species Specific */}
         <section>
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">Size</h3>
-          <div className="grid grid-cols-2 gap-2">
+          <h3 className="text-base font-semibold text-gray-700 mb-3">Size</h3>
+          <div className="grid grid-cols-2 gap-3">
             {speciesConfig.sizes.map(({ value, label, desc, weight }) => (
               <button
                 key={value}
                 onClick={() => updateConfig('petSize', value)}
-                className={`p-2 rounded-lg border text-left transition-colors ${
+                className={`p-3 rounded-lg border text-left transition-colors ${
                   config.petSize === value
                     ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
                     : 'border-gray-200 hover:border-gray-300 text-gray-600'
                 }`}
               >
-                <div className="text-xs font-medium">{label}</div>
-                <div className="text-[10px] text-gray-500">{desc}</div>
+                <div className="text-sm font-medium">{label}</div>
+                <div className="text-xs text-gray-500">{desc}</div>
               </button>
             ))}
           </div>
@@ -231,20 +231,20 @@ export default function SimulatorConfig({
 
         {/* Personality - Species Specific */}
         <section>
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">Temperament</h3>
-          <div className="grid grid-cols-3 gap-2">
+          <h3 className="text-base font-semibold text-gray-700 mb-3">Temperament</h3>
+          <div className="grid grid-cols-3 gap-3">
             {speciesConfig.personalities.map(({ value, label, desc }) => (
               <button
                 key={value}
                 onClick={() => updateConfig('petPersonality', value)}
-                className={`p-2 rounded-lg border text-center transition-colors ${
+                className={`p-3 rounded-lg border text-center transition-colors ${
                   config.petPersonality === value
                     ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
                     : 'border-gray-200 hover:border-gray-300 text-gray-600'
                 }`}
               >
-                <div className="text-xs font-medium">{label}</div>
-                <div className="text-[10px] text-gray-500 line-clamp-1">{desc}</div>
+                <div className="text-sm font-medium">{label}</div>
+                <div className="text-xs text-gray-500 line-clamp-1">{desc}</div>
               </button>
             ))}
           </div>
@@ -252,11 +252,11 @@ export default function SimulatorConfig({
 
         {/* Initial State - Species Specific */}
         <section>
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">How They Got Lost</h3>
+          <h3 className="text-base font-semibold text-gray-700 mb-3">How They Got Lost</h3>
           <select
             value={config.initialState}
             onChange={(e) => updateConfig('initialState', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           >
             {speciesConfig.initialStates.map(({ value, label, desc }) => (
               <option key={value} value={value}>{label} - {desc}</option>
@@ -266,67 +266,67 @@ export default function SimulatorConfig({
 
         {/* Toggles - Show only relevant ones */}
         <section>
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">Additional Info</h3>
-          <div className="flex flex-wrap gap-2">
+          <h3 className="text-base font-semibold text-gray-700 mb-3">Additional Info</h3>
+          <div className="flex flex-wrap gap-3">
             {speciesConfig.showIndoor && (
-              <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
+              <label className={`flex items-center gap-2 px-4 py-3 rounded-lg border cursor-pointer transition-colors ${
                 config.isIndoorPet ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'
               }`}>
                 <input
                   type="checkbox"
                   checked={config.isIndoorPet}
                   onChange={(e) => updateConfig('isIndoorPet', e.target.checked)}
-                  className="rounded text-indigo-600"
+                  className="rounded text-indigo-600 w-4 h-4"
                 />
-                <span className="text-xs font-medium">Indoor Only</span>
+                <span className="text-sm font-medium">Indoor Only</span>
               </label>
             )}
-            <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
+            <label className={`flex items-center gap-2 px-4 py-3 rounded-lg border cursor-pointer transition-colors ${
               config.hasMicrochip ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'
             }`}>
               <input
                 type="checkbox"
                 checked={config.hasMicrochip}
                 onChange={(e) => updateConfig('hasMicrochip', e.target.checked)}
-                className="rounded text-indigo-600"
+                className="rounded text-indigo-600 w-4 h-4"
               />
-              <span className="text-xs font-medium">Microchipped</span>
+              <span className="text-sm font-medium">Microchipped</span>
             </label>
             {speciesConfig.showCollar && (
-              <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
+              <label className={`flex items-center gap-2 px-4 py-3 rounded-lg border cursor-pointer transition-colors ${
                 config.hasCollar ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'
               }`}>
                 <input
                   type="checkbox"
                   checked={config.hasCollar}
                   onChange={(e) => updateConfig('hasCollar', e.target.checked)}
-                  className="rounded text-indigo-600"
+                  className="rounded text-indigo-600 w-4 h-4"
                 />
-                <span className="text-xs font-medium">Has Collar/Tags</span>
+                <span className="text-sm font-medium">Has Collar/Tags</span>
               </label>
             )}
           </div>
         </section>
 
         {/* Divider */}
-        <div className="border-t border-gray-200" />
+        <div className="border-t border-gray-200 my-2" />
 
         {/* Environment */}
         <section>
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">Environment</h3>
-          <div className="grid grid-cols-3 gap-2">
+          <h3 className="text-base font-semibold text-gray-700 mb-3">Environment</h3>
+          <div className="grid grid-cols-3 gap-3">
             {TERRAIN_OPTIONS.map(({ value, label, icon: Icon, desc }) => (
               <button
                 key={value}
                 onClick={() => updateConfig('terrainType', value)}
-                className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-colors ${
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-colors ${
                   config.terrainType === value
                     ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
                     : 'border-gray-200 hover:border-gray-300 text-gray-600'
                 }`}
               >
-                <Icon className="w-5 h-5" />
-                <span className="text-xs font-medium">{label}</span>
+                <Icon className="w-6 h-6" />
+                <span className="text-sm font-medium">{label}</span>
               </button>
             ))}
           </div>
@@ -334,11 +334,11 @@ export default function SimulatorConfig({
 
         {/* Search Radius */}
         <section>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-gray-700">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-base font-semibold text-gray-700">
               Search Radius: {config.searchRadiusMiles} mi
             </h3>
-            <span className="text-[10px] text-gray-400">
+            <span className="text-xs text-gray-400">
               Recommended: {recommendedRadius} mi
             </span>
           </div>
@@ -349,17 +349,17 @@ export default function SimulatorConfig({
             step="0.1"
             value={config.searchRadiusMiles}
             onChange={(e) => updateConfig('searchRadiusMiles', parseFloat(e.target.value))}
-            className="w-full accent-indigo-600"
+            className="w-full accent-indigo-600 h-2"
           />
-          <p className="text-[10px] text-gray-500 mt-1 italic">
+          <p className="text-xs text-gray-500 mt-2 italic">
             Click on map to set last seen location
           </p>
         </section>
 
         {/* Search Team */}
         <section>
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">
-            <Users className="w-4 h-4 inline mr-1" />
+          <h3 className="text-base font-semibold text-gray-700 mb-3">
+            <Users className="w-5 h-5 inline mr-2" />
             Search Team: {config.searcherCount} volunteers
           </h3>
           <input
@@ -369,24 +369,90 @@ export default function SimulatorConfig({
             step="1"
             value={config.searcherCount}
             onChange={(e) => updateConfig('searcherCount', parseInt(e.target.value))}
-            className="w-full accent-indigo-600 mb-3"
+            className="w-full accent-indigo-600 h-2 mb-4"
           />
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             {STRATEGY_OPTIONS.map(({ value, label, desc }) => (
               <button
                 key={value}
                 onClick={() => updateConfig('searchStrategy', value)}
-                className={`p-2 rounded-lg border text-left transition-colors ${
+                className={`p-3 rounded-lg border text-left transition-colors ${
                   config.searchStrategy === value
                     ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
                     : 'border-gray-200 hover:border-gray-300 text-gray-600'
                 }`}
               >
-                <div className="text-xs font-medium">{label}</div>
-                <div className="text-[10px] text-gray-500">{desc}</div>
+                <div className="text-sm font-medium">{label}</div>
+                <div className="text-xs text-gray-500">{desc}</div>
               </button>
             ))}
+          </div>
+        </section>
+
+        {/* Search Timing - Critical for realism */}
+        <section>
+          <h3 className="text-base font-semibold text-gray-700 mb-3">Search Timing</h3>
+          <div className="space-y-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-2">
+                Delay before search starts: {config.searchStartDelayHours}h
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="24"
+                step="1"
+                value={config.searchStartDelayHours}
+                onChange={(e) => updateConfig('searchStartDelayHours', parseInt(e.target.value))}
+                className="w-full accent-amber-600 h-2"
+              />
+              <p className="text-xs text-gray-500 mt-2">Time for owner to realize pet is missing</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">
+                  Search hours: {config.searchHoursStart}:00 - {config.searchHoursEnd}:00
+                </label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={config.searchHoursStart}
+                    onChange={(e) => updateConfig('searchHoursStart', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded text-sm"
+                  />
+                  <span className="text-sm text-gray-500">to</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={config.searchHoursEnd}
+                    onChange={(e) => updateConfig('searchHoursEnd', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">
+                  Volunteer ramp-up: {config.volunteerRampUpHours}h
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="72"
+                  step="1"
+                  value={config.volunteerRampUpHours}
+                  onChange={(e) => updateConfig('volunteerRampUpHours', parseInt(e.target.value))}
+                  className="w-full accent-amber-600 h-2"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-amber-700">
+              Start with {config.initialVolunteerPercent}% of volunteers, reach 100% in {config.volunteerRampUpHours}h
+            </p>
           </div>
         </section>
 
@@ -439,6 +505,21 @@ export default function SimulatorConfig({
 
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Initial Volunteer %: {config.initialVolunteerPercent}%
+                </label>
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  step="10"
+                  value={config.initialVolunteerPercent}
+                  onChange={(e) => updateConfig('initialVolunteerPercent', parseInt(e.target.value))}
+                  className="w-full accent-indigo-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
                   Simulation Detail
                 </label>
                 <select
@@ -457,26 +538,26 @@ export default function SimulatorConfig({
       </div>
 
       {/* Action Buttons */}
-      <div className="p-4 border-t border-gray-200 space-y-2 bg-gray-50">
+      <div className="p-5 xl:p-6 border-t border-gray-200 space-y-3 bg-gray-50">
         <button
           onClick={onRunSingle}
           disabled={isRunning}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+          className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-base"
         >
           {isRunning && !batchProgress ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin" />
               Running Simulation...
             </>
           ) : (
             <>
-              <Play className="w-4 h-4" />
+              <Play className="w-5 h-5" />
               Run Single Simulation
             </>
           )}
         </button>
 
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <input
             type="number"
             min="10"
@@ -484,21 +565,21 @@ export default function SimulatorConfig({
             step="10"
             value={batchSize}
             onChange={(e) => setBatchSize(Math.min(1000, Math.max(10, parseInt(e.target.value) || 100)))}
-            className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm text-center"
+            className="w-24 px-3 py-3 border border-gray-200 rounded-lg text-sm text-center"
           />
           <button
             onClick={() => onRunBatch(batchSize)}
             disabled={isRunning}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
           >
             {batchProgress ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-5 h-5 animate-spin" />
                 {batchProgress.completed}/{batchProgress.total}
               </>
             ) : (
               <>
-                <Zap className="w-4 h-4" />
+                <Zap className="w-5 h-5" />
                 Run {batchSize}x Batch
               </>
             )}
