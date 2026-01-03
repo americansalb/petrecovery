@@ -1,8 +1,9 @@
 # Lost Pet Simulator - Implementation Plan
 
-## Status: Phase 2 Complete
+## Status: Phase 3 Complete (Standalone)
 
-Last updated after consultant feedback integration.
+Last updated: Phase 3.1 (Heatmap) and 3.3 (Recovery Guidance) complete.
+Phase 3.2 (Connect to Reports) deferred until main app stabilizes.
 
 ---
 
@@ -105,27 +106,29 @@ A Monte Carlo simulation tool that predicts where lost pets are likely to be fou
 
 ---
 
-## Phase 3: Remaining Work
+## Phase 3: Standalone Features
 
-### 3.1 Heatmap Overlay
-- [ ] Aggregate "where pets were found" across batch simulations
-- [ ] Render as heatmap layer on map
-- [ ] Compare predicted zones vs. actual find locations
+### 3.1 Heatmap Overlay ✓
+- [x] Aggregate "where pets were found" across batch simulations
+- [x] Render as heatmap layer on map (density-based coloring)
+- [x] Toggle button and legend for heatmap display
+- [x] Individual find markers with outcome-based colors
 
-### 3.2 Connect to Lost Pet Reports
+### 3.2 Connect to Lost Pet Reports (DEFERRED)
+Deferred until main web app stabilizes to avoid fragile connections.
 - [ ] Load config from actual LostPetReport data
 - [ ] Pre-fill location, pet species/size, time lost
 - [ ] Save simulation results linked to case
 - [ ] Show predictions on case detail page
 
-### 3.3 Recovery Guidance (Content, Not Code)
-Add user-facing guidance based on simulation results:
-- Optimal search times (dawn/dusk)
-- Focus areas based on terrain
-- When to check shelters (after 24-48h)
-- Scent/sound strategies for hiding pets
-
-This is **content** displayed alongside predictions, not simulation logic.
+### 3.3 Recovery Guidance ✓
+- [x] Species-specific tips (dogs, cats, birds)
+- [x] Personality-aware strategies (friendly, neutral, shy)
+- [x] Time-based phase guidance (immediate, 24h, 72h, extended)
+- [x] Terrain-specific focus areas
+- [x] Attraction methods and warnings
+- [x] Night search tips for cats/shy pets
+- [x] Integration with batch results insights
 
 ---
 
@@ -197,10 +200,11 @@ frontend/app/
 │   ├── page.js                    # Main page ✓
 │   └── components/
 │       ├── SimulatorConfig.js     # Config form ✓
-│       ├── SimulatorMap.js        # Leaflet map ✓
+│       ├── SimulatorMap.js        # Leaflet map + heatmap ✓
 │       ├── PlaybackControls.js    # Animation controls ✓
 │       ├── SimulationList.js      # Results list ✓
-│       └── BatchResults.js        # Analytics ✓
+│       ├── BatchResults.js        # Analytics ✓
+│       └── RecoveryGuidance.js    # Recovery tips ✓
 │
 ├── api/simulator/
 │   ├── route.js                   # Single simulation ✓
@@ -229,7 +233,12 @@ frontend/app/
 
 ## Next Steps
 
-1. **Phase 3.2** - Connect to actual lost pet reports (highest value)
-2. **Phase 3.1** - Add heatmap visualization
-3. **Phase 3.3** - Add recovery guidance content
-4. **Phase 4** - Begin calibration once we have 50+ resolved cases with location data
+1. **Phase 3.2** - Connect to actual lost pet reports (when main app stabilizes)
+2. **Phase 4** - Begin calibration once we have 50+ resolved cases with location data
+
+The simulator is now a **complete standalone feature** with:
+- Full Monte Carlo simulation engine
+- Real OSM terrain integration
+- Heatmap visualization of find locations
+- Contextual recovery guidance
+- Batch statistics and analytics

@@ -16,6 +16,7 @@ import SimulatorConfig from './components/SimulatorConfig';
 import SimulationList from './components/SimulationList';
 import BatchResults from './components/BatchResults';
 import PlaybackControls from './components/PlaybackControls';
+import RecoveryGuidance from './components/RecoveryGuidance';
 import {
   Play, Pause, RotateCcw, BarChart3, Settings2,
   Map, List, FlaskConical, Info
@@ -242,9 +243,15 @@ export default function SimulatorPage() {
               )}
 
               {activeTab === 'analytics' && (
-                <BatchResults
-                  batch={selectedBatch}
-                />
+                <div className="space-y-4">
+                  <BatchResults
+                    batch={selectedBatch}
+                  />
+                  <RecoveryGuidance
+                    config={config}
+                    batch={selectedBatch}
+                  />
+                </div>
               )}
             </div>
           </div>
@@ -258,6 +265,7 @@ export default function SimulatorPage() {
                 simulation={selectedSimulation}
                 playbackState={playbackState}
                 onLocationSelect={handleLocationSelect}
+                batch={selectedBatch}
               />
 
               {/* Map Legend */}

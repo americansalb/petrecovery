@@ -8,7 +8,7 @@ import { useState } from 'react';
 import {
   CheckCircle2, XCircle, Clock, Home, Building2,
   Share2, Smartphone, Search, AlertTriangle,
-  ChevronDown, ChevronRight, Layers, BarChart3
+  ChevronDown, ChevronRight, Layers, BarChart3, MapPin
 } from 'lucide-react';
 
 const OUTCOME_CONFIG = {
@@ -150,7 +150,10 @@ function BatchGroup({ batch, isSelected, isExpanded, onToggle, onSelect, onSelec
     <div className={`border-l-2 ${isSelected ? 'border-indigo-500' : 'border-transparent'}`}>
       {/* Batch Header */}
       <button
-        onClick={onToggle}
+        onClick={() => {
+          onToggle();
+          onSelect(); // Also select the batch for heatmap display
+        }}
         className={`w-full p-3 text-left hover:bg-gray-50 transition-colors ${
           isSelected ? 'bg-indigo-50' : ''
         }`}
@@ -172,6 +175,12 @@ function BatchGroup({ batch, isSelected, isExpanded, onToggle, onSelect, onSelec
               <span className="text-sm font-medium text-gray-900">
                 Batch of {totalRuns}
               </span>
+              {isSelected && (
+                <span className="flex items-center gap-1 px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-[10px] font-medium">
+                  <MapPin className="w-2.5 h-2.5" />
+                  Heatmap
+                </span>
+              )}
             </div>
 
             <div className="text-xs text-gray-500 mt-1">
