@@ -351,6 +351,78 @@ export default function SimulatorConfig({
           </div>
         </section>
 
+        {/* Outreach & Visibility - Affects stranger return probability */}
+        <section>
+          <h3 className="text-base font-semibold text-gray-700 mb-3">
+            Outreach Efforts
+            <span className="ml-2 text-xs font-normal text-gray-400">(affects stranger return rate)</span>
+          </h3>
+          <div className="grid grid-cols-2 gap-2">
+            <label
+              className={`flex items-center gap-2 px-3 py-3 rounded-lg border cursor-pointer transition-colors ${
+                config.postedOnSocialMedia ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'
+              }`}
+              title="Posts on Facebook, Nextdoor, local groups. +25% visibility"
+            >
+              <input
+                type="checkbox"
+                checked={config.postedOnSocialMedia || false}
+                onChange={(e) => updateConfig('postedOnSocialMedia', e.target.checked)}
+                className="rounded text-indigo-600 w-4 h-4"
+              />
+              <span className="text-sm font-medium">Posted on Social Media</span>
+            </label>
+
+            <label
+              className={`flex items-center gap-2 px-3 py-3 rounded-lg border cursor-pointer transition-colors ${
+                config.postedFlyers ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'
+              }`}
+              title="Physical flyers in neighborhood. +20% visibility"
+            >
+              <input
+                type="checkbox"
+                checked={config.postedFlyers || false}
+                onChange={(e) => updateConfig('postedFlyers', e.target.checked)}
+                className="rounded text-indigo-600 w-4 h-4"
+              />
+              <span className="text-sm font-medium">Posted Flyers</span>
+            </label>
+
+            <label
+              className={`flex items-center gap-2 px-3 py-3 rounded-lg border cursor-pointer transition-colors ${
+                config.contactedShelters ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'
+              }`}
+              title="Called local shelters and vets. +15% visibility"
+            >
+              <input
+                type="checkbox"
+                checked={config.contactedShelters || false}
+                onChange={(e) => updateConfig('contactedShelters', e.target.checked)}
+                className="rounded text-indigo-600 w-4 h-4"
+              />
+              <span className="text-sm font-medium">Contacted Shelters</span>
+            </label>
+
+            <label
+              className={`flex items-center gap-2 px-3 py-3 rounded-lg border cursor-pointer transition-colors ${
+                config.listedOnPetRecoveryPlatform ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'
+              }`}
+              title="Listed on PetFBI, Pawboost, etc. +15% visibility"
+            >
+              <input
+                type="checkbox"
+                checked={config.listedOnPetRecoveryPlatform || false}
+                onChange={(e) => updateConfig('listedOnPetRecoveryPlatform', e.target.checked)}
+                className="rounded text-indigo-600 w-4 h-4"
+              />
+              <span className="text-sm font-medium">Listed on Pet Recovery Site</span>
+            </label>
+          </div>
+          <p className="text-xs text-gray-400 mt-2 italic">
+            More outreach = higher chance strangers recognize your pet from postings
+          </p>
+        </section>
+
         {/* Divider */}
         <div className="border-t border-gray-200 my-2" />
 

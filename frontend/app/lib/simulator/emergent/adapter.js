@@ -151,6 +151,11 @@ export function convertLegacyConfig(legacyConfig) {
     searchStartDelayHours: legacyConfig.searchStartDelayHours || 2,
     searchHoursStart: legacyConfig.searchHoursStart || 7,
     searchHoursEnd: legacyConfig.searchHoursEnd || 21,
+    // Outreach/visibility options - affect stranger return probability
+    postedOnSocialMedia: legacyConfig.postedOnSocialMedia === true,
+    postedFlyers: legacyConfig.postedFlyers === true,
+    contactedShelters: legacyConfig.contactedShelters === true,
+    listedOnPetRecoveryPlatform: legacyConfig.listedOnPetRecoveryPlatform === true,
   });
 
   const environmentConfig = buildEnvironmentConfig({

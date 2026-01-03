@@ -377,6 +377,23 @@ export function buildSearcherConfig(userInputs) {
     searchStrategy = 'PROBABILITY',
   } = userInputs;
 
+  // Outreach/visibility factors - affects stranger return probability
+  const {
+    postedOnSocialMedia = false,      // Facebook, Nextdoor, etc.
+    postedFlyers = false,             // Physical flyers in neighborhood
+    contactedShelters = false,        // Called local shelters
+    listedOnPetRecoveryPlatform = false,  // PetFBI, Pawboost, etc.
+  } = userInputs;
+
+  // Calculate visibility score (0-1) based on outreach efforts
+  // Higher visibility = strangers more likely to return pet directly
+  let visibilityScore = 0.1;  // Base: 10% chance stranger knows to contact owner
+  if (postedOnSocialMedia) visibilityScore += 0.25;
+  if (postedFlyers) visibilityScore += 0.20;
+  if (contactedShelters) visibilityScore += 0.15;
+  if (listedOnPetRecoveryPlatform) visibilityScore += 0.15;
+  visibilityScore = Math.min(1, visibilityScore);
+
   return {
     searcherCount,
     searchStartDelayHours,
@@ -387,6 +404,12 @@ export function buildSearcherConfig(userInputs) {
     hasSearchDog,
     searchDogType,
     searchStrategy,
+    // Outreach factors
+    postedOnSocialMedia,
+    postedFlyers,
+    contactedShelters,
+    listedOnPetRecoveryPlatform,
+    visibilityScore,  // Combined visibility metric
   };
 }
 
