@@ -27,7 +27,10 @@
  * }
  */
 
-import { SimulationEngine, loadTerrain } from '@/app/lib/simulator/engine';
+import {
+  LegacyEmergentSimulationEngine as SimulationEngine,
+  loadTerrain,
+} from '@/app/lib/simulator/emergent/adapter';
 
 export const runtime = 'nodejs';
 

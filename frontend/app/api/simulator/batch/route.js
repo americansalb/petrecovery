@@ -9,7 +9,11 @@
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/app/lib/prisma';
-import { SimulationEngine, loadTerrain, OUTCOMES } from '@/app/lib/simulator/engine';
+import {
+  LegacyEmergentSimulationEngine as SimulationEngine,
+  OUTCOMES,
+  loadTerrain,
+} from '@/app/lib/simulator/emergent/adapter';
 
 /**
  * POST - Run a batch of simulations

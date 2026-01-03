@@ -6,7 +6,10 @@
  */
 
 import { NextResponse } from 'next/server';
-import { SimulationEngine, loadTerrain } from '@/app/lib/simulator/engine';
+import {
+  LegacyEmergentSimulationEngine as SimulationEngine,
+  loadTerrain,
+} from '@/app/lib/simulator/emergent/adapter';
 
 // For now, we'll run simulations in-memory without database
 // Once the schema is migrated, we can persist results
