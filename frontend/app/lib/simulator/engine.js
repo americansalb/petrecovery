@@ -11,6 +11,16 @@ import { calculateDetectionProbability } from './detection';
 import { seededRandom } from './utils';
 import { getTerrainCache, resetTerrainCache } from './terrain';
 
+// Logging control - set to true to see detailed simulation logs
+const DEBUG_LOGGING = true;
+const LOG_INTERVAL = 60; // Log every N minutes of simulation time
+
+function simLog(simId, ...args) {
+  if (DEBUG_LOGGING) {
+    console.log(`[SIM ${simId}]`, ...args);
+  }
+}
+
 // Simulation outcomes
 export const OUTCOMES = {
   FOUND_BY_SEARCHER: 'FOUND_BY_SEARCHER',
@@ -68,12 +78,30 @@ export class SimulationEngine {
    */
   run() {
     const maxMinutes = this.config.maxSimulationHours * 60;
+    const simId = this.seed.toString().slice(-4);
+
+    simLog(simId, `🚀 STARTING: ${this.config.petSpecies} (${this.config.petSize}, ${this.config.petPersonality})`);
+    simLog(simId, `   Location: ${this.config.centerLatitude.toFixed(4)}, ${this.config.centerLongitude.toFixed(4)}`);
+    simLog(simId, `   Searchers: ${this.config.searcherCount} (${this.config.searchStrategy})`);
+    simLog(simId, `   Duration: ${this.config.maxSimulationHours}hrs, Terrain: ${this.config.terrainType}`);
 
     // Record initial positions
     this.recordPositions();
 
+    let lastLogMinute = 0;
+
     while (this.minute < maxMinutes && !this.outcome) {
       this.tick();
+
+      // Periodic logging
+      if (this.minute - lastLogMinute >= LOG_INTERVAL) {
+        const hours = Math.floor(this.minute / 60);
+        const mins = this.minute % 60;
+        const distFromHome = this.pet.getDistanceTo(this.pet.homeLat, this.pet.homeLng);
+        simLog(simId, `⏱️  ${hours}h${mins}m | State: ${this.pet.state} | Dist: ${distFromHome.toFixed(2)}mi | Energy: ${(this.pet.energy*100).toFixed(0)}% | Hunger: ${(this.pet.hunger*100).toFixed(0)}%`);
+        lastLogMinute = this.minute;
+      }
+
       this.minute += this.config.timeStepMinutes;
     }
 
@@ -85,6 +113,12 @@ export class SimulationEngine {
         this.outcome = OUTCOMES.TIMEOUT_SEARCHING;
       }
     }
+
+    const totalHours = (this.foundAtMinute || this.minute) / 60;
+    simLog(simId, `🏁 FINISHED: ${this.outcome} after ${totalHours.toFixed(1)}hrs`);
+    simLog(simId, `   Pet traveled: ${this.calculateTotalDistance(this.petPath).toFixed(2)} miles`);
+    simLog(simId, `   Final state: ${this.pet.state}`);
+    simLog(simId, '---');
 
     return this.getResults();
   }
@@ -339,7 +373,15 @@ export class SimulationEngine {
  * Run a batch of simulations
  */
 export async function runBatch(config, count, onProgress) {
+  console.log('═'.repeat(60));
+  console.log(`🎲 MONTE CARLO BATCH: ${count} simulations`);
+  console.log(`   Species: ${config.petSpecies} | Size: ${config.petSize} | Personality: ${config.petPersonality}`);
+  console.log(`   Terrain: ${config.terrainType} | Searchers: ${config.searcherCount} (${config.searchStrategy})`);
+  console.log(`   Max Duration: ${config.maxSimulationHours} hours`);
+  console.log('═'.repeat(60));
+
   const results = [];
+  const startTime = Date.now();
 
   for (let i = 0; i < count; i++) {
     const engine = new SimulationEngine(config);
@@ -350,13 +392,42 @@ export async function runBatch(config, count, onProgress) {
       onProgress(i + 1, count);
     }
 
+    // Progress log every 10 simulations
+    if ((i + 1) % 10 === 0 || i === count - 1) {
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      const outcomes = results.reduce((acc, r) => {
+        acc[r.outcome] = (acc[r.outcome] || 0) + 1;
+        return acc;
+      }, {});
+      console.log(`📊 Progress: ${i + 1}/${count} (${elapsed}s) | Outcomes so far:`, outcomes);
+    }
+
     // Yield to prevent blocking
     if (i % 10 === 0) {
       await new Promise(resolve => setTimeout(resolve, 0));
     }
   }
 
-  return aggregateResults(results, count);
+  const aggregated = aggregateResults(results, count);
+  const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+
+  console.log('═'.repeat(60));
+  console.log(`✅ BATCH COMPLETE in ${totalTime}s`);
+  console.log(`   Success Rate: ${aggregated.successRate.toFixed(1)}%`);
+  console.log(`   Found by Searcher: ${aggregated.foundBySearcherCount}`);
+  console.log(`   Returned Home: ${aggregated.returnedHomeCount}`);
+  console.log(`   Via Shelter: ${aggregated.foundViaShelterCount}`);
+  console.log(`   Via Social: ${aggregated.foundViaSocialCount}`);
+  console.log(`   Via Platform: ${aggregated.foundViaPlatformCount}`);
+  console.log(`   Timeout (Searching): ${aggregated.timeoutSearchingCount}`);
+  console.log(`   Timeout (Sheltered): ${aggregated.timeoutShelteredCount}`);
+  if (aggregated.avgTimeToFindMins) {
+    console.log(`   Avg Time to Find: ${(aggregated.avgTimeToFindMins / 60).toFixed(1)} hours`);
+  }
+  console.log(`   Avg Pet Distance: ${aggregated.avgPetDistanceMiles.toFixed(2)} miles`);
+  console.log('═'.repeat(60));
+
+  return aggregated;
 }
 
 /**
