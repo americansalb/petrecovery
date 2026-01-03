@@ -143,9 +143,11 @@ function SimulationRow({ sim, isSelected, onSelect, isNested = false }) {
  * Expandable batch group
  */
 function BatchGroup({ batch, isSelected, isExpanded, onToggle, onSelect, onSelectSimulation, selectedSimId }) {
-  const successRate = batch.successRate?.toFixed(1) || '0';
   const totalRuns = batch.totalRuns || 0;
   const successCount = totalRuns - (batch.timeoutSearchingCount || 0) - (batch.timeoutShelteredCount || 0);
+  // Calculate success rate from counts as fallback if batch.successRate is missing
+  const calculatedRate = totalRuns > 0 ? (successCount / totalRuns) * 100 : 0;
+  const successRate = (batch.successRate ?? calculatedRate).toFixed(1);
 
   // Calculate uncertainty bounds based on unverified parameters
   const uncertainty = useMemo(() => {
