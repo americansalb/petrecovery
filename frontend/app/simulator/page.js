@@ -155,11 +155,14 @@ export default function SimulatorPage() {
         const lines = buffer.split('\n');
         buffer = lines.pop() || ''; // Keep incomplete line in buffer
 
-        for (const line of lines) {
+        // Parse SSE events properly using index
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
           if (line.startsWith('event: ')) {
             const eventType = line.slice(7);
-            const dataLine = lines[lines.indexOf(line) + 1];
+            const dataLine = lines[i + 1]; // Use index, not indexOf
             if (dataLine?.startsWith('data: ')) {
+              i++; // Skip the data line in next iteration
               try {
                 const data = JSON.parse(dataLine.slice(6));
 
