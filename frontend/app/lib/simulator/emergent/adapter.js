@@ -268,33 +268,79 @@ export async function runLegacyEmergentBatch(legacyConfig, count, onProgress) {
   // Convert results to legacy format
   const legacyResults = batchResult.results.map(r => convertResultToLegacy(r, legacyConfig));
 
-  // Calculate legacy statistics
-  let returnedHomeCount = 0;
-  let foundBySearcherCount = 0;
-  let foundViaShelterCount = 0;
-  let foundViaSocialCount = 0;
-  let timeoutCount = 0;
+  // Calculate outcome counts using new clearer categories
+  // FOUND outcomes (pet reunited with owner)
+  let returnedHomeCount = 0;      // Came home on own
+  let foundBySearcherCount = 0;   // You found them
+  let foundViaShelterCount = 0;   // Recovered from shelter
+  let strangerReturnedCount = 0;  // Stranger returned to you
 
-  legacyResults.forEach(r => {
+  // NOT FOUND outcomes
+  let stillMissingCount = 0;        // Still missing
+  let atShelterUnclaimedCount = 0;  // At shelter, unclaimed
+  let withStrangerCount = 0;        // Stranger has pet, no contact
+  let deceasedCount = 0;            // Deceased
+
+  // Count based on emergent outcome codes
+  batchResult.results.forEach(r => {
     switch (r.outcome) {
-      case LEGACY_OUTCOMES.RETURNED_HOME:
+      // FOUND - came home on own
+      case 'REUNITED_SELF_RETURN':
         returnedHomeCount++;
         break;
-      case LEGACY_OUTCOMES.FOUND_BY_SEARCHER:
+
+      // FOUND - you found them (owner/searcher search)
+      case 'REUNITED_OWNER_SEARCH':
+      case 'REUNITED_SEARCH_TEAM':
+      case 'REUNITED_CALLED':
+      case 'REUNITED_TRAP':
         foundBySearcherCount++;
         break;
-      case LEGACY_OUTCOMES.FOUND_VIA_SHELTER:
+
+      // FOUND - recovered from shelter
+      case 'REUNITED_SHELTER':
         foundViaShelterCount++;
         break;
-      case LEGACY_OUTCOMES.FOUND_VIA_SOCIAL:
-        foundViaSocialCount++;
+
+      // FOUND - stranger returned to you
+      case 'REUNITED_STRANGER_DIRECT':
+      case 'REUNITED_STRANGER_POST':
+        strangerReturnedCount++;
         break;
+
+      // NOT FOUND - at shelter unclaimed
+      case 'AT_SHELTER_PENDING':
+      case 'ADOPTED_FROM_SHELTER':
+        atShelterUnclaimedCount++;
+        break;
+
+      // NOT FOUND - stranger has pet, no contact
+      case 'WITH_STRANGER_PENDING':
+      case 'ADOPTED_BY_FINDER':
+        withStrangerCount++;
+        break;
+
+      // NOT FOUND - deceased
+      case 'DECEASED_TRAFFIC':
+      case 'DECEASED_PREDATOR':
+      case 'DECEASED_EXPOSURE':
+      case 'DECEASED_DEHYDRATION':
+      case 'DECEASED_STARVATION':
+      case 'DECEASED_INJURY':
+      case 'DECEASED_EUTHANIZED':
+        deceasedCount++;
+        break;
+
+      // NOT FOUND - still missing
+      case 'STILL_MISSING':
+      case 'SIGHTED_NOT_CAPTURED':
+      case 'FERAL_PERMANENTLY':
       default:
-        timeoutCount++;
+        stillMissingCount++;
     }
   });
 
-  const successCount = returnedHomeCount + foundBySearcherCount + foundViaShelterCount + foundViaSocialCount;
+  const successCount = returnedHomeCount + foundBySearcherCount + foundViaShelterCount + strangerReturnedCount;
   const foundResults = legacyResults.filter(r => r.foundAtMinute !== null);
   const avgTimeToFind = foundResults.length > 0
     ? foundResults.reduce((sum, r) => sum + r.foundAtMinute, 0) / foundResults.length
@@ -305,13 +351,25 @@ export async function runLegacyEmergentBatch(legacyConfig, count, onProgress) {
     successRate: (successCount / count) * 100,
     avgTimeToFindMins: avgTimeToFind,
     avgPetDistanceMiles: batchResult.displacementMedian,
-    returnedHomeCount,
-    foundBySearcherCount,
-    foundViaShelterCount,
-    foundViaSocialCount,
-    foundViaPlatformCount: 0,
-    timeoutSearchingCount: timeoutCount,
-    timeoutShelteredCount: 0,
+
+    // FOUND outcomes (new clearer names)
+    returnedHomeCount,       // Came home on own
+    foundBySearcherCount,    // You found them
+    foundViaShelterCount,    // Recovered from shelter
+    strangerReturnedCount,   // Stranger returned to you
+
+    // NOT FOUND outcomes (new clearer names)
+    stillMissingCount,         // Still missing
+    atShelterUnclaimedCount,   // At shelter, unclaimed
+    withStrangerCount,         // Stranger has pet, no contact
+    deceasedCount,             // Deceased
+
+    // Legacy keys for backward compatibility (deprecated)
+    foundViaSocialCount: strangerReturnedCount,
+    timeoutSearchingCount: stillMissingCount + deceasedCount,
+    timeoutShelteredCount: atShelterUnclaimedCount,
+    foundViaPlatformCount: deceasedCount,
+
     results: legacyResults,
     emergentStats: {
       displacementMedian: batchResult.displacementMedian,

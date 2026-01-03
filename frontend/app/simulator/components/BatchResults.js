@@ -237,54 +237,65 @@ function ConvergenceStatusPanel({ convergence, totalRuns }) {
  *   - Deceased (traffic, exposure, etc.)
  */
 const OUTCOME_LABELS = {
-  // FOUND OUTCOMES - Pet reunited with owner
+  // =========================================================================
+  // FOUND OUTCOMES - Pet physically recovered and reunited with owner
+  // =========================================================================
   returnedHomeCount: {
-    label: 'Self-Returned Home',
-    desc: 'Pet navigated back home on its own',
+    label: 'Came Home On Own',
+    desc: 'Pet walked back home by itself (no human intervention needed)',
     color: '#10b981',
     icon: Home,
     category: 'FOUND'
   },
   foundBySearcherCount: {
-    label: 'Found by Owner/Searcher',
-    desc: 'Owner or search team physically located pet',
+    label: 'You Found Them',
+    desc: 'You or your search team physically located and captured pet',
     color: '#3b82f6',
     icon: Search,
     category: 'FOUND'
   },
   foundViaShelterCount: {
-    label: 'Found via Shelter',
-    desc: 'Pet taken to shelter, matched via microchip/report',
+    label: 'Recovered from Shelter',
+    desc: 'Pet was taken to shelter, you retrieved via microchip scan or visit',
     color: '#8b5cf6',
     icon: Building2,
     category: 'FOUND'
   },
-  foundViaSocialCount: {
-    label: 'Stranger Found & Returned',
-    desc: 'Stranger found pet and contacted owner directly',
+  strangerReturnedCount: {
+    label: 'Stranger Returned to You',
+    desc: 'A stranger captured pet and contacted you (via tags, flyer, or online post)',
     color: '#f59e0b',
     icon: Users,
     category: 'FOUND'
   },
 
+  // =========================================================================
   // NOT FOUND OUTCOMES
-  timeoutSearchingCount: {
+  // =========================================================================
+  stillMissingCount: {
     label: 'Still Missing',
-    desc: 'Pet not located within simulation timeframe',
+    desc: 'Pet not located within simulation timeframe, search continues',
     color: '#6b7280',
     icon: Clock,
     category: 'NOT_FOUND'
   },
-  timeoutShelteredCount: {
-    label: 'At Shelter (Not Matched)',
-    desc: 'Pet at shelter but owner hasn\'t checked',
+  atShelterUnclaimedCount: {
+    label: 'At Shelter (Unclaimed)',
+    desc: 'Pet is at shelter but you haven\'t checked there yet',
     color: '#9ca3af',
     icon: Building2,
     category: 'NOT_FOUND'
   },
-  foundViaPlatformCount: {
+  withStrangerCount: {
+    label: 'With Stranger (No Contact)',
+    desc: 'Stranger took pet home but hasn\'t contacted you',
+    color: '#d97706',
+    icon: Users,
+    category: 'NOT_FOUND'
+  },
+  deceasedCount: {
     label: 'Deceased',
-    desc: 'Pet died from traffic, exposure, dehydration, etc.',
+    desc: 'Pet died (traffic, dehydration, exposure, predator)',
     color: '#ef4444',
     icon: Skull,
     category: 'NOT_FOUND'
@@ -402,14 +413,17 @@ export default function BatchResults({ batch, simulations = [] }) {
   const total = batch.totalRuns;
 
   // Calculate FOUND vs NOT FOUND (clearer binary outcome)
-  const foundCount = (batch.foundBySearcherCount || 0) +
-    (batch.returnedHomeCount || 0) +
-    (batch.foundViaShelterCount || 0) +
-    (batch.foundViaSocialCount || 0);
+  // FOUND = pet reunited with owner
+  const foundCount = (batch.returnedHomeCount || 0) +      // Came home on own
+    (batch.foundBySearcherCount || 0) +                    // You found them
+    (batch.foundViaShelterCount || 0) +                    // Recovered from shelter
+    (batch.strangerReturnedCount || 0);                    // Stranger returned to you
 
-  const notFoundCount = (batch.timeoutSearchingCount || 0) +
-    (batch.timeoutShelteredCount || 0) +
-    (batch.foundViaPlatformCount || 0);  // Deceased mapped here
+  // NOT FOUND = pet not reunited with owner
+  const notFoundCount = (batch.stillMissingCount || 0) +   // Still missing
+    (batch.atShelterUnclaimedCount || 0) +                 // At shelter, unclaimed
+    (batch.withStrangerCount || 0) +                       // Stranger has pet, no contact
+    (batch.deceasedCount || 0);                            // Deceased
 
   const successCount = foundCount;  // For legacy compatibility
   const successRate = total > 0 ? ((successCount / total) * 100).toFixed(1) : 0;
