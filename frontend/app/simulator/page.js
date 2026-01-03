@@ -183,12 +183,12 @@ export default function SimulatorPage() {
         </div>
       )}
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto p-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-140px)]">
+      {/* Main Content - Desktop-first layout for research */}
+      <div className="mx-auto p-4 xl:p-6">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 h-[calc(100vh-140px)]">
 
-          {/* Left Panel - Config & Results */}
-          <div className="lg:col-span-1 flex flex-col gap-4 overflow-hidden">
+          {/* Left Panel - Config & Results (wider on desktop) */}
+          <div className="xl:col-span-4 2xl:col-span-3 flex flex-col gap-4 overflow-hidden">
             {/* Tab Navigation */}
             <div className="bg-white rounded-lg border border-gray-200 p-1 flex gap-1">
               <button
@@ -304,8 +304,8 @@ export default function SimulatorPage() {
             </div>
           </div>
 
-          {/* Right Panel - Map & Playback */}
-          <div className="lg:col-span-2 flex flex-col gap-4">
+          {/* Right Panel - Map & Playback (larger on desktop) */}
+          <div className="xl:col-span-8 2xl:col-span-9 flex flex-col gap-4">
             {/* Map */}
             <div className="flex-1 bg-white rounded-lg border border-gray-200 overflow-hidden relative">
               <SimulatorMap
