@@ -15,11 +15,12 @@ import dynamic from 'next/dynamic';
 import SimulatorConfig from './components/SimulatorConfig';
 import SimulationList from './components/SimulationList';
 import BatchResults from './components/BatchResults';
+import BatchCharts from './components/BatchCharts';
 import PlaybackControls from './components/PlaybackControls';
 import RecoveryGuidance from './components/RecoveryGuidance';
 import {
   Play, Pause, RotateCcw, BarChart3, Settings2,
-  Map, List, FlaskConical, Info
+  Map, List, FlaskConical, Info, LineChart, FileText, Lightbulb
 } from 'lucide-react';
 
 // Dynamically import map to avoid SSR issues with Leaflet
@@ -77,6 +78,7 @@ export default function SimulatorPage() {
 
   // UI state
   const [activeTab, setActiveTab] = useState('config'); // config, results, analytics
+  const [analyticsSubTab, setAnalyticsSubTab] = useState('charts'); // stats, charts, guidance
   const [showInfo, setShowInfo] = useState(false);
 
   // Run a single simulation
@@ -244,13 +246,53 @@ export default function SimulatorPage() {
 
               {activeTab === 'analytics' && (
                 <div className="space-y-4">
-                  <BatchResults
-                    batch={selectedBatch}
-                  />
-                  <RecoveryGuidance
-                    config={config}
-                    batch={selectedBatch}
-                  />
+                  {/* Analytics Sub-tabs */}
+                  <div className="flex gap-1 p-1 bg-gray-100 rounded-lg">
+                    <button
+                      onClick={() => setAnalyticsSubTab('charts')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        analyticsSubTab === 'charts'
+                          ? 'bg-white text-indigo-700 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <LineChart className="w-3.5 h-3.5" />
+                      Charts
+                    </button>
+                    <button
+                      onClick={() => setAnalyticsSubTab('stats')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        analyticsSubTab === 'stats'
+                          ? 'bg-white text-indigo-700 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      Stats
+                    </button>
+                    <button
+                      onClick={() => setAnalyticsSubTab('guidance')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        analyticsSubTab === 'guidance'
+                          ? 'bg-white text-indigo-700 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <Lightbulb className="w-3.5 h-3.5" />
+                      Guidance
+                    </button>
+                  </div>
+
+                  {/* Sub-tab Content */}
+                  {analyticsSubTab === 'charts' && (
+                    <BatchCharts batch={selectedBatch} />
+                  )}
+                  {analyticsSubTab === 'stats' && (
+                    <BatchResults batch={selectedBatch} />
+                  )}
+                  {analyticsSubTab === 'guidance' && (
+                    <RecoveryGuidance config={config} batch={selectedBatch} />
+                  )}
                 </div>
               )}
             </div>
@@ -269,7 +311,7 @@ export default function SimulatorPage() {
               />
 
               {/* Map Legend */}
-              <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur rounded-lg border border-gray-200 p-3 text-xs">
+              <div className="absolute bottom-4 left-4 z-[1000] bg-white/95 backdrop-blur rounded-lg border border-gray-200 p-3 text-xs shadow-lg">
                 <div className="font-medium text-gray-700 mb-2">Probability Zones</div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
