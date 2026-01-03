@@ -179,6 +179,21 @@ export default function SimulatorMap({
     map.setView([config.centerLatitude, config.centerLongitude], 14);
   }, [config.centerLatitude, config.centerLongitude, config.petSpecies, config.petSize, config.isIndoorPet, config.searchRadiusMiles]);
 
+  // Detect if we're viewing a single simulation (hide batch overlays)
+  const isViewingSingleSim = simulation && playbackState?.petPosition;
+
+  // Hide batch overlays when viewing single simulation
+  useEffect(() => {
+    if (isViewingSingleSim) {
+      // Hide heatmap
+      markersRef.current.heatmap.forEach(layer => layer.remove());
+      markersRef.current.heatmap = [];
+      // Hide trails
+      trailsRef.current.forEach(layer => layer.remove());
+      trailsRef.current = [];
+    }
+  }, [isViewingSingleSim]);
+
   // Update pet and searcher markers during playback
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -386,7 +401,7 @@ export default function SimulatorMap({
     markersRef.current.heatmap.forEach(layer => layer.remove());
     markersRef.current.heatmap = [];
 
-    if (!batch?.simulations || !showHeatmap) return;
+    if (!batch?.simulations || !showHeatmap || isViewingSingleSim) return;
 
     // Extract found locations
     const foundLocations = batch.simulations
@@ -458,7 +473,7 @@ export default function SimulatorMap({
       markersRef.current.heatmap.push(marker);
     });
 
-  }, [batch?.simulations, showHeatmap]);
+  }, [batch?.simulations, showHeatmap, isViewingSingleSim]);
 
   // Display pet and searcher trails from batch simulations
   // Uses low opacity so overlapping paths create a "flow" visualization
@@ -470,7 +485,7 @@ export default function SimulatorMap({
     trailsRef.current.forEach(layer => layer.remove());
     trailsRef.current = [];
 
-    if (!batch?.simulations || !showTrails) return;
+    if (!batch?.simulations || !showTrails || isViewingSingleSim) return;
 
     // Get simulations with path data (limit to prevent performance issues)
     const simsWithPaths = batch.simulations
@@ -547,7 +562,7 @@ export default function SimulatorMap({
       });
     });
 
-  }, [batch?.simulations, showTrails]);
+  }, [batch?.simulations, showTrails, isViewingSingleSim]);
 
   return (
     <div className="relative w-full h-full min-h-[400px]">
@@ -569,8 +584,8 @@ export default function SimulatorMap({
           </button>
         )}
 
-        {/* Heatmap toggle */}
-        {batch?.simulations?.length > 0 && (
+        {/* Heatmap toggle - hidden during single sim playback */}
+        {batch?.simulations?.length > 0 && !isViewingSingleSim && (
           <button
             onClick={() => setShowHeatmap(!showHeatmap)}
             className={`px-3 py-1.5 rounded-lg shadow-md text-xs font-medium transition-colors ${
@@ -583,8 +598,8 @@ export default function SimulatorMap({
           </button>
         )}
 
-        {/* Trails toggle - shows actual pet and searcher movement paths */}
-        {batch?.simulations?.length > 0 && (
+        {/* Trails toggle - hidden during single sim playback */}
+        {batch?.simulations?.length > 0 && !isViewingSingleSim && (
           <button
             onClick={() => setShowTrails(!showTrails)}
             className={`px-3 py-1.5 rounded-lg shadow-md text-xs font-medium transition-colors ${
@@ -598,8 +613,8 @@ export default function SimulatorMap({
         )}
       </div>
 
-      {/* Heatmap legend */}
-      {batch?.simulations?.length > 0 && showHeatmap && !showTrails && (
+      {/* Heatmap legend - hidden during single sim playback */}
+      {batch?.simulations?.length > 0 && showHeatmap && !showTrails && !isViewingSingleSim && (
         <div className="absolute bottom-4 right-4 z-[1000] bg-white/95 backdrop-blur rounded-lg border border-gray-200 p-3 text-xs">
           <div className="font-medium text-gray-700 mb-2">Find Locations</div>
           <div className="space-y-1">
@@ -622,8 +637,8 @@ export default function SimulatorMap({
         </div>
       )}
 
-      {/* Trails legend */}
-      {batch?.simulations?.length > 0 && showTrails && (
+      {/* Trails legend - hidden during single sim playback */}
+      {batch?.simulations?.length > 0 && showTrails && !isViewingSingleSim && (
         <div className="absolute bottom-4 right-4 z-[1000] bg-white/95 backdrop-blur rounded-lg border border-gray-200 p-3 text-xs">
           <div className="font-medium text-gray-700 mb-2">Movement Trails</div>
           <div className="space-y-1">
