@@ -341,14 +341,25 @@ export function runFullValidation(seed = 42) {
 /**
  * Validation benchmarks for comparing batch simulation outputs
  * against research literature (Lord 2007a/b, Weiss 2012, etc.)
+ *
+ * IMPORTANT: Benchmarks are split into two categories:
+ * - CALIBRATION: Used to tune simulation parameters (Weiss 2012)
+ * - HOLDOUT: Never used for tuning, only for validation (Lord 2007a/b, Kays 2020)
+ *
+ * Holdout benchmarks test whether the simulation generalizes beyond
+ * the data it was calibrated against.
  */
 export const BATCH_VALIDATION_BENCHMARKS = {
-  // Recovery rate benchmarks (Weiss 2012)
+  // ===========================================================================
+  // CALIBRATION BENCHMARKS (Weiss 2012) - used for parameter tuning
+  // ===========================================================================
+
   DOG_RECOVERY_RATE: {
     name: 'Dog Recovery Rate',
     source: 'Weiss 2012',
     expected: 0.93,
     tolerance: 0.10,
+    isHoldout: false,
     testFn: (batch) => batch.successRate / 100,
   },
   CAT_RECOVERY_RATE: {
@@ -356,6 +367,7 @@ export const BATCH_VALIDATION_BENCHMARKS = {
     source: 'Weiss 2012',
     expected: 0.749,
     tolerance: 0.15,
+    isHoldout: false,
     testFn: (batch) => batch.successRate / 100,
   },
 
@@ -365,6 +377,7 @@ export const BATCH_VALIDATION_BENCHMARKS = {
     source: 'Weiss 2012',
     expected: 0.49,
     tolerance: 0.15,
+    isHoldout: false,
     testFn: (batch) => {
       const found = batch.totalRuns - batch.timeoutSearchingCount - batch.timeoutShelteredCount;
       return found > 0 ? batch.foundBySearcherCount / found : 0;
@@ -375,6 +388,7 @@ export const BATCH_VALIDATION_BENCHMARKS = {
     source: 'Weiss 2012',
     expected: 0.59,
     tolerance: 0.15,
+    isHoldout: false,
     testFn: (batch) => {
       const found = batch.totalRuns - batch.timeoutSearchingCount - batch.timeoutShelteredCount;
       return found > 0 ? batch.returnedHomeCount / found : 0;
@@ -387,6 +401,7 @@ export const BATCH_VALIDATION_BENCHMARKS = {
     source: 'Weiss 2012',
     expected: 0.06,
     tolerance: 0.50, // 50% tolerance due to low base rate
+    isHoldout: false,
     testFn: (batch) => {
       const found = batch.totalRuns - batch.timeoutSearchingCount - batch.timeoutShelteredCount;
       return found > 0 ? batch.foundViaShelterCount / found : 0;
@@ -397,9 +412,82 @@ export const BATCH_VALIDATION_BENCHMARKS = {
     source: 'Weiss 2012',
     expected: 0.02,
     tolerance: 0.50,
+    isHoldout: false,
     testFn: (batch) => {
       const found = batch.totalRuns - batch.timeoutSearchingCount - batch.timeoutShelteredCount;
       return found > 0 ? batch.foundViaShelterCount / found : 0;
+    },
+  },
+
+  // ===========================================================================
+  // HOLDOUT BENCHMARKS - NEVER used for parameter tuning
+  // These test whether the simulation generalizes beyond calibration data
+  // ===========================================================================
+
+  // Lord 2007a - Ohio dog study (n=1,015)
+  // Independent study, not used for calibration
+  DOG_RECOVERY_RATE_OHIO: {
+    name: 'Dog Recovery Rate (Ohio)',
+    source: 'Lord 2007a',
+    expected: 0.71,
+    tolerance: 0.15,
+    isHoldout: true,
+    notes: 'Ohio shelter study, n=1,015 dogs. Lower than Weiss 2012 - tests regional variation.',
+    testFn: (batch) => batch.successRate / 100,
+  },
+
+  // Lord 2007b - Ohio cat study (n=704)
+  CAT_RECOVERY_RATE_OHIO: {
+    name: 'Cat Recovery Rate (Ohio)',
+    source: 'Lord 2007b',
+    expected: 0.53,
+    tolerance: 0.20,
+    isHoldout: true,
+    notes: 'Ohio shelter study, n=704 cats. Tests if simulation handles lower-recovery scenarios.',
+    testFn: (batch) => batch.successRate / 100,
+  },
+  CAT_SELF_RETURN_OHIO: {
+    name: 'Cat Self-Return (Ohio)',
+    source: 'Lord 2007b',
+    expected: 0.66,
+    tolerance: 0.20,
+    isHoldout: true,
+    notes: 'Of recovered cats, 66% returned home on their own.',
+    testFn: (batch) => {
+      const found = batch.totalRuns - batch.timeoutSearchingCount - batch.timeoutShelteredCount;
+      return found > 0 ? batch.returnedHomeCount / found : 0;
+    },
+  },
+
+  // Kays 2020 - 6-country GPS tracking study
+  // Tests displacement behavior against real GPS data
+  CAT_DISPLACEMENT_WITHIN_100M: {
+    name: 'Cat Within 100m of Home',
+    source: 'Kays 2020',
+    expected: 0.75,
+    tolerance: 0.20,
+    isHoldout: true,
+    notes: '6-country GPS study. 75% of cats stayed within 100m of home.',
+    testFn: (batch) => {
+      // Requires displacement data - return null if not available
+      if (!batch.displacementDistribution) return null;
+      const within100m = batch.displacementDistribution.filter(d => d <= 0.062).length; // 100m in miles
+      return within100m / batch.displacementDistribution.length;
+    },
+  },
+
+  // Huang 2018 - Queensland cat study
+  // Displacement validation for indoor-only vs indoor-outdoor cats
+  CAT_INDOOR_ONLY_MEDIAN_DISPLACEMENT: {
+    name: 'Indoor-Only Cat Median Displacement',
+    source: 'Huang 2018',
+    expected: 0.024, // 39m in miles
+    tolerance: 0.50, // Wide tolerance for median comparison
+    isHoldout: true,
+    notes: 'Indoor-only cats: median 39m displacement (n=77). Tests behavioral realism.',
+    testFn: (batch) => {
+      if (!batch.medianDisplacementMiles) return null;
+      return batch.medianDisplacementMiles;
     },
   },
 };
@@ -409,23 +497,33 @@ export const BATCH_VALIDATION_BENCHMARKS = {
  *
  * @param {object} batchResult - Result from batch simulation
  * @param {string} species - 'cat' or 'dog'
- * @returns {object} Validation results
+ * @param {object} options - { includeHoldout: boolean }
+ * @returns {object} Validation results with calibration and holdout separated
  */
-export function validateBatchResults(batchResult, species = 'dog') {
-  const results = [];
-  const speciesUpper = species.toUpperCase();
+export function validateBatchResults(batchResult, species = 'dog', options = {}) {
+  const { includeHoldout = true } = options;
+
+  const calibrationResults = [];
+  const holdoutResults = [];
 
   for (const [key, benchmark] of Object.entries(BATCH_VALIDATION_BENCHMARKS)) {
     // Only run benchmarks matching the species
     if (key.startsWith('DOG') && species !== 'dog') continue;
     if (key.startsWith('CAT') && species !== 'cat') continue;
 
+    // Skip holdout if not requested
+    if (benchmark.isHoldout && !includeHoldout) continue;
+
     const actual = benchmark.testFn(batchResult);
+
+    // Skip if test function returns null (missing data)
+    if (actual === null) continue;
+
     const expected = benchmark.expected;
     const deviation = Math.abs(actual - expected) / expected;
     const passed = deviation <= benchmark.tolerance;
 
-    results.push({
+    const result = {
       name: benchmark.name,
       source: benchmark.source,
       expected: (expected * 100).toFixed(1) + '%',
@@ -434,26 +532,80 @@ export function validateBatchResults(batchResult, species = 'dog') {
       tolerance: (benchmark.tolerance * 100).toFixed(0) + '%',
       passed,
       status: passed ? 'PASS' : 'FAIL',
-    });
+      isHoldout: benchmark.isHoldout || false,
+      notes: benchmark.notes || null,
+    };
+
+    if (benchmark.isHoldout) {
+      holdoutResults.push(result);
+    } else {
+      calibrationResults.push(result);
+    }
   }
 
-  const passedCount = results.filter(r => r.passed).length;
-  const failedCount = results.filter(r => !r.passed).length;
+  const allResults = [...calibrationResults, ...holdoutResults];
+  const calibrationPassed = calibrationResults.filter(r => r.passed).length;
+  const calibrationFailed = calibrationResults.filter(r => !r.passed).length;
+  const holdoutPassed = holdoutResults.filter(r => r.passed).length;
+  const holdoutFailed = holdoutResults.filter(r => !r.passed).length;
 
   return {
     species,
-    results,
-    summary: {
-      passed: passedCount,
-      failed: failedCount,
-      total: results.length,
-      passRate: ((passedCount / results.length) * 100).toFixed(1) + '%',
+    results: allResults,
+    calibration: {
+      results: calibrationResults,
+      passed: calibrationPassed,
+      failed: calibrationFailed,
+      total: calibrationResults.length,
+      passRate: calibrationResults.length > 0
+        ? ((calibrationPassed / calibrationResults.length) * 100).toFixed(1) + '%'
+        : 'N/A',
     },
-    allPassed: failedCount === 0,
-    recommendation: failedCount > 0
-      ? `${failedCount} validation(s) failed - review calibration of: ${results.filter(r => !r.passed).map(r => r.name).join(', ')}`
-      : 'All validations passed - simulation aligns with research benchmarks',
+    holdout: {
+      results: holdoutResults,
+      passed: holdoutPassed,
+      failed: holdoutFailed,
+      total: holdoutResults.length,
+      passRate: holdoutResults.length > 0
+        ? ((holdoutPassed / holdoutResults.length) * 100).toFixed(1) + '%'
+        : 'N/A',
+    },
+    summary: {
+      passed: calibrationPassed + holdoutPassed,
+      failed: calibrationFailed + holdoutFailed,
+      total: allResults.length,
+      passRate: allResults.length > 0
+        ? (((calibrationPassed + holdoutPassed) / allResults.length) * 100).toFixed(1) + '%'
+        : 'N/A',
+    },
+    allPassed: (calibrationFailed + holdoutFailed) === 0,
+    calibrationPassed: calibrationFailed === 0,
+    holdoutPassed: holdoutFailed === 0,
+    recommendation: getValidationRecommendation(calibrationFailed, holdoutFailed, calibrationResults, holdoutResults),
   };
+}
+
+/**
+ * Generate recommendation based on validation results
+ */
+function getValidationRecommendation(calibrationFailed, holdoutFailed, calibrationResults, holdoutResults) {
+  if (calibrationFailed === 0 && holdoutFailed === 0) {
+    return 'All validations passed - simulation aligns with both calibration and holdout benchmarks.';
+  }
+
+  const issues = [];
+
+  if (calibrationFailed > 0) {
+    const failedNames = calibrationResults.filter(r => !r.passed).map(r => r.name).join(', ');
+    issues.push(`Calibration: ${calibrationFailed} failed (${failedNames}) - review parameter tuning`);
+  }
+
+  if (holdoutFailed > 0) {
+    const failedNames = holdoutResults.filter(r => !r.passed).map(r => r.name).join(', ');
+    issues.push(`Holdout: ${holdoutFailed} failed (${failedNames}) - simulation may not generalize`);
+  }
+
+  return issues.join('. ');
 }
 
 /**

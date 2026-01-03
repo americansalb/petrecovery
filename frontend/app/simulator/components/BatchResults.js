@@ -4,10 +4,211 @@
  * BatchResults - Analytics dashboard for batch simulation results
  */
 
+import React, { useState } from 'react';
 import {
   Search, Home, Building2, Share2, Smartphone,
-  Clock, AlertTriangle, TrendingUp, BarChart3, PieChart
+  Clock, AlertTriangle, TrendingUp, BarChart3, PieChart, Info
 } from 'lucide-react';
+
+// =============================================================================
+// WILSON SCORE CONFIDENCE INTERVAL
+// =============================================================================
+
+/**
+ * Calculate Wilson score confidence interval for a proportion
+ *
+ * The Wilson score interval is the recommended method for binomial proportions,
+ * especially for small samples or proportions near 0 or 1.
+ *
+ * Formula: (p + z²/2n ± z√(p(1-p)/n + z²/4n²)) / (1 + z²/n)
+ *
+ * @param {number} successes - Number of successes
+ * @param {number} total - Total number of trials
+ * @param {number} confidence - Confidence level (default 0.95 for 95% CI)
+ * @returns {object} { lower, upper, center } as proportions (0-1)
+ */
+function wilsonScoreInterval(successes, total, confidence = 0.95) {
+  if (total === 0) return { lower: 0, upper: 0, center: 0 };
+
+  // Z-score for confidence level (1.96 for 95%, 2.576 for 99%)
+  const z = confidence === 0.99 ? 2.576 : confidence === 0.90 ? 1.645 : 1.96;
+
+  const p = successes / total;
+  const n = total;
+  const z2 = z * z;
+
+  const denominator = 1 + z2 / n;
+  const center = (p + z2 / (2 * n)) / denominator;
+  const margin = (z / denominator) * Math.sqrt((p * (1 - p) / n) + (z2 / (4 * n * n)));
+
+  return {
+    lower: Math.max(0, center - margin),
+    upper: Math.min(1, center + margin),
+    center: center,
+  };
+}
+
+/**
+ * Get confidence label based on interval width
+ */
+function getConfidenceLabel(intervalWidth) {
+  if (intervalWidth > 0.30) return 'LOW';
+  if (intervalWidth > 0.15) return 'MEDIUM';
+  if (intervalWidth > 0.08) return 'HIGH';
+  return 'VERY HIGH';
+}
+
+// =============================================================================
+// LIMITATIONS BANNER - RESEARCH TRANSPARENCY
+// =============================================================================
+
+/**
+ * Collapsible banner showing simulation limitations and unverified parameters
+ *
+ * Critical for research transparency - ensures users understand this is
+ * illustrative, not predictive.
+ */
+function SimulationLimitationsBanner() {
+  const [expanded, setExpanded] = useState(false);
+
+  const limitations = [
+    { category: 'Unverified Parameters', count: 11, desc: 'Movement speeds, behavioral thresholds derived from observational estimates' },
+    { category: 'Dog Timeline Gap', count: 1, desc: 'No published dog recovery timeline study - extrapolated from cat data (Huang 2018)' },
+    { category: 'Detection Rates', count: 1, desc: 'Sweep widths adapted from human SAR literature, not pet-specific empirical data' },
+    { category: 'Terrain Barriers', count: 1, desc: 'OSM data may be incomplete - pets could cross barriers not in dataset' },
+  ];
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-lg overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between p-3 text-left hover:bg-amber-100 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-600" />
+          <span className="text-sm font-medium text-amber-800">
+            Illustrative Only - Not Predictive
+          </span>
+        </div>
+        <Info className="w-4 h-4 text-amber-600" />
+      </button>
+
+      {expanded && (
+        <div className="px-3 pb-3 border-t border-amber-200 bg-amber-50">
+          <p className="text-xs text-amber-700 mt-2 mb-3">
+            This simulation uses Monte Carlo methods calibrated against peer-reviewed research,
+            but contains unverified parameters and should not be used for predictive decisions.
+          </p>
+
+          <div className="space-y-2">
+            {limitations.map((item, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs">
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-200 text-amber-800 font-medium shrink-0">
+                  {item.count}
+                </span>
+                <div>
+                  <span className="font-medium text-amber-800">{item.category}:</span>
+                  <span className="text-amber-700 ml-1">{item.desc}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 pt-2 border-t border-amber-200">
+            <p className="text-xs text-amber-600 italic">
+              See Weiss 2012, Huang 2018, Lord 2009 for calibration sources.
+              Albrecht 2020 explicitly calls for a Missing Dog Study.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// CONVERGENCE STATUS PANEL
+// =============================================================================
+
+/**
+ * Displays Monte Carlo convergence diagnostics prominently
+ *
+ * Shows coefficient of variation (CoV) and whether results have stabilized.
+ * Critical for research credibility - users need to know if they've run
+ * enough simulations for reliable estimates.
+ */
+function ConvergenceStatusPanel({ convergence, totalRuns }) {
+  if (!convergence) return null;
+
+  const { coefficientOfVariation, hasConverged, threshold, standardError } = convergence;
+  const cov = parseFloat(coefficientOfVariation) || 0;
+  const covPercent = (cov * 100).toFixed(1);
+  const sePercent = standardError ? (parseFloat(standardError) * 100).toFixed(2) : null;
+
+  // Calculate progress toward convergence
+  const thresholdNum = parseFloat(threshold) || 0.05;
+  const progressPercent = Math.min(100, ((thresholdNum - Math.min(cov, thresholdNum)) / thresholdNum) * 100);
+
+  return (
+    <div className={`rounded-lg border p-4 ${
+      hasConverged
+        ? 'bg-green-50 border-green-200'
+        : 'bg-orange-50 border-orange-200'
+    }`}>
+      <div className="flex items-center gap-2 mb-2">
+        <div className={`w-2 h-2 rounded-full ${hasConverged ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`} />
+        <h3 className={`text-sm font-semibold ${hasConverged ? 'text-green-800' : 'text-orange-800'}`}>
+          {hasConverged ? 'Converged' : 'Not Yet Converged'}
+        </h3>
+      </div>
+
+      <div className="space-y-2">
+        {/* CoV display */}
+        <div className="flex items-center justify-between text-xs">
+          <span className={hasConverged ? 'text-green-700' : 'text-orange-700'}>
+            Coefficient of Variation
+          </span>
+          <span className={`font-mono font-medium ${hasConverged ? 'text-green-800' : 'text-orange-800'}`}>
+            {covPercent}%
+          </span>
+        </div>
+
+        {/* Progress bar */}
+        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${
+              hasConverged ? 'bg-green-500' : 'bg-orange-400'
+            }`}
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+
+        <div className="flex items-center justify-between text-[10px]">
+          <span className="text-gray-500">
+            Target: CoV &lt; {(thresholdNum * 100).toFixed(0)}%
+          </span>
+          {sePercent && (
+            <span className="text-gray-500">
+              SE: ±{sePercent}%
+            </span>
+          )}
+        </div>
+
+        {!hasConverged && (
+          <p className="text-[10px] text-orange-600 mt-1">
+            Run more simulations for stable estimates. Current sample: {totalRuns}
+          </p>
+        )}
+
+        {hasConverged && (
+          <p className="text-[10px] text-green-600 mt-1">
+            Results have stabilized. Additional runs will have diminishing impact.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const OUTCOME_LABELS = {
   foundBySearcherCount: { label: 'Found by Searcher', color: '#10b981', icon: Search },
@@ -53,16 +254,18 @@ export default function BatchResults({ batch }) {
     (batch.foundViaPlatformCount || 0);
   const successRate = total > 0 ? ((successCount / total) * 100).toFixed(1) : 0;
 
-  // Calculate confidence interval (simplified)
-  const sampleSize = total;
-  const intervalWidth = sampleSize < 10 ? 20 : sampleSize < 50 ? 10 : sampleSize < 200 ? 5 : 3;
-  const lowerBound = Math.max(0, parseFloat(successRate) - intervalWidth);
-  const upperBound = Math.min(100, parseFloat(successRate) + intervalWidth);
-
-  const confidenceLabel = sampleSize < 10 ? 'LOW' : sampleSize < 50 ? 'MEDIUM' : sampleSize < 200 ? 'HIGH' : 'VERY HIGH';
+  // Calculate Wilson score confidence interval (proper method for proportions)
+  const ci = wilsonScoreInterval(successCount, total, 0.95);
+  const lowerBound = ci.lower * 100;
+  const upperBound = ci.upper * 100;
+  const intervalWidth = ci.upper - ci.lower;
+  const confidenceLabel = getConfidenceLabel(intervalWidth);
 
   return (
     <div className="space-y-4">
+      {/* Limitations Banner - Research Transparency */}
+      <SimulationLimitationsBanner />
+
       {/* Success Rate Card */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <div className="flex items-center gap-2 mb-3">
@@ -99,7 +302,19 @@ export default function BatchResults({ batch }) {
             />
           </div>
         </div>
+
+        {/* Wilson Score CI explanation */}
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <p className="text-[10px] text-gray-400">
+            95% Wilson score confidence interval based on {total} trials
+          </p>
+        </div>
       </div>
+
+      {/* Convergence Status - Monte Carlo Quality */}
+      {batch.convergence && (
+        <ConvergenceStatusPanel convergence={batch.convergence} totalRuns={total} />
+      )}
 
       {/* Time Statistics */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
