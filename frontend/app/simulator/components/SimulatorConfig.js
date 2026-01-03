@@ -269,9 +269,12 @@ export default function SimulatorConfig({
           <h3 className="text-base font-semibold text-gray-700 mb-3">Additional Info</h3>
           <div className="flex flex-wrap gap-3">
             {speciesConfig.showIndoor && (
-              <label className={`flex items-center gap-2 px-4 py-3 rounded-lg border cursor-pointer transition-colors ${
-                config.isIndoorPet ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'
-              }`}>
+              <label
+                className={`flex items-center gap-2 px-4 py-3 rounded-lg border cursor-pointer transition-colors ${
+                  config.isIndoorPet ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'
+                }`}
+                title="Select only if your cat has never been outside. Indoor-only cats stay much closer to home (median 39m vs 300m for indoor-outdoor cats)."
+              >
                 <input
                   type="checkbox"
                   checked={config.isIndoorPet}
@@ -279,6 +282,7 @@ export default function SimulatorConfig({
                   className="rounded text-indigo-600 w-4 h-4"
                 />
                 <span className="text-sm font-medium">Indoor Only</span>
+                <Info className="w-3.5 h-3.5 text-gray-400" />
               </label>
             )}
             <label className={`flex items-center gap-2 px-4 py-3 rounded-lg border cursor-pointer transition-colors ${
