@@ -13,6 +13,7 @@
 
 import { PetAgent } from './petAgent.js';
 import { OutcomeTracker, OUTCOME } from './outcomes.js';
+import { createSearchTeam } from './searcherAgent.js';
 import {
   BEHAVIOR_STATE,
   BEHAVIORAL_PARAMS,
@@ -54,8 +55,21 @@ export class EmergentSimulationEngine {
     this.searchHoursStart = searcherConfig.searchHoursStart || 7;
     this.searchHoursEnd = searcherConfig.searchHoursEnd || 21;
 
+    // Create ACTUAL searcher agents (not just probability modifiers)
+    const homePosition = { lat: petConfig.escapeLatitude, lng: petConfig.escapeLongitude };
+    this.searchers = createSearchTeam(
+      searcherConfig.searcherCount || 1,
+      {
+        searchRadiusMiles: environmentConfig.searchRadiusMiles,
+        searchStrategy: searcherConfig.searchStrategy || 'PROBABILITY',
+      },
+      homePosition,
+      this.random
+    );
+
     // Path recording
     this.petPath = [];
+    this.searcherPaths = [];  // Track searcher positions too
     this.events = [];
   }
 
@@ -615,16 +629,67 @@ export class EmergentSimulationEngine {
   }
 
   /**
-   * Check for searcher detection
+   * Check for searcher detection using ACTUAL SEARCHER AGENTS
+   *
+   * This is TRUE emergent simulation:
+   * - Each searcher has a position and moves through the environment
+   * - Detection happens when searcher and pet are in proximity
+   * - No probability math - just distance-based detection
    */
   checkSearcherDetection(currentHour) {
-    // Simplified: use config's searcher count
-    const searcherCount = this.searcherConfig.searcherCount || 1;
+    // Activate searchers if search has started
+    if (this.currentMinute >= this.searchStartMinute) {
+      this.searchers.forEach(s => {
+        if (!s.isActive) {
+          s.activate();
+          this.logEvent('SEARCHER_ACTIVATED', { id: s.id, isOwner: s.isOwner });
+        }
+      });
+    }
 
-    // For each searcher, check detection
-    for (let i = 0; i < searcherCount; i++) {
-      if (this.checkSingleSearcherDetection(i, currentHour)) {
-        return true;
+    // Get focus location for searchers to prioritize
+    const focusLocation = this.outcomes.getSearchFocusLocation();
+
+    // Move each searcher and check for detection
+    for (const searcher of this.searchers) {
+      if (!searcher.isActive) continue;
+
+      // Move searcher
+      searcher.move(this.timeStepMinutes, focusLocation);
+
+      // Record searcher position (for visualization)
+      if (this.currentMinute % 15 === 0) {  // Every 15 min to save memory
+        this.searcherPaths.push({
+          id: searcher.id,
+          minute: this.currentMinute,
+          lat: searcher.lat,
+          lng: searcher.lng,
+          isOwner: searcher.isOwner,
+        });
+      }
+
+      // Check if this searcher detects the pet
+      const detection = searcher.checkDetection(
+        this.pet.lat,
+        this.pet.lng,
+        this.pet.behaviorState,
+        currentHour,
+        this.environment
+      );
+
+      if (detection.detected) {
+        this.logEvent('SEARCHER_DETECTION', {
+          searcherId: searcher.id,
+          isOwner: searcher.isOwner,
+          distance: detection.distance,
+          method: detection.method,
+          petState: this.pet.behaviorState,
+        });
+
+        // Can we capture the pet?
+        if (this.attemptCapture(searcher, currentHour)) {
+          return true;
+        }
       }
     }
 
@@ -632,68 +697,68 @@ export class EmergentSimulationEngine {
   }
 
   /**
-   * Check if a single searcher detects the pet
+   * Attempt to capture pet after detection
    *
-   * SIGHTING FOCUS MECHANIC:
-   * If there's a reported sighting, searchers focus on that area.
-   * Detection probability is boosted if pet is near a reported sighting location.
+   * This depends on:
+   * - Pet's fear level (scared pets flee)
+   * - Pet's temperament (gregarious vs xenophobic)
+   * - Whether it's the owner (recall training)
    */
-  checkSingleSearcherDetection(searcherId, currentHour) {
-    // Base detection probability per tick
-    let baseDetectionRate = 0.0001;  // Very low per tick
+  attemptCapture(searcher, currentHour) {
+    const tempMods = this.pet.temperamentModifiers;
+    const isOwner = searcher.isOwner;
 
-    // Check if there's a reported sighting to focus on
-    const focusLocation = this.outcomes.getSearchFocusLocation();
+    // Record sighting first
+    this.outcomes.recordSighting(
+      this.pet.lat, this.pet.lng, this.currentMinute,
+      'HIGH', isOwner ? 'OWNER' : 'SEARCHER'
+    );
 
-    if (focusLocation) {
-      // Calculate distance from pet to last reported sighting
-      const distToSighting = this.calculateDistance(
-        this.pet.lat, this.pet.lng,
-        focusLocation.lat, focusLocation.lng
-      );
-
-      // Time since sighting (minutes)
-      const timeSinceSighting = this.currentMinute - focusLocation.minute;
-
-      // Sighting focus boost decays over time (24 hours = 1440 minutes)
-      // Max boost is 10x if pet is within 0.1 miles of sighting location
-      if (distToSighting < 0.5) {  // Within 0.5 miles of reported sighting
-        const proximityBoost = Math.max(1, 10 - (distToSighting * 18));  // 10x at 0, 1x at 0.5mi
-        const timeDecay = Math.exp(-timeSinceSighting / 720);  // Half-life of 12 hours
-        const sightingBoost = proximityBoost * timeDecay;
-
-        baseDetectionRate *= sightingBoost;
-
-        this.logEvent('SEARCH_FOCUS_BOOST', {
-          distToSighting,
-          timeSinceSighting,
-          sightingBoost,
-        });
-      }
+    // Calculate approach probability
+    let approachProb;
+    if (isOwner) {
+      // Owner calling - use recall training, fear has less effect
+      approachProb = this.pet.recallTraining * (1 - this.pet.fear * 0.5);
+    } else {
+      // Stranger searcher - fear and temperament matter more
+      approachProb = tempMods.stranger_approach_prob * (1 - this.pet.fear * 0.8);
     }
 
-    // Pet visibility
-    const visibility = this.pet.getVisibility(this.environment, currentHour);
+    if (this.random() < approachProb) {
+      // Pet approached - capture successful!
+      const outcomeCode = isOwner ? 'REUNITED_OWNER_SEARCH' : 'REUNITED_SEARCH_TEAM';
 
-    // Terrain modifier
-    const terrainMod = {
-      URBAN: 0.5,
-      SUBURBAN: 1.0,
-      RURAL: 1.5,
-      WOODED: 0.3,
-    }[this.environmentConfig.terrainType] || 1.0;
+      this.outcomes.setOutcome(outcomeCode, this.currentMinute, {
+        lat: this.pet.lat,
+        lng: this.pet.lng,
+        searcherId: searcher.id,
+        searcherDistanceCovered: searcher.distanceCovered,
+      });
 
-    // Light modifier
-    const isNight = currentHour < 6 || currentHour > 20;
-    const lightMod = isNight ? 0.2 : 1.0;
+      this.logEvent('CAPTURE_SUCCESS', {
+        searcherId: searcher.id,
+        isOwner,
+        approachProb,
+        petFear: this.pet.fear,
+      });
 
-    // Detection probability
-    const detectionProb = baseDetectionRate * visibility * terrainMod * lightMod;
-
-    if (this.random() < detectionProb) {
-      // Detected! Can we capture?
-      return this.handleSearcherDetection(searcherId, currentHour);
+      return true;
     }
+
+    // Pet fled from the searcher
+    const fleeProb = tempMods.flee_from_searcher_prob * this.pet.fear;
+    if (this.random() < fleeProb) {
+      this.pet.spikeFear(this.pet.lat, this.pet.lng, this.currentMinute, 0.4);
+      this.pet.transitionTo(BEHAVIOR_STATE.FLEEING, this.currentMinute);
+    }
+
+    this.logEvent('CAPTURE_FAILED', {
+      searcherId: searcher.id,
+      isOwner,
+      approachProb,
+      petFear: this.pet.fear,
+      petFled: this.random() < fleeProb,
+    });
 
     return false;
   }
@@ -710,74 +775,6 @@ export class EmergentSimulationEngine {
               Math.sin(dLng / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
-  }
-
-  /**
-   * Handle searcher detection
-   */
-  handleSearcherDetection(searcherId, currentHour) {
-    const tempMods = this.pet.temperamentModifiers;
-
-    // Record sighting
-    this.outcomes.recordSighting(
-      this.pet.lat, this.pet.lng, this.currentMinute,
-      'HIGH', 'SEARCHER'
-    );
-
-    // Does pet approach or flee?
-    // For owner (searcherId = 0), use recall training
-    const isOwner = searcherId === 0;
-
-    let approachProb;
-    if (isOwner) {
-      // Owner calling - use recall training
-      approachProb = this.pet.recallTraining * (1 - this.pet.fear * 0.5);
-    } else {
-      // Stranger searcher
-      approachProb = tempMods.stranger_approach_prob * (1 - this.pet.fear);
-    }
-
-    // Gregarious pets are more likely to approach
-    if (this.random() < approachProb) {
-      // Pet approached - capture!
-      const outcomeCode = isOwner ? 'REUNITED_OWNER_SEARCH' : 'REUNITED_SEARCH_TEAM';
-
-      this.outcomes.setOutcome(outcomeCode, this.currentMinute, {
-        lat: this.pet.lat,
-        lng: this.pet.lng,
-        searcherId,
-      });
-
-      this.logEvent('SEARCHER_CAPTURE', {
-        lat: this.pet.lat,
-        lng: this.pet.lng,
-        searcherId,
-        isOwner,
-      });
-
-      return true;
-    }
-
-    // Pet fled
-    const fleeProb = tempMods.flee_from_searcher_prob;
-    if (this.random() < fleeProb) {
-      this.pet.spikeFear(this.pet.lat, this.pet.lng, this.currentMinute, 0.3);
-      this.pet.transitionTo(BEHAVIOR_STATE.FLEEING, this.currentMinute);
-    }
-
-    this.logEvent('SEARCHER_SIGHTING_ESCAPED', {
-      lat: this.pet.lat,
-      lng: this.pet.lng,
-      searcherId,
-    });
-
-    // Update sighting to confirmed
-    this.outcomes.setOutcome('SIGHTED_NOT_CAPTURED', this.currentMinute, {
-      lat: this.pet.lat,
-      lng: this.pet.lng,
-    });
-
-    return false;  // Not terminal - search continues
   }
 
   // ===========================================================================
@@ -846,8 +843,10 @@ export class EmergentSimulationEngine {
       sightingCount: outcomeSummary.sightingCount,
       reportedSightingCount: this.outcomes.reportedSightings.length,
 
-      // Path (for visualization)
+      // Paths (for visualization)
       petPath: effectivePath,
+      searcherPaths: this.searcherPaths,  // Actual searcher movements!
+      searcherCount: this.searchers.length,
       events: this.events,
 
       // Config info (for analysis)
