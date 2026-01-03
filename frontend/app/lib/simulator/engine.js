@@ -352,6 +352,7 @@ export class SimulationEngine {
    * Check if pet has returned home (EMERGENT self-return)
    *
    * Pet returns home when:
+   * - It has first moved away from home (at least 0.05 miles)
    * - It's within a small radius of home (physically there)
    * - AND it has motivation to stay (hungry, tired, or familiar territory pull)
    */
@@ -360,6 +361,18 @@ export class SimulationEngine {
       this.pet.lat, this.pet.lng,
       this.pet.homeLat, this.pet.homeLng
     );
+
+    // Track maximum distance from home to prevent immediate "return"
+    if (!this.maxDistanceFromHome) {
+      this.maxDistanceFromHome = 0;
+    }
+    this.maxDistanceFromHome = Math.max(this.maxDistanceFromHome, distanceFromHome);
+
+    // Pet must have moved away at least 0.05 miles before it can "return"
+    // This prevents immediate "returned home" on first tick when pet starts at home
+    if (this.maxDistanceFromHome < 0.05) {
+      return false;
+    }
 
     // Pet must be very close to home (within ~50 meters = 0.03 miles)
     const homeRadius = 0.03;
