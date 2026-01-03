@@ -97,12 +97,34 @@ export class SimulationEngine {
       this.displacementResult.distanceMiles
     );
 
-    // 4. Sample recovery day (for timeline-based recovery modes)
+    // 4. Sample recovery time (scaled to simulation duration)
+    // Note: Research timelines (Huang 2018) can span weeks, but simulation is limited.
+    // We scale recovery time to fit within the simulation while preserving overall recovery rate.
+    const maxSimMinutes = (this.config.maxSimulationHours || 72) * 60;
+
     if (this.recoveryOutcome.recovered) {
-      this.recoveryDay = species === 'cat'
+      // Sample a recovery day from research distribution
+      const researchRecoveryDay = species === 'cat'
         ? sampleCatRecoveryDay(this.random)
         : sampleDogRecoveryDay(this.random);
-      this.recoveryMinute = this.recoveryDay * 24 * 60;
+
+      // Scale recovery time to fit within simulation duration
+      // For timeline-based modes (self-return, etc.), distribute recovery times
+      // For search-based modes, recovery depends on detection (handled separately)
+      if (this.recoveryOutcome.requiresSearch) {
+        // Search-based modes: recover when searcher detects pet
+        // Use research day as a minimum wait, but cap to simulation
+        this.recoveryDay = Math.min(researchRecoveryDay, Math.floor(maxSimMinutes / 1440) || 1);
+        this.recoveryMinute = Math.min(researchRecoveryDay * 24 * 60, maxSimMinutes * 0.9);
+      } else {
+        // Timeline-based modes: scale recovery time to fit simulation
+        // Use proportional scaling so some recover early, some late
+        const scaleFactor = maxSimMinutes / (30 * 24 * 60); // Scale 30-day window to sim
+        const scaledMinutes = researchRecoveryDay * 24 * 60 * scaleFactor;
+        // Ensure recovery happens within simulation, with some buffer
+        this.recoveryMinute = Math.min(scaledMinutes, maxSimMinutes * 0.95);
+        this.recoveryDay = this.recoveryMinute / (24 * 60);
+      }
     } else {
       this.recoveryDay = null;
       this.recoveryMinute = null;
@@ -587,9 +609,25 @@ export class SimulationEngine {
    * Get simulation results
    */
   getResults() {
-    // Calculate total distances
-    const petDistance = this.calculateTotalDistance(this.petPath);
-    const searcherDistance = this.searcherPaths.reduce((total, s) => {
+    // Truncate paths to foundAtMinute if pet was found (saves memory and matches reality)
+    let effectivePetPath = this.petPath;
+    let effectiveSearcherPaths = this.searcherPaths;
+
+    if (this.foundAtMinute != null && !this.outcome?.startsWith('TIMEOUT')) {
+      // Find the index where the pet was found
+      const foundIndex = this.petPath.findIndex(p => p.minute >= this.foundAtMinute);
+      if (foundIndex > 0) {
+        effectivePetPath = this.petPath.slice(0, foundIndex + 1);
+        effectiveSearcherPaths = this.searcherPaths.map(s => ({
+          ...s,
+          path: s.path.slice(0, foundIndex + 1)
+        }));
+      }
+    }
+
+    // Calculate total distances from truncated paths
+    const petDistance = this.calculateTotalDistance(effectivePetPath);
+    const searcherDistance = effectiveSearcherPaths.reduce((total, s) => {
       return total + this.calculateTotalDistance(s.path);
     }, 0);
 
@@ -620,8 +658,8 @@ export class SimulationEngine {
       petDistanceMiles: petDistance,
       searcherDistanceMiles: searcherDistance,
       finalPetState: this.pet.state,
-      petPath: this.petPath,
-      searcherPaths: this.searcherPaths,
+      petPath: effectivePetPath,
+      searcherPaths: effectiveSearcherPaths,
       events: this.events,
       terrain: terrainData,
 

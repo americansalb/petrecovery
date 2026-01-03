@@ -132,7 +132,21 @@ export default function PlaybackControls({
     }
     return [];
   }, [simulation?.searcherPaths, simulation?.searcherPathsJson]);
-  const maxMinute = petPath.length > 0 ? petPath[petPath.length - 1].minute : 0;
+
+  // Calculate the effective end time - stop at foundAtMinute if pet was found
+  const maxMinute = useMemo(() => {
+    const pathMax = petPath.length > 0 ? petPath[petPath.length - 1].minute : 0;
+
+    // If the pet was found, stop the animation there
+    if (simulation?.foundAtMinute != null && !simulation?.outcome?.startsWith('TIMEOUT')) {
+      return Math.min(simulation.foundAtMinute, pathMax);
+    }
+
+    return pathMax;
+  }, [petPath, simulation?.foundAtMinute, simulation?.outcome]);
+
+  // Check if pet was found (for display purposes)
+  const wasFound = simulation?.outcome && !simulation.outcome.startsWith('TIMEOUT');
 
   // Update positions based on current minute
   const updatePositions = useCallback((minute) => {
@@ -434,6 +448,25 @@ export default function PlaybackControls({
           {playbackState.searcherPositions?.length || 0} searchers active
         </div>
       </div>
+
+      {/* Found Banner - shows when animation completes for found pets */}
+      {wasFound && playbackState.currentMinute >= maxMinute - 1 && (
+        <div className="mt-3 p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg text-white text-center animate-pulse">
+          <div className="flex items-center justify-center gap-2">
+            {simulation.outcome === 'RETURNED_HOME' ? (
+              <Home className="w-5 h-5" />
+            ) : (
+              <Eye className="w-5 h-5" />
+            )}
+            <span className="font-bold text-lg">
+              {simulation.outcome === 'RETURNED_HOME' ? 'Pet Returned Home!' : 'Pet Found!'}
+            </span>
+          </div>
+          <p className="text-sm text-green-100 mt-1">
+            {formatTime(simulation.foundAtMinute)} - {simulation.outcome?.replace(/_/g, ' ')}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
