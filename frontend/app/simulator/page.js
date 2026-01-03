@@ -20,7 +20,7 @@ import PlaybackControls from './components/PlaybackControls';
 import RecoveryGuidance from './components/RecoveryGuidance';
 import {
   Play, Pause, RotateCcw, BarChart3, Settings2,
-  Map, List, FlaskConical, Info, LineChart, FileText, Lightbulb
+  Map, List, FlaskConical, Info, LineChart, FileText, Lightbulb, Loader2
 } from 'lucide-react';
 
 // Dynamically import map to avoid SSR issues with Leaflet
@@ -86,6 +86,7 @@ export default function SimulatorPage() {
   const [activeTab, setActiveTab] = useState('config'); // config, results, analytics
   const [analyticsSubTab, setAnalyticsSubTab] = useState('charts'); // stats, charts, guidance
   const [showInfo, setShowInfo] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   // Run a single simulation
   const runSingleSimulation = useCallback(async () => {
@@ -269,6 +270,45 @@ export default function SimulatorPage() {
     }));
   }, []);
 
+  // Handle simulation selection - regenerate path data if needed
+  const handleSelectSimulation = useCallback(async (sim) => {
+    // If simulation already has path data, just select it
+    if (sim.petPath && sim.petPath.length > 0) {
+      setSelectedSimulation(sim);
+      return;
+    }
+
+    // Otherwise, regenerate the full simulation using the seed
+    setIsRegenerating(true);
+    try {
+      const response = await fetch('/api/simulator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          config,
+          mode: 'single',
+          seed: sim.randomSeed, // Use the original seed to get identical results
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to regenerate simulation');
+
+      const result = await response.json();
+      // Merge the regenerated data with the original sim metadata
+      setSelectedSimulation({
+        ...sim,
+        ...result.simulation,
+        id: sim.id, // Keep original ID
+      });
+    } catch (error) {
+      console.error('Failed to regenerate simulation:', error);
+      // Still select it even without path data
+      setSelectedSimulation(sim);
+    } finally {
+      setIsRegenerating(false);
+    }
+  }, [config]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -368,8 +408,9 @@ export default function SimulatorPage() {
                   batches={batches}
                   selectedId={selectedSimulation?.id}
                   selectedBatchId={selectedBatch?.id}
-                  onSelectSimulation={setSelectedSimulation}
+                  onSelectSimulation={handleSelectSimulation}
                   onSelectBatch={setSelectedBatch}
+                  isRegenerating={isRegenerating}
                 />
               )}
 
