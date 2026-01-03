@@ -16,6 +16,7 @@ import SimulatorConfig from './components/SimulatorConfig';
 import SimulationList from './components/SimulationList';
 import BatchResults from './components/BatchResults';
 import PlaybackControls from './components/PlaybackControls';
+import RecoveryGuidance from './components/RecoveryGuidance';
 import {
   Play, Pause, RotateCcw, BarChart3, Settings2,
   Map, List, FlaskConical, Info
@@ -58,6 +59,7 @@ export default function SimulatorPage() {
 
   // Simulation state
   const [simulations, setSimulations] = useState([]);
+  const [batches, setBatches] = useState([]); // Track all batches
   const [selectedSimulation, setSelectedSimulation] = useState(null);
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -108,14 +110,17 @@ export default function SimulatorPage() {
       const response = await fetch('/api/simulator/batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config, batchSize }),
+        body: JSON.stringify({ config, batchSize, includeSimulations: true }),
       });
 
       if (!response.ok) throw new Error('Batch simulation failed');
 
       const result = await response.json();
+      // Add batch to batches list (for Results tab)
+      setBatches(prev => [result.batch, ...prev]);
       setSelectedBatch(result.batch);
-      setActiveTab('analytics');
+      // Switch to results tab to show the batch
+      setActiveTab('results');
     } catch (error) {
       console.error('Batch simulation error:', error);
     } finally {
@@ -229,15 +234,24 @@ export default function SimulatorPage() {
               {activeTab === 'results' && (
                 <SimulationList
                   simulations={simulations}
+                  batches={batches}
                   selectedId={selectedSimulation?.id}
-                  onSelect={setSelectedSimulation}
+                  selectedBatchId={selectedBatch?.id}
+                  onSelectSimulation={setSelectedSimulation}
+                  onSelectBatch={setSelectedBatch}
                 />
               )}
 
               {activeTab === 'analytics' && (
-                <BatchResults
-                  batch={selectedBatch}
-                />
+                <div className="space-y-4">
+                  <BatchResults
+                    batch={selectedBatch}
+                  />
+                  <RecoveryGuidance
+                    config={config}
+                    batch={selectedBatch}
+                  />
+                </div>
               )}
             </div>
           </div>
@@ -251,6 +265,7 @@ export default function SimulatorPage() {
                 simulation={selectedSimulation}
                 playbackState={playbackState}
                 onLocationSelect={handleLocationSelect}
+                batch={selectedBatch}
               />
 
               {/* Map Legend */}

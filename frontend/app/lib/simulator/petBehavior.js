@@ -4,6 +4,8 @@
  * States: FLEEING, HIDING, FORAGING, WANDERING, TERRITORIAL, SHELTERED
  */
 
+import { getTerrainCache } from './terrain';
+
 // Movement speeds by state (miles per 5 minutes)
 const STATE_SPEEDS = {
   FLEEING: 0.15,    // ~1.8 mph - running
@@ -125,32 +127,45 @@ export class PetAgent {
     const isDawnDusk = (currentHour >= 5 && currentHour <= 7) || (currentHour >= 17 && currentHour <= 20);
     const isNight = currentHour >= 21 || currentHour <= 4;
 
+    // Get terrain zone modifiers at current location
+    const terrain = getTerrainCache();
+    const zone = terrain.getZoneAt(this.lat, this.lng);
+    const hidingBonus = zone.modifiers.hidingBonus;
+    const foragingBonus = zone.modifiers.foragingBonus;
+
     switch (this.state) {
       case 'FLEEING':
         // Transition to HIDING if energy low or time elapsed
+        // More likely to hide if in good hiding spot (woods, park)
         if (this.energy < 0.2 || timeSinceStateChange > this.params.fleeingDuration) {
           this.transitionTo('HIDING', minute);
         }
         // Or calm down to WANDERING if time passed and no threats
-        else if (timeSinceStateChange > 120 && this.random() < 0.3) {
+        else if (timeSinceStateChange > 120 && this.random() < 0.3 / hidingBonus) {
           this.transitionTo('WANDERING', minute);
+        }
+        // More likely to hide in good hiding zones
+        else if (hidingBonus > 1.0 && this.random() < 0.1 * hidingBonus) {
+          this.transitionTo('HIDING', minute);
         }
         break;
 
       case 'HIDING':
         // Transition to FORAGING if hungry and it's dawn/dusk
-        if (this.hunger > 0.7 && isDawnDusk && this.random() < 0.2) {
+        // More likely to forage if in commercial area (dumpsters)
+        if (this.hunger > 0.7 && isDawnDusk && this.random() < 0.2 * foragingBonus) {
           this.transitionTo('FORAGING', minute);
         }
         // Cats may venture out at night
-        if (this.config.petSpecies === 'CAT' && isNight && this.hunger > 0.5 && this.random() < 0.1) {
+        if (this.config.petSpecies === 'CAT' && isNight && this.hunger > 0.5 && this.random() < 0.1 * foragingBonus) {
           this.transitionTo('FORAGING', minute);
         }
         break;
 
       case 'FORAGING':
         // Return to HIDING if threatened or daytime
-        if (!isDawnDusk && !isNight && this.random() < 0.3) {
+        // More likely to stay out in commercial areas
+        if (!isDawnDusk && !isNight && this.random() < 0.3 / foragingBonus) {
           this.transitionTo('HIDING', minute);
         }
         // Transition to WANDERING if hunger satisfied
@@ -165,14 +180,15 @@ export class PetAgent {
           this.transitionTo('TERRITORIAL', minute);
         }
         // Hide if scared (low probability random event)
-        if (this.random() < 0.02) {
+        // More likely to hide if in good hiding spot
+        if (this.random() < 0.02 * hidingBonus) {
           this.transitionTo('HIDING', minute);
         }
         break;
 
       case 'TERRITORIAL':
         // Return to FORAGING if hungry
-        if (this.hunger > 0.7 && this.random() < 0.1) {
+        if (this.hunger > 0.7 && this.random() < 0.1 * foragingBonus) {
           this.transitionTo('FORAGING', minute);
         }
         break;
@@ -246,13 +262,46 @@ export class PetAgent {
         break;
     }
 
-    // Calculate new position
+    // Calculate proposed new position
     const distanceMiles = adjustedSpeed;
     const latChange = distanceMiles * Math.cos(this.direction * Math.PI / 180) / 69.0;
     const lngChange = distanceMiles * Math.sin(this.direction * Math.PI / 180) / (69.0 * Math.cos(this.lat * Math.PI / 180));
 
-    this.lat += latChange;
-    this.lng += lngChange;
+    const newLat = this.lat + latChange;
+    const newLng = this.lng + lngChange;
+
+    // Check for terrain barriers
+    const terrain = getTerrainCache();
+    const moveCheck = terrain.checkMovement(this.lat, this.lng, newLat, newLng, this.random);
+
+    if (moveCheck.blocked) {
+      // If blocked, try up to 3 alternative directions
+      if (moveCheck.canAttempt) {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          // Try a different direction
+          const altDirection = this.direction + (90 + this.random() * 90) * (this.random() < 0.5 ? 1 : -1);
+          const altLatChange = distanceMiles * Math.cos(altDirection * Math.PI / 180) / 69.0;
+          const altLngChange = distanceMiles * Math.sin(altDirection * Math.PI / 180) / (69.0 * Math.cos(this.lat * Math.PI / 180));
+
+          const altLat = this.lat + altLatChange;
+          const altLng = this.lng + altLngChange;
+
+          const altCheck = terrain.checkMovement(this.lat, this.lng, altLat, altLng, this.random);
+          if (!altCheck.blocked) {
+            this.lat = altLat;
+            this.lng = altLng;
+            this.direction = altDirection; // Update direction for next move
+            return;
+          }
+        }
+      }
+      // Completely blocked - stay in place (common for hiding pets near water)
+      return;
+    }
+
+    // No barriers - move to new position
+    this.lat = newLat;
+    this.lng = newLng;
   }
 
   /**

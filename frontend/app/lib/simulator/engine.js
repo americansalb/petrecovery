@@ -9,6 +9,7 @@ import { PetAgent } from './petBehavior';
 import { SearcherAgent } from './searcherBehavior';
 import { calculateDetectionProbability } from './detection';
 import { seededRandom } from './utils';
+import { getTerrainCache, resetTerrainCache } from './terrain';
 
 // Simulation outcomes
 export const OUTCOMES = {
@@ -293,6 +294,13 @@ export class SimulationEngine {
       return total + this.calculateTotalDistance(s.path);
     }, 0);
 
+    // Get terrain data for display
+    const terrain = getTerrainCache();
+    const terrainData = terrain.loaded ? {
+      barriers: terrain.getBarriersForDisplay(),
+      zones: terrain.getZonesForDisplay(),
+    } : null;
+
     return {
       seed: this.seed,
       outcome: this.outcome,
@@ -308,6 +316,7 @@ export class SimulationEngine {
       petPath: this.petPath,
       searcherPaths: this.searcherPaths,
       events: this.events,
+      terrain: terrainData,
     };
   }
 
@@ -395,4 +404,34 @@ function aggregateResults(results, total) {
     timeoutSearchingCount: outcomes[OUTCOMES.TIMEOUT_SEARCHING],
     timeoutShelteredCount: outcomes[OUTCOMES.TIMEOUT_SHELTERED],
   };
+}
+
+/**
+ * Load terrain data for simulation area
+ * Call this before running simulations to enable barrier checking
+ */
+export async function loadTerrain(centerLat, centerLng, radiusMiles) {
+  const terrain = getTerrainCache();
+  await terrain.load(centerLat, centerLng, radiusMiles);
+  return {
+    loaded: terrain.loaded,
+    error: terrain.error,
+    barrierCount: terrain.barriers.length,
+    zoneCount: terrain.zones.length,
+  };
+}
+
+/**
+ * Clear terrain cache (call when location changes significantly)
+ */
+export function clearTerrain() {
+  resetTerrainCache();
+}
+
+/**
+ * Check if terrain is loaded
+ */
+export function isTerrainLoaded() {
+  const terrain = getTerrainCache();
+  return terrain.loaded;
 }
