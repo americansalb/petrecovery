@@ -8,7 +8,8 @@ import { useState, useMemo } from 'react';
 import {
   CheckCircle2, XCircle, Clock, Home, Building2,
   Share2, Smartphone, Search, AlertTriangle,
-  ChevronDown, ChevronRight, Layers, BarChart3, MapPin, Info, Loader2
+  ChevronDown, ChevronRight, Layers, BarChart3, MapPin, Info, Loader2,
+  TrendingDown, Target
 } from 'lucide-react';
 import { estimateUncertaintyBounds } from '@/app/lib/simulator/sensitivity';
 
@@ -205,6 +206,25 @@ function BatchGroup({ batch, isSelected, isExpanded, onToggle, onSelect, onSelec
               <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1" title={uncertainty.warning}>
                 <Info className="w-3 h-3" />
                 <span>95% CI: {uncertainty.ci95Lower.toFixed(0)}% - {uncertainty.ci95Upper.toFixed(0)}%</span>
+              </div>
+            )}
+
+            {/* Convergence status */}
+            {batch.convergence && (
+              <div className={`text-[10px] mt-0.5 flex items-center gap-1 ${
+                batch.convergence.hasConverged ? 'text-green-600' : 'text-orange-500'
+              }`}>
+                {batch.convergence.hasConverged ? (
+                  <>
+                    <Target className="w-3 h-3" />
+                    <span>Converged (CoV: {batch.convergence.coefficientOfVariation})</span>
+                  </>
+                ) : (
+                  <>
+                    <TrendingDown className="w-3 h-3" />
+                    <span>CoV: {batch.convergence.coefficientOfVariation} (target: &lt;{batch.convergence.threshold})</span>
+                  </>
+                )}
               </div>
             )}
 
