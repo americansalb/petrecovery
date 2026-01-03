@@ -30,7 +30,7 @@ import { PetAgent } from './petBehavior';
 import { SearcherAgent } from './searcherBehavior';
 import { calculateDetectionProbability } from './detection';
 import { seededRandom } from './utils';
-import { getTerrainCache, resetTerrainCache } from './terrain';
+import { getTerrainCache, resetTerrainCache, getTerrainStatus } from './terrain';
 
 // Research-backed modules (for behavioral parameters, NOT pre-determined outcomes)
 import { sampleDisplacement, getProbabilityZones } from './displacement.js';
@@ -595,6 +595,9 @@ export class SimulationEngine {
     const foundLat = wasFound ? lastPosition?.lat : null;
     const foundLng = wasFound ? lastPosition?.lng : null;
 
+    // Get terrain status for warnings
+    const terrainStatus = getTerrainStatus();
+
     return {
       seed: this.seed,
       outcome: this.outcome,
@@ -611,6 +614,7 @@ export class SimulationEngine {
       searcherPaths: effectiveSearcherPaths,
       events: this.events,
       terrain: terrainData,
+      terrainStatus: terrainStatus,  // Include status for UI warnings
 
       // Behavioral parameters (for reference, NOT pre-determined outcomes)
       behavioralParams: {
@@ -618,6 +622,11 @@ export class SimulationEngine {
         roamingTendencyMeters: this.displacementParams.distance,
         distributionParams: this.displacementParams.params,
       },
+
+      // Warnings for user
+      warnings: [
+        ...(terrainStatus.warning ? [terrainStatus.warning] : []),
+      ],
     };
   }
 

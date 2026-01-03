@@ -82,6 +82,7 @@ export class TerrainCache {
     this.loaded = false;
     this.loading = false;
     this.error = null;
+    this.hasBarriers = false;  // Track if we actually have barrier data
   }
 
   /**
@@ -112,13 +113,22 @@ export class TerrainCache {
       this.zones = this.parseZones(data);
 
       this.loaded = true;
+      this.hasBarriers = this.barriers.length > 0;
+
+      if (!this.hasBarriers) {
+        console.warn('⚠️ TERRAIN WARNING: No barriers loaded - pets may walk through water/buildings');
+      } else {
+        console.log(`✅ Terrain loaded: ${this.barriers.length} barriers, ${this.zones.length} zones`);
+      }
     } catch (error) {
-      console.error('Failed to load terrain:', error);
+      console.error('❌ TERRAIN FAILED:', error);
       this.error = error.message;
-      // Continue with empty terrain - simulations will still work
+      // Continue with empty terrain - simulations will still work but pets can walk through water
       this.barriers = [];
       this.zones = [];
       this.loaded = true;
+      this.hasBarriers = false;
+      console.warn('⚠️ Simulation will run without terrain barriers - pets may walk through water/buildings');
     } finally {
       this.loading = false;
     }
@@ -474,4 +484,22 @@ export function getTerrainCache() {
 
 export function resetTerrainCache() {
   globalTerrainCache = null;
+}
+
+/**
+ * Check if terrain barriers are actually working
+ * Returns status info for display to user
+ */
+export function getTerrainStatus() {
+  const terrain = getTerrainCache();
+  return {
+    loaded: terrain.loaded,
+    hasBarriers: terrain.hasBarriers,
+    barrierCount: terrain.barriers.length,
+    zoneCount: terrain.zones.length,
+    error: terrain.error,
+    warning: !terrain.hasBarriers
+      ? 'Terrain barriers not loaded - simulation may be unrealistic (pets can walk through water)'
+      : null,
+  };
 }
