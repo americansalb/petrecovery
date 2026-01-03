@@ -87,6 +87,8 @@ export default function SimulatorMap({
   });
   const [showTerrain, setShowTerrain] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(true);
+  const [showTrails, setShowTrails] = useState(false);  // Pet movement trails
+  const trailsRef = useRef([]);
 
   // Initialize map
   useEffect(() => {
@@ -458,6 +460,95 @@ export default function SimulatorMap({
 
   }, [batch?.simulations, showHeatmap]);
 
+  // Display pet and searcher trails from batch simulations
+  // Uses low opacity so overlapping paths create a "flow" visualization
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Clear existing trails
+    trailsRef.current.forEach(layer => layer.remove());
+    trailsRef.current = [];
+
+    if (!batch?.simulations || !showTrails) return;
+
+    // Get simulations with path data (limit to prevent performance issues)
+    const simsWithPaths = batch.simulations
+      .filter(sim => sim.petPath || sim.petPathJson)
+      .slice(0, 500);  // Limit to 500 for performance
+
+    if (simsWithPaths.length === 0) return;
+
+    // Calculate opacity based on number of trails (more = lower opacity)
+    const baseOpacity = Math.max(0.03, Math.min(0.3, 10 / simsWithPaths.length));
+
+    // Draw pet trails with low opacity (creates flow effect when overlapped)
+    simsWithPaths.forEach((sim, simIndex) => {
+      const petPath = sim.petPath || (sim.petPathJson ? (() => {
+        try { return JSON.parse(sim.petPathJson); }
+        catch(e) { return []; }
+      })() : []);
+
+      if (petPath.length < 2) return;
+
+      // Convert to coordinates, sampling every Nth point for performance
+      const sampleRate = Math.max(1, Math.floor(petPath.length / 50));
+      const coords = petPath
+        .filter((p, i) => i % sampleRate === 0)
+        .map(p => [p.lat, p.lng]);
+
+      if (coords.length < 2) return;
+
+      // Color by outcome
+      const isFound = !sim.outcome?.includes('TIMEOUT') &&
+                      !sim.outcome?.includes('STILL_MISSING') &&
+                      !sim.outcome?.includes('DECEASED');
+
+      const color = isFound ? '#10b981' : '#ef4444';  // Green for found, red for not
+
+      const trail = L.polyline(coords, {
+        color,
+        weight: 2,
+        opacity: baseOpacity,
+        smoothFactor: 2,
+      }).addTo(map);
+
+      trailsRef.current.push(trail);
+    });
+
+    // Draw searcher trails with different color
+    simsWithPaths.forEach(sim => {
+      const searcherPaths = sim.searcherPaths || (sim.searcherPathsJson ? (() => {
+        try { return JSON.parse(sim.searcherPathsJson); }
+        catch(e) { return []; }
+      })() : []);
+
+      if (searcherPaths.length < 2) return;
+
+      // Group by searcher ID
+      const searcherGroups = {};
+      searcherPaths.forEach(p => {
+        if (!searcherGroups[p.id]) searcherGroups[p.id] = [];
+        searcherGroups[p.id].push([p.lat, p.lng]);
+      });
+
+      // Draw each searcher's trail
+      Object.values(searcherGroups).forEach(coords => {
+        if (coords.length < 2) return;
+
+        const trail = L.polyline(coords, {
+          color: '#3b82f6',  // Blue for searchers
+          weight: 1.5,
+          opacity: baseOpacity * 0.5,  // Even lighter for searchers
+          smoothFactor: 2,
+        }).addTo(map);
+
+        trailsRef.current.push(trail);
+      });
+    });
+
+  }, [batch?.simulations, showTrails]);
+
   return (
     <div className="relative w-full h-full min-h-[400px]">
       <div ref={mapRef} className="w-full h-full" />
@@ -491,10 +582,24 @@ export default function SimulatorMap({
             {showHeatmap ? 'Heatmap ON' : 'Heatmap OFF'}
           </button>
         )}
+
+        {/* Trails toggle - shows actual pet and searcher movement paths */}
+        {batch?.simulations?.length > 0 && (
+          <button
+            onClick={() => setShowTrails(!showTrails)}
+            className={`px-3 py-1.5 rounded-lg shadow-md text-xs font-medium transition-colors ${
+              showTrails
+                ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
+            }`}
+          >
+            {showTrails ? 'Trails ON' : 'Trails OFF'}
+          </button>
+        )}
       </div>
 
       {/* Heatmap legend */}
-      {batch?.simulations?.length > 0 && showHeatmap && (
+      {batch?.simulations?.length > 0 && showHeatmap && !showTrails && (
         <div className="absolute bottom-4 right-4 z-[1000] bg-white/95 backdrop-blur rounded-lg border border-gray-200 p-3 text-xs">
           <div className="font-medium text-gray-700 mb-2">Find Locations</div>
           <div className="space-y-1">
@@ -513,6 +618,33 @@ export default function SimulatorMap({
           </div>
           <div className="mt-2 pt-2 border-t border-gray-100 text-gray-500">
             {batch.simulations.filter(s => s.foundLatitude && !s.outcome?.startsWith('TIMEOUT')).length} finds plotted
+          </div>
+        </div>
+      )}
+
+      {/* Trails legend */}
+      {batch?.simulations?.length > 0 && showTrails && (
+        <div className="absolute bottom-4 right-4 z-[1000] bg-white/95 backdrop-blur rounded-lg border border-gray-200 p-3 text-xs">
+          <div className="font-medium text-gray-700 mb-2">Movement Trails</div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-1 bg-emerald-500 rounded"></div>
+              <span>Pet found</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-1 bg-red-500 rounded"></div>
+              <span>Pet not found</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-1 bg-blue-500 rounded opacity-50"></div>
+              <span>Searcher paths</span>
+            </div>
+          </div>
+          <div className="mt-2 pt-2 border-t border-gray-100 text-gray-500">
+            Showing up to 500 trails
+          </div>
+          <div className="text-gray-400 italic mt-1">
+            Overlapping = common paths
           </div>
         </div>
       )}
