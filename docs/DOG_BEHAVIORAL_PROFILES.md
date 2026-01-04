@@ -57,6 +57,65 @@ This document defines a comprehensive behavioral profile system for simulating l
 
 ---
 
+## Probability Normalization Method
+
+When multiple modifiers stack (e.g., temperament +50% to P1, breed +30% to D1, age -20% to P1), we use the following resolution method:
+
+### Method: Multiplicative Adjustment with Renormalization
+
+```
+FUNCTION applyModifiers(baseProbabilities, modifiers):
+
+    # Step 1: Apply all modifiers multiplicatively
+    adjustedProbs = {}
+    FOR each outcome in baseProbabilities:
+        multiplier = 1.0
+        FOR each modifier that affects this outcome:
+            # Convert percentage to multiplier
+            # +50% becomes 1.5, -20% becomes 0.8
+            multiplier *= (1 + modifier.percentage / 100)
+
+        adjustedProbs[outcome] = baseProbabilities[outcome] * multiplier
+
+    # Step 2: Renormalize so probabilities sum to 1.0
+    total = SUM(adjustedProbs.values())
+    FOR each outcome in adjustedProbs:
+        adjustedProbs[outcome] /= total
+
+    RETURN adjustedProbs
+```
+
+### Example: Xenophobic Rescue with Terrier Instinct
+
+Base escape probabilities:
+```
+P1: 18%, P2: 9%, D1: 12%, W1: 28%, ...
+```
+
+Modifiers applied:
+- Xenophobic (X): P1: +50%, P2: +30%, W1: -30%
+- Terrier (TER): D1: +50%
+
+Calculation:
+```
+P1: 18% × 1.5 = 27%
+P2: 9% × 1.3 = 11.7%
+D1: 12% × 1.5 = 18%
+W1: 28% × 0.7 = 19.6%
+... (others unchanged)
+
+Total before normalization: ~108%
+After normalization: P1: 25%, P2: 10.8%, D1: 16.7%, W1: 18.1%, ...
+```
+
+### Why Multiplicative?
+
+- **Additive** would allow probabilities to go negative or exceed 100%
+- **Multiplicative** preserves relative relationships while allowing stacking
+- **Renormalization** ensures valid probability distribution
+
+---
+
 ## Layer 1: SIZE
 
 **Base Probabilities** (US pet dog population estimates)
@@ -148,6 +207,57 @@ Some breed instincts correlate with size:
 
 ---
 
+## Physical Modifier: BRACHYCEPHALIC
+
+Brachycephalic breeds (flat-faced dogs) have severe physiological limitations that don't map to behavior instincts but critically affect movement capability.
+
+**Prevalence**: ~7% of pet dog population (French Bulldogs, English Bulldogs, Pugs, Boston Terriers, Shih Tzus, Pekingese, Cavalier King Charles Spaniels, Boxers)
+
+**Physical Limitations**
+
+| Condition | Effect on Movement |
+|-----------|-------------------|
+| Compromised airways | Cannot sustain running; overheats rapidly |
+| Heat intolerance | Speed drops to 0.2x in temperatures >75°F |
+| Exercise intolerance | Maximum sustained movement: 15-20 minutes |
+| Respiratory distress under stress | Panic escapes are self-limiting |
+
+**Movement Modifiers for Brachycephalic Dogs**
+
+| Parameter | Modifier | Notes |
+|-----------|----------|-------|
+| Base Speed | 0.6x | Cannot maintain pace |
+| Stamina | 0.3x | Tires very quickly |
+| Max Distance/Day | 0.5-1.0 mi | Physical limitation |
+| Panic Duration | 0.3x | Cannot sustain flight |
+| Heat Sensitivity | Extreme | Speed → 0.2x if temp > 75°F |
+| Recovery Time | 2x | Needs longer rest periods |
+
+**Survival Implications**
+
+- **Positive**: Limited travel range means they stay closer to escape point
+- **Negative**: Higher mortality risk from heat exposure, respiratory distress
+- **Behavioral**: More likely to seek shelter quickly due to physical distress
+- **Recovery**: Usually found within 0.5 miles if they survive first 24 hours
+
+**Application in Simulation**
+
+```
+IF dog.isBrachycephalic:
+    speed *= 0.6
+    stamina *= 0.3
+    maxPanicDuration *= 0.3
+
+    IF temperature > 75:
+        speed *= 0.33  # Additional heat penalty
+        deathRisk += 0.02 per hour exposed
+
+    # Brachycephalic dogs seek shelter faster
+    shelterSeekingMultiplier *= 2.0
+```
+
+---
+
 ## Layer 4: BACKGROUND
 
 **Base Probabilities**
@@ -227,6 +337,107 @@ Working Dog (W):    G:25%  C:40%  A:20%  X:5%   B:10%
 
 ---
 
+## Time-Dependent Behavior Dynamics
+
+Temperament expression changes over time as physiological needs accumulate. A xenophobic dog at hour 6 behaves very differently than at hour 72.
+
+### Hunger Accumulation
+
+```
+hunger(t) = min(1.0, t_hours / 72)  # Reaches maximum desperation at 72 hours
+```
+
+| Hours Lost | Hunger Level | Behavioral Effect |
+|------------|--------------|-------------------|
+| 0-12 | 0.0-0.17 | Normal temperament expression |
+| 12-24 | 0.17-0.33 | Beginning food motivation |
+| 24-48 | 0.33-0.67 | Will take risks for food |
+| 48-72 | 0.67-1.0 | Desperation; temperament barriers weaken |
+| 72+ | 1.0 | Maximum food motivation |
+
+### Thirst Accumulation (More Urgent)
+
+```
+thirst(t) = min(1.0, t_hours / 48)  # Critical by 48 hours
+```
+
+| Hours Lost | Thirst Level | Behavioral Effect |
+|------------|--------------|-------------------|
+| 0-8 | 0.0-0.17 | Normal |
+| 8-16 | 0.17-0.33 | Seeking water sources |
+| 16-24 | 0.33-0.50 | Will approach risky areas for water |
+| 24-36 | 0.50-0.75 | Desperation; will approach humans near water |
+| 36-48 | 0.75-1.0 | Critical; behavior dramatically altered |
+| 48+ | - | Cognitive decline, physical deterioration |
+
+### Fear Decay
+
+```
+fear(t) = initial_fear × e^(-λt)
+where λ = 0.03 per hour (half-life ≈ 23 hours)
+```
+
+| Hours Since Trigger | Fear Level (if initial=1.0) | Effect |
+|---------------------|----------------------------|--------|
+| 0 | 1.0 | Full flight response |
+| 6 | 0.84 | Still highly reactive |
+| 12 | 0.70 | Beginning to calm |
+| 24 | 0.49 | Significantly reduced |
+| 48 | 0.24 | Mostly dissipated |
+| 72 | 0.12 | Minimal residual fear |
+
+### Temperament Modification Over Time
+
+**Effective Approachability** changes as needs accumulate:
+
+```
+FUNCTION effectiveApproachability(baseTemperament, hours):
+
+    hunger = min(1.0, hours / 72)
+    thirst = min(1.0, hours / 48)
+    need = max(hunger, thirst × 1.5)  # Thirst is more urgent
+
+    # Base approachability by temperament
+    baseApproach = {
+        G: 0.9,   # Gregarious - always approachable
+        C: 0.5,   # Confident - neutral
+        A: 0.2,   # Aloof - avoidant
+        X: 0.05,  # Xenophobic - almost never
+        B: 0.3    # Bonded - depends on who
+    }
+
+    # Need increases approachability (desperation)
+    needModifier = need × 0.4  # Max +40% approachability from need
+
+    # But xenophobic dogs have a ceiling
+    IF temperament == X:
+        maxApproach = 0.25  # Even starving X dogs are very wary
+    ELSE:
+        maxApproach = 0.95
+
+    RETURN min(maxApproach, baseApproach[temperament] + needModifier)
+```
+
+**Example: Aloof Dog Over Time**
+
+| Hour | Hunger | Thirst | Effective Approachability | Behavior |
+|------|--------|--------|---------------------------|----------|
+| 6 | 0.08 | 0.13 | 0.23 | Avoids humans |
+| 24 | 0.33 | 0.50 | 0.40 | May investigate food left out |
+| 48 | 0.67 | 1.0 | 0.60 | Will approach feeding stations |
+| 72 | 1.0 | - | 0.60 | Actively seeking help |
+
+**Example: Xenophobic Dog Over Time**
+
+| Hour | Hunger | Thirst | Effective Approachability | Behavior |
+|------|--------|--------|---------------------------|----------|
+| 6 | 0.08 | 0.13 | 0.06 | Flees from all humans |
+| 24 | 0.33 | 0.50 | 0.12 | Still flees, slightly less reactive |
+| 48 | 0.67 | 1.0 | 0.20 | May approach trap with food |
+| 72 | 1.0 | - | 0.25 | Ceiling - still very wary |
+
+---
+
 ## Layer 6: TERRITORY FAMILIARITY
 
 **Base Probabilities**
@@ -275,7 +486,8 @@ Working Dog (W):    G:25%  C:40%  A:20%  X:5%   B:10%
 | W1 | Curious Explorer | Open gate, interesting smell | 28% | Opportunity |
 | W2 | Scent Follower | Nose-down tracking | 4% | Scent trail |
 | W3 | Habitual Escaper | Has escape history | 6% | Routine |
-| W4 | Mate-Seeking | Intact male seeking female | 4% | Hormones |
+| W4 | Mate-Seeking (Male) | Intact male seeking female | 3% | Hormones |
+| W5 | In-Heat Escape (Female) | Intact female in estrus | 2% | Hormones + male attention |
 
 ### DISPLACEMENT ESCAPES (11% total)
 
@@ -350,6 +562,75 @@ PUP: CHR: base × 0.3, MED: base × 0.5
 
 ---
 
+## Layer 9: OWNER SEARCH INTENSITY
+
+Owner behavior significantly affects recovery outcomes. This is a **situational modifier** that affects outcome probabilities but not the dog's inherent movement behavior.
+
+**Search Intensity Levels**
+
+| Code | Intensity | Description | Prevalence |
+|------|-----------|-------------|------------|
+| O0 | None/Minimal | No active search, waiting for dog to return | 5% |
+| O1 | Passive | Posted on social media, called shelters | 25% |
+| O2 | Active | Searching neighborhood, flyers, multiple shelter visits | 45% |
+| O3 | Intensive | Feeding stations, trail cameras, professional help, daily searching | 20% |
+| O4 | Professional | Hired pet detective, search dogs, extensive resources | 5% |
+
+**Search Intensity Components**
+
+| Component | O0 | O1 | O2 | O3 | O4 |
+|-----------|----|----|----|----|-----|
+| Physical searching (hours/day) | 0 | 0-1 | 2-4 | 4-8 | 8+ |
+| Flyers posted | 0 | 0 | 10-50 | 50-200 | 200+ |
+| Social media reach | 0 | Low | Medium | High | Professional |
+| Shelter checks | 0 | Once | Daily | 2x daily | Continuous |
+| Feeding stations | No | No | Maybe | Yes | Multiple |
+| Trail cameras | No | No | No | Yes | Yes |
+| Scent articles distributed | No | No | No | Yes | Yes |
+
+**Impact on Outcome Probabilities**
+
+Search intensity modifies the probability of various outcomes:
+
+```
+# Self-return is independent of search intensity (dog's behavior)
+selfReturnProb = baseSelfReturn  # No modification
+
+# Found by owner scales with search effort
+foundByOwnerProb = baseFoundByOwner × searchIntensityMultiplier[intensity]
+where multipliers = { O0: 0.1, O1: 0.5, O2: 1.0, O3: 1.8, O4: 2.5 }
+
+# Stranger return scales with outreach (flyers, social media)
+strangerReturnProb = baseStrangerReturn × outreachMultiplier[intensity]
+where multipliers = { O0: 0.2, O1: 0.8, O2: 1.0, O3: 1.5, O4: 2.0 }
+
+# Still missing inversely scales with all effort
+stillMissingProb = baseStillMissing × (1 / combinedEffortMultiplier)
+```
+
+**Special Case: Xenophobic Dogs with Intensive Search**
+
+For X temperament dogs, O3/O4 search intensity has specific strategies:
+
+| Strategy | Effect on X Dogs |
+|----------|------------------|
+| Feeding stations | +30% chance of sighting, enables trap placement |
+| Trail cameras | Identifies patterns without spooking dog |
+| Scent articles | Minimal effect (dog still flees from owner) |
+| Calling/searching | May actually DECREASE recovery (flushes dog further) |
+| Humane traps | Primary recovery method, +40% recovery rate |
+
+```
+IF temperament == X AND searchIntensity >= O3:
+    # Intensive search can backfire without proper technique
+    IF usingFeedingStations AND usingTraps:
+        recoveryBonus = +0.35
+    ELIF activelySearchingAndCalling:
+        recoveryPenalty = -0.15  # May push dog further away
+```
+
+---
+
 ## Complete Profile Generation Algorithm
 
 ```
@@ -379,10 +660,12 @@ FUNCTION generateDogProfile():
     escapeProbs = adjustForBreed(escapeProbs, breedInstinct)
     escapeProbs = adjustForAge(escapeProbs, age)
 
-    # Special case: W4 only possible for intact males
+    # Special case: Reproductive escape types
     IF NOT intactMale:
         escapeProbs[W4] = 0
-        normalize(escapeProbs)
+    IF NOT (intactFemale AND inHeat):
+        escapeProbs[W5] = 0
+    normalize(escapeProbs)
 
     escapeType = rollWeighted(escapeProbs)
 
@@ -489,6 +772,7 @@ FUNCTION generateDogProfile():
 | W2 | 0.8x base | Ongoing | Scent direction | Scent lost or new scent |
 | W3 | 0.7x base | Varies | Familiar routes | Reaches usual destination |
 | W4 | 1.5x base | Hours-days | Female scent direction | Finds female or exhausted |
+| W5 | 1.0x base | Varies | Erratic, may seek/avoid males | Breeding or escape from males |
 | S1 | 0.3x base | 0-30 min | Stays near OR random | Confusion, fear |
 | S2 | 1.5x base | 15-60 min | Away from facility | Distance from stress |
 | S3 | 1.0x base | Ongoing | May try to reach real home | Exhaustion, disorientation |
@@ -540,16 +824,77 @@ SEARCHING → WAITING (at familiar spot) → SEARCHING → HIDING
 
 Based on profile, estimate probability of each outcome after 72 hours:
 
+### Base Rates by Temperament (Suburban baseline)
+
 | Outcome | G | C | A | X | B |
 |---------|---|---|---|---|---|
 | Self-return | 15% | 10% | 8% | 2% | 25% |
 | Found by owner | 25% | 20% | 15% | 5% | 35% |
 | Picked up by stranger | 40% | 15% | 10% | 2% | 10% |
 | At shelter | 15% | 10% | 12% | 5% | 8% |
-| Still missing | 4% | 40% | 50% | 75% | 20% |
-| Deceased | 1% | 5% | 5% | 11% | 2% |
+| Still missing | 4% | 40% | 50% | 68% | 20% |
+| Deceased | 1% | 5% | 5% | 18% | 2% |
 
-*Note: These are rough estimates. Actual outcomes also depend on size, age, territory, escape type, owner search effort, and environment.*
+### Deceased Rate Adjustments by Terrain
+
+Xenophobic dogs have significantly higher mortality in urban areas due to:
+- More traffic encounters during panicked flight
+- Fewer hiding spots, more flushing
+- Higher human encounter rate → more fleeing → more road crossings
+
+| Terrain | G | C | A | X | B |
+|---------|---|---|---|---|---|
+| Urban | 2% | 8% | 8% | **25%** | 3% |
+| Suburban | 1% | 5% | 5% | 18% | 2% |
+| Rural | 0.5% | 3% | 4% | 12% | 1% |
+| Wooded | 0.5% | 4% | 5% | 10% | 1% |
+
+### Cause of Death Distribution (X temperament, Urban)
+
+| Cause | Percentage of Deaths |
+|-------|---------------------|
+| Vehicle strike | 65% |
+| Exhaustion/exposure | 15% |
+| Other injury | 10% |
+| Predator (coyote, etc.) | 5% |
+| Drowning (during flight) | 3% |
+| Other | 2% |
+
+### Time-Dependent Mortality Risk
+
+Mortality risk is not uniform over time:
+
+```
+# Highest risk during initial panic phase
+hourlyMortalityRisk(hour, temperament, terrain):
+
+    IF hour < 4:  # Initial panic phase
+        basePanicRisk = { G: 0.001, C: 0.003, A: 0.004, X: 0.015, B: 0.002 }
+        return basePanicRisk[temperament] × terrainMultiplier[terrain]
+
+    ELIF hour < 24:  # Transition phase
+        baseTransitionRisk = { G: 0.0002, C: 0.001, A: 0.001, X: 0.005, B: 0.0005 }
+        return baseTransitionRisk[temperament] × terrainMultiplier[terrain]
+
+    ELSE:  # Settled phase
+        baseSettledRisk = { G: 0.0001, C: 0.0005, A: 0.0005, X: 0.002, B: 0.0002 }
+        # Risk increases if repeatedly flushed
+        IF temperament == X AND beingActivelySearched:
+            return baseSettledRisk[X] × 2.5 × terrainMultiplier[terrain]
+        return baseSettledRisk[temperament] × terrainMultiplier[terrain]
+
+terrainMultiplier = { Urban: 2.0, Suburban: 1.0, Rural: 0.5, Wooded: 0.4 }
+```
+
+**Cumulative 72-hour mortality for X dog in Urban with active (incorrect) searching:**
+- Hours 0-4: 0.015 × 2.0 × 4 = 12%
+- Hours 4-24: 0.005 × 2.0 × 20 = 20%
+- Hours 24-72: 0.002 × 2.5 × 2.0 × 48 = 48% (if being flushed)
+- **Total risk: Up to 80% cumulative if handled incorrectly**
+
+This is why xenophobic dogs require specialized recovery techniques (feeding stations, traps, no chasing).
+
+*Note: These are estimates. Actual outcomes also depend on size, age, territory, escape type, owner search effort, and environment.*
 
 ---
 
@@ -612,6 +957,25 @@ These modify movement parameters but don't create new profile types:
 
 ---
 
-*Document Version: 1.0*
+## Summary of Layers
+
+| # | Layer | Type | Options | Key Impact |
+|---|-------|------|---------|------------|
+| 1 | Size | Intrinsic | 5 (T/S/M/L/XL) | Speed, stamina, pickup rate |
+| 2 | Age | Intrinsic | 4 (PUP/YNG/ADT/SEN) | Speed, stamina, behavior |
+| 3 | Breed Instinct | Intrinsic | 8 | Movement patterns, drives |
+| - | Brachycephalic | Physical Modifier | Boolean | Severe stamina/heat limits |
+| 4 | Background | Intrinsic | 4 (F/R/ST/W) | Survival skills, trust |
+| 5 | Temperament | Intrinsic | 5 (G/C/A/X/B) | Human response, catchability |
+| - | Time Dynamics | Runtime | Continuous | Hunger/thirst/fear decay |
+| 6 | Territory | Situational | 4 (HOME/NEAR/FAR/LOST) | Homing ability |
+| 7 | Escape Type | Situational | 13 (P1-3, D1-2, W1-5, S1-3) | Initial phase behavior |
+| 8 | Health | Situational | 4 (HLT/INJ/CHR/MED) | Movement limitations |
+| 9 | Owner Search | Situational | 5 (O0-O4) | Recovery probability |
+
+---
+
+*Document Version: 1.1*
+*Last Updated: January 2026*
 *Created for: Lost Pet Monte Carlo Simulation*
 *Species: Dogs (Canis familiaris)*
