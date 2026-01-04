@@ -420,18 +420,33 @@ export class PetAgent {
       }
     }
 
-    // Check for transition to TRAVELING
-    // Requires: low fear + knowledge of home direction + motivation
+    // Check for transition to TRAVELING (heading home)
+    // Probability increases when: close to home, low fear, good energy, strong homing instinct
     const distanceFromHome = this.getDistanceTo(this.homeLat, this.homeLng);
     const isWithinFamiliarRange = distanceFromHome < this.familiarRange;
 
-    if (isWithinFamiliarRange && this.fear < 0.3 && this.energy > 0.5) {
-      // May decide to travel toward home
+    // Base probability to head home
+    // Higher when: within familiar range, low fear, good energy
+    if (this.fear < 0.5 && this.energy > 0.3) {
+      // Calculate home attraction
       const homeAttraction = this.speciesDefaults.homing_instinct *
                              this.territoryFamiliarity *
                              (1 - this.fear);
 
-      if (this.random() < homeAttraction * 0.02) {
+      // Distance factor - higher chance when closer to home
+      // Even far away pets have some chance (they can still smell/remember home direction)
+      const distanceFactor = isWithinFamiliarRange
+        ? 1.0                                              // Full attraction within familiar range
+        : Math.exp(-distanceFromHome / (this.familiarRange * 5));  // Decays with distance but doesn't vanish
+
+      // Probability per tick to transition to TRAVELING
+      // For a dog with homing_instinct 0.6, territoryFamiliarity 0.7, fear 0.2:
+      // homeAttraction = 0.6 * 0.7 * 0.8 = 0.336
+      // If within familiar range: prob = 0.336 * 1.0 * 0.05 = 1.68% per tick
+      // Over 72 hours (864 ticks), expected transitions = ~14.5 times
+      const travelProbability = homeAttraction * distanceFactor * 0.05;
+
+      if (this.random() < travelProbability) {
         this.transitionTo(BEHAVIOR_STATE.TRAVELING, currentMinute);
       }
     }
