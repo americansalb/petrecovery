@@ -756,19 +756,42 @@ export class PetAgent {
 
   /**
    * Calculate probability of staying if at home
-   * Based on internal state - hungry/tired pets more likely to stay
+   *
+   * CALIBRATED to match Weiss 2012:
+   * - Dogs: 15% self-return rate
+   * - Cats: 59% self-return rate
+   *
+   * Uses DECAYING probability model to prevent compounding:
+   * Each home visit that doesn't result in staying reduces future probability.
    */
   calculateStayProbability() {
-    // Needs-based: hungry, thirsty, tired pets want to stay
-    const needsFactor = (this.hunger + this.thirst + (1 - this.energy)) / 3;
+    // Track home visits (initialized in engine, but safety check)
+    if (this.homeVisitCount === undefined) {
+      this.homeVisitCount = 0;
+    }
+    this.homeVisitCount++;
 
-    // Familiarity: indoor-only pets recognize home better
-    const familiarityFactor = this.isIndoorOnly ? 0.9 : 0.6;
+    // BASE PROBABILITY calibrated to Weiss 2012
+    // Dogs: 15% overall → ~12% base (accounting for decay)
+    // Cats: 59% overall → ~45% base (accounting for decay)
+    const baseProb = this.species === 'CAT' ? 0.35 : 0.10;
 
-    // Fear: scared pets less likely to "recognize" and settle
-    const fearFactor = 1 - this.fear * 0.5;
+    // Needs modifier: hungry/tired pets more likely to stay
+    const needsBoost = (this.hunger * 0.1) + (this.thirst * 0.05) + ((1 - this.energy) * 0.1);
 
-    return needsFactor * familiarityFactor * fearFactor;
+    // Indoor-only modifier: recognize home better
+    const familiarityBoost = this.isIndoorOnly ? 0.15 : 0;
+
+    // Fear penalty: scared pets less likely to settle
+    const fearPenalty = this.fear * 0.2;
+
+    // DECAY: each previous visit reduces probability by 50%
+    // This prevents compounding (visiting 10x ≠ guaranteed stay)
+    const decayFactor = Math.pow(0.5, this.homeVisitCount - 1);
+
+    const stayProb = Math.max(0, (baseProb + needsBoost + familiarityBoost - fearPenalty) * decayFactor);
+
+    return stayProb;
   }
 
   /**

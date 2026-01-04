@@ -379,23 +379,48 @@ export class EmergentSimulationEngine {
 
   /**
    * Check for stranger encounter
-   * Probability based on: location, time, pet visibility
+   *
+   * CALIBRATED to match Weiss 2012:
+   * - Dogs: 26% found by strangers
+   * - Cats: ~9% found by strangers (in "other" category)
+   *
+   * Uses low base rate to prevent near-100% encounter over 72 hours.
    */
   checkStrangerEncounter(currentHour) {
     // Pet must be somewhat visible
     const visibility = this.pet.getVisibility(this.environment, currentHour);
 
-    if (visibility < 0.05) {
+    if (visibility < 0.1) {
       return false;  // Too hidden for strangers to see
     }
 
-    // Human density at location
-    const humanDensity = this.environment.getHumanDensityAt(
-      this.pet.lat, this.pet.lng, currentHour
-    );
+    // Time of day multiplier (more people around during certain hours)
+    let timeMultiplier;
+    if (currentHour >= 7 && currentHour < 9) {
+      timeMultiplier = 1.2;  // Morning commute
+    } else if (currentHour >= 17 && currentHour < 19) {
+      timeMultiplier = 1.5;  // Evening - dog walkers, people coming home
+    } else if (currentHour >= 9 && currentHour < 17) {
+      timeMultiplier = 0.5;  // Workday - fewer people
+    } else if (currentHour >= 19 && currentHour < 22) {
+      timeMultiplier = 0.3;  // Evening wind-down
+    } else {
+      timeMultiplier = 0.02; // Night (10pm-7am) - almost no one
+    }
 
-    // Encounter probability
-    const encounterProb = humanDensity * visibility * this.timeStepMinutes;
+    // Terrain affects population density
+    const terrainMultiplier = {
+      'URBAN': 2.0,
+      'SUBURBAN': 1.0,
+      'RURAL': 0.3,
+      'WOODED': 0.1,
+    }[this.environmentConfig.terrainType] || 1.0;
+
+    // CALIBRATED base rate: 0.1% per tick (very low)
+    // Over 72 hours (~860 ticks), with modifiers, produces reasonable encounter rates
+    const baseRate = 0.001;
+
+    const encounterProb = baseRate * visibility * timeMultiplier * terrainMultiplier;
 
     if (this.random() < encounterProb) {
       // Stranger encountered the pet!
@@ -486,24 +511,27 @@ export class EmergentSimulationEngine {
   /**
    * Handle stranger capture - determine what happens next
    *
+   * CALIBRATED to match Weiss 2012 stranger recovery rates:
+   * - Dogs: 26% found by strangers (of all recoveries)
+   * - Cats: ~9% found by strangers
+   *
+   * Key insight: Not all stranger captures lead to reunion.
+   * Many strangers keep the pet, take it to shelter (where it's not claimed),
+   * or fail to connect with the owner.
+   *
    * VISIBILITY SCORE EFFECT:
    * If owner posted on social media/flyers, strangers are more likely to:
    * 1. Recognize the pet and contact owner directly
    * 2. See owner's post when they post "found pet"
-   *
-   * visibility_score comes from searcher config and is based on:
-   * - Posted on social media (+25%)
-   * - Posted flyers (+20%)
-   * - Contacted shelters (+15%)
-   * - Listed on pet recovery platform (+15%)
    */
   handleStrangerCapture() {
     // Get visibility score from searcher config
     const visibilityScore = this.searcherConfig.visibilityScore || 0.1;
 
-    // If pet has visible tags, high chance of direct contact
+    // If pet has visible tags with phone number
+    // REDUCED from 80% to 40% - many people don't call, tags are hard to read, etc.
     if (this.pet.hasVisibleTags) {
-      const callsOwner = this.random() < 0.8;  // 80% call owner
+      const callsOwner = this.random() < 0.4;  // 40% actually call
 
       if (callsOwner) {
         this.outcomes.setOutcome('REUNITED_STRANGER_DIRECT', this.currentMinute, {
@@ -521,12 +549,11 @@ export class EmergentSimulationEngine {
       }
     }
 
-    // No tags or didn't call - what happens?
     // Visibility score affects whether stranger recognizes pet from postings
-    const recognizedFromPostings = this.random() < visibilityScore;
+    // Only effective if owner actually posted (visibility > 0.2)
+    const recognizedFromPostings = visibilityScore > 0.2 && this.random() < (visibilityScore * 0.3);
 
     if (recognizedFromPostings) {
-      // Stranger saw owner's social media post / flyer
       this.outcomes.setOutcome('REUNITED_STRANGER_DIRECT', this.currentMinute, {
         lat: this.pet.lat,
         lng: this.pet.lng,
@@ -543,22 +570,21 @@ export class EmergentSimulationEngine {
     // Stranger didn't recognize pet - what do they do?
     const roll = this.random();
 
-    if (roll < 0.4) {
-      // Takes to shelter
+    if (roll < 0.25) {
+      // Takes to shelter (25% - reduced from 40%)
       this.outcomes.isAtShelter = true;
       this.outcomes.shelterIntakeMinute = this.currentMinute;
 
-      // Check microchip immediately (shelters scan on intake)
       return this.handleShelterIntake();
 
-    } else if (roll < 0.7) {
-      // Posts online / keeps temporarily
+    } else if (roll < 0.50) {
+      // Posts online / tries to find owner (25%)
       this.outcomes.isWithStranger = true;
       this.outcomes.strangerCaptureMinute = this.currentMinute;
 
       // Does owner see the stranger's "found pet" post?
-      // Higher visibility = higher chance owner is monitoring platforms
-      const ownerSeesPost = this.random() < (0.3 + visibilityScore * 0.5);
+      // Base 20% + visibility bonus
+      const ownerSeesPost = this.random() < (0.2 + visibilityScore * 0.3);
 
       if (ownerSeesPost) {
         this.outcomes.setOutcome('REUNITED_STRANGER_POST', this.currentMinute, {

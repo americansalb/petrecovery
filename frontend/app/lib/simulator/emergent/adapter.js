@@ -130,6 +130,12 @@ function mapEscapeType(escapeType) {
 export function convertLegacyConfig(legacyConfig) {
   const species = legacyConfig.petSpecies?.toUpperCase() === 'CAT' ? SPECIES.CAT : SPECIES.DOG;
 
+  // FIXED: Don't default collar/tags to true - use explicit values
+  // Previously defaulted to true, which caused 80% reunion rate on stranger capture
+  const hasCollar = legacyConfig.hasCollar === true;
+  const hasVisibleTags = legacyConfig.hasVisibleTags === true ||
+    (hasCollar && legacyConfig.hasVisibleTags !== false);  // Only if collar AND tags not explicitly false
+
   const petConfig = buildPetConfig({
     species,
     escapeLatitude: legacyConfig.centerLatitude,
@@ -140,8 +146,8 @@ export function convertLegacyConfig(legacyConfig) {
     temperament: mapPersonality(legacyConfig.petPersonality),
     isIndoorOnly: legacyConfig.isIndoorPet === true,
     escapeType: mapEscapeType(legacyConfig.escapeType),
-    hasCollar: legacyConfig.hasCollar !== false,
-    hasVisibleTags: legacyConfig.hasCollar !== false,
+    hasCollar: hasCollar,
+    hasVisibleTags: hasVisibleTags,
     hasMicrochip: legacyConfig.hasMicrochip === true,
     microchipRegistered: legacyConfig.hasMicrochip === true,
   });
