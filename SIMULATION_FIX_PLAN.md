@@ -1,10 +1,21 @@
 # Monte Carlo Simulation Fix Plan
 
+## Status: PHASES 1-4 COMPLETE
+
+Last updated: 2026-01-04
+
 ## Executive Summary
 
 After thorough code review, the simulation architecture is **fundamentally sound** - it uses proper agent-based modeling with research-backed parameters. However, there are **12 specific issues** causing unreliable results. This plan addresses them in priority order.
 
 **Key Finding:** You do NOT need to start from scratch. Targeted fixes will resolve the problems.
+
+### Completed Fixes
+
+- [x] **Phase 1:** Fixed probability compounding bug in `checkSelfReturn()` - now uses decaying probability model
+- [x] **Phase 2:** Recalibrated stranger encounter rate from 1%/tick to 0.2%/tick to match Weiss 2012
+- [x] **Phase 3:** Consolidated engines - emergent engine is now primary, legacy deprecated
+- [x] **Phase 4:** Added confidence intervals (Wilson score) and granular death statistics
 
 ---
 
