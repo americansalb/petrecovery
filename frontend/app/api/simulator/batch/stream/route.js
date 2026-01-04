@@ -190,11 +190,23 @@ export async function POST(request) {
             outcomes[result.outcome]++;
             totalPetDistance += result.petDistanceMiles || 0;
 
-            // Track success as binary (1 = found, 0 = timeout)
-            const isSuccess = !result.outcome.startsWith('TIMEOUT') ? 1 : 0;
+            // Track success as binary (1 = found, 0 = not found)
+            // FIXED: Check for REUNITED outcomes (new format) or non-TIMEOUT (legacy format)
+            const isSuccess = result.outcome.startsWith('REUNITED_') ||
+              result.isFound === true ||
+              (!result.outcome.startsWith('TIMEOUT') &&
+               !result.outcome.startsWith('DECEASED_') &&
+               !result.outcome.startsWith('STILL_') &&
+               !result.outcome.startsWith('WITH_STRANGER') &&
+               !result.outcome.startsWith('AT_SHELTER') &&
+               !result.outcome.startsWith('ADOPTED_') &&
+               !result.outcome.startsWith('SIGHTED_') &&
+               !result.outcome.startsWith('FERAL_'))
+              ? 1 : 0;
             successRateAgg.update(isSuccess);
 
-            if (result.foundAtMinute && !result.outcome.startsWith('TIMEOUT')) {
+            // FIXED: Check for successful outcomes (REUNITED_ prefix)
+            if (result.foundAtMinute && result.outcome.startsWith('REUNITED_')) {
               totalTimeToFind += result.foundAtMinute;
               foundCount++;
               timesToFind.push(result.foundAtMinute);
@@ -233,7 +245,10 @@ export async function POST(request) {
 
             // Send progress summary every 10 simulations (or every sim for small batches)
             if (size <= 100 || (i + 1) % 10 === 0 || i === size - 1) {
-              const successSoFar = (i + 1) - (outcomes[OUTCOMES.TIMEOUT_SEARCHING] || 0) - (outcomes[OUTCOMES.TIMEOUT_SHELTERED] || 0);
+              // FIXED: Count REUNITED_ outcomes as success
+              const successSoFar = Object.entries(outcomes)
+                .filter(([k, v]) => k.startsWith('REUNITED_'))
+                .reduce((sum, [k, v]) => sum + v, 0);
 
               // Calculate convergence metrics
               const cov = successRateAgg.n >= 2 ? successRateAgg.coefficientOfVariation : null;
@@ -279,7 +294,10 @@ export async function POST(request) {
           ? timesToFind[Math.floor(timesToFind.length / 2)]
           : null;
 
-        const successCount = size - (outcomes[OUTCOMES.TIMEOUT_SEARCHING] || 0) - (outcomes[OUTCOMES.TIMEOUT_SHELTERED] || 0);
+        // FIXED: Count REUNITED_ outcomes as success
+        const successCount = Object.entries(outcomes)
+          .filter(([k, v]) => k.startsWith('REUNITED_'))
+          .reduce((sum, [k, v]) => sum + v, 0);
         const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
 
         const batch = {
