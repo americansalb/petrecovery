@@ -167,6 +167,11 @@ export class EmergentSimulationEngine {
    * Execute one simulation tick
    */
   tick() {
+    // Early exit if outcome already set
+    if (this.outcomes.outcome !== null) {
+      return;
+    }
+
     const currentHour = this.getCurrentHour();
 
     // 1. Update pet physiology

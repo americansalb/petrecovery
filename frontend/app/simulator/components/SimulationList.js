@@ -14,48 +14,42 @@ import {
 import { estimateUncertaintyBounds } from '@/app/lib/simulator/sensitivity';
 
 const OUTCOME_CONFIG = {
-  FOUND_BY_SEARCHER: {
-    icon: Search,
-    label: 'Found by Searcher',
-    color: 'text-green-600',
-    bg: 'bg-green-50',
-  },
-  RETURNED_HOME: {
-    icon: Home,
-    label: 'Returned Home',
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
-  },
-  FOUND_VIA_SHELTER: {
-    icon: Building2,
-    label: 'Found via Shelter',
-    color: 'text-purple-600',
-    bg: 'bg-purple-50',
-  },
-  FOUND_VIA_SOCIAL: {
-    icon: Share2,
-    label: 'Found via Social',
-    color: 'text-pink-600',
-    bg: 'bg-pink-50',
-  },
-  FOUND_VIA_PLATFORM: {
-    icon: Smartphone,
-    label: 'Found via Platform',
-    color: 'text-indigo-600',
-    bg: 'bg-indigo-50',
-  },
-  TIMEOUT_SEARCHING: {
-    icon: Clock,
-    label: 'Timeout (Still Searching)',
-    color: 'text-orange-600',
-    bg: 'bg-orange-50',
-  },
-  TIMEOUT_SHELTERED: {
-    icon: AlertTriangle,
-    label: 'Timeout (Sheltered)',
-    color: 'text-gray-600',
-    bg: 'bg-gray-50',
-  },
+  // Legacy outcomes (for backward compatibility)
+  FOUND_BY_SEARCHER: { icon: Search, label: 'Found by Searcher', color: 'text-green-600', bg: 'bg-green-50' },
+  RETURNED_HOME: { icon: Home, label: 'Returned Home', color: 'text-blue-600', bg: 'bg-blue-50' },
+  FOUND_VIA_SHELTER: { icon: Building2, label: 'Found via Shelter', color: 'text-purple-600', bg: 'bg-purple-50' },
+  FOUND_VIA_SOCIAL: { icon: Share2, label: 'Found via Social', color: 'text-pink-600', bg: 'bg-pink-50' },
+  FOUND_VIA_PLATFORM: { icon: Smartphone, label: 'Found via Platform', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+  TIMEOUT_SEARCHING: { icon: Clock, label: 'Timeout (Still Searching)', color: 'text-orange-600', bg: 'bg-orange-50' },
+  TIMEOUT_SHELTERED: { icon: AlertTriangle, label: 'Timeout (Sheltered)', color: 'text-gray-600', bg: 'bg-gray-50' },
+
+  // Emergent REUNITED outcomes
+  REUNITED_SELF_RETURN: { icon: Home, label: 'Came Home', color: 'text-blue-600', bg: 'bg-blue-50' },
+  REUNITED_OWNER_SEARCH: { icon: Search, label: 'Owner Found', color: 'text-green-600', bg: 'bg-green-50' },
+  REUNITED_SEARCH_TEAM: { icon: Search, label: 'Search Team Found', color: 'text-green-600', bg: 'bg-green-50' },
+  REUNITED_CALLED: { icon: Search, label: 'Came When Called', color: 'text-green-600', bg: 'bg-green-50' },
+  REUNITED_TRAP: { icon: Search, label: 'Caught in Trap', color: 'text-green-600', bg: 'bg-green-50' },
+  REUNITED_STRANGER_DIRECT: { icon: Share2, label: 'Stranger Returned (Tags)', color: 'text-pink-600', bg: 'bg-pink-50' },
+  REUNITED_STRANGER_POST: { icon: Share2, label: 'Stranger Returned (Post)', color: 'text-pink-600', bg: 'bg-pink-50' },
+  REUNITED_SHELTER: { icon: Building2, label: 'Found at Shelter', color: 'text-purple-600', bg: 'bg-purple-50' },
+
+  // Emergent DECEASED outcomes
+  DECEASED_TRAFFIC: { icon: XCircle, label: 'Hit by Vehicle', color: 'text-red-600', bg: 'bg-red-50' },
+  DECEASED_PREDATOR: { icon: XCircle, label: 'Killed by Predator', color: 'text-red-600', bg: 'bg-red-50' },
+  DECEASED_EXPOSURE: { icon: XCircle, label: 'Died from Exposure', color: 'text-red-600', bg: 'bg-red-50' },
+  DECEASED_DEHYDRATION: { icon: XCircle, label: 'Died from Dehydration', color: 'text-red-600', bg: 'bg-red-50' },
+  DECEASED_STARVATION: { icon: XCircle, label: 'Died from Starvation', color: 'text-red-600', bg: 'bg-red-50' },
+  DECEASED_INJURY: { icon: XCircle, label: 'Died from Injury', color: 'text-red-600', bg: 'bg-red-50' },
+  DECEASED_EUTHANIZED: { icon: XCircle, label: 'Euthanized at Shelter', color: 'text-red-600', bg: 'bg-red-50' },
+
+  // Emergent NOT FOUND outcomes
+  STILL_MISSING: { icon: Clock, label: 'Still Missing', color: 'text-orange-600', bg: 'bg-orange-50' },
+  SIGHTED_NOT_CAPTURED: { icon: Clock, label: 'Sighted But Escaped', color: 'text-orange-600', bg: 'bg-orange-50' },
+  AT_SHELTER_PENDING: { icon: Building2, label: 'At Shelter (Unclaimed)', color: 'text-gray-600', bg: 'bg-gray-50' },
+  WITH_STRANGER_PENDING: { icon: AlertTriangle, label: 'With Stranger', color: 'text-yellow-600', bg: 'bg-yellow-50' },
+  ADOPTED_BY_FINDER: { icon: AlertTriangle, label: 'Kept by Finder', color: 'text-yellow-600', bg: 'bg-yellow-50' },
+  ADOPTED_FROM_SHELTER: { icon: AlertTriangle, label: 'Adopted from Shelter', color: 'text-yellow-600', bg: 'bg-yellow-50' },
+  FERAL_PERMANENTLY: { icon: AlertTriangle, label: 'Became Feral', color: 'text-gray-600', bg: 'bg-gray-50' },
 };
 
 function formatDuration(minutes) {
