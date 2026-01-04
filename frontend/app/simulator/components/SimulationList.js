@@ -222,43 +222,46 @@ function BatchGroup({ batch, isSelected, isExpanded, onToggle, onSelect, onSelec
               </div>
             )}
 
+            {/* Primary outcome categories */}
             <div className="flex flex-wrap gap-2 mt-2 text-[10px]">
-              {batch.foundBySearcherCount > 0 && (
-                <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded">
-                  {batch.foundBySearcherCount} by searcher
+              {/* FOUND - all reunited outcomes combined */}
+              {successCount > 0 && (
+                <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-medium">
+                  ✓ {successCount} found
                 </span>
               )}
-              {batch.returnedHomeCount > 0 && (
-                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
-                  {batch.returnedHomeCount} home
+              {/* MISSING - still searching */}
+              {(batch.stillMissingCount || batch.timeoutSearchingCount) > 0 && (
+                <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded font-medium">
+                  ? {batch.stillMissingCount || batch.timeoutSearchingCount} missing
                 </span>
               )}
-              {batch.foundViaShelterCount > 0 && (
-                <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">
-                  {batch.foundViaShelterCount} shelter
-                </span>
-              )}
-              {batch.foundViaSocialCount > 0 && (
-                <span className="px-1.5 py-0.5 bg-pink-100 text-pink-700 rounded">
-                  {batch.foundViaSocialCount} social
-                </span>
-              )}
-              {batch.foundViaPlatformCount > 0 && (
-                <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded">
-                  {batch.foundViaPlatformCount} platform
-                </span>
-              )}
-              {batch.timeoutSearchingCount > 0 && (
-                <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded">
-                  {batch.timeoutSearchingCount} timeout
-                </span>
-              )}
-              {batch.timeoutShelteredCount > 0 && (
-                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
-                  {batch.timeoutShelteredCount} sheltered
+              {/* DECEASED */}
+              {batch.deceasedCount > 0 && (
+                <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-medium">
+                  ✗ {batch.deceasedCount} deceased
                 </span>
               )}
             </div>
+
+            {/* How they were found (secondary breakdown) */}
+            {successCount > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-1.5 text-[9px] text-gray-500">
+                <span className="italic">Found via:</span>
+                {batch.foundBySearcherCount > 0 && (
+                  <span>{batch.foundBySearcherCount} search</span>
+                )}
+                {batch.returnedHomeCount > 0 && (
+                  <span>{batch.returnedHomeCount} self-return</span>
+                )}
+                {batch.foundViaSocialCount > 0 && (
+                  <span>{batch.foundViaSocialCount} stranger</span>
+                )}
+                {batch.foundViaShelterCount > 0 && (
+                  <span>{batch.foundViaShelterCount} shelter</span>
+                )}
+              </div>
+            )}
 
             {batch.avgTimeToFindMins && (
               <div className="text-xs text-gray-400 mt-1">
