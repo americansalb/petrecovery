@@ -99,7 +99,7 @@ Hiding cats eventually "break cover" due to physiological needs:
 
 ## Probability Normalization Method
 
-Same as dog profiles - multiplicative adjustment with renormalization:
+When multiple modifiers stack (e.g., temperament +50% to threshold, background +30% to fear), we use multiplicative adjustment with renormalization:
 
 ```
 FUNCTION applyModifiers(baseProbabilities, modifiers):
@@ -221,6 +221,79 @@ Unlike dogs, cat size variation is much smaller, but still affects behavior:
 
 ---
 
+## Physical Modifier: BRACHYCEPHALIC
+
+Brachycephalic cats (flat-faced breeds) have physiological limitations that critically affect survival when lost.
+
+**Prevalence**: ~5% of pet cat population (Persian, Himalayan, Exotic Shorthair)
+
+**Physical Limitations**
+
+| Condition | Effect on Lost Cat |
+|-----------|-------------------|
+| Compromised airways | Cannot sustain running; overheats rapidly |
+| Heat intolerance | Speed drops to 0.2x in temperatures >80°F |
+| Exercise intolerance | Maximum sustained movement: 10-15 minutes |
+| Respiratory distress under stress | Panic escapes are self-limiting |
+
+**Movement Modifiers for Brachycephalic Cats**
+
+| Parameter | Modifier | Notes |
+|-----------|----------|-------|
+| Base Speed | 0.7x | Cannot maintain pace |
+| Stamina | 0.4x | Tires very quickly |
+| Max Distance | 50-100m | Physical limitation |
+| Panic Duration | 0.3x | Cannot sustain flight |
+| Heat Sensitivity | Extreme | Speed → 0.2x if temp > 80°F |
+| Threshold Time | 0.6x | Breaks cover sooner due to respiratory distress |
+
+**Survival Implications**
+
+- **Positive**: Limited travel range means they stay very close to escape point
+- **Negative**: Higher mortality risk from heat exposure, respiratory distress
+- **Behavioral**: More likely to seek shelter quickly due to physical distress
+- **Recovery**: Usually found within 30 meters if they survive first 24 hours
+
+### BRACHYCEPHALIC HEAT EMERGENCY
+
+**A brachycephalic cat lost on a hot day is a MEDICAL EMERGENCY.**
+
+| Temperature | Survivability Window | Required Action |
+|-------------|---------------------|-----------------|
+| 80-90°F | 12-24 hours | Urgent search |
+| 90°F+ | 4-8 hours | Critical emergency - immediate search |
+
+**Heat Emergency Simulation Parameters**
+
+```
+IF cat.isBrachycephalic AND temperature > 80:
+    # This is a medical emergency
+    survivalHours = max(4, 24 - (temperature - 70) × 1.0)
+
+    hourlyDeathRisk = 0.04 + (temperature - 80) × 0.03
+
+    # Behavioral changes
+    speed *= 0.1  # Nearly immobile
+    thresholdTime *= 0.4  # Will break cover much sooner
+    shelterSeekingProbability = 1.0  # Desperately seeks shade/cool
+
+    # Alert flag for simulation output
+    TRIGGER_EMERGENCY_ALERT("Brachycephalic cat in heat - hours to live")
+```
+
+**Modifier Application Order**
+
+Apply brachycephalic constraints AFTER breed-specific modifiers:
+
+```
+1. Apply size modifiers
+2. Apply age modifiers
+3. THEN apply brachycephalic constraints (these take precedence)
+4. Apply situational modifiers (health, terrain)
+```
+
+---
+
 ## Layer 4: TEMPERAMENT
 
 Cat temperaments follow a different classification than dogs, based on Kat Albrecht's framework:
@@ -276,6 +349,40 @@ Cat temperaments follow a different classification than dogs, based on Kat Albre
 - **Recovery pattern**: May return to home/escape point looking for owner
 - **Search strategy**: Owner-focused search, scent articles, calling at night
 - **Catchability**: Easy for bonded person, very hard for others
+
+#### Bonded Cat Movement Algorithm
+
+Unlike dogs who spiral inward toward home, bonded cats **patrol a fixed circuit** between anchor points:
+
+```
+FUNCTION bondedCatMovement(currentPos, homePos, escapePoint):
+
+    # Bonded cats circle between home and escape point
+    # Unlike dogs, cats don't spiral inward—they patrol a fixed circuit
+
+    anchorPoints = [homePos, escapePoint, lastOwnerScentLocation]
+    currentAnchor = nearestAnchor(currentPos, anchorPoints)
+    nextAnchor = nextInCircuit(currentAnchor)
+
+    # Movement is anchor-to-anchor, not continuous homing
+    IF distance(currentPos, currentAnchor) < 10 meters:
+        direction = toward(nextAnchor)
+    ELSE:
+        direction = toward(currentAnchor)
+
+    # Only moves during low-activity hours
+    IF timeOfDay NOT IN [dusk, night, dawn]:
+        speed = 0.1x  # Nearly stationary during day
+
+    RETURN direction, speed
+```
+
+**Behavioral Result**: Bonded cats produce a **triangular patrol pattern** between:
+- Home location
+- Escape point
+- Last place owner's scent was detected
+
+This makes them more predictable than other temperaments—stake out these three locations.
 
 **Temperament Effects on Threshold**
 
@@ -515,17 +622,22 @@ thresholdModifier = max(hunger, thirst × 1.5)
 
 ### Fear Persistence (Different from Dogs)
 
-Cats don't have continuous fear decay like dogs. Instead:
+**Critical distinction**: Fear decay does NOT begin until threshold is reached. Pre-threshold, fear remains at maximum (1.0). This is fundamentally different from dogs who have continuous fear decay from the moment of escape.
 
 ```
 FUNCTION catFearLevel(hours, temperament, escapeType):
 
-    # Cats maintain high fear until threshold
-    IF thresholdStatus == "HIDING_DEEP":
-        RETURN 1.0  # Maximum fear
+    # Fear decay does NOT begin until threshold is reached
+    # Pre-threshold: fear = 1.0 (constant maximum)
+    # Post-threshold: fear decays per the specified rates
 
-    # After threshold, fear drops but slowly
-    hoursPostThreshold = hours - threshold
+    thresholdHours = getThreshold(temperament, health)
+
+    IF hours < thresholdHours:
+        RETURN 1.0  # No decay while hiding - cat is frozen in fear
+
+    # Decay only begins after threshold
+    hoursPostThreshold = hours - thresholdHours
 
     decayRates = {
         CUR: 0.05,   # Curious cats calm quickly
@@ -535,13 +647,24 @@ FUNCTION catFearLevel(hours, temperament, escapeType):
         B: 0.025
     }
 
-    # Trauma escapes slow decay
+    # Trauma escapes slow decay further
     IF escapeType IN [ST4, DI3]:
-        decayRate *= 0.5
+        decayRate = decayRates[temperament] * 0.5
 
     postThresholdFear = e^(-decayRates[temperament] × hoursPostThreshold)
 
     RETURN 0.3 + 0.7 × postThresholdFear  # Never drops below 0.3
+```
+
+**Visual Timeline**:
+```
+Fear Level
+1.0 |████████████████████████████████████░░░░░░░░░░░░░
+0.5 |                                    ░░░░░░░░░░░░░
+0.3 |                                              ───
+    +--------------------------------------------------
+    0hr          Threshold                   +72hr
+                 (varies by temperament)
 ```
 
 ---
@@ -663,6 +786,54 @@ Research shows recovery drops significantly over time:
 | 60 | 58% | Plateau |
 | 90 | 60% | Few found after this |
 | 365 | 61% | Essentially final rate |
+
+---
+
+## Secondary Adoption Modeling
+
+Outdoor-access cats have a 12-15% probability of being fed by non-owners, which can lead to "adoption" by well-meaning strangers who believe the cat is a stray.
+
+```
+FUNCTION checkSecondaryAdoption(cat, day):
+
+    # Only outdoor-access cats with friendly temperaments are at risk
+    IF cat.accessHistory IN [OA, OO] AND cat.temperament IN [CUR, CL]:
+        dailyAdoptionRisk = 0.03  # 3% per day
+
+        IF cat.hasCollar == false:
+            dailyAdoptionRisk *= 1.5
+
+        IF cat.temperament == CUR:  # Curious cats approach readily
+            dailyAdoptionRisk *= 2.0
+
+        IF cat.isHealthyAppearing:
+            dailyAdoptionRisk *= 0.7  # Looks cared-for, less likely taken in
+
+        IF randomRoll() < dailyAdoptionRisk:
+            cat.status = "ADOPTED_BY_STRANGER"
+            cat.isMoving = false
+            cat.location = strangerHome
+            # Cat is now stationary—recovery requires flyers/social media
+            # reaching this person
+
+    RETURN cat.status
+```
+
+**Recovery from Secondary Adoption**
+
+| Search Method | Effectiveness |
+|---------------|---------------|
+| Flyers in neighborhood | HIGH - neighbor may see and realize |
+| Social media posts | HIGH - extends reach |
+| Door-to-door interviews | VERY HIGH - direct contact |
+| Waiting for return | ZERO - cat is comfortable |
+| Shelter checks | LOW - cat won't be surrendered |
+
+**Prevention Factors**
+
+- Microchip: Allows identification if taken to vet
+- Collar with ID: Immediate recognition as owned pet
+- Distinctive appearance: Less likely mistaken for stray
 
 ---
 
@@ -859,6 +1030,66 @@ FUNCTION recommendTrapPlacement(escapePoint, sightings):
 | Rural | Variable | High | Medium |
 | Wooded | Very Many | Very High | Lower |
 
+### Terrain Detection Implementation Requirements
+
+The simulation needs a map layer to determine terrain type from coordinates. **For cats, hiding spot density is the primary classification factor** (unlike dogs where traffic risk dominates).
+
+**Required Data Sources** (choose one):
+
+| Source | Pros | Cons |
+|--------|------|------|
+| OpenStreetMap (Overpass API) | Free, detailed building/structure data | Requires parsing, rate limits |
+| Google Maps API | Easy to use, reliable | Costs money at scale |
+| Census TIGER/Line | Free, official boundaries | Less granular |
+| Pre-computed grid | Fast runtime | Requires upfront processing |
+
+**Cat-Specific Classification Algorithm**
+
+```
+FUNCTION classifyTerrainForCat(lat, lng, radius=0.25 miles):
+
+    # Query map data for area around point
+    buildingsPerAcre = countBuildings(lat, lng, radius) / acreage(radius)
+
+    # Cat-specific: hiding spot density is primary factor
+    hidingSpotDensity = countHidingSpots(lat, lng, radius)
+    # Hiding spots: sheds, porches, vehicles, dense vegetation, dumpsters
+
+    sheds = queryOSM('building=shed OR building=garage', lat, lng, radius)
+    porches = queryOSM('building:part=porch', lat, lng, radius)
+    denseVegetation = queryOSM('natural=scrub OR landuse=forest', lat, lng, radius)
+    vehicles = estimateParkedVehicles(buildingsPerAcre)  # ~1.5 per residence
+
+    hidingSpotDensity = len(sheds) + len(porches) + vehicles + vegetationScore
+
+    treeCanopy = getCanopyCoverage(lat, lng, radius)
+    predatorRisk = estimatePredatorPresence(lat, lng)  # Coyote reports, rural indicators
+
+    # Classification rules (cat-optimized)
+    IF buildingsPerAcre > 20:
+        RETURN "Urban"       # Many hiding spots but also more disturbance
+    ELIF buildingsPerAcre > 5 AND hidingSpotDensity > 10:
+        RETURN "Suburban"    # Optimal for cat hiding
+    ELIF treeCanopy > 0.6:
+        RETURN "Wooded"      # Good hiding but high predator risk
+    ELSE:
+        RETURN "Rural"       # Variable hiding, high predator risk
+
+    # Dynamic reclassification as cat moves
+    # (terrain type may change during simulation)
+```
+
+**Per-Tick Terrain Checks**
+
+The simulation should check terrain at each movement tick because:
+- Cat may find better hiding spot in adjacent terrain
+- Predator risk varies by terrain (critical for cats)
+- Hiding spot quality affects threshold timing
+
+**Fallback if No Map Data**
+
+If map APIs unavailable, use user-provided terrain type for home location and assume consistent terrain within search radius (less accurate but functional).
+
 ---
 
 ## Search Methodology by Profile
@@ -905,6 +1136,7 @@ FUNCTION recommendTrapPlacement(escapePoint, sightings):
 | 1 | Indoor/Outdoor | Intrinsic | 5 (IO/IS/IO-A/OA/OO) | Distance, behavior, survival |
 | 2 | Age | Intrinsic | 5 (KIT/JUV/YNG/ADT/SEN) | Stamina, threshold time |
 | 3 | Size | Intrinsic | 4 (S/M/L/XL) | Hiding ability |
+| - | Brachycephalic | Physical Modifier | Boolean | Severe stamina/heat limits, faster threshold |
 | 4 | Temperament | Intrinsic | 5 (CUR/CL/CAU/X/B) | Recovery method, threshold |
 | 5 | Background | Intrinsic | 5 (F/R/FO/BR/MH) | Trust, survival skills |
 | 6 | Territory | Situational | 4 (HOME/NEAR/FAR/LOST) | Hiding location |
@@ -943,7 +1175,7 @@ FUNCTION recommendTrapPlacement(escapePoint, sightings):
 
 ---
 
-*Document Version: 1.0*
+*Document Version: 1.1*
 *Last Updated: January 2026*
 *Created for: Lost Pet Monte Carlo Simulation*
 *Species: Cats (Felis catus)*
@@ -951,6 +1183,14 @@ FUNCTION recommendTrapPlacement(escapePoint, sightings):
 ---
 
 ## Changelog
+
+### v1.1
+- Added brachycephalic modifier (Persian, Himalayan, Exotic Shorthair)
+- Added Bonded cat movement algorithm (triangular patrol pattern)
+- Added terrain detection requirements with cat-specific hiding spot density
+- Added secondary adoption mechanism for outdoor cats
+- Clarified fear decay timing relative to threshold (no decay pre-threshold)
+- Made probability normalization section self-contained
 
 ### v1.0
 - Initial document with 9 layers adapted for cat-specific behavior
