@@ -757,39 +757,59 @@ export class PetAgent {
   /**
    * Calculate probability of staying if at home
    *
-   * CALIBRATED to match Weiss 2012:
-   * - Dogs: 15% self-return rate
-   * - Cats: 59% self-return rate
+   * ============================================================================
+   * PURELY EMERGENT - NO CALIBRATED OUTCOME TARGETING
+   * ============================================================================
    *
-   * Uses DECAYING probability model to prevent compounding:
-   * Each home visit that doesn't result in staying reduces future probability.
+   * This is based ONLY on the pet's internal state and behavioral logic:
+   * - How tired/hungry/thirsty is the pet? (physiological needs)
+   * - How scared is the pet? (psychological state)
+   * - Does the pet recognize home? (familiarity)
+   * - Has it left before? (behavioral pattern)
+   *
+   * The outcome rates are NOT targeted - they EMERGE from these mechanics.
+   * If the emergent rates differ from published research, that's information
+   * about our behavioral model, not something to "fix" by adjusting rates.
    */
   calculateStayProbability() {
-    // Track home visits (initialized in engine, but safety check)
+    // Track home visits
     if (this.homeVisitCount === undefined) {
       this.homeVisitCount = 0;
     }
     this.homeVisitCount++;
 
-    // BASE PROBABILITY calibrated to Weiss 2012
-    // Dogs: 15% overall → ~12% base (accounting for decay)
-    // Cats: 59% overall → ~45% base (accounting for decay)
-    const baseProb = this.species === 'CAT' ? 0.35 : 0.10;
+    // PHYSIOLOGICAL NEEDS - exhausted/hungry/thirsty pets want to stay
+    // These are the PRIMARY drivers of staying home
+    const exhaustionFactor = 1 - this.energy;  // 0-1, higher = more tired
+    const hungerFactor = this.hunger;           // 0-1, higher = more hungry
+    const thirstFactor = this.thirst;           // 0-1, higher = more thirsty
 
-    // Needs modifier: hungry/tired pets more likely to stay
-    const needsBoost = (this.hunger * 0.1) + (this.thirst * 0.05) + ((1 - this.energy) * 0.1);
+    // Needs urgency: how desperately does pet need to stay?
+    const needsUrgency = (exhaustionFactor * 0.4) + (hungerFactor * 0.3) + (thirstFactor * 0.3);
 
-    // Indoor-only modifier: recognize home better
-    const familiarityBoost = this.isIndoorOnly ? 0.15 : 0;
+    // FEAR - scared pets don't settle, they keep moving
+    // This is the PRIMARY driver of NOT staying
+    const fearFactor = this.fear;  // 0-1, higher = more scared
 
-    // Fear penalty: scared pets less likely to settle
-    const fearPenalty = this.fear * 0.2;
+    // FAMILIARITY - does pet recognize this as home?
+    // Indoor-only pets have stronger home recognition
+    const homeRecognition = this.isIndoorOnly ? 0.9 : 0.6;
 
-    // DECAY: each previous visit reduces probability by 50%
-    // This prevents compounding (visiting 10x ≠ guaranteed stay)
-    const decayFactor = Math.pow(0.5, this.homeVisitCount - 1);
+    // TERRITORIAL - cats are more territorial than dogs
+    const territorialBond = this.species === 'CAT' ? 0.7 : 0.4;
 
-    const stayProb = Math.max(0, (baseProb + needsBoost + familiarityBoost - fearPenalty) * decayFactor);
+    // BEHAVIORAL PATTERN - pet that has left home before is more likely to leave again
+    // First visit: no penalty. Each subsequent visit: reduced likelihood of staying
+    const commitmentDecay = Math.pow(0.7, this.homeVisitCount - 1);
+
+    // COMBINE: Probability emerges from state
+    // High needs + low fear + high familiarity = likely to stay
+    // Low needs + high fear + unfamiliar = likely to leave
+    const stayProb = Math.max(0, Math.min(1,
+      (needsUrgency * 0.5 + homeRecognition * 0.25 + territorialBond * 0.25)
+      * (1 - fearFactor * 0.8)  // Fear strongly reduces staying
+      * commitmentDecay         // Prior departures reduce staying
+    ));
 
     return stayProb;
   }

@@ -380,11 +380,18 @@ export class EmergentSimulationEngine {
   /**
    * Check for stranger encounter
    *
-   * CALIBRATED to match Weiss 2012:
-   * - Dogs: 26% found by strangers
-   * - Cats: ~9% found by strangers (in "other" category)
+   * ============================================================================
+   * PURELY EMERGENT - NO CALIBRATED OUTCOME TARGETING
+   * ============================================================================
    *
-   * Uses low base rate to prevent near-100% encounter over 72 hours.
+   * Stranger encounters are modeled based on PHYSICAL factors only:
+   * - Pet visibility (behavior state, size, movement)
+   * - Population density (terrain type)
+   * - Time of day (when people are outside)
+   * - Pet's current behavior (hiding vs visible)
+   *
+   * The encounter RATE is NOT tuned to hit target statistics.
+   * Whatever rate emerges from these physical factors IS the rate.
    */
   checkStrangerEncounter(currentHour) {
     // Pet must be somewhat visible
@@ -394,36 +401,40 @@ export class EmergentSimulationEngine {
       return false;  // Too hidden for strangers to see
     }
 
-    // Time of day multiplier (more people around during certain hours)
-    let timeMultiplier;
+    // POPULATION DENSITY by time of day
+    // Based on when people are actually outside in neighborhoods
+    let populationDensity;
     if (currentHour >= 7 && currentHour < 9) {
-      timeMultiplier = 1.2;  // Morning commute
-    } else if (currentHour >= 17 && currentHour < 19) {
-      timeMultiplier = 1.5;  // Evening - dog walkers, people coming home
-    } else if (currentHour >= 9 && currentHour < 17) {
-      timeMultiplier = 0.5;  // Workday - fewer people
-    } else if (currentHour >= 19 && currentHour < 22) {
-      timeMultiplier = 0.3;  // Evening wind-down
+      populationDensity = 0.4;   // Morning - some commuters, dog walkers
+    } else if (currentHour >= 9 && currentHour < 12) {
+      populationDensity = 0.2;   // Late morning - mostly quiet
+    } else if (currentHour >= 12 && currentHour < 14) {
+      populationDensity = 0.3;   // Lunch - some activity
+    } else if (currentHour >= 14 && currentHour < 17) {
+      populationDensity = 0.25;  // Afternoon - kids coming home
+    } else if (currentHour >= 17 && currentHour < 20) {
+      populationDensity = 0.6;   // Evening - peak outdoor activity
+    } else if (currentHour >= 20 && currentHour < 22) {
+      populationDensity = 0.15;  // Late evening - winding down
     } else {
-      timeMultiplier = 0.02; // Night (10pm-7am) - almost no one
+      populationDensity = 0.02;  // Night - almost nobody outside
     }
 
-    // Terrain affects population density
-    const terrainMultiplier = {
-      'URBAN': 2.0,
-      'SUBURBAN': 1.0,
-      'RURAL': 0.3,
-      'WOODED': 0.1,
+    // TERRAIN affects how many people per area
+    const terrainDensity = {
+      'URBAN': 3.0,      // Dense - many pedestrians
+      'SUBURBAN': 1.0,   // Baseline neighborhood
+      'RURAL': 0.2,      // Sparse - few people
+      'WOODED': 0.05,    // Very sparse - hikers only
     }[this.environmentConfig.terrainType] || 1.0;
 
-    // CALIBRATED base rate: 0.1% per tick (very low)
-    // Over 72 hours (~860 ticks), with modifiers, produces reasonable encounter rates
-    const baseRate = 0.001;
-
-    const encounterProb = baseRate * visibility * timeMultiplier * terrainMultiplier;
+    // ENCOUNTER PHYSICS:
+    // Per 5-minute tick, what's the chance a visible pet is spotted?
+    // This is based on: visibility * population * terrain
+    // NOT calibrated to any target outcome rate
+    const encounterProb = visibility * populationDensity * terrainDensity * 0.01;
 
     if (this.random() < encounterProb) {
-      // Stranger encountered the pet!
       return this.handleStrangerEncounter(currentHour);
     }
 
@@ -511,27 +522,25 @@ export class EmergentSimulationEngine {
   /**
    * Handle stranger capture - determine what happens next
    *
-   * CALIBRATED to match Weiss 2012 stranger recovery rates:
-   * - Dogs: 26% found by strangers (of all recoveries)
-   * - Cats: ~9% found by strangers
+   * ============================================================================
+   * PURELY EMERGENT - NO CALIBRATED OUTCOME TARGETING
+   * ============================================================================
    *
-   * Key insight: Not all stranger captures lead to reunion.
-   * Many strangers keep the pet, take it to shelter (where it's not claimed),
-   * or fail to connect with the owner.
+   * What happens after capture depends on:
+   * - Does pet have visible ID? (collar, tags)
+   * - Did owner post flyers/social media? (visibility score)
+   * - Stranger's random behavior (keep, shelter, post, return)
    *
-   * VISIBILITY SCORE EFFECT:
-   * If owner posted on social media/flyers, strangers are more likely to:
-   * 1. Recognize the pet and contact owner directly
-   * 2. See owner's post when they post "found pet"
+   * These probabilities represent HUMAN BEHAVIOR, not outcome targets.
    */
   handleStrangerCapture() {
     // Get visibility score from searcher config
     const visibilityScore = this.searcherConfig.visibilityScore || 0.1;
 
     // If pet has visible tags with phone number
-    // REDUCED from 80% to 40% - many people don't call, tags are hard to read, etc.
+    // Some people will call, some won't bother
     if (this.pet.hasVisibleTags) {
-      const callsOwner = this.random() < 0.4;  // 40% actually call
+      const callsOwner = this.random() < 0.5;  // 50% of people actually call
 
       if (callsOwner) {
         this.outcomes.setOutcome('REUNITED_STRANGER_DIRECT', this.currentMinute, {
