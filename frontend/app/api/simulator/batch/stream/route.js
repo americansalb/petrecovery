@@ -167,8 +167,7 @@ export async function POST(request) {
         sendEvent('status', { message: 'Running simulations...' });
 
         // Run simulations with progress
-        const outcomes = {};
-        Object.values(OUTCOMES).forEach(o => outcomes[o] = 0);
+        const outcomes = {};  // Don't pre-initialize - count any outcome that appears
         let totalTimeToFind = 0;
         let foundCount = 0;
         let totalPetDistance = 0;
@@ -187,7 +186,16 @@ export async function POST(request) {
             const engine = new SimulationEngine(config);
             const result = engine.run();
 
+            // Initialize count to 0 if this outcome hasn't been seen yet
+            if (outcomes[result.outcome] === undefined) {
+              outcomes[result.outcome] = 0;
+            }
             outcomes[result.outcome]++;
+
+            // Log first few outcomes to debug
+            if (i < 5) {
+              console.log(`[${requestId}] Sim ${i}: outcome=${result.outcome}, isFound=${result.isFound}`);
+            }
             totalPetDistance += result.petDistanceMiles || 0;
 
             // Track success as binary (1 = found, 0 = not found)
@@ -328,6 +336,11 @@ export async function POST(request) {
         const successCount = returnedHomeCount + foundBySearcherCount +
           foundViaShelterCount + foundViaSocialCount;
         const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+
+        // Log outcome breakdown for debugging
+        console.log(`[${requestId}] 📊 Outcome breakdown:`, JSON.stringify(outcomes, null, 2));
+        console.log(`[${requestId}] 📈 Counts: success=${successCount}, deceased=${deceasedCount}, stillMissing=${stillMissingCount}, atShelter=${atShelterCount}`);
+        console.log(`[${requestId}] 📈 Success breakdown: home=${returnedHomeCount}, searcher=${foundBySearcherCount}, shelter=${foundViaShelterCount}, social=${foundViaSocialCount}`);
 
         const batch = {
           id: `batch_${Date.now()}`,
