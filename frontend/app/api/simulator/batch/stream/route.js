@@ -194,7 +194,7 @@ export async function POST(request) {
 
             // Log first few outcomes to debug
             if (i < 5) {
-              console.log(`[${requestId}] Sim ${i}: outcome=${result.outcome}, isFound=${result.isFound}`);
+              console.log(`[${requestId}] Sim ${i}: outcome=${result.outcome}, isFound=${result.isFound}, foundLat=${result.foundLatitude}, foundLng=${result.foundLongitude}, foundMin=${result.foundAtMinute}`);
             }
             totalPetDistance += result.petDistanceMiles || 0;
 
