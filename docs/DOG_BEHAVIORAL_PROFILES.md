@@ -240,6 +240,25 @@ Brachycephalic breeds (flat-faced dogs) have severe physiological limitations th
 - **Behavioral**: More likely to seek shelter quickly due to physical distress
 - **Recovery**: Usually found within 0.5 miles if they survive first 24 hours
 
+**Modifier Application Order**
+
+Brachycephalic physical constraints **override** breed instinct modifiers. Apply in this order:
+
+```
+1. Apply breed instinct modifiers (e.g., Working Dog stamina bonus)
+2. Apply size modifiers
+3. Apply age modifiers
+4. THEN apply brachycephalic constraints (these take precedence)
+5. Apply situational modifiers (health, terrain)
+```
+
+Example: A Boxer (Working Group, normally high stamina) that is brachycephalic:
+```
+baseStamina = 1.0
+afterBreedMod = 1.0 × 1.2 (Working Group bonus) = 1.2
+afterBrachyMod = 1.2 × 0.3 (Brachy penalty) = 0.36  # Brachy wins
+```
+
 **Application in Simulation**
 
 ```
@@ -255,6 +274,41 @@ IF dog.isBrachycephalic:
     # Brachycephalic dogs seek shelter faster
     shelterSeekingMultiplier *= 2.0
 ```
+
+### ⚠️ BRACHYCEPHALIC HEAT EMERGENCY
+
+**A brachycephalic dog lost on a hot day is a MEDICAL EMERGENCY.**
+
+| Temperature | Survivability Window | Required Action |
+|-------------|---------------------|-----------------|
+| 75-85°F | 24-48 hours | Urgent search |
+| 85-95°F | 6-12 hours | Emergency - immediate search |
+| 95°F+ | 2-4 hours | Critical - call emergency services |
+
+**Heat Emergency Simulation Parameters**
+
+```
+IF dog.isBrachycephalic AND temperature > 85:
+    # This is a medical emergency
+    survivalHours = max(2, 24 - (temperature - 75) × 0.8)
+
+    hourlyDeathRisk = 0.05 + (temperature - 85) × 0.02
+
+    # Behavioral changes
+    speed *= 0.1  # Nearly immobile
+    shelterSeekingProbability = 1.0  # Will seek any shade/water
+    approachability += 0.3  # May seek human help regardless of temperament
+
+    # Alert flag for simulation output
+    TRIGGER_EMERGENCY_ALERT("Brachycephalic dog in extreme heat - hours to live")
+```
+
+**Practical Implications**
+
+- Simulation should flag brachy + heat scenarios prominently
+- Recovery probability drops precipitously with temperature
+- These dogs often found deceased near water sources or in shade
+- Owner education: brachy dogs should not be outside unsupervised in summer
 
 ---
 
@@ -334,6 +388,44 @@ Working Dog (W):    G:25%  C:40%  A:20%  X:5%   B:10%
 - **Travel pattern**: Circles home area, returns to familiar spots
 - **Catchability**: Easy for owner, hard for strangers
 - **Risk**: May refuse help from non-owner
+- **Movement mechanic**: See "Bonded Gravity" below
+
+#### Bonded Gravity Mechanic
+
+Unlike other temperaments that use random walks or linear flight, Bonded dogs have a **constant directional bias toward home**. Their movement vector always includes a home-attraction component:
+
+```
+FUNCTION calculateBondedMovement(currentPos, homePos, lastScentPoint):
+
+    # Primary attraction: Home coordinates
+    homeVector = normalize(homePos - currentPos)
+
+    # Secondary attraction: Last place owner's scent was detected
+    IF lastScentPoint != null AND distance(currentPos, lastScentPoint) < 0.5 miles:
+        scentVector = normalize(lastScentPoint - currentPos)
+        attractionVector = 0.6 * homeVector + 0.4 * scentVector
+    ELSE:
+        attractionVector = homeVector
+
+    # Random exploration component (reduced compared to other temperaments)
+    randomVector = randomUnitVector()
+
+    # Final movement: Heavy bias toward home
+    gravityStrength = 0.4  # 40% of movement biased toward home
+    explorationStrength = 0.6
+
+    movementDirection = normalize(
+        gravityStrength * attractionVector +
+        explorationStrength * randomVector
+    )
+
+    RETURN movementDirection
+```
+
+**Behavioral Result**: Bonded dogs produce a **spiral inward** pattern rather than random diffusion, often returning to:
+- The home property
+- The last place they saw/smelled the owner
+- Familiar walking routes
 
 ---
 
@@ -372,19 +464,44 @@ thirst(t) = min(1.0, t_hours / 48)  # Critical by 48 hours
 
 ### Fear Decay
 
+Fear decay rate varies by escape type. Trauma escapes (P3) create PTSD-like responses that persist much longer than noise panic:
+
 ```
 fear(t) = initial_fear × e^(-λt)
-where λ = 0.03 per hour (half-life ≈ 23 hours)
+
+# Decay rates by escape type
+λ = {
+    P1: 0.030,  # Noise panic - half-life ≈ 23 hours
+    P2: 0.025,  # Attack panic - half-life ≈ 28 hours
+    P3: 0.012,  # Trauma (car accident, fire) - half-life ≈ 58 hours
+    D1: 0.040,  # Prey chase - half-life ≈ 17 hours (not fear-based)
+    D2: 0.050,  # Dog chase - half-life ≈ 14 hours
+    W*: 0.060,  # Walkout escapes - half-life ≈ 12 hours (minimal fear)
+    S1: 0.020,  # Vehicle displacement - half-life ≈ 35 hours
+    S2: 0.035,  # Facility escape - half-life ≈ 20 hours
+    S3: 0.040,  # Handed-off loss - half-life ≈ 17 hours
+}
 ```
 
-| Hours Since Trigger | Fear Level (if initial=1.0) | Effect |
-|---------------------|----------------------------|--------|
-| 0 | 1.0 | Full flight response |
-| 6 | 0.84 | Still highly reactive |
-| 12 | 0.70 | Beginning to calm |
-| 24 | 0.49 | Significantly reduced |
-| 48 | 0.24 | Mostly dissipated |
-| 72 | 0.12 | Minimal residual fear |
+**Fear Decay Comparison by Escape Type**
+
+| Hours | P1 (Noise) | P2 (Attack) | P3 (Trauma) | Effect |
+|-------|------------|-------------|-------------|--------|
+| 0 | 1.0 | 1.0 | 1.0 | Full flight response |
+| 6 | 0.84 | 0.86 | 0.93 | Still highly reactive |
+| 12 | 0.70 | 0.74 | 0.87 | Beginning to calm (P1/P2 only) |
+| 24 | 0.49 | 0.55 | 0.75 | P3 still very fearful |
+| 48 | 0.24 | 0.30 | 0.56 | P3 majority of fear remains |
+| 72 | 0.12 | 0.17 | 0.42 | P3 still significantly affected |
+| 120 | 0.03 | 0.05 | 0.24 | P3 may need weeks to normalize |
+
+**Trauma Escape (P3) Special Handling**
+
+Dogs that escaped during car accidents, explosions, house fires, or similar traumatic events:
+- May exhibit PTSD-like startle responses for weeks
+- Specific triggers (loud sounds, vehicles, smoke smell) can cause fear spikes
+- Fear decay is non-linear: may plateau and remain elevated
+- Professional behavioral intervention often required even after recovery
 
 ### Temperament Modification Over Time
 
@@ -496,6 +613,59 @@ FUNCTION effectiveApproachability(baseTemperament, hours):
 | S1 | Vehicle Displacement | Fell/jumped from car | 3% | Accident |
 | S2 | Facility Escape | Escaped from vet/groomer | 5% | Stress |
 | S3 | Handed-Off Loss | Escaped from pet-sitter | 3% | Unfamiliarity |
+
+### W5: In-Heat Female - Detailed Behavior
+
+Intact females in estrus have distinctive escape and movement patterns that differ significantly from males (W4):
+
+**Key Behavioral Differences from W4 (Male)**
+
+| Aspect | W4 (Male) | W5 (Female) |
+|--------|-----------|-------------|
+| Movement | Travels far seeking females | Often stays put; males come to her |
+| Distance | Can cover 5-10+ miles | Usually stays within 0.5-2 miles |
+| Behavior | Single-minded pursuit | May alternate between receptive and defensive |
+| Detection | Hard to find (moving target) | May be found via cluster of roaming males nearby |
+
+**Movement Pattern**
+
+```
+FUNCTION w5InHeatMovement(currentPos, homePos):
+
+    # In-heat females don't travel far - they attract males
+    # Movement is about finding secure mating location, not distance
+
+    IF malesPresent:
+        IF receptive:
+            speed = 0.2x base  # Stays with male(s)
+        ELSE:
+            speed = 1.5x base  # Fleeing unwanted attention
+            direction = away from males
+    ELSE:
+        # Normal cautious exploration
+        speed = 0.6x base
+        direction = random walk with slight home bias
+
+    RETURN speed, direction
+```
+
+**Special Characteristics**
+
+1. **Attracts roaming males**: Creates cluster of intact males in area, which may be reported as "pack of dogs" sighting
+2. **Defensive aggression**: May become aggressive toward approaching humans during estrus
+3. **Scent marking**: Leaves strong scent trail that persists, aiding tracking
+4. **Cycle phase matters**:
+   - Proestrus (days 1-9): Attractive to males but not receptive, more defensive
+   - Estrus (days 9-14): Receptive, may stay with males
+   - Diestrus: Behavior normalizes
+
+**Recovery Implications**
+
+- Look for reports of "multiple dogs together" or "stray male dogs in area"
+- Female may be nearby even if not directly sighted
+- Approach cautiously - defensive behavior likely
+- Capture may be easier if male dogs are cleared first
+- Spay/neuter advocacy opportunity
 
 **Escape Type Probability Adjustments**
 
@@ -928,6 +1098,55 @@ These modify movement parameters but don't create new profile types:
 | Rural | 1.2x | Medium | Low |
 | Wooded | 0.7x | Very High | Very Low |
 
+### Terrain Detection Implementation Requirements
+
+The mortality and behavior rates depend heavily on terrain classification. **The simulation needs a map layer** to determine terrain type from coordinates.
+
+**Required Data Sources** (choose one):
+
+| Source | Pros | Cons |
+|--------|------|------|
+| OpenStreetMap (Overpass API) | Free, detailed building/road data | Requires parsing, rate limits |
+| Google Maps API | Easy to use, reliable | Costs money at scale |
+| Census TIGER/Line | Free, official boundaries | Less granular |
+| Pre-computed grid | Fast runtime | Requires upfront processing |
+
+**Classification Algorithm**
+
+```
+FUNCTION classifyTerrain(lat, lng, radius=0.25 miles):
+
+    # Query map data for area around point
+    buildingsPerAcre = countBuildings(lat, lng, radius) / acreage(radius)
+    roadDensity = totalRoadLength(lat, lng, radius) / acreage(radius)
+    nearHighway = isWithinDistance(lat, lng, "highway", 0.1 miles)
+    treeCanopy = getCanopyCoverage(lat, lng, radius)
+
+    # Classification rules
+    IF buildingsPerAcre > 20 OR nearHighway:
+        RETURN "Urban"
+    ELIF buildingsPerAcre > 5:
+        RETURN "Suburban"
+    ELIF treeCanopy > 0.6:
+        RETURN "Wooded"
+    ELSE:
+        RETURN "Rural"
+
+    # Dynamic reclassification as dog moves
+    # (terrain type may change during simulation)
+```
+
+**Per-Tick Terrain Checks**
+
+The simulation should check terrain at each movement tick because:
+- Dog may move from suburban into urban (higher traffic risk)
+- Dog may find wooded area (better hiding, lower traffic risk)
+- Terrain affects speed, hiding spots, and human encounter rate
+
+**Fallback if No Map Data**
+
+If map APIs unavailable, use user-provided terrain type for home location and assume consistent terrain within search radius (less accurate but functional).
+
 ---
 
 ## Usage Notes
@@ -975,7 +1194,32 @@ These modify movement parameters but don't create new profile types:
 
 ---
 
-*Document Version: 1.1*
+*Document Version: 1.2*
 *Last Updated: January 2026*
 *Created for: Lost Pet Monte Carlo Simulation*
 *Species: Dogs (Canis familiaris)*
+
+---
+
+## Changelog
+
+### v1.2
+- Added probability normalization method (multiplicative + renormalize)
+- Added W5 escape type detailed behavior (in-heat females)
+- Added Bonded temperament "gravity" mechanic
+- Added escape-type-specific fear decay rates (P3 trauma = 58hr half-life)
+- Added brachycephalic modifier application order
+- Added brachycephalic heat emergency handling (⚠️ medical emergency)
+- Added terrain detection implementation requirements
+- Updated deceased rates for xenophobic dogs by terrain
+
+### v1.1
+- Added 9 layers with probability distributions
+- Added 50 ranked profile combinations
+- Added time-dependent behavior dynamics
+- Added owner search intensity layer
+
+### v1.0
+- Initial document with 8 layers
+- Basic movement parameters
+- Outcome probability matrix
