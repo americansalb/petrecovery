@@ -322,16 +322,17 @@ export async function POST(request) {
           (outcomes['DECEASED_INJURY'] || 0) +
           (outcomes['DECEASED_EUTHANIZED'] || 0);
 
-        // STILL MISSING / TIMEOUT outcomes
+        // STILL MISSING - pet is out there somewhere, not safe
         const stillMissingCount = (outcomes['STILL_MISSING'] || 0) +
           (outcomes['SIGHTED_NOT_CAPTURED'] || 0) +
-          (outcomes['WITH_STRANGER_PENDING'] || 0) +
           (outcomes['ADOPTED_BY_FINDER'] || 0) +
+          (outcomes['ADOPTED_FROM_SHELTER'] || 0) +
           (outcomes['FERAL_PERMANENTLY'] || 0);
 
-        // SHELTERED but unclaimed
+        // RECOVERABLE - pet is safe with someone, could still be reunited
+        // (at shelter or with a stranger who hasn't decided what to do yet)
         const atShelterCount = (outcomes['AT_SHELTER_PENDING'] || 0) +
-          (outcomes['ADOPTED_FROM_SHELTER'] || 0);
+          (outcomes['WITH_STRANGER_PENDING'] || 0);
 
         const successCount = returnedHomeCount + foundBySearcherCount +
           foundViaShelterCount + foundViaSocialCount;

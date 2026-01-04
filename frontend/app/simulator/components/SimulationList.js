@@ -192,7 +192,7 @@ function BatchGroup({ batch, isSelected, isExpanded, onToggle, onSelect, onSelec
             </div>
 
             <div className="text-xs text-gray-500 mt-1">
-              {successRate}% success rate ({successCount}/{totalRuns} found)
+              {successRate}% reunited ({successCount}/{totalRuns})
             </div>
 
             {/* Confidence interval based on parameter uncertainty */}
@@ -222,16 +222,22 @@ function BatchGroup({ batch, isSelected, isExpanded, onToggle, onSelect, onSelec
               </div>
             )}
 
-            {/* Primary outcome categories */}
+            {/* Primary outcome categories: Reunited, Missing, Deceased, Recoverable */}
             <div className="flex flex-wrap gap-2 mt-2 text-[10px]">
-              {/* FOUND - all reunited outcomes combined */}
+              {/* REUNITED - all REUNITED_* outcomes combined */}
               {successCount > 0 && (
                 <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-medium">
-                  ✓ {successCount} found
+                  ✓ {successCount} reunited
                 </span>
               )}
-              {/* MISSING - still searching */}
-              {(batch.stillMissingCount || batch.timeoutSearchingCount) > 0 && (
+              {/* RECOVERABLE - at shelter or with stranger (safe but not yet reunited) */}
+              {(batch.atShelterCount > 0 || batch.timeoutShelteredCount > 0) && (
+                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">
+                  ⧖ {(batch.atShelterCount || 0) + (batch.timeoutShelteredCount || 0)} recoverable
+                </span>
+              )}
+              {/* MISSING - still out there */}
+              {(batch.stillMissingCount > 0 || (batch.timeoutSearchingCount > 0 && !batch.stillMissingCount)) && (
                 <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded font-medium">
                   ? {batch.stillMissingCount || batch.timeoutSearchingCount} missing
                 </span>
@@ -244,10 +250,10 @@ function BatchGroup({ batch, isSelected, isExpanded, onToggle, onSelect, onSelec
               )}
             </div>
 
-            {/* How they were found (secondary breakdown) */}
+            {/* How they were reunited (secondary breakdown) */}
             {successCount > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-1.5 text-[9px] text-gray-500">
-                <span className="italic">Found via:</span>
+                <span className="italic">Reunited via:</span>
                 {batch.foundBySearcherCount > 0 && (
                   <span>{batch.foundBySearcherCount} search</span>
                 )}
