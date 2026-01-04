@@ -221,6 +221,42 @@ function getOutcomeCategory(outcome) {
 }
 
 /**
+ * Convert flat searcherPaths to grouped format expected by UI
+ *
+ * Emergent engine outputs: [{ id, minute, lat, lng, isOwner }, ...]
+ * UI expects: [{ searcherId: 0, isOwner: true, path: [{ minute, lat, lng }, ...] }, ...]
+ */
+function groupSearcherPaths(flatPaths) {
+  if (!flatPaths || flatPaths.length === 0) return [];
+
+  // Group by searcher ID
+  const grouped = {};
+  flatPaths.forEach(point => {
+    const id = point.id;
+    if (!grouped[id]) {
+      grouped[id] = {
+        searcherId: Object.keys(grouped).length,
+        id: id,
+        isOwner: point.isOwner,
+        path: [],
+      };
+    }
+    grouped[id].path.push({
+      minute: point.minute,
+      lat: point.lat,
+      lng: point.lng,
+    });
+  });
+
+  // Sort paths by minute for proper interpolation
+  Object.values(grouped).forEach(searcher => {
+    searcher.path.sort((a, b) => a.minute - b.minute);
+  });
+
+  return Object.values(grouped);
+}
+
+/**
  * Convert emergent simulation results to unified format
  *
  * IMPORTANT: We now preserve the granular emergent outcomes instead of
@@ -266,7 +302,7 @@ function convertResultToLegacy(emergentResult, legacyConfig) {
     searcherDistanceMiles: 0,
     finalPetState: emergentResult.finalPetState,
     petPath,
-    searcherPaths: emergentResult.searcherPaths || [],
+    searcherPaths: groupSearcherPaths(emergentResult.searcherPaths),
     events: emergentResult.events,
     terrain: null,
 
