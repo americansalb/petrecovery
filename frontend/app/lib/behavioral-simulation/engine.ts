@@ -73,6 +73,85 @@ function sampleRange(rng: SeededRandom, range: { min: number; max: number }): nu
   return rng.uniform(range.min, range.max);
 }
 
+// Simple water/terrain boundary detection
+// Uses rough coastline polygons for major coastal cities
+// Returns true if position is likely in water
+function isLikelyWater(pos: Position, homePos: Position): boolean {
+  // San Francisco Bay Area coastline check
+  // Western boundary (Pacific Ocean)
+  if (pos.lng < -122.52 && pos.lat > 37.6 && pos.lat < 37.85) {
+    return true; // Pacific Ocean west of SF
+  }
+  // San Francisco Bay (rough polygon)
+  if (pos.lng > -122.35 && pos.lng < -122.1 && pos.lat > 37.6 && pos.lat < 37.9) {
+    // In the bay area - check if east of the peninsula
+    if (pos.lng > -122.25) return true;
+  }
+  // North of Golden Gate
+  if (pos.lat > 37.83 && pos.lng < -122.45 && pos.lng > -122.52) {
+    return true; // Golden Gate strait
+  }
+
+  // Los Angeles coastline
+  if (pos.lng < -118.5 && pos.lat > 33.7 && pos.lat < 34.1) {
+    return true; // Pacific west of LA
+  }
+
+  // San Diego coastline
+  if (pos.lng < -117.25 && pos.lat > 32.5 && pos.lat < 33.0) {
+    return true;
+  }
+
+  // Seattle/Puget Sound
+  if (pos.lng < -122.5 && pos.lat > 47.4 && pos.lat < 47.8) {
+    return true;
+  }
+  if (pos.lng > -122.3 && pos.lng < -122.2 && pos.lat > 47.5 && pos.lat < 47.7) {
+    return true; // Lake Washington
+  }
+
+  // Miami/Florida coast
+  if (pos.lng > -80.1 && pos.lat > 25.5 && pos.lat < 26.0) {
+    return true; // Atlantic east of Miami
+  }
+
+  // New York Harbor
+  if (pos.lng > -74.0 && pos.lat > 40.5 && pos.lat < 40.75) {
+    return true;
+  }
+
+  // Boston Harbor
+  if (pos.lng > -70.95 && pos.lat > 42.3 && pos.lat < 42.4) {
+    return true;
+  }
+
+  // General ocean boundaries (very far from any coast)
+  // If more than 5km from home toward the ocean, be more cautious
+  const distFromHome = distance(pos, homePos);
+  if (distFromHome > 5000) {
+    // Check if heading toward open ocean (very rough check)
+    // Pacific coast: west of -125 or east coast: east of -65
+    if (pos.lng < -125 || pos.lng > -65) {
+      return true;
+    }
+    // Gulf of Mexico
+    if (pos.lat < 25 && pos.lng > -98 && pos.lng < -80) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Get bearing from home to position (used for water avoidance)
+function getBearing(from: Position, to: Position): number {
+  const dLng = to.lng - from.lng;
+  const y = Math.sin(dLng * Math.PI / 180) * Math.cos(to.lat * Math.PI / 180);
+  const x = Math.cos(from.lat * Math.PI / 180) * Math.sin(to.lat * Math.PI / 180) -
+            Math.sin(from.lat * Math.PI / 180) * Math.cos(to.lat * Math.PI / 180) * Math.cos(dLng * Math.PI / 180);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
 // Physiology parameters sampled at initialization
 interface SampledPhysiologyParams {
   hungerRate: number;
@@ -149,13 +228,15 @@ class SearcherAgent {
     const speed = 3000; // 3 km/h walking speed
     const distanceM = speed * timeStepHours;
 
+    let newPos: Position;
+
     switch (this.searchPattern) {
       case 'spiral':
         // Expanding spiral from home - angle increases, radius grows over time
         this.spiralAngle += 15;
         this.spiralRadius = Math.min(this.searchRadius, 50 + hour * 30);
         this.heading = this.spiralAngle;
-        this.position = offsetPosition(this.homePosition, this.spiralRadius, this.spiralAngle);
+        newPos = offsetPosition(this.homePosition, this.spiralRadius, this.spiralAngle);
         break;
 
       case 'grid':
@@ -163,15 +244,32 @@ class SearcherAgent {
         if (this.rng.next() < 0.2) {
           this.heading = Math.round(this.heading / 90) * 90 + (this.rng.next() < 0.5 ? 90 : -90);
         }
-        this.position = offsetPosition(this.position, distanceM, this.heading);
+        newPos = offsetPosition(this.position, distanceM, this.heading);
         break;
 
       case 'random':
         // Random walk with tendency to cover new ground
         this.heading += this.rng.uniform(-30, 30);
-        this.position = offsetPosition(this.position, distanceM, this.heading);
+        newPos = offsetPosition(this.position, distanceM, this.heading);
         break;
+
+      default:
+        newPos = this.position;
     }
+
+    // Water avoidance - searchers don't search in water
+    if (isLikelyWater(newPos, this.homePosition)) {
+      // Turn around and try a different direction
+      this.heading = (this.heading + 180 + this.rng.uniform(-45, 45)) % 360;
+      newPos = offsetPosition(this.position, distanceM, this.heading);
+      // If still in water, stay put
+      if (isLikelyWater(newPos, this.homePosition)) {
+        this.recordPath(hour);
+        return;
+      }
+    }
+
+    this.position = newPos;
 
     // Keep within search radius
     const distFromHome = distance(this.position, this.homePosition);
@@ -540,7 +638,21 @@ export class BehavioralSimulationEngine {
       }
 
       this.heading = ((this.heading % 360) + 360) % 360;
-      const newPos = offsetPosition(this.state.position, distanceM, this.heading);
+      let newPos = offsetPosition(this.state.position, distanceM, this.heading);
+
+      // Water/terrain avoidance - if new position is in water, turn around
+      if (isLikelyWater(newPos, this.homePosition)) {
+        // Turn back toward home or inland
+        const homeDir = getBearing(this.state.position, this.homePosition);
+        this.heading = homeDir + this.rng.uniform(-60, 60);
+        this.heading = ((this.heading % 360) + 360) % 360;
+        newPos = offsetPosition(this.state.position, distanceM, this.heading);
+
+        // If still in water after turning, just stay put
+        if (isLikelyWater(newPos, this.homePosition)) {
+          return; // Don't move this timestep
+        }
+      }
 
       this.totalDistanceM += distanceM;
       this.state.position = newPos;
