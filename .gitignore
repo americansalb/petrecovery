@@ -24,3 +24,16 @@ android/capacitor-cordova-android-plugins/
 
 # Keep the out directory for Capacitor but ignore Next.js static export
 frontend/out/_next/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/

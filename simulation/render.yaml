@@ -1,0 +1,17 @@
+# Render Blueprint for Pet Recovery Monte Carlo Simulation
+# Deploy as: simulation-v2.reunitepets.org or similar
+
+services:
+  - type: web
+    name: petrecovery-monte-carlo
+    runtime: python
+    region: oregon
+    plan: starter
+    buildCommand: pip install -r requirements-server.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+    autoDeploy: true
+    rootDir: simulation
