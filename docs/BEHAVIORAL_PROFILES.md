@@ -1,6 +1,6 @@
 # Lost Pet Behavioral Profile System
 
-## Version 2.2
+## Version 2.3
 
 A unified behavioral simulation framework for dogs and cats. This document consolidates species-specific movement patterns, recovery probabilities, and search strategies into a single reference.
 
@@ -241,6 +241,159 @@ The simulation should check terrain at each movement tick because:
 - Animal may move from suburban into urban (higher traffic risk for dogs)
 - Animal may find wooded area (better hiding for cats, lower traffic for dogs)
 - Terrain affects speed, hiding spots, and human encounter rate
+
+### Multi-Terrain Tick Handling
+
+When a 5-minute movement tick crosses terrain boundaries, the simulation must handle the transition:
+
+```python
+def simulate_movement_tick(
+    position: Tuple[float, float],
+    heading: float,
+    speed_mpm: float,  # meters per minute
+    tick_duration_min: float,
+    terrain_map: TerrainMap,
+    profile: AnimalProfile
+) -> Tuple[Tuple[float, float], Dict]:
+    """
+    Simulate movement for one tick, handling terrain transitions.
+
+    Returns:
+        (new_position, tick_metrics) where tick_metrics includes
+        terrain breakdown, risks encountered, etc.
+    """
+
+    total_distance = speed_mpm * tick_duration_min
+    remaining_distance = total_distance
+    current_pos = position
+    tick_metrics = {
+        "terrain_segments": [],
+        "risk_events": [],
+        "total_distance_m": total_distance
+    }
+
+    # Maximum 10 terrain transitions per tick (prevents infinite loop)
+    max_transitions = 10
+
+    for _ in range(max_transitions):
+        current_terrain = terrain_map.get_terrain(current_pos)
+
+        # Find distance to next terrain boundary along heading
+        boundary_dist = terrain_map.distance_to_boundary(
+            current_pos,
+            heading,
+            max_dist=remaining_distance
+        )
+
+        if boundary_dist is None or boundary_dist >= remaining_distance:
+            # No boundary crossing - complete movement in current terrain
+            segment_distance = remaining_distance
+            new_pos = move_along_heading(current_pos, heading, segment_distance)
+
+            tick_metrics["terrain_segments"].append({
+                "terrain": current_terrain,
+                "distance_m": segment_distance,
+                "duration_min": (segment_distance / total_distance) * tick_duration_min
+            })
+
+            # Apply terrain-specific risks for time spent in this terrain
+            segment_duration = (segment_distance / total_distance) * tick_duration_min
+            risk_events = check_terrain_risks(
+                current_terrain,
+                segment_duration,
+                profile
+            )
+            tick_metrics["risk_events"].extend(risk_events)
+
+            return new_pos, tick_metrics
+
+        else:
+            # Crossing boundary - complete partial movement, then continue
+            segment_distance = boundary_dist
+
+            tick_metrics["terrain_segments"].append({
+                "terrain": current_terrain,
+                "distance_m": segment_distance,
+                "duration_min": (segment_distance / total_distance) * tick_duration_min
+            })
+
+            # Apply risks for this segment
+            segment_duration = (segment_distance / total_distance) * tick_duration_min
+            risk_events = check_terrain_risks(
+                current_terrain,
+                segment_duration,
+                profile
+            )
+            tick_metrics["risk_events"].extend(risk_events)
+
+            # Move to boundary and update state
+            current_pos = move_along_heading(current_pos, heading, segment_distance)
+            remaining_distance -= segment_distance
+
+            # Optional: behavior change at boundary
+            new_terrain = terrain_map.get_terrain(current_pos)
+            heading = adjust_heading_for_terrain_change(
+                heading,
+                current_terrain,
+                new_terrain,
+                profile
+            )
+
+    # Fallback if too many transitions (shouldn't happen normally)
+    return current_pos, tick_metrics
+
+
+def check_terrain_risks(
+    terrain: str,
+    duration_min: float,
+    profile: AnimalProfile
+) -> List[Dict]:
+    """
+    Check for risk events (traffic, predators) during terrain segment.
+    Probability scales with duration.
+    """
+    risk_events = []
+
+    # Risk rates per minute (from terrain tables)
+    if profile.species == "dog":
+        traffic_rate = DOG_TRAFFIC_RISK_PER_MIN.get(terrain, 0)
+        if random.random() < traffic_rate * duration_min:
+            severity = random.choice(["near_miss", "injury", "fatal"])
+            risk_events.append({"type": "traffic", "terrain": terrain, "severity": severity})
+
+    else:  # Cat
+        predator_rate = CAT_PREDATOR_RISK_PER_MIN.get(terrain, 0)
+        if random.random() < predator_rate * duration_min:
+            risk_events.append({"type": "predator", "terrain": terrain})
+
+    return risk_events
+
+
+# Risk rates [A] - Author estimates, need calibration
+DOG_TRAFFIC_RISK_PER_MIN = {
+    "urban": 0.0005,      # ~3% per hour
+    "suburban": 0.0002,   # ~1.2% per hour
+    "rural": 0.00005,     # ~0.3% per hour
+    "wooded": 0.00001     # ~0.06% per hour
+}
+
+CAT_PREDATOR_RISK_PER_MIN = {
+    "urban": 0.00002,     # Low - mostly dogs
+    "suburban": 0.00005,  # Coyotes entering
+    "rural": 0.0001,      # Higher coyote presence
+    "wooded": 0.0002      # Multiple predator types
+}
+```
+
+**Key principles for terrain boundary handling:**
+
+1. **Time-proportional risks**: Risks are calculated proportionally to time spent in each terrain, not per-tick.
+
+2. **Speed adjustments**: When entering slower terrain (wooded), remaining distance decreases proportionally.
+
+3. **Behavioral adaptation**: Animals may change heading when encountering terrain boundaries (e.g., a dog avoiding dense woods, a cat seeking cover).
+
+4. **Accumulated segments**: The tick records all terrain segments traversed for detailed analysis.
 
 ### Fallback if No Map Data
 
@@ -2642,6 +2795,37 @@ def propagate_uncertainty(base_value, modifiers):
     }
 ```
 
+### Why Composite CIs Can Be Tighter Than Component Uncertainties
+
+The profile frequency CIs in the tables may appear narrower than the ±50% uncertainty on individual [A] parameters. This is expected for several reasons:
+
+1. **Averaging effect**: Profile frequencies aggregate across many simulated cases. The CI reflects uncertainty in the *population frequency estimate*, not in individual case predictions.
+
+2. **Constrained space**: Profile frequencies must sum to 100%. When one profile frequency increases, others must decrease. This constraint bounds the overall variability.
+
+3. **Multiplicative attenuation**: When probabilities multiply (e.g., P(temperament) × P(age) × P(background)), each factor's relative contribution to the final frequency is reduced.
+
+4. **Correlated errors**: Some component uncertainties partially cancel when combined. If one parameter is overestimated, another may compensate.
+
+**Important caveat**: The tight CIs in the frequency tables represent *statistical uncertainty* in the model's output, not *model accuracy*. Real-world validation may reveal systematic biases that widen effective uncertainty beyond these CIs. Treat these as lower bounds on true uncertainty.
+
+```python
+# Example: Why profile frequency CI can be tighter
+# Individual components all have [A] ±50% uncertainty:
+#   P(Gregarious) = 25% ± 12.5%
+#   P(Adult) = 60% ± 30%
+#   P(Family background) = 65% ± 32.5%
+#
+# Compound profile frequency:
+#   P(G-ADT-F) ≈ 0.25 × 0.60 × 0.65 = 9.75%
+#
+# But Monte Carlo propagation gives CI ≈ (5.1%, 16.2%)
+# - Not 9.75% ± 50% = (4.9%, 14.6%) as simple error propagation would suggest
+# - Actual spread is asymmetric due to multiplicative combination
+# - The *relative* uncertainty remains high (~55% CV)
+# - The *absolute* CI width looks manageable because base rate is small
+```
+
 ### Example Parameter Distributions
 
 | Parameter | Point Estimate | Provenance | Distribution |
@@ -2949,6 +3133,36 @@ def update_physiology(
             state.hours_since_last_food = 0
 
     return state
+
+
+# Fear decay rate constants (λ values for exponential decay)
+# Half-lives noted in comments; values are [A] Author estimates
+# Note: These are rough estimates (~1 day, ~2 days, etc.) not precise measurements
+FEAR_DECAY_RATES = {
+    # Dog escape types - half-life noted in comments
+    "P1": 0.030,  # Noise panic - ~1 day half-life [A]
+    "P2": 0.025,  # Attack panic - ~1.2 days [A]
+    "P3": 0.012,  # Trauma - ~2.5 days (PTSD-like) [A]
+    "D1": 0.040,  # Prey chase - ~0.7 days [A]
+    "D2": 0.050,  # Dog chase - ~0.6 days [A]
+    "W1": 0.060,  # Walkout - ~0.5 days (minimal fear) [A]
+    "W2": 0.060,
+    "W3": 0.080,  # Habitual - ~0.4 days [A]
+    "W4": 0.050,
+    "W5": 0.045,
+    "S1": 0.020,  # Vehicle displacement - ~1.5 days [A]
+    "S2": 0.035,  # Facility escape - ~0.8 days [A]
+    "S3": 0.040,  # Handed-off loss - ~0.7 days [A]
+}
+
+CAT_FEAR_DECAY_RATES = {
+    # Cat temperaments - post-threshold only
+    "CUR": 0.05,   # Curious cats calm quickly - ~0.6 days [A]
+    "CL": 0.03,    # Care-less - ~1 day [A]
+    "CAU": 0.02,   # Cautious - ~1.5 days [A]
+    "X": 0.008,    # Xenophobic - ~3.5 days (very slow) [A]
+    "B": 0.025,    # Bonded - ~1.2 days [A]
+}
 
 
 def update_fear(state: AnimalState, tick_hours: float) -> AnimalState:
@@ -3706,6 +3920,157 @@ sighting_report:
 
 ---
 
+## Initializing the Prior Distribution
+
+Before applying Bayesian updates, the probability grid must be initialized from the behavioral profile. This creates the initial search probability distribution based on where the animal is likely to be.
+
+```python
+def initialize_prior_from_profile(
+    profile: AnimalProfile,
+    escape_location: Tuple[float, float],  # (lat, lng)
+    grid_metadata: GridMetadata,
+    hours_since_escape: float = 0.0,
+    terrain_map: Optional[TerrainMap] = None
+) -> np.ndarray:
+    """
+    Create initial probability grid from behavioral profile.
+
+    Uses profile characteristics to estimate initial distribution:
+    - Temperament affects distance from escape point
+    - Species affects directional bias
+    - Terrain affects accessibility
+
+    Returns:
+        2D probability array normalized to sum to 1.0
+    """
+
+    grid_shape = (grid_metadata.n_rows, grid_metadata.n_cols)
+    prior = np.zeros(grid_shape)
+
+    # Get profile-based distance parameters
+    if profile.species == "cat":
+        # Cats stay close, especially initially
+        mean_distance_m = get_cat_median_distance(profile.temperament)
+        distance_std_m = mean_distance_m * 0.8  # Wide spread
+    else:  # Dog
+        mean_distance_m = get_dog_median_distance(
+            profile.temperament,
+            profile.escape_type,
+            hours_since_escape
+        )
+        distance_std_m = mean_distance_m * 1.2  # Even wider for dogs
+
+    # Get escape point in grid coordinates
+    escape_i, escape_j = grid_metadata.coords_to_grid(escape_location)
+
+    for i in range(grid_shape[0]):
+        for j in range(grid_shape[1]):
+            cell_coords = grid_metadata.grid_to_coords(i, j)
+            distance_m = haversine_meters(cell_coords, escape_location)
+
+            # === DISTANCE-BASED PROBABILITY ===
+            # Rayleigh distribution for distance from origin
+            # More realistic than Gaussian for 2D dispersion
+            sigma = mean_distance_m / np.sqrt(np.pi / 2)  # Mode at mean_distance
+            distance_prob = rayleigh_pdf(distance_m, sigma)
+
+            # === DIRECTIONAL BIAS (optional) ===
+            direction_prob = 1.0
+            if profile.species == "dog" and profile.escape_type:
+                # Dogs may have directional movement based on escape type
+                direction_prob = get_escape_direction_weight(
+                    profile.escape_type,
+                    cell_coords,
+                    escape_location
+                )
+
+            # === TERRAIN ACCESSIBILITY ===
+            terrain_prob = 1.0
+            if terrain_map is not None:
+                terrain = terrain_map.get_terrain(cell_coords)
+                terrain_prob = get_terrain_accessibility(terrain, profile)
+
+            # === COMBINE FACTORS ===
+            prior[i, j] = distance_prob * direction_prob * terrain_prob
+
+    # Normalize to probability distribution
+    if prior.sum() > 0:
+        prior /= prior.sum()
+    else:
+        # Fallback: uniform distribution centered on escape point
+        prior[escape_i, escape_j] = 1.0
+
+    return prior
+
+
+def get_cat_median_distance(temperament: str) -> float:
+    """Return expected median distance in meters by cat temperament."""
+    # From Part 3: Cat Distance Ranges by Temperament
+    distances = {
+        "CUR": 300,   # 1-3 houses, median ~300m [P]
+        "CL": 150,    # Usually within 3 houses [P]
+        "CAU": 75,    # Often hiding within 1 house [P]
+        "X": 25,      # Typically within 5 houses, but frozen nearby [P]
+        "B": 100      # May venture toward owner's routine places [P]
+    }
+    return distances.get(temperament, 100)
+
+
+def get_dog_median_distance(
+    temperament: str,
+    escape_type: str,
+    hours: float
+) -> float:
+    """Return expected median distance in meters by dog profile."""
+    # From Part 2: Dog Movement Patterns
+    # Base by temperament
+    base_distances = {
+        "G": 800,   # Gregarious - moderate, seeks people
+        "C": 600,   # Clingy - stays closer
+        "A": 1200,  # Aloof - variable
+        "X": 1500,  # Xenophobic - bolts far
+        "B": 500    # Bonded - returns toward known locations
+    }
+    base = base_distances.get(temperament, 800)
+
+    # Modify by escape type
+    escape_multipliers = {
+        "P1": 2.0, "P2": 2.5, "P3": 1.5,  # Panic - far
+        "D1": 1.8, "D2": 1.0,              # Distraction - varies
+        "W1": 1.0, "W2": 0.8, "W3": 0.5, "W4": 0.6, "W5": 0.7,  # Wandered - moderate
+        "S1": 0.5, "S2": 0.6, "S3": 0.4,   # Strayed - closer
+    }
+    multiplier = escape_multipliers.get(escape_type, 1.0)
+
+    # Distance increases with time (dogs keep moving)
+    time_factor = 1.0 + 0.1 * min(hours, 24)  # Cap at 24h
+
+    return base * multiplier * time_factor
+
+
+def get_terrain_accessibility(terrain: str, profile: AnimalProfile) -> float:
+    """Weight probability by terrain accessibility for this profile."""
+    if profile.species == "cat":
+        # Cats prefer areas with hiding spots
+        weights = {
+            "urban": 0.7,      # Some hiding, but dangerous
+            "suburban": 1.0,   # Ideal - gardens, sheds, porches
+            "rural": 0.6,      # Open, fewer hiding spots
+            "wooded": 0.8      # Good hiding, but predators
+        }
+    else:  # Dog
+        # Dogs affected more by terrain traversability
+        weights = {
+            "urban": 0.6,      # Obstacles, traffic
+            "suburban": 1.0,   # Navigable
+            "rural": 0.9,      # Open
+            "wooded": 0.5      # Slow going
+        }
+    return weights.get(terrain, 1.0)
+```
+
+---
+
 ## Bayesian Update Algorithm
 
 ```python
@@ -4305,23 +4670,42 @@ def apply_identification_modifiers(
 
 ```yaml
 scent_articles:
-  effect_radius_m: 50  # Attracts within this radius
+  effect_radius_m: 50  # Attracts within this radius (downwind)
   peak_effectiveness_hours: 48  # Fresh article most effective
-  decay_rate_per_day: 0.15  # Effectiveness decreases 15%/day
+  decay_rate_per_day: 0.15  # Effectiveness decreases 15%/day [A]
 
+  # Wind affects scent dispersal direction and range
+  wind_effects:
+    calm:  # < 5 mph
+      radius_multiplier: 1.0
+      direction: "omnidirectional"
+    light:  # 5-15 mph
+      radius_multiplier: 1.5  # Carries further downwind
+      downwind_cone_degrees: 90
+      upwind_radius_multiplier: 0.3  # Minimal upwind detection
+    moderate:  # 15-25 mph
+      radius_multiplier: 2.0
+      downwind_cone_degrees: 60
+      upwind_radius_multiplier: 0.1
+    strong:  # > 25 mph
+      radius_multiplier: 0.5  # Scent disperses too quickly
+      direction: "not_recommended"
+
+  # Species-specific effectiveness by temperament
+  # Codes are species-prefixed to avoid collision
   effectiveness_by_temperament:
-    # Dogs
-    G: 0.4
-    C: 0.3
-    A: 0.3
-    X: 0.2  # Still somewhat effective
-    B: 0.8  # Bonded animals strongly attracted
-    # Cats
-    CUR: 0.3
-    CL: 0.25
-    CAU: 0.5
-    X: 0.15
-    B: 0.7  # Very effective for bonded cats
+    dog:
+      G: 0.4    # Gregarious - moderate attraction [A]
+      C: 0.3    # Confident - mild attraction [A]
+      A: 0.3    # Aloof - mild attraction [A]
+      X: 0.2    # Xenophobic - limited (fear may override) [A]
+      B: 0.8    # Bonded - strong attraction [P]
+    cat:
+      CUR: 0.3  # Curious - moderate [A]
+      CL: 0.25  # Care-less - mild [A]
+      CAU: 0.5  # Cautious - moderate (familiar scent reassuring) [A]
+      X: 0.15   # Xenophobic - limited [A]
+      B: 0.7    # Bonded - strong [P]
 
   placement_recommendations:
     primary: "escape_point"
@@ -4331,6 +4715,7 @@ scent_articles:
       - "recent_sighting_locations"
     refresh_frequency_hours: 48
     protection_required: true  # Prevent rain/animal damage
+    wind_consideration: "place_upwind_of_expected_location"  # Scent carries downwind
 
   types:
     worn_clothing:
@@ -4350,25 +4735,47 @@ def calculate_scent_article_attraction(
     animal_position: Tuple[float, float],
     scent_articles: List[ScentArticle],
     profile: AnimalProfile,
-    current_hours: float
+    current_hours: float,
+    wind_direction: float,  # Degrees, direction wind is blowing FROM
+    wind_speed_mph: float
 ) -> Optional[Tuple[float, float]]:
     """
     Calculate attraction vector toward scent articles.
     Returns direction and strength, or None if no attraction.
+    Wind affects detection radius and direction.
     """
+
+    # Get species-specific effectiveness
+    if profile.species == "dog":
+        base_effectiveness = SCENT_ARTICLES["effectiveness_by_temperament"]["dog"].get(
+            profile.temperament, 0.3)
+    else:  # cat
+        base_effectiveness = SCENT_ARTICLES["effectiveness_by_temperament"]["cat"].get(
+            profile.temperament, 0.3)
+
+    # Get wind effects
+    wind_config = get_wind_config(wind_speed_mph)
 
     max_attraction = 0.0
     attraction_direction = None
 
-    base_effectiveness = SCENT_ARTICLES["effectiveness_by_temperament"].get(
-        profile.temperament, 0.3
-    )
-
     for article in scent_articles:
+        # Check if animal is in detection range, considering wind
         dist = distance(animal_position, article.location)
+        direction_from_article = direction_to(article.location, animal_position)
 
-        if dist > SCENT_ARTICLES["effect_radius_m"]:
-            continue  # Too far
+        # Calculate effective radius based on wind direction
+        if wind_config["direction"] == "omnidirectional":
+            effective_radius = SCENT_ARTICLES["effect_radius_m"]
+        else:
+            angle_from_downwind = abs(normalize_angle(direction_from_article - wind_direction))
+            if angle_from_downwind < wind_config.get("downwind_cone_degrees", 90) / 2:
+                effective_radius = SCENT_ARTICLES["effect_radius_m"] * wind_config["radius_multiplier"]
+            else:
+                effective_radius = SCENT_ARTICLES["effect_radius_m"] * wind_config.get("upwind_radius_multiplier", 0.3)
+
+        if dist > effective_radius:
+            continue  # Too far or wrong wind direction
 
         # Calculate current effectiveness
         hours_since_placed = current_hours - article.placed_at_hours
@@ -4378,7 +4785,7 @@ def calculate_scent_article_attraction(
         effectiveness = base_effectiveness * decay * article.type_multiplier
 
         # Distance falloff within radius
-        distance_factor = 1.0 - (dist / SCENT_ARTICLES["effect_radius_m"])
+        distance_factor = 1.0 - (dist / effective_radius)
 
         attraction_strength = effectiveness * distance_factor
 
@@ -4390,6 +4797,18 @@ def calculate_scent_article_attraction(
         return (attraction_direction, max_attraction)
 
     return None
+
+
+def get_wind_config(wind_speed_mph: float) -> dict:
+    """Get wind configuration based on speed."""
+    if wind_speed_mph < 5:
+        return SCENT_ARTICLES["wind_effects"]["calm"]
+    elif wind_speed_mph < 15:
+        return SCENT_ARTICLES["wind_effects"]["light"]
+    elif wind_speed_mph < 25:
+        return SCENT_ARTICLES["wind_effects"]["moderate"]
+    else:
+        return SCENT_ARTICLES["wind_effects"]["strong"]
 
 
 def apply_scent_article_to_movement(
@@ -4477,6 +4896,27 @@ pre_escape_state:
 ```
 
 ```python
+# Python constant version of the YAML above
+PRE_ESCAPE_STATE = {
+    "hours_since_fed": {"distribution": "uniform", "range": (0, 12)},
+    "hours_since_water": {"distribution": "uniform", "range": (0, 6)},
+    "initial_stamina": {"distribution": "beta", "params": {"alpha": 8, "beta": 2}},
+    "initial_fear": {
+        "by_escape_type": {
+            # Dogs
+            "P1": 1.0, "P2": 1.0, "P3": 1.0,  # Panic - maximum fear
+            "D1": 0.3, "D2": 0.2,              # Chase - excitement more than fear
+            "W1": 0.1, "W2": 0.1, "W3": 0.05, "W4": 0.2, "W5": 0.3,  # Walkout
+            "S1": 0.8, "S2": 0.9, "S3": 0.6,   # Displacement
+            # Cats
+            "ST1": 0.7, "ST2": 0.8, "ST3": 0.95, "ST4": 1.0,  # Startle
+            "EX1": 0.1, "EX2": 0.3, "EX3": 0.2,  # Exploratory
+            "DI1": 0.8, "DI2": 0.9, "DI3": 0.95, "DI4": 0.6   # Displacement
+        }
+    }
+}
+
+
 def initialize_pre_escape_state(profile: AnimalProfile) -> AnimalState:
     """Initialize animal state at moment of escape."""
 
@@ -4718,6 +5158,17 @@ VALIDATION_METRICS = {
     }
 }
 
+# Outcome type constants (shared between dogs and cats)
+OUTCOME_TYPES = [
+    "self_return",        # Animal returns home on its own
+    "found_by_owner",     # Owner physically locates animal
+    "stranger_return",    # Good Samaritan picks up and returns
+    "at_shelter",         # Animal ends up at shelter/rescue
+    "adopted_by_neighbor", # (Cats primarily) Taken in by neighbor
+    "still_missing",      # Not recovered within time window
+    "deceased"            # Animal dies during displacement
+]
+
 
 def calculate_validation_metrics(
     predictions: List[Prediction],
@@ -4766,6 +5217,171 @@ def calculate_validation_metrics(
 
     return report
 ```
+
+---
+
+## Baseline Comparison
+
+To determine whether the behavioral profile model provides value, all metrics must be compared against naive baselines. A model that doesn't beat baselines meaningfully has no practical utility.
+
+### Baseline Definitions
+
+| Metric | Naive Baseline | Calculation | Expected Value |
+|--------|---------------|-------------|----------------|
+| **Distance prediction** | Uniform circle | Predict center of search area | Variable by area size |
+| **Distance prediction** | Population mean | Always predict species mean distance | Cats: 125m, Dogs: 800m |
+| **Outcome accuracy** | Random guess | 1 / (number of categories) | 14.3% (7 categories) |
+| **Outcome accuracy** | Majority class | Always predict most common outcome | ~35% (species-dependent) |
+| **Brier score** | Uniform probabilities | Assign equal prob to all outcomes | 0.286 (7 outcomes) |
+| **Brier score** | Prior probabilities | Use overall population frequencies | ~0.22 (species-dependent) |
+| **Time prediction** | Median return | Always predict population median | Cats: 5 days, Dogs: 3 days |
+| **Location contour** | Concentric circles | Distance-only, no profile | ~50-60% |
+
+### Minimum Performance Thresholds
+
+The model should beat baselines by meaningful margins to justify complexity:
+
+```python
+BASELINE_COMPARISON = {
+    "outcome_category_accuracy": {
+        "random_baseline": 0.143,      # 1/7 categories
+        "majority_class_baseline": 0.35,  # Most common outcome
+        "minimum_lift_over_random": 2.0,   # Must be 2x random
+        "minimum_lift_over_majority": 1.15,  # Must be 15% better than always guessing "self_return"
+        "target": 0.45  # Achievable with good model
+    },
+
+    "brier_score": {
+        "uniform_baseline": 0.286,     # Equal prob to all 7 outcomes
+        "prior_baseline": 0.22,        # Population-level frequencies
+        "maximum_acceptable": 0.20,    # Must beat prior baseline
+        "target": 0.15                 # Calibrated predictions
+    },
+
+    "distance_percentile_accuracy": {
+        "concentric_circle_baseline": 0.55,  # Distance-only model
+        "minimum_acceptable": 0.65,          # Must beat by 10 points
+        "target": 0.80                       # Well-calibrated spatial model
+    },
+
+    "median_distance_error_m": {
+        "population_mean_baseline": {
+            "cats": 200,   # Always predicting 125m median
+            "dogs": 600    # Always predicting 800m median
+        },
+        "improvement_required": 0.30,  # Must reduce error by 30%
+        "target": {
+            "cats": 40,    # 80% improvement
+            "dogs": 150    # 75% improvement
+        }
+    }
+}
+
+
+def calculate_baseline_metrics(actuals: List[ActualOutcome]) -> BaselineReport:
+    """Calculate all baseline metrics for comparison."""
+
+    report = BaselineReport()
+
+    # Outcome baselines
+    n_cases = len(actuals)
+    n_categories = len(OUTCOME_TYPES)
+
+    # Random guess baseline
+    report.random_guess_accuracy = 1.0 / n_categories
+
+    # Majority class baseline
+    outcome_counts = Counter(a.outcome_type for a in actuals)
+    most_common = outcome_counts.most_common(1)[0][1]
+    report.majority_class_accuracy = most_common / n_cases
+
+    # Prior probabilities (for Brier baseline)
+    prior_probs = {ot: count/n_cases for ot, count in outcome_counts.items()}
+
+    # Brier score with uniform probabilities
+    uniform_prob = 1.0 / n_categories
+    uniform_brier = 0.0
+    for actual in actuals:
+        for ot in OUTCOME_TYPES:
+            actual_binary = 1.0 if actual.outcome_type == ot else 0.0
+            uniform_brier += (uniform_prob - actual_binary) ** 2
+    report.uniform_brier = uniform_brier / (n_cases * n_categories)
+
+    # Brier score with prior probabilities
+    prior_brier = 0.0
+    for actual in actuals:
+        for ot in OUTCOME_TYPES:
+            actual_binary = 1.0 if actual.outcome_type == ot else 0.0
+            prior_prob = prior_probs.get(ot, 0)
+            prior_brier += (prior_prob - actual_binary) ** 2
+    report.prior_brier = prior_brier / (n_cases * n_categories)
+
+    # Distance baselines
+    cat_distances = [a.distance_m for a in actuals if a.species == "cat"]
+    dog_distances = [a.distance_m for a in actuals if a.species == "dog"]
+
+    if cat_distances:
+        mean_cat = np.mean(cat_distances)
+        report.cat_mean_distance_error = np.median([abs(d - mean_cat) for d in cat_distances])
+
+    if dog_distances:
+        mean_dog = np.mean(dog_distances)
+        report.dog_mean_distance_error = np.median([abs(d - mean_dog) for d in dog_distances])
+
+    return report
+
+
+def compare_to_baselines(model_metrics: ValidationReport, baselines: BaselineReport) -> ComparisonReport:
+    """Compare model performance to baselines and flag issues."""
+
+    comparison = ComparisonReport()
+
+    # Outcome accuracy lift
+    comparison.accuracy_vs_random = model_metrics.outcome_accuracy / baselines.random_guess_accuracy
+    comparison.accuracy_vs_majority = model_metrics.outcome_accuracy / baselines.majority_class_accuracy
+
+    comparison.passes_accuracy_threshold = (
+        comparison.accuracy_vs_random >= BASELINE_COMPARISON["outcome_category_accuracy"]["minimum_lift_over_random"]
+        and comparison.accuracy_vs_majority >= BASELINE_COMPARISON["outcome_category_accuracy"]["minimum_lift_over_majority"]
+    )
+
+    # Brier score improvement
+    comparison.brier_vs_prior = model_metrics.brier_score / baselines.prior_brier
+    comparison.passes_brier_threshold = (
+        model_metrics.brier_score < BASELINE_COMPARISON["brier_score"]["maximum_acceptable"]
+    )
+
+    # Summary
+    comparison.overall_pass = (
+        comparison.passes_accuracy_threshold
+        and comparison.passes_brier_threshold
+    )
+
+    if not comparison.overall_pass:
+        comparison.failure_reasons = []
+        if not comparison.passes_accuracy_threshold:
+            comparison.failure_reasons.append(
+                f"Accuracy lift too low: {comparison.accuracy_vs_random:.2f}x vs random, "
+                f"{comparison.accuracy_vs_majority:.2f}x vs majority"
+            )
+        if not comparison.passes_brier_threshold:
+            comparison.failure_reasons.append(
+                f"Brier score too high: {model_metrics.brier_score:.3f} vs {baselines.prior_brier:.3f} prior"
+            )
+
+    return comparison
+```
+
+### Interpreting Baseline Comparisons
+
+| Comparison Result | Interpretation | Action |
+|-------------------|----------------|--------|
+| Model >> Baseline | Model provides significant value | Ship it |
+| Model > Baseline (marginal) | Model helps but not decisively | Consider simplifying or more data |
+| Model ≈ Baseline | No meaningful improvement | Model needs fundamental rethinking |
+| Model < Baseline | Model is worse than guessing | Do not deploy; investigate bugs |
+
+**Important**: Some profile types may perform better than baselines while others perform worse. Always stratify comparisons by temperament, species, and escape type to identify where the model adds value vs. where it fails.
 
 ---
 
@@ -4848,7 +5464,43 @@ validation_study:
 
 # CHANGELOG
 
-## v2.2 (Current)
+## v2.3 (Current)
+
+Structural fixes and missing mechanics based on dev team review.
+
+- **Fixed** Cross-species temperament code collision
+  - Restructured scent article effectiveness table to use species-prefixed format
+  - Dog codes (G, C, A, X, B) and cat codes (CUR, CL, CAU, X, B) now unambiguous in context
+- **Fixed** Undefined pseudocode references
+  - Added OUTCOME_TYPES constant definition (7 outcome categories)
+  - Added PRE_ESCAPE_STATE Python constant for animal initialization
+  - Added FEAR_DECAY_RATES and CAT_FEAR_DECAY_RATES constants with λ values
+  - Added rough estimate acknowledgments for fear decay half-lives
+- **Added** Why Composite CIs Can Be Tighter Than Component Uncertainties section
+  - Explains averaging effect, constrained space, multiplicative attenuation
+  - Notes that CIs are lower bounds on true uncertainty (validation may reveal wider)
+  - Includes worked example of CI propagation
+- **Added** Wind direction effects to scent article mechanics
+  - Wind speed categories (calm, light, moderate, strong)
+  - Radius multipliers and downwind cone angles
+  - Wind-aware scent detection calculation
+- **Added** Prior Grid Initialization function
+  - `initialize_prior_from_profile()` creates Bayesian prior from behavioral profile
+  - `get_cat_median_distance()` and `get_dog_median_distance()` helper functions
+  - `get_terrain_accessibility()` for terrain-weighted priors
+  - Uses Rayleigh distribution for realistic 2D dispersion
+- **Added** Multi-terrain tick handling at boundaries
+  - `simulate_movement_tick()` function handles terrain transitions within ticks
+  - Time-proportional risk calculation for each terrain segment
+  - Behavioral adaptation at terrain boundaries
+  - DOG_TRAFFIC_RISK_PER_MIN and CAT_PREDATOR_RISK_PER_MIN constants
+- **Added** Baseline Comparison section for validation metrics
+  - Naive baseline definitions table (random guess, majority class, population mean)
+  - BASELINE_COMPARISON constant with minimum performance thresholds
+  - `calculate_baseline_metrics()` and `compare_to_baselines()` functions
+  - Interpretation guide for baseline comparison results
+
+## v2.2
 
 - **Added** Parameter provenance tags throughout document
   - [R] Research-backed parameters with citations (UQ 2017, AVMA, AKC, MPP)
