@@ -41,17 +41,18 @@ function getBoundingBox(center: Position, radiusM: number): BoundingBox {
   };
 }
 
-// Fetch water data from OSM Overpass API
+// Fetch water data from OSM Overpass API with timeout
 export async function fetchTerrainData(
   center: Position,
-  radiusM: number = 5000
+  radiusM: number = 5000,
+  timeoutMs: number = 5000
 ): Promise<TerrainData> {
   const bbox = getBoundingBox(center, radiusM);
   const bboxStr = `${bbox.south},${bbox.west},${bbox.north},${bbox.east}`;
 
   // Overpass query for water bodies
   const query = `
-    [out:json][timeout:10];
+    [out:json][timeout:5];
     (
       way["natural"="water"](${bboxStr});
       way["natural"="coastline"](${bboxStr});
@@ -64,14 +65,21 @@ export async function fetchTerrainData(
   `;
 
   try {
+    // Add AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     const response = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `data=${encodeURIComponent(query)}`,
+      signal: controller.signal,
     });
 
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
-      console.warn('Overpass API request failed, using fallback');
+      console.warn('Overpass API request failed, using hardcoded fallback');
       return createEmptyTerrainData(bbox);
     }
 
