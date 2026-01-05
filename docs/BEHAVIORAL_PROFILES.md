@@ -213,7 +213,7 @@ Cats freeze and hide. The availability and quality of hiding spots determines su
     IF buildingsPerAcre > 20:
         RETURN "Urban"       # Many hiding spots but also more disturbance
     ELIF buildingsPerAcre > 5 AND hidingSpotDensity > 10:
-        RETURN "Suburban"    # Optimal for cat hiding [P] UQ 2017 finding
+        RETURN "Suburban"    # Optimal for cat hiding [P] Huang et al. 2018 finding
     ELIF treeCanopy > 0.6:
         RETURN "Wooded"      # Good hiding but high predator risk
     ELSE:
@@ -587,7 +587,7 @@ PUP/KIT:      CHR: base × 0.3, MED: base × 0.5  # [A] Estimated
 
 | Territory | Initial Behavior | Likely Distance | Recovery Time | Provenance |
 |-----------|------------------|-----------------|---------------|------------|
-| HOME | Hide nearby, may return | 0-50m | Hours to days | [R] UQ 2017 |
+| HOME | Hide nearby, may return | 0-39m | Hours to days | [R] Huang et al. 2018 |
 | NEAR | Hide, cautiously explore | 50-200m | Days | [P] Albrecht |
 | FAR | Freeze in terror | 0-100m from drop point | Days to weeks | [P] Albrecht |
 | LOST | Completely immobile | Near drop point | Weeks+ | [P] Albrecht |
@@ -1057,6 +1057,24 @@ Dogs that escaped during car accidents, explosions, house fires, or similar trau
 - Specific triggers (loud sounds, vehicles, smoke smell) can cause fear spikes
 - Fear decay is non-linear: may plateau and remain elevated
 - Professional behavioral intervention often required even after recovery
+
+**Model Limitations - Fear Decay** [A]:
+
+The simple exponential decay model is mathematically validated (Krypotos et al. 2021,
+*Biological Psychiatry*) and the ~23-hour P1 half-life aligns with Riemer's 2019 finding
+that ~75% of dogs recovered from acute noise panic by the next morning. However, the
+P3 half-life (58 hours) may be **too short for severe trauma**—military working dog PTSD
+literature indicates recovery taking "weeks or months, not days."
+
+For severe trauma (P3), consider a **multi-component model**: fast initial decay for
+acute fear plus slow residual component for traumatic memory. The current model also
+does not capture:
+- **Spontaneous recovery**: Extinguished fears can return with time passage
+- **Reinstatement**: Re-exposure to trauma triggers restores fear
+- **Context dependence**: Extinction is location-specific
+- **Individual heterogeneity**: Some dogs sensitize rather than habituate
+
+These limitations are marked for future model refinement pending GPS tracking validation.
 
 ### Temperament Modification Over Time
 
@@ -1534,6 +1552,16 @@ Hiding cats eventually "break cover" due to physiological needs:
   - Enter a humane trap
   - Approach humans
 
+**Physiological Clarification** [A]:
+The 10-12 day threshold assumes cats are finding **opportunistic water** (puddles,
+irrigation, condensation, pet bowls) while remaining hidden and undetected. Veterinary
+consensus establishes cats can only survive 3-4 days without water, with serious
+dehydration at 24-48 hours. The threshold refers to **time until detection/emergence**,
+not continuous fasting without hydration. This is why injured cats show 2-4 day
+thresholds—reduced mobility limits opportunistic water access. Note: Missing Animal
+Response Network acknowledges this phenomenon has not yet been validated in controlled
+scientific study.
+
 ### 3. Territory vs Displacement
 
 | Situation | Cat Behavior |
@@ -1614,14 +1642,14 @@ Hiding cats eventually "break cover" due to physiological needs:
 | OA | Outdoor-Access | Regularly goes outside unsupervised | 15% | [A] Estimated |
 | OO | Outdoor-Only | Lives primarily outdoors | 5% | [A] Estimated |
 
-**Distance & Behavior by Access Type** [R] U Queensland 2017
+**Distance & Behavior by Access Type** [R] Huang et al. 2018 (*Animals* journal, n=1,210)
 
 | Access | Median Distance Found | Max 75th Percentile | Primary Behavior | Homing Ability | Provenance |
 |--------|----------------------|---------------------|------------------|----------------|------------|
-| IO | **50 meters** (~2.5 houses) | 137 meters | Freeze & hide | None | [R] UQ 2017 |
-| IS | 75 meters | 200 meters | Freeze & hide | Very Low | [A] Interpolated |
-| IO-A | 150 meters | 400 meters | Hide then explore | Low | [A] Interpolated |
-| OA | **315 meters** (~17 houses) | 1609 meters | Cautious exploration | Medium | [R] UQ 2017 |
+| IO | **39 meters** (~2 houses) | 137 meters | Freeze & hide | None | [R] Huang et al. 2018 |
+| IS | 65 meters | 200 meters | Freeze & hide | Very Low | [A] Interpolated |
+| IO-A | 125 meters | 400 meters | Hide then explore | Low | [A] Interpolated |
+| OA | **300 meters** (~16 houses) | 1609 meters | Cautious exploration | Medium | [R] Huang et al. 2018 |
 | OO | 500+ meters | 3+ km | Territorial roaming | High | [A] Extrapolated |
 
 **Why Indoor Cats Stay Close** [P] [R]
@@ -2158,7 +2186,7 @@ Research shows recovery drops significantly over time:
 |--------------|----------------------------|-------|
 | 7 | 34% | Most self-returns happen |
 | 14 | 45% | Threshold reached for most |
-| 30 | 53% | Traps become critical |
+| 30 | 50% | Traps become critical |
 | 60 | 58% | Plateau |
 | 90 | 60% | Few found after this |
 | 365 | 61% | Essentially final rate |
@@ -2477,8 +2505,8 @@ All numerical parameters in one place for easy tuning.
 | Medium | 4 mi | N/A |
 | Large | 8 mi | N/A |
 | XL | 5 mi | N/A |
-| Indoor-only cat | N/A | 50m median |
-| Outdoor-access cat | N/A | 315m median |
+| Indoor-only cat | N/A | 39m median |
+| Outdoor-access cat | N/A | 300m median |
 | Brachycephalic dog | 0.5-1.0 mi | |
 | Brachycephalic cat | N/A | 50-100m |
 
@@ -2615,7 +2643,7 @@ Formula: `survivalHours = max(4, 24 - (temperature - 70) × 1.0)`
 |------|---------------------|
 | 7 | 34% |
 | 14 | 45% |
-| 30 | 53% |
+| 30 | 50% |
 | 60 | 58% |
 | 90 | 60% |
 | 365 | 61% |
@@ -2830,7 +2858,7 @@ The profile frequency CIs in the tables may appear narrower than the ±50% uncer
 
 | Parameter | Point Estimate | Provenance | Distribution |
 |-----------|---------------|------------|--------------|
-| Indoor cat median distance | 50m | [R] | Normal(50, 5) |
+| Indoor cat median distance | 39m | [R] | Normal(39, 5) |
 | Dog panic speed | 3.0x | [A] | LogNormal(μ=1.03, σ=0.47) |
 | Cat threshold (CAU) | 264hr | [P] | Gamma(16, 16.5) |
 | Gregarious temperament prob | 25% | [P] | Beta(5, 15) |
@@ -6258,13 +6286,14 @@ validation_study:
 ## References & Research
 
 ### Research-Backed Statistics
+| Statistic | Value | Source |
 |-----------|-------|--------|
-| Indoor cat median distance | 50m | U of Queensland 2017 |
-| Outdoor cat median distance | 315m | U of Queensland 2017 |
+| Indoor cat median distance | 39m | Huang et al. 2018 (*Animals* journal, n=1,210) |
+| Outdoor cat median distance | 300m | Huang et al. 2018 |
 | Indoor cats within 3-house radius | 93% | Missing Pet Partnership |
-| 75% of cats found within | 500m | U of Queensland 2017 |
-| Cat recovery rate (1 year) | 61% | U of Queensland 2017 |
-| Dogs found <1 mile | 79% | Lord et al. 2007 |
+| 75% of cats found within | 500m | Huang et al. 2018 |
+| Cat recovery rate (1 year) | 61% | Huang et al. 2018 (95% CI: 57-64%) |
+| Dogs found <1 mile | 70% | Rowan et al. 2021 (*Frontiers in Vet Sci*, n=10,000+) |
 
 ### Framework Sources
 
@@ -6410,6 +6439,108 @@ Structural fixes and missing mechanics based on dev team review.
 
 ---
 
+# PART 9: RESEARCH VALIDATION STATUS
+
+This section consolidates the empirical basis and validation needs for model parameters,
+enabling developers to prioritize validation effort and users to interpret outputs appropriately.
+
+---
+
+## Parameters with Peer-Reviewed Support
+
+| Parameter | Source | Sample Size | Confidence |
+|-----------|--------|-------------|------------|
+| Cat distance by indoor/outdoor | Huang et al. 2018 (*Animals*) | n=1,210 | High |
+| Cat recovery rates (7/30/365 day) | Huang et al. 2018 | n=1,210 | High |
+| Dog distance <1 mile | Rowan et al. 2021 (*Frontiers in Vet Sci*) | n=10,000+ | High |
+| Fear decay functional form (exponential) | Krypotos et al. 2021 (*Biol Psychiatry*) | Meta-analysis | High |
+| Noise panic recovery ~75% by morning | Riemer 2019 | n=1,225 | Moderate |
+| Temperament framework structure | Aligns with C-BARQ, Feline Five | 35,000+ (C-BARQ) | Moderate |
+| Cats 93% within 3-house radius | Missing Pet Partnership | Practitioner data | Moderate |
+
+---
+
+## Parameters Requiring Validation
+
+| Parameter | Current Basis | Priority | Validation Approach |
+|-----------|---------------|----------|---------------------|
+| Trap capture probability by temperament | [A] Practitioner estimate | **Critical** | TNR outcome tracking with temperament assessment |
+| Mortality rates by terrain | [A] Estimate | High | Shelter intake vs. return data by location type |
+| Fear decay half-lives (esp. P3) | [A] Extrapolated | High | GPS tracking studies with behavioral scoring |
+| Threshold timing (10-12 days) | [P] Practitioner | Medium | Validate via recovery timestamps vs. escape times |
+| Failed capture flight distance | [A] Estimate | Medium | Controlled observation during TNR operations |
+| Temperament distribution in population | [A] Estimate | Medium | Shelter intake behavioral assessments |
+
+---
+
+## Known Model Limitations
+
+### 1. Severe Trauma Fear Decay
+The simple exponential decay model may underestimate fear persistence for P3 (severe trauma)
+escapes. Military working dog PTSD literature indicates recovery taking weeks to months.
+Consider multi-component model: fast initial decay + slow residual component.
+
+### 2. Individual Heterogeneity
+Within-temperament variation is substantial. A "gregarious" dog's actual behavior depends
+on countless unmeasured factors (early socialization, specific fear triggers, health status).
+**Predictions are population-level tendencies, not individual guarantees.**
+
+### 3. Suburban vs Urban Mortality
+Limited evidence exists for mortality rate assumptions. Notably, an Indian street dog study
+(Paul et al. 2016) found suburban mortality **exceeded** urban—opposite to model assumption.
+This parameter warrants particular scrutiny.
+
+### 4. Threshold Phenomenon Validation
+The cat threshold phenomenon (10-12 day hiding before emergence) is widely accepted by
+practitioners but has not been validated in controlled scientific study. Missing Animal
+Response Network explicitly acknowledges this gap.
+
+### 5. Environmental Factors Not Modeled
+Current model does not integrate:
+- Real-time landscape barriers (fences, highways, water bodies)
+- Traffic pattern variations
+- Predator activity schedules
+- Weather effects beyond temperature extremes
+
+---
+
+## Recommended Validation Studies
+
+### Immediate Priority
+1. **Retrospective validation**: Test against database of lost pet initial/recovery locations
+   with timestamps. Use leave-one-out cross-validation with energy distance statistics.
+
+2. **Parameter sensitivity analysis**: Identify which inputs most affect outputs using
+   Sobol indices to quantify interaction effects.
+
+### Medium-Term
+3. **GPS tracking validation**: Deploy trackers on pets in controlled scenarios (with owner
+   consent) to measure actual movement patterns vs. predicted.
+
+4. **Outcome tracking**: Monitor whether users following model recommendations achieve
+   higher recovery rates than baseline.
+
+### Long-Term
+5. **Shelter partnership**: Partner with high-volume shelters to collect standardized
+   behavioral assessments and recovery outcomes for model calibration.
+
+---
+
+## Provenance Tag Reference
+
+| Tag | Meaning | Confidence Level |
+|-----|---------|------------------|
+| [R] | Research-backed with peer-reviewed citation | Highest |
+| [P] | Practitioner consensus (MPP, Albrecht, MARN) | Moderate |
+| [C] | Calculated/derived from other parameters | Moderate |
+| [A] | Author assumption requiring validation | Lowest |
+
+**Interpretation guidance**: Distance predictions [R] deserve more confidence than mortality
+estimates [A]. Temperament-based modifiers [P] reflect practitioner experience but lack
+psychometric validation. All [A] parameters are targets for empirical calibration.
+
+---
+
 ## Pre-Merge History
 
 ### Dog Document
@@ -6455,7 +6586,7 @@ Structural fixes and missing mechanics based on dev team review.
 
 ---
 
-*Document Version: 2.0*
+*Document Version: 2.5*
 *Last Updated: January 2026*
 *Created for: Lost Pet Monte Carlo Simulation*
 *Species: Dogs (Canis familiaris) and Cats (Felis catus)*
