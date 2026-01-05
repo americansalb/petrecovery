@@ -420,18 +420,33 @@ export class PetAgent {
       }
     }
 
-    // Check for transition to TRAVELING
-    // Requires: low fear + knowledge of home direction + motivation
+    // Check for transition to TRAVELING (heading home)
+    // Probability increases when: close to home, low fear, good energy, strong homing instinct
     const distanceFromHome = this.getDistanceTo(this.homeLat, this.homeLng);
     const isWithinFamiliarRange = distanceFromHome < this.familiarRange;
 
-    if (isWithinFamiliarRange && this.fear < 0.3 && this.energy > 0.5) {
-      // May decide to travel toward home
+    // Base probability to head home
+    // Higher when: within familiar range, low fear, good energy
+    if (this.fear < 0.5 && this.energy > 0.3) {
+      // Calculate home attraction
       const homeAttraction = this.speciesDefaults.homing_instinct *
                              this.territoryFamiliarity *
                              (1 - this.fear);
 
-      if (this.random() < homeAttraction * 0.02) {
+      // Distance factor - higher chance when closer to home
+      // Even far away pets have some chance (they can still smell/remember home direction)
+      const distanceFactor = isWithinFamiliarRange
+        ? 1.0                                              // Full attraction within familiar range
+        : Math.exp(-distanceFromHome / (this.familiarRange * 5));  // Decays with distance but doesn't vanish
+
+      // Probability per tick to transition to TRAVELING
+      // For a dog with homing_instinct 0.6, territoryFamiliarity 0.7, fear 0.2:
+      // homeAttraction = 0.6 * 0.7 * 0.8 = 0.336
+      // If within familiar range: prob = 0.336 * 1.0 * 0.05 = 1.68% per tick
+      // Over 72 hours (864 ticks), expected transitions = ~14.5 times
+      const travelProbability = homeAttraction * distanceFactor * 0.05;
+
+      if (this.random() < travelProbability) {
         this.transitionTo(BEHAVIOR_STATE.TRAVELING, currentMinute);
       }
     }
@@ -756,19 +771,62 @@ export class PetAgent {
 
   /**
    * Calculate probability of staying if at home
-   * Based on internal state - hungry/tired pets more likely to stay
+   *
+   * ============================================================================
+   * PURELY EMERGENT - NO CALIBRATED OUTCOME TARGETING
+   * ============================================================================
+   *
+   * This is based ONLY on the pet's internal state and behavioral logic:
+   * - How tired/hungry/thirsty is the pet? (physiological needs)
+   * - How scared is the pet? (psychological state)
+   * - Does the pet recognize home? (familiarity)
+   * - Has it left before? (behavioral pattern)
+   *
+   * The outcome rates are NOT targeted - they EMERGE from these mechanics.
+   * If the emergent rates differ from published research, that's information
+   * about our behavioral model, not something to "fix" by adjusting rates.
    */
   calculateStayProbability() {
-    // Needs-based: hungry, thirsty, tired pets want to stay
-    const needsFactor = (this.hunger + this.thirst + (1 - this.energy)) / 3;
+    // Track home visits
+    if (this.homeVisitCount === undefined) {
+      this.homeVisitCount = 0;
+    }
+    this.homeVisitCount++;
 
-    // Familiarity: indoor-only pets recognize home better
-    const familiarityFactor = this.isIndoorOnly ? 0.9 : 0.6;
+    // PHYSIOLOGICAL NEEDS - exhausted/hungry/thirsty pets want to stay
+    // These are the PRIMARY drivers of staying home
+    const exhaustionFactor = 1 - this.energy;  // 0-1, higher = more tired
+    const hungerFactor = this.hunger;           // 0-1, higher = more hungry
+    const thirstFactor = this.thirst;           // 0-1, higher = more thirsty
 
-    // Fear: scared pets less likely to "recognize" and settle
-    const fearFactor = 1 - this.fear * 0.5;
+    // Needs urgency: how desperately does pet need to stay?
+    const needsUrgency = (exhaustionFactor * 0.4) + (hungerFactor * 0.3) + (thirstFactor * 0.3);
 
-    return needsFactor * familiarityFactor * fearFactor;
+    // FEAR - scared pets don't settle, they keep moving
+    // This is the PRIMARY driver of NOT staying
+    const fearFactor = this.fear;  // 0-1, higher = more scared
+
+    // FAMILIARITY - does pet recognize this as home?
+    // Indoor-only pets have stronger home recognition
+    const homeRecognition = this.isIndoorOnly ? 0.9 : 0.6;
+
+    // TERRITORIAL - cats are more territorial than dogs
+    const territorialBond = this.species === 'CAT' ? 0.7 : 0.4;
+
+    // BEHAVIORAL PATTERN - pet that has left home before is more likely to leave again
+    // First visit: no penalty. Each subsequent visit: reduced likelihood of staying
+    const commitmentDecay = Math.pow(0.7, this.homeVisitCount - 1);
+
+    // COMBINE: Probability emerges from state
+    // High needs + low fear + high familiarity = likely to stay
+    // Low needs + high fear + unfamiliar = likely to leave
+    const stayProb = Math.max(0, Math.min(1,
+      (needsUrgency * 0.5 + homeRecognition * 0.25 + territorialBond * 0.25)
+      * (1 - fearFactor * 0.8)  // Fear strongly reduces staying
+      * commitmentDecay         // Prior departures reduce staying
+    ));
+
+    return stayProb;
   }
 
   /**

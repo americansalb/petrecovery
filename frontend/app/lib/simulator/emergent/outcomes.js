@@ -266,8 +266,7 @@ export class OutcomeTracker {
    */
   setOutcome(outcomeCode, minute, details = {}) {
     if (this.outcome !== null) {
-      console.warn('Outcome already set, ignoring:', outcomeCode);
-      return;
+      return;  // Silently ignore - outcome already determined
     }
 
     this.outcome = outcomeCode;

@@ -14,48 +14,42 @@ import {
 import { estimateUncertaintyBounds } from '@/app/lib/simulator/sensitivity';
 
 const OUTCOME_CONFIG = {
-  FOUND_BY_SEARCHER: {
-    icon: Search,
-    label: 'Found by Searcher',
-    color: 'text-green-600',
-    bg: 'bg-green-50',
-  },
-  RETURNED_HOME: {
-    icon: Home,
-    label: 'Returned Home',
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
-  },
-  FOUND_VIA_SHELTER: {
-    icon: Building2,
-    label: 'Found via Shelter',
-    color: 'text-purple-600',
-    bg: 'bg-purple-50',
-  },
-  FOUND_VIA_SOCIAL: {
-    icon: Share2,
-    label: 'Found via Social',
-    color: 'text-pink-600',
-    bg: 'bg-pink-50',
-  },
-  FOUND_VIA_PLATFORM: {
-    icon: Smartphone,
-    label: 'Found via Platform',
-    color: 'text-indigo-600',
-    bg: 'bg-indigo-50',
-  },
-  TIMEOUT_SEARCHING: {
-    icon: Clock,
-    label: 'Timeout (Still Searching)',
-    color: 'text-orange-600',
-    bg: 'bg-orange-50',
-  },
-  TIMEOUT_SHELTERED: {
-    icon: AlertTriangle,
-    label: 'Timeout (Sheltered)',
-    color: 'text-gray-600',
-    bg: 'bg-gray-50',
-  },
+  // Legacy outcomes (for backward compatibility)
+  FOUND_BY_SEARCHER: { icon: Search, label: 'Found by Searcher', color: 'text-green-600', bg: 'bg-green-50' },
+  RETURNED_HOME: { icon: Home, label: 'Returned Home', color: 'text-blue-600', bg: 'bg-blue-50' },
+  FOUND_VIA_SHELTER: { icon: Building2, label: 'Found via Shelter', color: 'text-purple-600', bg: 'bg-purple-50' },
+  FOUND_VIA_SOCIAL: { icon: Share2, label: 'Found via Social', color: 'text-pink-600', bg: 'bg-pink-50' },
+  FOUND_VIA_PLATFORM: { icon: Smartphone, label: 'Found via Platform', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+  TIMEOUT_SEARCHING: { icon: Clock, label: 'Timeout (Still Searching)', color: 'text-orange-600', bg: 'bg-orange-50' },
+  TIMEOUT_SHELTERED: { icon: AlertTriangle, label: 'Timeout (Sheltered)', color: 'text-gray-600', bg: 'bg-gray-50' },
+
+  // Emergent REUNITED outcomes
+  REUNITED_SELF_RETURN: { icon: Home, label: 'Came Home', color: 'text-blue-600', bg: 'bg-blue-50' },
+  REUNITED_OWNER_SEARCH: { icon: Search, label: 'Owner Found', color: 'text-green-600', bg: 'bg-green-50' },
+  REUNITED_SEARCH_TEAM: { icon: Search, label: 'Search Team Found', color: 'text-green-600', bg: 'bg-green-50' },
+  REUNITED_CALLED: { icon: Search, label: 'Came When Called', color: 'text-green-600', bg: 'bg-green-50' },
+  REUNITED_TRAP: { icon: Search, label: 'Caught in Trap', color: 'text-green-600', bg: 'bg-green-50' },
+  REUNITED_STRANGER_DIRECT: { icon: Share2, label: 'Stranger Returned (Tags)', color: 'text-pink-600', bg: 'bg-pink-50' },
+  REUNITED_STRANGER_POST: { icon: Share2, label: 'Stranger Returned (Post)', color: 'text-pink-600', bg: 'bg-pink-50' },
+  REUNITED_SHELTER: { icon: Building2, label: 'Found at Shelter', color: 'text-purple-600', bg: 'bg-purple-50' },
+
+  // Emergent DECEASED outcomes
+  DECEASED_TRAFFIC: { icon: XCircle, label: 'Hit by Vehicle', color: 'text-red-600', bg: 'bg-red-50' },
+  DECEASED_PREDATOR: { icon: XCircle, label: 'Killed by Predator', color: 'text-red-600', bg: 'bg-red-50' },
+  DECEASED_EXPOSURE: { icon: XCircle, label: 'Died from Exposure', color: 'text-red-600', bg: 'bg-red-50' },
+  DECEASED_DEHYDRATION: { icon: XCircle, label: 'Died from Dehydration', color: 'text-red-600', bg: 'bg-red-50' },
+  DECEASED_STARVATION: { icon: XCircle, label: 'Died from Starvation', color: 'text-red-600', bg: 'bg-red-50' },
+  DECEASED_INJURY: { icon: XCircle, label: 'Died from Injury', color: 'text-red-600', bg: 'bg-red-50' },
+  DECEASED_EUTHANIZED: { icon: XCircle, label: 'Euthanized at Shelter', color: 'text-red-600', bg: 'bg-red-50' },
+
+  // Emergent NOT FOUND outcomes
+  STILL_MISSING: { icon: Clock, label: 'Still Missing', color: 'text-orange-600', bg: 'bg-orange-50' },
+  SIGHTED_NOT_CAPTURED: { icon: Clock, label: 'Sighted But Escaped', color: 'text-orange-600', bg: 'bg-orange-50' },
+  AT_SHELTER_PENDING: { icon: Building2, label: 'At Shelter (Unclaimed)', color: 'text-gray-600', bg: 'bg-gray-50' },
+  WITH_STRANGER_PENDING: { icon: AlertTriangle, label: 'With Stranger', color: 'text-yellow-600', bg: 'bg-yellow-50' },
+  ADOPTED_BY_FINDER: { icon: AlertTriangle, label: 'Kept by Finder', color: 'text-yellow-600', bg: 'bg-yellow-50' },
+  ADOPTED_FROM_SHELTER: { icon: AlertTriangle, label: 'Adopted from Shelter', color: 'text-yellow-600', bg: 'bg-yellow-50' },
+  FERAL_PERMANENTLY: { icon: AlertTriangle, label: 'Became Feral', color: 'text-gray-600', bg: 'bg-gray-50' },
 };
 
 function formatDuration(minutes) {
@@ -198,7 +192,7 @@ function BatchGroup({ batch, isSelected, isExpanded, onToggle, onSelect, onSelec
             </div>
 
             <div className="text-xs text-gray-500 mt-1">
-              {successRate}% success rate ({successCount}/{totalRuns} found)
+              {successRate}% reunited ({successCount}/{totalRuns})
             </div>
 
             {/* Confidence interval based on parameter uncertainty */}
@@ -228,43 +222,52 @@ function BatchGroup({ batch, isSelected, isExpanded, onToggle, onSelect, onSelec
               </div>
             )}
 
+            {/* Primary outcome categories: Reunited, Missing, Deceased, Recoverable */}
             <div className="flex flex-wrap gap-2 mt-2 text-[10px]">
-              {batch.foundBySearcherCount > 0 && (
-                <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded">
-                  {batch.foundBySearcherCount} by searcher
+              {/* REUNITED - all REUNITED_* outcomes combined */}
+              {successCount > 0 && (
+                <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-medium">
+                  ✓ {successCount} reunited
                 </span>
               )}
-              {batch.returnedHomeCount > 0 && (
-                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
-                  {batch.returnedHomeCount} home
+              {/* RECOVERABLE - at shelter or with stranger (safe but not yet reunited) */}
+              {(batch.atShelterCount > 0 || batch.timeoutShelteredCount > 0) && (
+                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">
+                  ⧖ {(batch.atShelterCount || 0) + (batch.timeoutShelteredCount || 0)} recoverable
                 </span>
               )}
-              {batch.foundViaShelterCount > 0 && (
-                <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">
-                  {batch.foundViaShelterCount} shelter
+              {/* MISSING - still out there */}
+              {(batch.stillMissingCount > 0 || (batch.timeoutSearchingCount > 0 && !batch.stillMissingCount)) && (
+                <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded font-medium">
+                  ? {batch.stillMissingCount || batch.timeoutSearchingCount} missing
                 </span>
               )}
-              {batch.foundViaSocialCount > 0 && (
-                <span className="px-1.5 py-0.5 bg-pink-100 text-pink-700 rounded">
-                  {batch.foundViaSocialCount} social
-                </span>
-              )}
-              {batch.foundViaPlatformCount > 0 && (
-                <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded">
-                  {batch.foundViaPlatformCount} platform
-                </span>
-              )}
-              {batch.timeoutSearchingCount > 0 && (
-                <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded">
-                  {batch.timeoutSearchingCount} timeout
-                </span>
-              )}
-              {batch.timeoutShelteredCount > 0 && (
-                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
-                  {batch.timeoutShelteredCount} sheltered
+              {/* DECEASED */}
+              {batch.deceasedCount > 0 && (
+                <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-medium">
+                  ✗ {batch.deceasedCount} deceased
                 </span>
               )}
             </div>
+
+            {/* How they were reunited (secondary breakdown) */}
+            {successCount > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-1.5 text-[9px] text-gray-500">
+                <span className="italic">Reunited via:</span>
+                {batch.foundBySearcherCount > 0 && (
+                  <span>{batch.foundBySearcherCount} search</span>
+                )}
+                {batch.returnedHomeCount > 0 && (
+                  <span>{batch.returnedHomeCount} self-return</span>
+                )}
+                {batch.foundViaSocialCount > 0 && (
+                  <span>{batch.foundViaSocialCount} stranger</span>
+                )}
+                {batch.foundViaShelterCount > 0 && (
+                  <span>{batch.foundViaShelterCount} shelter</span>
+                )}
+              </div>
+            )}
 
             {batch.avgTimeToFindMins && (
               <div className="text-xs text-gray-400 mt-1">

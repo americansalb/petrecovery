@@ -167,8 +167,7 @@ export async function POST(request) {
         sendEvent('status', { message: 'Running simulations...' });
 
         // Run simulations with progress
-        const outcomes = {};
-        Object.values(OUTCOMES).forEach(o => outcomes[o] = 0);
+        const outcomes = {};  // Don't pre-initialize - count any outcome that appears
         let totalTimeToFind = 0;
         let foundCount = 0;
         let totalPetDistance = 0;
@@ -187,14 +186,35 @@ export async function POST(request) {
             const engine = new SimulationEngine(config);
             const result = engine.run();
 
+            // Initialize count to 0 if this outcome hasn't been seen yet
+            if (outcomes[result.outcome] === undefined) {
+              outcomes[result.outcome] = 0;
+            }
             outcomes[result.outcome]++;
+
+            // Log first few outcomes to debug
+            if (i < 5) {
+              console.log(`[${requestId}] Sim ${i}: outcome=${result.outcome}, isFound=${result.isFound}, foundLat=${result.foundLatitude}, foundLng=${result.foundLongitude}, foundMin=${result.foundAtMinute}`);
+            }
             totalPetDistance += result.petDistanceMiles || 0;
 
-            // Track success as binary (1 = found, 0 = timeout)
-            const isSuccess = !result.outcome.startsWith('TIMEOUT') ? 1 : 0;
+            // Track success as binary (1 = found, 0 = not found)
+            // FIXED: Check for REUNITED outcomes (new format) or non-TIMEOUT (legacy format)
+            const isSuccess = result.outcome.startsWith('REUNITED_') ||
+              result.isFound === true ||
+              (!result.outcome.startsWith('TIMEOUT') &&
+               !result.outcome.startsWith('DECEASED_') &&
+               !result.outcome.startsWith('STILL_') &&
+               !result.outcome.startsWith('WITH_STRANGER') &&
+               !result.outcome.startsWith('AT_SHELTER') &&
+               !result.outcome.startsWith('ADOPTED_') &&
+               !result.outcome.startsWith('SIGHTED_') &&
+               !result.outcome.startsWith('FERAL_'))
+              ? 1 : 0;
             successRateAgg.update(isSuccess);
 
-            if (result.foundAtMinute && !result.outcome.startsWith('TIMEOUT')) {
+            // FIXED: Check for successful outcomes (REUNITED_ prefix)
+            if (result.foundAtMinute && result.outcome.startsWith('REUNITED_')) {
               totalTimeToFind += result.foundAtMinute;
               foundCount++;
               timesToFind.push(result.foundAtMinute);
@@ -233,7 +253,10 @@ export async function POST(request) {
 
             // Send progress summary every 10 simulations (or every sim for small batches)
             if (size <= 100 || (i + 1) % 10 === 0 || i === size - 1) {
-              const successSoFar = (i + 1) - (outcomes[OUTCOMES.TIMEOUT_SEARCHING] || 0) - (outcomes[OUTCOMES.TIMEOUT_SHELTERED] || 0);
+              // FIXED: Count REUNITED_ outcomes as success
+              const successSoFar = Object.entries(outcomes)
+                .filter(([k, v]) => k.startsWith('REUNITED_'))
+                .reduce((sum, [k, v]) => sum + v, 0);
 
               // Calculate convergence metrics
               const cov = successRateAgg.n >= 2 ? successRateAgg.coefficientOfVariation : null;
@@ -279,8 +302,46 @@ export async function POST(request) {
           ? timesToFind[Math.floor(timesToFind.length / 2)]
           : null;
 
-        const successCount = size - (outcomes[OUTCOMES.TIMEOUT_SEARCHING] || 0) - (outcomes[OUTCOMES.TIMEOUT_SHELTERED] || 0);
+        // Count outcomes by category using emergent outcome codes
+        // REUNITED outcomes (success)
+        const returnedHomeCount = outcomes['REUNITED_SELF_RETURN'] || 0;
+        const foundBySearcherCount = (outcomes['REUNITED_OWNER_SEARCH'] || 0) +
+          (outcomes['REUNITED_SEARCH_TEAM'] || 0) +
+          (outcomes['REUNITED_CALLED'] || 0) +
+          (outcomes['REUNITED_TRAP'] || 0);
+        const foundViaShelterCount = outcomes['REUNITED_SHELTER'] || 0;
+        const foundViaSocialCount = (outcomes['REUNITED_STRANGER_DIRECT'] || 0) +
+          (outcomes['REUNITED_STRANGER_POST'] || 0);
+
+        // DECEASED outcomes
+        const deceasedCount = (outcomes['DECEASED_TRAFFIC'] || 0) +
+          (outcomes['DECEASED_PREDATOR'] || 0) +
+          (outcomes['DECEASED_EXPOSURE'] || 0) +
+          (outcomes['DECEASED_DEHYDRATION'] || 0) +
+          (outcomes['DECEASED_STARVATION'] || 0) +
+          (outcomes['DECEASED_INJURY'] || 0) +
+          (outcomes['DECEASED_EUTHANIZED'] || 0);
+
+        // STILL MISSING - pet is out there somewhere, not safe
+        const stillMissingCount = (outcomes['STILL_MISSING'] || 0) +
+          (outcomes['SIGHTED_NOT_CAPTURED'] || 0) +
+          (outcomes['ADOPTED_BY_FINDER'] || 0) +
+          (outcomes['ADOPTED_FROM_SHELTER'] || 0) +
+          (outcomes['FERAL_PERMANENTLY'] || 0);
+
+        // RECOVERABLE - pet is safe with someone, could still be reunited
+        // (at shelter or with a stranger who hasn't decided what to do yet)
+        const atShelterCount = (outcomes['AT_SHELTER_PENDING'] || 0) +
+          (outcomes['WITH_STRANGER_PENDING'] || 0);
+
+        const successCount = returnedHomeCount + foundBySearcherCount +
+          foundViaShelterCount + foundViaSocialCount;
         const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+
+        // Log outcome breakdown for debugging
+        console.log(`[${requestId}] 📊 Outcome breakdown:`, JSON.stringify(outcomes, null, 2));
+        console.log(`[${requestId}] 📈 Counts: success=${successCount}, deceased=${deceasedCount}, stillMissing=${stillMissingCount}, atShelter=${atShelterCount}`);
+        console.log(`[${requestId}] 📈 Success breakdown: home=${returnedHomeCount}, searcher=${foundBySearcherCount}, shelter=${foundViaShelterCount}, social=${foundViaSocialCount}`);
 
         const batch = {
           id: `batch_${Date.now()}`,
@@ -290,13 +351,18 @@ export async function POST(request) {
           avgTimeToFindMins: foundCount > 0 ? totalTimeToFind / foundCount : null,
           medianTimeToFindMins: medianTimeToFind,
           avgPetDistanceMiles: totalPetDistance / size,
-          foundBySearcherCount: outcomes[OUTCOMES.FOUND_BY_SEARCHER] || 0,
-          returnedHomeCount: outcomes[OUTCOMES.RETURNED_HOME] || 0,
-          foundViaShelterCount: outcomes[OUTCOMES.FOUND_VIA_SHELTER] || 0,
-          foundViaSocialCount: outcomes[OUTCOMES.FOUND_VIA_SOCIAL] || 0,
-          foundViaPlatformCount: outcomes[OUTCOMES.FOUND_VIA_PLATFORM] || 0,
-          timeoutSearchingCount: outcomes[OUTCOMES.TIMEOUT_SEARCHING] || 0,
-          timeoutShelteredCount: outcomes[OUTCOMES.TIMEOUT_SHELTERED] || 0,
+          foundBySearcherCount,
+          returnedHomeCount,
+          foundViaShelterCount,
+          foundViaSocialCount,
+          foundViaPlatformCount: 0,  // Not used in emergent simulation
+          // Map to legacy timeout counts for UI compatibility
+          timeoutSearchingCount: stillMissingCount + deceasedCount,
+          timeoutShelteredCount: atShelterCount,
+          // New granular counts
+          deceasedCount,
+          stillMissingCount,
+          atShelterCount,
           executionTimeSeconds: parseFloat(totalTime),
           // Convergence diagnostics
           convergence: {
