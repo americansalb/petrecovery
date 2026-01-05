@@ -3535,6 +3535,68 @@ def can_overcome_fence(profile: AnimalProfile, height_m: float) -> bool:
         "XL": 1.2   # Giant (less agile)
     }
     return height_m < jump_heights.get(profile.size, 1.0)
+
+
+def deflect_along_obstacle(
+    position: Tuple[float, float],
+    target: Tuple[float, float],
+    obstacle: Obstacle
+) -> Tuple[float, float]:
+    """
+    When movement path is blocked by obstacle, deflect along its edge.
+    Returns new target position that skirts the obstacle.
+    """
+
+    # Get intersection point with obstacle boundary
+    intersection = find_path_intersection(position, target, obstacle.geometry)
+
+    if intersection is None:
+        return target  # No actual intersection
+
+    # Calculate deflection direction (tangent to obstacle at intersection)
+    tangent = calculate_obstacle_tangent(obstacle.geometry, intersection)
+
+    # Choose deflection direction (left or right of obstacle)
+    # Prefer direction that keeps us closer to original target
+    original_direction = direction_to(position, target)
+    tangent_direction = math.atan2(tangent[1], tangent[0])
+
+    # Two possible tangent directions (opposite)
+    tangent_alt = tangent_direction + math.pi
+
+    # Pick the one that deviates less from original heading
+    diff1 = abs(normalize_angle(tangent_direction - original_direction))
+    diff2 = abs(normalize_angle(tangent_alt - original_direction))
+
+    chosen_tangent = tangent_direction if diff1 < diff2 else tangent_alt
+
+    # Calculate deflected target
+    remaining_distance = distance(intersection, target) * 0.8  # Lose some distance
+    deflected_target = (
+        intersection[0] + remaining_distance * math.cos(chosen_tangent),
+        intersection[1] + remaining_distance * math.sin(chosen_tangent)
+    )
+
+    # Ensure we're not deflecting INTO another obstacle
+    if is_inside_obstacle(deflected_target, obstacle):
+        # Push outside
+        deflected_target = push_outside_obstacle(deflected_target, obstacle)
+
+    return deflected_target
+
+
+def clamp_to_bounds(
+    position: Tuple[float, float],
+    bounds: Tuple[float, float, float, float]  # (min_lat, min_lng, max_lat, max_lng)
+) -> Tuple[float, float]:
+    """Ensure position stays within simulation boundary."""
+    lat, lng = position
+    min_lat, min_lng, max_lat, max_lng = bounds
+
+    clamped_lat = max(min_lat, min(max_lat, lat))
+    clamped_lng = max(min_lng, min(max_lng, lng))
+
+    return (clamped_lat, clamped_lng)
 ```
 
 ---
@@ -3871,6 +3933,167 @@ def stamina_curve(stamina: float) -> float:
         return 0.5 + stamina
     else:
         return 0.3 + stamina  # Minimum 0.3x speed
+```
+
+### Stamina System Clarification
+
+**Tick vs Cumulative Application**:
+
+1. **Stamina state** (0.0 to 1.0) is **cumulative** across the entire simulation:
+   - Depletes when moving (fleeing/traveling status)
+   - Recovers when resting/hiding
+   - Persists between ticks as part of `AnimalState`
+
+2. **Stamina curve** is applied **per-tick** as a speed multiplier:
+   - Each tick, current stamina determines speed for that tick only
+   - Low stamina → slower movement → less distance → less depletion
+   - Creates natural feedback loop: exhausted animals slow down
+
+3. **Update sequence each tick**:
+   ```
+   1. Read current stamina from state
+   2. Apply stamina_curve() to calculate this tick's speed
+   3. Calculate movement distance using modified speed
+   4. Update stamina based on activity (deplete or recover)
+   5. Store new stamina in state for next tick
+   ```
+
+4. **Edge cases**:
+   - `stamina = 0.0`: Animal can still move at 0.3x base speed (crawling)
+   - `stamina = 1.0`: No speed bonus beyond 1.0x (cap)
+   - Status change: If animal transitions to "resting" mid-simulation, stamina begins recovering
+
+---
+
+## Simulation Convergence and Termination
+
+### Termination Conditions
+
+The simulation ends when ANY of these conditions is met:
+
+```python
+def should_terminate_simulation(
+    state: AnimalState,
+    max_hours: float = 720
+) -> Tuple[bool, str]:
+    """
+    Check if simulation should end.
+    Returns (should_terminate, reason).
+    """
+
+    # === EXPLICIT OUTCOMES ===
+    if state.status == "recovered":
+        return (True, "recovered")
+
+    if state.status == "deceased":
+        return (True, "deceased")
+
+    # === TIME LIMIT ===
+    if state.hours_since_escape >= max_hours:
+        return (True, "max_duration_reached")
+
+    # === EDGE CASES ===
+
+    # Animal left simulation bounds and didn't return
+    if state.consecutive_ticks_out_of_bounds > 100:  # ~8 hours outside
+        return (True, "left_simulation_area")
+
+    # Animal is effectively immobile (collapsed, severe injury)
+    if state.status == "collapsed" and state.hours_in_collapsed > 48:
+        # Transition to deceased if not rescued
+        return (True, "deceased_from_collapse")
+
+    return (False, None)
+```
+
+### Edge Case Handling
+
+| Edge Case | Handling | Outcome |
+|-----------|----------|---------|
+| **Reaches max_hours (720h)** | Simulation ends | `still_missing` outcome |
+| **Exits simulation bounds** | Position clamped; if persists 8+ hours, terminates | `left_simulation_area` |
+| **Stamina reaches 0** | Animal continues at 0.3x speed | Continues (not terminal) |
+| **Thirst reaches 1.0** | Critical condition triggered | 6-hour survival window |
+| **Stuck in obstacle** | Force push to nearest valid position | Continues |
+| **Trap capture during hiding** | Capture probability checked each tick | `recovered` if captured |
+
+### Simulation Bounds
+
+```python
+def calculate_simulation_bounds(
+    escape_location: Tuple[float, float],
+    profile: AnimalProfile,
+    hours_to_simulate: float
+) -> Tuple[float, float, float, float]:
+    """
+    Calculate bounding box for simulation area.
+    Returns (min_lat, min_lng, max_lat, max_lng).
+    """
+
+    # Estimate maximum possible travel distance
+    if profile.species == "cat":
+        max_speed_km_hr = 0.8  # Cats move slowly
+    else:
+        max_speed_km_hr = 4.0  # Dogs can cover ground
+
+    # Theoretical maximum radius (unlikely to reach)
+    max_radius_km = max_speed_km_hr * hours_to_simulate * 0.5  # 50% efficiency
+
+    # Cap at reasonable distance
+    max_radius_km = min(max_radius_km, 50)  # 50km max
+
+    # Add buffer
+    buffer_km = max_radius_km * 1.2
+
+    # Convert to lat/lng offset (~111km per degree latitude)
+    lat_offset = buffer_km / 111.0
+    lng_offset = buffer_km / (111.0 * math.cos(math.radians(escape_location[0])))
+
+    return (
+        escape_location[0] - lat_offset,
+        escape_location[1] - lng_offset,
+        escape_location[0] + lat_offset,
+        escape_location[1] + lng_offset
+    )
+```
+
+### Outcome Assignment at Termination
+
+```python
+def determine_final_outcome(
+    state: AnimalState,
+    termination_reason: str,
+    profile: AnimalProfile
+) -> str:
+    """
+    Assign final outcome category based on termination state.
+    """
+
+    if termination_reason == "recovered":
+        # Further classify recovery type
+        if state.recovery_type == "self_return":
+            return "self_return"
+        elif state.recovery_type == "trap":
+            return "found_by_owner"  # Trap implies owner effort
+        elif state.recovery_type == "stranger_pickup":
+            return "stranger_return"
+        elif state.recovery_type == "shelter_intake":
+            return "at_shelter"
+        else:
+            return "found_by_owner"
+
+    elif termination_reason in ["deceased", "deceased_from_collapse"]:
+        return "deceased"
+
+    elif termination_reason == "max_duration_reached":
+        # Animal survived but not recovered
+        return "still_missing"
+
+    elif termination_reason == "left_simulation_area":
+        # Treat as still missing (may be found elsewhere)
+        return "still_missing"
+
+    return "still_missing"  # Default
 ```
 
 ---
@@ -5499,6 +5722,18 @@ Structural fixes and missing mechanics based on dev team review.
   - BASELINE_COMPARISON constant with minimum performance thresholds
   - `calculate_baseline_metrics()` and `compare_to_baselines()` functions
   - Interpretation guide for baseline comparison results
+- **Added** Missing movement helper functions
+  - `deflect_along_obstacle()` for path deflection around obstacles
+  - `clamp_to_bounds()` for simulation boundary enforcement
+- **Added** Stamina System Clarification section
+  - Tick vs cumulative application explained
+  - Update sequence per tick documented
+  - Edge cases (stamina=0, stamina=1, status changes) addressed
+- **Added** Simulation Convergence and Termination section
+  - `should_terminate_simulation()` function with all termination conditions
+  - Edge case handling table (max_hours, bounds exit, stamina 0, thirst 1.0, stuck)
+  - `calculate_simulation_bounds()` for dynamic bound calculation
+  - `determine_final_outcome()` for outcome assignment at termination
 
 ## v2.2
 
