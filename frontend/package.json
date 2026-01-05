@@ -34,6 +34,7 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
     "@prisma/client": "^5.10.0",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "autoprefixer": "^10.4.20",
@@ -51,6 +52,7 @@
     "prisma": "^5.10.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-leaflet": "^5.0.0",
     "recharts": "^3.6.0",
     "redis": "^4.7.0",
     "resend": "^2.0.0",
