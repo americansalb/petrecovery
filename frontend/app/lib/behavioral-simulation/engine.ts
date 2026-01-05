@@ -215,6 +215,7 @@ export class BehavioralSimulationEngine {
   private survivalParams: SampledSurvivalParams;
   private physiologyParams: SampledPhysiologyParams;
   private lastDeathCheckHour: number = -1;
+  private lastSelfReturnCheckDay: number = -1;
 
   constructor(
     profile: AnimalProfile,
@@ -340,8 +341,8 @@ export class BehavioralSimulationEngine {
       const distFromHome = distance(this.state.position, this.homePosition);
       this.maxDistanceM = Math.max(this.maxDistanceM, distFromHome);
 
-      // Check for self-return
-      if (this.checkSelfReturn(distFromHome)) {
+      // Check for self-return (daily check)
+      if (this.checkSelfReturn(distFromHome, simHour)) {
         outcome = 'self_return';
         outcomeTime = simHour;
         break;
@@ -403,96 +404,70 @@ export class BehavioralSimulationEngine {
   }
 
   private checkDeath(simHour: number, currentTimeOfDay: number): boolean {
-    // Only check once per hour to avoid compounding probability
-    const currentHourFloor = Math.floor(simHour);
-    if (currentHourFloor <= this.lastDeathCheckHour) {
+    // Only check once per DAY (every 24 hours) to avoid compounding probability
+    // In reality, death is rare - most lost pets survive
+    const currentDayFloor = Math.floor(simHour / 24);
+    if (currentDayFloor <= this.lastDeathCheckHour) {
       return false;
     }
-    this.lastDeathCheckHour = currentHourFloor;
+    this.lastDeathCheckHour = currentDayFloor;
 
     const params = this.survivalParams;
 
     // Combined survival modifier from all factors
+    // Higher = better survival = lower death rate
     const survivalModifier = params.sizeModifier * params.ageModifier *
                              params.speciesModifier * params.indoorOnlyModifier;
 
-    // === DEHYDRATION ===
-    // Only becomes dangerous after critical hours
-    if (simHour >= params.dehydrationCriticalHours) {
-      // Death rate increases as we approach and exceed fatal threshold
-      let dehydrationRisk = params.dehydrationDeathRate;
+    // Base daily death probability is VERY LOW for healthy pets
+    // A healthy adult medium pet should have ~0.1% daily death rate (~3% over 30 days)
+    // This accounts for all causes: accidents, vehicles, predators, etc.
+    let dailyDeathRate = 0.001; // 0.1% base daily rate
 
-      if (simHour >= params.dehydrationFatalHours) {
-        // Past fatal threshold - significantly higher risk
-        dehydrationRisk *= 3;
-      }
+    // === MODIFIERS ===
 
-      // Apply survival modifier (higher = better survival = lower death rate)
-      dehydrationRisk /= survivalModifier;
-
-      if (this.rng.next() < dehydrationRisk) {
-        this.state.isDeceased = true;
-        return true;
-      }
+    // Size affects vulnerability
+    if (this.profile.size === 'TOY') {
+      dailyDeathRate *= 2.5; // Toy breeds more vulnerable
+    } else if (this.profile.size === 'SML') {
+      dailyDeathRate *= 1.5;
+    } else if (this.profile.size === 'LRG' || this.profile.size === 'GNT') {
+      dailyDeathRate *= 0.7; // Larger pets are hardier
     }
 
-    // === STARVATION ===
-    // Much slower - only matters in very long simulations
-    if (simHour >= params.starvationCriticalHours) {
-      let starvationRisk = params.starvationDeathRate;
-
-      if (simHour >= params.starvationFatalHours) {
-        starvationRisk *= 2;
-      }
-
-      starvationRisk /= survivalModifier;
-
-      if (this.rng.next() < starvationRisk) {
-        this.state.isDeceased = true;
-        return true;
-      }
+    // Age affects vulnerability
+    if (this.profile.age === 'PUP' || this.profile.age === 'KIT') {
+      dailyDeathRate *= 3; // Very young are vulnerable
+    } else if (this.profile.age === 'JUV') {
+      dailyDeathRate *= 1.5;
+    } else if (this.profile.age === 'SEN') {
+      dailyDeathRate *= 2; // Seniors more vulnerable
     }
 
-    // === ENVIRONMENTAL HAZARDS ===
-    // Vehicle strike - higher when fleeing
-    let vehicleRisk = params.hazardVehicleRate;
-    if (this.state.fearLevel > 0.7) {
-      vehicleRisk *= 2; // Double risk when panicked
-    }
-    vehicleRisk /= survivalModifier;
-
-    if (this.rng.next() < vehicleRisk) {
-      this.state.isDeceased = true;
-      return true;
+    // Indoor-only pets are less street-smart
+    if (this.profile.isIndoorOnly) {
+      dailyDeathRate *= 1.5;
     }
 
-    // Predator risk - higher at night for small pets
-    if (currentTimeOfDay >= 20 || currentTimeOfDay < 6) {
-      let predatorRisk = params.hazardPredatorRate;
-
-      // Small pets are more vulnerable
-      if (this.profile.size === 'TOY' || this.profile.size === 'SML') {
-        predatorRisk *= 2;
-      }
-
-      // Dogs are better at fending off predators
-      if (this.profile.species === 'dog') {
-        predatorRisk *= 0.5;
-      }
-
-      predatorRisk /= survivalModifier;
-
-      if (this.rng.next() < predatorRisk) {
-        this.state.isDeceased = true;
-        return true;
-      }
+    // Cats are generally better at outdoor survival than small dogs
+    if (this.profile.species === 'cat') {
+      dailyDeathRate *= 0.8;
     }
 
-    // General accidents - always a small risk
-    let accidentRisk = params.hazardAccidentRate;
-    accidentRisk /= survivalModifier;
+    // Very long duration increases risk slightly (exhaustion, exposure)
+    const dayNumber = Math.floor(simHour / 24);
+    if (dayNumber > 14) {
+      // After 2 weeks, slightly increased risk
+      dailyDeathRate *= 1 + (dayNumber - 14) * 0.02; // +2% per day after day 14
+    }
 
-    if (this.rng.next() < accidentRisk) {
+    // Apply overall survival modifier
+    dailyDeathRate /= survivalModifier;
+
+    // Cap the daily rate at 2% to prevent unrealistic outcomes
+    dailyDeathRate = Math.min(dailyDeathRate, 0.02);
+
+    if (this.rng.next() < dailyDeathRate) {
       this.state.isDeceased = true;
       return true;
     }
@@ -572,13 +547,57 @@ export class BehavioralSimulationEngine {
     }
   }
 
-  private checkSelfReturn(distFromHome: number): boolean {
-    if (distFromHome < 50 && this.state.fearLevel < 0.3) {
-      // Close to home and calm
-      const returnProb = this.profile.species === 'dog' ? 0.1 : 0.05;
-      return this.rng.next() < returnProb;
+  private checkSelfReturn(distFromHome: number, simHour: number): boolean {
+    // Only check once per day to avoid compounding
+    const currentDay = Math.floor(simHour / 24);
+    if (currentDay <= this.lastSelfReturnCheckDay) {
+      return false;
     }
-    return false;
+    this.lastSelfReturnCheckDay = currentDay;
+
+    // Research: ~15% of dogs, ~59% of cats eventually self-return
+    // Over 30 days, we want roughly 15% of dogs to return
+
+    // Base daily probability depends on distance from home
+    // Dogs/cats that wander far are less likely to return
+    let returnProb = 0;
+
+    if (distFromHome < 200) {
+      // Very close to home - high chance
+      returnProb = this.profile.species === 'dog' ? 0.02 : 0.03;
+    } else if (distFromHome < 500) {
+      // Close to home
+      returnProb = this.profile.species === 'dog' ? 0.01 : 0.015;
+    } else if (distFromHome < 1000) {
+      // Moderate distance - still possible
+      returnProb = this.profile.species === 'dog' ? 0.005 : 0.008;
+    } else if (distFromHome < 2000) {
+      // Far but reachable
+      returnProb = this.profile.species === 'dog' ? 0.002 : 0.004;
+    } else {
+      // Very far - unlikely to return
+      returnProb = 0.0005;
+    }
+
+    // Fear affects return probability
+    // Must be somewhat calm to decide to return home
+    if (this.state.fearLevel > 0.6) {
+      returnProb *= 0.2; // Very scared - unlikely to return
+    } else if (this.state.fearLevel > 0.4) {
+      returnProb *= 0.5;
+    } else if (this.state.fearLevel < 0.2) {
+      returnProb *= 1.5; // Very calm - more likely to return
+    }
+
+    // Later in the search, pets may be more motivated to return
+    if (simHour > 168) { // After 1 week
+      returnProb *= 1.2;
+    }
+    if (simHour > 336) { // After 2 weeks
+      returnProb *= 1.3;
+    }
+
+    return this.rng.next() < returnProb;
   }
 
   private checkDetection(simHour: number, currentHour: number): boolean {

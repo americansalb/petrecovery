@@ -154,35 +154,40 @@ export const PHYSIOLOGY = {
   },
 };
 
-// Survival parameters with ranges [A] - Based on veterinary literature
+// Survival parameters with ranges [A] - Based on realistic pet survival
+// Key insight: Most lost pets survive and are found. Death is RARE.
+// A healthy adult medium-sized pet should have <5% mortality over 30 days
 export const SURVIVAL = {
-  // Dehydration - most pets can survive 48-72 hours without water
+  // Dehydration - pets usually find water sources (puddles, streams, birdbaths)
+  // True dehydration death is rare except in extreme conditions
   dehydration: {
-    criticalAfterHours: { min: 36, max: 60 },     // When symptoms become serious
-    fatalAfterHours: { min: 72, max: 120 },       // 3-5 days without water
-    deathRatePerHour: { min: 0.005, max: 0.02 },  // 0.5-2% per hour when critical
+    criticalAfterHours: { min: 96, max: 144 },    // 4-6 days without ANY water (rare)
+    fatalAfterHours: { min: 144, max: 240 },      // 6-10 days - most pets find water before this
+    deathRatePerHour: { min: 0.0005, max: 0.002 }, // Very low - 0.05-0.2% per hour when critical
+    findWaterProbPerHour: 0.15,                    // 15% chance per hour of finding water
   },
-  // Starvation - pets can survive weeks without food
+  // Starvation - pets can survive 2-3+ weeks without food easily
   starvation: {
-    criticalAfterHours: { min: 168, max: 336 },   // 1-2 weeks
-    fatalAfterHours: { min: 336, max: 504 },      // 2-3 weeks
-    deathRatePerHour: { min: 0.001, max: 0.005 }, // Much slower than dehydration
+    criticalAfterHours: { min: 336, max: 504 },   // 2-3 weeks
+    fatalAfterHours: { min: 504, max: 720 },      // 3-4 weeks
+    deathRatePerHour: { min: 0.0002, max: 0.001 }, // Very slow
   },
-  // Environmental hazards (per hour rates)
+  // Environmental hazards - these are RARE events
+  // Rates are per-hour probability, should result in ~1-3% total over 30 days
   hazards: {
     vehicleStrike: {
-      nearRoad: { min: 0.0001, max: 0.0008 },     // Higher when near roads
-      fleeing: { min: 0.0003, max: 0.001 },       // Higher when panicked
+      nearRoad: { min: 0.000005, max: 0.00003 },  // ~0.5-2% over 30 days
+      fleeing: { min: 0.00001, max: 0.00005 },    // Slightly higher when panicked
     },
     predator: {
-      nighttime: { min: 0.0001, max: 0.0005 },    // Coyotes, etc.
-      smallPet: { min: 0.0002, max: 0.0008 },     // Small pets more vulnerable
+      nighttime: { min: 0.000002, max: 0.00001 }, // Very rare - most areas safe
+      smallPet: { min: 0.000005, max: 0.00002 },  // Small pets slightly more at risk
     },
     exposure: {
-      extreme: { min: 0.0001, max: 0.0003 },      // Extreme heat/cold
+      extreme: { min: 0.000001, max: 0.000005 },  // Only in extreme weather
     },
     accident: {
-      general: { min: 0.00005, max: 0.0002 },     // Getting stuck, falls, etc.
+      general: { min: 0.000001, max: 0.000005 }, // Very rare
     },
   },
   // Modifiers based on pet characteristics

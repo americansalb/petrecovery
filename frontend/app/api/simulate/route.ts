@@ -56,10 +56,10 @@ export async function POST(request: Request) {
       hasCollar: body.hasCollar ?? true,
     };
 
-    // Build config
+    // Build config - default 30 days (720 hours)
     const config: SimulationConfig = {
       seed: body.seed || Math.floor(Math.random() * 1000000),
-      maxHours: body.maxHours || 72,
+      maxHours: body.maxHours || 720,
       timeStepMinutes: 5,
       startHour: 10,
       searchRadiusM: 2000,

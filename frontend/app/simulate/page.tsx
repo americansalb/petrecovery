@@ -78,8 +78,8 @@ export default function SimulatePage() {
   const [latitude, setLatitude] = useState(37.7749);
   const [longitude, setLongitude] = useState(-122.4194);
 
-  // Simulation params
-  const [maxHours, setMaxHours] = useState(72);
+  // Simulation params - default 30 days (720 hours)
+  const [maxHours, setMaxHours] = useState(720);
   const [numSearchers, setNumSearchers] = useState(3);
   const [searchStartDelay, setSearchStartDelay] = useState(2);
   const [batchSize, setBatchSize] = useState(1);
@@ -92,10 +92,10 @@ export default function SimulatePage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedSimIndex, setSelectedSimIndex] = useState<number | null>(null);
 
-  // Playback state
+  // Playback state - default to 4hr/sec for 30-day simulations
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackMinute, setPlaybackMinute] = useState(0);
-  const [playbackSpeed, setPlaybackSpeed] = useState(5);
+  const [playbackSpeed, setPlaybackSpeed] = useState(240);
 
   const temperaments = species === 'dog' ? DOG_TEMPERAMENTS : CAT_TEMPERAMENTS;
 
@@ -412,13 +412,13 @@ export default function SimulatePage() {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Duration (hours)</label>
+                  <label className="block text-xs text-gray-500 mb-1">Duration (days)</label>
                   <input
                     type="number"
-                    value={maxHours}
-                    onChange={(e) => setMaxHours(parseInt(e.target.value) || 72)}
+                    value={Math.round(maxHours / 24)}
+                    onChange={(e) => setMaxHours((parseInt(e.target.value) || 30) * 24)}
                     min={1}
-                    max={720}
+                    max={60}
                     className="w-full border rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -680,10 +680,12 @@ export default function SimulatePage() {
               className="border rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500"
             >
               <option value="1">1x</option>
-              <option value="2">2x</option>
               <option value="5">5x</option>
-              <option value="10">10x</option>
               <option value="20">20x</option>
+              <option value="60">1hr/s</option>
+              <option value="240">4hr/s</option>
+              <option value="720">12hr/s</option>
+              <option value="1440">1day/s</option>
             </select>
 
             {/* Timeline slider */}
@@ -699,8 +701,8 @@ export default function SimulatePage() {
                 }}
                 className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
               />
-              <span className="text-sm font-mono w-24 text-right bg-gray-100 px-3 py-1 rounded-lg">
-                {Math.floor(playbackMinute / 60)}h {Math.round(playbackMinute % 60)}m
+              <span className="text-sm font-mono w-32 text-right bg-gray-100 px-3 py-1 rounded-lg">
+                {Math.floor(playbackMinute / 1440)}d {Math.floor((playbackMinute % 1440) / 60)}h
               </span>
             </div>
 
