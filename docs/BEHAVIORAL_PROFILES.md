@@ -7905,6 +7905,2864 @@ print(f"Time elapsed: {cat_state.hours_since_escape} hours")
 
 ---
 
+# PART 11: SEARCHER AGENTS
+
+## Design Philosophy
+
+**Critical Design Decision**: Searchers are modeled as discrete agents, NOT percentages.
+
+The previous model's "volunteer ramp-up percentage" approach is fundamentally flawed:
+- If you have 2 searchers and "20% volunteer ramp-up", what does that mean?
+- Percentages don't connect to actual search behavior
+- Can't model individual searcher effectiveness, areas covered, or methods used
+
+**Correct Approach**: Each searcher is an individual agent with:
+- Specific properties (knowledge, equipment, time availability)
+- Specific behaviors (search patterns, methods used)
+- Specific effectiveness (detection probability based on circumstances)
+
+Adding a volunteer means adding a new agent with defined properties, not incrementing a percentage.
+
+---
+
+## Searcher Data Structures
+
+```python
+from dataclasses import dataclass, field
+from typing import List, Optional, Tuple, Dict
+from enum import Enum
+from datetime import datetime, time
+
+class SearcherType(Enum):
+    """Types of searchers with inherently different capabilities."""
+    OWNER = "owner"              # Pet owner - highest motivation, knows pet best
+    HOUSEHOLD = "household"      # Family members - high motivation, knows pet
+    FRIEND = "friend"            # Friends/neighbors - medium motivation, may know pet
+    VOLUNTEER = "volunteer"      # Community volunteer - variable dedication
+    PROFESSIONAL = "professional" # Professional pet detective/tracker
+    SHELTER_STAFF = "shelter"    # Shelter workers checking intake
+    ACO = "aco"                  # Animal Control Officer
+
+class SearchMethod(Enum):
+    """Active search methods a searcher can employ."""
+    WALKING_CALLING = "walking_calling"     # Walking while calling pet's name
+    WALKING_SILENT = "walking_silent"       # Walking, visual search only
+    DRIVING_SLOW = "driving_slow"           # Slow driving, visual scan
+    STATIONARY_CALLING = "stationary"       # Staying in one spot, calling
+    TRAP_MONITORING = "trap_monitoring"     # Checking/monitoring traps
+    TRAIL_CAMERA = "trail_camera"           # Monitoring trail cameras
+    SCENT_TRACKING = "scent_tracking"       # Using tracking dog (professional)
+    DRONE = "drone"                         # Aerial drone search (professional)
+    THERMAL = "thermal"                     # Thermal imaging (professional)
+    FEEDING_STATION = "feeding_station"     # Monitoring feeding station
+
+class PassiveMethod(Enum):
+    """Passive search methods that work without active searching."""
+    FLYERS = "flyers"                       # Posted flyers in area
+    ONLINE_POSTING = "online"               # Social media, lost pet sites
+    SHELTER_ALERT = "shelter_alert"         # Alerts to local shelters
+    NEIGHBOR_NETWORK = "neighbor_network"   # Neighbors watching
+    MICROCHIP_REGISTERED = "microchip"      # Microchip in database
+
+@dataclass
+class SearcherProfile:
+    """
+    Individual searcher agent with all properties affecting search effectiveness.
+
+    Each searcher is a discrete entity - adding searchers means adding
+    new SearcherProfile instances, NOT incrementing percentages.
+    """
+    searcher_id: str
+    searcher_type: SearcherType
+
+    # Knowledge of the pet (affects calling effectiveness, recognition)
+    knows_pet_name: bool = False
+    knows_pet_appearance: bool = True  # Everyone has at least a photo
+    knows_pet_habits: bool = False     # Knows favorite spots, behaviors
+    knows_pet_sounds: bool = False     # Can recognize pet's specific meow/bark
+    familiarity_score: float = 0.5     # 0-1, how well they know the pet [C]
+
+    # Relationship to pet (affects pet's response)
+    pet_recognizes_searcher: bool = False  # Pet knows this person
+    pet_trust_level: float = 0.0           # 0-1, how much pet trusts searcher [C]
+
+    # Search capabilities
+    physical_fitness: str = "average"      # poor/average/good/excellent
+    has_vehicle: bool = False
+    has_flashlight: bool = True
+    has_treats: bool = False
+    has_carrier: bool = False              # Can safely capture if found
+    has_trap: bool = False
+    has_leash: bool = False
+
+    # Professional equipment (SearcherType.PROFESSIONAL only)
+    has_tracking_dog: bool = False
+    has_thermal_camera: bool = False
+    has_drone: bool = False
+    years_experience: int = 0
+
+    # Time availability
+    available_hours_per_day: float = 2.0   # Hours they can search daily
+    available_days: List[int] = field(default_factory=lambda: [0,1,2,3,4,5,6])  # 0=Mon
+    earliest_search_time: time = field(default_factory=lambda: time(6, 0))
+    latest_search_time: time = field(default_factory=lambda: time(22, 0))
+
+    # Persistence and dedication
+    dedication_level: float = 0.5          # 0-1, affects consistency [C]
+    burnout_rate: float = 0.1              # How quickly dedication decreases [C]
+
+    # Current state
+    is_active: bool = True
+    days_searching: int = 0
+    total_hours_searched: float = 0.0
+    current_dedication: float = 0.5        # Tracks burnout over time
+
+@dataclass
+class SearcherState:
+    """
+    Runtime state for a searcher during simulation.
+    """
+    searcher_id: str
+    position: Tuple[float, float]          # Current (lat, lon)
+    current_method: SearchMethod = SearchMethod.WALKING_CALLING
+    hours_searched_today: float = 0.0
+    is_currently_searching: bool = False
+    areas_covered_today: List[str] = field(default_factory=list)  # Grid cell IDs
+    last_search_time: Optional[datetime] = None
+```
+
+---
+
+## Searcher Type Defaults [P][C]
+
+```python
+SEARCHER_TYPE_DEFAULTS = {
+    SearcherType.OWNER: {
+        "knows_pet_name": True,
+        "knows_pet_appearance": True,
+        "knows_pet_habits": True,
+        "knows_pet_sounds": True,
+        "familiarity_score": 1.0,
+        "pet_recognizes_searcher": True,
+        "pet_trust_level": 0.95,        # [P] Owner trust based on behavioral studies
+        "has_treats": True,
+        "has_carrier": True,
+        "has_leash": True,
+        "available_hours_per_day": 4.0, # [C] Estimated, varies widely
+        "dedication_level": 0.95,
+        "burnout_rate": 0.02,           # [C] Owners persist longer
+    },
+
+    SearcherType.HOUSEHOLD: {
+        "knows_pet_name": True,
+        "knows_pet_appearance": True,
+        "knows_pet_habits": True,
+        "knows_pet_sounds": True,
+        "familiarity_score": 0.9,
+        "pet_recognizes_searcher": True,
+        "pet_trust_level": 0.85,
+        "has_treats": True,
+        "has_carrier": True,
+        "has_leash": True,
+        "available_hours_per_day": 3.0,
+        "dedication_level": 0.85,
+        "burnout_rate": 0.03,
+    },
+
+    SearcherType.FRIEND: {
+        "knows_pet_name": True,
+        "knows_pet_appearance": True,
+        "knows_pet_habits": False,
+        "knows_pet_sounds": False,
+        "familiarity_score": 0.5,
+        "pet_recognizes_searcher": False,  # May or may not
+        "pet_trust_level": 0.3,
+        "has_treats": False,
+        "has_carrier": False,
+        "has_leash": False,
+        "available_hours_per_day": 1.5,
+        "dedication_level": 0.6,
+        "burnout_rate": 0.08,
+    },
+
+    SearcherType.VOLUNTEER: {
+        "knows_pet_name": True,           # Given name
+        "knows_pet_appearance": True,     # Given photo
+        "knows_pet_habits": False,
+        "knows_pet_sounds": False,
+        "familiarity_score": 0.2,
+        "pet_recognizes_searcher": False,
+        "pet_trust_level": 0.0,           # Stranger to pet
+        "has_treats": False,
+        "has_carrier": False,
+        "has_leash": False,
+        "available_hours_per_day": 1.0,
+        "dedication_level": 0.4,
+        "burnout_rate": 0.15,             # [C] Volunteers drop off quickly
+    },
+
+    SearcherType.PROFESSIONAL: {
+        "knows_pet_name": True,
+        "knows_pet_appearance": True,
+        "knows_pet_habits": True,         # Interviews owner extensively
+        "knows_pet_sounds": False,
+        "familiarity_score": 0.6,
+        "pet_recognizes_searcher": False,
+        "pet_trust_level": 0.0,
+        "has_treats": True,
+        "has_carrier": True,
+        "has_leash": True,
+        "has_vehicle": True,
+        "has_flashlight": True,
+        "physical_fitness": "good",
+        "available_hours_per_day": 8.0,   # Full-time when hired
+        "dedication_level": 0.9,          # Professional commitment
+        "burnout_rate": 0.01,
+    },
+
+    SearcherType.SHELTER_STAFF: {
+        "knows_pet_name": True,
+        "knows_pet_appearance": True,
+        "knows_pet_habits": False,
+        "knows_pet_sounds": False,
+        "familiarity_score": 0.3,
+        "pet_recognizes_searcher": False,
+        "pet_trust_level": 0.0,
+        "available_hours_per_day": 0.5,   # Only checking intake
+        "dedication_level": 0.3,
+        "burnout_rate": 0.0,              # Part of job, not personal
+    },
+
+    SearcherType.ACO: {
+        "knows_pet_name": False,          # Responding to reports
+        "knows_pet_appearance": True,     # Given description
+        "knows_pet_habits": False,
+        "knows_pet_sounds": False,
+        "familiarity_score": 0.2,
+        "pet_recognizes_searcher": False,
+        "pet_trust_level": 0.0,
+        "has_carrier": True,
+        "has_leash": True,
+        "has_vehicle": True,
+        "has_trap": True,
+        "available_hours_per_day": 1.0,   # Limited time per case
+        "dedication_level": 0.3,
+        "burnout_rate": 0.0,
+    },
+}
+```
+
+---
+
+## Search Method Effectiveness [P][C][A]
+
+Each search method has different effectiveness based on animal state.
+
+```python
+# Base detection probability per hour by method
+# Assumes searcher is in correct grid cell and animal is present
+# Modified by animal visibility state, terrain, etc.
+
+SEARCH_METHOD_BASE_EFFECTIVENESS = {
+    # Method: {
+    #     "visible_detection": P(detect) if animal visible, per hour in same cell
+    #     "hidden_detection": P(detect) if animal hiding, per hour in same cell
+    #     "area_coverage_rate": grid cells per hour
+    #     "noise_level": 0-1, affects animal flight response
+    #     "requires": list of required equipment/conditions
+    # }
+
+    SearchMethod.WALKING_CALLING: {
+        "visible_detection": 0.70,     # [A] Good for visible animals
+        "hidden_detection": 0.15,      # [C] Calling may coax out
+        "area_coverage_rate": 6,       # [A] ~6 cells/hour walking pace
+        "noise_level": 0.6,            # Calling creates noise
+        "requires": [],
+        "effectiveness_factors": {
+            "knows_pet_name": 1.3,     # +30% if knows name
+            "knows_pet_sounds": 1.2,   # +20% if can recognize response
+            "pet_trust_level_weight": 0.5,  # Trust affects response to calling
+        },
+    },
+
+    SearchMethod.WALKING_SILENT: {
+        "visible_detection": 0.60,
+        "hidden_detection": 0.05,      # Very hard to find hidden animals silently
+        "area_coverage_rate": 8,       # Can move faster without calling
+        "noise_level": 0.2,
+        "requires": [],
+        "effectiveness_factors": {
+            "physical_fitness_good": 1.1,
+            "physical_fitness_excellent": 1.2,
+        },
+    },
+
+    SearchMethod.DRIVING_SLOW: {
+        "visible_detection": 0.40,     # [A] Harder from vehicle
+        "hidden_detection": 0.02,      # Almost impossible
+        "area_coverage_rate": 30,      # [A] Much more area
+        "noise_level": 0.7,            # Vehicle noise
+        "requires": ["has_vehicle"],
+        "effectiveness_factors": {},
+    },
+
+    SearchMethod.STATIONARY_CALLING: {
+        "visible_detection": 0.30,     # Limited visual range
+        "hidden_detection": 0.25,      # [C] Better for coaxing hiding animals
+        "area_coverage_rate": 1,       # Single cell
+        "noise_level": 0.5,
+        "requires": [],
+        "effectiveness_factors": {
+            "knows_pet_name": 1.5,
+            "knows_pet_sounds": 1.4,
+            "pet_trust_level_weight": 0.8,  # High trust impact
+            "has_treats": 1.3,
+        },
+    },
+
+    SearchMethod.TRAP_MONITORING: {
+        "visible_detection": 0.10,     # Not actively looking
+        "hidden_detection": 0.0,       # Trap does the work
+        "area_coverage_rate": 1,
+        "noise_level": 0.1,
+        "requires": ["has_trap"],
+        "effectiveness_factors": {},
+        "special": "trap_check",       # See trap mechanics in PART 6
+    },
+
+    SearchMethod.TRAIL_CAMERA: {
+        "visible_detection": 0.0,      # Camera does detection
+        "hidden_detection": 0.0,
+        "area_coverage_rate": 1,
+        "noise_level": 0.0,
+        "requires": ["trail_camera"],
+        "effectiveness_factors": {},
+        "special": "trail_camera",     # Passive monitoring
+    },
+
+    SearchMethod.SCENT_TRACKING: {
+        "visible_detection": 0.85,     # [P] Professional tracking dogs effective
+        "hidden_detection": 0.60,      # [P] Can find hidden animals
+        "area_coverage_rate": 4,       # Slower, following scent
+        "noise_level": 0.4,
+        "requires": ["has_tracking_dog"],
+        "effectiveness_factors": {
+            "years_experience": 0.05,  # +5% per year experience
+        },
+        "notes": "Effectiveness degrades with time since escape and rain",
+    },
+
+    SearchMethod.DRONE: {
+        "visible_detection": 0.75,     # [A] Good aerial coverage
+        "hidden_detection": 0.10,      # Can sometimes spot in vegetation
+        "area_coverage_rate": 50,      # Very fast coverage
+        "noise_level": 0.8,            # Drone noise may scare animal
+        "requires": ["has_drone"],
+        "effectiveness_factors": {},
+        "notes": "Best in open areas, limited in dense urban/forest",
+    },
+
+    SearchMethod.THERMAL: {
+        "visible_detection": 0.90,     # [A] Excellent at night
+        "hidden_detection": 0.70,      # [A] Can see through vegetation
+        "area_coverage_rate": 3,
+        "noise_level": 0.2,
+        "requires": ["has_thermal_camera"],
+        "effectiveness_factors": {},
+        "notes": "Most effective at night, in cooler weather",
+    },
+
+    SearchMethod.FEEDING_STATION: {
+        "visible_detection": 0.20,     # When checking
+        "hidden_detection": 0.0,
+        "area_coverage_rate": 1,
+        "noise_level": 0.1,
+        "requires": [],
+        "effectiveness_factors": {},
+        "special": "feeding_station",  # Works over time
+    },
+}
+```
+
+---
+
+## Passive Method Effectiveness [P][C][A]
+
+Passive methods work continuously without active searching.
+
+```python
+PASSIVE_METHOD_EFFECTIVENESS = {
+    # Method: {
+    #     "daily_sighting_probability": P(someone reports sighting) per day
+    #     "report_accuracy": P(report is actually the pet)
+    #     "response_delay_hours": time from sighting to searcher arrival
+    #     "coverage_radius_m": area covered by method
+    #     "setup_time_hours": time to implement
+    #     "decay_rate": daily decay in effectiveness
+    # }
+
+    PassiveMethod.FLYERS: {
+        "daily_sighting_probability": 0.03,  # [C] 3% chance/day someone sees & reports
+        "report_accuracy": 0.15,             # [C] Many false reports
+        "response_delay_hours": 4.0,         # [C] Time to respond to call
+        "coverage_radius_m": 500,            # [C] Typical flyering radius
+        "setup_time_hours": 3.0,
+        "decay_rate": 0.05,                  # [C] Flyers degrade, get removed
+        "effectiveness_factors": {
+            "flyer_count": 0.002,            # +0.2% per 100 flyers
+            "flyer_quality": 1.0,            # Color photo, clear description
+            "urban_bonus": 1.5,              # More effective in urban areas
+        },
+    },
+
+    PassiveMethod.ONLINE_POSTING: {
+        "daily_sighting_probability": 0.05,  # [C] More reach than flyers
+        "report_accuracy": 0.10,             # [C] Even more false positives
+        "response_delay_hours": 2.0,         # [C] Faster notification
+        "coverage_radius_m": 2000,           # [C] Wider online reach
+        "setup_time_hours": 1.0,
+        "decay_rate": 0.10,                  # [C] Posts get buried
+        "effectiveness_factors": {
+            "platform_count": 0.01,          # +1% per platform used
+            "share_count": 0.001,            # +0.1% per share
+        },
+    },
+
+    PassiveMethod.SHELTER_ALERT: {
+        "daily_sighting_probability": 0.02,  # [P] If pet enters shelter
+        "report_accuracy": 0.80,             # [P] Shelter ID is reliable
+        "response_delay_hours": 12.0,        # [C] Daily checks
+        "coverage_radius_m": 10000,          # All shelters in county
+        "setup_time_hours": 0.5,
+        "decay_rate": 0.0,                   # Stays active
+        "notes": "Only triggers if pet is captured and taken to shelter",
+    },
+
+    PassiveMethod.NEIGHBOR_NETWORK: {
+        "daily_sighting_probability": 0.08,  # [C] Higher if pet in area
+        "report_accuracy": 0.40,             # [C] Neighbors may recognize
+        "response_delay_hours": 1.0,         # [C] Quick notification
+        "coverage_radius_m": 200,            # [C] Immediate neighborhood
+        "setup_time_hours": 2.0,
+        "decay_rate": 0.08,                  # [C] Attention fades
+        "effectiveness_factors": {
+            "neighbor_count": 0.005,         # +0.5% per neighbor contacted
+        },
+    },
+
+    PassiveMethod.MICROCHIP_REGISTERED: {
+        "daily_sighting_probability": 0.01,  # [P] Requires vet/shelter scan
+        "report_accuracy": 1.00,             # [P] Definitive ID
+        "response_delay_hours": 24.0,        # [C] May take time to contact
+        "coverage_radius_m": 50000,          # Any vet/shelter
+        "setup_time_hours": 0.0,             # Already done
+        "decay_rate": 0.0,
+        "notes": "Only triggers if pet is scanned at vet/shelter",
+    },
+}
+```
+
+---
+
+## Animal Response to Searchers [P][C]
+
+How the animal responds depends on who's searching and the animal's state.
+
+```python
+def calculate_animal_response_to_searcher(
+    animal_state: "AnimalState",
+    animal_profile: "AnimalProfile",
+    searcher_profile: SearcherProfile,
+    search_method: SearchMethod,
+    distance_m: float,
+) -> dict:
+    """
+    Calculate how animal responds to searcher presence.
+
+    Returns:
+        dict with probabilities for different responses
+    """
+
+    # Base response based on animal fear state
+    current_fear = animal_state.fear_level  # 0-1
+
+    # Species-specific baseline responses
+    if animal_profile.species == "dog":
+        base_responses = {
+            "approach": 0.30,      # Come to searcher
+            "stay": 0.30,          # Stay put
+            "flee": 0.20,          # Run away
+            "hide": 0.20,          # Hide
+        }
+    else:  # cat
+        base_responses = {
+            "approach": 0.10,      # Cats less likely to approach
+            "stay": 0.20,
+            "flee": 0.25,
+            "hide": 0.45,          # Cats prefer hiding
+        }
+
+    # Modify by fear level (high fear = more flee/hide)
+    fear_modifier = {
+        "approach": 1 - (current_fear * 0.8),  # Fear reduces approach
+        "stay": 1 - (current_fear * 0.5),
+        "flee": 1 + (current_fear * 1.5),      # Fear increases flight
+        "hide": 1 + (current_fear * 1.0),
+    }
+
+    # Modify by trust in searcher
+    trust = searcher_profile.pet_trust_level
+    if searcher_profile.pet_recognizes_searcher:
+        trust_modifier = {
+            "approach": 1 + (trust * 2.0),     # Trust greatly increases approach
+            "stay": 1 + (trust * 0.5),
+            "flee": 1 - (trust * 0.8),         # Trust reduces flight
+            "hide": 1 - (trust * 0.6),
+        }
+    else:
+        trust_modifier = {"approach": 1, "stay": 1, "flee": 1, "hide": 1}
+
+    # Modify by search method noise
+    method_info = SEARCH_METHOD_BASE_EFFECTIVENESS.get(search_method, {})
+    noise_level = method_info.get("noise_level", 0.5)
+    noise_modifier = {
+        "approach": 1 - (noise_level * 0.3),
+        "stay": 1 - (noise_level * 0.2),
+        "flee": 1 + (noise_level * 0.5),
+        "hide": 1 + (noise_level * 0.3),
+    }
+
+    # Modify by distance (closer = more likely to flee if scared)
+    distance_factor = max(0.1, min(1.0, distance_m / 50))  # Normalize to 50m
+    distance_modifier = {
+        "approach": 1,  # Distance doesn't affect approach decision
+        "stay": distance_factor,  # More likely to stay if far
+        "flee": 1 / distance_factor,  # More likely to flee if close
+        "hide": 1 / (distance_factor ** 0.5),
+    }
+
+    # Modify by temperament
+    temperament = animal_profile.temperament
+    temperament_modifiers = get_temperament_modifiers(temperament, animal_profile.species)
+
+    # Combine all modifiers
+    final_responses = {}
+    for response in base_responses:
+        prob = base_responses[response]
+        prob *= fear_modifier.get(response, 1)
+        prob *= trust_modifier.get(response, 1)
+        prob *= noise_modifier.get(response, 1)
+        prob *= distance_modifier.get(response, 1)
+        prob *= temperament_modifiers.get(response, 1)
+        final_responses[response] = prob
+
+    # Normalize to sum to 1
+    total = sum(final_responses.values())
+    final_responses = {k: v/total for k, v in final_responses.items()}
+
+    return final_responses
+
+
+def get_temperament_modifiers(temperament: str, species: str) -> dict:
+    """Get response modifiers based on temperament."""
+
+    if species == "dog":
+        modifiers = {
+            "GRE": {"approach": 1.8, "stay": 1.2, "flee": 0.5, "hide": 0.6},   # Gregarious
+            "ALO": {"approach": 0.8, "stay": 1.0, "flee": 1.0, "hide": 1.2},   # Aloof
+            "FEA": {"approach": 0.3, "stay": 0.6, "flee": 1.8, "hide": 1.5},   # Fearful
+            "XEN": {"approach": 0.2, "stay": 0.4, "flee": 2.0, "hide": 1.8},   # Xenophobic
+            "BON": {"approach": 1.5, "stay": 1.3, "flee": 0.6, "hide": 0.7},   # Bonded
+        }
+    else:  # cat
+        modifiers = {
+            "GRE": {"approach": 1.6, "stay": 1.3, "flee": 0.6, "hide": 0.7},
+            "CAU": {"approach": 0.5, "stay": 0.8, "flee": 1.3, "hide": 1.5},   # Cautious
+            "FEA": {"approach": 0.2, "stay": 0.5, "flee": 1.6, "hide": 1.8},
+            "XEN": {"approach": 0.1, "stay": 0.3, "flee": 1.8, "hide": 2.0},
+            "BON": {"approach": 1.4, "stay": 1.2, "flee": 0.7, "hide": 0.8},
+        }
+
+    return modifiers.get(temperament, {"approach": 1, "stay": 1, "flee": 1, "hide": 1})
+```
+
+---
+
+## Owner Effect on Fear Decay [P]
+
+Owner presence affects fear differently than stranger presence.
+
+```python
+def calculate_owner_proximity_effect(
+    animal_state: "AnimalState",
+    animal_profile: "AnimalProfile",
+    searcher_profile: SearcherProfile,
+    distance_m: float,
+    duration_minutes: float,
+) -> dict:
+    """
+    Calculate effect of owner/trusted person proximity on animal fear.
+
+    Research basis: Familiar human presence reduces cortisol in dogs [P]
+    Cats show reduced stress behaviors with familiar humans [P]
+    """
+
+    # Only applies if pet recognizes and trusts searcher
+    if not searcher_profile.pet_recognizes_searcher:
+        return {"fear_reduction": 0.0, "comfort_increase": 0.0}
+
+    trust = searcher_profile.pet_trust_level
+
+    # Distance effect (must be close enough to sense owner)
+    if distance_m > 100:
+        return {"fear_reduction": 0.0, "comfort_increase": 0.0}
+
+    distance_factor = max(0, 1 - (distance_m / 100))  # 1 at 0m, 0 at 100m
+
+    # Base fear reduction per minute of proximity
+    # [P] Based on cortisol reduction studies in sheltered dogs
+    base_fear_reduction_per_min = 0.002  # 0.2% per minute
+
+    # Modify by trust level
+    fear_reduction = base_fear_reduction_per_min * trust * distance_factor * duration_minutes
+
+    # Species modifier (dogs respond more to owner presence)
+    if animal_profile.species == "dog":
+        fear_reduction *= 1.5
+    else:
+        fear_reduction *= 0.8  # Cats less affected by proximity alone
+
+    # Cap at reasonable maximum (can't reduce fear too quickly)
+    fear_reduction = min(fear_reduction, 0.15)  # Max 15% reduction per encounter
+
+    # Comfort increase (affects likelihood of approach on next encounter)
+    comfort_increase = fear_reduction * 0.5
+
+    return {
+        "fear_reduction": fear_reduction,
+        "comfort_increase": comfort_increase,
+    }
+```
+
+---
+
+## Detection Probability Calculation [A][C]
+
+Master function for calculating if a searcher detects the animal.
+
+```python
+def calculate_detection_probability(
+    searcher_state: SearcherState,
+    searcher_profile: SearcherProfile,
+    animal_state: "AnimalState",
+    animal_profile: "AnimalProfile",
+    environment_cell: "EnvironmentCell",
+    time_in_cell_minutes: float,
+) -> float:
+    """
+    Calculate probability of searcher detecting animal.
+
+    Args:
+        searcher_state: Current searcher runtime state
+        searcher_profile: Searcher's profile/capabilities
+        animal_state: Current animal state
+        animal_profile: Animal's profile
+        environment_cell: The cell where both are located
+        time_in_cell_minutes: How long searcher has been searching this cell
+
+    Returns:
+        Probability of detection (0-1)
+    """
+
+    method = searcher_state.current_method
+    method_info = SEARCH_METHOD_BASE_EFFECTIVENESS.get(method, {})
+
+    # Base detection rate depends on animal visibility
+    if animal_state.is_hiding:
+        base_detection = method_info.get("hidden_detection", 0.05)
+    else:
+        base_detection = method_info.get("visible_detection", 0.5)
+
+    # Convert hourly rate to per-minute probability
+    # P(detect in t minutes) = 1 - (1 - hourly_rate)^(t/60)
+    time_factor = time_in_cell_minutes / 60.0
+    detection_prob = 1 - ((1 - base_detection) ** time_factor)
+
+    # === Apply modifiers ===
+
+    # 1. Knowledge modifiers
+    effectiveness_factors = method_info.get("effectiveness_factors", {})
+
+    if effectiveness_factors.get("knows_pet_name") and searcher_profile.knows_pet_name:
+        detection_prob *= effectiveness_factors["knows_pet_name"]
+
+    if effectiveness_factors.get("knows_pet_sounds") and searcher_profile.knows_pet_sounds:
+        detection_prob *= effectiveness_factors["knows_pet_sounds"]
+
+    if effectiveness_factors.get("has_treats") and searcher_profile.has_treats:
+        detection_prob *= effectiveness_factors["has_treats"]
+
+    # 2. Trust modifier for methods that involve calling
+    if method in [SearchMethod.WALKING_CALLING, SearchMethod.STATIONARY_CALLING]:
+        trust_weight = effectiveness_factors.get("pet_trust_level_weight", 0)
+        trust_bonus = 1 + (searcher_profile.pet_trust_level * trust_weight)
+        detection_prob *= trust_bonus
+
+    # 3. Professional experience modifier
+    if searcher_profile.searcher_type == SearcherType.PROFESSIONAL:
+        exp_bonus = effectiveness_factors.get("years_experience", 0) * searcher_profile.years_experience
+        detection_prob *= (1 + min(exp_bonus, 0.5))  # Cap at +50%
+
+    # 4. Environmental modifiers
+    terrain = environment_cell.terrain_type
+    terrain_modifiers = {
+        TerrainType.URBAN: 0.9,         # Lots of visual clutter
+        TerrainType.SUBURBAN: 1.0,
+        TerrainType.PARK: 1.1,          # Open, easier to spot
+        TerrainType.FOREST: 0.6,        # Dense, hard to see
+        TerrainType.DEEP_FOREST: 0.4,
+        TerrainType.WETLAND: 0.7,
+        TerrainType.AGRICULTURAL: 1.2,  # Very open
+        TerrainType.INDUSTRIAL: 0.8,
+        TerrainType.WATER: 0.5,
+    }
+    detection_prob *= terrain_modifiers.get(terrain, 1.0)
+
+    # 5. Hiding spot density modifier
+    if animal_state.is_hiding:
+        hiding_density = len(environment_cell.hiding_spots)
+        # More hiding spots = harder to check them all
+        hiding_modifier = max(0.3, 1 - (hiding_density * 0.05))
+        detection_prob *= hiding_modifier
+
+    # 6. Time of day modifier
+    hour = animal_state.time_of_day  # 0-23
+    if 6 <= hour <= 18:  # Daylight
+        time_modifier = 1.0
+    elif 18 < hour <= 20 or 5 <= hour < 6:  # Dusk/dawn
+        time_modifier = 0.7
+    else:  # Night
+        if searcher_profile.has_flashlight:
+            time_modifier = 0.5
+        elif method == SearchMethod.THERMAL:
+            time_modifier = 1.3  # Thermal better at night
+        else:
+            time_modifier = 0.2
+    detection_prob *= time_modifier
+
+    # 7. Weather modifier (if tracked)
+    # Heavy rain: 0.5, light rain: 0.8, fog: 0.6
+
+    # 8. Searcher fatigue modifier
+    hours_today = searcher_state.hours_searched_today
+    fatigue_modifier = max(0.6, 1 - (hours_today * 0.05))  # -5% per hour, min 60%
+    detection_prob *= fatigue_modifier
+
+    # 9. Dedication/attention modifier
+    detection_prob *= (0.5 + searcher_profile.current_dedication * 0.5)
+
+    # Cap probability
+    detection_prob = min(0.95, max(0.001, detection_prob))
+
+    return detection_prob
+```
+
+---
+
+## Capture Success After Detection [P][C]
+
+Detection doesn't mean capture. Animal may flee.
+
+```python
+def calculate_capture_probability(
+    searcher_profile: SearcherProfile,
+    animal_state: "AnimalState",
+    animal_profile: "AnimalProfile",
+    animal_response: str,  # Result from calculate_animal_response_to_searcher
+    distance_m: float,
+) -> float:
+    """
+    Calculate probability of successful capture after detection.
+
+    Detection → Animal Response → Capture Attempt → Success/Failure
+    """
+
+    # If animal is approaching, capture is likely
+    if animal_response == "approach":
+        base_capture = 0.90
+        # Modify by equipment
+        if searcher_profile.has_carrier or searcher_profile.has_leash:
+            base_capture = 0.95
+        return base_capture
+
+    # If animal stays put, capture depends on approach
+    if animal_response == "stay":
+        base_capture = 0.60
+        # Can they approach without spooking?
+        if searcher_profile.pet_trust_level > 0.5:
+            base_capture = 0.75
+        if searcher_profile.has_treats:
+            base_capture += 0.10
+        if searcher_profile.has_carrier:
+            base_capture += 0.05
+        return min(0.90, base_capture)
+
+    # If animal flees, capture is unlikely
+    if animal_response == "flee":
+        base_capture = 0.05  # Very hard to catch fleeing animal
+        # Professional with tracking dog might pursue
+        if searcher_profile.has_tracking_dog:
+            base_capture = 0.30
+        # Good physical fitness helps slightly
+        if searcher_profile.physical_fitness in ["good", "excellent"]:
+            base_capture += 0.05
+        return base_capture
+
+    # If animal hides, need to coax out or extract
+    if animal_response == "hide":
+        base_capture = 0.20
+        if searcher_profile.has_treats:
+            base_capture += 0.15
+        if searcher_profile.pet_trust_level > 0.5:
+            base_capture += 0.20
+        if searcher_profile.knows_pet_name:
+            base_capture += 0.10
+        # If animal is in inaccessible spot
+        if animal_state.hiding_spot_quality > 0.8:
+            base_capture *= 0.5  # Halve chances for excellent hiding spots
+        return min(0.70, base_capture)
+
+    return 0.10  # Default low probability
+
+
+def process_capture_attempt(
+    searcher_profile: SearcherProfile,
+    animal_state: "AnimalState",
+    animal_profile: "AnimalProfile",
+    capture_successful: bool,
+) -> "AnimalState":
+    """
+    Process the outcome of a capture attempt.
+
+    Failed capture has consequences (see PART 6 for details).
+    """
+
+    if capture_successful:
+        animal_state.status = "recovered"
+        animal_state.recovery_method = "active_search"
+        animal_state.recovered_by = searcher_profile.searcher_id
+        return animal_state
+
+    # Failed capture - animal becomes more wary
+    # Reference: PART 6 FAILED_CAPTURE_CONSEQUENCE
+
+    # Increase fear
+    fear_increase = 0.15  # Base fear increase from failed capture
+
+    # Stranger attempts are more traumatic
+    if not searcher_profile.pet_recognizes_searcher:
+        fear_increase *= 1.5
+
+    # Aggressive capture attempts (chasing) are worse
+    # This would be tracked in the capture attempt details
+
+    animal_state.fear_level = min(1.0, animal_state.fear_level + fear_increase)
+
+    # Increase wariness of humans
+    animal_state.human_wariness = min(1.0,
+        animal_state.human_wariness + 0.20)
+
+    # Log for simulation tracking
+    animal_state.failed_capture_count += 1
+    animal_state.last_failed_capture_time = animal_state.hours_since_escape
+
+    return animal_state
+```
+
+---
+
+## Searcher Behavior Simulation [A][C]
+
+How searchers decide where to search and what methods to use.
+
+```python
+def simulate_searcher_behavior(
+    searcher_state: SearcherState,
+    searcher_profile: SearcherProfile,
+    animal_profile: "AnimalProfile",
+    grid: Dict[str, "EnvironmentCell"],
+    known_sightings: List[dict],
+    hours_since_escape: float,
+) -> SearcherState:
+    """
+    Simulate searcher's search pattern and method selection.
+
+    Searchers don't have perfect knowledge - they search based on:
+    1. Pet's likely behavior (from profile)
+    2. Any sighting reports
+    3. Terrain accessibility
+    4. Time available
+    """
+
+    # Determine search area priority
+    priority_areas = calculate_search_priorities(
+        searcher_profile=searcher_profile,
+        animal_profile=animal_profile,
+        grid=grid,
+        known_sightings=known_sightings,
+        hours_since_escape=hours_since_escape,
+    )
+
+    # Select search method based on terrain and capabilities
+    searcher_state.current_method = select_search_method(
+        searcher_profile=searcher_profile,
+        target_terrain=priority_areas[0]["terrain"] if priority_areas else None,
+        time_of_day=searcher_state.current_time.hour,
+    )
+
+    # Move to highest priority uncovered area
+    for area in priority_areas:
+        if area["cell_id"] not in searcher_state.areas_covered_today:
+            searcher_state.position = area["position"]
+            break
+
+    return searcher_state
+
+
+def calculate_search_priorities(
+    searcher_profile: SearcherProfile,
+    animal_profile: "AnimalProfile",
+    grid: Dict[str, "EnvironmentCell"],
+    known_sightings: List[dict],
+    hours_since_escape: float,
+) -> List[dict]:
+    """
+    Calculate which areas to search first.
+
+    Uses knowledge of pet behavior to prioritize likely locations.
+    """
+
+    priorities = []
+
+    for cell_id, cell in grid.items():
+        priority_score = 0.5  # Base priority
+
+        # 1. Recent sightings strongly increase priority
+        for sighting in known_sightings:
+            if sighting["cell_id"] == cell_id:
+                hours_since_sighting = hours_since_escape - sighting["time"]
+                sighting_weight = max(0.1, 1 - (hours_since_sighting / 24))
+                priority_score += sighting_weight * 2.0
+
+        # 2. Distance from home affects priority
+        home_distance = calculate_distance(cell.position, animal_profile.home_location)
+
+        if animal_profile.species == "dog":
+            # Dogs may travel far, but check nearby first
+            if home_distance < 200:
+                priority_score += 0.3
+            elif home_distance < 500:
+                priority_score += 0.2
+        else:  # cat
+            # Cats usually stay close
+            if home_distance < 50:
+                priority_score += 0.5
+            elif home_distance < 150:
+                priority_score += 0.3
+            elif home_distance > 300:
+                priority_score -= 0.3  # Less likely to be far
+
+        # 3. Terrain affects priority based on species
+        terrain_priority = get_terrain_search_priority(
+            cell.terrain_type,
+            animal_profile.species,
+            animal_profile.temperament,
+        )
+        priority_score += terrain_priority
+
+        # 4. Owner knowledge affects priority
+        if searcher_profile.knows_pet_habits:
+            # Owner knows favorite spots - handled separately
+            pass
+
+        # 5. Accessibility affects priority (can searcher get there?)
+        if not cell.traversable:
+            priority_score = 0
+
+        priorities.append({
+            "cell_id": cell_id,
+            "position": (cell.lat, cell.lon),
+            "terrain": cell.terrain_type,
+            "priority": priority_score,
+        })
+
+    # Sort by priority
+    priorities.sort(key=lambda x: x["priority"], reverse=True)
+
+    return priorities
+
+
+def get_terrain_search_priority(terrain: "TerrainType", species: str, temperament: str) -> float:
+    """Get search priority modifier for terrain based on animal profile."""
+
+    if species == "dog":
+        priorities = {
+            TerrainType.URBAN: 0.2,
+            TerrainType.SUBURBAN: 0.3,
+            TerrainType.PARK: 0.4,       # Dogs often found in parks
+            TerrainType.FOREST: 0.2,
+            TerrainType.DEEP_FOREST: 0.1,
+            TerrainType.AGRICULTURAL: 0.2,
+            TerrainType.INDUSTRIAL: 0.1,
+        }
+        # Fearful dogs hide more
+        if temperament in ["FEA", "XEN"]:
+            priorities[TerrainType.FOREST] += 0.2
+            priorities[TerrainType.DEEP_FOREST] += 0.2
+    else:  # cat
+        priorities = {
+            TerrainType.URBAN: 0.3,      # Cats hide in structures
+            TerrainType.SUBURBAN: 0.4,   # Highest for cats
+            TerrainType.PARK: 0.2,
+            TerrainType.FOREST: 0.3,     # Cats use vegetation
+            TerrainType.DEEP_FOREST: 0.1,
+            TerrainType.AGRICULTURAL: 0.1,
+            TerrainType.INDUSTRIAL: 0.2,
+        }
+
+    return priorities.get(terrain, 0.1)
+
+
+def select_search_method(
+    searcher_profile: SearcherProfile,
+    target_terrain: Optional["TerrainType"],
+    time_of_day: int,
+) -> SearchMethod:
+    """Select appropriate search method based on situation."""
+
+    # Night search considerations
+    if time_of_day < 6 or time_of_day > 20:
+        if searcher_profile.has_thermal_camera:
+            return SearchMethod.THERMAL
+        if not searcher_profile.has_flashlight:
+            return SearchMethod.DRIVING_SLOW  # Safer at night
+
+    # Professional methods
+    if searcher_profile.searcher_type == SearcherType.PROFESSIONAL:
+        if searcher_profile.has_tracking_dog:
+            return SearchMethod.SCENT_TRACKING
+        if searcher_profile.has_thermal_camera and time_of_day > 18:
+            return SearchMethod.THERMAL
+
+    # Terrain-based selection
+    if target_terrain in [TerrainType.FOREST, TerrainType.DEEP_FOREST]:
+        return SearchMethod.WALKING_SILENT  # Less noise in quiet areas
+
+    if target_terrain == TerrainType.AGRICULTURAL:
+        if searcher_profile.has_vehicle:
+            return SearchMethod.DRIVING_SLOW
+
+    # Default: walking and calling is most effective for owned pets
+    if searcher_profile.knows_pet_name:
+        return SearchMethod.WALKING_CALLING
+    else:
+        return SearchMethod.WALKING_SILENT
+```
+
+---
+
+## Searcher Fatigue and Burnout [C]
+
+Searchers don't maintain constant effort indefinitely.
+
+```python
+def update_searcher_dedication(
+    searcher_profile: SearcherProfile,
+    days_elapsed: int,
+    any_sightings: bool,
+    any_near_misses: bool,
+) -> SearcherProfile:
+    """
+    Update searcher's dedication level over time.
+
+    Dedication affects:
+    - Hours actually searched per day
+    - Attention/effectiveness during search
+    - Likelihood of continuing to search
+    """
+
+    base_decay = searcher_profile.burnout_rate
+
+    # Sightings reinvigorate search
+    if any_sightings:
+        searcher_profile.current_dedication = min(1.0,
+            searcher_profile.current_dedication + 0.2)
+
+    # Near misses (saw pet but couldn't catch) have mixed effect
+    if any_near_misses:
+        # Frustrating but also motivating
+        pass  # No change
+
+    # Daily decay
+    searcher_profile.current_dedication -= base_decay
+
+    # Owners have a minimum dedication floor
+    if searcher_profile.searcher_type == SearcherType.OWNER:
+        searcher_profile.current_dedication = max(0.3,
+            searcher_profile.current_dedication)
+    elif searcher_profile.searcher_type == SearcherType.HOUSEHOLD:
+        searcher_profile.current_dedication = max(0.2,
+            searcher_profile.current_dedication)
+    else:
+        searcher_profile.current_dedication = max(0.0,
+            searcher_profile.current_dedication)
+
+    # Check if searcher stops searching entirely
+    if searcher_profile.current_dedication <= 0:
+        searcher_profile.is_active = False
+
+    return searcher_profile
+
+
+def calculate_actual_search_hours(
+    searcher_profile: SearcherProfile,
+    day_of_week: int,
+) -> float:
+    """Calculate actual hours searched today based on dedication and availability."""
+
+    # Base hours from profile
+    max_hours = searcher_profile.available_hours_per_day
+
+    # Check if searching today (day availability)
+    if day_of_week not in searcher_profile.available_days:
+        return 0.0
+
+    # Dedication affects actual hours
+    dedication_factor = 0.5 + (searcher_profile.current_dedication * 0.5)
+    actual_hours = max_hours * dedication_factor
+
+    # Minimum hours if active
+    if searcher_profile.is_active and actual_hours > 0:
+        actual_hours = max(0.5, actual_hours)
+
+    return actual_hours
+```
+
+---
+
+## Adding Searchers to Simulation [A]
+
+Functions for managing the searcher roster.
+
+```python
+def create_owner_searcher(
+    pet_profile: "AnimalProfile",
+    owner_fitness: str = "average",
+) -> SearcherProfile:
+    """
+    Create the owner searcher - always the first searcher.
+
+    Owner has maximum knowledge and trust but may have limited time.
+    """
+
+    defaults = SEARCHER_TYPE_DEFAULTS[SearcherType.OWNER].copy()
+
+    return SearcherProfile(
+        searcher_id="owner_001",
+        searcher_type=SearcherType.OWNER,
+        physical_fitness=owner_fitness,
+        has_vehicle=True,  # Assume owner has transport
+        **{k: v for k, v in defaults.items() if k not in ["physical_fitness"]},
+    )
+
+
+def add_searcher(
+    existing_searchers: List[SearcherProfile],
+    searcher_type: SearcherType,
+    custom_attributes: dict = None,
+) -> List[SearcherProfile]:
+    """
+    Add a new searcher to the simulation.
+
+    This is the correct way to add search effort - add discrete agents,
+    not increment percentages.
+    """
+
+    # Get defaults for this type
+    defaults = SEARCHER_TYPE_DEFAULTS.get(searcher_type, {}).copy()
+
+    # Apply any custom attributes
+    if custom_attributes:
+        defaults.update(custom_attributes)
+
+    # Generate unique ID
+    type_count = sum(1 for s in existing_searchers if s.searcher_type == searcher_type)
+    searcher_id = f"{searcher_type.value}_{type_count + 1:03d}"
+
+    new_searcher = SearcherProfile(
+        searcher_id=searcher_id,
+        searcher_type=searcher_type,
+        **defaults,
+    )
+
+    existing_searchers.append(new_searcher)
+
+    return existing_searchers
+
+
+def remove_searcher(
+    searchers: List[SearcherProfile],
+    searcher_id: str,
+) -> List[SearcherProfile]:
+    """Remove a searcher from active search (volunteer gives up, etc.)"""
+
+    return [s for s in searchers if s.searcher_id != searcher_id]
+```
+
+---
+
+## Integrated Simulation Loop with Searchers [A]
+
+Putting it all together with the environment and animal behavior.
+
+```python
+def simulate_tick_with_searchers(
+    animal_state: "AnimalState",
+    animal_profile: "AnimalProfile",
+    searchers: List[SearcherProfile],
+    searcher_states: Dict[str, SearcherState],
+    grid: Dict[str, "EnvironmentCell"],
+    tick_duration_minutes: float = 5,
+) -> Tuple["AnimalState", Dict[str, SearcherState], dict]:
+    """
+    Simulate one tick with both animal and searcher behavior.
+
+    Returns:
+        Updated animal state, searcher states, and events dict
+    """
+
+    events = {
+        "detections": [],
+        "capture_attempts": [],
+        "sightings": [],
+    }
+
+    # 1. Simulate animal behavior (from PART 10)
+    animal_state = simulate_animal_tick(
+        animal_state, animal_profile, grid, {}, tick_duration_minutes
+    )
+
+    # 2. Check if animal is already recovered/deceased
+    if animal_state.status in ["recovered", "deceased"]:
+        return animal_state, searcher_states, events
+
+    # 3. Simulate each active searcher
+    for searcher_profile in searchers:
+        if not searcher_profile.is_active:
+            continue
+
+        searcher_id = searcher_profile.searcher_id
+        searcher_state = searcher_states.get(searcher_id)
+
+        if not searcher_state or not searcher_state.is_currently_searching:
+            continue
+
+        # Get searcher's current cell
+        searcher_cell_id = get_cell_id_for_position(
+            searcher_state.position, grid
+        )
+
+        # Get animal's current cell
+        animal_cell_id = get_cell_id_for_position(
+            animal_state.position, grid
+        )
+
+        # 4. Check for detection if in same cell
+        if searcher_cell_id == animal_cell_id:
+            cell = grid.get(searcher_cell_id)
+
+            detection_prob = calculate_detection_probability(
+                searcher_state=searcher_state,
+                searcher_profile=searcher_profile,
+                animal_state=animal_state,
+                animal_profile=animal_profile,
+                environment_cell=cell,
+                time_in_cell_minutes=tick_duration_minutes,
+            )
+
+            if random.random() < detection_prob:
+                events["detections"].append({
+                    "searcher_id": searcher_id,
+                    "time": animal_state.hours_since_escape,
+                    "position": animal_state.position,
+                })
+
+                # 5. Animal responds to detection
+                distance = calculate_distance(
+                    searcher_state.position,
+                    animal_state.position
+                )
+
+                response_probs = calculate_animal_response_to_searcher(
+                    animal_state=animal_state,
+                    animal_profile=animal_profile,
+                    searcher_profile=searcher_profile,
+                    search_method=searcher_state.current_method,
+                    distance_m=distance,
+                )
+
+                # Roll for response
+                response = weighted_random_choice(response_probs)
+
+                # 6. Attempt capture
+                capture_prob = calculate_capture_probability(
+                    searcher_profile=searcher_profile,
+                    animal_state=animal_state,
+                    animal_profile=animal_profile,
+                    animal_response=response,
+                    distance_m=distance,
+                )
+
+                capture_successful = random.random() < capture_prob
+
+                events["capture_attempts"].append({
+                    "searcher_id": searcher_id,
+                    "time": animal_state.hours_since_escape,
+                    "response": response,
+                    "success": capture_successful,
+                })
+
+                # 7. Process capture result
+                animal_state = process_capture_attempt(
+                    searcher_profile=searcher_profile,
+                    animal_state=animal_state,
+                    animal_profile=animal_profile,
+                    capture_successful=capture_successful,
+                )
+
+                if capture_successful:
+                    return animal_state, searcher_states, events
+
+        # 8. Check for owner proximity effect (even if not same cell)
+        if searcher_profile.pet_recognizes_searcher:
+            distance = calculate_distance(
+                searcher_state.position,
+                animal_state.position
+            )
+
+            if distance < 100:  # Within effect range
+                effect = calculate_owner_proximity_effect(
+                    animal_state=animal_state,
+                    animal_profile=animal_profile,
+                    searcher_profile=searcher_profile,
+                    distance_m=distance,
+                    duration_minutes=tick_duration_minutes,
+                )
+
+                animal_state.fear_level = max(0,
+                    animal_state.fear_level - effect["fear_reduction"]
+                )
+
+        # 9. Update searcher state (movement, fatigue)
+        searcher_state = simulate_searcher_behavior(
+            searcher_state=searcher_state,
+            searcher_profile=searcher_profile,
+            animal_profile=animal_profile,
+            grid=grid,
+            known_sightings=events.get("sightings", []),
+            hours_since_escape=animal_state.hours_since_escape,
+        )
+
+        searcher_state.hours_searched_today += tick_duration_minutes / 60
+        searcher_states[searcher_id] = searcher_state
+
+    return animal_state, searcher_states, events
+```
+
+---
+
+## Passive Detection Events [A][C]
+
+Handling passive methods like flyers and online posts.
+
+```python
+def check_passive_detections(
+    animal_state: "AnimalState",
+    animal_profile: "AnimalProfile",
+    active_passive_methods: Dict[PassiveMethod, dict],
+    grid: Dict[str, "EnvironmentCell"],
+    hours_since_escape: float,
+) -> List[dict]:
+    """
+    Check if any passive methods generate sighting reports.
+
+    Passive methods don't directly find the pet - they generate
+    sighting reports that searchers can then investigate.
+    """
+
+    sightings = []
+
+    # Only check if animal is visible (not hiding)
+    if animal_state.is_hiding:
+        return sightings
+
+    for method, method_state in active_passive_methods.items():
+        method_info = PASSIVE_METHOD_EFFECTIVENESS.get(method, {})
+
+        # Check if animal is within coverage area
+        coverage_radius = method_info.get("coverage_radius_m", 0)
+        distance_from_home = calculate_distance(
+            animal_state.position,
+            animal_profile.home_location
+        )
+
+        if distance_from_home > coverage_radius:
+            continue
+
+        # Calculate daily probability (convert to per-tick)
+        daily_prob = method_info.get("daily_sighting_probability", 0)
+
+        # Apply decay
+        days_active = method_state.get("days_active", 0)
+        decay_rate = method_info.get("decay_rate", 0)
+        current_prob = daily_prob * ((1 - decay_rate) ** days_active)
+
+        # Convert to probability per 5-minute tick
+        # P(sighting in tick) = 1 - (1 - daily_prob)^(tick_duration/1440)
+        tick_prob = 1 - ((1 - current_prob) ** (5 / 1440))
+
+        if random.random() < tick_prob:
+            # Generate sighting report
+            accuracy = method_info.get("report_accuracy", 0.5)
+            is_accurate = random.random() < accuracy
+
+            sighting = {
+                "method": method.value,
+                "time": hours_since_escape,
+                "reported_position": animal_state.position if is_accurate else generate_false_position(animal_profile),
+                "is_accurate": is_accurate,
+                "response_delay_hours": method_info.get("response_delay_hours", 2),
+            }
+
+            sightings.append(sighting)
+
+    return sightings
+
+
+def generate_false_position(animal_profile: "AnimalProfile") -> Tuple[float, float]:
+    """Generate a plausible but incorrect sighting location."""
+
+    # False sightings tend to be within reasonable distance of home
+    # but not at the actual location
+    home = animal_profile.home_location
+
+    # Random distance 100-1000m from home
+    distance = random.uniform(100, 1000)
+    angle = random.uniform(0, 2 * math.pi)
+
+    # Convert to lat/lon offset (approximate)
+    lat_offset = (distance * math.cos(angle)) / 111000
+    lon_offset = (distance * math.sin(angle)) / (111000 * math.cos(math.radians(home[0])))
+
+    return (home[0] + lat_offset, home[1] + lon_offset)
+```
+
+---
+
+## Usage Example with Searchers
+
+```python
+# Complete workflow with discrete searcher agents
+
+# 1. Create animal profile (from Parts 2-3)
+dog_profile = AnimalProfile(
+    species="dog",
+    temperament="FEA",  # Fearful
+    size_class="medium",
+    escape_location=(37.7749, -122.4194),
+    home_location=(37.7749, -122.4194),
+)
+
+# 2. Create owner searcher (always first)
+owner = create_owner_searcher(dog_profile, owner_fitness="average")
+searchers = [owner]
+
+# 3. Add household member after day 1
+household_member = SearcherProfile(
+    searcher_id="household_001",
+    searcher_type=SearcherType.HOUSEHOLD,
+    **SEARCHER_TYPE_DEFAULTS[SearcherType.HOUSEHOLD],
+)
+searchers.append(household_member)
+
+# 4. Add 3 volunteers on day 3 (discrete agents, NOT percentages!)
+for i in range(3):
+    searchers = add_searcher(
+        existing_searchers=searchers,
+        searcher_type=SearcherType.VOLUNTEER,
+        custom_attributes={
+            "available_hours_per_day": random.uniform(0.5, 2.0),
+            "dedication_level": random.uniform(0.3, 0.6),
+        }
+    )
+
+# 5. Hire professional on day 7
+professional = SearcherProfile(
+    searcher_id="professional_001",
+    searcher_type=SearcherType.PROFESSIONAL,
+    has_tracking_dog=True,
+    years_experience=5,
+    **{k: v for k, v in SEARCHER_TYPE_DEFAULTS[SearcherType.PROFESSIONAL].items()
+       if k not in ["has_tracking_dog", "years_experience"]},
+)
+searchers.append(professional)
+
+# 6. Set up passive methods
+active_passive_methods = {
+    PassiveMethod.FLYERS: {"days_active": 0, "flyer_count": 200},
+    PassiveMethod.ONLINE_POSTING: {"days_active": 0, "platform_count": 5},
+    PassiveMethod.SHELTER_ALERT: {"days_active": 0},
+    PassiveMethod.NEIGHBOR_NETWORK: {"days_active": 0, "neighbor_count": 20},
+    PassiveMethod.MICROCHIP_REGISTERED: {"days_active": 0},
+}
+
+# 7. Run simulation
+# (Searchers and methods are discrete entities, not percentages)
+# Each volunteer is a real agent with their own behavior
+# Adding search effort = adding more agents, not incrementing a number
+
+print(f"Active searchers: {len([s for s in searchers if s.is_active])}")
+print(f"Search methods active: {len(active_passive_methods)}")
+# NOT: "Volunteer percentage: 20%" <- This is meaningless
+```
+
+---
+
+## Search Strategy Framework [A]
+
+Pluggable strategy system for testing different search approaches.
+
+### Design Goals
+
+1. **A/B Testing**: Compare strategies head-to-head across Monte Carlo runs
+2. **Mixed Strategies**: Different searchers can use different strategies
+3. **Dynamic Switching**: Strategies can change based on time, events, or rules
+4. **Profile-Aware vs Naive**: Some strategies use pet profile, some don't
+5. **Measurable Impact**: Every strategy choice affects simulation outcomes
+
+```python
+from abc import ABC, abstractmethod
+from enum import Enum
+from typing import Protocol, Callable
+
+class StrategyAwareness(Enum):
+    """How much the strategy uses pet profile information."""
+    NAIVE = "naive"                     # Ignores pet profile entirely
+    BASIC = "basic"                     # Uses species only
+    MODERATE = "moderate"               # Uses species + temperament
+    FULL = "full"                       # Uses complete profile
+    EXPERT = "expert"                   # Uses profile + behavioral predictions
+
+
+class SearchStrategy(ABC):
+    """
+    Base class for all search strategies.
+
+    Strategies define HOW a searcher searches, not WHO they are.
+    The same searcher can switch strategies over time.
+    """
+
+    name: str
+    awareness_level: StrategyAwareness
+
+    @abstractmethod
+    def select_search_area(
+        self,
+        searcher: SearcherProfile,
+        grid: Dict[str, "EnvironmentCell"],
+        context: "SearchContext",
+    ) -> List[dict]:
+        """Return prioritized list of areas to search."""
+        pass
+
+    @abstractmethod
+    def select_search_method(
+        self,
+        searcher: SearcherProfile,
+        target_cell: "EnvironmentCell",
+        context: "SearchContext",
+    ) -> SearchMethod:
+        """Select search method for target area."""
+        pass
+
+    @abstractmethod
+    def should_switch_area(
+        self,
+        searcher: SearcherProfile,
+        current_cell: "EnvironmentCell",
+        time_in_cell_minutes: float,
+        context: "SearchContext",
+    ) -> bool:
+        """Determine if searcher should move to new area."""
+        pass
+
+
+@dataclass
+class SearchContext:
+    """
+    All information available to a search strategy.
+
+    Strategies can choose to use or ignore any of this.
+    """
+    # Time information
+    hours_since_escape: float
+    current_hour: int  # 0-23
+    day_of_search: int
+
+    # Pet profile (may be ignored by naive strategies)
+    pet_profile: Optional["AnimalProfile"]
+
+    # Sighting history
+    confirmed_sightings: List[dict]
+    unconfirmed_sightings: List[dict]
+
+    # Search history
+    areas_searched: Dict[str, float]  # cell_id -> total hours searched
+    failed_captures: List[dict]
+
+    # Other searchers (for coordination)
+    other_searcher_positions: List[Tuple[float, float]]
+
+    # Environment summary
+    terrain_summary: Dict[str, int]  # terrain_type -> cell count
+```
+
+---
+
+### Built-in Search Strategies
+
+```python
+class NaiveExpandingCircleStrategy(SearchStrategy):
+    """
+    Naive strategy: Expand outward from last known location.
+
+    Does NOT use pet profile. This is what uninformed searchers do.
+    Useful as a baseline for comparison.
+    """
+
+    name = "naive_expanding_circle"
+    awareness_level = StrategyAwareness.NAIVE
+
+    def __init__(self, expansion_rate_m_per_hour: float = 50):
+        self.expansion_rate = expansion_rate_m_per_hour
+
+    def select_search_area(self, searcher, grid, context):
+        """Expand search radius over time, ignoring pet behavior."""
+
+        # Calculate current search radius
+        hours = context.hours_since_escape
+        max_radius = hours * self.expansion_rate
+
+        # Use last sighting or home as center
+        if context.confirmed_sightings:
+            center = context.confirmed_sightings[-1]["position"]
+        else:
+            center = context.pet_profile.home_location if context.pet_profile else (0, 0)
+
+        # Prioritize by distance from center (closer = higher priority)
+        priorities = []
+        for cell_id, cell in grid.items():
+            distance = calculate_distance((cell.lat, cell.lon), center)
+
+            if distance > max_radius:
+                continue  # Outside current search radius
+
+            # Simple distance-based priority
+            priority = max(0, 1 - (distance / max_radius))
+
+            # Reduce priority for already-searched areas
+            hours_searched = context.areas_searched.get(cell_id, 0)
+            priority *= max(0.2, 1 - (hours_searched * 0.3))
+
+            priorities.append({
+                "cell_id": cell_id,
+                "position": (cell.lat, cell.lon),
+                "terrain": cell.terrain_type,
+                "priority": priority,
+            })
+
+        priorities.sort(key=lambda x: x["priority"], reverse=True)
+        return priorities
+
+    def select_search_method(self, searcher, target_cell, context):
+        """Use whatever method searcher has available."""
+        if searcher.knows_pet_name:
+            return SearchMethod.WALKING_CALLING
+        return SearchMethod.WALKING_SILENT
+
+    def should_switch_area(self, searcher, current_cell, time_in_cell, context):
+        """Switch after fixed time per cell."""
+        return time_in_cell >= 15  # 15 minutes per cell
+
+
+class ProfileAwareStrategy(SearchStrategy):
+    """
+    Uses pet profile to prioritize likely locations.
+
+    This is what informed searchers should do.
+    """
+
+    name = "profile_aware"
+    awareness_level = StrategyAwareness.FULL
+
+    def select_search_area(self, searcher, grid, context):
+        """Prioritize based on pet's likely behavior."""
+
+        profile = context.pet_profile
+        if not profile:
+            # Fall back to naive if no profile
+            return NaiveExpandingCircleStrategy().select_search_area(searcher, grid, context)
+
+        priorities = []
+
+        for cell_id, cell in grid.items():
+            priority = 0.5
+
+            distance = calculate_distance(
+                (cell.lat, cell.lon),
+                profile.home_location
+            )
+
+            # === Species-specific distance expectations ===
+            if profile.species == "cat":
+                # Indoor cats stay very close
+                if profile.indoor_outdoor == "IO":
+                    if distance < 50:
+                        priority += 0.5
+                    elif distance < 150:
+                        priority += 0.3
+                    elif distance > 300:
+                        priority -= 0.4
+                else:  # Outdoor cats range further
+                    if distance < 200:
+                        priority += 0.3
+                    elif distance < 500:
+                        priority += 0.2
+
+            else:  # dog
+                # Size affects travel distance
+                if profile.size_class in ["TOY", "SML"]:
+                    if distance < 300:
+                        priority += 0.3
+                elif profile.size_class in ["LRG", "GNT"]:
+                    if distance < 1000:
+                        priority += 0.2
+
+            # === Temperament-based terrain preferences ===
+            terrain_prefs = self._get_temperament_terrain_preference(
+                profile.temperament,
+                profile.species
+            )
+            priority += terrain_prefs.get(cell.terrain_type, 0)
+
+            # === Time-based behavior ===
+            if profile.species == "cat":
+                # Cats more active at dawn/dusk
+                if context.current_hour in [5, 6, 18, 19, 20]:
+                    # Prioritize areas with good cover but some visibility
+                    if cell.terrain_type in [TerrainType.SUBURBAN, TerrainType.PARK]:
+                        priority += 0.15
+
+            # === Sighting boost ===
+            for sighting in context.confirmed_sightings:
+                sighting_distance = calculate_distance(
+                    (cell.lat, cell.lon),
+                    sighting["position"]
+                )
+                hours_ago = context.hours_since_escape - sighting["time"]
+                if sighting_distance < 100 and hours_ago < 24:
+                    priority += 0.4 * max(0, 1 - hours_ago/24)
+
+            # === Reduce priority for over-searched areas ===
+            hours_searched = context.areas_searched.get(cell_id, 0)
+            priority *= max(0.3, 1 - (hours_searched * 0.2))
+
+            if cell.traversable:
+                priorities.append({
+                    "cell_id": cell_id,
+                    "position": (cell.lat, cell.lon),
+                    "terrain": cell.terrain_type,
+                    "priority": max(0, priority),
+                })
+
+        priorities.sort(key=lambda x: x["priority"], reverse=True)
+        return priorities
+
+    def _get_temperament_terrain_preference(self, temperament, species):
+        """Get terrain preferences based on temperament."""
+
+        if species == "dog":
+            prefs = {
+                "GRE": {  # Gregarious - stays in human areas
+                    TerrainType.URBAN: 0.2,
+                    TerrainType.SUBURBAN: 0.3,
+                    TerrainType.PARK: 0.3,
+                },
+                "FEA": {  # Fearful - seeks cover
+                    TerrainType.FOREST: 0.3,
+                    TerrainType.PARK: 0.2,
+                    TerrainType.SUBURBAN: 0.1,
+                },
+                "XEN": {  # Xenophobic - avoids humans
+                    TerrainType.FOREST: 0.4,
+                    TerrainType.DEEP_FOREST: 0.3,
+                    TerrainType.AGRICULTURAL: 0.2,
+                },
+            }
+        else:  # cat
+            prefs = {
+                "GRE": {
+                    TerrainType.SUBURBAN: 0.3,
+                    TerrainType.URBAN: 0.2,
+                },
+                "CAU": {
+                    TerrainType.SUBURBAN: 0.2,
+                    TerrainType.FOREST: 0.2,
+                },
+                "FEA": {
+                    TerrainType.FOREST: 0.3,
+                    TerrainType.SUBURBAN: 0.2,  # Under structures
+                },
+            }
+
+        return prefs.get(temperament, {})
+
+    def select_search_method(self, searcher, target_cell, context):
+        """Select method based on terrain and pet profile."""
+
+        profile = context.pet_profile
+
+        # Fearful/xenophobic pets - use quieter methods
+        if profile and profile.temperament in ["FEA", "XEN"]:
+            if searcher.pet_trust_level > 0.5:
+                return SearchMethod.STATIONARY_CALLING
+            return SearchMethod.WALKING_SILENT
+
+        # Default based on terrain
+        if target_cell.terrain_type in [TerrainType.FOREST, TerrainType.DEEP_FOREST]:
+            return SearchMethod.WALKING_SILENT
+
+        if searcher.knows_pet_name:
+            return SearchMethod.WALKING_CALLING
+        return SearchMethod.WALKING_SILENT
+
+    def should_switch_area(self, searcher, current_cell, time_in_cell, context):
+        """Switch based on terrain and hiding spot density."""
+
+        # More hiding spots = longer search time needed
+        hiding_spots = len(current_cell.hiding_spots)
+        base_time = 10 + (hiding_spots * 2)  # 10-30+ minutes
+
+        return time_in_cell >= base_time
+
+
+class TrapFocusedStrategy(SearchStrategy):
+    """
+    Strategy focused on trap placement rather than active searching.
+
+    Best for fearful cats that won't approach humans.
+    """
+
+    name = "trap_focused"
+    awareness_level = StrategyAwareness.MODERATE
+
+    def select_search_area(self, searcher, grid, context):
+        """Prioritize areas good for trap placement."""
+
+        priorities = []
+
+        for cell_id, cell in grid.items():
+            priority = 0.3
+
+            # Good trap locations:
+            # - Near sightings
+            # - Low human traffic
+            # - Has cover nearby
+            # - Near food/water sources
+
+            if cell.human_activity_level < 0.3:
+                priority += 0.2
+
+            if cell.hiding_spots:
+                priority += 0.15
+
+            if cell.water_sources or cell.food_sources:
+                priority += 0.2
+
+            # Near recent sightings
+            for sighting in context.confirmed_sightings[-5:]:
+                dist = calculate_distance(
+                    (cell.lat, cell.lon),
+                    sighting["position"]
+                )
+                if dist < 50:
+                    priority += 0.3
+
+            priorities.append({
+                "cell_id": cell_id,
+                "position": (cell.lat, cell.lon),
+                "terrain": cell.terrain_type,
+                "priority": priority,
+            })
+
+        priorities.sort(key=lambda x: x["priority"], reverse=True)
+        return priorities
+
+    def select_search_method(self, searcher, target_cell, context):
+        """Focus on trap-related methods."""
+        if searcher.has_trap:
+            return SearchMethod.TRAP_MONITORING
+        return SearchMethod.FEEDING_STATION
+
+    def should_switch_area(self, searcher, current_cell, time_in_cell, context):
+        """Trap monitoring doesn't require constant presence."""
+        return time_in_cell >= 5  # Quick check, then move on
+
+
+class CoordinatedGridStrategy(SearchStrategy):
+    """
+    Coordinates with other searchers to avoid overlap.
+
+    Best when multiple searchers are active.
+    """
+
+    name = "coordinated_grid"
+    awareness_level = StrategyAwareness.MODERATE
+
+    def select_search_area(self, searcher, grid, context):
+        """Avoid areas other searchers are covering."""
+
+        priorities = []
+        other_positions = context.other_searcher_positions
+
+        for cell_id, cell in grid.items():
+            priority = 0.5
+
+            cell_pos = (cell.lat, cell.lon)
+
+            # Reduce priority if other searchers are nearby
+            for other_pos in other_positions:
+                dist = calculate_distance(cell_pos, other_pos)
+                if dist < 100:
+                    priority -= 0.4
+                elif dist < 200:
+                    priority -= 0.2
+
+            # Standard profile-based adjustments
+            if context.pet_profile:
+                home_dist = calculate_distance(cell_pos, context.pet_profile.home_location)
+                if home_dist < 200:
+                    priority += 0.2
+
+            priorities.append({
+                "cell_id": cell_id,
+                "position": cell_pos,
+                "terrain": cell.terrain_type,
+                "priority": max(0, priority),
+            })
+
+        priorities.sort(key=lambda x: x["priority"], reverse=True)
+        return priorities
+
+    def select_search_method(self, searcher, target_cell, context):
+        if searcher.knows_pet_name:
+            return SearchMethod.WALKING_CALLING
+        return SearchMethod.WALKING_SILENT
+
+    def should_switch_area(self, searcher, current_cell, time_in_cell, context):
+        return time_in_cell >= 15
+
+
+class SightingChaserStrategy(SearchStrategy):
+    """
+    Reactive strategy: Rush to latest sighting location.
+
+    High intensity but can miss pets that move.
+    """
+
+    name = "sighting_chaser"
+    awareness_level = StrategyAwareness.BASIC
+
+    def select_search_area(self, searcher, grid, context):
+        """Prioritize areas near recent sightings."""
+
+        priorities = []
+
+        if not context.confirmed_sightings and not context.unconfirmed_sightings:
+            # No sightings - fall back to expanding circle
+            return NaiveExpandingCircleStrategy().select_search_area(searcher, grid, context)
+
+        # Combine and sort sightings by recency
+        all_sightings = (
+            [(s, True) for s in context.confirmed_sightings] +
+            [(s, False) for s in context.unconfirmed_sightings]
+        )
+        all_sightings.sort(key=lambda x: x[0]["time"], reverse=True)
+
+        for cell_id, cell in grid.items():
+            priority = 0.1
+            cell_pos = (cell.lat, cell.lon)
+
+            for sighting, is_confirmed in all_sightings[:10]:  # Last 10 sightings
+                dist = calculate_distance(cell_pos, sighting["position"])
+                hours_ago = context.hours_since_escape - sighting["time"]
+
+                if dist < 200:
+                    recency_weight = max(0, 1 - (hours_ago / 12))  # Decay over 12 hours
+                    confidence = 1.0 if is_confirmed else 0.4
+                    priority += recency_weight * confidence * (1 - dist/200)
+
+            priorities.append({
+                "cell_id": cell_id,
+                "position": cell_pos,
+                "terrain": cell.terrain_type,
+                "priority": priority,
+            })
+
+        priorities.sort(key=lambda x: x["priority"], reverse=True)
+        return priorities
+
+    def select_search_method(self, searcher, target_cell, context):
+        # Urgent search - use fastest method
+        if searcher.has_vehicle:
+            return SearchMethod.DRIVING_SLOW
+        return SearchMethod.WALKING_CALLING
+
+    def should_switch_area(self, searcher, current_cell, time_in_cell, context):
+        # Move quickly between areas
+        return time_in_cell >= 10
+```
+
+---
+
+### Strategy Assignment and Switching
+
+```python
+@dataclass
+class StrategyAssignment:
+    """
+    Assigns strategies to searchers with optional dynamic switching.
+    """
+    searcher_id: str
+    strategy: SearchStrategy
+    switch_rules: List["StrategySwitchRule"] = field(default_factory=list)
+
+
+@dataclass
+class StrategySwitchRule:
+    """
+    Rule for when to switch strategies.
+    """
+    condition: Callable[["SearchContext"], bool]
+    new_strategy: SearchStrategy
+    description: str
+
+
+class StrategyController:
+    """
+    Manages strategy assignments for all searchers.
+
+    Supports:
+    - Uniform strategy (all searchers use same)
+    - Mixed strategies (different searchers, different strategies)
+    - Dynamic switching (strategies change based on events)
+    """
+
+    def __init__(self):
+        self.assignments: Dict[str, StrategyAssignment] = {}
+        self.strategy_history: List[dict] = []
+
+    def assign_uniform_strategy(
+        self,
+        searchers: List[SearcherProfile],
+        strategy: SearchStrategy,
+    ):
+        """Assign same strategy to all searchers."""
+        for searcher in searchers:
+            self.assignments[searcher.searcher_id] = StrategyAssignment(
+                searcher_id=searcher.searcher_id,
+                strategy=strategy,
+            )
+
+    def assign_mixed_strategies(
+        self,
+        assignments: Dict[str, SearchStrategy],
+    ):
+        """Assign different strategies to different searchers."""
+        for searcher_id, strategy in assignments.items():
+            self.assignments[searcher_id] = StrategyAssignment(
+                searcher_id=searcher_id,
+                strategy=strategy,
+            )
+
+    def assign_by_type(
+        self,
+        searchers: List[SearcherProfile],
+        type_strategies: Dict[SearcherType, SearchStrategy],
+        default: SearchStrategy,
+    ):
+        """Assign strategies based on searcher type."""
+        for searcher in searchers:
+            strategy = type_strategies.get(searcher.searcher_type, default)
+            self.assignments[searcher.searcher_id] = StrategyAssignment(
+                searcher_id=searcher.searcher_id,
+                strategy=strategy,
+            )
+
+    def add_switch_rule(
+        self,
+        searcher_id: str,
+        condition: Callable[["SearchContext"], bool],
+        new_strategy: SearchStrategy,
+        description: str,
+    ):
+        """Add a rule for dynamic strategy switching."""
+        if searcher_id in self.assignments:
+            self.assignments[searcher_id].switch_rules.append(
+                StrategySwitchRule(
+                    condition=condition,
+                    new_strategy=new_strategy,
+                    description=description,
+                )
+            )
+
+    def get_strategy(
+        self,
+        searcher_id: str,
+        context: SearchContext,
+    ) -> SearchStrategy:
+        """Get current strategy for searcher, applying switch rules."""
+
+        if searcher_id not in self.assignments:
+            return NaiveExpandingCircleStrategy()  # Default fallback
+
+        assignment = self.assignments[searcher_id]
+
+        # Check switch rules in order
+        for rule in assignment.switch_rules:
+            if rule.condition(context):
+                # Log the switch
+                self.strategy_history.append({
+                    "searcher_id": searcher_id,
+                    "time": context.hours_since_escape,
+                    "from_strategy": assignment.strategy.name,
+                    "to_strategy": rule.new_strategy.name,
+                    "reason": rule.description,
+                })
+                # Update assignment
+                assignment.strategy = rule.new_strategy
+                break
+
+        return assignment.strategy
+
+
+# Pre-built switch conditions
+def make_sighting_trigger(min_sightings: int = 1):
+    """Switch strategy when sightings occur."""
+    def condition(context):
+        return len(context.confirmed_sightings) >= min_sightings
+    return condition
+
+def make_time_trigger(hours: float):
+    """Switch strategy after elapsed time."""
+    def condition(context):
+        return context.hours_since_escape >= hours
+    return condition
+
+def make_failure_trigger(max_failures: int = 3):
+    """Switch strategy after failed capture attempts."""
+    def condition(context):
+        return len(context.failed_captures) >= max_failures
+    return condition
+
+def make_day_trigger(day: int):
+    """Switch strategy on specific day."""
+    def condition(context):
+        return context.day_of_search >= day
+    return condition
+```
+
+---
+
+### Strategy Comparison Framework
+
+```python
+@dataclass
+class StrategyTestConfig:
+    """
+    Configuration for A/B testing search strategies.
+    """
+    name: str
+    strategy_assignments: Dict[str, SearchStrategy]
+    num_simulations: int = 1000
+    max_hours: float = 720  # 30 days
+
+
+def compare_strategies(
+    pet_profile: "AnimalProfile",
+    grid: Dict[str, "EnvironmentCell"],
+    searchers: List[SearcherProfile],
+    test_configs: List[StrategyTestConfig],
+) -> Dict[str, dict]:
+    """
+    Run Monte Carlo comparison of different strategy configurations.
+
+    Returns statistics for each configuration.
+    """
+
+    results = {}
+
+    for config in test_configs:
+        outcomes = {
+            "recovered": 0,
+            "deceased": 0,
+            "still_missing": 0,
+            "recovery_times": [],
+            "distances_traveled": [],
+            "capture_attempts": [],
+        }
+
+        controller = StrategyController()
+        controller.assign_mixed_strategies(config.strategy_assignments)
+
+        for sim in range(config.num_simulations):
+            # Run single simulation with this strategy config
+            outcome = run_single_simulation(
+                pet_profile=pet_profile,
+                grid=grid,
+                searchers=copy.deepcopy(searchers),
+                strategy_controller=controller,
+                max_hours=config.max_hours,
+            )
+
+            outcomes[outcome["status"]] += 1
+            if outcome["status"] == "recovered":
+                outcomes["recovery_times"].append(outcome["hours"])
+            outcomes["capture_attempts"].append(outcome["capture_attempts"])
+
+        # Calculate statistics
+        n = config.num_simulations
+        results[config.name] = {
+            "recovery_rate": outcomes["recovered"] / n,
+            "mortality_rate": outcomes["deceased"] / n,
+            "still_missing_rate": outcomes["still_missing"] / n,
+            "mean_recovery_time": (
+                statistics.mean(outcomes["recovery_times"])
+                if outcomes["recovery_times"] else None
+            ),
+            "median_recovery_time": (
+                statistics.median(outcomes["recovery_times"])
+                if outcomes["recovery_times"] else None
+            ),
+            "mean_capture_attempts": statistics.mean(outcomes["capture_attempts"]),
+        }
+
+    return results
+
+
+# Example usage:
+# test_configs = [
+#     StrategyTestConfig(
+#         name="all_naive",
+#         strategy_assignments={s.searcher_id: NaiveExpandingCircleStrategy() for s in searchers},
+#     ),
+#     StrategyTestConfig(
+#         name="all_profile_aware",
+#         strategy_assignments={s.searcher_id: ProfileAwareStrategy() for s in searchers},
+#     ),
+#     StrategyTestConfig(
+#         name="mixed_owner_aware_volunteers_naive",
+#         strategy_assignments={
+#             "owner_001": ProfileAwareStrategy(),
+#             "volunteer_001": NaiveExpandingCircleStrategy(),
+#             "volunteer_002": NaiveExpandingCircleStrategy(),
+#         },
+#     ),
+# ]
+#
+# results = compare_strategies(profile, grid, searchers, test_configs)
+# print(f"Profile-aware recovery rate: {results['all_profile_aware']['recovery_rate']:.1%}")
+# print(f"Naive recovery rate: {results['all_naive']['recovery_rate']:.1%}")
+```
+
+---
+
+## Equipment and Passive Method Scaling [A][C]
+
+How equipment quantities and quality affect outcomes.
+
+### Flyer Scaling Model
+
+```python
+@dataclass
+class FlyerCampaign:
+    """
+    Models a physical flyer distribution campaign.
+    """
+    flyer_count: int
+    flyer_quality: str = "standard"  # poor/standard/high/professional
+    distribution_radius_m: float = 500
+    distribution_density: str = "even"  # even/concentrated/sparse
+    locations: List[str] = field(default_factory=list)  # specific locations
+    start_day: int = 0
+    refresh_interval_days: Optional[int] = None  # Replace degraded flyers
+
+
+FLYER_QUALITY_MODIFIERS = {
+    "poor": {  # Black & white, small photo, minimal info
+        "visibility": 0.5,
+        "recognition": 0.6,
+        "call_to_action": 0.5,
+        "durability_days": 3,
+    },
+    "standard": {  # Color photo, basic info
+        "visibility": 1.0,
+        "recognition": 1.0,
+        "call_to_action": 1.0,
+        "durability_days": 7,
+    },
+    "high": {  # Large, laminated, multiple photos
+        "visibility": 1.3,
+        "recognition": 1.2,
+        "call_to_action": 1.2,
+        "durability_days": 14,
+    },
+    "professional": {  # Weatherproof, reflective, QR code
+        "visibility": 1.5,
+        "recognition": 1.3,
+        "call_to_action": 1.4,
+        "durability_days": 30,
+    },
+}
+
+
+def calculate_flyer_effectiveness(
+    campaign: FlyerCampaign,
+    days_since_start: int,
+    area_population_density: float,  # people per sq km
+) -> dict:
+    """
+    Calculate current effectiveness of flyer campaign.
+
+    Returns daily sighting probability and accuracy.
+    """
+
+    quality = FLYER_QUALITY_MODIFIERS.get(campaign.flyer_quality, FLYER_QUALITY_MODIFIERS["standard"])
+
+    # Base effectiveness from flyer count
+    # Diminishing returns: doubling flyers doesn't double effectiveness
+    # [C] Logarithmic model - 100 flyers = 1.0, 1000 = 1.5, 10000 = 2.0
+    count_factor = math.log10(max(10, campaign.flyer_count)) / 2
+
+    # Quality modifiers
+    visibility = quality["visibility"]
+    recognition = quality["recognition"]
+
+    # Degradation over time
+    durability = quality["durability_days"]
+    if campaign.refresh_interval_days:
+        # Calculate effective age (reset on refresh)
+        effective_days = days_since_start % campaign.refresh_interval_days
+    else:
+        effective_days = days_since_start
+
+    degradation = max(0.1, 1 - (effective_days / durability) ** 2)
+
+    # Population density effect
+    # More people = more potential reporters
+    # [C] Normalized to suburban baseline (2000 people/sq km)
+    population_factor = math.sqrt(area_population_density / 2000)
+    population_factor = max(0.3, min(2.0, population_factor))
+
+    # Distribution pattern effect
+    distribution_modifiers = {
+        "even": 1.0,
+        "concentrated": 0.8,  # Misses peripheral areas
+        "sparse": 0.6,
+    }
+    distribution_factor = distribution_modifiers.get(campaign.distribution_density, 1.0)
+
+    # Calculate final probabilities
+    base_daily_sighting_prob = 0.03  # From PASSIVE_METHOD_EFFECTIVENESS
+
+    daily_prob = (
+        base_daily_sighting_prob
+        * count_factor
+        * visibility
+        * degradation
+        * population_factor
+        * distribution_factor
+    )
+
+    # Cap at reasonable maximum
+    daily_prob = min(0.25, daily_prob)
+
+    # Accuracy depends on recognition quality
+    base_accuracy = 0.15
+    accuracy = min(0.5, base_accuracy * recognition)
+
+    return {
+        "daily_sighting_probability": daily_prob,
+        "report_accuracy": accuracy,
+        "current_degradation": degradation,
+        "effective_flyer_count": campaign.flyer_count * degradation,
+    }
+```
+
+---
+
+### Online Posting Scaling Model
+
+```python
+@dataclass
+class OnlineCampaign:
+    """
+    Models online/social media posting campaign.
+    """
+    platforms: List[str]  # facebook, nextdoor, pawboost, craigslist, etc.
+    initial_shares: int = 0
+    paid_boost_budget: float = 0.0  # USD
+    post_quality: str = "standard"  # poor/standard/high
+    update_frequency_days: float = 3.0  # How often post is refreshed
+    start_day: int = 0
+
+
+PLATFORM_EFFECTIVENESS = {
+    "nextdoor": {
+        "base_reach": 0.8,      # High local engagement
+        "decay_rate": 0.05,    # Slow decay (stays visible)
+        "share_multiplier": 1.5,
+        "local_focus": True,
+    },
+    "facebook": {
+        "base_reach": 1.0,
+        "decay_rate": 0.15,    # Fast decay (algorithm buries)
+        "share_multiplier": 2.0,
+        "local_focus": False,
+    },
+    "pawboost": {
+        "base_reach": 0.6,     # Smaller but targeted audience
+        "decay_rate": 0.02,    # Very slow decay (dedicated platform)
+        "share_multiplier": 1.2,
+        "local_focus": True,
+    },
+    "craigslist": {
+        "base_reach": 0.4,
+        "decay_rate": 0.10,
+        "share_multiplier": 1.0,
+        "local_focus": True,
+    },
+    "instagram": {
+        "base_reach": 0.5,
+        "decay_rate": 0.20,    # Very fast decay
+        "share_multiplier": 1.8,
+        "local_focus": False,
+    },
+    "ring_neighbors": {
+        "base_reach": 0.7,
+        "decay_rate": 0.08,
+        "share_multiplier": 1.3,
+        "local_focus": True,
+    },
+}
+
+
+PAID_BOOST_EFFECTIVENESS = {
+    # USD spent -> reach multiplier
+    # [C] Diminishing returns model
+    0: 1.0,
+    10: 1.3,
+    25: 1.5,
+    50: 1.7,
+    100: 1.9,
+    200: 2.0,
+    500: 2.2,
+}
+
+
+def calculate_online_effectiveness(
+    campaign: OnlineCampaign,
+    days_since_start: int,
+) -> dict:
+    """
+    Calculate current effectiveness of online campaign.
+    """
+
+    total_reach = 0
+    total_accuracy = 0
+    platform_count = 0
+
+    for platform_name in campaign.platforms:
+        platform = PLATFORM_EFFECTIVENESS.get(
+            platform_name,
+            {"base_reach": 0.3, "decay_rate": 0.10, "share_multiplier": 1.0, "local_focus": False}
+        )
+
+        # Calculate days since last update
+        if campaign.update_frequency_days > 0:
+            days_since_update = days_since_start % campaign.update_frequency_days
+        else:
+            days_since_update = days_since_start
+
+        # Decay based on time since post/update
+        decay = (1 - platform["decay_rate"]) ** days_since_update
+
+        # Share effect (viral spread)
+        share_boost = 1 + (campaign.initial_shares * 0.01 * platform["share_multiplier"])
+        share_boost = min(3.0, share_boost)  # Cap at 3x
+
+        # Paid boost effect
+        boost_multiplier = 1.0
+        for threshold, multiplier in sorted(PAID_BOOST_EFFECTIVENESS.items()):
+            if campaign.paid_boost_budget >= threshold:
+                boost_multiplier = multiplier
+
+        platform_reach = (
+            platform["base_reach"]
+            * decay
+            * share_boost
+            * boost_multiplier
+        )
+
+        total_reach += platform_reach
+
+        # Accuracy is lower for non-local platforms
+        platform_accuracy = 0.10 if platform["local_focus"] else 0.05
+        total_accuracy += platform_accuracy
+
+        platform_count += 1
+
+    # Average across platforms
+    if platform_count > 0:
+        avg_reach = total_reach / platform_count
+        avg_accuracy = total_accuracy / platform_count
+    else:
+        avg_reach = 0
+        avg_accuracy = 0
+
+    # Multi-platform bonus (cross-pollination)
+    multi_platform_bonus = 1 + (platform_count - 1) * 0.1
+    avg_reach *= multi_platform_bonus
+
+    # Convert to daily probability
+    base_daily_prob = 0.05  # From PASSIVE_METHOD_EFFECTIVENESS
+    daily_prob = min(0.30, base_daily_prob * avg_reach)
+
+    return {
+        "daily_sighting_probability": daily_prob,
+        "report_accuracy": avg_accuracy,
+        "effective_reach": avg_reach,
+        "platforms_active": platform_count,
+    }
+```
+
+---
+
+### Equipment Impact Summary
+
+```python
+EQUIPMENT_EFFECTIVENESS_SUMMARY = {
+    # Equipment -> impact on search outcomes
+    # [A][C] Estimated based on professional pet recovery guidance
+
+    "treats": {
+        "detection_bonus": 1.15,       # +15% detection when used
+        "capture_bonus": 1.20,         # +20% capture success
+        "applies_to": ["visible", "hiding"],
+        "notes": "Most effective for food-motivated pets",
+    },
+
+    "carrier": {
+        "detection_bonus": 1.0,
+        "capture_bonus": 1.10,         # +10% - safe containment
+        "applies_to": ["capture"],
+        "notes": "Essential for cats, helpful for small dogs",
+    },
+
+    "leash": {
+        "detection_bonus": 1.0,
+        "capture_bonus": 1.05,
+        "applies_to": ["capture"],
+        "notes": "Essential for dogs that approach",
+    },
+
+    "flashlight": {
+        "night_detection_bonus": 2.0,  # Double effectiveness at night
+        "applies_to": ["night_search"],
+        "notes": "Critical for dusk/dawn/night searching",
+    },
+
+    "humane_trap": {
+        "passive_capture_rate": 0.15,  # 15% daily capture if pet in area
+        "setup_time_hours": 0.5,
+        "check_frequency_hours": 12,
+        "applies_to": ["fearful_cats", "xenophobic_dogs"],
+        "notes": "Best for pets that won't approach humans",
+    },
+
+    "trail_camera": {
+        "detection_rate": 0.30,        # 30% chance to capture on camera if present
+        "confirmation_value": "high",  # Confirms pet is alive and in area
+        "applies_to": ["monitoring", "trap_placement"],
+        "notes": "Doesn't catch pet but confirms location",
+    },
+
+    "tracking_dog": {
+        "detection_bonus": 3.0,        # 3x detection rate
+        "hidden_detection_bonus": 4.0, # 4x for finding hidden pets
+        "scent_decay_hours": 72,       # Effectiveness drops after 72 hours
+        "applies_to": ["professional"],
+        "notes": "Most effective method, requires professional handler",
+    },
+
+    "thermal_camera": {
+        "night_detection_bonus": 3.0,
+        "hidden_detection_bonus": 2.5,
+        "applies_to": ["professional", "night_search"],
+        "notes": "Best in cooler weather, open terrain",
+    },
+
+    "drone": {
+        "area_coverage_multiplier": 5.0,
+        "detection_rate": 0.50,        # In open terrain
+        "applies_to": ["professional", "open_terrain"],
+        "notes": "Limited by regulations, weather, terrain",
+    },
+}
+```
+
+---
+
+## Information Flow and Decision Making [A][C]
+
+How searchers receive and act on information.
+
+```python
+@dataclass
+class InformationState:
+    """
+    Tracks what information a searcher has access to.
+
+    Key question: Does the searcher USE the pet profile we provide?
+    """
+    # What they've been told
+    has_pet_profile: bool = False
+    profile_detail_level: StrategyAwareness = StrategyAwareness.NAIVE
+
+    # What they've received
+    sighting_reports: List[dict] = field(default_factory=list)
+    search_tips: List[str] = field(default_factory=list)
+
+    # Their interpretation (may differ from reality)
+    believed_search_radius_m: float = 500  # What they think the range is
+    believed_pet_status: str = "alive"     # What they believe
+
+    # Information quality
+    trust_in_information: float = 0.8      # How much they trust guidance
+
+
+def apply_information_to_behavior(
+    searcher: SearcherProfile,
+    info_state: InformationState,
+    base_strategy: SearchStrategy,
+) -> SearchStrategy:
+    """
+    Modify strategy based on information state.
+
+    This models whether searchers actually USE information provided.
+    """
+
+    # If they have no profile info or don't trust it, use naive strategy
+    if not info_state.has_pet_profile or info_state.trust_in_information < 0.3:
+        return NaiveExpandingCircleStrategy()
+
+    # If they have profile but only basic awareness
+    if info_state.profile_detail_level == StrategyAwareness.BASIC:
+        # They might search too wide for a cat, too narrow for a dog
+        modified = copy.copy(base_strategy)
+        # Strategy uses profile but may not apply it correctly
+        return modified
+
+    # Full information and high trust
+    if (info_state.profile_detail_level in [StrategyAwareness.FULL, StrategyAwareness.EXPERT]
+        and info_state.trust_in_information > 0.7):
+        return ProfileAwareStrategy()
+
+    return base_strategy
+
+
+# Example: Testing impact of information
+def test_information_impact(
+    pet_profile: "AnimalProfile",
+    grid: Dict[str, "EnvironmentCell"],
+    num_simulations: int = 1000,
+):
+    """
+    Compare outcomes when searchers have vs don't have profile information.
+    """
+
+    results = {}
+
+    # Scenario 1: No profile information given
+    results["no_information"] = run_simulations(
+        pet_profile=pet_profile,
+        grid=grid,
+        info_state=InformationState(has_pet_profile=False),
+        num_simulations=num_simulations,
+    )
+
+    # Scenario 2: Basic information (species only)
+    results["basic_information"] = run_simulations(
+        pet_profile=pet_profile,
+        grid=grid,
+        info_state=InformationState(
+            has_pet_profile=True,
+            profile_detail_level=StrategyAwareness.BASIC,
+        ),
+        num_simulations=num_simulations,
+    )
+
+    # Scenario 3: Full profile information
+    results["full_information"] = run_simulations(
+        pet_profile=pet_profile,
+        grid=grid,
+        info_state=InformationState(
+            has_pet_profile=True,
+            profile_detail_level=StrategyAwareness.FULL,
+        ),
+        num_simulations=num_simulations,
+    )
+
+    # Scenario 4: Full information but searcher doesn't trust/use it
+    results["full_but_ignored"] = run_simulations(
+        pet_profile=pet_profile,
+        grid=grid,
+        info_state=InformationState(
+            has_pet_profile=True,
+            profile_detail_level=StrategyAwareness.FULL,
+            trust_in_information=0.2,  # Low trust = ignores info
+        ),
+        num_simulations=num_simulations,
+    )
+
+    return results
+```
+
+---
+
+## Complete Searcher Simulation Example
+
+```python
+# Full example showing all searcher features
+
+# 1. Create pet profile
+cat = AnimalProfile(
+    species="cat",
+    temperament="FEA",  # Fearful
+    indoor_outdoor="IO",  # Indoor-only (will hide intensely)
+    home_location=(37.7749, -122.4194),
+    escape_location=(37.7749, -122.4194),
+)
+
+# 2. Create environment
+grid = create_environment_grid(...)
+
+# 3. Create searchers (discrete agents, not percentages!)
+owner = create_owner_searcher(cat, owner_fitness="average")
+
+spouse = SearcherProfile(
+    searcher_id="household_001",
+    searcher_type=SearcherType.HOUSEHOLD,
+    **SEARCHER_TYPE_DEFAULTS[SearcherType.HOUSEHOLD],
+)
+
+volunteer_1 = SearcherProfile(
+    searcher_id="volunteer_001",
+    searcher_type=SearcherType.VOLUNTEER,
+    available_hours_per_day=1.5,
+    dedication_level=0.5,
+)
+
+searchers = [owner, spouse, volunteer_1]
+
+# 4. Set up strategy controller with mixed strategies and switching
+controller = StrategyController()
+
+# Owner uses profile-aware strategy
+controller.assignments["owner_001"] = StrategyAssignment(
+    searcher_id="owner_001",
+    strategy=ProfileAwareStrategy(),
+    switch_rules=[
+        # Switch to trap-focused after 3 days if fearful cat
+        StrategySwitchRule(
+            condition=make_day_trigger(3),
+            new_strategy=TrapFocusedStrategy(),
+            description="Fearful cat not responding to active search",
+        ),
+    ],
+)
+
+# Spouse coordinates with owner
+controller.assignments["household_001"] = StrategyAssignment(
+    searcher_id="household_001",
+    strategy=CoordinatedGridStrategy(),
+)
+
+# Volunteer uses naive strategy (doesn't know pet)
+controller.assignments["volunteer_001"] = StrategyAssignment(
+    searcher_id="volunteer_001",
+    strategy=NaiveExpandingCircleStrategy(),
+    switch_rules=[
+        # Switch to sighting chaser if sightings come in
+        StrategySwitchRule(
+            condition=make_sighting_trigger(1),
+            new_strategy=SightingChaserStrategy(),
+            description="Responding to sighting report",
+        ),
+    ],
+)
+
+# 5. Set up passive methods with scaling
+flyer_campaign = FlyerCampaign(
+    flyer_count=200,
+    flyer_quality="high",
+    distribution_radius_m=300,  # Indoor cats stay close
+    refresh_interval_days=7,
+)
+
+online_campaign = OnlineCampaign(
+    platforms=["nextdoor", "pawboost", "facebook"],
+    initial_shares=50,
+    paid_boost_budget=25.0,
+    update_frequency_days=2.0,
+)
+
+# 6. Run simulation
+# Each searcher independently executes their strategy
+# Strategies can change based on events
+# Equipment affects effectiveness
+# Information flow affects strategy effectiveness
+
+print("Simulation configuration:")
+print(f"  Searchers: {len(searchers)}")
+print(f"  Owner strategy: {controller.assignments['owner_001'].strategy.name}")
+print(f"  Flyers: {flyer_campaign.flyer_count} ({flyer_campaign.flyer_quality})")
+print(f"  Platforms: {len(online_campaign.platforms)}")
+print("  NOT: 'Search intensity: 60%' <- This is meaningless")
+```
+
+---
+
 ### Dog Document
 
 #### v1.2
