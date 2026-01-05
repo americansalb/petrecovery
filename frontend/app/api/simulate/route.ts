@@ -15,6 +15,7 @@ import {
   DOG_TEMPERAMENTS,
   CAT_TEMPERAMENTS,
 } from '@/app/lib/behavioral-simulation';
+import { fetchTerrainData } from '@/app/lib/behavioral-simulation/terrain';
 
 interface SimulateRequest {
   species: 'dog' | 'cat';
@@ -73,6 +74,27 @@ export async function POST(request: Request) {
     };
 
     const startPosition = { lat: body.latitude, lng: body.longitude };
+
+    // Fetch terrain data from OSM for water detection (5km radius around home)
+    let terrainData: SimulationConfig['terrainData'];
+    try {
+      const osmTerrain = await fetchTerrainData(startPosition, 5000);
+      if (osmTerrain.waterAreas.length > 0) {
+        terrainData = {
+          waterPolygons: osmTerrain.waterAreas.map(w => ({
+            points: w.points,
+            bbox: w.bbox,
+          })),
+          isCoastal: osmTerrain.isCoastal,
+        };
+        console.log(`Loaded ${terrainData.waterPolygons.length} water areas for simulation`);
+      }
+    } catch (err) {
+      console.warn('Could not fetch terrain data:', err);
+    }
+
+    // Add terrain data to config
+    config.terrainData = terrainData;
 
     // Limit batch size to prevent timeout (max 60 seconds on Vercel Pro)
     // Each simulation takes ~50-100ms, so cap at 500 for safety

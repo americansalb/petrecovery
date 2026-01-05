@@ -73,71 +73,58 @@ function sampleRange(rng: SeededRandom, range: { min: number; max: number }): nu
   return rng.uniform(range.min, range.max);
 }
 
-// Simple water/terrain boundary detection
-// Uses rough coastline polygons for major coastal cities
-// Returns true if position is likely in water
-function isLikelyWater(pos: Position, homePos: Position): boolean {
-  // San Francisco Bay Area coastline check
-  // Western boundary (Pacific Ocean)
-  if (pos.lng < -122.52 && pos.lat > 37.6 && pos.lat < 37.85) {
-    return true; // Pacific Ocean west of SF
-  }
-  // San Francisco Bay (rough polygon)
-  if (pos.lng > -122.35 && pos.lng < -122.1 && pos.lat > 37.6 && pos.lat < 37.9) {
-    // In the bay area - check if east of the peninsula
-    if (pos.lng > -122.25) return true;
-  }
-  // North of Golden Gate
-  if (pos.lat > 37.83 && pos.lng < -122.45 && pos.lng > -122.52) {
-    return true; // Golden Gate strait
+// Check if point is inside a polygon using ray casting
+function pointInPolygon(point: Position, polygon: Position[]): boolean {
+  let inside = false;
+  const x = point.lng, y = point.lat;
+
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].lng, yi = polygon[i].lat;
+    const xj = polygon[j].lng, yj = polygon[j].lat;
+
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
   }
 
-  // Los Angeles coastline
-  if (pos.lng < -118.5 && pos.lat > 33.7 && pos.lat < 34.1) {
-    return true; // Pacific west of LA
+  return inside;
+}
+
+// Water detection using OSM terrain data (if available) or fallback
+function isLikelyWater(
+  pos: Position,
+  homePos: Position,
+  terrainData?: { waterPolygons: Array<{ points: Position[]; bbox: { south: number; west: number; north: number; east: number } }>; isCoastal: boolean }
+): boolean {
+  // If we have OSM terrain data, use it for accurate detection
+  if (terrainData && terrainData.waterPolygons.length > 0) {
+    for (const water of terrainData.waterPolygons) {
+      // Quick bbox check
+      if (
+        pos.lat < water.bbox.south ||
+        pos.lat > water.bbox.north ||
+        pos.lng < water.bbox.west ||
+        pos.lng > water.bbox.east
+      ) {
+        continue;
+      }
+      // Full polygon check
+      if (pointInPolygon(pos, water.points)) {
+        return true;
+      }
+    }
+    return false;
   }
 
-  // San Diego coastline
-  if (pos.lng < -117.25 && pos.lat > 32.5 && pos.lat < 33.0) {
-    return true;
-  }
-
-  // Seattle/Puget Sound
-  if (pos.lng < -122.5 && pos.lat > 47.4 && pos.lat < 47.8) {
-    return true;
-  }
-  if (pos.lng > -122.3 && pos.lng < -122.2 && pos.lat > 47.5 && pos.lat < 47.7) {
-    return true; // Lake Washington
-  }
-
-  // Miami/Florida coast
-  if (pos.lng > -80.1 && pos.lat > 25.5 && pos.lat < 26.0) {
-    return true; // Atlantic east of Miami
-  }
-
-  // New York Harbor
-  if (pos.lng > -74.0 && pos.lat > 40.5 && pos.lat < 40.75) {
-    return true;
-  }
-
-  // Boston Harbor
-  if (pos.lng > -70.95 && pos.lat > 42.3 && pos.lat < 42.4) {
-    return true;
-  }
-
-  // General ocean boundaries (very far from any coast)
-  // If more than 5km from home toward the ocean, be more cautious
+  // Fallback: basic ocean boundaries when no terrain data
   const distFromHome = distance(pos, homePos);
-  if (distFromHome > 5000) {
-    // Check if heading toward open ocean (very rough check)
-    // Pacific coast: west of -125 or east coast: east of -65
-    if (pos.lng < -125 || pos.lng > -65) {
-      return true;
-    }
+  if (distFromHome > 3000) {
+    // Pacific coast: anything west of -124 is definitely ocean
+    if (pos.lng < -124) return true;
+    // Atlantic coast: anything east of -66 is ocean (off Maine coast)
+    if (pos.lng > -66 && pos.lat > 40) return true;
     // Gulf of Mexico
-    if (pos.lat < 25 && pos.lng > -98 && pos.lng < -80) {
-      return true;
-    }
+    if (pos.lat < 25 && pos.lng > -97 && pos.lng < -80) return true;
   }
 
   return false;
@@ -178,6 +165,9 @@ interface SampledSurvivalParams {
   indoorOnlyModifier: number;
 }
 
+// Terrain data type for water detection
+type TerrainDataType = { waterPolygons: Array<{ points: Position[]; bbox: { south: number; west: number; north: number; east: number } }>; isCoastal: boolean } | undefined;
+
 // Searcher agent class
 class SearcherAgent {
   id: number;
@@ -192,8 +182,9 @@ class SearcherAgent {
   private spiralAngle: number = 0;
   private spiralRadius: number = 50;
   private searchStartDelay: number;
+  private terrainData: TerrainDataType;
 
-  constructor(id: number, home: Position, rng: SeededRandom, searchStartDelay: number = 2) {
+  constructor(id: number, home: Position, rng: SeededRandom, searchStartDelay: number = 2, terrainData?: TerrainDataType) {
     this.id = id;
     this.homePosition = { ...home };
     this.position = { ...home };
@@ -202,6 +193,7 @@ class SearcherAgent {
     this.isActive = false;
     this.rng = rng;
     this.searchStartDelay = searchStartDelay;
+    this.terrainData = terrainData;
     // Randomize search pattern
     const patterns: Array<'spiral' | 'grid' | 'random'> = ['spiral', 'grid', 'random'];
     this.searchPattern = patterns[Math.floor(rng.next() * 3)];
@@ -258,12 +250,12 @@ class SearcherAgent {
     }
 
     // Water avoidance - searchers don't search in water
-    if (isLikelyWater(newPos, this.homePosition)) {
+    if (isLikelyWater(newPos, this.homePosition, this.terrainData)) {
       // Turn around and try a different direction
       this.heading = (this.heading + 180 + this.rng.uniform(-45, 45)) % 360;
       newPos = offsetPosition(this.position, distanceM, this.heading);
       // If still in water, stay put
-      if (isLikelyWater(newPos, this.homePosition)) {
+      if (isLikelyWater(newPos, this.homePosition, this.terrainData)) {
         this.recordPath(hour);
         return;
       }
@@ -354,10 +346,11 @@ export class BehavioralSimulationEngine {
 
     this.heading = this.rng.uniform(0, 360);
 
-    // Initialize searchers
+    // Initialize searchers with terrain data for water avoidance
     const searchDelay = config.searchStartDelay ?? 2;
+    const terrainData = config.terrainData;
     for (let i = 0; i < config.numSearchers; i++) {
-      this.searchers.push(new SearcherAgent(i, startPosition, this.rng, searchDelay));
+      this.searchers.push(new SearcherAgent(i, startPosition, this.rng, searchDelay, terrainData));
     }
   }
 
@@ -641,7 +634,7 @@ export class BehavioralSimulationEngine {
       let newPos = offsetPosition(this.state.position, distanceM, this.heading);
 
       // Water/terrain avoidance - if new position is in water, turn around
-      if (isLikelyWater(newPos, this.homePosition)) {
+      if (isLikelyWater(newPos, this.homePosition, this.config.terrainData)) {
         // Turn back toward home or inland
         const homeDir = getBearing(this.state.position, this.homePosition);
         this.heading = homeDir + this.rng.uniform(-60, 60);
@@ -649,7 +642,7 @@ export class BehavioralSimulationEngine {
         newPos = offsetPosition(this.state.position, distanceM, this.heading);
 
         // If still in water after turning, just stay put
-        if (isLikelyWater(newPos, this.homePosition)) {
+        if (isLikelyWater(newPos, this.homePosition, this.config.terrainData)) {
           return; // Don't move this timestep
         }
       }
