@@ -47,9 +47,9 @@ export async function POST(request: Request) {
 
     const profile: AnimalProfile = {
       species,
-      temperament: body.temperament || defaultTemp,
-      size: (body.size as any) || 'MED',
-      age: (body.age as any) || 'ADT',
+      temperament: (body.temperament || defaultTemp) as AnimalProfile['temperament'],
+      size: (body.size || 'MED') as AnimalProfile['size'],
+      age: (body.age || 'ADT') as AnimalProfile['age'],
       isIndoorOnly: body.isIndoorOnly ?? (species === 'cat'),
       hasMicrochip: body.hasMicrochip ?? false,
       hasCollar: body.hasCollar ?? true,
