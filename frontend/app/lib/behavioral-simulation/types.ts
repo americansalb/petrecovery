@@ -65,6 +65,7 @@ export interface SimulationConfig {
   startHour: number;
   searchRadiusM: number;
   numSearchers: number;
+  searchStartDelay?: number;
   useTraps: boolean;
   useScentArticles: boolean;
 }

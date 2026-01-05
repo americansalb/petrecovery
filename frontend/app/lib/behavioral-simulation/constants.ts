@@ -138,19 +138,78 @@ export const MOVEMENT_SPEEDS = {
 // Physiological parameters
 export const PHYSIOLOGY = {
   hunger: {
-    ratePerHour: 0.015,    // ~66 hours to reach 1.0
-    foragingRelief: 0.4,
-    criticalThreshold: 0.9,
+    ratePerHour: { min: 0.012, max: 0.018 },  // 55-83 hours to reach 1.0
+    foragingRelief: { min: 0.3, max: 0.5 },
+    criticalThreshold: { min: 0.85, max: 0.95 },
   },
   thirst: {
-    ratePerHour: 0.025,    // ~40 hours to reach 1.0
-    waterRelief: 0.6,
-    criticalThreshold: 0.85,
+    ratePerHour: { min: 0.02, max: 0.03 },    // 33-50 hours to reach 1.0
+    waterRelief: { min: 0.5, max: 0.7 },
+    criticalThreshold: { min: 0.8, max: 0.9 },
   },
   stamina: {
-    drainFleeing: 0.3,
-    drainTraveling: 0.1,
-    recoveryResting: 0.15,
+    drainFleeing: { min: 0.25, max: 0.35 },
+    drainTraveling: { min: 0.08, max: 0.12 },
+    recoveryResting: { min: 0.12, max: 0.18 },
+  },
+};
+
+// Survival parameters with ranges [A] - Based on veterinary literature
+export const SURVIVAL = {
+  // Dehydration - most pets can survive 48-72 hours without water
+  dehydration: {
+    criticalAfterHours: { min: 36, max: 60 },     // When symptoms become serious
+    fatalAfterHours: { min: 72, max: 120 },       // 3-5 days without water
+    deathRatePerHour: { min: 0.005, max: 0.02 },  // 0.5-2% per hour when critical
+  },
+  // Starvation - pets can survive weeks without food
+  starvation: {
+    criticalAfterHours: { min: 168, max: 336 },   // 1-2 weeks
+    fatalAfterHours: { min: 336, max: 504 },      // 2-3 weeks
+    deathRatePerHour: { min: 0.001, max: 0.005 }, // Much slower than dehydration
+  },
+  // Environmental hazards (per hour rates)
+  hazards: {
+    vehicleStrike: {
+      nearRoad: { min: 0.0001, max: 0.0008 },     // Higher when near roads
+      fleeing: { min: 0.0003, max: 0.001 },       // Higher when panicked
+    },
+    predator: {
+      nighttime: { min: 0.0001, max: 0.0005 },    // Coyotes, etc.
+      smallPet: { min: 0.0002, max: 0.0008 },     // Small pets more vulnerable
+    },
+    exposure: {
+      extreme: { min: 0.0001, max: 0.0003 },      // Extreme heat/cold
+    },
+    accident: {
+      general: { min: 0.00005, max: 0.0002 },     // Getting stuck, falls, etc.
+    },
+  },
+  // Modifiers based on pet characteristics
+  modifiers: {
+    size: {
+      TOY: { survival: 0.7, dehydration: 1.4 },   // Toy breeds dehydrate faster
+      SML: { survival: 0.85, dehydration: 1.2 },
+      MED: { survival: 1.0, dehydration: 1.0 },
+      LRG: { survival: 1.1, dehydration: 0.9 },
+      GNT: { survival: 1.0, dehydration: 0.85 },  // Need more food but retain water better
+    },
+    age: {
+      PUP: { survival: 0.7, resilience: 0.6 },    // Very vulnerable
+      KIT: { survival: 0.7, resilience: 0.6 },
+      JUV: { survival: 0.85, resilience: 0.8 },
+      YNG: { survival: 1.0, resilience: 1.0 },
+      ADT: { survival: 1.0, resilience: 1.0 },
+      SEN: { survival: 0.75, resilience: 0.7 },   // Seniors vulnerable
+    },
+    species: {
+      dog: { outdoorSurvival: 1.0, predatorRisk: 0.7 },  // Dogs fend off predators better
+      cat: { outdoorSurvival: 0.9, predatorRisk: 1.0 },
+    },
+    indoorOnly: {
+      survivalPenalty: 0.8,  // 20% less likely to survive outdoors
+      foragingPenalty: 0.6,  // Worse at finding food/water
+    },
   },
 };
 

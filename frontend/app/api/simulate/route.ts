@@ -25,6 +25,7 @@ interface SimulateRequest {
   longitude: number;
   maxHours?: number;
   numSearchers?: number;
+  searchStartDelay?: number;
   batchSize?: number;
   seed?: number;
 }
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
       startHour: 10,
       searchRadiusM: 2000,
       numSearchers: body.numSearchers || 3,
+      searchStartDelay: body.searchStartDelay || 2,
       useTraps: false,
       useScentArticles: false,
     };
@@ -91,14 +93,16 @@ export async function POST(request: Request) {
           avgDistanceM: Math.round(batchResult.avgDistanceM),
           outcomes: batchResult.outcomes,
         },
-        // Include first 5 detailed simulations
-        sampleSimulations: batchResult.simulations.slice(0, 5).map(sim => ({
+        // Include first 10 detailed simulations with paths for viewing
+        sampleSimulations: batchResult.simulations.slice(0, 10).map(sim => ({
           id: sim.id,
           outcome: sim.outcome,
           outcomeDescription: sim.outcomeDescription,
           timeToOutcomeHours: sim.timeToOutcomeHours,
           maxDistanceM: Math.round(sim.maxDistanceFromHomeM),
           pathLength: sim.petPath.length,
+          petPath: sim.petPath,
+          searcherPaths: sim.searcherPaths,
         })),
       });
     } else {
