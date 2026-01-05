@@ -66,6 +66,100 @@ function sampleLognormal(rng: SeededRandom, median: number, q75: number): number
   return Math.exp(rng.gauss(mu, sigma));
 }
 
+// Searcher agent class
+class SearcherAgent {
+  id: number;
+  position: Position;
+  homePosition: Position;
+  heading: number;
+  searchRadius: number;
+  isActive: boolean;
+  path: PathPoint[] = [];
+  private rng: SeededRandom;
+  private searchPattern: 'spiral' | 'grid' | 'random';
+  private spiralAngle: number = 0;
+  private spiralRadius: number = 50;
+
+  constructor(id: number, home: Position, rng: SeededRandom) {
+    this.id = id;
+    this.homePosition = { ...home };
+    this.position = { ...home };
+    this.heading = rng.uniform(0, 360);
+    this.searchRadius = 2000;
+    this.isActive = false;
+    this.rng = rng;
+    // Randomize search pattern
+    const patterns: Array<'spiral' | 'grid' | 'random'> = ['spiral', 'grid', 'random'];
+    this.searchPattern = patterns[Math.floor(rng.next() * 3)];
+  }
+
+  update(hour: number, timeStepHours: number, currentTimeOfDay: number): void {
+    // Searchers only active during daylight (7am - 9pm)
+    if (currentTimeOfDay < 7 || currentTimeOfDay > 21) {
+      this.isActive = false;
+      // Return home at night
+      this.position = { ...this.homePosition };
+      return;
+    }
+
+    // Start searching after initial hours
+    if (hour < 2) {
+      this.isActive = false;
+      return;
+    }
+
+    this.isActive = true;
+    const speed = 3000; // 3 km/h walking speed
+    const distanceM = speed * timeStepHours;
+
+    switch (this.searchPattern) {
+      case 'spiral':
+        this.spiralAngle += 15;
+        this.spiralRadius = Math.min(this.searchRadius, 50 + hour * 30);
+        this.heading = this.spiralAngle;
+        const spiralDist = Math.min(distanceM, this.spiralRadius / 10);
+        this.position = offsetPosition(this.homePosition, this.spiralRadius, this.spiralAngle);
+        break;
+
+      case 'grid':
+        // Grid pattern - move in cardinal directions
+        if (this.rng.next() < 0.2) {
+          this.heading = Math.round(this.heading / 90) * 90 + (this.rng.next() < 0.5 ? 90 : -90);
+        }
+        this.position = offsetPosition(this.position, distanceM, this.heading);
+        break;
+
+      case 'random':
+        // Random walk with tendency to cover new ground
+        this.heading += this.rng.uniform(-30, 30);
+        this.position = offsetPosition(this.position, distanceM, this.heading);
+        break;
+    }
+
+    // Keep within search radius
+    const distFromHome = distance(this.position, this.homePosition);
+    if (distFromHome > this.searchRadius) {
+      // Turn back toward home
+      const homeDir = Math.atan2(
+        this.homePosition.lng - this.position.lng,
+        this.homePosition.lat - this.position.lat
+      ) * 180 / Math.PI;
+      this.heading = homeDir;
+      this.position = offsetPosition(this.position, distanceM, this.heading);
+    }
+
+    // Record path
+    this.path.push({
+      hour,
+      lat: this.position.lat,
+      lng: this.position.lng,
+      fear: 0,
+      hunger: 0,
+      state: this.isActive ? 'searching' : 'inactive',
+    });
+  }
+}
+
 export class BehavioralSimulationEngine {
   private profile: AnimalProfile;
   private config: SimulationConfig;
@@ -73,6 +167,7 @@ export class BehavioralSimulationEngine {
   private state: AnimalState;
   private homePosition: Position;
   private path: PathPoint[] = [];
+  private searchers: SearcherAgent[] = [];
   private thresholdHours: number = 0;
   private totalDistanceM: number = 0;
   private maxDistanceM: number = 0;
@@ -112,6 +207,11 @@ export class BehavioralSimulationEngine {
     }
 
     this.heading = this.rng.uniform(0, 360);
+
+    // Initialize searchers
+    for (let i = 0; i < config.numSearchers; i++) {
+      this.searchers.push(new SearcherAgent(i, startPosition, this.rng));
+    }
   }
 
   run(): SimulationResult {
@@ -161,7 +261,12 @@ export class BehavioralSimulationEngine {
         break;
       }
 
-      // Check for detection by searchers (simplified)
+      // Update searcher positions
+      for (const searcher of this.searchers) {
+        searcher.update(simHour, timeStepHours, currentHour);
+      }
+
+      // Check for detection by searchers
       if (this.checkDetection(simHour, currentHour)) {
         outcome = 'captured';
         outcomeTime = simHour;
@@ -181,7 +286,7 @@ export class BehavioralSimulationEngine {
       timeToOutcomeHours: outcomeTime,
       finalPosition: { ...this.state.position },
       petPath: this.path,
-      searcherPaths: [], // Simplified - not tracking individual searchers
+      searcherPaths: this.searchers.map(s => s.path),
       petDistanceM: this.totalDistanceM,
       maxDistanceFromHomeM: this.maxDistanceM,
       stats: {
@@ -301,38 +406,49 @@ export class BehavioralSimulationEngine {
 
   private checkDetection(simHour: number, currentHour: number): boolean {
     if (simHour < 2) return false; // Search hasn't started
-    if (currentHour < 7 || currentHour > 21) return false; // Night - no searching
 
-    const timePeriod = getTimePeriod(currentHour);
-    const isNight = timePeriod === 'night';
+    // Check each active searcher for proximity detection
+    for (const searcher of this.searchers) {
+      if (!searcher.isActive) continue;
 
-    // Base detection probability
-    let detectionProb = 0.001 * this.config.numSearchers;
+      const dist = distance(searcher.position, this.state.position);
+      const detectionRangeM = 50; // 50 meters base detection range
 
-    // Modify by temperament
-    if (this.profile.species === 'dog') {
-      const params = DOG_TEMPERAMENTS[this.profile.temperament as keyof typeof DOG_TEMPERAMENTS];
-      if (params) {
-        detectionProb *= params.approachOwnerProb;
+      if (dist > detectionRangeM) continue;
+
+      // Base detection probability when in range
+      let detectionProb = 0.3; // 30% chance per timestep when in range
+
+      // Modify by temperament - affects whether pet approaches or flees
+      if (this.profile.species === 'dog') {
+        const params = DOG_TEMPERAMENTS[this.profile.temperament as keyof typeof DOG_TEMPERAMENTS];
+        if (params) {
+          detectionProb *= params.approachOwnerProb;
+        }
+      } else {
+        const params = CAT_TEMPERAMENTS[this.profile.temperament as keyof typeof CAT_TEMPERAMENTS];
+        if (params) {
+          // Cats are harder to catch, especially before threshold
+          detectionProb *= this.state.thresholdReached ? 0.4 : 0.1;
+        }
       }
-    } else {
-      const params = CAT_TEMPERAMENTS[this.profile.temperament as keyof typeof CAT_TEMPERAMENTS];
-      if (params) {
-        detectionProb *= this.state.thresholdReached ? 0.5 : 0.1;
+
+      // Hiding reduces detection significantly
+      if (this.state.isHiding) {
+        detectionProb *= 0.1;
+      }
+
+      // High fear means pet may flee before capture
+      if (this.state.fearLevel > 0.7) {
+        detectionProb *= 0.3;
+      }
+
+      if (this.rng.next() < detectionProb) {
+        return true;
       }
     }
 
-    // Hiding reduces detection
-    if (this.state.isHiding) {
-      detectionProb *= 0.2;
-    }
-
-    // Night reduces detection
-    if (isNight) {
-      detectionProb *= 0.3;
-    }
-
-    return this.rng.next() < detectionProb;
+    return false;
   }
 
   private getStateString(): string {

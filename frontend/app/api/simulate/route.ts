@@ -128,6 +128,7 @@ export async function POST(request: Request) {
           stats: result.stats,
         },
         path: result.petPath,
+        searcherPaths: result.searcherPaths,
       });
     }
   } catch (error) {
