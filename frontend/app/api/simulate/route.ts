@@ -25,6 +25,7 @@ interface SimulateRequest {
   longitude: number;
   maxHours?: number;
   numSearchers?: number;
+  searchStartDelay?: number;
   batchSize?: number;
   seed?: number;
 }
@@ -55,14 +56,15 @@ export async function POST(request: Request) {
       hasCollar: body.hasCollar ?? true,
     };
 
-    // Build config
+    // Build config - default 30 days (720 hours)
     const config: SimulationConfig = {
       seed: body.seed || Math.floor(Math.random() * 1000000),
-      maxHours: body.maxHours || 72,
+      maxHours: body.maxHours || 720,
       timeStepMinutes: 5,
       startHour: 10,
       searchRadiusM: 2000,
       numSearchers: body.numSearchers || 3,
+      searchStartDelay: body.searchStartDelay || 2,
       useTraps: false,
       useScentArticles: false,
     };
@@ -91,14 +93,16 @@ export async function POST(request: Request) {
           avgDistanceM: Math.round(batchResult.avgDistanceM),
           outcomes: batchResult.outcomes,
         },
-        // Include first 5 detailed simulations
-        sampleSimulations: batchResult.simulations.slice(0, 5).map(sim => ({
+        // Include first 10 detailed simulations with paths for viewing
+        sampleSimulations: batchResult.simulations.slice(0, 10).map(sim => ({
           id: sim.id,
           outcome: sim.outcome,
           outcomeDescription: sim.outcomeDescription,
           timeToOutcomeHours: sim.timeToOutcomeHours,
           maxDistanceM: Math.round(sim.maxDistanceFromHomeM),
           pathLength: sim.petPath.length,
+          petPath: sim.petPath,
+          searcherPaths: sim.searcherPaths,
         })),
       });
     } else {

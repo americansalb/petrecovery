@@ -10,7 +10,7 @@ import {
 } from './types';
 import {
   DOG_TEMPERAMENTS, CAT_TEMPERAMENTS, DISPLACEMENT,
-  MOVEMENT_SPEEDS, PHYSIOLOGY, TIME_OF_DAY, SEARCHER_PARAMS,
+  MOVEMENT_SPEEDS, PHYSIOLOGY, TIME_OF_DAY, SEARCHER_PARAMS, SURVIVAL,
 } from './constants';
 
 // Seeded random number generator
@@ -68,6 +68,37 @@ function sampleLognormal(rng: SeededRandom, median: number, q75: number): number
   return Math.exp(rng.gauss(mu, sigma));
 }
 
+// Sample from a min/max range
+function sampleRange(rng: SeededRandom, range: { min: number; max: number }): number {
+  return rng.uniform(range.min, range.max);
+}
+
+// Physiology parameters sampled at initialization
+interface SampledPhysiologyParams {
+  hungerRate: number;
+  thirstRate: number;
+  staminaDrainFleeing: number;
+  staminaDrainTraveling: number;
+  staminaRecoveryResting: number;
+}
+
+// Survival parameters sampled at initialization for this pet
+interface SampledSurvivalParams {
+  dehydrationCriticalHours: number;
+  dehydrationFatalHours: number;
+  dehydrationDeathRate: number;
+  starvationCriticalHours: number;
+  starvationFatalHours: number;
+  starvationDeathRate: number;
+  hazardVehicleRate: number;
+  hazardPredatorRate: number;
+  hazardAccidentRate: number;
+  sizeModifier: number;
+  ageModifier: number;
+  speciesModifier: number;
+  indoorOnlyModifier: number;
+}
+
 // Searcher agent class
 class SearcherAgent {
   id: number;
@@ -81,8 +112,9 @@ class SearcherAgent {
   private searchPattern: 'spiral' | 'grid' | 'random';
   private spiralAngle: number = 0;
   private spiralRadius: number = 50;
+  private searchStartDelay: number;
 
-  constructor(id: number, home: Position, rng: SeededRandom) {
+  constructor(id: number, home: Position, rng: SeededRandom, searchStartDelay: number = 2) {
     this.id = id;
     this.homePosition = { ...home };
     this.position = { ...home };
@@ -90,6 +122,7 @@ class SearcherAgent {
     this.searchRadius = 2000;
     this.isActive = false;
     this.rng = rng;
+    this.searchStartDelay = searchStartDelay;
     // Randomize search pattern
     const patterns: Array<'spiral' | 'grid' | 'random'> = ['spiral', 'grid', 'random'];
     this.searchPattern = patterns[Math.floor(rng.next() * 3)];
@@ -105,8 +138,8 @@ class SearcherAgent {
       return;
     }
 
-    // Start searching after initial hours
-    if (hour < 2) {
+    // Start searching after configured delay
+    if (hour < this.searchStartDelay) {
       this.isActive = false;
       this.recordPath(hour);
       return;
@@ -179,6 +212,10 @@ export class BehavioralSimulationEngine {
   private totalDistanceM: number = 0;
   private maxDistanceM: number = 0;
   private heading: number = 0;
+  private survivalParams: SampledSurvivalParams;
+  private physiologyParams: SampledPhysiologyParams;
+  private lastDeathCheckHour: number = -1;
+  private lastSelfReturnCheckDay: number = -1;
 
   constructor(
     profile: AnimalProfile,
@@ -189,6 +226,10 @@ export class BehavioralSimulationEngine {
     this.homePosition = startPosition;
     this.config = config;
     this.rng = new SeededRandom(config.seed || Math.floor(Math.random() * 1000000));
+
+    // Sample parameters from ranges for this specific pet
+    this.survivalParams = this.sampleSurvivalParams(profile);
+    this.physiologyParams = this.samplePhysiologyParams();
 
     // Initialize state
     this.state = {
@@ -216,9 +257,48 @@ export class BehavioralSimulationEngine {
     this.heading = this.rng.uniform(0, 360);
 
     // Initialize searchers
+    const searchDelay = config.searchStartDelay ?? 2;
     for (let i = 0; i < config.numSearchers; i++) {
-      this.searchers.push(new SearcherAgent(i, startPosition, this.rng));
+      this.searchers.push(new SearcherAgent(i, startPosition, this.rng, searchDelay));
     }
+  }
+
+  // Sample physiology parameters from ranges
+  private samplePhysiologyParams(): SampledPhysiologyParams {
+    return {
+      hungerRate: sampleRange(this.rng, PHYSIOLOGY.hunger.ratePerHour),
+      thirstRate: sampleRange(this.rng, PHYSIOLOGY.thirst.ratePerHour),
+      staminaDrainFleeing: sampleRange(this.rng, PHYSIOLOGY.stamina.drainFleeing),
+      staminaDrainTraveling: sampleRange(this.rng, PHYSIOLOGY.stamina.drainTraveling),
+      staminaRecoveryResting: sampleRange(this.rng, PHYSIOLOGY.stamina.recoveryResting),
+    };
+  }
+
+  // Sample survival parameters from ranges based on pet profile
+  private sampleSurvivalParams(profile: AnimalProfile): SampledSurvivalParams {
+    const sizeKey = profile.size as keyof typeof SURVIVAL.modifiers.size;
+    const ageKey = profile.age as keyof typeof SURVIVAL.modifiers.age;
+    const speciesKey = profile.species as keyof typeof SURVIVAL.modifiers.species;
+
+    const sizeMod = SURVIVAL.modifiers.size[sizeKey] || SURVIVAL.modifiers.size.MED;
+    const ageMod = SURVIVAL.modifiers.age[ageKey] || SURVIVAL.modifiers.age.ADT;
+    const speciesMod = SURVIVAL.modifiers.species[speciesKey] || SURVIVAL.modifiers.species.dog;
+
+    return {
+      dehydrationCriticalHours: sampleRange(this.rng, SURVIVAL.dehydration.criticalAfterHours),
+      dehydrationFatalHours: sampleRange(this.rng, SURVIVAL.dehydration.fatalAfterHours),
+      dehydrationDeathRate: sampleRange(this.rng, SURVIVAL.dehydration.deathRatePerHour),
+      starvationCriticalHours: sampleRange(this.rng, SURVIVAL.starvation.criticalAfterHours),
+      starvationFatalHours: sampleRange(this.rng, SURVIVAL.starvation.fatalAfterHours),
+      starvationDeathRate: sampleRange(this.rng, SURVIVAL.starvation.deathRatePerHour),
+      hazardVehicleRate: sampleRange(this.rng, SURVIVAL.hazards.vehicleStrike.nearRoad),
+      hazardPredatorRate: sampleRange(this.rng, SURVIVAL.hazards.predator.nighttime),
+      hazardAccidentRate: sampleRange(this.rng, SURVIVAL.hazards.accident.general),
+      sizeModifier: sizeMod.survival,
+      ageModifier: ageMod.survival,
+      speciesModifier: speciesMod.outdoorSurvival,
+      indoorOnlyModifier: profile.isIndoorOnly ? SURVIVAL.modifiers.indoorOnly.survivalPenalty : 1.0,
+    };
   }
 
   run(): SimulationResult {
@@ -244,8 +324,8 @@ export class BehavioralSimulationEngine {
       // Update physiology
       this.updatePhysiology(timeStepHours);
 
-      // Check for death
-      if (this.checkDeath()) {
+      // Check for death (per-hour check with survival modifiers)
+      if (this.checkDeath(simHour, currentHour)) {
         outcome = 'deceased';
         outcomeTime = simHour;
         break;
@@ -261,8 +341,8 @@ export class BehavioralSimulationEngine {
       const distFromHome = distance(this.state.position, this.homePosition);
       this.maxDistanceM = Math.max(this.maxDistanceM, distFromHome);
 
-      // Check for self-return
-      if (this.checkSelfReturn(distFromHome)) {
+      // Check for self-return (daily check)
+      if (this.checkSelfReturn(distFromHome, simHour)) {
         outcome = 'self_return';
         outcomeTime = simHour;
         break;
@@ -305,28 +385,93 @@ export class BehavioralSimulationEngine {
   }
 
   private updatePhysiology(hours: number): void {
-    this.state.hungerLevel = Math.min(1, this.state.hungerLevel + PHYSIOLOGY.hunger.ratePerHour * hours);
-    this.state.thirstLevel = Math.min(1, this.state.thirstLevel + PHYSIOLOGY.thirst.ratePerHour * hours);
+    const params = this.physiologyParams;
 
-    // Stamina
+    this.state.hungerLevel = Math.min(1, this.state.hungerLevel + params.hungerRate * hours);
+    this.state.thirstLevel = Math.min(1, this.state.thirstLevel + params.thirstRate * hours);
+
+    // Stamina - depends on current activity
     if (this.state.fearLevel > 0.7) {
-      this.state.stamina = Math.max(0, this.state.stamina - PHYSIOLOGY.stamina.drainFleeing * hours);
+      // Fleeing drains stamina fastest
+      this.state.stamina = Math.max(0, this.state.stamina - params.staminaDrainFleeing * hours);
     } else if (this.state.isHiding) {
-      this.state.stamina = Math.min(1, this.state.stamina + PHYSIOLOGY.stamina.recoveryResting * hours);
+      // Resting recovers stamina
+      this.state.stamina = Math.min(1, this.state.stamina + params.staminaRecoveryResting * hours);
     } else {
-      this.state.stamina = Math.max(0, this.state.stamina - PHYSIOLOGY.stamina.drainTraveling * hours);
+      // Traveling drains stamina moderately
+      this.state.stamina = Math.max(0, this.state.stamina - params.staminaDrainTraveling * hours);
     }
   }
 
-  private checkDeath(): boolean {
-    if (this.state.thirstLevel >= PHYSIOLOGY.thirst.criticalThreshold && this.rng.next() < 0.05) {
+  private checkDeath(simHour: number, currentTimeOfDay: number): boolean {
+    // Only check once per DAY (every 24 hours) to avoid compounding probability
+    // In reality, death is rare - most lost pets survive
+    const currentDayFloor = Math.floor(simHour / 24);
+    if (currentDayFloor <= this.lastDeathCheckHour) {
+      return false;
+    }
+    this.lastDeathCheckHour = currentDayFloor;
+
+    const params = this.survivalParams;
+
+    // Combined survival modifier from all factors
+    // Higher = better survival = lower death rate
+    const survivalModifier = params.sizeModifier * params.ageModifier *
+                             params.speciesModifier * params.indoorOnlyModifier;
+
+    // Base daily death probability is VERY LOW for healthy pets
+    // A healthy adult medium pet should have ~0.1% daily death rate (~3% over 30 days)
+    // This accounts for all causes: accidents, vehicles, predators, etc.
+    let dailyDeathRate = 0.001; // 0.1% base daily rate
+
+    // === MODIFIERS ===
+
+    // Size affects vulnerability
+    if (this.profile.size === 'TOY') {
+      dailyDeathRate *= 2.5; // Toy breeds more vulnerable
+    } else if (this.profile.size === 'SML') {
+      dailyDeathRate *= 1.5;
+    } else if (this.profile.size === 'LRG' || this.profile.size === 'GNT') {
+      dailyDeathRate *= 0.7; // Larger pets are hardier
+    }
+
+    // Age affects vulnerability
+    if (this.profile.age === 'PUP' || this.profile.age === 'KIT') {
+      dailyDeathRate *= 3; // Very young are vulnerable
+    } else if (this.profile.age === 'JUV') {
+      dailyDeathRate *= 1.5;
+    } else if (this.profile.age === 'SEN') {
+      dailyDeathRate *= 2; // Seniors more vulnerable
+    }
+
+    // Indoor-only pets are less street-smart
+    if (this.profile.isIndoorOnly) {
+      dailyDeathRate *= 1.5;
+    }
+
+    // Cats are generally better at outdoor survival than small dogs
+    if (this.profile.species === 'cat') {
+      dailyDeathRate *= 0.8;
+    }
+
+    // Very long duration increases risk slightly (exhaustion, exposure)
+    const dayNumber = Math.floor(simHour / 24);
+    if (dayNumber > 14) {
+      // After 2 weeks, slightly increased risk
+      dailyDeathRate *= 1 + (dayNumber - 14) * 0.02; // +2% per day after day 14
+    }
+
+    // Apply overall survival modifier
+    dailyDeathRate /= survivalModifier;
+
+    // Cap the daily rate at 2% to prevent unrealistic outcomes
+    dailyDeathRate = Math.min(dailyDeathRate, 0.02);
+
+    if (this.rng.next() < dailyDeathRate) {
       this.state.isDeceased = true;
       return true;
     }
-    if (this.state.hungerLevel >= PHYSIOLOGY.hunger.criticalThreshold && this.rng.next() < 0.02) {
-      this.state.isDeceased = true;
-      return true;
-    }
+
     return false;
   }
 
@@ -402,13 +547,57 @@ export class BehavioralSimulationEngine {
     }
   }
 
-  private checkSelfReturn(distFromHome: number): boolean {
-    if (distFromHome < 50 && this.state.fearLevel < 0.3) {
-      // Close to home and calm
-      const returnProb = this.profile.species === 'dog' ? 0.1 : 0.05;
-      return this.rng.next() < returnProb;
+  private checkSelfReturn(distFromHome: number, simHour: number): boolean {
+    // Only check once per day to avoid compounding
+    const currentDay = Math.floor(simHour / 24);
+    if (currentDay <= this.lastSelfReturnCheckDay) {
+      return false;
     }
-    return false;
+    this.lastSelfReturnCheckDay = currentDay;
+
+    // Research: ~15% of dogs, ~59% of cats eventually self-return
+    // Over 30 days, we want roughly 15% of dogs to return
+
+    // Base daily probability depends on distance from home
+    // Dogs/cats that wander far are less likely to return
+    let returnProb = 0;
+
+    if (distFromHome < 200) {
+      // Very close to home - high chance
+      returnProb = this.profile.species === 'dog' ? 0.02 : 0.03;
+    } else if (distFromHome < 500) {
+      // Close to home
+      returnProb = this.profile.species === 'dog' ? 0.01 : 0.015;
+    } else if (distFromHome < 1000) {
+      // Moderate distance - still possible
+      returnProb = this.profile.species === 'dog' ? 0.005 : 0.008;
+    } else if (distFromHome < 2000) {
+      // Far but reachable
+      returnProb = this.profile.species === 'dog' ? 0.002 : 0.004;
+    } else {
+      // Very far - unlikely to return
+      returnProb = 0.0005;
+    }
+
+    // Fear affects return probability
+    // Must be somewhat calm to decide to return home
+    if (this.state.fearLevel > 0.6) {
+      returnProb *= 0.2; // Very scared - unlikely to return
+    } else if (this.state.fearLevel > 0.4) {
+      returnProb *= 0.5;
+    } else if (this.state.fearLevel < 0.2) {
+      returnProb *= 1.5; // Very calm - more likely to return
+    }
+
+    // Later in the search, pets may be more motivated to return
+    if (simHour > 168) { // After 1 week
+      returnProb *= 1.2;
+    }
+    if (simHour > 336) { // After 2 weeks
+      returnProb *= 1.3;
+    }
+
+    return this.rng.next() < returnProb;
   }
 
   private checkDetection(simHour: number, currentHour: number): boolean {

@@ -138,19 +138,83 @@ export const MOVEMENT_SPEEDS = {
 // Physiological parameters
 export const PHYSIOLOGY = {
   hunger: {
-    ratePerHour: 0.015,    // ~66 hours to reach 1.0
-    foragingRelief: 0.4,
-    criticalThreshold: 0.9,
+    ratePerHour: { min: 0.012, max: 0.018 },  // 55-83 hours to reach 1.0
+    foragingRelief: { min: 0.3, max: 0.5 },
+    criticalThreshold: { min: 0.85, max: 0.95 },
   },
   thirst: {
-    ratePerHour: 0.025,    // ~40 hours to reach 1.0
-    waterRelief: 0.6,
-    criticalThreshold: 0.85,
+    ratePerHour: { min: 0.02, max: 0.03 },    // 33-50 hours to reach 1.0
+    waterRelief: { min: 0.5, max: 0.7 },
+    criticalThreshold: { min: 0.8, max: 0.9 },
   },
   stamina: {
-    drainFleeing: 0.3,
-    drainTraveling: 0.1,
-    recoveryResting: 0.15,
+    drainFleeing: { min: 0.25, max: 0.35 },
+    drainTraveling: { min: 0.08, max: 0.12 },
+    recoveryResting: { min: 0.12, max: 0.18 },
+  },
+};
+
+// Survival parameters with ranges [A] - Based on realistic pet survival
+// Key insight: Most lost pets survive and are found. Death is RARE.
+// A healthy adult medium-sized pet should have <5% mortality over 30 days
+export const SURVIVAL = {
+  // Dehydration - pets usually find water sources (puddles, streams, birdbaths)
+  // True dehydration death is rare except in extreme conditions
+  dehydration: {
+    criticalAfterHours: { min: 96, max: 144 },    // 4-6 days without ANY water (rare)
+    fatalAfterHours: { min: 144, max: 240 },      // 6-10 days - most pets find water before this
+    deathRatePerHour: { min: 0.0005, max: 0.002 }, // Very low - 0.05-0.2% per hour when critical
+    findWaterProbPerHour: 0.15,                    // 15% chance per hour of finding water
+  },
+  // Starvation - pets can survive 2-3+ weeks without food easily
+  starvation: {
+    criticalAfterHours: { min: 336, max: 504 },   // 2-3 weeks
+    fatalAfterHours: { min: 504, max: 720 },      // 3-4 weeks
+    deathRatePerHour: { min: 0.0002, max: 0.001 }, // Very slow
+  },
+  // Environmental hazards - these are RARE events
+  // Rates are per-hour probability, should result in ~1-3% total over 30 days
+  hazards: {
+    vehicleStrike: {
+      nearRoad: { min: 0.000005, max: 0.00003 },  // ~0.5-2% over 30 days
+      fleeing: { min: 0.00001, max: 0.00005 },    // Slightly higher when panicked
+    },
+    predator: {
+      nighttime: { min: 0.000002, max: 0.00001 }, // Very rare - most areas safe
+      smallPet: { min: 0.000005, max: 0.00002 },  // Small pets slightly more at risk
+    },
+    exposure: {
+      extreme: { min: 0.000001, max: 0.000005 },  // Only in extreme weather
+    },
+    accident: {
+      general: { min: 0.000001, max: 0.000005 }, // Very rare
+    },
+  },
+  // Modifiers based on pet characteristics
+  modifiers: {
+    size: {
+      TOY: { survival: 0.7, dehydration: 1.4 },   // Toy breeds dehydrate faster
+      SML: { survival: 0.85, dehydration: 1.2 },
+      MED: { survival: 1.0, dehydration: 1.0 },
+      LRG: { survival: 1.1, dehydration: 0.9 },
+      GNT: { survival: 1.0, dehydration: 0.85 },  // Need more food but retain water better
+    },
+    age: {
+      PUP: { survival: 0.7, resilience: 0.6 },    // Very vulnerable
+      KIT: { survival: 0.7, resilience: 0.6 },
+      JUV: { survival: 0.85, resilience: 0.8 },
+      YNG: { survival: 1.0, resilience: 1.0 },
+      ADT: { survival: 1.0, resilience: 1.0 },
+      SEN: { survival: 0.75, resilience: 0.7 },   // Seniors vulnerable
+    },
+    species: {
+      dog: { outdoorSurvival: 1.0, predatorRisk: 0.7 },  // Dogs fend off predators better
+      cat: { outdoorSurvival: 0.9, predatorRisk: 1.0 },
+    },
+    indoorOnly: {
+      survivalPenalty: 0.8,  // 20% less likely to survive outdoors
+      foragingPenalty: 0.6,  // Worse at finding food/water
+    },
   },
 };
 
