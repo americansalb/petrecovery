@@ -5194,6 +5194,603 @@ def initialize_pre_escape_state(profile: AnimalProfile) -> AnimalState:
 
 ---
 
+## Trap Capture Probability
+
+Parameters governing humane trap effectiveness by species, temperament, and physiological state.
+
+```python
+# [A] Analytical estimates - limited field data on trap success rates
+# Trap capture is probabilistic per tick when animal is within trap detection range
+
+DOG_TRAP_CAPTURE_PROBABILITY = {
+    # Base probability per tick (5-minute) when within 5m of baited trap
+    "base_rate_per_tick": 0.02,  # [A] ~2% per 5-min tick when in range
+
+    # Temperament multipliers
+    "temperament_multiplier": {
+        "D-GRG": 1.5,   # Gregarious - approaches novel food sources readily
+        "D-ALF": 1.2,   # Aloof - cautious but food-motivated
+        "D-CAU": 0.6,   # Cautious - very slow to approach, needs habituation
+        "D-XEN": 0.3,   # Xenophobic - extreme wariness, may never enter
+    },
+
+    # Hunger threshold effects (hunger_level 0.0-1.0)
+    "hunger_thresholds": {
+        "no_interest": 0.2,      # Below this, trap food not attractive
+        "mild_interest": 0.4,    # Will investigate but not enter
+        "moderate_drive": 0.6,   # Will attempt entry if comfortable
+        "desperate": 0.8,        # Hunger overrides caution significantly
+    },
+
+    # Hunger multiplier curve
+    "hunger_multiplier": {
+        0.0: 0.1,   # Well-fed - minimal interest
+        0.3: 0.3,   # Slightly hungry
+        0.5: 0.7,   # Moderately hungry
+        0.7: 1.2,   # Hungry - enhanced motivation
+        0.9: 2.0,   # Very hungry - desperation boost
+        1.0: 2.5,   # Starving - maximum drive
+    },
+
+    # Fear level effects (reduces capture probability)
+    "fear_multiplier": {
+        0.0: 1.0,   # Calm - no reduction
+        0.3: 0.8,   # Mild fear
+        0.5: 0.5,   # Moderate fear - significant wariness
+        0.7: 0.2,   # High fear - very unlikely to enter
+        0.9: 0.05,  # Extreme fear - almost impossible
+    },
+
+    # Time-of-day modifiers (dogs more active during day)
+    "time_of_day_multiplier": {
+        "dawn": 1.2,      # 5-8 AM
+        "morning": 1.0,   # 8-12 PM
+        "afternoon": 0.8, # 12-5 PM (heat, less active)
+        "dusk": 1.3,      # 5-8 PM (peak activity)
+        "night": 0.6,     # 8 PM - 5 AM
+    },
+
+    # Habituation bonus (days trap has been in place)
+    "habituation_bonus_per_day": 0.05,  # +5% per day, max +25%
+    "max_habituation_bonus": 0.25,
+
+    # Bait type effectiveness
+    "bait_effectiveness": {
+        "owner_scented_item": 1.5,  # Familiar smell reduces wariness
+        "high_value_food": 1.3,     # Rotisserie chicken, etc.
+        "standard_dog_food": 1.0,   # Baseline
+        "generic_meat": 0.9,
+    },
+}
+
+CAT_TRAP_CAPTURE_PROBABILITY = {
+    # Base probability per tick when within 3m of baited trap
+    # Cats require closer approach and more time than dogs
+    "base_rate_per_tick": 0.015,  # [A] ~1.5% per 5-min tick - more cautious
+
+    # Temperament multipliers
+    "temperament_multiplier": {
+        "C-OO": 1.4,    # Owner-only - will approach familiar scents
+        "C-SOC": 1.2,   # Social - curious, food-motivated
+        "C-CAU": 0.5,   # Cautious - needs extensive habituation
+        "C-XEN": 0.2,   # Xenophobic - rarely enters without starvation
+    },
+
+    # Threshold state is CRITICAL for cats
+    # Pre-threshold cats are in deep hiding and won't approach traps
+    "threshold_multiplier": {
+        "pre_threshold": 0.05,   # [A] Almost never - survival instinct dominant
+        "threshold_reached": 1.0, # Normal probability applies
+        "post_threshold_desperate": 1.5,  # Actively seeking food
+    },
+
+    # Hunger multiplier (threshold must be reached first)
+    "hunger_multiplier": {
+        0.0: 0.1,
+        0.3: 0.2,
+        0.5: 0.5,
+        0.7: 1.0,   # Hunger becomes primary driver
+        0.9: 1.8,   # Desperation
+        1.0: 2.2,
+    },
+
+    # Fear multiplier (post-threshold fear is lower but still matters)
+    "fear_multiplier": {
+        0.0: 1.0,
+        0.3: 0.7,
+        0.5: 0.4,
+        0.7: 0.15,
+        0.9: 0.03,  # [A] Even starving cats avoid when terrified
+    },
+
+    # Time-of-day (cats are crepuscular/nocturnal)
+    "time_of_day_multiplier": {
+        "dawn": 1.4,      # Peak activity
+        "morning": 0.5,   # Sleeping
+        "afternoon": 0.3, # Deep sleep
+        "dusk": 1.5,      # Peak activity
+        "night": 1.2,     # Active hunting time
+    },
+
+    # Habituation is even more important for cats
+    "habituation_bonus_per_day": 0.08,  # +8% per day
+    "max_habituation_bonus": 0.40,      # Can reach +40% with patience
+
+    # Bait effectiveness
+    "bait_effectiveness": {
+        "owner_scented_item": 1.8,      # [A] Very effective for owned cats
+        "cat_from_same_household": 1.4, # Familiar cat scent
+        "wet_cat_food_warmed": 1.3,     # Strong smell
+        "tuna_or_sardines": 1.2,
+        "dry_cat_food": 0.8,            # Less aromatic
+    },
+
+    # Indoor vs outdoor cat modifier
+    "indoor_outdoor_modifier": {
+        "indoor_only": 1.3,   # Less trap-wary, more food-dependent
+        "indoor_outdoor": 1.0,
+        "outdoor_only": 0.7,  # More self-sufficient, trap-experienced
+        "feral": 0.4,         # [A] Extremely trap-wary
+    },
+}
+
+
+def calculate_trap_capture_probability(
+    state: AnimalState,
+    profile: AnimalProfile,
+    trap: TrapInfo,
+    environment: Environment
+) -> float:
+    """
+    Calculate probability of trap capture for current tick.
+    Returns probability 0.0-1.0 for this tick.
+    """
+
+    if profile.species == "dog":
+        params = DOG_TRAP_CAPTURE_PROBABILITY
+        detection_range = 5.0  # meters
+    else:
+        params = CAT_TRAP_CAPTURE_PROBABILITY
+        detection_range = 3.0  # meters
+
+    dist = distance(state.position, trap.location)
+    if dist > detection_range:
+        return 0.0
+
+    prob = params["base_rate_per_tick"]
+    temp_key = f"{profile.species[0].upper()}-{profile.temperament}"
+    prob *= params["temperament_multiplier"].get(temp_key, 1.0)
+    prob *= interpolate_multiplier(state.hunger_level, params["hunger_multiplier"])
+    prob *= interpolate_multiplier(state.fear_level, params["fear_multiplier"])
+
+    time_period = get_time_period(environment.current_hour)
+    prob *= params["time_of_day_multiplier"].get(time_period, 1.0)
+
+    days_in_place = trap.days_since_placement
+    habituation = min(days_in_place * params["habituation_bonus_per_day"], params["max_habituation_bonus"])
+    prob *= (1.0 + habituation)
+    prob *= params["bait_effectiveness"].get(trap.bait_type, 1.0)
+
+    if profile.species == "cat":
+        if not state.threshold_reached:
+            prob *= params["threshold_multiplier"]["pre_threshold"]
+        elif state.hunger_level > 0.85:
+            prob *= params["threshold_multiplier"]["post_threshold_desperate"]
+        prob *= params["indoor_outdoor_modifier"].get(profile.indoor_outdoor_status, 1.0)
+
+    if hasattr(state, 'trap_wariness') and trap.trap_type in state.trap_wariness:
+        prob *= (1.0 - state.trap_wariness[trap.trap_type])
+
+    distance_factor = 1.0 - (dist / detection_range) * 0.5
+    prob *= distance_factor
+
+    return min(prob, 0.95)
+```
+
+---
+
+## Fear Re-Triggering Mechanics
+
+Fear dynamics differ fundamentally between species. Dogs experience continuous fear decay that can spike with new triggers. Cats experience threshold-based fear that doesn't decay until physiological needs override it.
+
+```python
+# [A] Analytical model based on behavioral research
+
+DOG_FEAR_TRIGGERS = {
+    "loud_noise": {
+        "examples": ["fireworks", "thunder", "gunshot", "car_backfire"],
+        "fear_spike": 0.4,
+        "decay_reset": True,
+        "detection_radius_m": 500,
+        "duration_effect_min": 30,
+        "temperament_sensitivity": {"D-GRG": 0.5, "D-ALF": 0.8, "D-CAU": 1.2, "D-XEN": 1.5},
+    },
+    "human_approach": {
+        "examples": ["person_walking_toward", "person_running", "person_calling"],
+        "fear_spike": 0.2,
+        "decay_reset": True,
+        "detection_radius_m": 50,
+        "duration_effect_min": 15,
+        "temperament_sensitivity": {"D-GRG": 0.2, "D-ALF": 0.7, "D-CAU": 1.3, "D-XEN": 2.0},
+    },
+    "capture_attempt_failed": {
+        "examples": ["grab_missed", "trap_triggered_empty", "net_missed"],
+        "fear_spike": 0.5,
+        "decay_reset": True,
+        "detection_radius_m": 0,
+        "duration_effect_min": 120,
+        "temperament_sensitivity": {"D-GRG": 0.8, "D-ALF": 1.2, "D-CAU": 1.5, "D-XEN": 2.0},
+        "special_effects": {
+            "approach_wariness_increase": 0.3,
+            "trap_wariness_increase": 0.5,
+            "location_avoidance_hours": 48,
+        },
+    },
+    "predator_encounter": {
+        "examples": ["coyote", "large_dog_pack", "bear"],
+        "fear_spike": 0.6,
+        "decay_reset": True,
+        "detection_radius_m": 100,
+        "duration_effect_min": 180,
+        "temperament_sensitivity": {"D-GRG": 1.0, "D-ALF": 1.0, "D-CAU": 1.2, "D-XEN": 1.3},
+    },
+}
+
+DOG_FEAR_DECAY = {
+    "base_half_life_hours": 4.0,
+    "temperament_half_life_modifier": {"D-GRG": 0.7, "D-ALF": 1.0, "D-CAU": 1.5, "D-XEN": 2.5},
+    "minimum_fear_floor": 0.05,
+    "reset_on_trigger": True,
+    "cumulative_trauma_factor": 0.1,
+}
+
+CAT_FEAR_TRIGGERS = {
+    "loud_noise": {
+        "examples": ["fireworks", "thunder", "construction"],
+        "fear_spike": 0.3,
+        "threshold_delay_hours": 6,
+        "relocation_probability": 0.3,
+        "detection_radius_m": 300,
+        "temperament_sensitivity": {"C-OO": 0.8, "C-SOC": 0.7, "C-CAU": 1.3, "C-XEN": 1.8},
+    },
+    "human_approach": {
+        "examples": ["person_near_hiding_spot", "person_searching"],
+        "fear_spike": 0.25,
+        "threshold_delay_hours": 12,
+        "relocation_probability": 0.5,
+        "detection_radius_m": 20,
+        "temperament_sensitivity": {"C-OO": 0.4, "C-SOC": 0.6, "C-CAU": 1.4, "C-XEN": 2.0},
+        "owner_vs_stranger": {"owner": 0.2, "familiar_person": 0.5, "stranger": 1.0},
+    },
+    "capture_attempt_failed": {
+        "examples": ["grab_missed", "trap_sprung_escaped", "carrier_refused"],
+        "fear_spike": 0.6,
+        "threshold_delay_hours": 48,
+        "relocation_probability": 0.85,
+        "relocation_distance_m": {"min": 50, "max": 300, "mean": 150},
+        "detection_radius_m": 0,
+        "temperament_sensitivity": {"C-OO": 0.9, "C-SOC": 1.0, "C-CAU": 1.5, "C-XEN": 2.0},
+        "special_effects": {
+            "trust_damage": 0.4,
+            "trap_type_wariness": 0.7,
+            "location_permanent_avoid": True,
+            "threshold_reset": True,
+        },
+    },
+}
+
+CAT_THRESHOLD_MODEL = {
+    "base_threshold_hours": {"indoor_only": 72, "indoor_outdoor": 96, "outdoor_only": 120, "feral": 168},
+    "temperament_threshold_modifier": {"C-OO": 0.9, "C-SOC": 0.85, "C-CAU": 1.2, "C-XEN": 1.5},
+    "max_threshold_delay_hours": 168,
+    "post_threshold_behavior": {
+        "emergence_pattern": "crepuscular",
+        "initial_emergence_radius_m": 20,
+        "daily_radius_expansion_m": 10,
+        "vocalization_probability": 0.3,
+    },
+}
+```
+
+---
+
+## Failed Capture Attempt Consequences
+
+Failed capture attempts are among the most consequential events in lost pet recovery. A botched attempt can transform a 3-day recovery into a 3-week ordeal.
+
+```python
+# [A] Analytical model - critical for realistic simulation
+
+FAILED_CAPTURE_CONSEQUENCES = {
+    "dog": {
+        "immediate_effects": {
+            "fear_spike": 0.5,
+            "flee_distance_m": {"min": 100, "max": 800, "mean": 300, "distribution": "lognormal"},
+            "flee_duration_min": {"min": 15, "max": 120, "mean": 45},
+        },
+        "behavioral_changes": {
+            "approach_wariness_increase": 0.3,
+            "trust_decay_factor": 0.7,
+            "flight_distance_increase_m": 50,
+            "flight_distance_duration_hours": 72,
+        },
+        "location_effects": {
+            "avoids_capture_location": True,
+            "avoidance_radius_m": 100,
+            "avoidance_duration_hours": 48,
+            "returns_to_area_probability": 0.6,
+        },
+        "temperament_specific": {
+            "D-GRG": {"recovery_time_hours": 24, "permanent_wariness_increase": 0.1},
+            "D-ALF": {"recovery_time_hours": 48, "permanent_wariness_increase": 0.15},
+            "D-CAU": {"recovery_time_hours": 96, "permanent_wariness_increase": 0.25},
+            "D-XEN": {"recovery_time_hours": 168, "permanent_wariness_increase": 0.4, "may_become_uncatchable_prob": 0.2},
+        },
+    },
+    "cat": {
+        "immediate_effects": {
+            "fear_spike": 0.6,
+            "relocation_probability": 0.85,
+            "relocation_distance_m": {"min": 50, "max": 500, "mean": 150, "distribution": "lognormal"},
+        },
+        "threshold_effects": {
+            "threshold_reset": True,
+            "threshold_delay_hours": 48,
+            "threshold_progress_retained": 0.0,
+        },
+        "return_behavior": {
+            "return_to_exact_spot": {
+                "probability": 0.15,
+                "conditions": {"requires_threshold_reached": True, "requires_no_alternative_food": True, "minimum_hours_before_return": 72},
+                "temperament_modifier": {"C-OO": 1.3, "C-SOC": 1.1, "C-CAU": 0.7, "C-XEN": 0.3},
+            },
+            "return_to_general_area": {
+                "probability": 0.45,
+                "area_radius_m": 50,
+                "conditions": {"requires_threshold_reached": True, "minimum_hours_before_return": 48},
+                "temperament_modifier": {"C-OO": 1.2, "C-SOC": 1.1, "C-CAU": 0.8, "C-XEN": 0.5},
+            },
+            "never_returns": {"probability": 0.40},
+        },
+        "temperament_specific": {
+            "C-OO": {"threshold_delay_hours": 36, "trust_recovery_possible": True, "trust_recovery_time_hours": 72},
+            "C-SOC": {"threshold_delay_hours": 42, "trust_recovery_possible": True, "trust_recovery_time_hours": 96},
+            "C-CAU": {"threshold_delay_hours": 72, "trust_recovery_possible": True, "trust_recovery_time_hours": 168},
+            "C-XEN": {"threshold_delay_hours": 96, "trust_recovery_possible": False, "may_become_uncatchable_prob": 0.35},
+        },
+    },
+}
+```
+
+---
+
+## Search Outreach and Reach Model
+
+Replaces the simple O0-O4 search effort levels with a more realistic model of search reach, visibility, and effectiveness.
+
+```python
+# [A] Analytical model replacing categorical O0-O4 levels
+
+SEARCH_REACH_MODEL = {
+    "physical_search": {
+        "searcher_detection_radius_m": {
+            "walking_casual": 30, "walking_focused": 50, "driving_slow": 100, "driving_fast": 20, "stationary_calling": 40,
+        },
+        "searcher_effectiveness": {"novice": 0.3, "experienced": 0.5, "professional": 0.7, "with_search_dog": 0.85},
+        "terrain_detection_modifier": {"open_field": 1.2, "suburban_yards": 1.0, "wooded": 0.5, "dense_brush": 0.3, "urban_structures": 0.7},
+        "time_of_day_modifier": {"daylight": 1.0, "dawn_dusk": 0.7, "night_with_flashlight": 0.4, "night_no_light": 0.1},
+        "coverage_rate_sqm_per_hour": {"on_foot": 10000, "by_car": 50000, "drone": 100000},
+    },
+    "social_media_reach": {
+        "platforms": {
+            "nextdoor": {"local_reach_multiplier": 3.0, "radius_km": 5, "response_rate": 0.02},
+            "facebook_local_groups": {"local_reach_multiplier": 2.5, "radius_km": 15, "response_rate": 0.015},
+            "pawboost": {"local_reach_multiplier": 2.0, "radius_km": 25, "response_rate": 0.025},
+            "craigslist": {"local_reach_multiplier": 1.5, "radius_km": 30, "response_rate": 0.005},
+        },
+        "post_quality_multiplier": {"poor": 0.5, "basic": 1.0, "good": 1.5, "excellent": 2.0},
+        "paid_boost": {
+            "facebook_boost": {"cost_per_day": 10, "reach_multiplier": 3.0, "diminishing_returns_after_days": 7},
+            "pawboost_premium": {"cost_per_day": 5, "reach_multiplier": 2.0},
+        },
+    },
+    "community_engagement": {
+        "flyer_effectiveness": {"per_flyer_visibility_radius_m": 50, "viewer_report_probability": 0.01, "weather_degradation_per_day": 0.1},
+        "door_to_door": {"houses_per_hour": 20, "positive_engagement_rate": 0.7, "will_watch_for_pet_rate": 0.5, "watch_duration_days": 7},
+        "shelter_notification": {"check_frequency_recommended_hours": 24, "intake_notification_probability": 0.9},
+    },
+    "sighting_quality": {
+        "probability_given_detection": {"no_social_media": 0.1, "saw_social_media": 0.6, "has_flyer_info": 0.7},
+        "report_accuracy": {"definite_identification": 0.9, "probable_match": 0.6, "possible_match": 0.3, "wrong_animal": 0.1},
+    },
+}
+
+
+def convert_legacy_search_level(o_level: str) -> SearchActivity:
+    """Convert legacy O0-O4 search levels to new SearchActivity model."""
+    conversions = {
+        "O0": SearchActivity(physical_search=False, social_media_posts={}, flyers_posted=0, searchers=[]),
+        "O1": SearchActivity(physical_search=True, social_media_posts={"nextdoor": Post(quality="basic")}, flyers_posted=10, searchers=[Searcher(method="walking_casual", skill="novice")]),
+        "O2": SearchActivity(physical_search=True, social_media_posts={"nextdoor": Post(quality="good"), "facebook_local_groups": Post(quality="good")}, flyers_posted=50, searchers=[Searcher(method="walking_focused", skill="experienced"), Searcher(method="driving_slow", skill="novice")]),
+        "O3": SearchActivity(physical_search=True, social_media_posts={"nextdoor": Post(quality="excellent", is_boosted=True), "facebook_local_groups": Post(quality="excellent"), "pawboost": Post(quality="excellent")}, flyers_posted=200, searchers=[Searcher(method="walking_focused", skill="experienced")], traps=[Trap(type="humane_live")], cameras=[Camera(type="wildlife")]),
+        "O4": SearchActivity(physical_search=True, social_media_posts={"nextdoor": Post(quality="excellent", is_boosted=True), "facebook_local_groups": Post(quality="excellent", is_boosted=True), "pawboost": Post(quality="excellent", is_boosted=True)}, flyers_posted=500, searchers=[Searcher(method="walking_focused", skill="professional"), Searcher(method="with_search_dog", skill="professional")], traps=[Trap(type="humane_live"), Trap(type="humane_live")], professional_help=True),
+    }
+    return conversions.get(o_level, conversions["O1"])
+```
+
+---
+
+## Injury Progression Model
+
+Injuries worsen or heal based on activity level, shelter quality, and environmental conditions.
+
+```python
+# [A] Analytical model for injury dynamics
+
+INJURY_PROGRESSION_MODEL = {
+    "injury_types": {
+        "laceration": {"initial_severity_range": (0.1, 0.6), "infection_risk_per_day": 0.15, "natural_healing_rate_per_day": 0.05, "activity_worsening_rate": 0.02, "movement_penalty": 0.3},
+        "fracture": {"initial_severity_range": (0.3, 0.9), "infection_risk_per_day": 0.05, "natural_healing_rate_per_day": 0.01, "activity_worsening_rate": 0.05, "movement_penalty": 0.6},
+        "internal": {"initial_severity_range": (0.2, 0.8), "infection_risk_per_day": 0.2, "natural_healing_rate_per_day": 0.02, "activity_worsening_rate": 0.03, "movement_penalty": 0.4, "hidden": True},
+        "sprain": {"initial_severity_range": (0.1, 0.4), "infection_risk_per_day": 0.0, "natural_healing_rate_per_day": 0.1, "activity_worsening_rate": 0.01, "movement_penalty": 0.2},
+        "bite_wound": {"initial_severity_range": (0.2, 0.7), "infection_risk_per_day": 0.25, "natural_healing_rate_per_day": 0.03, "activity_worsening_rate": 0.02, "movement_penalty": 0.25},
+    },
+    "environmental_factors": {
+        "shelter_quality": {
+            "none": {"healing_multiplier": 0.3, "infection_multiplier": 2.0},
+            "poor": {"healing_multiplier": 0.5, "infection_multiplier": 1.5},
+            "moderate": {"healing_multiplier": 0.8, "infection_multiplier": 1.2},
+            "good": {"healing_multiplier": 1.0, "infection_multiplier": 1.0},
+        },
+        "weather": {
+            "rain": {"healing_multiplier": 0.5, "infection_multiplier": 1.5},
+            "extreme_cold": {"healing_multiplier": 0.3, "infection_multiplier": 1.2},
+            "extreme_heat": {"healing_multiplier": 0.7, "infection_multiplier": 1.8},
+            "normal": {"healing_multiplier": 1.0, "infection_multiplier": 1.0},
+        },
+    },
+    "activity_effects": {
+        "resting": {"healing_bonus": 0.02, "worsening_rate": 0.0},
+        "walking": {"healing_bonus": 0.0, "worsening_rate": 0.005},
+        "running": {"healing_bonus": -0.01, "worsening_rate": 0.02},
+        "fleeing": {"healing_bonus": -0.02, "worsening_rate": 0.04},
+    },
+    "severity_thresholds": {"minor": 0.3, "moderate": 0.6, "severe": 0.8, "critical": 0.95},
+    "mortality_risk_per_day": {0.0: 0.0, 0.3: 0.001, 0.5: 0.005, 0.7: 0.02, 0.9: 0.08, 1.0: 0.2},
+    "infection": {"severity_increase_per_day": 0.15, "sepsis_threshold": 0.9, "sepsis_mortality_per_day": 0.3},
+}
+
+
+def update_injury_status(state: AnimalState, profile: AnimalProfile, environment: Environment, hours_elapsed: float) -> AnimalState:
+    """Update injury severity based on activity and conditions."""
+    if state.injury_severity <= 0:
+        return state
+
+    new_state = state.copy()
+    params = INJURY_PROGRESSION_MODEL
+
+    activity = "resting" if state.status in ["resting", "hiding"] else "fleeing" if state.status == "fleeing" else "running" if state.speed_mps > 2.0 else "walking"
+    shelter_quality = get_shelter_quality(state.current_hiding_spot, environment)
+    shelter_factors = params["environmental_factors"]["shelter_quality"][shelter_quality]
+    weather_factors = params["environmental_factors"]["weather"][environment.weather]
+
+    injury_type = state.injury_type or "laceration"
+    injury_params = params["injury_types"][injury_type]
+
+    base_healing = injury_params["natural_healing_rate_per_day"] * (hours_elapsed / 24)
+    activity_bonus = params["activity_effects"][activity]["healing_bonus"] * hours_elapsed
+    total_healing = (base_healing + activity_bonus) * shelter_factors["healing_multiplier"] * weather_factors["healing_multiplier"]
+
+    base_worsening = injury_params["activity_worsening_rate"] * hours_elapsed
+    activity_worsening = params["activity_effects"][activity]["worsening_rate"] * hours_elapsed
+    severity_change = (base_worsening + activity_worsening) - total_healing
+
+    if state.injury_infected:
+        severity_change += params["infection"]["severity_increase_per_day"] * (hours_elapsed / 24)
+    else:
+        infection_risk = injury_params["infection_risk_per_day"] * (hours_elapsed / 24) * shelter_factors["infection_multiplier"] * weather_factors["infection_multiplier"]
+        if random.random() < infection_risk:
+            new_state.injury_infected = True
+
+    new_state.injury_severity = max(0.0, min(1.0, state.injury_severity + severity_change))
+    new_state.movement_speed_modifier = 1.0 - (injury_params["movement_penalty"] * new_state.injury_severity)
+
+    mortality_risk = interpolate_multiplier(new_state.injury_severity, params["mortality_risk_per_day"]) * (hours_elapsed / 24)
+    if new_state.injury_infected and new_state.injury_severity > params["infection"]["sepsis_threshold"]:
+        mortality_risk += params["infection"]["sepsis_mortality_per_day"] * (hours_elapsed / 24)
+
+    if random.random() < mortality_risk:
+        new_state.status = "deceased"
+        new_state.death_cause = "injury_complications"
+
+    return new_state
+```
+
+---
+
+## Trap-Type Wariness Model
+
+Animals that escape from traps develop wariness specific to that trap type. This wariness transfers partially to similar trap types.
+
+```python
+# [A] Analytical model for trap-specific wariness
+
+TRAP_TYPE_WARINESS = {
+    "trap_types": {
+        "box_trap_small": {"description": "Small wire box trap (cat-sized)", "species": ["cat"], "base_capture_modifier": 1.0},
+        "box_trap_large": {"description": "Large wire box trap (dog-sized)", "species": ["dog", "cat"], "base_capture_modifier": 1.0},
+        "drop_trap": {"description": "Triggered drop trap", "species": ["cat"], "base_capture_modifier": 1.2},
+        "enclosure_trap": {"description": "Large walk-in enclosure", "species": ["dog"], "base_capture_modifier": 0.9},
+        "net_capture": {"description": "Net thrown by rescuer", "species": ["dog", "cat"], "base_capture_modifier": 0.7},
+        "direct_approach": {"description": "Direct approach and grab", "species": ["dog", "cat"], "base_capture_modifier": 0.5},
+    },
+    "wariness_transfer_matrix": {
+        "box_trap_small": {"box_trap_small": 1.0, "box_trap_large": 0.7, "drop_trap": 0.4, "enclosure_trap": 0.5, "net_capture": 0.2, "direct_approach": 0.3},
+        "box_trap_large": {"box_trap_small": 0.7, "box_trap_large": 1.0, "drop_trap": 0.4, "enclosure_trap": 0.6, "net_capture": 0.2, "direct_approach": 0.3},
+        "drop_trap": {"box_trap_small": 0.3, "box_trap_large": 0.3, "drop_trap": 1.0, "enclosure_trap": 0.3, "net_capture": 0.4, "direct_approach": 0.4},
+        "enclosure_trap": {"box_trap_small": 0.4, "box_trap_large": 0.5, "drop_trap": 0.2, "enclosure_trap": 1.0, "net_capture": 0.2, "direct_approach": 0.3},
+        "net_capture": {"box_trap_small": 0.2, "box_trap_large": 0.2, "drop_trap": 0.5, "enclosure_trap": 0.2, "net_capture": 1.0, "direct_approach": 0.6},
+        "direct_approach": {"box_trap_small": 0.2, "box_trap_large": 0.2, "drop_trap": 0.3, "enclosure_trap": 0.2, "net_capture": 0.5, "direct_approach": 1.0},
+    },
+    "wariness_dynamics": {
+        "initial_wariness_on_escape": 0.7,
+        "wariness_increase_per_escape": 0.2,
+        "max_wariness": 0.95,
+        "decay_rate_per_day": 0.01,
+        "decay_starts_after_days": 7,
+        "minimum_wariness": 0.2,
+        "hunger_wariness_reduction": {0.5: 1.0, 0.7: 0.9, 0.85: 0.7, 0.95: 0.4, 1.0: 0.2},
+    },
+    "temperament_wariness_modifier": {
+        "dog": {"D-GRG": 0.7, "D-ALF": 0.9, "D-CAU": 1.2, "D-XEN": 1.5},
+        "cat": {"C-OO": 0.8, "C-SOC": 0.85, "C-CAU": 1.3, "C-XEN": 1.6},
+    },
+}
+
+
+def update_trap_wariness(state: AnimalState, profile: AnimalProfile, escape_from_trap_type: str) -> AnimalState:
+    """Update trap wariness after a failed capture attempt."""
+    new_state = state.copy()
+    params = TRAP_TYPE_WARINESS
+
+    if not hasattr(new_state, 'trap_wariness'):
+        new_state.trap_wariness = {}
+
+    temp_key = f"{profile.species[0].upper()}-{profile.temperament}"
+    temp_modifier = params["temperament_wariness_modifier"][profile.species].get(temp_key, 1.0)
+
+    dynamics = params["wariness_dynamics"]
+    current_wariness = new_state.trap_wariness.get(escape_from_trap_type, 0.0)
+    wariness_increase = dynamics["initial_wariness_on_escape"] if current_wariness == 0 else dynamics["wariness_increase_per_escape"]
+    wariness_increase *= temp_modifier
+
+    new_state.trap_wariness[escape_from_trap_type] = min(current_wariness + wariness_increase, dynamics["max_wariness"])
+
+    transfer_matrix = params["wariness_transfer_matrix"][escape_from_trap_type]
+    for other_trap_type, transfer_rate in transfer_matrix.items():
+        if other_trap_type != escape_from_trap_type:
+            transferred = wariness_increase * transfer_rate
+            current_other = new_state.trap_wariness.get(other_trap_type, 0.0)
+            new_other = min(current_other + transferred, dynamics["max_wariness"])
+            if new_other > current_other:
+                new_state.trap_wariness[other_trap_type] = new_other
+
+    return new_state
+
+
+def get_effective_trap_wariness(state: AnimalState, trap_type: str) -> float:
+    """Get effective wariness for a trap type, accounting for hunger override."""
+    if not hasattr(state, 'trap_wariness'):
+        return 0.0
+    base_wariness = state.trap_wariness.get(trap_type, 0.0)
+    if base_wariness == 0:
+        return 0.0
+    hunger_reduction = interpolate_multiplier(state.hunger_level, TRAP_TYPE_WARINESS["wariness_dynamics"]["hunger_wariness_reduction"])
+    return base_wariness * hunger_reduction
+```
+
+---
+
 # PART 8: VALIDATION FRAMEWORK
 
 Dataset requirements, data sources, and validation metrics.
