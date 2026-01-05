@@ -4,6 +4,9 @@
  */
 
 import { NextResponse } from 'next/server';
+
+// Extend timeout for batch simulations (Vercel Pro: 60s max, Hobby: 10s)
+export const maxDuration = 60;
 import {
   BehavioralSimulationEngine,
   runBatch,
@@ -71,9 +74,13 @@ export async function POST(request: Request) {
 
     const startPosition = { lat: body.latitude, lng: body.longitude };
 
+    // Limit batch size to prevent timeout (max 60 seconds on Vercel Pro)
+    // Each simulation takes ~50-100ms, so cap at 500 for safety
+    const safeBatchSize = Math.min(body.batchSize || 1, 500);
+
     // Run single or batch
-    if (body.batchSize && body.batchSize > 1) {
-      const batchResult = runBatch(profile, startPosition, config, body.batchSize);
+    if (safeBatchSize > 1) {
+      const batchResult = runBatch(profile, startPosition, config, safeBatchSize);
 
       return NextResponse.json({
         success: true,
