@@ -1,0 +1,29 @@
+# Pet Recovery Monte Carlo Simulation Engine
+# Core dependencies
+
+# No external dependencies required for core simulation!
+# The simulation engine uses only Python standard library:
+# - math, random, statistics (numerical)
+# - dataclasses, enum, typing (types)
+# - json, urllib (API/OSM)
+# - multiprocessing, concurrent.futures (parallelization)
+
+# Optional dependencies for enhanced functionality:
+
+# For parallel Monte Carlo (built-in but these optimize):
+# numpy>=1.21.0  # Faster numerical operations
+# scipy>=1.7.0   # Statistical distributions
+
+# For API server (if running standalone):
+# fastapi>=0.68.0
+# uvicorn>=0.15.0
+# pydantic>=1.8.0
+
+# For testing:
+pytest>=7.0.0
+pytest-cov>=3.0.0
+
+# For development:
+# black>=22.0.0
+# mypy>=0.950
+# flake8>=4.0.0

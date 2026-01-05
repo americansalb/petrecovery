@@ -52,15 +52,25 @@ class EnvironmentGrid:
             grid_height=self.grid_height
         )
 
-        # Initialize grid
-        self.cells: Dict[Tuple[int, int], EnvironmentCell] = {}
-        self._initialize_grid()
-
-        # Track special locations
+        # Track special locations (initialize before grid)
         self.water_sources: List[Tuple[float, float]] = []
         self.hiding_spots: List[Tuple[float, float, float]] = []  # (lat, lon, quality)
         self.shelters: List[Tuple[float, float]] = []
         self.roads: List[Tuple[Tuple[float, float], Tuple[float, float]]] = []
+
+        # Calculate bounds
+        lat_offset = radius_m / 111000
+        lon_offset = radius_m / (111000 * math.cos(math.radians(center_lat)))
+        self.bounds = (
+            center_lat - lat_offset,
+            center_lon - lon_offset,
+            center_lat + lat_offset,
+            center_lon + lon_offset,
+        )
+
+        # Initialize grid (uses the lists above)
+        self.cells: Dict[Tuple[int, int], EnvironmentCell] = {}
+        self._initialize_grid()
 
     def _initialize_grid(self):
         """Initialize grid with default values."""
