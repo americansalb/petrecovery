@@ -5234,12 +5234,13 @@ DOG_TRAP_CAPTURE_PROBABILITY = {
     # Base probability per tick (5-minute) when within 5m of baited trap
     "base_rate_per_tick": 0.02,  # [A] ~2% per 5-min tick when in range
 
-    # Temperament multipliers
+    # Temperament multipliers (codes from Layer 5)
     "temperament_multiplier": {
-        "D-GRG": 1.5,   # Gregarious - approaches novel food sources readily
-        "D-ALF": 1.2,   # Aloof - cautious but food-motivated
-        "D-CAU": 0.6,   # Cautious - very slow to approach, needs habituation
-        "D-XEN": 0.3,   # Xenophobic - extreme wariness, may never enter
+        "G": 1.5,   # Gregarious - approaches novel food sources readily
+        "C": 1.2,   # Confident - neutral, will approach if beneficial
+        "A": 0.6,   # Aloof - slow to approach, needs habituation
+        "X": 0.3,   # Xenophobic - extreme wariness, may never enter
+        "B": 1.0,   # Bonded - depends on scent; owner-scented bait helps
     },
 
     # Hunger threshold effects (hunger_level 0.0-1.0)
@@ -5296,12 +5297,13 @@ CAT_TRAP_CAPTURE_PROBABILITY = {
     # Cats require closer approach and more time than dogs
     "base_rate_per_tick": 0.015,  # [A] ~1.5% per 5-min tick - more cautious
 
-    # Temperament multipliers
+    # Temperament multipliers (codes from Layer 4)
     "temperament_multiplier": {
-        "C-OO": 1.4,    # Owner-only - will approach familiar scents
-        "C-SOC": 1.2,   # Social - curious, food-motivated
-        "C-CAU": 0.5,   # Cautious - needs extensive habituation
-        "C-XEN": 0.2,   # Xenophobic - rarely enters without starvation
+        "CUR": 1.3,   # Curious/Clown - curious, food-motivated, will explore
+        "CL": 1.1,    # Care-less - not avoiding, not seeking humans
+        "CAU": 0.5,   # Cautious - needs extensive habituation
+        "X": 0.2,     # Xenophobic - rarely enters without starvation
+        "B": 1.4,     # Bonded - will approach owner-scented items
     },
 
     # Threshold state is CRITICAL for cats
@@ -5386,8 +5388,8 @@ def calculate_trap_capture_probability(
         return 0.0
 
     prob = params["base_rate_per_tick"]
-    temp_key = f"{profile.species[0].upper()}-{profile.temperament}"
-    prob *= params["temperament_multiplier"].get(temp_key, 1.0)
+    # Use temperament code directly (G/C/A/X/B for dogs, CUR/CL/CAU/X/B for cats)
+    prob *= params["temperament_multiplier"].get(profile.temperament, 1.0)
     prob *= interpolate_multiplier(state.hunger_level, params["hunger_multiplier"])
     prob *= interpolate_multiplier(state.fear_level, params["fear_multiplier"])
 
@@ -5431,7 +5433,7 @@ DOG_FEAR_TRIGGERS = {
         "decay_reset": True,
         "detection_radius_m": 500,
         "duration_effect_min": 30,
-        "temperament_sensitivity": {"D-GRG": 0.5, "D-ALF": 0.8, "D-CAU": 1.2, "D-XEN": 1.5},
+        "temperament_sensitivity": {"G": 0.5, "C": 0.8, "A": 1.2, "X": 1.5, "B": 0.9},
     },
     "human_approach": {
         "examples": ["person_walking_toward", "person_running", "person_calling"],
@@ -5439,7 +5441,7 @@ DOG_FEAR_TRIGGERS = {
         "decay_reset": True,
         "detection_radius_m": 50,
         "duration_effect_min": 15,
-        "temperament_sensitivity": {"D-GRG": 0.2, "D-ALF": 0.7, "D-CAU": 1.3, "D-XEN": 2.0},
+        "temperament_sensitivity": {"G": 0.2, "C": 0.7, "A": 1.3, "X": 2.0, "B": 0.6},
     },
     "capture_attempt_failed": {
         "examples": ["grab_missed", "trap_triggered_empty", "net_missed"],
@@ -5447,7 +5449,7 @@ DOG_FEAR_TRIGGERS = {
         "decay_reset": True,
         "detection_radius_m": 0,
         "duration_effect_min": 120,
-        "temperament_sensitivity": {"D-GRG": 0.8, "D-ALF": 1.2, "D-CAU": 1.5, "D-XEN": 2.0},
+        "temperament_sensitivity": {"G": 0.8, "C": 1.2, "A": 1.5, "X": 2.0, "B": 1.0},
         "special_effects": {
             "approach_wariness_increase": 0.3,
             "trap_wariness_increase": 0.5,
@@ -5460,13 +5462,13 @@ DOG_FEAR_TRIGGERS = {
         "decay_reset": True,
         "detection_radius_m": 100,
         "duration_effect_min": 180,
-        "temperament_sensitivity": {"D-GRG": 1.0, "D-ALF": 1.0, "D-CAU": 1.2, "D-XEN": 1.3},
+        "temperament_sensitivity": {"G": 1.0, "C": 1.0, "A": 1.2, "X": 1.3, "B": 1.0},
     },
 }
 
 DOG_FEAR_DECAY = {
     "base_half_life_hours": 4.0,
-    "temperament_half_life_modifier": {"D-GRG": 0.7, "D-ALF": 1.0, "D-CAU": 1.5, "D-XEN": 2.5},
+    "temperament_half_life_modifier": {"G": 0.7, "C": 1.0, "A": 1.5, "X": 2.5, "B": 1.2},
     "minimum_fear_floor": 0.05,
     "reset_on_trigger": True,
     "cumulative_trauma_factor": 0.1,
@@ -5479,7 +5481,7 @@ CAT_FEAR_TRIGGERS = {
         "threshold_delay_hours": 6,
         "relocation_probability": 0.3,
         "detection_radius_m": 300,
-        "temperament_sensitivity": {"C-OO": 0.8, "C-SOC": 0.7, "C-CAU": 1.3, "C-XEN": 1.8},
+        "temperament_sensitivity": {"CUR": 0.7, "CL": 0.8, "CAU": 1.3, "X": 1.8, "B": 0.9},
     },
     "human_approach": {
         "examples": ["person_near_hiding_spot", "person_searching"],
@@ -5487,7 +5489,7 @@ CAT_FEAR_TRIGGERS = {
         "threshold_delay_hours": 12,
         "relocation_probability": 0.5,
         "detection_radius_m": 20,
-        "temperament_sensitivity": {"C-OO": 0.4, "C-SOC": 0.6, "C-CAU": 1.4, "C-XEN": 2.0},
+        "temperament_sensitivity": {"CUR": 0.6, "CL": 0.7, "CAU": 1.4, "X": 2.0, "B": 0.4},
         "owner_vs_stranger": {"owner": 0.2, "familiar_person": 0.5, "stranger": 1.0},
     },
     "capture_attempt_failed": {
@@ -5497,7 +5499,7 @@ CAT_FEAR_TRIGGERS = {
         "relocation_probability": 0.85,
         "relocation_distance_m": {"min": 50, "max": 300, "mean": 150},
         "detection_radius_m": 0,
-        "temperament_sensitivity": {"C-OO": 0.9, "C-SOC": 1.0, "C-CAU": 1.5, "C-XEN": 2.0},
+        "temperament_sensitivity": {"CUR": 1.0, "CL": 1.0, "CAU": 1.5, "X": 2.0, "B": 0.9},
         "special_effects": {
             "trust_damage": 0.4,
             "trap_type_wariness": 0.7,
@@ -5509,7 +5511,7 @@ CAT_FEAR_TRIGGERS = {
 
 CAT_THRESHOLD_MODEL = {
     "base_threshold_hours": {"indoor_only": 72, "indoor_outdoor": 96, "outdoor_only": 120, "feral": 168},
-    "temperament_threshold_modifier": {"C-OO": 0.9, "C-SOC": 0.85, "C-CAU": 1.2, "C-XEN": 1.5},
+    "temperament_threshold_modifier": {"CUR": 0.85, "CL": 0.9, "CAU": 1.2, "X": 1.5, "B": 0.95},
     "max_threshold_delay_hours": 168,
     "post_threshold_behavior": {
         "emergence_pattern": "crepuscular",
@@ -5549,10 +5551,11 @@ FAILED_CAPTURE_CONSEQUENCES = {
             "returns_to_area_probability": 0.6,
         },
         "temperament_specific": {
-            "D-GRG": {"recovery_time_hours": 24, "permanent_wariness_increase": 0.1},
-            "D-ALF": {"recovery_time_hours": 48, "permanent_wariness_increase": 0.15},
-            "D-CAU": {"recovery_time_hours": 96, "permanent_wariness_increase": 0.25},
-            "D-XEN": {"recovery_time_hours": 168, "permanent_wariness_increase": 0.4, "may_become_uncatchable_prob": 0.2},
+            "G": {"recovery_time_hours": 24, "permanent_wariness_increase": 0.1},
+            "C": {"recovery_time_hours": 48, "permanent_wariness_increase": 0.15},
+            "A": {"recovery_time_hours": 96, "permanent_wariness_increase": 0.25},
+            "X": {"recovery_time_hours": 168, "permanent_wariness_increase": 0.4, "may_become_uncatchable_prob": 0.2},
+            "B": {"recovery_time_hours": 36, "permanent_wariness_increase": 0.1, "owner_trust_retained": True},
         },
     },
     "cat": {
@@ -5570,21 +5573,22 @@ FAILED_CAPTURE_CONSEQUENCES = {
             "return_to_exact_spot": {
                 "probability": 0.15,
                 "conditions": {"requires_threshold_reached": True, "requires_no_alternative_food": True, "minimum_hours_before_return": 72},
-                "temperament_modifier": {"C-OO": 1.3, "C-SOC": 1.1, "C-CAU": 0.7, "C-XEN": 0.3},
+                "temperament_modifier": {"CUR": 1.1, "CL": 1.0, "CAU": 0.7, "X": 0.3, "B": 1.3},
             },
             "return_to_general_area": {
                 "probability": 0.45,
                 "area_radius_m": 50,
                 "conditions": {"requires_threshold_reached": True, "minimum_hours_before_return": 48},
-                "temperament_modifier": {"C-OO": 1.2, "C-SOC": 1.1, "C-CAU": 0.8, "C-XEN": 0.5},
+                "temperament_modifier": {"CUR": 1.1, "CL": 1.0, "CAU": 0.8, "X": 0.5, "B": 1.2},
             },
             "never_returns": {"probability": 0.40},
         },
         "temperament_specific": {
-            "C-OO": {"threshold_delay_hours": 36, "trust_recovery_possible": True, "trust_recovery_time_hours": 72},
-            "C-SOC": {"threshold_delay_hours": 42, "trust_recovery_possible": True, "trust_recovery_time_hours": 96},
-            "C-CAU": {"threshold_delay_hours": 72, "trust_recovery_possible": True, "trust_recovery_time_hours": 168},
-            "C-XEN": {"threshold_delay_hours": 96, "trust_recovery_possible": False, "may_become_uncatchable_prob": 0.35},
+            "CUR": {"threshold_delay_hours": 42, "trust_recovery_possible": True, "trust_recovery_time_hours": 96},
+            "CL": {"threshold_delay_hours": 48, "trust_recovery_possible": True, "trust_recovery_time_hours": 120},
+            "CAU": {"threshold_delay_hours": 72, "trust_recovery_possible": True, "trust_recovery_time_hours": 168},
+            "X": {"threshold_delay_hours": 96, "trust_recovery_possible": False, "may_become_uncatchable_prob": 0.35},
+            "B": {"threshold_delay_hours": 36, "trust_recovery_possible": True, "trust_recovery_time_hours": 72},
         },
     },
 }
@@ -5770,8 +5774,8 @@ TRAP_TYPE_WARINESS = {
         "hunger_wariness_reduction": {0.5: 1.0, 0.7: 0.9, 0.85: 0.7, 0.95: 0.4, 1.0: 0.2},
     },
     "temperament_wariness_modifier": {
-        "dog": {"D-GRG": 0.7, "D-ALF": 0.9, "D-CAU": 1.2, "D-XEN": 1.5},
-        "cat": {"C-OO": 0.8, "C-SOC": 0.85, "C-CAU": 1.3, "C-XEN": 1.6},
+        "dog": {"G": 0.7, "C": 0.9, "A": 1.2, "X": 1.5, "B": 0.85},
+        "cat": {"CUR": 0.85, "CL": 0.9, "CAU": 1.3, "X": 1.6, "B": 0.8},
     },
 }
 
@@ -5784,8 +5788,8 @@ def update_trap_wariness(state: AnimalState, profile: AnimalProfile, escape_from
     if not hasattr(new_state, 'trap_wariness'):
         new_state.trap_wariness = {}
 
-    temp_key = f"{profile.species[0].upper()}-{profile.temperament}"
-    temp_modifier = params["temperament_wariness_modifier"][profile.species].get(temp_key, 1.0)
+    # Use temperament code directly (G/C/A/X/B for dogs, CUR/CL/CAU/X/B for cats)
+    temp_modifier = params["temperament_wariness_modifier"][profile.species].get(profile.temperament, 1.0)
 
     dynamics = params["wariness_dynamics"]
     current_wariness = new_state.trap_wariness.get(escape_from_trap_type, 0.0)
@@ -8467,20 +8471,22 @@ def get_temperament_modifiers(temperament: str, species: str) -> dict:
     """Get response modifiers based on temperament."""
 
     if species == "dog":
+        # Dog codes: G=Gregarious, C=Confident, A=Aloof, X=Xenophobic, B=Bonded
         modifiers = {
-            "GRE": {"approach": 1.8, "stay": 1.2, "flee": 0.5, "hide": 0.6},   # Gregarious
-            "ALO": {"approach": 0.8, "stay": 1.0, "flee": 1.0, "hide": 1.2},   # Aloof
-            "FEA": {"approach": 0.3, "stay": 0.6, "flee": 1.8, "hide": 1.5},   # Fearful
-            "XEN": {"approach": 0.2, "stay": 0.4, "flee": 2.0, "hide": 1.8},   # Xenophobic
-            "BON": {"approach": 1.5, "stay": 1.3, "flee": 0.6, "hide": 0.7},   # Bonded
+            "G": {"approach": 1.8, "stay": 1.2, "flee": 0.5, "hide": 0.6},   # Gregarious
+            "C": {"approach": 0.8, "stay": 1.0, "flee": 1.0, "hide": 1.2},   # Confident
+            "A": {"approach": 0.3, "stay": 0.6, "flee": 1.8, "hide": 1.5},   # Aloof
+            "X": {"approach": 0.2, "stay": 0.4, "flee": 2.0, "hide": 1.8},   # Xenophobic
+            "B": {"approach": 1.5, "stay": 1.3, "flee": 0.6, "hide": 0.7},   # Bonded
         }
     else:  # cat
+        # Cat codes: CUR=Curious, CL=Care-less, CAU=Cautious, X=Xenophobic, B=Bonded
         modifiers = {
-            "GRE": {"approach": 1.6, "stay": 1.3, "flee": 0.6, "hide": 0.7},
-            "CAU": {"approach": 0.5, "stay": 0.8, "flee": 1.3, "hide": 1.5},   # Cautious
-            "FEA": {"approach": 0.2, "stay": 0.5, "flee": 1.6, "hide": 1.8},
-            "XEN": {"approach": 0.1, "stay": 0.3, "flee": 1.8, "hide": 2.0},
-            "BON": {"approach": 1.4, "stay": 1.2, "flee": 0.7, "hide": 0.8},
+            "CUR": {"approach": 1.6, "stay": 1.3, "flee": 0.6, "hide": 0.7},  # Curious/Clown
+            "CL": {"approach": 0.7, "stay": 0.9, "flee": 1.0, "hide": 1.1},   # Care-less
+            "CAU": {"approach": 0.5, "stay": 0.8, "flee": 1.3, "hide": 1.5},  # Cautious
+            "X": {"approach": 0.1, "stay": 0.3, "flee": 1.8, "hide": 2.0},    # Xenophobic
+            "B": {"approach": 1.4, "stay": 1.2, "flee": 0.7, "hide": 0.8},    # Bonded
         }
 
     return modifiers.get(temperament, {"approach": 1, "stay": 1, "flee": 1, "hide": 1})
@@ -8916,7 +8922,7 @@ def get_terrain_search_priority(terrain: "TerrainType", species: str, temperamen
             TerrainType.INDUSTRIAL: 0.1,
         }
         # Fearful dogs hide more
-        if temperament in ["FEA", "XEN"]:
+        if temperament in ["A", "X"]:  # Aloof or Xenophobic for dogs
             priorities[TerrainType.FOREST] += 0.2
             priorities[TerrainType.DEEP_FOREST] += 0.2
     else:  # cat
@@ -9377,7 +9383,7 @@ def generate_false_position(animal_profile: "AnimalProfile") -> Tuple[float, flo
 # 1. Create animal profile (from Parts 2-3)
 dog_profile = AnimalProfile(
     species="dog",
-    temperament="FEA",  # Fearful
+    temperament="A",  # Aloof (cautious, avoids initially)
     size_class="medium",
     escape_location=(37.7749, -122.4194),
     home_location=(37.7749, -122.4194),
@@ -9702,36 +9708,53 @@ class ProfileAwareStrategy(SearchStrategy):
         """Get terrain preferences based on temperament."""
 
         if species == "dog":
+            # Dog codes: G=Gregarious, C=Confident, A=Aloof, X=Xenophobic, B=Bonded
             prefs = {
-                "GRE": {  # Gregarious - stays in human areas
+                "G": {  # Gregarious - stays in human areas
                     TerrainType.URBAN: 0.2,
                     TerrainType.SUBURBAN: 0.3,
                     TerrainType.PARK: 0.3,
                 },
-                "FEA": {  # Fearful - seeks cover
+                "C": {  # Confident - neutral, will explore
+                    TerrainType.SUBURBAN: 0.2,
+                    TerrainType.PARK: 0.2,
+                },
+                "A": {  # Aloof - seeks cover but can warm up
                     TerrainType.FOREST: 0.3,
                     TerrainType.PARK: 0.2,
                     TerrainType.SUBURBAN: 0.1,
                 },
-                "XEN": {  # Xenophobic - avoids humans
+                "X": {  # Xenophobic - avoids humans
                     TerrainType.FOREST: 0.4,
                     TerrainType.DEEP_FOREST: 0.3,
                     TerrainType.AGRICULTURAL: 0.2,
                 },
+                "B": {  # Bonded - stays near home
+                    TerrainType.SUBURBAN: 0.3,
+                    TerrainType.PARK: 0.2,
+                },
             }
         else:  # cat
+            # Cat codes: CUR=Curious, CL=Care-less, CAU=Cautious, X=Xenophobic, B=Bonded
             prefs = {
-                "GRE": {
+                "CUR": {  # Curious/Clown - explores, may enter buildings
                     TerrainType.SUBURBAN: 0.3,
                     TerrainType.URBAN: 0.2,
                 },
-                "CAU": {
+                "CL": {  # Care-less - neutral, stays nearby
+                    TerrainType.SUBURBAN: 0.2,
+                    TerrainType.PARK: 0.1,
+                },
+                "CAU": {  # Cautious - hides nearby
                     TerrainType.SUBURBAN: 0.2,
                     TerrainType.FOREST: 0.2,
                 },
-                "FEA": {
+                "X": {  # Xenophobic - deep hiding
                     TerrainType.FOREST: 0.3,
-                    TerrainType.SUBURBAN: 0.2,  # Under structures
+                    TerrainType.SUBURBAN: 0.2,
+                },
+                "B": {  # Bonded - stays very close to home
+                    TerrainType.SUBURBAN: 0.4,
                 },
             }
 
@@ -9742,8 +9765,10 @@ class ProfileAwareStrategy(SearchStrategy):
 
         profile = context.pet_profile
 
-        # Fearful/xenophobic pets - use quieter methods
-        if profile and profile.temperament in ["FEA", "XEN"]:
+        # Aloof/xenophobic pets - use quieter methods
+        # Dogs: A (Aloof), X (Xenophobic); Cats: CAU (Cautious), X (Xenophobic)
+        fearful_temperaments = ["A", "X"] if profile.species == "dog" else ["CAU", "X"]
+        if profile and profile.temperament in fearful_temperaments:
             if searcher.pet_trust_level > 0.5:
                 return SearchMethod.STATIONARY_CALLING
             return SearchMethod.WALKING_SILENT
@@ -10668,7 +10693,7 @@ def test_information_impact(
 # 1. Create pet profile
 cat = AnimalProfile(
     species="cat",
-    temperament="FEA",  # Fearful
+    temperament="CAU",  # Cautious (fearful, hides but can emerge)
     indoor_outdoor="IO",  # Indoor-only (will hide intensely)
     home_location=(37.7749, -122.4194),
     escape_location=(37.7749, -122.4194),
