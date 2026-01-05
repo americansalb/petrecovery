@@ -6541,7 +6541,1369 @@ psychometric validation. All [A] parameters are targets for empirical calibratio
 
 ---
 
-## Pre-Merge History
+# PART 10: ENVIRONMENT INTEGRATION
+
+This section defines how OpenStreetMap data is transformed into a simulation environment
+and how animal agents interact with environmental features.
+
+---
+
+## OpenStreetMap Data Extraction
+
+### Required OSM Layers
+
+```python
+OSM_REQUIRED_LAYERS = {
+    # Primary layers for environment construction
+    "buildings": {
+        "osm_key": "building",
+        "values": ["*"],  # All building types
+        "use": "hiding_spots, barriers, human_activity",
+    },
+    "landuse": {
+        "osm_key": "landuse",
+        "values": ["residential", "commercial", "industrial", "forest",
+                   "farmland", "grass", "cemetery", "park"],
+        "use": "terrain_classification, hiding_density",
+    },
+    "natural": {
+        "osm_key": "natural",
+        "values": ["wood", "water", "wetland", "scrub", "grassland", "tree_row"],
+        "use": "terrain, water_sources, hiding_spots",
+    },
+    "highway": {
+        "osm_key": "highway",
+        "values": ["motorway", "primary", "secondary", "tertiary",
+                   "residential", "service", "footway", "path"],
+        "use": "traffic_risk, movement_corridors, barriers",
+    },
+    "waterway": {
+        "osm_key": "waterway",
+        "values": ["river", "stream", "canal", "ditch", "drain"],
+        "use": "water_sources, barriers",
+    },
+    "amenity": {
+        "osm_key": "amenity",
+        "values": ["parking", "school", "restaurant", "fuel", "veterinary",
+                   "animal_shelter", "waste_basket"],
+        "use": "food_sources, human_activity, recovery_points",
+    },
+    "barrier": {
+        "osm_key": "barrier",
+        "values": ["fence", "wall", "hedge", "gate"],
+        "use": "movement_barriers",
+    },
+    "leisure": {
+        "osm_key": "leisure",
+        "values": ["park", "garden", "dog_park", "playground", "nature_reserve"],
+        "use": "terrain, hiding_spots, off_leash_areas",
+    },
+}
+```
+
+### Overpass API Query Template
+
+```python
+def build_overpass_query(center_lat: float, center_lon: float, radius_m: int = 5000) -> str:
+    """
+    Build Overpass API query to fetch all required OSM data for simulation area.
+
+    Args:
+        center_lat: Escape point latitude
+        center_lon: Escape point longitude
+        radius_m: Search radius in meters (default 5km for dogs, 500m sufficient for cats)
+
+    Returns:
+        Overpass QL query string
+    """
+
+    query = f"""
+    [out:json][timeout:60];
+    (
+      // Buildings
+      way["building"](around:{radius_m},{center_lat},{center_lon});
+      relation["building"](around:{radius_m},{center_lat},{center_lon});
+
+      // Land use
+      way["landuse"](around:{radius_m},{center_lat},{center_lon});
+      relation["landuse"](around:{radius_m},{center_lat},{center_lon});
+
+      // Natural features
+      way["natural"](around:{radius_m},{center_lat},{center_lon});
+      node["natural"="tree"](around:{radius_m},{center_lat},{center_lon});
+
+      // Roads and paths
+      way["highway"](around:{radius_m},{center_lat},{center_lon});
+
+      // Water
+      way["waterway"](around:{radius_m},{center_lat},{center_lon});
+      way["natural"="water"](around:{radius_m},{center_lat},{center_lon});
+
+      // Amenities
+      node["amenity"](around:{radius_m},{center_lat},{center_lon});
+      way["amenity"](around:{radius_m},{center_lat},{center_lon});
+
+      // Barriers
+      way["barrier"](around:{radius_m},{center_lat},{center_lon});
+
+      // Leisure areas
+      way["leisure"](around:{radius_m},{center_lat},{center_lon});
+    );
+    out body;
+    >;
+    out skel qt;
+    """
+
+    return query
+
+
+def fetch_osm_data(center_lat: float, center_lon: float, radius_m: int = 5000) -> dict:
+    """Fetch OSM data from Overpass API."""
+
+    import requests
+
+    query = build_overpass_query(center_lat, center_lon, radius_m)
+
+    response = requests.post(
+        "https://overpass-api.de/api/interpreter",
+        data={"data": query},
+        timeout=120
+    )
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"Overpass API error: {response.status_code}")
+```
+
+---
+
+## Grid Cell Structure
+
+The simulation environment is discretized into a grid of cells. Each cell contains
+properties derived from OSM features that affect animal behavior.
+
+### Cell Definition
+
+```python
+from dataclasses import dataclass, field
+from typing import List, Optional, Tuple
+from enum import Enum
+
+class TerrainType(Enum):
+    URBAN = "urban"
+    SUBURBAN = "suburban"
+    RURAL = "rural"
+    WOODED = "wooded"
+    WATER = "water"
+    ROAD = "road"
+    HIGHWAY = "highway"  # High-speed roads, major barrier
+
+
+@dataclass
+class HidingSpot:
+    """A specific hiding location within a cell."""
+    spot_type: str          # "under_deck", "dense_bush", "shed", etc.
+    quality: float          # 0-1, how good is the concealment
+    accessibility: float    # 0-1, how easy to enter (cats can access more spots)
+    capacity: str           # "cat_only", "small_dog", "medium_dog", "large_dog"
+    weather_protection: float  # 0-1, protection from rain/cold
+    position: Tuple[float, float]  # Precise location within cell
+
+
+@dataclass
+class WaterSource:
+    """A water source within a cell."""
+    source_type: str        # "stream", "pond", "puddle", "birdbath", "ac_drip"
+    reliability: float      # 0-1, how consistently available
+    accessibility: float    # 0-1, how easy to access
+    position: Tuple[float, float]
+
+
+@dataclass
+class FoodSource:
+    """A potential food source within a cell."""
+    source_type: str        # "garbage", "bird_feeder", "restaurant_dumpster", "pet_food_outside"
+    availability_hours: List[int]  # Hours when accessible (e.g., garbage out certain days)
+    quality: float          # 0-1, nutritional value
+    competition: float      # 0-1, likelihood of other animals present
+    position: Tuple[float, float]
+
+
+@dataclass
+class EnvironmentCell:
+    """
+    A single cell in the simulation grid.
+    Default cell size: 10m x 10m (adjustable based on required precision)
+    """
+
+    # Grid position
+    grid_x: int
+    grid_y: int
+
+    # Geographic position (center of cell)
+    lat: float
+    lon: float
+
+    # Terrain classification (from behavioral profiles Part 1)
+    terrain_type: TerrainType
+
+    # Movement properties
+    traversable: bool = True          # Can animal enter this cell?
+    movement_speed_modifier: float = 1.0  # Multiplier on base movement speed
+
+    # Risk factors (connect to MORTALITY section in profiles)
+    traffic_risk_per_hour: float = 0.0    # Probability of traffic incident per hour in cell
+    predator_risk_per_hour: float = 0.0   # Probability of predator encounter per hour
+    human_activity_level: float = 0.0     # 0-1, affects detection and fear triggers
+
+    # Resources
+    hiding_spots: List[HidingSpot] = field(default_factory=list)
+    water_sources: List[WaterSource] = field(default_factory=list)
+    food_sources: List[FoodSource] = field(default_factory=list)
+
+    # Barriers (edges of cell that block movement)
+    barriers: dict = field(default_factory=dict)  # {"north": True, "east": False, ...}
+    barrier_type: Optional[str] = None  # "fence", "wall", "highway", "river"
+
+    # Scent properties (for scent article searches)
+    wind_exposure: float = 0.5        # 0-1, how exposed to wind
+    scent_retention: float = 0.5      # 0-1, how well scent lingers
+
+    # Building/structure info
+    has_building: bool = False
+    building_type: Optional[str] = None  # "residential", "commercial", "shed", etc.
+
+    # Time-varying properties (updated during simulation)
+    current_noise_level: float = 0.0  # Can trigger fear responses
+    current_human_presence: int = 0   # Number of humans currently in/near cell
+
+
+# Grid configuration
+GRID_CONFIG = {
+    "cell_size_meters": 10,           # 10m x 10m cells
+    "default_radius_dog_m": 5000,     # 5km radius for dogs
+    "default_radius_cat_m": 500,      # 500m radius for cats (they stay close)
+    "coordinate_system": "WGS84",     # Standard GPS coordinates
+}
+```
+
+### Grid Construction from OSM
+
+```python
+import numpy as np
+from shapely.geometry import Point, Polygon, LineString
+from shapely.ops import unary_union
+
+def create_environment_grid(
+    osm_data: dict,
+    center_lat: float,
+    center_lon: float,
+    radius_m: int,
+    cell_size_m: int = 10
+) -> np.ndarray:
+    """
+    Create simulation grid from OSM data.
+
+    Returns:
+        2D numpy array of EnvironmentCell objects
+    """
+
+    # Calculate grid dimensions
+    # Approximate: 1 degree lat ≈ 111,000m, 1 degree lon ≈ 111,000m * cos(lat)
+    meters_per_deg_lat = 111000
+    meters_per_deg_lon = 111000 * np.cos(np.radians(center_lat))
+
+    grid_radius_cells = radius_m // cell_size_m
+    grid_size = 2 * grid_radius_cells + 1
+
+    # Initialize grid
+    grid = np.empty((grid_size, grid_size), dtype=object)
+
+    # Parse OSM elements into geometries
+    buildings = extract_polygons(osm_data, "building")
+    roads = extract_linestrings(osm_data, "highway")
+    water = extract_polygons(osm_data, "natural", "water") + \
+            extract_linestrings(osm_data, "waterway")
+    landuse = extract_polygons(osm_data, "landuse")
+    barriers = extract_linestrings(osm_data, "barrier")
+
+    # Populate each cell
+    for gx in range(grid_size):
+        for gy in range(grid_size):
+            # Calculate cell center coordinates
+            offset_x = (gx - grid_radius_cells) * cell_size_m
+            offset_y = (gy - grid_radius_cells) * cell_size_m
+
+            cell_lat = center_lat + (offset_y / meters_per_deg_lat)
+            cell_lon = center_lon + (offset_x / meters_per_deg_lon)
+
+            # Create cell polygon for intersection tests
+            cell_polygon = create_cell_polygon(cell_lat, cell_lon, cell_size_m)
+
+            # Determine cell properties from OSM features
+            cell = EnvironmentCell(
+                grid_x=gx,
+                grid_y=gy,
+                lat=cell_lat,
+                lon=cell_lon,
+                terrain_type=classify_terrain(cell_polygon, landuse, buildings, roads),
+                traversable=not is_blocked(cell_polygon, water, buildings),
+                traffic_risk_per_hour=calculate_traffic_risk(cell_polygon, roads),
+                hiding_spots=find_hiding_spots(cell_polygon, buildings, landuse),
+                water_sources=find_water_sources(cell_polygon, water),
+                barriers=detect_barriers(cell_polygon, barriers, roads),
+            )
+
+            grid[gx, gy] = cell
+
+    return grid
+```
+
+---
+
+## OSM Feature to Simulation Property Mapping
+
+### Terrain Classification
+
+```python
+def classify_terrain(
+    cell_polygon: Polygon,
+    landuse_features: List[dict],
+    building_features: List[dict],
+    road_features: List[dict]
+) -> TerrainType:
+    """
+    Classify cell terrain type based on OSM features.
+    Maps to terrain types used in behavioral profiles (Part 1).
+    """
+
+    cell_area = cell_polygon.area
+
+    # Check what features intersect this cell
+    building_coverage = sum(
+        cell_polygon.intersection(b["geometry"]).area
+        for b in building_features
+        if cell_polygon.intersects(b["geometry"])
+    ) / cell_area
+
+    road_coverage = sum(
+        cell_polygon.intersection(r["geometry"].buffer(3)).area  # 3m road width
+        for r in road_features
+        if cell_polygon.intersects(r["geometry"])
+    ) / cell_area
+
+    # Check landuse
+    dominant_landuse = get_dominant_landuse(cell_polygon, landuse_features)
+
+    # Classification logic (matches behavioral profile terrain types)
+
+    # Highway check first
+    for road in road_features:
+        if road.get("highway") in ["motorway", "trunk", "primary"]:
+            if cell_polygon.intersects(road["geometry"].buffer(10)):
+                return TerrainType.HIGHWAY
+
+    # Water check
+    if dominant_landuse == "water":
+        return TerrainType.WATER
+
+    # Urban: high building density
+    if building_coverage > 0.4 or dominant_landuse in ["commercial", "industrial"]:
+        return TerrainType.URBAN
+
+    # Suburban: moderate building density, residential
+    if building_coverage > 0.1 or dominant_landuse == "residential":
+        return TerrainType.SUBURBAN
+
+    # Wooded: forest or significant tree coverage
+    if dominant_landuse in ["forest", "wood"] or has_tree_coverage(cell_polygon):
+        return TerrainType.WOODED
+
+    # Road: if mostly road
+    if road_coverage > 0.5:
+        return TerrainType.ROAD
+
+    # Default to rural
+    return TerrainType.RURAL
+
+
+# Terrain to behavioral profile parameter mapping
+TERRAIN_TO_PROFILE_PARAMS = {
+    # Maps to DOG_TRAFFIC_RISK_PER_MIN from Part 5
+    TerrainType.URBAN: {
+        "traffic_risk_per_min": 0.0005,      # ~3% per hour
+        "predator_risk_per_hour": 0.001,     # Low - few coyotes
+        "hiding_spot_density": 0.8,          # Many structures
+        "human_activity": 0.9,               # High foot traffic
+        "speed_modifier": 0.7,               # Obstacles slow movement
+    },
+    TerrainType.SUBURBAN: {
+        "traffic_risk_per_min": 0.0002,      # ~1.2% per hour
+        "predator_risk_per_hour": 0.005,     # Moderate coyote presence
+        "hiding_spot_density": 0.6,          # Yards, decks, sheds
+        "human_activity": 0.5,
+        "speed_modifier": 0.85,
+    },
+    TerrainType.RURAL: {
+        "traffic_risk_per_min": 0.00005,     # ~0.3% per hour
+        "predator_risk_per_hour": 0.015,     # Higher predator density
+        "hiding_spot_density": 0.3,
+        "human_activity": 0.1,
+        "speed_modifier": 1.0,
+    },
+    TerrainType.WOODED: {
+        "traffic_risk_per_min": 0.00001,     # ~0.06% per hour
+        "predator_risk_per_hour": 0.02,      # Highest predator risk
+        "hiding_spot_density": 0.9,          # Excellent natural cover
+        "human_activity": 0.05,
+        "speed_modifier": 0.6,               # Dense vegetation slows movement
+    },
+    TerrainType.ROAD: {
+        "traffic_risk_per_min": 0.002,       # High risk while on road
+        "predator_risk_per_hour": 0.001,
+        "hiding_spot_density": 0.0,
+        "human_activity": 0.3,
+        "speed_modifier": 1.2,               # Fast travel on pavement
+    },
+    TerrainType.HIGHWAY: {
+        "traffic_risk_per_min": 0.01,        # Very high - crossing attempt often fatal
+        "predator_risk_per_hour": 0.0,
+        "hiding_spot_density": 0.0,
+        "human_activity": 0.0,               # No pedestrians
+        "speed_modifier": 0.5,               # Hesitation, noise aversion
+        "barrier": True,                     # Major movement barrier
+    },
+    TerrainType.WATER: {
+        "traffic_risk_per_min": 0.0,
+        "predator_risk_per_hour": 0.005,
+        "hiding_spot_density": 0.0,
+        "human_activity": 0.1,
+        "speed_modifier": 0.0,               # Impassable (for most)
+        "traversable": False,                # Barrier
+        "is_water_source": True,
+    },
+}
+```
+
+### Hiding Spot Extraction
+
+```python
+# OSM feature to hiding spot mapping
+OSM_HIDING_SPOT_MAPPING = {
+    # Building types that create hiding opportunities
+    "building": {
+        "residential": {
+            "generates": ["under_deck", "in_shed", "behind_garage", "in_bushes"],
+            "quality_range": (0.6, 0.9),
+            "cat_accessible": True,
+            "dog_accessible": "medium",  # Up to medium dogs
+        },
+        "garage": {
+            "generates": ["under_vehicle", "behind_equipment"],
+            "quality_range": (0.5, 0.8),
+            "cat_accessible": True,
+            "dog_accessible": "small",
+        },
+        "shed": {
+            "generates": ["inside_if_open", "underneath", "behind"],
+            "quality_range": (0.7, 0.95),
+            "cat_accessible": True,
+            "dog_accessible": "small",
+        },
+        "commercial": {
+            "generates": ["behind_dumpster", "loading_dock", "hvac_area"],
+            "quality_range": (0.4, 0.7),
+            "cat_accessible": True,
+            "dog_accessible": "large",
+        },
+    },
+
+    # Natural features
+    "natural": {
+        "scrub": {
+            "generates": ["dense_brush"],
+            "quality_range": (0.7, 0.9),
+            "cat_accessible": True,
+            "dog_accessible": "large",
+        },
+        "tree_row": {
+            "generates": ["under_tree", "in_hedge"],
+            "quality_range": (0.5, 0.7),
+            "cat_accessible": True,
+            "dog_accessible": "medium",
+        },
+        "wood": {
+            "generates": ["fallen_log", "root_hollow", "dense_vegetation"],
+            "quality_range": (0.8, 1.0),
+            "cat_accessible": True,
+            "dog_accessible": "large",
+        },
+    },
+
+    # Leisure areas
+    "leisure": {
+        "garden": {
+            "generates": ["in_bushes", "under_deck", "garden_shed"],
+            "quality_range": (0.5, 0.8),
+            "cat_accessible": True,
+            "dog_accessible": "medium",
+        },
+    },
+}
+
+
+def find_hiding_spots(
+    cell_polygon: Polygon,
+    buildings: List[dict],
+    landuse: List[dict]
+) -> List[HidingSpot]:
+    """
+    Identify hiding spots within a cell based on OSM features.
+    """
+
+    spots = []
+
+    for building in buildings:
+        if not cell_polygon.intersects(building["geometry"]):
+            continue
+
+        building_type = building.get("building", "yes")
+        mapping = OSM_HIDING_SPOT_MAPPING.get("building", {}).get(building_type)
+
+        if mapping:
+            for spot_type in mapping["generates"]:
+                # Probabilistically generate spots based on building size
+                building_area = building["geometry"].area
+                num_spots = max(1, int(building_area / 100))  # 1 spot per 100m²
+
+                for _ in range(num_spots):
+                    quality = random.uniform(*mapping["quality_range"])
+
+                    # Determine dog accessibility
+                    dog_access = mapping["dog_accessible"]
+                    if dog_access == "large":
+                        capacity = "large_dog"
+                    elif dog_access == "medium":
+                        capacity = "medium_dog"
+                    elif dog_access == "small":
+                        capacity = "small_dog"
+                    else:
+                        capacity = "cat_only"
+
+                    spots.append(HidingSpot(
+                        spot_type=spot_type,
+                        quality=quality,
+                        accessibility=random.uniform(0.5, 1.0),
+                        capacity=capacity,
+                        weather_protection=0.8 if "inside" in spot_type or "under" in spot_type else 0.3,
+                        position=random_point_near(building["geometry"], cell_polygon)
+                    ))
+
+    return spots
+```
+
+### Traffic Risk Calculation
+
+```python
+# Road type to traffic risk mapping
+ROAD_TRAFFIC_RISK = {
+    # OSM highway type: (vehicles_per_hour_estimate, speed_estimate_mph)
+    "motorway": (2000, 65),
+    "trunk": (1000, 55),
+    "primary": (500, 45),
+    "secondary": (200, 35),
+    "tertiary": (100, 30),
+    "residential": (20, 25),
+    "service": (10, 15),
+    "footway": (0, 0),
+    "path": (0, 0),
+}
+
+
+def calculate_traffic_risk(cell_polygon: Polygon, roads: List[dict]) -> float:
+    """
+    Calculate traffic mortality risk for a cell based on roads present.
+
+    Returns probability of traffic incident per hour spent in cell.
+    """
+
+    total_risk = 0.0
+
+    for road in roads:
+        if not cell_polygon.intersects(road["geometry"]):
+            continue
+
+        highway_type = road.get("highway", "residential")
+        risk_params = ROAD_TRAFFIC_RISK.get(highway_type, (20, 25))
+
+        vehicles_per_hour, speed_mph = risk_params
+
+        # Risk model: more vehicles + higher speed = higher risk
+        # Base risk per crossing attempt, scaled by presence in cell
+
+        # Calculate how much of cell is road
+        road_buffer = road["geometry"].buffer(3)  # 3m road half-width
+        intersection_area = cell_polygon.intersection(road_buffer).area
+        road_fraction = intersection_area / cell_polygon.area
+
+        # Risk increases with traffic volume and speed
+        # An animal in a "road" cell must cross at some point
+        base_crossing_risk = (vehicles_per_hour / 1000) * (speed_mph / 30) * 0.01
+
+        # Scale by how much of the cell is road
+        cell_risk = base_crossing_risk * road_fraction
+
+        total_risk += cell_risk
+
+    # Cap at reasonable maximum
+    return min(total_risk, 0.05)  # Max 5% per hour
+```
+
+### Water Source Identification
+
+```python
+OSM_WATER_SOURCES = {
+    "waterway": {
+        "stream": {"reliability": 0.9, "accessibility": 0.8},
+        "river": {"reliability": 1.0, "accessibility": 0.6},  # Harder to access
+        "ditch": {"reliability": 0.5, "accessibility": 0.9},
+        "drain": {"reliability": 0.3, "accessibility": 0.7},
+    },
+    "natural": {
+        "water": {"reliability": 1.0, "accessibility": 0.7},  # Pond/lake
+        "wetland": {"reliability": 0.8, "accessibility": 0.5},
+    },
+    "amenity": {
+        # Human-placed water sources
+        "fountain": {"reliability": 0.7, "accessibility": 0.9},
+        "drinking_water": {"reliability": 0.9, "accessibility": 1.0},
+    },
+    # Implicit sources (not in OSM but generated near buildings)
+    "implicit": {
+        "puddle": {"reliability": 0.2, "accessibility": 1.0},       # After rain
+        "birdbath": {"reliability": 0.5, "accessibility": 0.9},     # In residential
+        "ac_drip": {"reliability": 0.6, "accessibility": 0.8},      # Near buildings in summer
+        "irrigation": {"reliability": 0.4, "accessibility": 0.9},   # Residential lawns
+    },
+}
+
+
+def find_water_sources(cell_polygon: Polygon, water_features: List[dict]) -> List[WaterSource]:
+    """
+    Identify water sources within a cell.
+    Critical for cat threshold timing (opportunistic hydration).
+    """
+
+    sources = []
+
+    # Explicit OSM water features
+    for feature in water_features:
+        if not cell_polygon.intersects(feature["geometry"]):
+            continue
+
+        feature_type = feature.get("waterway") or feature.get("natural") or feature.get("amenity")
+        category = None
+        for cat, types in OSM_WATER_SOURCES.items():
+            if feature_type in types:
+                category = cat
+                break
+
+        if category and feature_type in OSM_WATER_SOURCES[category]:
+            params = OSM_WATER_SOURCES[category][feature_type]
+            sources.append(WaterSource(
+                source_type=feature_type,
+                reliability=params["reliability"],
+                accessibility=params["accessibility"],
+                position=nearest_point(feature["geometry"], cell_polygon.centroid)
+            ))
+
+    # Generate implicit sources based on terrain
+    terrain = classify_terrain(cell_polygon, [], [], [])  # Simplified call
+
+    if terrain == TerrainType.SUBURBAN:
+        # Residential areas have birdbaths, AC drips, irrigation
+        if random.random() < 0.3:  # 30% of suburban cells
+            sources.append(WaterSource(
+                source_type=random.choice(["birdbath", "ac_drip", "irrigation"]),
+                reliability=random.uniform(0.3, 0.6),
+                accessibility=0.9,
+                position=random_point_in(cell_polygon)
+            ))
+
+    return sources
+```
+
+### Barrier Detection
+
+```python
+BARRIER_PROPERTIES = {
+    # OSM barrier types and their traversability
+    "barrier": {
+        "fence": {
+            "dog_passable": {"small": 0.3, "medium": 0.1, "large": 0.05},
+            "cat_passable": 0.9,  # Cats can usually climb or squeeze through
+        },
+        "wall": {
+            "dog_passable": {"small": 0.05, "medium": 0.01, "large": 0.0},
+            "cat_passable": 0.7,  # Can often climb
+        },
+        "hedge": {
+            "dog_passable": {"small": 0.8, "medium": 0.5, "large": 0.2},
+            "cat_passable": 1.0,  # Easy passage
+        },
+        "gate": {
+            "dog_passable": {"small": 0.2, "medium": 0.1, "large": 0.1},
+            "cat_passable": 0.5,  # Depends on gate type
+        },
+    },
+    # Roads as barriers
+    "highway": {
+        "motorway": {
+            "dog_passable": {"small": 0.3, "medium": 0.3, "large": 0.3},  # Can cross but dangerous
+            "cat_passable": 0.2,  # Cats more hesitant
+            "crossing_mortality": 0.4,  # 40% chance of death if attempted
+        },
+        "primary": {
+            "dog_passable": {"small": 0.6, "medium": 0.6, "large": 0.6},
+            "cat_passable": 0.4,
+            "crossing_mortality": 0.15,
+        },
+        "residential": {
+            "dog_passable": {"small": 0.95, "medium": 0.95, "large": 0.95},
+            "cat_passable": 0.8,
+            "crossing_mortality": 0.02,
+        },
+    },
+    # Water as barrier
+    "waterway": {
+        "river": {
+            "dog_passable": {"small": 0.1, "medium": 0.3, "large": 0.5},  # Dogs can swim
+            "cat_passable": 0.05,  # Cats avoid water
+        },
+        "stream": {
+            "dog_passable": {"small": 0.8, "medium": 0.9, "large": 0.95},
+            "cat_passable": 0.3,
+        },
+    },
+}
+
+
+def detect_barriers(
+    cell_polygon: Polygon,
+    barriers: List[dict],
+    roads: List[dict]
+) -> dict:
+    """
+    Detect barriers on each edge of a cell.
+
+    Returns dict with keys "north", "south", "east", "west" containing
+    barrier information if present.
+    """
+
+    cell_bounds = cell_polygon.bounds  # (minx, miny, maxx, maxy)
+
+    edges = {
+        "north": LineString([(cell_bounds[0], cell_bounds[3]), (cell_bounds[2], cell_bounds[3])]),
+        "south": LineString([(cell_bounds[0], cell_bounds[1]), (cell_bounds[2], cell_bounds[1])]),
+        "east": LineString([(cell_bounds[2], cell_bounds[1]), (cell_bounds[2], cell_bounds[3])]),
+        "west": LineString([(cell_bounds[0], cell_bounds[1]), (cell_bounds[0], cell_bounds[3])]),
+    }
+
+    cell_barriers = {}
+
+    for direction, edge in edges.items():
+        # Check explicit barriers
+        for barrier in barriers:
+            if edge.intersects(barrier["geometry"]):
+                barrier_type = barrier.get("barrier", "fence")
+                cell_barriers[direction] = {
+                    "type": barrier_type,
+                    "properties": BARRIER_PROPERTIES["barrier"].get(barrier_type, {})
+                }
+                break
+
+        # Check roads as barriers
+        if direction not in cell_barriers:
+            for road in roads:
+                if edge.intersects(road["geometry"]):
+                    highway_type = road.get("highway", "residential")
+                    if highway_type in ["motorway", "trunk", "primary"]:
+                        cell_barriers[direction] = {
+                            "type": f"road_{highway_type}",
+                            "properties": BARRIER_PROPERTIES["highway"].get(highway_type, {})
+                        }
+                        break
+
+    return cell_barriers
+```
+
+---
+
+## Animal-Environment Interaction
+
+This section connects the behavioral profiles (Parts 2-3) to the environment grid.
+
+### Movement Through Environment
+
+```python
+def attempt_movement(
+    animal: AnimalState,
+    profile: AnimalProfile,
+    current_cell: EnvironmentCell,
+    target_cell: EnvironmentCell,
+    grid: np.ndarray
+) -> Tuple[bool, AnimalState]:
+    """
+    Attempt to move animal from current cell to target cell.
+
+    Integrates with:
+    - Terrain speed modifiers (Part 5: SIMULATION PARAMETERS)
+    - Barrier crossing (this section)
+    - Traffic risk (MORTALITY section)
+    - Fear triggers (Part 2/3: species profiles)
+
+    Returns:
+        (success: bool, updated_state: AnimalState)
+    """
+
+    new_state = animal.copy()
+
+    # Check if target is traversable
+    if not target_cell.traversable:
+        # Try to deflect along obstacle (uses deflect_along_obstacle from Part 5)
+        new_target = deflect_along_obstacle(
+            (current_cell.lat, current_cell.lon),
+            (target_cell.lat, target_cell.lon),
+            target_cell
+        )
+        if new_target is None:
+            return False, animal  # Cannot move
+        target_cell = get_cell_at(grid, new_target)
+
+    # Check for barriers between cells
+    direction = get_direction(current_cell, target_cell)
+    barrier = current_cell.barriers.get(direction)
+
+    if barrier:
+        # Determine if animal can cross barrier
+        if profile.species == "cat":
+            pass_prob = barrier["properties"].get("cat_passable", 0.5)
+        else:
+            size_key = profile.size_class.lower()
+            pass_prob = barrier["properties"].get("dog_passable", {}).get(size_key, 0.5)
+
+        if random.random() > pass_prob:
+            # Blocked by barrier - deflect
+            return False, animal
+
+        # Check for crossing mortality (highways, rivers)
+        mortality = barrier["properties"].get("crossing_mortality", 0.0)
+        if random.random() < mortality:
+            new_state.status = "deceased"
+            new_state.death_cause = f"crossing_{barrier['type']}"
+            return True, new_state
+
+    # Apply terrain-based speed modifier
+    terrain_params = TERRAIN_TO_PROFILE_PARAMS[target_cell.terrain_type]
+    new_state.current_speed *= terrain_params["speed_modifier"]
+
+    # Check for traffic risk (time spent in cell)
+    time_in_cell_hours = calculate_traversal_time(current_cell, target_cell, new_state.current_speed)
+    traffic_risk = target_cell.traffic_risk_per_hour * time_in_cell_hours
+
+    if random.random() < traffic_risk:
+        new_state.status = "deceased"
+        new_state.death_cause = "traffic"
+        return True, new_state
+
+    # Check for fear triggers based on human activity
+    if target_cell.human_activity_level > 0.5:
+        if profile.species == "dog":
+            # Reference DOG_FEAR_TRIGGERS from Part 7
+            trigger_prob = target_cell.human_activity_level * 0.1  # 10% per activity unit
+            if random.random() < trigger_prob:
+                new_state = apply_dog_fear_trigger(
+                    new_state, "human_approach", profile,
+                    distance_to_trigger=5.0  # Close encounter
+                )
+        else:
+            # Reference CAT_FEAR_TRIGGERS from Part 7
+            trigger_prob = target_cell.human_activity_level * 0.15
+            if random.random() < trigger_prob:
+                new_state = apply_cat_fear_trigger(
+                    new_state, "human_approach", profile,
+                    distance_to_trigger=10.0,
+                    is_owner=False
+                )
+
+    # Move successful
+    new_state.position = (target_cell.lat, target_cell.lon)
+    new_state.current_cell = (target_cell.grid_x, target_cell.grid_y)
+
+    return True, new_state
+```
+
+### Hiding Spot Selection
+
+```python
+def find_and_select_hiding_spot(
+    animal: AnimalState,
+    profile: AnimalProfile,
+    current_cell: EnvironmentCell,
+    nearby_cells: List[EnvironmentCell]
+) -> Optional[HidingSpot]:
+    """
+    Find appropriate hiding spot based on animal profile and state.
+
+    Cats prioritize concealment quality.
+    Dogs prioritize accessibility and size.
+
+    Integrates with:
+    - Cat hiding behavior (Part 3: threshold phenomenon)
+    - Dog terrain preferences (Part 2)
+    """
+
+    all_spots = []
+
+    # Collect spots from current and nearby cells
+    for cell in [current_cell] + nearby_cells:
+        for spot in cell.hiding_spots:
+            all_spots.append((cell, spot))
+
+    if not all_spots:
+        return None
+
+    # Score each spot based on animal needs
+    scored_spots = []
+
+    for cell, spot in all_spots:
+        score = 0.0
+
+        # Size compatibility
+        if profile.species == "cat":
+            score += 1.0  # Cats fit everywhere
+        else:
+            size_map = {"toy": 1, "small": 2, "medium": 3, "large": 4, "xl": 5}
+            capacity_map = {"cat_only": 0, "small_dog": 2, "medium_dog": 3, "large_dog": 5}
+
+            animal_size = size_map.get(profile.size_class.lower(), 3)
+            spot_capacity = capacity_map.get(spot.capacity, 3)
+
+            if animal_size <= spot_capacity:
+                score += 1.0
+            else:
+                continue  # Can't fit, skip this spot
+
+        # Quality preference (higher for more fearful animals)
+        fear_weight = animal.fear_level
+        score += spot.quality * fear_weight * 2.0
+
+        # Weather protection (more important if injured or bad weather)
+        if animal.injury_severity > 0 or cell.current_noise_level > 0.5:
+            score += spot.weather_protection * 1.5
+
+        # Accessibility (less important when desperate)
+        score += spot.accessibility * (1.0 - animal.fear_level)
+
+        # Distance penalty (prefer closer spots when afraid)
+        distance = haversine(
+            (animal.position[0], animal.position[1]),
+            (cell.lat, cell.lon)
+        )
+        distance_penalty = min(distance / 50, 1.0)  # Normalize to 50m
+        score -= distance_penalty * animal.fear_level
+
+        scored_spots.append((score, cell, spot))
+
+    if not scored_spots:
+        return None
+
+    # Select spot (weighted random, not just best)
+    # This adds realistic variability
+    scored_spots.sort(key=lambda x: x[0], reverse=True)
+
+    # Take top 3, weighted selection
+    top_spots = scored_spots[:3]
+    weights = [s[0] for s in top_spots]
+    total = sum(weights)
+    if total == 0:
+        return top_spots[0][2]  # Return first if all zero
+
+    weights = [w/total for w in weights]
+    selected = random.choices(top_spots, weights=weights, k=1)[0]
+
+    return selected[2]
+```
+
+### Water and Food Seeking
+
+```python
+def seek_water(
+    animal: AnimalState,
+    profile: AnimalProfile,
+    current_cell: EnvironmentCell,
+    grid: np.ndarray,
+    search_radius_cells: int = 5
+) -> Optional[Tuple[float, float]]:
+    """
+    Find nearest accessible water source.
+
+    Critical for cat threshold model:
+    - Cats finding water extends time before threshold
+    - Cats not finding water accelerates threshold
+
+    Integrates with:
+    - Thirst mechanics (Part 4: SIMULATION PARAMETERS)
+    - Cat threshold (Part 3)
+    """
+
+    # Only seek water if thirsty enough
+    thirst_threshold = 0.3 if profile.species == "cat" else 0.4
+    if animal.thirst_level < thirst_threshold:
+        return None
+
+    # Search nearby cells for water
+    water_options = []
+
+    cx, cy = animal.current_cell
+    for dx in range(-search_radius_cells, search_radius_cells + 1):
+        for dy in range(-search_radius_cells, search_radius_cells + 1):
+            nx, ny = cx + dx, cy + dy
+            if 0 <= nx < grid.shape[0] and 0 <= ny < grid.shape[1]:
+                cell = grid[nx, ny]
+                for source in cell.water_sources:
+                    # Check if source is currently available
+                    if random.random() < source.reliability:
+                        distance = abs(dx) + abs(dy)  # Manhattan distance in cells
+                        water_options.append((distance, source, cell))
+
+    if not water_options:
+        return None
+
+    # Sort by distance
+    water_options.sort(key=lambda x: x[0])
+
+    # Fearful animals may not travel far for water
+    max_distance = int(5 * (1.0 - animal.fear_level * 0.5))  # Fear reduces search range
+
+    for distance, source, cell in water_options:
+        if distance <= max_distance:
+            return (cell.lat, cell.lon)
+
+    return None
+
+
+def update_thirst_with_environment(
+    animal: AnimalState,
+    current_cell: EnvironmentCell,
+    hours_elapsed: float
+) -> AnimalState:
+    """
+    Update thirst based on water source availability.
+
+    Implements the opportunistic hydration model for cats:
+    cats may find water while hiding, extending threshold time.
+    """
+
+    new_state = animal.copy()
+
+    # Check for water in current cell
+    water_available = False
+    for source in current_cell.water_sources:
+        if random.random() < source.reliability * source.accessibility:
+            water_available = True
+            break
+
+    if water_available:
+        # Animal drinks - reset thirst
+        new_state.thirst_level = 0.0
+        new_state.hours_since_last_water = 0.0
+
+        # For cats, this extends threshold
+        if new_state.species == "cat":
+            # Opportunistic hydration - threshold clock continues but survival assured
+            pass  # Threshold based on hunger, not thirst when water available
+    else:
+        # Thirst accumulates per Part 4 parameters
+        # Cats: critical at 48hrs, Dogs: critical at 72hrs
+        thirst_rate = 1.0 / 48 if animal.species == "cat" else 1.0 / 72
+        new_state.thirst_level = min(1.0, animal.thirst_level + thirst_rate * hours_elapsed)
+        new_state.hours_since_last_water += hours_elapsed
+
+    return new_state
+```
+
+### Predator Encounters
+
+```python
+# Predator activity by terrain and time
+PREDATOR_ACTIVITY = {
+    TerrainType.URBAN: {
+        "types": ["loose_dog", "raccoon"],
+        "peak_hours": [22, 23, 0, 1, 2, 3, 4, 5],  # Night
+        "base_encounter_rate": 0.001,
+    },
+    TerrainType.SUBURBAN: {
+        "types": ["coyote", "loose_dog", "raccoon"],
+        "peak_hours": [5, 6, 19, 20, 21, 22],  # Dawn/dusk
+        "base_encounter_rate": 0.005,
+    },
+    TerrainType.RURAL: {
+        "types": ["coyote", "coyote_pack", "loose_dog"],
+        "peak_hours": [5, 6, 19, 20, 21, 22],
+        "base_encounter_rate": 0.01,
+    },
+    TerrainType.WOODED: {
+        "types": ["coyote", "coyote_pack", "fox", "fisher"],  # Fisher preys on cats
+        "peak_hours": list(range(24)),  # Active all times
+        "base_encounter_rate": 0.02,
+    },
+}
+
+
+def check_predator_encounter(
+    animal: AnimalState,
+    profile: AnimalProfile,
+    cell: EnvironmentCell,
+    current_hour: int
+) -> Tuple[bool, Optional[str]]:
+    """
+    Check for predator encounter and outcome.
+
+    Integrates with:
+    - Mortality rates (Part 4)
+    - Fear triggers (Part 7)
+    - Size-based vulnerability
+    """
+
+    predator_config = PREDATOR_ACTIVITY.get(cell.terrain_type)
+    if not predator_config:
+        return False, None
+
+    # Base encounter rate
+    encounter_rate = predator_config["base_encounter_rate"]
+
+    # Increase during peak hours
+    if current_hour in predator_config["peak_hours"]:
+        encounter_rate *= 2.0
+
+    # Small animals more vulnerable
+    if profile.species == "cat":
+        encounter_rate *= 1.5
+    elif profile.size_class in ["toy", "small"]:
+        encounter_rate *= 1.3
+    elif profile.size_class in ["large", "xl"]:
+        encounter_rate *= 0.7
+
+    # Hiding reduces encounter rate
+    if animal.status == "hiding":
+        encounter_rate *= 0.2
+
+    if random.random() > encounter_rate:
+        return False, None
+
+    # Encounter occurred - determine outcome
+    predator_type = random.choice(predator_config["types"])
+
+    # Survival probability based on size and predator
+    survival_prob = calculate_predator_survival(profile, predator_type)
+
+    if random.random() < survival_prob:
+        # Survived but triggered fear response
+        return True, predator_type  # Caller should apply fear trigger
+    else:
+        # Fatal encounter
+        return True, f"killed_by_{predator_type}"
+
+
+def calculate_predator_survival(profile: AnimalProfile, predator_type: str) -> float:
+    """Calculate probability of surviving predator encounter."""
+
+    # Base survival by predator type
+    base_survival = {
+        "raccoon": 0.95,        # Rarely fatal
+        "loose_dog": 0.80,      # Depends on size
+        "fox": 0.90,            # Usually flee
+        "coyote": 0.60,         # Serious threat to small animals
+        "coyote_pack": 0.30,    # Very dangerous
+        "fisher": 0.50,         # Cat specialist
+    }
+
+    survival = base_survival.get(predator_type, 0.7)
+
+    # Size modifier
+    if profile.species == "cat":
+        survival *= 0.8  # Cats more vulnerable
+    elif profile.size_class in ["large", "xl"]:
+        survival *= 1.3  # Large dogs can fight back
+        survival = min(survival, 0.95)
+    elif profile.size_class in ["toy", "small"]:
+        survival *= 0.7
+
+    return survival
+```
+
+---
+
+## Environment-Aware Simulation Loop
+
+```python
+def simulate_tick(
+    animal: AnimalState,
+    profile: AnimalProfile,
+    grid: np.ndarray,
+    environment_config: dict,
+    tick_duration_minutes: int = 5
+) -> AnimalState:
+    """
+    Single simulation tick integrating behavior and environment.
+
+    This is the main loop that connects:
+    - Behavioral profiles (Parts 2-3)
+    - Simulation parameters (Part 4-5)
+    - Fear/capture mechanics (Part 7)
+    - Environment (Part 10)
+    """
+
+    current_cell = grid[animal.current_cell[0], animal.current_cell[1]]
+    hours_elapsed = tick_duration_minutes / 60.0
+
+    # 1. Update physiological state
+    animal = update_hunger(animal, hours_elapsed)
+    animal = update_thirst_with_environment(animal, current_cell, hours_elapsed)
+    animal = update_stamina(animal, hours_elapsed)
+
+    # 2. Update fear (species-specific)
+    if profile.species == "dog":
+        animal = apply_dog_fear_decay(animal, profile, hours_elapsed)
+    else:
+        animal = check_cat_threshold(animal, profile, hours_elapsed)
+
+    # 3. Update injury if applicable
+    if animal.injury_severity > 0:
+        animal = update_injury_status(animal, profile, current_cell, hours_elapsed)
+
+    # 4. Check for predator encounter
+    current_hour = int(animal.hours_since_escape) % 24
+    encounter, result = check_predator_encounter(animal, profile, current_cell, current_hour)
+    if encounter:
+        if result.startswith("killed_by"):
+            animal.status = "deceased"
+            animal.death_cause = result
+            return animal
+        else:
+            # Apply fear trigger from predator sighting
+            if profile.species == "dog":
+                animal = apply_dog_fear_trigger(animal, "predator_encounter", profile, 20.0)
+            else:
+                animal = apply_cat_fear_trigger(animal, "predator_sighting", profile, 30.0)
+
+    # 5. Determine behavior based on state
+    behavior = determine_behavior(animal, profile)
+
+    # 6. Execute behavior
+    if behavior == "hiding":
+        # Stay in hiding spot
+        if animal.current_hiding_spot is None:
+            spot = find_and_select_hiding_spot(animal, profile, current_cell,
+                                                get_adjacent_cells(grid, animal.current_cell))
+            animal.current_hiding_spot = spot
+        # Hiding - no movement
+
+    elif behavior == "seeking_water":
+        target = seek_water(animal, profile, current_cell, grid)
+        if target:
+            target_cell = get_cell_at_coords(grid, target)
+            success, animal = attempt_movement(animal, profile, current_cell, target_cell, grid)
+
+    elif behavior == "seeking_food":
+        target = seek_food(animal, profile, current_cell, grid)
+        if target:
+            target_cell = get_cell_at_coords(grid, target)
+            success, animal = attempt_movement(animal, profile, current_cell, target_cell, grid)
+
+    elif behavior == "fleeing":
+        # Move away from fear source
+        flee_direction = calculate_flee_direction(animal, current_cell)
+        target_cell = get_cell_in_direction(grid, animal.current_cell, flee_direction)
+        success, animal = attempt_movement(animal, profile, current_cell, target_cell, grid)
+
+    elif behavior == "traveling":
+        # Goal-directed movement (home, territory exploration)
+        target = calculate_travel_target(animal, profile, grid)
+        if target:
+            target_cell = get_cell_at_coords(grid, target)
+            success, animal = attempt_movement(animal, profile, current_cell, target_cell, grid)
+
+    elif behavior == "resting":
+        # Recover stamina, stay in place
+        animal.stamina = min(1.0, animal.stamina + 0.1 * hours_elapsed)
+
+    # 7. Update time
+    animal.hours_since_escape += hours_elapsed
+
+    return animal
+```
+
+---
+
+## Usage Example
+
+```python
+# Complete workflow: Profile → Environment → Simulation
+
+# 1. Create animal profile (from Parts 2-3)
+cat_profile = AnimalProfile(
+    species="cat",
+    temperament="CAU",  # Cautious
+    size_class="medium",
+    age_class="ADT",
+    indoor_outdoor="IO",  # Indoor-only
+    background="F",       # Family pet
+    health_status="HLT",
+    escape_type="W1",     # Door dash
+    escape_location=(37.7749, -122.4194),  # San Francisco coordinates
+    home_location=(37.7749, -122.4194),
+    territory="HOME",
+)
+
+# 2. Build environment from OSM
+osm_data = fetch_osm_data(
+    center_lat=cat_profile.escape_location[0],
+    center_lon=cat_profile.escape_location[1],
+    radius_m=500  # 500m for indoor cat
+)
+
+grid = create_environment_grid(
+    osm_data=osm_data,
+    center_lat=cat_profile.escape_location[0],
+    center_lon=cat_profile.escape_location[1],
+    radius_m=500,
+    cell_size_m=10
+)
+
+# 3. Initialize animal state
+cat_state = initialize_animal_state(cat_profile, grid)
+
+# 4. Run simulation
+MAX_HOURS = 720  # 30 days
+TICK_MINUTES = 5
+
+while cat_state.hours_since_escape < MAX_HOURS:
+    cat_state = simulate_tick(cat_state, cat_profile, grid, {}, TICK_MINUTES)
+
+    if cat_state.status in ["recovered", "deceased"]:
+        break
+
+# 5. Analyze outcome
+print(f"Outcome: {cat_state.status}")
+print(f"Final position: {cat_state.position}")
+print(f"Distance from home: {haversine(cat_state.position, cat_profile.home_location)}m")
+print(f"Time elapsed: {cat_state.hours_since_escape} hours")
+```
+
+---
 
 ### Dog Document
 
