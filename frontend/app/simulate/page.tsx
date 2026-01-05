@@ -5,7 +5,7 @@
  * Based on BEHAVIORAL_PROFILES.md research
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { DOG_TEMPERAMENTS, CAT_TEMPERAMENTS } from '@/app/lib/behavioral-simulation';
 import { Map, Play, Pause, RotateCcw, BarChart3, Loader2 } from 'lucide-react';
@@ -338,6 +338,19 @@ export default function SimulatePage() {
                 >
                   <RotateCcw className="w-5 h-5" />
                 </button>
+
+                {/* Speed control */}
+                <select
+                  value={playbackSpeed}
+                  onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
+                  className="border rounded px-2 py-1 text-sm"
+                >
+                  <option value="0.5">0.5x</option>
+                  <option value="1">1x</option>
+                  <option value="2">2x</option>
+                  <option value="5">5x</option>
+                  <option value="10">10x</option>
+                </select>
 
                 <input
                   type="range"

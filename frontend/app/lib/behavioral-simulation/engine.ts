@@ -31,7 +31,9 @@ class SeededRandom {
   }
 
   gauss(mean: number, stddev: number): number {
-    const u1 = this.next();
+    // Box-Muller transform - avoid log(0) by ensuring u1 > 0
+    let u1 = this.next();
+    while (u1 === 0) u1 = this.next();
     const u2 = this.next();
     const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
     return mean + z * stddev;
@@ -99,12 +101,14 @@ class SearcherAgent {
       this.isActive = false;
       // Return home at night
       this.position = { ...this.homePosition };
+      this.recordPath(hour);
       return;
     }
 
     // Start searching after initial hours
     if (hour < 2) {
       this.isActive = false;
+      this.recordPath(hour);
       return;
     }
 
@@ -114,10 +118,10 @@ class SearcherAgent {
 
     switch (this.searchPattern) {
       case 'spiral':
+        // Expanding spiral from home - angle increases, radius grows over time
         this.spiralAngle += 15;
         this.spiralRadius = Math.min(this.searchRadius, 50 + hour * 30);
         this.heading = this.spiralAngle;
-        const spiralDist = Math.min(distanceM, this.spiralRadius / 10);
         this.position = offsetPosition(this.homePosition, this.spiralRadius, this.spiralAngle);
         break;
 
@@ -148,7 +152,10 @@ class SearcherAgent {
       this.position = offsetPosition(this.position, distanceM, this.heading);
     }
 
-    // Record path
+    this.recordPath(hour);
+  }
+
+  private recordPath(hour: number): void {
     this.path.push({
       hour,
       lat: this.position.lat,
