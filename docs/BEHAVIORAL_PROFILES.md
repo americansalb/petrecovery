@@ -1,10 +1,565 @@
 # Lost Pet Behavioral Profile System
 
-## Version 2.3
+## Version 2.4
 
 A unified behavioral simulation framework for dogs and cats. This document consolidates species-specific movement patterns, recovery probabilities, and search strategies into a single reference.
 
 **Provenance Key**: [R] Research-backed, [P] Practitioner experience (Albrecht, MPP, etc.), [A] Author assumption (needs validation), [C] Calculated/derived
+
+---
+
+# PART 0: TYPE DEFINITIONS AND UTILITIES
+
+This section provides shared type definitions and utility functions used throughout the simulation.
+
+---
+
+## Core Type Definitions
+
+```python
+from dataclasses import dataclass, field
+from typing import List, Optional, Tuple, Dict, Any
+from datetime import datetime
+from enum import Enum
+import math
+import random
+import numpy as np
+
+
+@dataclass
+class AnimalProfile:
+    """
+    Complete profile describing a lost pet's characteristics.
+    Used to parameterize movement, behavior, and recovery probability.
+    """
+    species: str                          # "dog" or "cat"
+    temperament: str                      # Dog: G/C/A/X/B, Cat: CUR/CL/CAU/X/B
+    size_class: str                       # Dog: TOY/SML/MED/LRG/GNT, Cat: SML/MED/LRG
+    age_class: str                        # Dog: PUP/YNG/ADT/SEN, Cat: KIT/JUV/YNG/ADT/SEN
+    breed_or_type: Optional[str] = None   # Specific breed or "mixed"
+    indoor_outdoor: Optional[str] = None  # Cat only: IO/IOP/OIP/OO
+    background: str = "F"                 # F/R/ST/W (dog) or F/R/FO/BR/MH (cat)
+    health_status: str = "HLT"            # HLT/CHR/INJ/ILL
+    escape_type: str = "W1"               # See escape type codes
+    escape_location: Tuple[float, float] = (0.0, 0.0)  # (lat, lon)
+    home_location: Tuple[float, float] = (0.0, 0.0)
+    territory: str = "HOME"               # HOME/NEAR/FAR/LOST
+    is_neutered: bool = True
+    microchipped: bool = False
+    has_collar: bool = False
+    has_collar_with_id: bool = False
+
+
+@dataclass
+class AnimalState:
+    """
+    Runtime state of an animal during simulation.
+    Updated each tick based on behavior and environment.
+    """
+    position: Tuple[float, float]         # Current (lat, lon)
+    status: str = "traveling"             # fleeing/traveling/hiding/resting/recovered/deceased
+    fear_level: float = 0.5               # 0.0-1.0
+    hunger_level: float = 0.0             # 0.0-1.0
+    thirst_level: float = 0.0             # 0.0-1.0
+    stamina: float = 1.0                  # 0.0-1.0
+    health: str = "HLT"
+    injury_severity: float = 0.0          # 0.0-1.0
+    injury_type: Optional[str] = None
+    injury_infected: bool = False
+    hours_since_escape: float = 0.0
+    hours_since_last_water: float = 0.0
+    hours_since_last_food: float = 0.0
+    current_hiding_spot: Optional[Any] = None
+    visited_locations: List[Tuple[float, float]] = field(default_factory=list)
+    threshold_reached: bool = False       # Cat only: has threshold been reached?
+    hiding_phase: Optional[str] = None    # Cat only: DEEP/EMERGENCE
+    last_scent_point: Optional[Tuple[float, float]] = None
+    current_cell: Tuple[int, int] = (0, 0)  # Grid cell position
+    current_speed: float = 1.0            # Current movement speed (m/s)
+    is_hiding: bool = False
+    hiding_spot_quality: float = 0.0
+    human_wariness: float = 0.0           # 0.0-1.0, increases after failed captures
+    failed_capture_count: int = 0
+    last_failed_capture_time: float = 0.0
+    death_cause: Optional[str] = None
+    recovery_method: Optional[str] = None
+    recovered_by: Optional[str] = None
+    trap_wariness: Dict[str, float] = field(default_factory=dict)
+    time_of_day: int = 12                 # 0-23 hour
+    species: str = "dog"                  # For convenience in state updates
+    movement_speed_modifier: float = 1.0
+
+
+@dataclass
+class SightingReport:
+    """A reported sighting of the lost pet."""
+    location: Tuple[float, float]
+    timestamp: datetime
+    confidence: float = 0.5               # Reporter's confidence (0-1)
+    direction_of_travel: Optional[float] = None  # Radians, if observed
+    behavior_observed: Optional[str] = None
+    reporter_type: str = "stranger"       # owner/neighbor/stranger
+
+
+@dataclass
+class GridMetadata:
+    """Metadata for the simulation grid."""
+    cell_size_m: float = 10.0
+    origin_lat: float = 0.0
+    origin_lon: float = 0.0
+    grid_width: int = 100
+    grid_height: int = 100
+
+    def grid_to_coords(self, i: int, j: int) -> Tuple[float, float]:
+        """Convert grid indices to lat/lon coordinates."""
+        meters_per_deg_lat = 111000
+        meters_per_deg_lon = 111000 * math.cos(math.radians(self.origin_lat))
+        lat = self.origin_lat + (i * self.cell_size_m) / meters_per_deg_lat
+        lon = self.origin_lon + (j * self.cell_size_m) / meters_per_deg_lon
+        return (lat, lon)
+
+    def coords_to_grid(self, lat: float, lon: float) -> Tuple[int, int]:
+        """Convert lat/lon coordinates to grid indices."""
+        meters_per_deg_lat = 111000
+        meters_per_deg_lon = 111000 * math.cos(math.radians(self.origin_lat))
+        i = int((lat - self.origin_lat) * meters_per_deg_lat / self.cell_size_m)
+        j = int((lon - self.origin_lon) * meters_per_deg_lon / self.cell_size_m)
+        return (i, j)
+
+
+@dataclass
+class TrapInfo:
+    """Information about a placed trap."""
+    location: Tuple[float, float]
+    trap_type: str = "box_trap_small"
+    bait_type: str = "standard_dog_food"
+    days_since_placement: int = 0
+    placed_at_hours: float = 0.0
+
+
+@dataclass
+class ScentArticle:
+    """A scent article placed in the search area."""
+    location: Tuple[float, float]
+    placed_at_hours: float
+    article_type: str = "worn_clothing"
+    type_multiplier: float = 1.0
+
+
+@dataclass
+class RegionalModifiers:
+    """Regional adjustments for simulation parameters."""
+    predator_density_multiplier: float = 1.0
+    heat_risk_multiplier: float = 1.0
+    cold_risk_multiplier: float = 1.0
+    shelter_density_multiplier: float = 1.0
+    water_scarcity_multiplier: float = 1.0
+    humidity_modifier: float = 1.0
+
+
+@dataclass
+class SimulationParams:
+    """Adjustable simulation parameters."""
+    predator_mortality_rate: float = 0.01
+    brachy_heat_threshold_f: float = 85.0
+    hiding_spot_density: float = 0.5
+
+
+@dataclass
+class OutcomeProbabilities:
+    """Probability distribution over possible outcomes."""
+    self_return: float = 0.0
+    found_by_owner: float = 0.0
+    stranger_return: float = 0.0
+    at_shelter: float = 0.0
+    adopted_by_neighbor: float = 0.0
+    still_missing: float = 0.0
+    deceased: float = 0.0
+
+    def normalize(self):
+        """Normalize probabilities to sum to 1.0."""
+        total = (self.self_return + self.found_by_owner + self.stranger_return +
+                 self.at_shelter + self.adopted_by_neighbor + self.still_missing +
+                 self.deceased)
+        if total > 0:
+            self.self_return /= total
+            self.found_by_owner /= total
+            self.stranger_return /= total
+            self.at_shelter /= total
+            self.adopted_by_neighbor /= total
+            self.still_missing /= total
+            self.deceased /= total
+
+
+@dataclass
+class ValidationReport:
+    """Results from model validation."""
+    median_distance_error_m: float = 0.0
+    outcome_accuracy: float = 0.0
+    brier_score: float = 0.0
+    recovery_time_correlation: float = 0.0
+
+
+@dataclass
+class BaselineReport:
+    """Baseline metrics for comparison."""
+    random_guess_accuracy: float = 0.0
+    majority_class_accuracy: float = 0.0
+    uniform_brier: float = 0.0
+    prior_brier: float = 0.0
+    cat_mean_distance_error: float = 0.0
+    dog_mean_distance_error: float = 0.0
+
+
+@dataclass
+class ComparisonReport:
+    """Comparison of model to baselines."""
+    accuracy_vs_random: float = 0.0
+    accuracy_vs_majority: float = 0.0
+    brier_vs_prior: float = 0.0
+    passes_accuracy_threshold: bool = False
+    passes_brier_threshold: bool = False
+    overall_pass: bool = False
+    failure_reasons: List[str] = field(default_factory=list)
+
+
+@dataclass
+class Prediction:
+    """A simulation prediction for validation."""
+    most_likely_location: Tuple[float, float]
+    top_outcome: str
+    outcome_probabilities: Dict[str, float]
+    expected_recovery_hours: float
+
+
+@dataclass
+class ActualOutcome:
+    """Actual outcome for validation comparison."""
+    outcome_type: str
+    outcome_location: Optional[Tuple[float, float]]
+    hours_to_recovery: float
+    distance_m: float
+    species: str
+```
+
+---
+
+## Utility Functions
+
+```python
+def haversine(coord1: Tuple[float, float], coord2: Tuple[float, float]) -> float:
+    """
+    Calculate the great-circle distance between two points on Earth.
+
+    Args:
+        coord1: (lat, lon) in degrees
+        coord2: (lat, lon) in degrees
+
+    Returns:
+        Distance in meters
+    """
+    R = 6371000  # Earth's radius in meters
+
+    lat1, lon1 = math.radians(coord1[0]), math.radians(coord1[1])
+    lat2, lon2 = math.radians(coord2[0]), math.radians(coord2[1])
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+    c = 2 * math.asin(math.sqrt(a))
+
+    return R * c
+
+
+def haversine_meters(coord1: Tuple[float, float], coord2: Tuple[float, float]) -> float:
+    """Alias for haversine() - returns distance in meters."""
+    return haversine(coord1, coord2)
+
+
+def distance(pos1: Tuple[float, float], pos2: Tuple[float, float]) -> float:
+    """
+    Calculate Euclidean distance between two positions.
+    For small distances, this is faster than haversine and accurate enough.
+
+    Args:
+        pos1: (lat, lon) or (x, y) coordinates
+        pos2: (lat, lon) or (x, y) coordinates
+
+    Returns:
+        Distance (in same units as input, or meters if lat/lon)
+    """
+    # For lat/lon, convert to approximate meters
+    meters_per_deg = 111000
+    dx = (pos2[1] - pos1[1]) * meters_per_deg * math.cos(math.radians(pos1[0]))
+    dy = (pos2[0] - pos1[0]) * meters_per_deg
+    return math.sqrt(dx*dx + dy*dy)
+
+
+def calculate_distance(pos1: Tuple[float, float], pos2: Tuple[float, float]) -> float:
+    """Alias for distance() function."""
+    return distance(pos1, pos2)
+
+
+def direction_to(from_pos: Tuple[float, float], to_pos: Tuple[float, float]) -> float:
+    """
+    Calculate direction (in radians) from one position to another.
+
+    Returns:
+        Angle in radians, 0 = East, π/2 = North
+    """
+    dx = to_pos[1] - from_pos[1]
+    dy = to_pos[0] - from_pos[0]
+    return math.atan2(dy, dx)
+
+
+def normalize_angle(angle: float) -> float:
+    """Normalize angle to range [0, 2π)."""
+    while angle < 0:
+        angle += 2 * math.pi
+    while angle >= 2 * math.pi:
+        angle -= 2 * math.pi
+    return angle
+
+
+def offset_position(
+    position: Tuple[float, float],
+    distance_m: float,
+    direction: Optional[float] = None
+) -> Tuple[float, float]:
+    """
+    Offset a position by a distance in a given direction.
+
+    Args:
+        position: (lat, lon) starting position
+        distance_m: Distance to offset in meters
+        direction: Direction in radians (random if None)
+
+    Returns:
+        New (lat, lon) position
+    """
+    if direction is None:
+        direction = random.uniform(0, 2 * math.pi)
+
+    meters_per_deg_lat = 111000
+    meters_per_deg_lon = 111000 * math.cos(math.radians(position[0]))
+
+    dlat = distance_m * math.sin(direction) / meters_per_deg_lat
+    dlon = distance_m * math.cos(direction) / meters_per_deg_lon
+
+    return (position[0] + dlat, position[1] + dlon)
+
+
+def gaussian_1d(x: float, mean: float, std: float) -> float:
+    """Calculate 1D Gaussian probability density."""
+    if std <= 0:
+        return 1.0 if x == mean else 0.0
+    coeff = 1.0 / (std * math.sqrt(2 * math.pi))
+    exponent = -0.5 * ((x - mean) / std) ** 2
+    return coeff * math.exp(exponent)
+
+
+def interpolate_multiplier(value: float, lookup_table: Dict[float, float]) -> float:
+    """
+    Interpolate a multiplier from a lookup table.
+
+    Args:
+        value: The input value (e.g., hunger_level)
+        lookup_table: Dict mapping values to multipliers
+
+    Returns:
+        Interpolated multiplier
+    """
+    keys = sorted(lookup_table.keys())
+
+    if value <= keys[0]:
+        return lookup_table[keys[0]]
+    if value >= keys[-1]:
+        return lookup_table[keys[-1]]
+
+    # Find surrounding keys
+    for i in range(len(keys) - 1):
+        if keys[i] <= value <= keys[i + 1]:
+            # Linear interpolation
+            t = (value - keys[i]) / (keys[i + 1] - keys[i])
+            return lookup_table[keys[i]] * (1 - t) + lookup_table[keys[i + 1]] * t
+
+    return 1.0  # Fallback
+
+
+def weighted_random_choice(probabilities: Dict[str, float]) -> str:
+    """
+    Make a weighted random choice from a probability distribution.
+
+    Args:
+        probabilities: Dict mapping choices to their probabilities
+
+    Returns:
+        Selected choice
+    """
+    choices = list(probabilities.keys())
+    weights = list(probabilities.values())
+
+    # Normalize if needed
+    total = sum(weights)
+    if total > 0:
+        weights = [w / total for w in weights]
+    else:
+        weights = [1.0 / len(weights)] * len(weights)
+
+    return random.choices(choices, weights=weights, k=1)[0]
+
+
+def point_in_polygon(
+    point: Tuple[float, float],
+    polygon: Any  # shapely.geometry.Polygon
+) -> bool:
+    """Check if a point is inside a polygon."""
+    from shapely.geometry import Point
+    return polygon.contains(Point(point[0], point[1]))
+
+
+def random_point_in(polygon: Any) -> Tuple[float, float]:
+    """Generate a random point inside a polygon."""
+    from shapely.geometry import Point
+    minx, miny, maxx, maxy = polygon.bounds
+    while True:
+        point = Point(random.uniform(minx, maxx), random.uniform(miny, maxy))
+        if polygon.contains(point):
+            return (point.x, point.y)
+
+
+def random_point_near(
+    geometry: Any,
+    bounding_polygon: Any,
+    max_distance: float = 10.0
+) -> Tuple[float, float]:
+    """Generate a random point near a geometry but within bounds."""
+    centroid = geometry.centroid
+    for _ in range(100):
+        angle = random.uniform(0, 2 * math.pi)
+        dist = random.uniform(0, max_distance)
+        x = centroid.x + dist * math.cos(angle)
+        y = centroid.y + dist * math.sin(angle)
+        from shapely.geometry import Point
+        if bounding_polygon.contains(Point(x, y)):
+            return (x, y)
+    return (centroid.x, centroid.y)  # Fallback
+
+
+def get_time_period(hour: int) -> str:
+    """Convert hour (0-23) to time period name."""
+    if 5 <= hour < 8:
+        return "dawn"
+    elif 8 <= hour < 12:
+        return "morning"
+    elif 12 <= hour < 17:
+        return "afternoon"
+    elif 17 <= hour < 20:
+        return "dusk"
+    else:
+        return "night"
+
+
+def get_cell_id_for_position(
+    position: Tuple[float, float],
+    grid: Dict[str, Any]
+) -> str:
+    """Find the cell ID containing a position."""
+    for cell_id, cell in grid.items():
+        # Simple distance check - real implementation would use grid math
+        if distance((cell.lat, cell.lon), position) < 10:  # Within cell size
+            return cell_id
+    return list(grid.keys())[0] if grid else "0_0"
+
+
+def get_cell_at_coords(
+    grid: np.ndarray,
+    coords: Tuple[float, float]
+) -> Any:
+    """Get the grid cell at specific coordinates."""
+    # This would use proper coordinate transformation in real implementation
+    # Placeholder that returns center cell
+    center = grid.shape[0] // 2
+    return grid[center, center]
+
+
+def get_cell_in_direction(
+    grid: np.ndarray,
+    current_cell: Tuple[int, int],
+    direction: float
+) -> Any:
+    """Get the adjacent cell in a given direction."""
+    dx = int(round(math.cos(direction)))
+    dy = int(round(math.sin(direction)))
+    new_x = max(0, min(grid.shape[0] - 1, current_cell[0] + dx))
+    new_y = max(0, min(grid.shape[1] - 1, current_cell[1] + dy))
+    return grid[new_x, new_y]
+
+
+def get_adjacent_cells(
+    grid: np.ndarray,
+    cell_pos: Tuple[int, int]
+) -> List[Any]:
+    """Get all cells adjacent to the given cell position."""
+    cells = []
+    for dx in [-1, 0, 1]:
+        for dy in [-1, 0, 1]:
+            if dx == 0 and dy == 0:
+                continue
+            nx = cell_pos[0] + dx
+            ny = cell_pos[1] + dy
+            if 0 <= nx < grid.shape[0] and 0 <= ny < grid.shape[1]:
+                cells.append(grid[nx, ny])
+    return cells
+
+
+def get_direction(
+    from_cell: Any,
+    to_cell: Any
+) -> str:
+    """Determine cardinal direction from one cell to another."""
+    dx = to_cell.grid_x - from_cell.grid_x
+    dy = to_cell.grid_y - from_cell.grid_y
+
+    if dy > 0 and abs(dy) >= abs(dx):
+        return "north"
+    elif dy < 0 and abs(dy) >= abs(dx):
+        return "south"
+    elif dx > 0 and abs(dx) > abs(dy):
+        return "east"
+    else:
+        return "west"
+
+
+def calculate_traversal_time(
+    from_cell: Any,
+    to_cell: Any,
+    speed_mps: float
+) -> float:
+    """Calculate time to traverse between cells in hours."""
+    dist = distance((from_cell.lat, from_cell.lon), (to_cell.lat, to_cell.lon))
+    if speed_mps <= 0:
+        return float('inf')
+    return (dist / speed_mps) / 3600  # Convert seconds to hours
+
+
+def get_shelter_quality(
+    hiding_spot: Optional[Any],
+    environment: Any
+) -> str:
+    """Determine shelter quality for injury healing calculations."""
+    if hiding_spot is None:
+        return "none"
+
+    quality = getattr(hiding_spot, 'weather_protection', 0.3)
+    if quality > 0.7:
+        return "good"
+    elif quality > 0.4:
+        return "moderate"
+    else:
+        return "poor"
+```
 
 ---
 
@@ -4533,18 +5088,19 @@ def update_distribution_with_search_effort(
 
 
 # Detection probability by search method and temperament
+# Structured by species to avoid temperament code collision (dog X vs cat X)
 DETECTION_PROBABILITY = {
     "physical_search_day": {
-        "G": 0.7, "C": 0.5, "A": 0.3, "X": 0.1, "B": 0.4,
-        "CUR": 0.5, "CL": 0.3, "CAU": 0.2, "X": 0.05
+        "dog": {"G": 0.7, "C": 0.5, "A": 0.3, "X": 0.1, "B": 0.4},
+        "cat": {"CUR": 0.5, "CL": 0.3, "CAU": 0.2, "X": 0.05}
     },
     "physical_search_night": {
-        "G": 0.5, "C": 0.4, "A": 0.4, "X": 0.15, "B": 0.35,
-        "CUR": 0.4, "CL": 0.35, "CAU": 0.3, "X": 0.1
+        "dog": {"G": 0.5, "C": 0.4, "A": 0.4, "X": 0.15, "B": 0.35},
+        "cat": {"CUR": 0.4, "CL": 0.35, "CAU": 0.3, "X": 0.1}
     },
     "calling": {
-        "G": 0.6, "C": 0.4, "A": 0.2, "X": 0.02, "B": 0.5,
-        "CUR": 0.3, "CL": 0.15, "CAU": 0.1, "X": 0.01
+        "dog": {"G": 0.6, "C": 0.4, "A": 0.2, "X": 0.02, "B": 0.5},
+        "cat": {"CUR": 0.3, "CL": 0.15, "CAU": 0.1, "X": 0.01}
     }
 }
 ```
@@ -5160,7 +5716,7 @@ PRE_ESCAPE_STATE = {
             "W1": 0.1, "W2": 0.1, "W3": 0.05, "W4": 0.2, "W5": 0.3,  # Walkout
             "S1": 0.8, "S2": 0.9, "S3": 0.6,   # Displacement
             # Cats
-            "ST1": 0.7, "ST2": 0.8, "ST3": 0.95, "ST4": 1.0,  # Startle
+            "ST1": 0.7, "ST2": 0.9, "ST3": 0.95, "ST4": 1.0,  # Startle (ST2 matches YAML)
             "EX1": 0.1, "EX2": 0.3, "EX3": 0.2,  # Exploratory
             "DI1": 0.8, "DI2": 0.9, "DI3": 0.95, "DI4": 0.6   # Displacement
         }
@@ -6317,7 +6873,27 @@ validation_study:
 
 # CHANGELOG
 
-## v2.3 (Current)
+## v2.4 (Current)
+
+Code review fixes and structural improvements.
+
+- **Added** PART 0: TYPE DEFINITIONS AND UTILITIES section
+  - Core type definitions: AnimalProfile, AnimalState, SightingReport, GridMetadata, TrapInfo, etc.
+  - All dataclasses now documented with field descriptions
+  - Utility functions: haversine, distance calculations, weighted_random_choice, grid helpers
+  - Previously undefined helpers now have implementations
+- **Fixed** Duplicate "X" key in DETECTION_PROBABILITY dictionary
+  - Restructured to separate dog and cat temperament codes by species
+  - Format changed from flat dict to nested `{"dog": {...}, "cat": {...}}`
+- **Fixed** TerrainType enum missing values
+  - Added: PARK, FOREST, DEEP_FOREST, WETLAND, AGRICULTURAL, INDUSTRIAL
+  - Updated TERRAIN_TO_PROFILE_PARAMS with corresponding behavioral parameters
+- **Fixed** Inconsistent ST2 initial fear value
+  - Python constant now matches YAML definition (0.9, not 0.8)
+
+---
+
+## v2.3
 
 Structural fixes and missing mechanics based on dev team review.
 
@@ -6701,7 +7277,13 @@ class TerrainType(Enum):
     WOODED = "wooded"
     WATER = "water"
     ROAD = "road"
-    HIGHWAY = "highway"  # High-speed roads, major barrier
+    HIGHWAY = "highway"          # High-speed roads, major barrier
+    PARK = "park"                # Parks, green spaces
+    FOREST = "forest"            # Light forest coverage
+    DEEP_FOREST = "deep_forest"  # Dense forest, limited visibility
+    WETLAND = "wetland"          # Swamps, marshes
+    AGRICULTURAL = "agricultural" # Farmland, open fields
+    INDUSTRIAL = "industrial"    # Industrial zones, warehouses
 
 
 @dataclass
@@ -6986,6 +7568,49 @@ TERRAIN_TO_PROFILE_PARAMS = {
         "speed_modifier": 0.0,               # Impassable (for most)
         "traversable": False,                # Barrier
         "is_water_source": True,
+    },
+    TerrainType.PARK: {
+        "traffic_risk_per_min": 0.0001,      # Minimal traffic
+        "predator_risk_per_hour": 0.008,     # Some wildlife
+        "hiding_spot_density": 0.5,          # Bushes, structures
+        "human_activity": 0.6,               # Joggers, dog walkers
+        "speed_modifier": 1.0,               # Open terrain
+    },
+    TerrainType.FOREST: {
+        "traffic_risk_per_min": 0.00001,     # Almost none
+        "predator_risk_per_hour": 0.018,     # High predator risk
+        "hiding_spot_density": 0.85,         # Good natural cover
+        "human_activity": 0.1,               # Hikers occasionally
+        "speed_modifier": 0.7,               # Vegetation slows movement
+    },
+    TerrainType.DEEP_FOREST: {
+        "traffic_risk_per_min": 0.0,         # No traffic
+        "predator_risk_per_hour": 0.025,     # Highest predator risk
+        "hiding_spot_density": 0.95,         # Excellent cover everywhere
+        "human_activity": 0.02,              # Very few humans
+        "speed_modifier": 0.5,               # Dense vegetation
+    },
+    TerrainType.WETLAND: {
+        "traffic_risk_per_min": 0.0,
+        "predator_risk_per_hour": 0.012,     # Moderate predators
+        "hiding_spot_density": 0.7,          # Reeds, vegetation
+        "human_activity": 0.05,
+        "speed_modifier": 0.4,               # Difficult terrain
+        "is_water_source": True,
+    },
+    TerrainType.AGRICULTURAL: {
+        "traffic_risk_per_min": 0.0001,      # Farm vehicles
+        "predator_risk_per_hour": 0.012,     # Coyotes common
+        "hiding_spot_density": 0.2,          # Barns, equipment
+        "human_activity": 0.15,              # Farmers occasionally
+        "speed_modifier": 1.1,               # Open, easy travel
+    },
+    TerrainType.INDUSTRIAL: {
+        "traffic_risk_per_min": 0.0003,      # Trucks, forklifts
+        "predator_risk_per_hour": 0.002,     # Low wildlife
+        "hiding_spot_density": 0.6,          # Loading docks, pallets
+        "human_activity": 0.4,               # Workers during shifts
+        "speed_modifier": 0.8,               # Obstacles
     },
 }
 ```
