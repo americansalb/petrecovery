@@ -122,6 +122,15 @@ const nextConfig = {
           source: '/robots.txt',
           destination: '/api/robots',
         },
+        // Simulator shortcut URL
+        {
+          source: '/simulate',
+          destination: '/simulator',
+        },
+        {
+          source: '/simulate/:path*',
+          destination: '/simulator/:path*',
+        },
       ],
     };
   },
