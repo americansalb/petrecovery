@@ -246,24 +246,27 @@ class SearcherAgent {
 
     switch (this.searchPattern) {
       case 'spiral':
-        // Expanding spiral from home - angle increases, radius grows over time
-        this.spiralAngle += 15;
-        this.spiralRadius = Math.min(this.searchRadius, 50 + hour * 30);
+        // Expanding spiral from home
+        // Angle increases slowly: ~30 degrees per hour of searching
+        this.spiralAngle += 30 * timeStepHours;
+        // Radius grows slowly: starts at 50m, expands ~50m per hour, max 2km
+        this.spiralRadius = Math.min(this.searchRadius, 50 + (hour - this.searchStartDelay) * 50);
         this.heading = this.spiralAngle;
         newPos = offsetPosition(this.homePosition, this.spiralRadius, this.spiralAngle);
         break;
 
       case 'grid':
-        // Grid pattern - move in cardinal directions
-        if (this.rng.next() < 0.2) {
+        // Grid pattern - move in cardinal directions, turn at intervals
+        // Move forward, occasionally turn 90 degrees
+        if (this.rng.next() < 0.05 * timeStepHours * 60) { // ~5% chance per minute
           this.heading = Math.round(this.heading / 90) * 90 + (this.rng.next() < 0.5 ? 90 : -90);
         }
         newPos = offsetPosition(this.position, distanceM, this.heading);
         break;
 
       case 'random':
-        // Random walk with tendency to cover new ground
-        this.heading += this.rng.uniform(-30, 30);
+        // Random walk - gradual direction changes
+        this.heading += this.rng.uniform(-15, 15) * timeStepHours * 12; // Smoother turns
         newPos = offsetPosition(this.position, distanceM, this.heading);
         break;
 

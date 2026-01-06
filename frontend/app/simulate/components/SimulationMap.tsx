@@ -218,20 +218,44 @@ export default function SimulationMap({
   species,
   terrainData,
 }: SimulationMapProps) {
-  const [pathSegments, setPathSegments] = useState<Array<{ positions: [number, number][]; color: string }>>([]);
   const [showTerrain, setShowTerrain] = useState(true);
 
-  // Build colored path segments when path changes
+  // Build ALL path segments once when path changes (not on every frame!)
+  const [allPathSegments, setAllPathSegments] = useState<Array<{ positions: [number, number][]; color: string; maxHour: number }>>([]);
+
   useEffect(() => {
     if (path.length > 0) {
-      // Only show path up to current playback time
-      const currentHour = playbackMinute / 60;
-      const visiblePath = path.filter(p => p.hour <= currentHour);
-      setPathSegments(buildColoredPath(visiblePath));
+      // Build segments with hour info so we can filter during render
+      const segments: Array<{ positions: [number, number][]; color: string; maxHour: number }> = [];
+      let currentSegment: { positions: [number, number][]; color: string; maxHour: number } | null = null;
+
+      for (let i = 0; i < path.length; i++) {
+        const point = path[i];
+        const color = getPathColor(point.state);
+
+        if (!currentSegment || currentSegment.color !== color) {
+          if (currentSegment && currentSegment.positions.length > 0) {
+            const lastPos = currentSegment.positions[currentSegment.positions.length - 1];
+            currentSegment = { positions: [lastPos], color, maxHour: point.hour };
+          } else {
+            currentSegment = { positions: [], color, maxHour: point.hour };
+          }
+          segments.push(currentSegment);
+        }
+
+        currentSegment.positions.push([point.lat, point.lng]);
+        currentSegment.maxHour = point.hour;
+      }
+
+      setAllPathSegments(segments.filter(s => s.positions.length >= 2));
     } else {
-      setPathSegments([]);
+      setAllPathSegments([]);
     }
-  }, [path, playbackMinute]);
+  }, [path]); // Only rebuild when path changes, NOT on playbackMinute!
+
+  // Filter segments to show only up to current time (cheap operation)
+  const currentHour = playbackMinute / 60;
+  const visibleSegments = allPathSegments.filter(s => s.maxHour <= currentHour + 0.1);
 
   return (
     <div className="w-full h-full relative">
@@ -297,10 +321,10 @@ export default function SimulationMap({
           />
         ))}
 
-        {/* Colored path segments */}
-        {pathSegments.map((segment, index) => (
+        {/* Colored path segments - only show up to current playback time */}
+        {visibleSegments.map((segment, index) => (
           <Polyline
-            key={index}
+            key={`path-${index}-${segment.color}`}
             positions={segment.positions}
             pathOptions={{
               color: segment.color,

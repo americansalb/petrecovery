@@ -67,15 +67,15 @@ export async function fetchTerrainData(
   const bbox = getBoundingBox(center, radiusM);
   const bboxStr = `${bbox.south},${bbox.west},${bbox.north},${bbox.east}`;
 
-  // Overpass query for water bodies AND major roads/highways/railways
+  // Overpass query for water POLYGONS (lakes, ponds) and major roads
+  // NOTE: We intentionally EXCLUDE linear waterways (rivers, streams, canals)
+  // because they are lines, not polygons, and cause incorrect water detection
   const query = `
     [out:json][timeout:10];
     (
-      // Water
+      // Water bodies (closed polygons only - lakes, ponds, reservoirs)
       way["natural"="water"](${bboxStr});
       way["natural"="coastline"](${bboxStr});
-      way["waterway"~"river|stream|canal"](${bboxStr});
-      relation["natural"="water"](${bboxStr});
       // Major roads - motorways, trunk roads, primary roads
       way["highway"="motorway"](${bboxStr});
       way["highway"="motorway_link"](${bboxStr});
@@ -170,16 +170,27 @@ function parseOverpassResponse(data: any, bbox: BoundingBox): TerrainData {
       // Water features
       if (tags.natural === 'coastline') {
         coastlineSegments.push(points);
-      } else if (tags.natural === 'water' || tags.waterway) {
-        if (points.length >= 3) {
-          const polyBbox = getPolygonBbox(points);
-          waterAreas.push({
-            type: 'water',
-            points,
-            bbox: polyBbox,
-          });
+      } else if (tags.natural === 'water') {
+        // natural=water is typically a closed polygon (lake, pond, reservoir)
+        // Only add if it's actually closed (first and last point are same or very close)
+        if (points.length >= 4) {
+          const first = points[0];
+          const last = points[points.length - 1];
+          const isClosed = Math.abs(first.lat - last.lat) < 0.0001 &&
+                          Math.abs(first.lng - last.lng) < 0.0001;
+          if (isClosed) {
+            const polyBbox = getPolygonBbox(points);
+            waterAreas.push({
+              type: 'water',
+              points,
+              bbox: polyBbox,
+            });
+          }
         }
       }
+      // NOTE: waterway (rivers, streams, canals) are LINEAR features, not polygons
+      // They should NOT be used for point-in-polygon checks
+      // The isLikelyWater function in engine.ts handles water avoidance via heuristics
 
       // Roads and highways
       if (tags.highway) {
