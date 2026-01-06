@@ -117,10 +117,16 @@ export async function POST(request: Request) {
     };
 
     // Build config - default 30 days (720 hours)
+    // Use larger time steps for batch simulations (faster, less granular)
+    // Single sim: 5 min steps (8,640 steps for 720h) - smooth animation
+    // Batch sim: 30 min steps (1,440 steps for 720h) - 6x faster computation
+    const isBatch = (body.batchSize || 1) > 1;
+    const timeStepMinutes = isBatch ? 30 : 5;
+
     const config: SimulationConfig = {
       seed: body.seed || Math.floor(Math.random() * 1000000),
       maxHours: body.maxHours || 720,
-      timeStepMinutes: 5,
+      timeStepMinutes,
       startHour: 10,
       searchRadiusM: 2000,
       numSearchers: body.numSearchers || 3,
@@ -188,7 +194,8 @@ export async function POST(request: Request) {
     const MAX_BATCH_SIZE = 100;
     const safeBatchSize = Math.min(body.batchSize || 1, MAX_BATCH_SIZE);
 
-    console.log(`🎲 Simulation: batch=${safeBatchSize}, hours=${config.maxHours}, searchers=${config.numSearchers}`);
+    const stepsPerSim = Math.ceil(config.maxHours * 60 / config.timeStepMinutes);
+    console.log(`🎲 Simulation: batch=${safeBatchSize}, hours=${config.maxHours}, step=${config.timeStepMinutes}min, steps/sim=${stepsPerSim}`);
 
     // Run single or batch
     if (safeBatchSize > 1) {
