@@ -1005,8 +1005,9 @@ export function runBatch(
   const results: SimulationResult[] = [];
   const baseSeed = baseConfig.seed || Math.floor(Math.random() * 1000000);
 
-  // Only keep full paths for first 5 simulations to avoid memory issues
-  const MAX_PATHS_TO_KEEP = 5;
+  // Only keep full paths for first 3 simulations to avoid memory issues
+  // 720 hours × 12 steps/hour = 8,640 points per sim, 3 sims × 4 paths = ~103K points
+  const MAX_PATHS_TO_KEEP = 3;
 
   for (let i = 0; i < numRuns; i++) {
     const config = { ...baseConfig, seed: baseSeed + i };

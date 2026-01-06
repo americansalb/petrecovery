@@ -16,7 +16,25 @@ import {
   SimulationConfig,
   DOG_TEMPERAMENTS,
   CAT_TEMPERAMENTS,
+  PathPoint,
 } from '@/app/lib/behavioral-simulation';
+
+/**
+ * Sample path data to reduce response size
+ * 720 hours with 5-min steps = 8,640 points -> sample to ~360 points (every 30 min)
+ */
+function samplePath(path: PathPoint[], sampleInterval: number = 6): PathPoint[] {
+  if (path.length <= 100) return path; // Don't sample short paths
+  const sampled: PathPoint[] = [];
+  for (let i = 0; i < path.length; i += sampleInterval) {
+    sampled.push(path[i]);
+  }
+  // Always include the last point
+  if (sampled[sampled.length - 1] !== path[path.length - 1]) {
+    sampled.push(path[path.length - 1]);
+  }
+  return sampled;
+}
 import { fetchTerrainData, TerrainData } from '@/app/lib/behavioral-simulation/terrain';
 import { findNearestCachedCity, getCityCacheKey, CityInfo } from '@/app/lib/terrain/cityTerrainCache';
 import { loadNaturalEarthData } from '@/app/lib/terrain/naturalEarthWater';
@@ -186,7 +204,8 @@ export async function POST(request: Request) {
 
         console.log(`🎲 Batch complete in ${Date.now() - startTime}ms. Success rate: ${batchResult.successRate.toFixed(1)}%`);
 
-        return NextResponse.json({
+        // Build response and measure size
+        const responseData = {
           success: true,
           type: 'batch',
           profile: {
@@ -204,10 +223,11 @@ export async function POST(request: Request) {
             avgDistanceM: Math.round(batchResult.avgDistanceM),
             outcomes: batchResult.outcomes,
           },
-          // Include first 5 simulations with paths for viewing (memory limited)
+          // Include first 3 simulations with SAMPLED paths for viewing (memory limited)
+          // Sampling: 1 point per 30 min instead of 5 min = 1/6 the data
           sampleSimulations: batchResult.simulations
             .filter(sim => sim.petPath.length > 0) // Only include ones with paths
-            .slice(0, 5)
+            .slice(0, 3) // Reduced from 5 to 3 for memory
             .map(sim => ({
               id: sim.id,
               outcome: sim.outcome,
@@ -215,10 +235,16 @@ export async function POST(request: Request) {
               timeToOutcomeHours: sim.timeToOutcomeHours,
               maxDistanceM: Math.round(sim.maxDistanceFromHomeM),
               pathLength: sim.petPath.length,
-              petPath: sim.petPath,
-              searcherPaths: sim.searcherPaths,
+              petPath: samplePath(sim.petPath, 6), // Sample every 30 min
+              searcherPaths: sim.searcherPaths.map(sp => samplePath(sp, 12)), // Sample every hour
             })),
-        });
+        };
+
+        // Log response size for debugging
+        const jsonStr = JSON.stringify(responseData);
+        console.log(`🎲 Response size: ${(jsonStr.length / 1024).toFixed(1)}KB, sample paths: ${responseData.sampleSimulations.length}`);
+
+        return NextResponse.json(responseData);
       } catch (error) {
         console.error('🎲 Batch simulation failed:', error);
         return NextResponse.json(
