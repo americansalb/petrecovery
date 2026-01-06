@@ -1005,26 +1005,20 @@ export function runBatch(
   const results: SimulationResult[] = [];
   const baseSeed = baseConfig.seed || Math.floor(Math.random() * 1000000);
 
-  // Only keep full paths for first 3 simulations to avoid memory issues
-  // 720 hours × 12 steps/hour = 8,640 points per sim, 3 sims × 4 paths = ~103K points
-  const MAX_PATHS_TO_KEEP = 3;
+  // Don't store ANY paths during batch - they're fetched on-demand
+  // This allows running 100+ simulations without memory issues
 
   for (let i = 0; i < numRuns; i++) {
     const config = { ...baseConfig, seed: baseSeed + i };
     const engine = new BehavioralSimulationEngine(profile, startPosition, config);
     const result = engine.run();
 
-    // For memory efficiency, only keep paths for first few simulations
-    if (i >= MAX_PATHS_TO_KEEP) {
-      // Keep only summary data, discard large path arrays
-      results.push({
-        ...result,
-        petPath: [], // Clear to save memory
-        searcherPaths: [], // Clear to save memory
-      });
-    } else {
-      results.push(result);
-    }
+    // Keep only summary data, discard large path arrays immediately
+    results.push({
+      ...result,
+      petPath: [], // Clear to save memory
+      searcherPaths: [], // Clear to save memory
+    });
 
     if (onProgress) {
       onProgress(i + 1);

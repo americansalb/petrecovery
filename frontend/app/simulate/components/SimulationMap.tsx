@@ -42,6 +42,17 @@ interface TerrainData {
   hasRailways?: boolean;
 }
 
+interface SimOutcome {
+  id: string;
+  index: number;
+  seed: number;
+  outcome: string;
+  outcomeDescription: string;
+  timeToOutcomeHours: number | null;
+  finalPosition: Position;
+  maxDistanceM: number;
+}
+
 interface SimulationMapProps {
   center: { lat: number; lng: number };
   path: PathPoint[];
@@ -51,6 +62,9 @@ interface SimulationMapProps {
   onLocationSelect: (lat: number, lng: number) => void;
   species: 'dog' | 'cat';
   terrainData?: TerrainData;
+  outcomeMarkers?: SimOutcome[]; // Batch simulation outcomes
+  selectedOutcomeIndex?: number | null;
+  onOutcomeClick?: (sim: SimOutcome) => void;
 }
 
 // Inject CSS for smooth animations
@@ -95,6 +109,20 @@ const injectStyles = () => {
 
     .searcher-active {
       animation: searcher-scan 1.5s ease-in-out infinite;
+    }
+
+    /* Outcome marker hover effect */
+    .outcome-marker {
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .outcome-marker:hover {
+      transform: scale(1.3) !important;
+      z-index: 1000 !important;
+    }
+    .outcome-marker-selected {
+      transform: scale(1.4);
+      z-index: 1001 !important;
     }
 
     /* Home marker glow */
@@ -185,6 +213,36 @@ const createSearcherIcon = (index: number, isActive: boolean) => {
     ">👤</div>`,
     iconSize: [30, 30],
     iconAnchor: [15, 15],
+  });
+};
+
+// Create outcome marker icon for batch results
+const createOutcomeIcon = (outcome: string, index: number, isSelected: boolean) => {
+  const bgColor = (outcome === 'captured' || outcome === 'self_return') ? '#22c55e' :
+                  outcome === 'deceased' ? '#ef4444' : '#eab308';
+  const emoji = (outcome === 'captured' || outcome === 'self_return') ? '✓' :
+                outcome === 'deceased' ? '✗' : '?';
+  const size = isSelected ? 28 : 20;
+  const selectedClass = isSelected ? 'outcome-marker-selected' : '';
+
+  return L.divIcon({
+    className: `outcome-marker ${selectedClass}`,
+    html: `<div style="
+      background: ${bgColor};
+      width: ${size}px;
+      height: ${size}px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: ${isSelected ? 14 : 10}px;
+      font-weight: bold;
+      color: white;
+      border: 2px solid white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    ">${emoji}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
   });
 };
 
@@ -377,8 +435,12 @@ export default function SimulationMap({
   onLocationSelect,
   species,
   terrainData,
+  outcomeMarkers,
+  selectedOutcomeIndex,
+  onOutcomeClick,
 }: SimulationMapProps) {
   const [showTerrain, setShowTerrain] = useState(true);
+  const [showOutcomes, setShowOutcomes] = useState(true);
   const currentHour = playbackMinute / 60;
 
   // Inject animation styles on mount
@@ -469,11 +531,35 @@ export default function SimulationMap({
             icon={createSearcherIcon(index, pos.state === 'searching')}
           />
         ))}
+
+        {/* Outcome markers for batch simulations */}
+        {showOutcomes && outcomeMarkers?.map((sim) => (
+          <Marker
+            key={`outcome-${sim.index}`}
+            position={[sim.finalPosition.lat, sim.finalPosition.lng]}
+            icon={createOutcomeIcon(sim.outcome, sim.index, selectedOutcomeIndex === sim.index)}
+            eventHandlers={{
+              click: () => onOutcomeClick?.(sim),
+            }}
+          />
+        ))}
       </MapContainer>
 
-      {/* Terrain toggle button */}
-      {(terrainData?.waterPolygons?.length || terrainData?.roads?.length) ? (
-        <div className="absolute top-4 right-4 z-[1000]">
+      {/* Toggle buttons */}
+      <div className="absolute top-4 right-4 z-[1000] flex gap-2">
+        {outcomeMarkers && outcomeMarkers.length > 0 && (
+          <button
+            onClick={() => setShowOutcomes(!showOutcomes)}
+            className={`px-3 py-2 rounded-lg shadow-lg text-xs font-medium transition-all duration-200 ${
+              showOutcomes
+                ? 'bg-green-600 text-white hover:bg-green-700'
+                : 'bg-white/90 text-gray-600 hover:bg-white border border-gray-200'
+            }`}
+          >
+            {showOutcomes ? `Hide Outcomes (${outcomeMarkers.length})` : `Show Outcomes (${outcomeMarkers.length})`}
+          </button>
+        )}
+        {(terrainData?.waterPolygons?.length || terrainData?.roads?.length) ? (
           <button
             onClick={() => setShowTerrain(!showTerrain)}
             className={`px-3 py-2 rounded-lg shadow-lg text-xs font-medium transition-all duration-200 ${
@@ -484,8 +570,8 @@ export default function SimulationMap({
           >
             {showTerrain ? 'Hide Terrain' : 'Show Terrain'}
           </button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       {/* Compact status indicator */}
       {currentPosition && (

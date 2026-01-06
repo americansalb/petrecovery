@@ -183,10 +183,10 @@ export async function POST(request: Request) {
     config.terrainData = terrainData;
 
     // Limit batch size based on simulation duration to prevent timeout
-    // 720 hours (30 days) simulation takes ~500ms each, 60s timeout, terrain takes ~10s
-    // So we have ~50s for simulations = ~100 runs max for 30-day sims
-    const maxBatchForDuration = Math.floor(50000 / (config.maxHours * 0.7)); // ~0.7ms per hour
-    const safeBatchSize = Math.min(body.batchSize || 1, maxBatchForDuration, 100);
+    // 720 hours (30 days) simulation takes ~400ms each, 60s timeout, terrain takes ~10s
+    // Allow up to 100 simulations - response is tiny without path data
+    const MAX_BATCH_SIZE = 100;
+    const safeBatchSize = Math.min(body.batchSize || 1, MAX_BATCH_SIZE);
 
     console.log(`🎲 Simulation: batch=${safeBatchSize}, hours=${config.maxHours}, searchers=${config.numSearchers}`);
 
@@ -204,7 +204,8 @@ export async function POST(request: Request) {
 
         console.log(`🎲 Batch complete in ${Date.now() - startTime}ms. Success rate: ${batchResult.successRate.toFixed(1)}%`);
 
-        // Build response and measure size
+        // Build response - NO path data, just outcomes for map visualization
+        // Paths are fetched separately when user clicks to animate
         const responseData = {
           success: true,
           type: 'batch',
@@ -223,26 +224,23 @@ export async function POST(request: Request) {
             avgDistanceM: Math.round(batchResult.avgDistanceM),
             outcomes: batchResult.outcomes,
           },
-          // Include first 3 simulations with SAMPLED paths for viewing (memory limited)
-          // Sampling: 1 point per 30 min instead of 5 min = 1/6 the data
-          sampleSimulations: batchResult.simulations
-            .filter(sim => sim.petPath.length > 0) // Only include ones with paths
-            .slice(0, 3) // Reduced from 5 to 3 for memory
-            .map(sim => ({
-              id: sim.id,
-              outcome: sim.outcome,
-              outcomeDescription: sim.outcomeDescription,
-              timeToOutcomeHours: sim.timeToOutcomeHours,
-              maxDistanceM: Math.round(sim.maxDistanceFromHomeM),
-              pathLength: sim.petPath.length,
-              petPath: samplePath(sim.petPath, 6), // Sample every 30 min
-              searcherPaths: sim.searcherPaths.map(sp => samplePath(sp, 12)), // Sample every hour
-            })),
+          // All simulation outcomes for map visualization (no paths!)
+          // ~100 bytes per sim = 10KB for 100 sims
+          simulations: batchResult.simulations.map((sim, index) => ({
+            id: sim.id,
+            index, // For re-running with same seed
+            seed: sim.seed,
+            outcome: sim.outcome,
+            outcomeDescription: sim.outcomeDescription,
+            timeToOutcomeHours: sim.timeToOutcomeHours,
+            finalPosition: sim.finalPosition,
+            maxDistanceM: Math.round(sim.maxDistanceFromHomeM),
+          })),
         };
 
         // Log response size for debugging
         const jsonStr = JSON.stringify(responseData);
-        console.log(`🎲 Response size: ${(jsonStr.length / 1024).toFixed(1)}KB, sample paths: ${responseData.sampleSimulations.length}`);
+        console.log(`🎲 Response size: ${(jsonStr.length / 1024).toFixed(1)}KB, simulations: ${responseData.simulations.length}`);
 
         return NextResponse.json(responseData);
       } catch (error) {

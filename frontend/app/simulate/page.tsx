@@ -61,6 +61,17 @@ interface TerrainData {
   hasRailways?: boolean;
 }
 
+interface SimOutcome {
+  id: string;
+  index: number;
+  seed: number;
+  outcome: string;
+  outcomeDescription: string;
+  timeToOutcomeHours: number | null;
+  finalPosition: Position;
+  maxDistanceM: number;
+}
+
 interface SimResult {
   type: 'single' | 'batch';
   profile: {
@@ -71,8 +82,16 @@ interface SimResult {
   result: any;
   path?: PathPoint[];
   searcherPaths?: PathPoint[][];
-  sampleSimulations?: any[];
+  simulations?: SimOutcome[]; // All simulation outcomes for batch
   terrain?: TerrainData;
+  // Store batch config for re-running individual simulations
+  batchConfig?: {
+    latitude: number;
+    longitude: number;
+    maxHours: number;
+    numSearchers: number;
+    searchStartDelay: number;
+  };
 }
 
 // Size and age options based on SURVIVAL modifiers
@@ -117,6 +136,7 @@ export default function SimulatePage() {
   const [configOpen, setConfigOpen] = useState(true);
   const [resultsOpen, setResultsOpen] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [loadingSimIndex, setLoadingSimIndex] = useState<number | null>(null);
   const [result, setResult] = useState<SimResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedSimIndex, setSelectedSimIndex] = useState<number | null>(null);
@@ -164,6 +184,17 @@ export default function SimulatePage() {
         throw new Error(data.error || 'Simulation failed');
       }
 
+      // Store batch config for re-running individual simulations
+      if (data.type === 'batch') {
+        data.batchConfig = {
+          latitude,
+          longitude,
+          maxHours,
+          numSearchers,
+          searchStartDelay,
+        };
+      }
+
       setResult(data);
       setResultsOpen(true);
 
@@ -191,6 +222,55 @@ export default function SimulatePage() {
     setLatitude(Math.round(lat * 10000) / 10000);
     setLongitude(Math.round(lng * 10000) / 10000);
   }, []);
+
+  // Load a specific simulation's path by re-running with the same seed
+  const loadSimulationPath = async (sim: SimOutcome) => {
+    if (!result?.batchConfig) return;
+
+    setLoadingSimIndex(sim.index);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          species,
+          temperament,
+          size,
+          age,
+          isIndoorOnly,
+          latitude: result.batchConfig.latitude,
+          longitude: result.batchConfig.longitude,
+          maxHours: result.batchConfig.maxHours,
+          numSearchers: result.batchConfig.numSearchers,
+          searchStartDelay: result.batchConfig.searchStartDelay,
+          seed: sim.seed, // Use exact same seed to reproduce
+          batchSize: 1, // Single simulation
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load simulation');
+      }
+
+      // Update result with the loaded path
+      setResult({
+        ...result,
+        path: data.path,
+        searcherPaths: data.searcherPaths,
+      });
+      setSelectedSimIndex(sim.index);
+      setPlaybackMinute(0);
+      setIsPlaying(true);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setLoadingSimIndex(null);
+    }
+  };
 
   // Playback controls
   const togglePlayback = () => setIsPlaying(!isPlaying);
@@ -430,6 +510,9 @@ export default function SimulatePage() {
           onLocationSelect={handleLocationSelect}
           species={species}
           terrainData={result?.terrain}
+          outcomeMarkers={result?.simulations}
+          selectedOutcomeIndex={selectedSimIndex}
+          onOutcomeClick={loadSimulationPath}
         />
       </div>
 
@@ -781,52 +864,57 @@ export default function SimulatePage() {
                   ))}
                 </div>
 
-                {/* Sample simulations list */}
-                {result.sampleSimulations && result.sampleSimulations.length > 0 && (
+                {/* All simulations list - click to animate */}
+                {result.simulations && result.simulations.length > 0 && (
                   <div className="mt-4">
                     <h3 className="text-sm font-medium text-gray-700 mb-2">
-                      Sample Simulations (click to view)
+                      All Simulations ({result.simulations.length}) - click to animate
                     </h3>
-                    <div className="space-y-1 max-h-48 overflow-y-auto">
-                      {result.sampleSimulations.map((sim: any, idx: number) => (
+                    <div className="space-y-1 max-h-64 overflow-y-auto">
+                      {result.simulations.map((sim: SimOutcome) => (
                         <button
-                          key={idx}
-                          onClick={() => {
-                            setSelectedSimIndex(idx);
-                            // Load this simulation's path for viewing
-                            if (sim.petPath) {
-                              setResult({
-                                ...result,
-                                path: sim.petPath,
-                                searcherPaths: sim.searcherPaths,
-                              });
-                              setPlaybackMinute(0);
-                              setIsPlaying(true);
-                            }
-                          }}
-                          className={`w-full text-left p-2 rounded text-xs hover:bg-gray-100 transition-colors ${
-                            selectedSimIndex === idx ? 'bg-blue-50 border border-blue-200' : ''
-                          }`}
+                          key={sim.index}
+                          onClick={() => loadSimulationPath(sim)}
+                          disabled={loadingSimIndex !== null}
+                          className={`w-full text-left p-2 rounded text-xs hover:bg-gray-100 transition-colors flex items-center justify-between ${
+                            selectedSimIndex === sim.index ? 'bg-blue-50 border border-blue-200' : ''
+                          } ${loadingSimIndex === sim.index ? 'opacity-50' : ''}`}
                         >
-                          <span className={`font-medium ${
-                            sim.outcome === 'captured' || sim.outcome === 'self_return'
-                              ? 'text-green-600'
-                              : sim.outcome === 'deceased'
-                                ? 'text-red-600'
-                                : 'text-yellow-600'
-                          }`}>
-                            #{idx + 1}
-                          </span>
-                          {' - '}
-                          {sim.outcomeDescription}
-                          {sim.timeToOutcomeHours && (
-                            <span className="text-gray-400 ml-1">
-                              @ {sim.timeToOutcomeHours.toFixed(1)}h
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${
+                              sim.outcome === 'captured' || sim.outcome === 'self_return'
+                                ? 'bg-green-500'
+                                : sim.outcome === 'deceased'
+                                  ? 'bg-red-500'
+                                  : 'bg-yellow-500'
+                            }`} />
+                            <span className={`font-medium ${
+                              sim.outcome === 'captured' || sim.outcome === 'self_return'
+                                ? 'text-green-600'
+                                : sim.outcome === 'deceased'
+                                  ? 'text-red-600'
+                                  : 'text-yellow-600'
+                            }`}>
+                              #{sim.index + 1}
                             </span>
-                          )}
+                            <span className="text-gray-600">
+                              {sim.outcomeDescription}
+                            </span>
+                          </div>
+                          <div className="text-gray-400 text-[10px]">
+                            {sim.timeToOutcomeHours !== null && (
+                              <span>{sim.timeToOutcomeHours.toFixed(0)}h</span>
+                            )}
+                            {loadingSimIndex === sim.index && (
+                              <Loader2 className="w-3 h-3 animate-spin inline ml-1" />
+                            )}
+                          </div>
                         </button>
                       ))}
                     </div>
+                    <p className="text-[10px] text-gray-400 mt-2">
+                      Outcomes shown as markers on map. Click to animate that simulation.
+                    </p>
                   </div>
                 )}
               </div>
