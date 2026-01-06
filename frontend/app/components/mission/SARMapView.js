@@ -1,17 +1,17 @@
 'use client';
 
 /**
- * SAR Map View - Simplified map for Search and Rescue operations
- *
- * NOTE: Continuous GPS tracking has been removed as it doesn't work reliably
- * in web browsers. For real-time GPS tracking, users should use the mobile app.
+ * SAR Map View - Search and Rescue Map with Connected Path Drawing
  *
  * Features:
  * - Last seen location marker
- * - Sighting markers with time decay coloring
- * - Probability circles (search radius based on time elapsed)
- * - User location (one-time capture via button)
- * - Marked search locations (instead of continuous GPS path)
+ * - Sighting markers with expanding zones
+ * - Probability zones (research-based octants)
+ * - User location (one-time capture)
+ * - Search path as connected points with coverage corridor
+ * - Desktop mode: Click map to add points
+ * - Mobile mode: Mark current GPS location
+ * - Historical coverage trails from team members
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -19,29 +19,37 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import MapLegend from './MapLegend';
 import { useGPS } from '@/app/lib/gpsService';
-import { Map as MapIcon, Satellite, Locate, Maximize } from 'lucide-react';
+import { Map as MapIcon, Satellite, Locate, Maximize, MousePointer } from 'lucide-react';
 
-// Travel speeds (miles per hour) for search radius calculation
+// Travel speeds for search radius calculation
 const PET_SPEEDS = {
   DOG: { wander: 3, run: 15 },
   CAT: { wander: 1.5, run: 8 },
   DEFAULT: { wander: 2, run: 10 }
 };
 
+// Coverage corridor width in meters (50m total = 25m each side)
+const CORRIDOR_WIDTH_METERS = 50;
+
 export default function SARMapView({
   center = [41.8781, -87.6298],
   lastSeen = null,
   sightings = [],
-  pois = [], // Shelters, vets, animal control
+  pois = [],
   petSpecies = 'DOG',
   hoursElapsed = 24,
   showControls = false,
-  markedLocations = [], // Marked search locations (replaces gpsPath)
-  coverageTrails = [], // Historical search trails from all team members
-  activeSearchersCount = 0, // Number of team members actively searching
+  // Search path - connected points
+  searchPath = [],
+  onMapClick = null, // Callback for desktop click-to-add: (lat, lng) => void
+  isEditMode = false, // When true, map clicks add points
+  // Historical coverage
+  coverageTrails = [],
+  activeSearchersCount = 0,
+  // Display options
   showProbabilityCircles = false,
-  showProbabilityZones = false, // Show research-based probability zones
-  probabilityZones = null, // Data from calculateProbabilityZones()
+  showProbabilityZones = false,
+  probabilityZones = null,
   showLegend = true,
   interactive = true
 }) {
@@ -49,31 +57,88 @@ export default function SARMapView({
   const mapInstance = useRef(null);
   const markersRef = useRef([]);
   const circlesRef = useRef([]);
-  const markedLocationsLayersRef = useRef([]); // For marked location markers
-  const coverageLayersRef = useRef([]); // For team coverage trails
-  const poiMarkersRef = useRef([]); // For shelter/vet markers
+  const searchPathLayersRef = useRef([]);
+  const coverageLayersRef = useRef([]);
+  const poiMarkersRef = useRef([]);
   const userMarkerRef = useRef(null);
-  const [showPOIs, setShowPOIs] = useState(false); // Toggle POI visibility (Off by default for cleaner map)
+  const [showPOIs, setShowPOIs] = useState(false);
   const [mapLayer, setMapLayer] = useState('satellite');
   const baseLayersRef = useRef({});
-  const [showCoverage, setShowCoverage] = useState(true); // Toggle coverage overlay (On by default to show search trails)
-  const renderGenRef = useRef(0); // Track render generation for cleanup race conditions
+  const [showCoverage, setShowCoverage] = useState(true);
+  const renderGenRef = useRef(0);
 
-  // Use GPS service for one-time location capture
+  // GPS for user location
   const { location: gpsLocation, getPosition, isSupported, isLoading: gpsLoading } = useGPS();
   const userLocation = gpsLocation?.coords || null;
 
   // Calculate search radius based on time and pet type
   const getSearchRadius = () => {
     const speeds = PET_SPEEDS[petSpecies] || PET_SPEEDS.DEFAULT;
-    if (hoursElapsed <= 6) {
-      return { inner: 0.5, middle: 1, outer: speeds.wander * 2 };
-    } else if (hoursElapsed <= 24) {
-      return { inner: 1, middle: 3, outer: speeds.wander * 6 };
-    } else if (hoursElapsed <= 72) {
-      return { inner: 2, middle: 5, outer: speeds.wander * 12 };
-    }
+    if (hoursElapsed <= 6) return { inner: 0.5, middle: 1, outer: speeds.wander * 2 };
+    if (hoursElapsed <= 24) return { inner: 1, middle: 3, outer: speeds.wander * 6 };
+    if (hoursElapsed <= 72) return { inner: 2, middle: 5, outer: speeds.wander * 12 };
     return { inner: 3, middle: 8, outer: speeds.wander * 24 };
+  };
+
+  // Generate corridor polygon around a path
+  const generateCorridorPolygon = useCallback((pathPoints, widthMeters) => {
+    if (pathPoints.length < 2) return null;
+
+    const halfWidth = widthMeters / 2;
+    const leftSide = [];
+    const rightSide = [];
+
+    for (let i = 0; i < pathPoints.length; i++) {
+      const current = pathPoints[i];
+      let bearing;
+
+      if (i === 0) {
+        bearing = calculateBearing(current, pathPoints[i + 1]);
+      } else if (i === pathPoints.length - 1) {
+        bearing = calculateBearing(pathPoints[i - 1], current);
+      } else {
+        const bearingIn = calculateBearing(pathPoints[i - 1], current);
+        const bearingOut = calculateBearing(current, pathPoints[i + 1]);
+        bearing = averageBearing(bearingIn, bearingOut);
+      }
+
+      const leftBearing = (bearing - 90 + 360) % 360;
+      const rightBearing = (bearing + 90) % 360;
+
+      leftSide.push(offsetPoint(current.lat, current.lng, halfWidth, leftBearing));
+      rightSide.push(offsetPoint(current.lat, current.lng, halfWidth, rightBearing));
+    }
+
+    return [...leftSide, ...rightSide.reverse()];
+  }, []);
+
+  // Calculate bearing between two points (degrees)
+  const calculateBearing = (from, to) => {
+    const lat1 = from.lat * Math.PI / 180;
+    const lat2 = to.lat * Math.PI / 180;
+    const dLng = (to.lng - from.lng) * Math.PI / 180;
+    const y = Math.sin(dLng) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  };
+
+  // Average two bearings
+  const averageBearing = (b1, b2) => {
+    const x = Math.cos(b1 * Math.PI / 180) + Math.cos(b2 * Math.PI / 180);
+    const y = Math.sin(b1 * Math.PI / 180) + Math.sin(b2 * Math.PI / 180);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  };
+
+  // Offset a point by distance and bearing
+  const offsetPoint = (lat, lng, distanceMeters, bearing) => {
+    const R = 6371000;
+    const d = distanceMeters / R;
+    const brng = bearing * Math.PI / 180;
+    const lat1 = lat * Math.PI / 180;
+    const lng1 = lng * Math.PI / 180;
+    const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng));
+    const lng2 = lng1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+    return [lat2 * 180 / Math.PI, lng2 * 180 / Math.PI];
   };
 
   // Center on user location
@@ -81,10 +146,7 @@ export default function SARMapView({
     try {
       const pos = await getPosition();
       if (pos && mapInstance.current) {
-        mapInstance.current.flyTo([pos.lat, pos.lng], 17, {
-          animate: true,
-          duration: 1
-        });
+        mapInstance.current.flyTo([pos.lat, pos.lng], 17, { animate: true, duration: 1 });
       }
     } catch (err) {
       console.error('Failed to get location:', err);
@@ -103,25 +165,20 @@ export default function SARMapView({
       dragging: interactive,
       touchZoom: interactive,
       scrollWheelZoom: interactive,
-      doubleClickZoom: interactive,
+      doubleClickZoom: interactive && !isEditMode,
       boxZoom: interactive,
       keyboard: interactive
     });
 
-    // Create base layers
     baseLayersRef.current.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19,
-      attribution: 'Esri, DigitalGlobe, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community'
+      maxZoom: 19
     });
-
     baseLayersRef.current.street = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       maxZoom: 19
     });
 
-    // Add default layer (satellite)
     baseLayersRef.current[mapLayer].addTo(mapInstance.current);
 
-    // Cleanup map on unmount
     return () => {
       if (mapInstance.current) {
         mapInstance.current.remove();
@@ -130,19 +187,35 @@ export default function SARMapView({
     };
   }, []);
 
-  // Center map on lastSeen when it becomes available (only once per mission)
+  // Handle map clicks for desktop edit mode
+  useEffect(() => {
+    if (!mapInstance.current) return;
+
+    const handleClick = (e) => {
+      if (isEditMode && onMapClick) {
+        onMapClick(e.latlng.lat, e.latlng.lng);
+      }
+    };
+
+    if (isEditMode) {
+      mapInstance.current.on('click', handleClick);
+    } else {
+      mapInstance.current.off('click', handleClick);
+    }
+
+    return () => {
+      mapInstance.current?.off('click', handleClick);
+    };
+  }, [isEditMode, onMapClick]);
+
+  // Center on lastSeen
   const hasInitialCenterRef = useRef(false);
   const lastSeenCenterKeyRef = useRef(null);
   useEffect(() => {
-    if (!mapInstance.current || !lastSeen) return;
+    if (!mapInstance.current || !lastSeen?.lat || !lastSeen?.lng) return;
 
-    // Check if lastSeen has valid coordinates
-    if (!lastSeen.lat || !lastSeen.lng) return;
-
-    // Track by key so we re-center when mission changes
     const key = `${lastSeen.lat.toFixed(4)},${lastSeen.lng.toFixed(4)}`;
     if (lastSeenCenterKeyRef.current !== key) {
-      // Mission changed - reset and center
       hasInitialCenterRef.current = false;
       lastSeenCenterKeyRef.current = key;
     }
@@ -153,17 +226,11 @@ export default function SARMapView({
     }
   }, [lastSeen]);
 
-  // Handle layer switching
+  // Layer switching
   useEffect(() => {
-    if (!mapInstance.current || !baseLayersRef.current.satellite || !baseLayersRef.current.street) return;
-
-    // Remove current layer
-    const currentLayer = mapLayer === 'satellite' ? 'street' : 'satellite';
-    if (baseLayersRef.current[currentLayer]) {
-      mapInstance.current.removeLayer(baseLayersRef.current[currentLayer]);
-    }
-
-    // Add new layer
+    if (!mapInstance.current || !baseLayersRef.current.satellite) return;
+    const other = mapLayer === 'satellite' ? 'street' : 'satellite';
+    if (baseLayersRef.current[other]) mapInstance.current.removeLayer(baseLayersRef.current[other]);
     baseLayersRef.current[mapLayer].addTo(mapInstance.current);
   }, [mapLayer]);
 
@@ -174,36 +241,14 @@ export default function SARMapView({
     if (userMarkerRef.current) {
       userMarkerRef.current.setLatLng(userLocation);
     } else {
-      // User marker - blue dot with pulse
       const userIcon = L.divIcon({
         className: 'user-location-marker',
         html: `
           <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-            <div style="
-              position: absolute;
-              width: 36px;
-              height: 36px;
-              background: rgba(59, 130, 246, 0.25);
-              border-radius: 50%;
-              animation: userPulse 2s ease-out infinite;
-            "></div>
-            <div style="
-              width: 18px;
-              height: 18px;
-              background: #3b82f6;
-              border: 3px solid white;
-              border-radius: 50%;
-              box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
-              position: relative;
-              z-index: 1;
-            "></div>
+            <div style="position: absolute; width: 36px; height: 36px; background: rgba(59, 130, 246, 0.25); border-radius: 50%; animation: userPulse 2s ease-out infinite;"></div>
+            <div style="width: 18px; height: 18px; background: #3b82f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 10px rgba(59, 130, 246, 0.6); position: relative; z-index: 1;"></div>
           </div>
-          <style>
-            @keyframes userPulse {
-              0% { transform: scale(1); opacity: 0.8; }
-              100% { transform: scale(2); opacity: 0; }
-            }
-          </style>
+          <style>@keyframes userPulse { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(2); opacity: 0; } }</style>
         `,
         iconSize: [36, 36],
         iconAnchor: [18, 18]
@@ -214,77 +259,129 @@ export default function SARMapView({
     }
   }, [userLocation]);
 
-  // Fit bounds to show both user location and last seen
-  const hasFitBoundsRef = useRef(false);
-  const lastSeenKeyRef = useRef(null);
-
+  // Render search path with corridor
   useEffect(() => {
     if (!mapInstance.current) return;
-    if (!lastSeen) return;
 
-    // Track lastSeen by key to reset bounds when mission changes
-    const lastSeenKey = `${lastSeen.lat?.toFixed(5)},${lastSeen.lng?.toFixed(5)}`;
-    if (lastSeenKeyRef.current !== lastSeenKey) {
-      // Mission changed - reset fit bounds flag
-      hasFitBoundsRef.current = false;
-      lastSeenKeyRef.current = lastSeenKey;
+    // Clear existing path layers
+    searchPathLayersRef.current.forEach(layer => {
+      try { layer.remove(); } catch (e) {}
+    });
+    searchPathLayersRef.current = [];
+
+    if (!searchPath || searchPath.length === 0) return;
+
+    // Draw coverage corridor
+    if (searchPath.length >= 2) {
+      const corridorCoords = generateCorridorPolygon(searchPath, CORRIDOR_WIDTH_METERS);
+      if (corridorCoords) {
+        const corridor = L.polygon(corridorCoords, {
+          color: '#a855f7',
+          fillColor: '#a855f7',
+          fillOpacity: 0.2,
+          weight: 1,
+          opacity: 0.5,
+        });
+        corridor.addTo(mapInstance.current);
+        corridor.bringToBack();
+        searchPathLayersRef.current.push(corridor);
+      }
+
+      // Draw connecting line
+      const lineCoords = searchPath.map(p => [p.lat, p.lng]);
+      const pathLine = L.polyline(lineCoords, {
+        color: '#a855f7',
+        weight: 4,
+        opacity: 0.9,
+        lineCap: 'round',
+        lineJoin: 'round',
+      });
+      pathLine.addTo(mapInstance.current);
+      searchPathLayersRef.current.push(pathLine);
     }
 
-    // If we already fit with user location, don't do it again
-    if (hasFitBoundsRef.current) return;
+    // Draw point markers
+    searchPath.forEach((point, index) => {
+      const isFirst = index === 0;
+      const isLast = index === searchPath.length - 1;
+      const isOutOfZone = point.inZone === false;
 
-    // Wait a moment for map to initialize
-    const timer = setTimeout(() => {
-      if (!mapInstance.current) return;
+      let markerColor = '#a855f7';
+      let markerSize = 22;
+      let content = `${index + 1}`;
 
-      const bounds = L.latLngBounds([]);
-
-      // Add last seen to bounds
-      if (lastSeen?.lat && lastSeen?.lng) {
-        bounds.extend([lastSeen.lat, lastSeen.lng]);
+      if (isFirst) {
+        markerColor = '#22c55e';
+        markerSize = 28;
+        content = '▶';
+      } else if (isLast && searchPath.length > 1) {
+        markerColor = '#3b82f6';
+        markerSize = 28;
+        content = '●';
+      } else if (isOutOfZone) {
+        markerColor = '#6b7280';
       }
 
-      // Add user location if available
-      if (userLocation) {
-        bounds.extend(userLocation);
-        hasFitBoundsRef.current = true;
-      }
+      const pointIcon = L.divIcon({
+        className: 'search-path-marker',
+        html: `
+          <div style="
+            width: ${markerSize}px;
+            height: ${markerSize}px;
+            background: ${markerColor};
+            border: 2px solid white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px ${markerColor}80;
+            font-size: ${isFirst || isLast ? '14px' : '11px'};
+            font-weight: 700;
+            color: white;
+          ">${content}</div>
+        `,
+        iconSize: [markerSize, markerSize],
+        iconAnchor: [markerSize / 2, markerSize / 2]
+      });
 
-      // If we have valid bounds, fit to them
-      if (bounds.isValid()) {
-        mapInstance.current.fitBounds(bounds, {
-          padding: [50, 50],
-          maxZoom: 16,
-          animate: true
-        });
-      }
-    }, 500);
+      const timeStr = point.timestamp
+        ? new Date(point.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : '';
 
-    return () => clearTimeout(timer);
-  }, [lastSeen, userLocation]);
+      const marker = L.marker([point.lat, point.lng], {
+        icon: pointIcon,
+        zIndexOffset: isFirst || isLast ? 500 : 100
+      }).bindPopup(`
+        <div style="text-align:center;padding:4px;min-width:100px;">
+          <div style="font-weight:600;color:${markerColor};">
+            ${isFirst ? 'Start Point' : isLast ? 'Current Position' : `Point ${index + 1}`}
+          </div>
+          ${timeStr ? `<div style="font-size:11px;color:#666;">${timeStr}</div>` : ''}
+          ${point.isManual ? `<div style="font-size:10px;color:#888;">Manually placed</div>` : ''}
+          ${isOutOfZone ? `<div style="font-size:10px;color:#f59e0b;">Outside search zone</div>` : ''}
+        </div>
+      `).addTo(mapInstance.current);
 
-  // Update markers and circles
+      searchPathLayersRef.current.push(marker);
+    });
+  }, [searchPath, generateCorridorPolygon]);
+
+  // Render markers and circles (lastSeen, sightings, probability zones)
   useEffect(() => {
     if (!mapInstance.current) return;
 
-    // Increment generation to invalidate any in-progress async operations
     const currentGen = ++renderGenRef.current;
 
-    // Robust cleanup - remove all layers synchronously before adding new ones
     const cleanupLayers = () => {
-      markersRef.current.forEach(m => {
-        try { m.remove(); } catch (e) { /* already removed */ }
-      });
-      circlesRef.current.forEach(c => {
-        try { c.remove(); } catch (e) { /* already removed */ }
-      });
+      markersRef.current.forEach(m => { try { m.remove(); } catch (e) {} });
+      circlesRef.current.forEach(c => { try { c.remove(); } catch (e) {} });
       markersRef.current = [];
       circlesRef.current = [];
     };
 
     cleanupLayers();
 
-    // Add last seen marker
+    // Last seen marker
     if (lastSeen) {
       const isLatestSighting = lastSeen.isLatestSighting;
       const markerColor = isLatestSighting ? '#f59e0b' : '#ef4444';
@@ -293,20 +390,7 @@ export default function SARMapView({
 
       const lastSeenIcon = L.divIcon({
         className: 'last-seen-marker',
-        html: `
-          <div style="
-            width: 32px;
-            height: 32px;
-            background: ${markerColor};
-            border: 3px solid white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 10px ${markerColor}80;
-            font-size: 16px;
-          ">${emoji}</div>
-        `,
+        html: `<div style="width: 32px; height: 32px; background: ${markerColor}; border: 3px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px ${markerColor}80; font-size: 16px;">${emoji}</div>`,
         iconSize: [32, 32],
         iconAnchor: [16, 16]
       });
@@ -316,56 +400,33 @@ export default function SARMapView({
         .addTo(mapInstance.current);
       markersRef.current.push(lastSeenMarker);
 
-      // Add search probability circles (OPTIONAL)
+      // Probability circles
       if (showProbabilityCircles) {
         const radius = getSearchRadius();
         const milesToMeters = (miles) => miles * 1609.34;
 
-        // Inner circle (high probability)
-        const innerCircle = L.circle([lastSeen.lat, lastSeen.lng], {
-          radius: milesToMeters(radius.inner),
-          color: '#22c55e',
-          fillColor: '#22c55e',
-          fillOpacity: 0.05,
-          weight: 1,
-          dashArray: '5, 5'
-        }).addTo(mapInstance.current);
-        circlesRef.current.push(innerCircle);
-
-        // Middle circle (medium probability)
-        const middleCircle = L.circle([lastSeen.lat, lastSeen.lng], {
-          radius: milesToMeters(radius.middle),
-          color: '#eab308',
-          fillColor: '#eab308',
-          fillOpacity: 0.03,
-          weight: 1,
-          dashArray: '10, 5'
-        }).addTo(mapInstance.current);
-        circlesRef.current.push(middleCircle);
-
-        // Outer circle (low probability)
-        const outerCircle = L.circle([lastSeen.lat, lastSeen.lng], {
-          radius: milesToMeters(radius.outer),
-          color: '#6366f1',
-          fillColor: '#6366f1',
-          fillOpacity: 0.02,
-          weight: 1,
-          dashArray: '15, 10'
-        }).addTo(mapInstance.current);
-        circlesRef.current.push(outerCircle);
+        [[radius.inner, '#22c55e'], [radius.middle, '#eab308'], [radius.outer, '#6366f1']].forEach(([r, color]) => {
+          const circle = L.circle([lastSeen.lat, lastSeen.lng], {
+            radius: milesToMeters(r),
+            color,
+            fillColor: color,
+            fillOpacity: 0.03,
+            weight: 1,
+            dashArray: '5, 5'
+          }).addTo(mapInstance.current);
+          circlesRef.current.push(circle);
+        });
       }
 
-      // Add research-based probability zones
+      // Research-based probability zones (octants)
       if (showProbabilityZones && probabilityZones?.zones) {
         const milesToMeters = (miles) => miles * 1609.34;
         const zoneCenter = probabilityZones.center || [lastSeen.lat, lastSeen.lng];
 
-        // Helper to generate arc coordinates for a pie slice
         const generateArcCoords = (centerCoords, innerRadius, outerRadius, startAngle, endAngle, numPoints = 16) => {
           const coords = [];
           const [lat, lng] = centerCoords;
 
-          // Outer arc (from startAngle to endAngle)
           for (let i = 0; i <= numPoints; i++) {
             const angle = startAngle + (i / numPoints) * (endAngle - startAngle);
             const radians = ((90 - angle) * Math.PI) / 180;
@@ -374,7 +435,6 @@ export default function SARMapView({
             coords.push([lat + latOffset, lng + lngOffset]);
           }
 
-          // Inner arc (from endAngle back to startAngle)
           if (innerRadius > 0) {
             for (let i = numPoints; i >= 0; i--) {
               const angle = startAngle + (i / numPoints) * (endAngle - startAngle);
@@ -390,20 +450,16 @@ export default function SARMapView({
           return coords;
         };
 
-        // Sort zones from smallest to largest
         const sortedZones = [...probabilityZones.zones].sort((a, b) => a.radius - b.radius);
-        const ZONE_OPACITY = 0.35;
-
-        // Octant definitions
         const octants = [
-          { name: 'N', fullName: 'North', startAngle: -22.5, endAngle: 22.5 },
-          { name: 'NE', fullName: 'Northeast', startAngle: 22.5, endAngle: 67.5 },
-          { name: 'E', fullName: 'East', startAngle: 67.5, endAngle: 112.5 },
-          { name: 'SE', fullName: 'Southeast', startAngle: 112.5, endAngle: 157.5 },
-          { name: 'S', fullName: 'South', startAngle: 157.5, endAngle: 202.5 },
-          { name: 'SW', fullName: 'Southwest', startAngle: 202.5, endAngle: 247.5 },
-          { name: 'W', fullName: 'West', startAngle: 247.5, endAngle: 292.5 },
-          { name: 'NW', fullName: 'Northwest', startAngle: 292.5, endAngle: 337.5 },
+          { name: 'N', startAngle: -22.5, endAngle: 22.5 },
+          { name: 'NE', startAngle: 22.5, endAngle: 67.5 },
+          { name: 'E', startAngle: 67.5, endAngle: 112.5 },
+          { name: 'SE', startAngle: 112.5, endAngle: 157.5 },
+          { name: 'S', startAngle: 157.5, endAngle: 202.5 },
+          { name: 'SW', startAngle: 202.5, endAngle: 247.5 },
+          { name: 'W', startAngle: 247.5, endAngle: 292.5 },
+          { name: 'NW', startAngle: 292.5, endAngle: 337.5 },
         ];
 
         sortedZones.forEach((zone, zoneIndex) => {
@@ -411,132 +467,23 @@ export default function SARMapView({
           const innerRadius = zoneIndex === 0 ? 0 : milesToMeters(sortedZones[zoneIndex - 1].radius);
 
           octants.forEach((octant) => {
-            const sliceCoords = generateArcCoords(
-              zoneCenter,
-              innerRadius,
-              outerRadius,
-              octant.startAngle,
-              octant.endAngle
-            );
-
+            const sliceCoords = generateArcCoords(zoneCenter, innerRadius, outerRadius, octant.startAngle, octant.endAngle);
             const polygon = L.polygon(sliceCoords, {
               color: zone.color,
               fillColor: zone.color,
-              fillOpacity: ZONE_OPACITY,
+              fillOpacity: 0.35,
               weight: 0,
-              opacity: 0,
             });
-
-            const zoneProbability = zone.probabilityPercent || zone.cumulativePercent;
-            const octantProbability = (zoneProbability / 8).toFixed(1);
-            const radiusMiles = zone.radius;
-            const radiusText = radiusMiles < 0.1
-              ? `${(radiusMiles * 5280).toFixed(0)} ft`
-              : `${radiusMiles.toFixed(2)} mi`;
-
-            const zoneDescriptions = {
-              HIGH: { label: 'HIGH PROBABILITY', tip: 'Best place to search first!' },
-              MEDIUM: { label: 'MEDIUM PROBABILITY', tip: 'Good area to search' },
-              LOW: { label: 'LOW PROBABILITY', tip: 'Less likely, but worth checking' },
-              EXTENDED: { label: 'EXTENDED SEARCH', tip: 'Outer edge of search area' },
-            };
-            const zoneInfo = zoneDescriptions[zone.name] || { label: zone.name, tip: '' };
-
-            polygon.bindPopup(`
-              <div style="text-align:center;padding:8px;min-width:200px;">
-                <div style="font-weight:700;color:${zone.color};font-size:13px;margin-bottom:2px;">
-                  ${zoneInfo.label}
-                </div>
-                <div style="font-size:11px;color:#666;margin-bottom:8px;">
-                  ${octant.fullName} Section
-                </div>
-                <div style="background:#f8f9fa;border-radius:8px;padding:10px;margin-bottom:8px;">
-                  <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Full Zone</div>
-                  <div style="font-size:24px;font-weight:700;color:${zone.color};">${zoneProbability}%</div>
-                  <div style="font-size:10px;color:#888;margin-bottom:8px;">within ${radiusText}</div>
-                  <div style="border-top:1px solid #e5e7eb;padding-top:8px;margin-top:4px;">
-                    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">This Sector (${octant.name})</div>
-                    <div style="font-size:18px;font-weight:600;color:${zone.color};">${octantProbability}%</div>
-                  </div>
-                </div>
-                <div style="font-size:11px;color:#22c55e;font-weight:500;">
-                  ${zoneInfo.tip}
-                </div>
-              </div>
-            `);
-
+            polygon.bindPopup(`<div style="text-align:center;"><b style="color:${zone.color}">${zone.name}</b><br>${octant.name} - ${zone.probabilityPercent || zone.cumulativePercent}%</div>`);
             polygon.addTo(mapInstance.current);
             polygon.bringToBack();
             circlesRef.current.push(polygon);
           });
         });
-
-        // Draw octant divider lines
-        const outermostRadius = milesToMeters(sortedZones[sortedZones.length - 1].radius);
-        const [centerLat, centerLng] = zoneCenter;
-        const boundaryAngles = [22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5];
-
-        boundaryAngles.forEach((angle) => {
-          const radians = ((90 - angle) * Math.PI) / 180;
-          const endLatOffset = (outermostRadius / 111320) * Math.sin(radians);
-          const endLngOffset = (outermostRadius / (111320 * Math.cos(centerLat * Math.PI / 180))) * Math.cos(radians);
-          const endPoint = [centerLat + endLatOffset, centerLng + endLngOffset];
-
-          const line = L.polyline([zoneCenter, endPoint], {
-            color: '#ffffff',
-            weight: 2,
-            opacity: 0.7,
-            dashArray: '8, 6',
-          });
-          line.addTo(mapInstance.current);
-          circlesRef.current.push(line);
-        });
-
-        // Direction labels
-        const octantLabels = [
-          { angle: 0, label: 'N' },
-          { angle: 45, label: 'NE' },
-          { angle: 90, label: 'E' },
-          { angle: 135, label: 'SE' },
-          { angle: 180, label: 'S' },
-          { angle: 225, label: 'SW' },
-          { angle: 270, label: 'W' },
-          { angle: 315, label: 'NW' },
-        ];
-
-        octantLabels.forEach(({ angle, label }) => {
-          const radians = ((90 - angle) * Math.PI) / 180;
-          const labelLatOffset = (outermostRadius / 111320) * Math.sin(radians) * 0.90;
-          const labelLngOffset = (outermostRadius / (111320 * Math.cos(centerLat * Math.PI / 180))) * Math.cos(radians) * 0.90;
-          const labelPoint = [centerLat + labelLatOffset, centerLng + labelLngOffset];
-
-          const labelIcon = L.divIcon({
-            className: 'octant-label',
-            html: `<div style="
-              background: rgba(15, 23, 42, 0.85);
-              color: white;
-              font-size: 12px;
-              font-weight: 700;
-              padding: 3px 8px;
-              border-radius: 6px;
-              border: 1px solid rgba(255,255,255,0.3);
-              white-space: nowrap;
-            ">${label}</div>`,
-            iconSize: [28, 20],
-            iconAnchor: [14, 10],
-          });
-
-          const labelMarker = L.marker(labelPoint, {
-            icon: labelIcon,
-            interactive: false,
-          });
-          labelMarker.addTo(mapInstance.current);
-          circlesRef.current.push(labelMarker);
-        });
       }
     }
 
-    // Add sighting markers with expanding zones
+    // Sighting markers
     sightings.forEach((sighting) => {
       if (!sighting.latitude || !sighting.longitude) return;
 
@@ -545,14 +492,9 @@ export default function SARMapView({
       const isConfirmed = sighting.verified === true || sighting.isConfirmed === true;
       const zoneColor = isConfirmed ? '#22c55e' : '#3b82f6';
 
-      // Calculate expanding radius
-      const baseRadiusMiles = 0.1;
-      const growthRatePerHour = 0.25;
-      const maxRadiusMiles = 3;
-      const radiusMiles = Math.min(baseRadiusMiles + (Math.max(0, hoursSinceSighting) * growthRatePerHour), maxRadiusMiles);
+      const radiusMiles = Math.min(0.1 + (Math.max(0, hoursSinceSighting) * 0.25), 3);
       const radiusMeters = radiusMiles * 1609.34;
 
-      // Draw the expanding sighting zone
       const sightingZone = L.circle([sighting.latitude, sighting.longitude], {
         radius: radiusMeters,
         color: zoneColor,
@@ -563,306 +505,141 @@ export default function SARMapView({
         dashArray: isConfirmed ? '' : '6, 4',
       });
 
-      const timeAgoText = hoursSinceSighting < 1
-        ? 'Just now'
-        : hoursSinceSighting < 24
-          ? `${Math.floor(hoursSinceSighting)}h ago`
-          : `${Math.floor(hoursSinceSighting / 24)}d ago`;
+      const timeAgoText = hoursSinceSighting < 1 ? 'Just now' :
+        hoursSinceSighting < 24 ? `${Math.floor(hoursSinceSighting)}h ago` :
+        `${Math.floor(hoursSinceSighting / 24)}d ago`;
 
-      const radiusText = radiusMiles < 0.5
-        ? `${Math.round(radiusMiles * 5280)} ft radius`
-        : `${radiusMiles.toFixed(1)} mi radius`;
-
-      const statusLabel = isConfirmed ? '✓ CONFIRMED' : 'UNCONFIRMED';
-      const statusColor = isConfirmed ? '#22c55e' : '#3b82f6';
-
-      const buildPopupContent = () => `
-        <div style="text-align:center;padding:6px;min-width:160px;">
-          <div style="font-weight:700;color:${statusColor};font-size:12px;margin-bottom:4px;">
-            👁 ${statusLabel}
-          </div>
-          <div style="font-size:14px;font-weight:600;color:#333;">
-            ${timeAgoText} • ${radiusText}
-          </div>
-          ${sighting.description ? `
-            <div style="font-size:11px;color:#666;margin-top:6px;padding-top:6px;border-top:1px solid #eee;">
-              "${sighting.description.slice(0, 60)}${sighting.description.length > 60 ? '...' : ''}"
-            </div>
-          ` : ''}
-        </div>
-      `;
-
-      sightingZone.bindPopup(buildPopupContent());
+      sightingZone.bindPopup(`<div style="text-align:center;"><b style="color:${zoneColor}">👁 ${isConfirmed ? 'CONFIRMED' : 'UNCONFIRMED'}</b><br>${timeAgoText}</div>`);
       sightingZone.addTo(mapInstance.current);
       sightingZone.bringToBack();
       circlesRef.current.push(sightingZone);
 
-      // Add eye marker at center of sighting
       const sightingIcon = L.divIcon({
         className: 'sighting-marker',
-        html: `
-          <div style="
-            width: 32px;
-            height: 32px;
-            background: ${zoneColor};
-            border: 3px solid white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 10px ${zoneColor}80;
-            font-size: 16px;
-          ">👁</div>
-        `,
+        html: `<div style="width: 32px; height: 32px; background: ${zoneColor}; border: 3px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px ${zoneColor}80; font-size: 16px;">👁</div>`,
         iconSize: [32, 32],
         iconAnchor: [16, 16]
       });
 
       const marker = L.marker([sighting.latitude, sighting.longitude], { icon: sightingIcon, zIndexOffset: 500 })
-        .bindPopup(buildPopupContent())
+        .bindPopup(`<div style="text-align:center;"><b style="color:${zoneColor}">👁 ${isConfirmed ? 'CONFIRMED' : 'UNCONFIRMED'}</b><br>${timeAgoText}</div>`)
         .addTo(mapInstance.current);
       markersRef.current.push(marker);
     });
 
-    // Return cleanup function
     return () => {
-      if (currentGen === renderGenRef.current) {
-        cleanupLayers();
-      }
+      if (currentGen === renderGenRef.current) cleanupLayers();
     };
   }, [lastSeen, sightings, petSpecies, hoursElapsed, showProbabilityZones, probabilityZones]);
 
-  // Render marked search locations (replaces GPS path)
-  useEffect(() => {
-    if (!mapInstance.current) return;
-
-    // Clear existing marked location layers
-    markedLocationsLayersRef.current.forEach(layer => {
-      try { layer.remove(); } catch (e) { /* already removed */ }
-    });
-    markedLocationsLayersRef.current = [];
-
-    if (!markedLocations || markedLocations.length === 0) return;
-
-    // Add markers for each marked location
-    markedLocations.forEach((mark, index) => {
-      if (!mark.lat || !mark.lng) return;
-
-      // Determine marker color based on whether it's in the search zone
-      const markerColor = mark.inZone !== false ? '#a855f7' : '#6b7280'; // Purple if in zone, gray if out
-
-      const markIcon = L.divIcon({
-        className: 'marked-location',
-        html: `
-          <div style="
-            width: 24px;
-            height: 24px;
-            background: ${markerColor};
-            border: 2px solid white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 8px ${markerColor}80;
-            font-size: 11px;
-            font-weight: 700;
-            color: white;
-          ">${index + 1}</div>
-        `,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
-      });
-
-      const timeAgo = mark.timestamp
-        ? new Date(mark.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : '';
-
-      const marker = L.marker([mark.lat, mark.lng], { icon: markIcon })
-        .bindPopup(`
-          <div style="text-align:center;padding:4px;">
-            <div style="font-weight:600;color:${markerColor};">Location #${index + 1}</div>
-            ${timeAgo ? `<div style="font-size:11px;color:#666;">${timeAgo}</div>` : ''}
-            ${mark.notes ? `<div style="font-size:11px;color:#333;margin-top:4px;">${mark.notes}</div>` : ''}
-            ${mark.inZone === false ? `<div style="font-size:10px;color:#f59e0b;margin-top:4px;">Outside search zone</div>` : ''}
-          </div>
-        `)
-        .addTo(mapInstance.current);
-
-      markedLocationsLayersRef.current.push(marker);
-
-      // Add a small circle around each marked location to show approximate search coverage
-      const coverageCircle = L.circle([mark.lat, mark.lng], {
-        radius: 50, // 50 meters radius for visual coverage
-        color: markerColor,
-        fillColor: markerColor,
-        fillOpacity: 0.15,
-        weight: 1,
-        opacity: 0.5,
-      }).addTo(mapInstance.current);
-      coverageCircle.bringToBack();
-      markedLocationsLayersRef.current.push(coverageCircle);
-    });
-
-  }, [markedLocations]);
-
-  // Render team coverage trails (historical data from other team members)
+  // Render historical coverage trails
   useEffect(() => {
     if (!mapInstance.current || !showCoverage) return;
 
-    // Clear existing coverage layers
-    coverageLayersRef.current.forEach(layer => {
-      try { layer.remove(); } catch (e) { /* already removed */ }
-    });
+    coverageLayersRef.current.forEach(layer => { try { layer.remove(); } catch (e) {} });
     coverageLayersRef.current = [];
 
     if (!coverageTrails || coverageTrails.length === 0) return;
 
-    // Render each team member's trail
     coverageTrails.forEach(trail => {
       if (!trail.path || trail.path.length < 2) return;
 
       const pathCoords = trail.path.map(p => [p.lat, p.lng]);
       const lineColor = trail.color || '#6366f1';
 
-      // Draw trail line
       const trailLine = L.polyline(pathCoords, {
         color: lineColor,
         weight: 3,
-        opacity: 0.6,
-        smoothFactor: 1,
+        opacity: 0.5,
       }).addTo(mapInstance.current);
 
       trailLine.on('click', (e) => {
-        const searchDate = trail.endedAt
-          ? new Date(trail.endedAt).toLocaleDateString()
-          : new Date(trail.startedAt).toLocaleDateString();
-
         L.popup()
           .setLatLng(e.latlng)
-          .setContent(`
-            <div>
-              <b style="color:${lineColor}">${trail.userName || 'Team Member'}</b>
-              <br><small style="color:#666">${searchDate}</small>
-            </div>
-          `)
+          .setContent(`<b style="color:${lineColor}">${trail.userName || 'Team Member'}</b>`)
           .openOn(mapInstance.current);
       });
       coverageLayersRef.current.push(trailLine);
     });
-
   }, [coverageTrails, showCoverage]);
 
-  // Render POI markers (shelters, vets, animal control)
+  // Render POI markers
   useEffect(() => {
     if (!mapInstance.current || !showPOIs) return;
 
-    // Clear existing POI markers
-    poiMarkersRef.current.forEach(marker => {
-      try { marker.remove(); } catch (e) { /* already removed */ }
-    });
+    poiMarkersRef.current.forEach(m => { try { m.remove(); } catch (e) {} });
     poiMarkersRef.current = [];
 
     if (!pois || pois.length === 0) return;
 
-    const typeColors = {
-      SHELTER: '#6366f1',
-      RESCUE: '#8b5cf6',
-      VET: '#10b981',
-      ANIMAL_CONTROL: '#f59e0b',
-    };
+    const typeColors = { SHELTER: '#6366f1', RESCUE: '#8b5cf6', VET: '#10b981', ANIMAL_CONTROL: '#f59e0b' };
 
     pois.forEach(poi => {
       if (!poi.latitude || !poi.longitude) return;
-
       const color = typeColors[poi.type?.toUpperCase()] || '#6366f1';
-      const icon = poi.icon || '🏠';
 
       const poiIcon = L.divIcon({
         className: 'poi-marker',
-        html: `
-          <div style="
-            width: 28px;
-            height: 28px;
-            background: ${color};
-            border: 2px solid white;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            font-size: 14px;
-          ">${icon}</div>
-        `,
+        html: `<div style="width: 28px; height: 28px; background: ${color}; border: 2px solid white; border-radius: 6px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); font-size: 14px;">${poi.icon || '🏠'}</div>`,
         iconSize: [28, 28],
         iconAnchor: [14, 14],
       });
 
       const marker = L.marker([poi.latitude, poi.longitude], { icon: poiIcon })
-        .bindPopup(`
-          <div style="min-width: 200px;">
-            <strong style="color: ${color};">${poi.name}</strong>
-            <br/>
-            <span style="font-size: 11px; color: #666; text-transform: capitalize;">
-              ${poi.type?.toLowerCase() || 'Shelter'}
-            </span>
-            <br/>
-            <span style="font-size: 12px; color: #333;">
-              ${poi.address || ''}
-            </span>
-            ${poi.phone ? `<br/><a href="tel:${poi.phone}" style="color: #3b82f6; font-size: 12px;">${poi.phone}</a>` : ''}
-            ${poi.distance ? `<br/><span style="font-size: 11px; color: #999;">${poi.distance} miles away</span>` : ''}
-          </div>
-        `)
+        .bindPopup(`<strong style="color:${color};">${poi.name}</strong><br/>${poi.address || ''}`)
         .addTo(mapInstance.current);
-
       poiMarkersRef.current.push(marker);
     });
-
   }, [pois, showPOIs]);
 
   return (
     <div className="w-full h-full relative">
-      <div ref={mapRef} className="w-full h-full" />
+      <div
+        ref={mapRef}
+        className={`w-full h-full ${isEditMode ? 'cursor-crosshair' : ''}`}
+      />
 
-      {/* Layer Toggle & Location Buttons */}
+      {/* Edit Mode Indicator */}
+      {isEditMode && (
+        <div className="absolute top-4 left-4 z-[400] bg-purple-600 text-white px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 text-sm font-medium">
+          <MousePointer size={16} />
+          <span>Click map to add points</span>
+        </div>
+      )}
+
+      {/* Map Controls */}
       {interactive && (
         <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2">
-          {/* Layer Toggle */}
           <button
             onClick={() => setMapLayer(mapLayer === 'satellite' ? 'street' : 'satellite')}
             className="group w-12 h-12 flex items-center justify-center rounded-xl bg-slate-900/60 backdrop-blur-md border border-white/10 text-white shadow-xl hover:bg-slate-900/90 active:scale-95 transition-all"
             title="Switch Map View"
           >
-            {mapLayer === 'satellite' ? (
-              <MapIcon size={20} className="text-slate-200 group-hover:text-white" />
-            ) : (
-              <Satellite size={20} className="text-slate-200 group-hover:text-white" />
-            )}
+            {mapLayer === 'satellite' ? <MapIcon size={20} /> : <Satellite size={20} />}
           </button>
 
-          {/* Center on my location button */}
           <button
             onClick={centerOnUser}
             disabled={gpsLoading}
             className="group w-12 h-12 flex items-center justify-center rounded-xl bg-blue-600/80 backdrop-blur-md border border-white/10 text-white shadow-xl hover:bg-blue-500/90 active:scale-95 transition-all disabled:opacity-50"
             title="My Location"
           >
-            <Locate size={20} className={`text-white ${gpsLoading ? 'animate-pulse' : ''}`} />
+            <Locate size={20} className={gpsLoading ? 'animate-pulse' : ''} />
           </button>
 
-          {/* Fit Bounds */}
           <button
             onClick={() => {
               if (mapInstance.current && lastSeen) {
-                const bounds = L.latLngBounds([lastSeen.lat, lastSeen.lng]);
+                const bounds = L.latLngBounds([[lastSeen.lat, lastSeen.lng]]);
                 if (userLocation) bounds.extend(userLocation);
+                searchPath.forEach(p => bounds.extend([p.lat, p.lng]));
                 mapInstance.current.fitBounds(bounds, { padding: [50, 50] });
               }
             }}
             className="group w-12 h-12 flex items-center justify-center rounded-xl bg-slate-900/60 backdrop-blur-md border border-white/10 text-white shadow-xl hover:bg-slate-900/90 active:scale-95 transition-all"
             title="Fit All"
           >
-            <Maximize size={20} className="text-slate-200 group-hover:text-white" />
+            <Maximize size={20} />
           </button>
         </div>
       )}
@@ -871,37 +648,12 @@ export default function SARMapView({
       {showLegend && (
         <MapLegend
           showSightings={sightings.length > 0}
-          showSearchPath={markedLocations && markedLocations.length > 0 || coverageTrails.length > 0}
+          showSearchPath={searchPath.length > 0 || coverageTrails.length > 0}
           showActiveSearches={activeSearchersCount > 0}
           showPOIs={pois.length > 0}
           showProbabilityZones={showProbabilityZones}
           activeSearchersCount={activeSearchersCount}
         />
-      )}
-
-      {/* Zoom Controls (if enabled) */}
-      {showControls && (
-        <div className="absolute top-4 right-4 flex flex-col gap-2 z-[400]">
-          <button
-            onClick={() => mapInstance.current?.zoomIn()}
-            className="w-10 h-10 bg-slate-900/90 backdrop-blur text-white rounded-xl flex items-center justify-center hover:bg-slate-800"
-          >
-            +
-          </button>
-          <button
-            onClick={() => mapInstance.current?.zoomOut()}
-            className="w-10 h-10 bg-slate-900/90 backdrop-blur text-white rounded-xl flex items-center justify-center hover:bg-slate-800"
-          >
-            −
-          </button>
-          <button
-            onClick={() => userLocation && mapInstance.current?.setView(userLocation, 17)}
-            className="w-10 h-10 bg-slate-900/90 backdrop-blur text-white rounded-xl flex items-center justify-center hover:bg-slate-800"
-            title="Center on my location"
-          >
-            📍
-          </button>
-        </div>
       )}
     </div>
   );
