@@ -4,12 +4,12 @@
  * useFlyerTracking - Flyer tracking hook for Mission Control
  *
  * Manages flyer posting, cold spot detection, and progress tracking.
- * Per Actions_Guide.md Phase 4 specification.
+ * Uses one-time location capture (not continuous tracking).
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchWithRetry } from '@/app/lib/utils';
-import { useGPS, GPS_MODE } from '@/app/lib/gpsService';
+import { useGPS } from '@/app/lib/gpsService';
 
 // Points per flyer (per spec)
 const FLYER_BASE_POINTS = 8;
@@ -18,8 +18,8 @@ const PHOTO_BONUS_POINTS = 3;
 export default function useFlyerTracking(missionId, options = {}) {
   const { autoRefresh = true, refreshInterval = 30000 } = options;
 
-  // Centralized GPS service
-  const { location: gpsLocation, error: gpsServiceError, startTracking, isSupported: gpsSupported } = useGPS();
+  // GPS service for one-time location capture
+  const { location: gpsLocation, error: gpsServiceError, getPosition, isSupported: gpsSupported, isLoading: gpsLoading } = useGPS();
 
   // ==========================================================================
   // STATE
@@ -31,7 +31,7 @@ export default function useFlyerTracking(missionId, options = {}) {
   const [error, setError] = useState(null);
   const [posting, setPosting] = useState(false);
 
-  // User location from GPS service
+  // User location from GPS service (last captured location)
   const userLocation = gpsLocation ? {
     lat: gpsLocation.lat,
     lng: gpsLocation.lng,
@@ -82,22 +82,20 @@ export default function useFlyerTracking(missionId, options = {}) {
   }, [missionId]);
 
   // ==========================================================================
-  // LOCATION TRACKING (via centralized GPS service)
+  // LOCATION REFRESH (one-time capture)
   // ==========================================================================
-  const startLocationTracking = useCallback(() => {
+  const refreshLocation = useCallback(async () => {
     if (!gpsSupported) {
-      return false;
+      return { success: false, error: 'GPS not supported' };
     }
 
-    // Start balanced tracking for flyer posting
-    startTracking(GPS_MODE.BALANCED);
-    return true;
-  }, [gpsSupported, startTracking]);
-
-  // No need to stop - GPS service handles cleanup
-  const stopLocationTracking = useCallback(() => {
-    // GPS service manages its own cleanup
-  }, []);
+    try {
+      const location = await getPosition();
+      return { success: true, location };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }, [gpsSupported, getPosition]);
 
   // ==========================================================================
   // POST FLYER
@@ -107,19 +105,28 @@ export default function useFlyerTracking(missionId, options = {}) {
       return { success: false, error: 'No case selected' };
     }
 
-    if (!userLocation) {
-      return { success: false, error: 'Location not available. Please enable GPS.' };
-    }
-
     setPosting(true);
 
     try {
+      // Get fresh location for the flyer
+      let location = userLocation;
+      if (!location) {
+        const result = await refreshLocation();
+        if (!result.success) {
+          throw new Error(result.error || 'Location not available. Please enable GPS.');
+        }
+        location = {
+          lat: result.location.lat,
+          lng: result.location.lng,
+        };
+      }
+
       const res = await fetchWithRetry(`/api/mission/${missionId}/flyers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          latitude: userLocation.lat,
-          longitude: userLocation.lng,
+          latitude: location.lat,
+          longitude: location.lng,
           photoUrl,
           notes,
         }),
@@ -153,27 +160,7 @@ export default function useFlyerTracking(missionId, options = {}) {
     } finally {
       setPosting(false);
     }
-  }, [missionId, userLocation, fetchFlyers]);
-
-  // ==========================================================================
-  // FETCH USER STATS
-  // ==========================================================================
-  const fetchUserStats = useCallback(async () => {
-    if (!missionId) return;
-
-    try {
-      // Get user's flyers for this case
-      const flyersRes = await fetchWithRetry(`/api/mission/${missionId}/flyers`);
-      if (flyersRes.ok) {
-        const data = await flyersRes.json();
-        // Count current user's flyers
-        // Note: This requires knowing the current user's ID
-        // For now, we'll track locally via postFlyer
-      }
-    } catch (err) {
-      console.error('Error fetching user stats:', err);
-    }
-  }, [missionId]);
+  }, [missionId, userLocation, fetchFlyers, refreshLocation]);
 
   // ==========================================================================
   // GET NEAREST COLD SPOT
@@ -205,17 +192,12 @@ export default function useFlyerTracking(missionId, options = {}) {
   // EFFECTS
   // ==========================================================================
 
-  // Initial fetch and location tracking
+  // Initial fetch
   useEffect(() => {
     if (missionId) {
       fetchFlyers();
-      startLocationTracking();
     }
-
-    return () => {
-      stopLocationTracking();
-    };
-  }, [missionId, fetchFlyers, startLocationTracking, stopLocationTracking]);
+  }, [missionId, fetchFlyers]);
 
   // Auto-refresh
   useEffect(() => {
@@ -249,17 +231,17 @@ export default function useFlyerTracking(missionId, options = {}) {
     error,
     posting,
     locationError,
+    gpsLoading,
 
     // Actions
     fetchFlyers,
     postFlyer,
-    startLocationTracking,
-    stopLocationTracking,
+    refreshLocation,
     getNearestColdSpot,
 
     // Computed
     hasLocation: !!userLocation,
-    canPost: !!userLocation && !posting,
+    canPost: gpsSupported && !posting,
   };
 }
 
