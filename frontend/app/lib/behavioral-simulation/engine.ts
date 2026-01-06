@@ -810,25 +810,31 @@ export class BehavioralSimulationEngine {
   }
 
   /**
-   * Escape from water by trying multiple directions
+   * Escape from water by trying multiple directions at increasing distances
    * Returns new position on land, or null if unable to escape
    */
   private escapeFromWater(pos: Position): Position | null {
-    // Try 8 cardinal/ordinal directions at increasing distances
-    const directions = [0, 45, 90, 135, 180, 225, 270, 315];
-    const distances = [100, 250, 500, 1000, 2000]; // meters
+    // Try 16 directions (every 22.5 degrees) for better coverage
+    const directions: number[] = [];
+    for (let i = 0; i < 16; i++) {
+      directions.push(i * 22.5);
+    }
+
+    // Search up to 50km for land (handles large lakes, bays, and oceans near coast)
+    const distances = [100, 250, 500, 1000, 2000, 5000, 10000, 25000, 50000]; // meters
 
     for (const dist of distances) {
       for (const dir of directions) {
         const testPos = offsetPosition(pos, dist, dir);
         if (!isLikelyWater(testPos, this.homePosition, this.config.terrainData)) {
+          console.log(`Escaped from water: moved ${dist}m in direction ${dir}° from (${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}) to (${testPos.lat.toFixed(4)}, ${testPos.lng.toFixed(4)})`);
           return testPos;
         }
       }
     }
 
-    // If all directions fail, return null - simulation will proceed but log warning
-    console.warn('Could not escape from water at', pos);
+    // If still can't find land after 50km, the user clicked in the middle of an ocean
+    console.warn('Could not escape from water at', pos, '- no land within 50km in any direction');
     return null;
   }
 
