@@ -190,17 +190,20 @@ export async function POST(request: Request) {
           avgDistanceM: Math.round(batchResult.avgDistanceM),
           outcomes: batchResult.outcomes,
         },
-        // Include first 10 detailed simulations with paths for viewing
-        sampleSimulations: batchResult.simulations.slice(0, 10).map(sim => ({
-          id: sim.id,
-          outcome: sim.outcome,
-          outcomeDescription: sim.outcomeDescription,
-          timeToOutcomeHours: sim.timeToOutcomeHours,
-          maxDistanceM: Math.round(sim.maxDistanceFromHomeM),
-          pathLength: sim.petPath.length,
-          petPath: sim.petPath,
-          searcherPaths: sim.searcherPaths,
-        })),
+        // Include first 5 simulations with paths for viewing (memory limited)
+        sampleSimulations: batchResult.simulations
+          .filter(sim => sim.petPath.length > 0) // Only include ones with paths
+          .slice(0, 5)
+          .map(sim => ({
+            id: sim.id,
+            outcome: sim.outcome,
+            outcomeDescription: sim.outcomeDescription,
+            timeToOutcomeHours: sim.timeToOutcomeHours,
+            maxDistanceM: Math.round(sim.maxDistanceFromHomeM),
+            pathLength: sim.petPath.length,
+            petPath: sim.petPath,
+            searcherPaths: sim.searcherPaths,
+          })),
       });
     } else {
       // Single simulation

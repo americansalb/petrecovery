@@ -1005,10 +1005,25 @@ export function runBatch(
   const results: SimulationResult[] = [];
   const baseSeed = baseConfig.seed || Math.floor(Math.random() * 1000000);
 
+  // Only keep full paths for first 5 simulations to avoid memory issues
+  const MAX_PATHS_TO_KEEP = 5;
+
   for (let i = 0; i < numRuns; i++) {
     const config = { ...baseConfig, seed: baseSeed + i };
     const engine = new BehavioralSimulationEngine(profile, startPosition, config);
-    results.push(engine.run());
+    const result = engine.run();
+
+    // For memory efficiency, only keep paths for first few simulations
+    if (i >= MAX_PATHS_TO_KEEP) {
+      // Keep only summary data, discard large path arrays
+      results.push({
+        ...result,
+        petPath: [], // Clear to save memory
+        searcherPaths: [], // Clear to save memory
+      });
+    } else {
+      results.push(result);
+    }
 
     if (onProgress) {
       onProgress(i + 1);
