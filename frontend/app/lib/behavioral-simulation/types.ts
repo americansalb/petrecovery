@@ -58,13 +58,27 @@ export interface SearcherState {
   fatigue: number;
 }
 
-// Terrain data for water detection
+// Road types for terrain
+export type RoadType = 'motorway' | 'trunk' | 'primary' | 'secondary' | 'railway';
+
+export interface RoadSegment {
+  type: RoadType;
+  points: Position[];
+  name?: string;
+  crossingDifficulty: number;  // 0 = impossible, 1 = easy
+  dangerLevel: number;         // 0 = safe, 1 = very dangerous
+}
+
+// Terrain data for water and road detection
 export interface TerrainData {
   waterPolygons: Array<{
     points: Position[];
     bbox: { south: number; west: number; north: number; east: number };
   }>;
   isCoastal: boolean;
+  roads?: RoadSegment[];
+  hasHighways?: boolean;
+  hasRailways?: boolean;
 }
 
 export interface SimulationConfig {

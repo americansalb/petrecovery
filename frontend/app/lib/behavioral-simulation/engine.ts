@@ -6,7 +6,7 @@
 import {
   Species, Temperament, AnimalProfile, AnimalState, Position,
   SimulationConfig, SimulationResult, PathPoint, BatchResult,
-  CatHidingPhase,
+  CatHidingPhase, RoadSegment,
 } from './types';
 import {
   DOG_TEMPERAMENTS, CAT_TEMPERAMENTS, DISPLACEMENT,
@@ -14,6 +14,7 @@ import {
 } from './constants';
 import { isLikelyInOcean } from '../terrain/globalWaterHeuristics';
 import { isInMajorWater } from '../terrain/majorWaterBodies';
+import { checkRoadCrossing, RoadCrossingResult } from './terrain';
 
 // Seeded random number generator
 class SeededRandom {
@@ -696,9 +697,111 @@ export class BehavioralSimulationEngine {
         }
       }
 
+      // Road crossing check - pets avoid major roads or face danger when crossing
+      const terrainData = this.config.terrainData;
+      if (terrainData?.roads && terrainData.roads.length > 0) {
+        const roadCrossing = this.checkRoadCrossingLocal(this.state.position, newPos, terrainData.roads);
+
+        if (roadCrossing.crosses) {
+          // Determine if pet will attempt to cross or avoid
+          const attemptCross = this.rng.next() < roadCrossing.crossingDifficulty;
+
+          if (!attemptCross) {
+            // Pet avoids the road - try alternative directions
+            const avoidDirections = [
+              this.heading + 90,  // Right
+              this.heading - 90,  // Left
+              this.heading + 45,  // Forward-right
+              this.heading - 45,  // Forward-left
+              this.heading + 135, // Back-right
+              this.heading - 135, // Back-left
+            ];
+
+            let avoided = false;
+            for (const dir of avoidDirections) {
+              const normalizedDir = ((dir % 360) + 360) % 360;
+              const testPos = offsetPosition(this.state.position, distanceM * 0.5, normalizedDir);
+              const testCrossing = this.checkRoadCrossingLocal(this.state.position, testPos, terrainData.roads);
+
+              if (!testCrossing.crosses && !isLikelyWater(testPos, this.homePosition, this.config.terrainData)) {
+                this.heading = normalizedDir;
+                newPos = testPos;
+                avoided = true;
+                break;
+              }
+            }
+
+            // If can't avoid, stay put this timestep
+            if (!avoided) {
+              return;
+            }
+          } else {
+            // Pet attempts to cross - check for danger
+            const dangerRoll = this.rng.next();
+            if (dangerRoll < roadCrossing.dangerLevel * 0.1) {
+              // Pet was struck by vehicle - deceased
+              this.state.isDeceased = true;
+              return;
+            }
+            // Pet successfully crossed (with luck)
+          }
+        }
+      }
+
       this.totalDistanceM += distanceM;
       this.state.position = newPos;
     }
+  }
+
+  // Local road crossing check using terrain data
+  private checkRoadCrossingLocal(
+    from: Position,
+    to: Position,
+    roads: RoadSegment[]
+  ): RoadCrossingResult {
+    let worstCrossing: RoadCrossingResult = {
+      crosses: false,
+      crossingDifficulty: 1,
+      dangerLevel: 0,
+    };
+
+    for (const road of roads) {
+      for (let i = 0; i < road.points.length - 1; i++) {
+        if (this.lineSegmentsIntersect(from, to, road.points[i], road.points[i + 1])) {
+          if (road.dangerLevel > worstCrossing.dangerLevel) {
+            worstCrossing = {
+              crosses: true,
+              road,
+              crossingDifficulty: road.crossingDifficulty,
+              dangerLevel: road.dangerLevel,
+            };
+          }
+        }
+      }
+    }
+
+    return worstCrossing;
+  }
+
+  // Check if two line segments intersect
+  private lineSegmentsIntersect(
+    p1: Position, p2: Position,
+    p3: Position, p4: Position
+  ): boolean {
+    const d1 = this.direction(p3, p4, p1);
+    const d2 = this.direction(p3, p4, p2);
+    const d3 = this.direction(p1, p2, p3);
+    const d4 = this.direction(p1, p2, p4);
+
+    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+        ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+      return true;
+    }
+    return false;
+  }
+
+  private direction(pi: Position, pj: Position, pk: Position): number {
+    return (pk.lng - pi.lng) * (pj.lat - pi.lat) - (pj.lng - pi.lng) * (pk.lat - pi.lat);
   }
 
   private checkSelfReturn(distFromHome: number, simHour: number): boolean {

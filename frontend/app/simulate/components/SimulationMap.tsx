@@ -2,11 +2,11 @@
 
 /**
  * Simulation Map Component - Built from scratch
- * Displays pet and searcher agents moving through terrain
+ * Displays pet and searcher agents moving through terrain with water/road visualization
  */
 
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, Circle, Polygon, useMap, useMapEvents } from 'react-leaflet';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -19,6 +19,29 @@ interface PathPoint {
   state: string;
 }
 
+interface Position {
+  lat: number;
+  lng: number;
+}
+
+interface RoadSegment {
+  type: 'motorway' | 'trunk' | 'primary' | 'secondary' | 'railway';
+  points: Position[];
+  name?: string;
+  crossingDifficulty: number;
+  dangerLevel: number;
+}
+
+interface TerrainData {
+  waterPolygons?: Array<{
+    points: Position[];
+    bbox: { south: number; west: number; north: number; east: number };
+  }>;
+  roads?: RoadSegment[];
+  hasHighways?: boolean;
+  hasRailways?: boolean;
+}
+
 interface SimulationMapProps {
   center: { lat: number; lng: number };
   path: PathPoint[];
@@ -27,6 +50,7 @@ interface SimulationMapProps {
   playbackMinute: number;
   onLocationSelect: (lat: number, lng: number) => void;
   species: 'dog' | 'cat';
+  terrainData?: TerrainData;
 }
 
 // Create custom icons for pet and home
@@ -161,6 +185,29 @@ function buildColoredPath(path: PathPoint[]): Array<{ positions: [number, number
   return segments.filter(s => s.positions.length >= 2);
 }
 
+// Road color based on type and danger level
+function getRoadColor(road: RoadSegment): string {
+  switch (road.type) {
+    case 'motorway': return '#dc2626'; // Red - very dangerous
+    case 'trunk': return '#ea580c';    // Orange - dangerous
+    case 'primary': return '#ca8a04';  // Yellow - moderate danger
+    case 'secondary': return '#65a30d'; // Light green - low danger
+    case 'railway': return '#7c3aed';  // Purple - railways
+    default: return '#6b7280';
+  }
+}
+
+function getRoadWeight(road: RoadSegment): number {
+  switch (road.type) {
+    case 'motorway': return 5;
+    case 'trunk': return 4;
+    case 'primary': return 3;
+    case 'secondary': return 2;
+    case 'railway': return 3;
+    default: return 2;
+  }
+}
+
 export default function SimulationMap({
   center,
   path,
@@ -169,8 +216,10 @@ export default function SimulationMap({
   playbackMinute,
   onLocationSelect,
   species,
+  terrainData,
 }: SimulationMapProps) {
   const [pathSegments, setPathSegments] = useState<Array<{ positions: [number, number][]; color: string }>>([]);
+  const [showTerrain, setShowTerrain] = useState(true);
 
   // Build colored path segments when path changes
   useEffect(() => {
@@ -220,6 +269,34 @@ export default function SimulationMap({
           }}
         />
 
+        {/* Water areas */}
+        {showTerrain && terrainData?.waterPolygons?.map((water, index) => (
+          <Polygon
+            key={`water-${index}`}
+            positions={water.points.map(p => [p.lat, p.lng] as [number, number])}
+            pathOptions={{
+              color: '#0ea5e9',
+              fillColor: '#0ea5e9',
+              fillOpacity: 0.3,
+              weight: 2,
+            }}
+          />
+        ))}
+
+        {/* Roads and railways */}
+        {showTerrain && terrainData?.roads?.map((road, index) => (
+          <Polyline
+            key={`road-${index}`}
+            positions={road.points.map(p => [p.lat, p.lng] as [number, number])}
+            pathOptions={{
+              color: getRoadColor(road),
+              weight: getRoadWeight(road),
+              opacity: 0.7,
+              dashArray: road.type === 'railway' ? '10, 5' : undefined,
+            }}
+          />
+        ))}
+
         {/* Colored path segments */}
         {pathSegments.map((segment, index) => (
           <Polyline
@@ -251,8 +328,24 @@ export default function SimulationMap({
         ))}
       </MapContainer>
 
+      {/* Terrain toggle button */}
+      {(terrainData?.waterPolygons?.length || terrainData?.roads?.length) && (
+        <div className="absolute top-4 right-4 z-[1000]">
+          <button
+            onClick={() => setShowTerrain(!showTerrain)}
+            className={`px-3 py-2 rounded-lg shadow-lg text-xs font-medium transition-colors ${
+              showTerrain
+                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-300'
+            }`}
+          >
+            {showTerrain ? 'Hide Terrain' : 'Show Terrain'}
+          </button>
+        </div>
+      )}
+
       {/* Legend */}
-      <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 z-[1000]">
+      <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 z-[1000] max-w-[200px]">
         <div className="text-xs font-semibold mb-2">Agents</div>
         <div className="space-y-1 mb-3">
           <div className="flex items-center gap-2 text-xs">
@@ -269,7 +362,7 @@ export default function SimulationMap({
           </div>
         </div>
         <div className="text-xs font-semibold mb-2">Pet States</div>
-        <div className="space-y-1">
+        <div className="space-y-1 mb-3">
           <div className="flex items-center gap-2 text-xs">
             <div className="w-3 h-3 rounded-full bg-red-500"></div>
             <span>Fleeing</span>
@@ -287,6 +380,39 @@ export default function SimulationMap({
             <span>Foraging</span>
           </div>
         </div>
+
+        {/* Terrain legend */}
+        {showTerrain && (terrainData?.waterPolygons?.length || terrainData?.roads?.length) && (
+          <>
+            <div className="text-xs font-semibold mb-2 pt-2 border-t border-gray-200">Terrain</div>
+            <div className="space-y-1">
+              {terrainData?.waterPolygons && terrainData.waterPolygons.length > 0 && (
+                <div className="flex items-center gap-2 text-xs">
+                  <div className="w-3 h-3 rounded bg-sky-400"></div>
+                  <span>Water (blocked)</span>
+                </div>
+              )}
+              {terrainData?.hasHighways && (
+                <div className="flex items-center gap-2 text-xs">
+                  <div className="w-4 h-1 bg-red-600 rounded"></div>
+                  <span>Highway (danger)</span>
+                </div>
+              )}
+              {terrainData?.roads?.some(r => r.type === 'trunk') && (
+                <div className="flex items-center gap-2 text-xs">
+                  <div className="w-4 h-1 bg-orange-500 rounded"></div>
+                  <span>Major Road</span>
+                </div>
+              )}
+              {terrainData?.hasRailways && (
+                <div className="flex items-center gap-2 text-xs">
+                  <div className="w-4 h-1 bg-purple-600 rounded" style={{backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 3px, white 3px, white 5px)'}}></div>
+                  <span>Railway</span>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Instructions */}

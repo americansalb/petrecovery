@@ -101,6 +101,9 @@ export async function fetchTerrainDataCached(
     waterAreas: [],
     coastlineSegments: [],
     isCoastal: false,
+    roads: [],
+    hasHighways: false,
+    hasRailways: false,
   };
 }
 

@@ -36,6 +36,29 @@ interface PathPoint {
   state: string;
 }
 
+interface Position {
+  lat: number;
+  lng: number;
+}
+
+interface RoadSegment {
+  type: 'motorway' | 'trunk' | 'primary' | 'secondary' | 'railway';
+  points: Position[];
+  name?: string;
+  crossingDifficulty: number;
+  dangerLevel: number;
+}
+
+interface TerrainData {
+  waterPolygons?: Array<{
+    points: Position[];
+    bbox: { south: number; west: number; north: number; east: number };
+  }>;
+  roads?: RoadSegment[];
+  hasHighways?: boolean;
+  hasRailways?: boolean;
+}
+
 interface SimResult {
   type: 'single' | 'batch';
   profile: {
@@ -47,6 +70,7 @@ interface SimResult {
   path?: PathPoint[];
   searcherPaths?: PathPoint[][];
   sampleSimulations?: any[];
+  terrain?: TerrainData;
 }
 
 // Size and age options based on SURVIVAL modifiers
@@ -92,10 +116,10 @@ export default function SimulatePage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedSimIndex, setSelectedSimIndex] = useState<number | null>(null);
 
-  // Playback state - default to 4hr/sec for 30-day simulations
+  // Playback state - speed is in "simulation hours per real second"
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackMinute, setPlaybackMinute] = useState(0);
-  const [playbackSpeed, setPlaybackSpeed] = useState(240);
+  const [playbackSpeed, setPlaybackSpeed] = useState(4); // 4 hours per second default
 
   const temperaments = species === 'dog' ? DOG_TEMPERAMENTS : CAT_TEMPERAMENTS;
 
@@ -167,38 +191,98 @@ export default function SimulatePage() {
     setIsPlaying(false);
   };
 
-  // Playback animation effect
+  // Playback animation effect using requestAnimationFrame for smooth animation
   useEffect(() => {
     if (!isPlaying || !result?.path) return;
 
     const maxMinute = maxHours * 60;
-    const interval = setInterval(() => {
+    let lastFrameTime: number | null = null;
+    let animationId: number;
+
+    const animate = (currentTime: number) => {
+      if (lastFrameTime === null) {
+        lastFrameTime = currentTime;
+      }
+
+      const deltaSeconds = (currentTime - lastFrameTime) / 1000;
+      lastFrameTime = currentTime;
+
+      // Convert speed (hours per second) to minutes per frame
+      const minutesPerFrame = playbackSpeed * 60 * deltaSeconds;
+
       setPlaybackMinute((prev) => {
-        const next = prev + playbackSpeed;
+        const next = prev + minutesPerFrame;
         if (next >= maxMinute) {
           setIsPlaying(false);
           return maxMinute;
         }
         return next;
       });
-    }, 50);
 
-    return () => clearInterval(interval);
+      animationId = requestAnimationFrame(animate);
+    };
+
+    animationId = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    };
   }, [isPlaying, result?.path, maxHours, playbackSpeed]);
 
-  // Get current positions for playback
+  // Interpolate position between two path points for smooth animation
+  const interpolatePosition = (path: PathPoint[], currentHour: number): PathPoint | null => {
+    if (!path || path.length === 0) return null;
+
+    // Find the two points to interpolate between
+    let before = path[0];
+    let after = path[path.length - 1];
+
+    for (let i = 0; i < path.length - 1; i++) {
+      if (path[i].hour <= currentHour && path[i + 1].hour >= currentHour) {
+        before = path[i];
+        after = path[i + 1];
+        break;
+      }
+      if (path[i].hour <= currentHour) {
+        before = path[i];
+      }
+    }
+
+    // If exact match or past end, return the point
+    if (before.hour === after.hour || currentHour >= after.hour) {
+      return after;
+    }
+    if (currentHour <= before.hour) {
+      return before;
+    }
+
+    // Linear interpolation
+    const ratio = (currentHour - before.hour) / (after.hour - before.hour);
+    return {
+      hour: currentHour,
+      lat: before.lat + (after.lat - before.lat) * ratio,
+      lng: before.lng + (after.lng - before.lng) * ratio,
+      fear: before.fear + (after.fear - before.fear) * ratio,
+      hunger: before.hunger + (after.hunger - before.hunger) * ratio,
+      state: ratio < 0.5 ? before.state : after.state,
+    };
+  };
+
+  // Get current positions for playback with smooth interpolation
   const getCurrentPosition = () => {
     if (!result?.path || result.path.length === 0) return null;
-    const hourToFind = playbackMinute / 60;
-    return result.path.find((p: PathPoint) => p.hour >= hourToFind) || result.path[result.path.length - 1];
+    const currentHour = playbackMinute / 60;
+    return interpolatePosition(result.path, currentHour);
   };
 
   const getSearcherPositions = () => {
     if (!result?.searcherPaths || result.searcherPaths.length === 0) return [];
-    const hourToFind = playbackMinute / 60;
+    const currentHour = playbackMinute / 60;
     return result.searcherPaths.map((path: PathPoint[]) => {
-      if (path.length === 0) return null;
-      return path.find((p: PathPoint) => p.hour >= hourToFind) || path[path.length - 1];
+      if (!path || path.length === 0) return null;
+      return interpolatePosition(path, currentHour);
     }).filter(Boolean) as PathPoint[];
   };
 
@@ -216,6 +300,7 @@ export default function SimulatePage() {
           playbackMinute={playbackMinute}
           onLocationSelect={handleLocationSelect}
           species={species}
+          terrainData={result?.terrain}
         />
       </div>
 
@@ -690,19 +775,20 @@ export default function SimulatePage() {
               </button>
             </div>
 
-            {/* Speed control */}
+            {/* Speed control - hours of simulation per real second */}
             <select
               value={playbackSpeed}
               onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
               className="border rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500"
             >
-              <option value="1">1x</option>
-              <option value="5">5x</option>
-              <option value="20">20x</option>
-              <option value="60">1hr/s</option>
-              <option value="240">4hr/s</option>
-              <option value="720">12hr/s</option>
-              <option value="1440">1day/s</option>
+              <option value="0.5">0.5 hr/s (slow)</option>
+              <option value="1">1 hr/s</option>
+              <option value="2">2 hr/s</option>
+              <option value="4">4 hr/s</option>
+              <option value="8">8 hr/s</option>
+              <option value="12">12 hr/s</option>
+              <option value="24">1 day/s</option>
+              <option value="48">2 days/s (fast)</option>
             </select>
 
             {/* Timeline slider */}
@@ -745,6 +831,65 @@ export default function SimulatePage() {
           </div>
         </div>
       )}
+
+      {/* Outcome Animation Overlay */}
+      {result?.type === 'single' && result?.result?.outcome && (() => {
+        const outcome = result.result.outcome;
+        const timeToOutcome = result.result.timeToOutcomeHours;
+        const currentHour = playbackMinute / 60;
+
+        // Show outcome when playback reaches the time
+        if (timeToOutcome && currentHour >= timeToOutcome - 0.5) {
+          const isPositive = outcome.includes('CAPTURED') || outcome.includes('FOUND') ||
+                            outcome === 'SELF_RETURN' || outcome === 'SHELTER';
+          const isNegative = outcome === 'DECEASED' || outcome.includes('DEATH');
+
+          return (
+            <div className={`absolute inset-0 z-[2000] flex items-center justify-center pointer-events-none transition-opacity duration-500 ${
+              isPositive ? 'bg-green-500/20' : isNegative ? 'bg-red-500/20' : 'bg-gray-500/20'
+            }`}>
+              <div className={`bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4 text-center transform animate-bounce pointer-events-auto ${
+                isPositive ? 'border-4 border-green-500' : isNegative ? 'border-4 border-red-500' : 'border-4 border-gray-500'
+              }`}>
+                <div className="text-6xl mb-4">
+                  {isPositive ? '🎉' : isNegative ? '😢' : '⏰'}
+                </div>
+                <h2 className={`text-2xl font-bold mb-2 ${
+                  isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-gray-600'
+                }`}>
+                  {isPositive ? 'Pet Found!' : isNegative ? 'Pet Lost' : 'Simulation Complete'}
+                </h2>
+                <p className="text-gray-600 mb-4">
+                  {result.result.outcomeDescription}
+                </p>
+                <div className="flex items-center justify-center gap-4 text-sm">
+                  <div className="bg-gray-100 px-3 py-2 rounded-lg">
+                    <span className="text-gray-500">Time:</span>{' '}
+                    <span className="font-semibold">
+                      {Math.floor(timeToOutcome / 24)}d {Math.round(timeToOutcome % 24)}h
+                    </span>
+                  </div>
+                  <div className="bg-gray-100 px-3 py-2 rounded-lg">
+                    <span className="text-gray-500">Max Distance:</span>{' '}
+                    <span className="font-semibold">
+                      {result.result.maxDistanceFromHomeM >= 1000
+                        ? `${(result.result.maxDistanceFromHomeM / 1000).toFixed(1)} km`
+                        : `${result.result.maxDistanceFromHomeM} m`}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setPlaybackMinute(0)}
+                  className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors pointer-events-auto"
+                >
+                  Replay
+                </button>
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
     </div>
   );
 }
