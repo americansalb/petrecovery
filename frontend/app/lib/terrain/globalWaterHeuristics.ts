@@ -360,12 +360,17 @@ function isInAtlanticOcean(pos: Position): boolean {
     }
   }
 
-  // Gulf of Mexico
-  if (lat >= 25 && lat <= 31 && lng > -98 && lng < -80) {
-    const coastLng = interpolateCoastline(GULF_COAST, lat);
-    if (coastLng !== null) {
-      // Gulf is more complex - use a simple bounding box + coast check
-      if (lat < coastLng) return true;
+  // Gulf of Mexico - complex coastline facing south
+  // The coastline data is [lat, lng] pairs, but Gulf faces south not east/west
+  // Use a conservative approach: only flag deep Gulf as water, avoid coastal areas
+  if (lat >= 18 && lat <= 30 && lng > -98 && lng < -80) {
+    // Deep Gulf (well south of coastline) - definitely water
+    if (lat < 27 && lng > -96 && lng < -84) {
+      return true;
+    }
+    // Near Florida Keys region
+    if (lat < 25 && lng > -84 && lng < -80) {
+      return true;
     }
   }
 

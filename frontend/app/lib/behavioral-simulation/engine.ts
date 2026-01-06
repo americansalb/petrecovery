@@ -12,8 +12,7 @@ import {
   DOG_TEMPERAMENTS, CAT_TEMPERAMENTS, DISPLACEMENT,
   MOVEMENT_SPEEDS, PHYSIOLOGY, TIME_OF_DAY, SEARCHER_PARAMS, SURVIVAL,
 } from './constants';
-import { isLikelyInOcean } from '../terrain/globalWaterHeuristics';
-import { isInMajorWater } from '../terrain/majorWaterBodies';
+import { isInNaturalEarthWater } from '../terrain/naturalEarthWater';
 import { checkRoadCrossing, RoadCrossingResult } from './terrain';
 
 // Seeded random number generator
@@ -96,18 +95,19 @@ function pointInPolygon(point: Position, polygon: Position[]): boolean {
 /**
  * Multi-layer water detection system that works GLOBALLY
  *
- * Layer 1: OSM Overpass API data (most accurate, when available)
- * Layer 2: Major water bodies (Great Lakes, bays, inland seas)
- * Layer 3: Global coastline heuristics (oceans via geographic math)
- * Layer 4: Distance constraint (ultimate fallback - prevents infinite wandering)
+ * Layer 1: OSM Overpass API data (most accurate for local water bodies)
+ * Layer 2: Natural Earth data (authoritative global ocean & major lake polygons)
+ *
+ * Natural Earth data source: https://www.naturalearthdata.com/ (public domain)
  */
 function isLikelyWater(
   pos: Position,
   homePos: Position,
   terrainData?: { waterPolygons: Array<{ points: Position[]; bbox: { south: number; west: number; north: number; east: number } }>; isCoastal: boolean }
 ): boolean {
-  // === LAYER 1: OSM Terrain Data (most accurate) ===
+  // === LAYER 1: OSM Terrain Data (most accurate for local water) ===
   // If we have OSM terrain data from the Overpass API, use it first
+  // This catches ponds, small lakes, local water bodies
   if (terrainData && terrainData.waterPolygons.length > 0) {
     for (const water of terrainData.waterPolygons) {
       // Quick bbox check
@@ -124,29 +124,13 @@ function isLikelyWater(
         return true;
       }
     }
-    // OSM data is authoritative - if we have it and point isn't in water polygons,
-    // still check other layers for large bodies OSM might not have captured
   }
 
-  // === LAYER 2: Major Water Bodies (lakes, bays, inland seas) ===
-  // These are predefined globally - Great Lakes, SF Bay, Baltic Sea, etc.
-  if (isInMajorWater(pos)) {
+  // === LAYER 2: Natural Earth Data (authoritative global coverage) ===
+  // Uses real geographic data from Natural Earth dataset
+  // Covers all oceans and major lakes worldwide
+  if (isInNaturalEarthWater(pos)) {
     return true;
-  }
-
-  // === LAYER 3: Global Coastline Heuristics (oceans) ===
-  // Uses geographic math to approximate coastlines worldwide
-  // This catches ocean areas without needing hardcoded city boundaries
-  if (isLikelyInOcean(pos)) {
-    return true;
-  }
-
-  // === LAYER 4: Distance Constraint (ultimate fallback) ===
-  // Prevent pets from wandering infinitely far
-  // If more than 50km from home, something is wrong
-  const distFromHome = distance(pos, homePos);
-  if (distFromHome > 50000) {
-    return true; // Treat as impassable boundary
   }
 
   return false;
@@ -205,6 +189,9 @@ class SearcherAgent {
   private spiralRadius: number = 50;
   private searchStartDelay: number;
   private terrainData: TerrainDataType;
+  private activeSearchHours: number = 0; // Track actual hours spent searching
+  private isTransitioning: boolean = false; // Going home or returning to search area
+  private lastSearchPosition: Position | null = null; // Last position before going home
 
   constructor(id: number, home: Position, rng: SeededRandom, searchStartDelay: number = 2, terrainData?: TerrainDataType) {
     this.id = id;
@@ -222,11 +209,31 @@ class SearcherAgent {
   }
 
   update(hour: number, timeStepHours: number, currentTimeOfDay: number): void {
+    const speed = 3000; // 3 km/h walking speed
+    const distanceM = speed * timeStepHours;
+
     // Searchers only active during daylight (7am - 9pm)
     if (currentTimeOfDay < 7 || currentTimeOfDay > 21) {
       this.isActive = false;
-      // Return home at night
-      this.position = { ...this.homePosition };
+      // Save last search position before heading home
+      if (!this.isTransitioning && distance(this.position, this.homePosition) > 50) {
+        this.lastSearchPosition = { ...this.position };
+        this.isTransitioning = true;
+      }
+      // Gradually move toward home instead of teleporting
+      const distToHome = distance(this.position, this.homePosition);
+      if (distToHome > distanceM) {
+        // Move toward home at walking speed
+        const homeDir = Math.atan2(
+          this.homePosition.lng - this.position.lng,
+          this.homePosition.lat - this.position.lat
+        ) * 180 / Math.PI;
+        this.position = offsetPosition(this.position, distanceM, homeDir);
+      } else {
+        // Close enough, snap to home
+        this.position = { ...this.homePosition };
+        this.isTransitioning = false;
+      }
       this.recordPath(hour);
       return;
     }
@@ -238,21 +245,54 @@ class SearcherAgent {
       return;
     }
 
+    // If we have a saved search position (returning from night), move back to it
+    if (this.lastSearchPosition && distance(this.position, this.lastSearchPosition) > distanceM) {
+      this.isActive = true;
+      this.isTransitioning = true;
+      // Move toward last search position
+      const targetDir = Math.atan2(
+        this.lastSearchPosition.lng - this.position.lng,
+        this.lastSearchPosition.lat - this.position.lat
+      ) * 180 / Math.PI;
+      this.position = offsetPosition(this.position, distanceM, targetDir);
+      this.recordPath(hour);
+      return;
+    }
+
+    // Clear transition state once we reach the search area
+    if (this.lastSearchPosition) {
+      this.lastSearchPosition = null;
+      this.isTransitioning = false;
+    }
+
     this.isActive = true;
-    const speed = 3000; // 3 km/h walking speed
-    const distanceM = speed * timeStepHours;
+    // Only accumulate search hours when actively searching (not transitioning)
+    this.activeSearchHours += timeStepHours;
 
     let newPos: Position;
 
     switch (this.searchPattern) {
       case 'spiral':
-        // Expanding spiral from home
-        // Angle increases slowly: ~30 degrees per hour of searching
+        // Expanding spiral from home - based on active search hours, not total hours
+        // Angle increases slowly: ~30 degrees per hour of actual searching
         this.spiralAngle += 30 * timeStepHours;
-        // Radius grows slowly: starts at 50m, expands ~50m per hour, max 2km
-        this.spiralRadius = Math.min(this.searchRadius, 50 + (hour - this.searchStartDelay) * 50);
+        // Radius grows slowly: starts at 50m, expands ~50m per active search hour, max 2km
+        this.spiralRadius = Math.min(this.searchRadius, 50 + this.activeSearchHours * 50);
         this.heading = this.spiralAngle;
-        newPos = offsetPosition(this.homePosition, this.spiralRadius, this.spiralAngle);
+        // Move incrementally toward spiral target instead of teleporting
+        const spiralTarget = offsetPosition(this.homePosition, this.spiralRadius, this.spiralAngle);
+        const distToTarget = distance(this.position, spiralTarget);
+        if (distToTarget > distanceM) {
+          // Move toward spiral position at walking speed
+          const targetDir = Math.atan2(
+            spiralTarget.lng - this.position.lng,
+            spiralTarget.lat - this.position.lat
+          ) * 180 / Math.PI;
+          newPos = offsetPosition(this.position, distanceM, targetDir);
+        } else {
+          // Close enough, use exact spiral position
+          newPos = spiralTarget;
+        }
         break;
 
       case 'grid':

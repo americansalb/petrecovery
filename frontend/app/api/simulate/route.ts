@@ -19,6 +19,7 @@ import {
 } from '@/app/lib/behavioral-simulation';
 import { fetchTerrainData, TerrainData } from '@/app/lib/behavioral-simulation/terrain';
 import { findNearestCachedCity, getCityCacheKey, CityInfo } from '@/app/lib/terrain/cityTerrainCache';
+import { loadNaturalEarthData } from '@/app/lib/terrain/naturalEarthWater';
 
 // In-memory cache for loaded terrain files (persists across requests)
 const terrainFileCache = new Map<string, TerrainData>();
@@ -70,6 +71,9 @@ interface SimulateRequest {
 
 export async function POST(request: Request) {
   try {
+    // Load Natural Earth water data (cached after first load)
+    await loadNaturalEarthData();
+
     const body: SimulateRequest = await request.json();
 
     // Validate required fields
