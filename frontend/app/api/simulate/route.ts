@@ -4,6 +4,8 @@
  */
 
 import { NextResponse } from 'next/server';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Extend timeout for batch simulations (Vercel Pro: 60s max, Hobby: 10s)
 export const maxDuration = 60;
@@ -15,7 +17,39 @@ import {
   DOG_TEMPERAMENTS,
   CAT_TEMPERAMENTS,
 } from '@/app/lib/behavioral-simulation';
-import { fetchTerrainData } from '@/app/lib/behavioral-simulation/terrain';
+import { fetchTerrainData, TerrainData } from '@/app/lib/behavioral-simulation/terrain';
+import { findNearestCachedCity, getCityCacheKey, CityInfo } from '@/app/lib/terrain/cityTerrainCache';
+
+// In-memory cache for loaded terrain files (persists across requests)
+const terrainFileCache = new Map<string, TerrainData>();
+
+/**
+ * Load cached terrain data from static JSON file
+ */
+async function loadCachedTerrainFile(city: CityInfo): Promise<TerrainData | null> {
+  const cacheKey = getCityCacheKey(city);
+
+  // Check in-memory cache first
+  if (terrainFileCache.has(cacheKey)) {
+    return terrainFileCache.get(cacheKey)!;
+  }
+
+  try {
+    // Try to load from public/data/terrain directory
+    const filePath = path.join(process.cwd(), 'public', 'data', 'terrain', `${cacheKey}.json`);
+    const fileContent = fs.readFileSync(filePath, 'utf-8');
+    const data = JSON.parse(fileContent) as TerrainData;
+
+    // Store in memory cache
+    terrainFileCache.set(cacheKey, data);
+    console.log(`Loaded cached terrain for ${city.name}: ${data.waterAreas?.length || 0} water areas, ${data.roads?.length || 0} roads`);
+
+    return data;
+  } catch {
+    // File doesn't exist or can't be read
+    return null;
+  }
+}
 
 interface SimulateRequest {
   species: 'dog' | 'cat';
@@ -75,23 +109,52 @@ export async function POST(request: Request) {
 
     const startPosition = { lat: body.latitude, lng: body.longitude };
 
-    // Fetch terrain data from OSM for water and road detection (5km radius around home)
+    // Fetch terrain data with priority: cached file > OSM API > heuristics fallback
     let terrainData: SimulationConfig['terrainData'];
-    try {
-      const osmTerrain = await fetchTerrainData(startPosition, 5000);
-      terrainData = {
-        waterPolygons: osmTerrain.waterAreas.map(w => ({
-          points: w.points,
-          bbox: w.bbox,
-        })),
-        isCoastal: osmTerrain.isCoastal,
-        roads: osmTerrain.roads,
-        hasHighways: osmTerrain.hasHighways,
-        hasRailways: osmTerrain.hasRailways,
-      };
-      console.log(`Loaded terrain: ${terrainData.waterPolygons.length} water areas, ${terrainData.roads?.length || 0} roads/railways`);
-    } catch (err) {
-      console.warn('Could not fetch terrain data:', err);
+    let terrainSource: 'cache' | 'api' | 'heuristics' = 'heuristics';
+
+    // 1. Check for pre-cached terrain file (instant, 20km radius)
+    const cachedCity = findNearestCachedCity(body.latitude, body.longitude);
+    if (cachedCity) {
+      const cachedTerrain = await loadCachedTerrainFile(cachedCity);
+      if (cachedTerrain) {
+        terrainData = {
+          waterPolygons: cachedTerrain.waterAreas?.map(w => ({
+            points: w.points,
+            bbox: w.bbox,
+          })) || [],
+          isCoastal: cachedTerrain.isCoastal || false,
+          roads: cachedTerrain.roads || [],
+          hasHighways: cachedTerrain.hasHighways || false,
+          hasRailways: cachedTerrain.hasRailways || false,
+        };
+        terrainSource = 'cache';
+        console.log(`Using CACHED terrain for ${cachedCity.name}: ${terrainData.waterPolygons.length} water areas, ${terrainData.roads?.length || 0} roads`);
+      }
+    }
+
+    // 2. If no cache, try OSM API (slower, 20km radius)
+    if (!terrainData) {
+      try {
+        const osmTerrain = await fetchTerrainData(startPosition, 20000); // Increased to 20km
+        terrainData = {
+          waterPolygons: osmTerrain.waterAreas.map(w => ({
+            points: w.points,
+            bbox: w.bbox,
+          })),
+          isCoastal: osmTerrain.isCoastal,
+          roads: osmTerrain.roads,
+          hasHighways: osmTerrain.hasHighways,
+          hasRailways: osmTerrain.hasRailways,
+        };
+        terrainSource = 'api';
+        console.log(`Loaded terrain from API: ${terrainData.waterPolygons.length} water areas, ${terrainData.roads?.length || 0} roads/railways`);
+      } catch (err) {
+        console.warn('Could not fetch terrain data from API:', err);
+        // 3. Fall back to global heuristics (no detailed terrain, but ocean/coastline detection still works)
+        terrainSource = 'heuristics';
+        console.log('Using global water heuristics (no detailed terrain)');
+      }
     }
 
     // Add terrain data to config
@@ -176,7 +239,9 @@ export async function POST(request: Request) {
           roads: terrainData.roads,
           hasHighways: terrainData.hasHighways,
           hasRailways: terrainData.hasRailways,
-        } : undefined,
+          source: terrainSource,
+          cachedCity: cachedCity ? `${cachedCity.name}, ${cachedCity.state}` : undefined,
+        } : { source: terrainSource },
       });
     }
   } catch (error) {
