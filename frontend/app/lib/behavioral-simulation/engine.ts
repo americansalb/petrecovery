@@ -482,15 +482,17 @@ export class BehavioralSimulationEngine {
     for (let step = 0; step < maxSteps; step++) {
       const simHour = step * timeStepHours;
 
-      // Record path
-      this.path.push({
-        hour: simHour,
-        lat: this.state.position.lat,
-        lng: this.state.position.lng,
-        fear: this.state.fearLevel,
-        hunger: this.state.hungerLevel,
-        state: this.getStateString(),
-      });
+      // Record path (skip for batch mode - not needed for statistical outcomes)
+      if (!this.config.skipTerrainChecks) {
+        this.path.push({
+          hour: simHour,
+          lat: this.state.position.lat,
+          lng: this.state.position.lng,
+          fear: this.state.fearLevel,
+          hunger: this.state.hungerLevel,
+          state: this.getStateString(),
+        });
+      }
 
       // Update physiology
       this.updatePhysiology(timeStepHours);
