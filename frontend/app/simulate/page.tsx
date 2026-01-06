@@ -6,12 +6,14 @@
  * Based on BEHAVIORAL_PROFILES.md research
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { DOG_TEMPERAMENTS, CAT_TEMPERAMENTS } from '@/app/lib/behavioral-simulation';
 import {
   Map, Play, Pause, RotateCcw, BarChart3, Loader2,
-  Settings, ChevronLeft, ChevronRight, X
+  Settings, ChevronLeft, ChevronRight, X,
+  SkipBack, SkipForward, ChevronsLeft, ChevronsRight,
+  Minus, Plus
 } from 'lucide-react';
 
 // Dynamically import map to avoid SSR issues with Leaflet
@@ -36,6 +38,40 @@ interface PathPoint {
   state: string;
 }
 
+interface Position {
+  lat: number;
+  lng: number;
+}
+
+interface RoadSegment {
+  type: 'motorway' | 'trunk' | 'primary' | 'secondary' | 'railway';
+  points: Position[];
+  name?: string;
+  crossingDifficulty: number;
+  dangerLevel: number;
+}
+
+interface TerrainData {
+  waterPolygons?: Array<{
+    points: Position[];
+    bbox: { south: number; west: number; north: number; east: number };
+  }>;
+  roads?: RoadSegment[];
+  hasHighways?: boolean;
+  hasRailways?: boolean;
+}
+
+interface SimOutcome {
+  id: string;
+  index: number;
+  seed: number;
+  outcome: string;
+  outcomeDescription: string;
+  timeToOutcomeHours: number | null;
+  finalPosition: Position;
+  maxDistanceM: number;
+}
+
 interface SimResult {
   type: 'single' | 'batch';
   profile: {
@@ -46,7 +82,16 @@ interface SimResult {
   result: any;
   path?: PathPoint[];
   searcherPaths?: PathPoint[][];
-  sampleSimulations?: any[];
+  simulations?: SimOutcome[]; // All simulation outcomes for batch
+  terrain?: TerrainData;
+  // Store batch config for re-running individual simulations
+  batchConfig?: {
+    latitude: number;
+    longitude: number;
+    maxHours: number;
+    numSearchers: number;
+    searchStartDelay: number;
+  };
 }
 
 // Size and age options based on SURVIVAL modifiers
@@ -65,6 +110,9 @@ const AGE_OPTIONS = [
   { value: 'ADT', label: 'Adult' },
   { value: 'SEN', label: 'Senior' },
 ];
+
+// Speed presets for quick selection (outside component to avoid recreation)
+const SPEED_PRESETS = [0.25, 0.5, 1, 2, 4, 8, 12, 24, 48, 96];
 
 export default function SimulatePage() {
   // Pet profile
@@ -88,14 +136,18 @@ export default function SimulatePage() {
   const [configOpen, setConfigOpen] = useState(true);
   const [resultsOpen, setResultsOpen] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [loadingSimIndex, setLoadingSimIndex] = useState<number | null>(null);
   const [result, setResult] = useState<SimResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedSimIndex, setSelectedSimIndex] = useState<number | null>(null);
 
-  // Playback state - default to 4hr/sec for 30-day simulations
+  // Playback state - speed is in "simulation hours per real second"
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackMinute, setPlaybackMinute] = useState(0);
-  const [playbackSpeed, setPlaybackSpeed] = useState(240);
+  const [playbackSpeed, setPlaybackSpeed] = useState(4); // 4 hours per second default
+  const [isDragging, setIsDragging] = useState(false);
+  const sliderRef = useRef<HTMLInputElement>(null);
+  const wasPlayingRef = useRef(false);
 
   const temperaments = species === 'dog' ? DOG_TEMPERAMENTS : CAT_TEMPERAMENTS;
 
@@ -132,6 +184,17 @@ export default function SimulatePage() {
         throw new Error(data.error || 'Simulation failed');
       }
 
+      // Store batch config for re-running individual simulations
+      if (data.type === 'batch') {
+        data.batchConfig = {
+          latitude,
+          longitude,
+          maxHours,
+          numSearchers,
+          searchStartDelay,
+        };
+      }
+
       setResult(data);
       setResultsOpen(true);
 
@@ -160,6 +223,55 @@ export default function SimulatePage() {
     setLongitude(Math.round(lng * 10000) / 10000);
   }, []);
 
+  // Load a specific simulation's path by re-running with the same seed
+  const loadSimulationPath = async (sim: SimOutcome) => {
+    if (!result?.batchConfig) return;
+
+    setLoadingSimIndex(sim.index);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          species,
+          temperament,
+          size,
+          age,
+          isIndoorOnly,
+          latitude: result.batchConfig.latitude,
+          longitude: result.batchConfig.longitude,
+          maxHours: result.batchConfig.maxHours,
+          numSearchers: result.batchConfig.numSearchers,
+          searchStartDelay: result.batchConfig.searchStartDelay,
+          seed: sim.seed, // Use exact same seed to reproduce
+          batchSize: 1, // Single simulation
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load simulation');
+      }
+
+      // Update result with the loaded path
+      setResult({
+        ...result,
+        path: data.path,
+        searcherPaths: data.searcherPaths,
+      });
+      setSelectedSimIndex(sim.index);
+      setPlaybackMinute(0);
+      setIsPlaying(true);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setLoadingSimIndex(null);
+    }
+  };
+
   // Playback controls
   const togglePlayback = () => setIsPlaying(!isPlaying);
   const resetPlayback = () => {
@@ -167,42 +279,223 @@ export default function SimulatePage() {
     setIsPlaying(false);
   };
 
-  // Playback animation effect
+  // Playback animation effect using requestAnimationFrame for smooth animation
   useEffect(() => {
     if (!isPlaying || !result?.path) return;
 
     const maxMinute = maxHours * 60;
-    const interval = setInterval(() => {
+    let lastFrameTime: number | null = null;
+    let animationId: number;
+
+    const animate = (currentTime: number) => {
+      if (lastFrameTime === null) {
+        lastFrameTime = currentTime;
+      }
+
+      const deltaSeconds = (currentTime - lastFrameTime) / 1000;
+      lastFrameTime = currentTime;
+
+      // Convert speed (hours per second) to minutes per frame
+      const minutesPerFrame = playbackSpeed * 60 * deltaSeconds;
+
       setPlaybackMinute((prev) => {
-        const next = prev + playbackSpeed;
+        const next = prev + minutesPerFrame;
         if (next >= maxMinute) {
           setIsPlaying(false);
           return maxMinute;
         }
         return next;
       });
-    }, 50);
 
-    return () => clearInterval(interval);
+      animationId = requestAnimationFrame(animate);
+    };
+
+    animationId = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    };
   }, [isPlaying, result?.path, maxHours, playbackSpeed]);
 
-  // Get current positions for playback
+  // Interpolate position using binary search for O(log n) performance
+  // This is critical for smooth animation with 8000+ path points
+  const interpolatePosition = useCallback((path: PathPoint[], currentHour: number): PathPoint | null => {
+    if (!path || path.length === 0) return null;
+    if (path.length === 1) return path[0];
+
+    // Binary search to find the segment containing currentHour
+    let low = 0;
+    let high = path.length - 1;
+
+    // Edge cases
+    if (currentHour <= path[0].hour) return path[0];
+    if (currentHour >= path[high].hour) return path[high];
+
+    // Binary search for the correct segment
+    while (low < high - 1) {
+      const mid = Math.floor((low + high) / 2);
+      if (path[mid].hour <= currentHour) {
+        low = mid;
+      } else {
+        high = mid;
+      }
+    }
+
+    const before = path[low];
+    const after = path[high];
+
+    // Linear interpolation between the two points
+    const ratio = (currentHour - before.hour) / (after.hour - before.hour);
+    return {
+      hour: currentHour,
+      lat: before.lat + (after.lat - before.lat) * ratio,
+      lng: before.lng + (after.lng - before.lng) * ratio,
+      fear: before.fear + (after.fear - before.fear) * ratio,
+      hunger: before.hunger + (after.hunger - before.hunger) * ratio,
+      state: ratio < 0.5 ? before.state : after.state,
+    };
+  }, []);
+
+  // Get current positions for playback with smooth interpolation
   const getCurrentPosition = () => {
     if (!result?.path || result.path.length === 0) return null;
-    const hourToFind = playbackMinute / 60;
-    return result.path.find((p: PathPoint) => p.hour >= hourToFind) || result.path[result.path.length - 1];
+    const currentHour = playbackMinute / 60;
+    return interpolatePosition(result.path, currentHour);
   };
 
   const getSearcherPositions = () => {
     if (!result?.searcherPaths || result.searcherPaths.length === 0) return [];
-    const hourToFind = playbackMinute / 60;
+    const currentHour = playbackMinute / 60;
     return result.searcherPaths.map((path: PathPoint[]) => {
-      if (path.length === 0) return null;
-      return path.find((p: PathPoint) => p.hour >= hourToFind) || path[path.length - 1];
+      if (!path || path.length === 0) return null;
+      return interpolatePosition(path, currentHour);
     }).filter(Boolean) as PathPoint[];
   };
 
   const currentPos = getCurrentPosition();
+
+  // Skip functions for playback navigation
+  const skipTime = useCallback((minutes: number) => {
+    const maxMinute = maxHours * 60;
+    setPlaybackMinute((prev) => Math.max(0, Math.min(maxMinute, prev + minutes)));
+  }, [maxHours]);
+
+  const skipHour = (direction: 1 | -1) => skipTime(direction * 60);
+  const skipDay = (direction: 1 | -1) => skipTime(direction * 1440);
+  const stepFrame = (direction: 1 | -1) => skipTime(direction * 5); // 5 minutes per frame
+
+  // Adjust speed up/down
+  const adjustSpeed = useCallback((increase: boolean) => {
+    const currentIdx = SPEED_PRESETS.findIndex(s => s >= playbackSpeed);
+    const idx = currentIdx === -1 ? SPEED_PRESETS.length - 1 : currentIdx;
+    const newIdx = increase
+      ? Math.min(SPEED_PRESETS.length - 1, idx + 1)
+      : Math.max(0, idx - 1);
+    setPlaybackSpeed(SPEED_PRESETS[newIdx]);
+  }, [playbackSpeed]);
+
+  // Keyboard shortcuts for playback control
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle if we have a simulation result and not typing in an input
+      if (!result?.path || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      switch (e.key) {
+        case ' ': // Space - toggle play/pause
+          e.preventDefault();
+          setIsPlaying(prev => !prev);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          if (e.shiftKey) {
+            skipDay(-1); // Shift+Left = skip back 1 day
+          } else if (e.ctrlKey || e.metaKey) {
+            stepFrame(-1); // Ctrl+Left = step back 1 frame
+          } else {
+            skipHour(-1); // Left = skip back 1 hour
+          }
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          if (e.shiftKey) {
+            skipDay(1); // Shift+Right = skip forward 1 day
+          } else if (e.ctrlKey || e.metaKey) {
+            stepFrame(1); // Ctrl+Right = step forward 1 frame
+          } else {
+            skipHour(1); // Right = skip forward 1 hour
+          }
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          adjustSpeed(true); // Increase speed
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          adjustSpeed(false); // Decrease speed
+          break;
+        case 'Home':
+          e.preventDefault();
+          setPlaybackMinute(0);
+          break;
+        case 'End':
+          e.preventDefault();
+          setPlaybackMinute(maxHours * 60);
+          break;
+        case 'r':
+        case 'R':
+          if (!e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            setPlaybackMinute(0);
+            setIsPlaying(false);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [result?.path, maxHours, skipTime, adjustSpeed]);
+
+  // Smooth slider handling - pause during drag, resume after
+  const handleSliderMouseDown = () => {
+    wasPlayingRef.current = isPlaying;
+    setIsDragging(true);
+    setIsPlaying(false);
+  };
+
+  const handleSliderMouseUp = () => {
+    setIsDragging(false);
+    if (wasPlayingRef.current) {
+      setIsPlaying(true);
+    }
+  };
+
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPlaybackMinute(parseInt(e.target.value));
+  };
+
+  // Format time display
+  const formatTime = (minutes: number) => {
+    const days = Math.floor(minutes / 1440);
+    const hours = Math.floor((minutes % 1440) / 60);
+    const mins = Math.floor(minutes % 60);
+    if (days > 0) {
+      return `${days}d ${hours}h ${mins}m`;
+    }
+    return `${hours}h ${mins}m`;
+  };
+
+  // Format speed display
+  const formatSpeed = (speed: number) => {
+    if (speed >= 24) {
+      return `${(speed / 24).toFixed(speed % 24 === 0 ? 0 : 1)} day/s`;
+    }
+    return `${speed} hr/s`;
+  };
 
   return (
     <div className="h-screen w-screen overflow-hidden relative bg-gray-900">
@@ -216,6 +509,10 @@ export default function SimulatePage() {
           playbackMinute={playbackMinute}
           onLocationSelect={handleLocationSelect}
           species={species}
+          terrainData={result?.terrain}
+          outcomeMarkers={result?.simulations}
+          selectedOutcomeIndex={selectedSimIndex}
+          onOutcomeClick={loadSimulationPath}
         />
       </div>
 
@@ -567,52 +864,57 @@ export default function SimulatePage() {
                   ))}
                 </div>
 
-                {/* Sample simulations list */}
-                {result.sampleSimulations && result.sampleSimulations.length > 0 && (
+                {/* All simulations list - click to animate */}
+                {result.simulations && result.simulations.length > 0 && (
                   <div className="mt-4">
                     <h3 className="text-sm font-medium text-gray-700 mb-2">
-                      Sample Simulations (click to view)
+                      All Simulations ({result.simulations.length}) - click to animate
                     </h3>
-                    <div className="space-y-1 max-h-48 overflow-y-auto">
-                      {result.sampleSimulations.map((sim: any, idx: number) => (
+                    <div className="space-y-1 max-h-64 overflow-y-auto">
+                      {result.simulations.map((sim: SimOutcome) => (
                         <button
-                          key={idx}
-                          onClick={() => {
-                            setSelectedSimIndex(idx);
-                            // Load this simulation's path for viewing
-                            if (sim.petPath) {
-                              setResult({
-                                ...result,
-                                path: sim.petPath,
-                                searcherPaths: sim.searcherPaths,
-                              });
-                              setPlaybackMinute(0);
-                              setIsPlaying(true);
-                            }
-                          }}
-                          className={`w-full text-left p-2 rounded text-xs hover:bg-gray-100 transition-colors ${
-                            selectedSimIndex === idx ? 'bg-blue-50 border border-blue-200' : ''
-                          }`}
+                          key={sim.index}
+                          onClick={() => loadSimulationPath(sim)}
+                          disabled={loadingSimIndex !== null}
+                          className={`w-full text-left p-2 rounded text-xs hover:bg-gray-100 transition-colors flex items-center justify-between ${
+                            selectedSimIndex === sim.index ? 'bg-blue-50 border border-blue-200' : ''
+                          } ${loadingSimIndex === sim.index ? 'opacity-50' : ''}`}
                         >
-                          <span className={`font-medium ${
-                            sim.outcome === 'captured' || sim.outcome === 'self_return'
-                              ? 'text-green-600'
-                              : sim.outcome === 'deceased'
-                                ? 'text-red-600'
-                                : 'text-yellow-600'
-                          }`}>
-                            #{idx + 1}
-                          </span>
-                          {' - '}
-                          {sim.outcomeDescription}
-                          {sim.timeToOutcomeHours && (
-                            <span className="text-gray-400 ml-1">
-                              @ {sim.timeToOutcomeHours.toFixed(1)}h
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${
+                              sim.outcome === 'captured' || sim.outcome === 'self_return'
+                                ? 'bg-green-500'
+                                : sim.outcome === 'deceased'
+                                  ? 'bg-red-500'
+                                  : 'bg-yellow-500'
+                            }`} />
+                            <span className={`font-medium ${
+                              sim.outcome === 'captured' || sim.outcome === 'self_return'
+                                ? 'text-green-600'
+                                : sim.outcome === 'deceased'
+                                  ? 'text-red-600'
+                                  : 'text-yellow-600'
+                            }`}>
+                              #{sim.index + 1}
                             </span>
-                          )}
+                            <span className="text-gray-600">
+                              {sim.outcomeDescription}
+                            </span>
+                          </div>
+                          <div className="text-gray-400 text-[10px]">
+                            {sim.timeToOutcomeHours !== null && (
+                              <span>{sim.timeToOutcomeHours.toFixed(0)}h</span>
+                            )}
+                            {loadingSimIndex === sim.index && (
+                              <Loader2 className="w-3 h-3 animate-spin inline ml-1" />
+                            )}
+                          </div>
                         </button>
                       ))}
                     </div>
+                    <p className="text-[10px] text-gray-400 mt-2">
+                      Outcomes shown as markers on map. Click to animate that simulation.
+                    </p>
                   </div>
                 )}
               </div>
@@ -670,81 +972,256 @@ export default function SimulatePage() {
 
       {/* Bottom Playback Controls */}
       {result?.path && result.path.length > 0 && (
-        <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur rounded-xl shadow-xl z-[1000] p-4">
-          <div className="flex items-center gap-4">
-            {/* Play/Pause/Reset */}
-            <div className="flex items-center gap-2">
+        <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur rounded-xl shadow-xl z-[1000] p-3">
+          {/* Main controls row */}
+          <div className="flex items-center gap-3">
+            {/* Transport controls */}
+            <div className="flex items-center gap-1">
+              {/* Skip to start */}
+              <button
+                onClick={() => setPlaybackMinute(0)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Go to start (Home)"
+              >
+                <SkipBack className="w-4 h-4" />
+              </button>
+
+              {/* Skip back 1 day */}
+              <button
+                onClick={() => skipDay(-1)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Back 1 day (Shift+Left)"
+              >
+                <ChevronsLeft className="w-4 h-4" />
+              </button>
+
+              {/* Skip back 1 hour */}
+              <button
+                onClick={() => skipHour(-1)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Back 1 hour (Left)"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {/* Play/Pause - larger and prominent */}
               <button
                 onClick={togglePlayback}
-                className={`p-3 rounded-full transition-colors ${
-                  isPlaying ? 'bg-red-100 hover:bg-red-200' : 'bg-green-100 hover:bg-green-200'
+                className={`p-3 rounded-full transition-all transform hover:scale-105 ${
+                  isPlaying
+                    ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg'
+                    : 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg'
                 }`}
+                title="Play/Pause (Space)"
               >
-                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
               </button>
+
+              {/* Skip forward 1 hour */}
               <button
-                onClick={resetPlayback}
-                className="p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                onClick={() => skipHour(1)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Forward 1 hour (Right)"
               >
-                <RotateCcw className="w-5 h-5" />
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              {/* Skip forward 1 day */}
+              <button
+                onClick={() => skipDay(1)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Forward 1 day (Shift+Right)"
+              >
+                <ChevronsRight className="w-4 h-4" />
+              </button>
+
+              {/* Skip to end */}
+              <button
+                onClick={() => setPlaybackMinute(maxHours * 60)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Go to end (End)"
+              >
+                <SkipForward className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Speed control */}
-            <select
-              value={playbackSpeed}
-              onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
-              className="border rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="1">1x</option>
-              <option value="5">5x</option>
-              <option value="20">20x</option>
-              <option value="60">1hr/s</option>
-              <option value="240">4hr/s</option>
-              <option value="720">12hr/s</option>
-              <option value="1440">1day/s</option>
-            </select>
+            {/* Divider */}
+            <div className="w-px h-8 bg-gray-200" />
+
+            {/* Speed control with +/- buttons */}
+            <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1">
+              <button
+                onClick={() => adjustSpeed(false)}
+                className="p-1 rounded hover:bg-gray-200 transition-colors"
+                title="Slower (Down arrow)"
+                disabled={playbackSpeed <= SPEED_PRESETS[0]}
+              >
+                <Minus className="w-3 h-3" />
+              </button>
+              <span className="text-sm font-medium w-16 text-center tabular-nums">
+                {formatSpeed(playbackSpeed)}
+              </span>
+              <button
+                onClick={() => adjustSpeed(true)}
+                className="p-1 rounded hover:bg-gray-200 transition-colors"
+                title="Faster (Up arrow)"
+                disabled={playbackSpeed >= SPEED_PRESETS[SPEED_PRESETS.length - 1]}
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className="w-px h-8 bg-gray-200" />
 
             {/* Timeline slider */}
             <div className="flex-1 flex items-center gap-3">
-              <input
-                type="range"
-                min={0}
-                max={maxHours * 60}
-                value={playbackMinute}
-                onChange={(e) => {
-                  setPlaybackMinute(parseInt(e.target.value));
-                  setIsPlaying(false);
-                }}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-              />
-              <span className="text-sm font-mono w-32 text-right bg-gray-100 px-3 py-1 rounded-lg">
-                {Math.floor(playbackMinute / 1440)}d {Math.floor((playbackMinute % 1440) / 60)}h
+              <span className="text-xs text-gray-500 w-16 text-right tabular-nums">
+                {formatTime(playbackMinute)}
+              </span>
+              <div className="flex-1 relative group">
+                <input
+                  ref={sliderRef}
+                  type="range"
+                  min={0}
+                  max={maxHours * 60}
+                  value={playbackMinute}
+                  onChange={handleSliderChange}
+                  onMouseDown={handleSliderMouseDown}
+                  onMouseUp={handleSliderMouseUp}
+                  onTouchStart={handleSliderMouseDown}
+                  onTouchEnd={handleSliderMouseUp}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer
+                             [&::-webkit-slider-thumb]:appearance-none
+                             [&::-webkit-slider-thumb]:w-4
+                             [&::-webkit-slider-thumb]:h-4
+                             [&::-webkit-slider-thumb]:bg-blue-500
+                             [&::-webkit-slider-thumb]:rounded-full
+                             [&::-webkit-slider-thumb]:cursor-grab
+                             [&::-webkit-slider-thumb]:active:cursor-grabbing
+                             [&::-webkit-slider-thumb]:shadow-md
+                             [&::-webkit-slider-thumb]:hover:bg-blue-600
+                             [&::-webkit-slider-thumb]:hover:scale-110
+                             [&::-webkit-slider-thumb]:transition-all
+                             [&::-moz-range-thumb]:w-4
+                             [&::-moz-range-thumb]:h-4
+                             [&::-moz-range-thumb]:bg-blue-500
+                             [&::-moz-range-thumb]:rounded-full
+                             [&::-moz-range-thumb]:cursor-grab
+                             [&::-moz-range-thumb]:border-none
+                             [&::-moz-range-thumb]:shadow-md"
+                  style={{
+                    background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(playbackMinute / (maxHours * 60)) * 100}%, #e5e7eb ${(playbackMinute / (maxHours * 60)) * 100}%, #e5e7eb 100%)`
+                  }}
+                />
+                {/* Hover preview - shows time at hover position */}
+                <div className="absolute -top-8 left-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div
+                    className="absolute bg-gray-800 text-white text-xs px-2 py-1 rounded transform -translate-x-1/2"
+                    style={{ left: `${(playbackMinute / (maxHours * 60)) * 100}%` }}
+                  >
+                    {formatTime(playbackMinute)}
+                  </div>
+                </div>
+              </div>
+              <span className="text-xs text-gray-500 w-16 tabular-nums">
+                {formatTime(maxHours * 60)}
               </span>
             </div>
 
+            {/* Divider */}
+            <div className="w-px h-8 bg-gray-200" />
+
             {/* Current state display */}
             {currentPos && (
-              <div className="flex items-center gap-4 text-sm border-l pl-4 ml-2">
-                <div className={`px-3 py-1 rounded-full font-medium ${
+              <div className="flex items-center gap-3 text-sm">
+                <div className={`px-3 py-1 rounded-full text-xs font-medium ${
                   currentPos.state === 'fleeing' ? 'bg-red-100 text-red-700' :
-                  currentPos.state === 'hiding' ? 'bg-gray-100 text-gray-700' :
-                  currentPos.state === 'traveling' ? 'bg-yellow-100 text-yellow-700' :
+                  currentPos.state === 'hiding' ? 'bg-gray-200 text-gray-700' :
+                  currentPos.state === 'traveling' ? 'bg-amber-100 text-amber-700' :
                   'bg-green-100 text-green-700'
                 }`}>
                   {currentPos.state.charAt(0).toUpperCase() + currentPos.state.slice(1)}
                 </div>
-                <div className="text-gray-600">
-                  Fear: <span className="font-medium">{(currentPos.fear * 100).toFixed(0)}%</span>
+                <div className="text-xs text-gray-500">
+                  <span className="text-red-500 font-medium">{(currentPos.fear * 100).toFixed(0)}%</span> fear
                 </div>
-                <div className="text-gray-600">
-                  Hunger: <span className="font-medium">{(currentPos.hunger * 100).toFixed(0)}%</span>
+                <div className="text-xs text-gray-500">
+                  <span className="text-orange-500 font-medium">{(currentPos.hunger * 100).toFixed(0)}%</span> hunger
                 </div>
               </div>
             )}
           </div>
+
+          {/* Keyboard shortcuts hint - collapsible */}
+          <div className="mt-2 pt-2 border-t border-gray-100 text-[10px] text-gray-400 flex items-center justify-center gap-4">
+            <span><kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-500">Space</kbd> Play/Pause</span>
+            <span><kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-500">←/→</kbd> ±1 hour</span>
+            <span><kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-500">Shift+←/→</kbd> ±1 day</span>
+            <span><kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-500">↑/↓</kbd> Speed</span>
+            <span><kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-500">R</kbd> Reset</span>
+          </div>
         </div>
       )}
+
+      {/* Outcome Animation Overlay */}
+      {result?.type === 'single' && result?.result?.outcome && (() => {
+        const outcome = result.result.outcome;
+        const timeToOutcome = result.result.timeToOutcomeHours;
+        const currentHour = playbackMinute / 60;
+
+        // Show outcome when playback reaches the time
+        if (timeToOutcome && currentHour >= timeToOutcome - 0.5) {
+          const isPositive = outcome.includes('CAPTURED') || outcome.includes('FOUND') ||
+                            outcome === 'SELF_RETURN' || outcome === 'SHELTER';
+          const isNegative = outcome === 'DECEASED' || outcome.includes('DEATH');
+
+          return (
+            <div className={`absolute inset-0 z-[2000] flex items-center justify-center pointer-events-none transition-opacity duration-500 ${
+              isPositive ? 'bg-green-500/20' : isNegative ? 'bg-red-500/20' : 'bg-gray-500/20'
+            }`}>
+              <div className={`bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4 text-center transform animate-bounce pointer-events-auto ${
+                isPositive ? 'border-4 border-green-500' : isNegative ? 'border-4 border-red-500' : 'border-4 border-gray-500'
+              }`}>
+                <div className="text-6xl mb-4">
+                  {isPositive ? '🎉' : isNegative ? '😢' : '⏰'}
+                </div>
+                <h2 className={`text-2xl font-bold mb-2 ${
+                  isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-gray-600'
+                }`}>
+                  {isPositive ? 'Pet Found!' : isNegative ? 'Pet Lost' : 'Simulation Complete'}
+                </h2>
+                <p className="text-gray-600 mb-4">
+                  {result.result.outcomeDescription}
+                </p>
+                <div className="flex items-center justify-center gap-4 text-sm">
+                  <div className="bg-gray-100 px-3 py-2 rounded-lg">
+                    <span className="text-gray-500">Time:</span>{' '}
+                    <span className="font-semibold">
+                      {Math.floor(timeToOutcome / 24)}d {Math.round(timeToOutcome % 24)}h
+                    </span>
+                  </div>
+                  <div className="bg-gray-100 px-3 py-2 rounded-lg">
+                    <span className="text-gray-500">Max Distance:</span>{' '}
+                    <span className="font-semibold">
+                      {result.result.maxDistanceFromHomeM >= 1000
+                        ? `${(result.result.maxDistanceFromHomeM / 1000).toFixed(1)} km`
+                        : `${result.result.maxDistanceFromHomeM} m`}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setPlaybackMinute(0)}
+                  className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors pointer-events-auto"
+                >
+                  Replay
+                </button>
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
     </div>
   );
 }

@@ -6,14 +6,14 @@
 import {
   Species, Temperament, AnimalProfile, AnimalState, Position,
   SimulationConfig, SimulationResult, PathPoint, BatchResult,
-  CatHidingPhase,
+  CatHidingPhase, RoadSegment,
 } from './types';
 import {
   DOG_TEMPERAMENTS, CAT_TEMPERAMENTS, DISPLACEMENT,
   MOVEMENT_SPEEDS, PHYSIOLOGY, TIME_OF_DAY, SEARCHER_PARAMS, SURVIVAL,
 } from './constants';
-import { isLikelyInOcean } from '../terrain/globalWaterHeuristics';
-import { isInMajorWater } from '../terrain/majorWaterBodies';
+import { isInNaturalEarthWater } from '../terrain/naturalEarthWater';
+import { checkRoadCrossing, RoadCrossingResult } from './terrain';
 
 // Seeded random number generator
 class SeededRandom {
@@ -95,18 +95,19 @@ function pointInPolygon(point: Position, polygon: Position[]): boolean {
 /**
  * Multi-layer water detection system that works GLOBALLY
  *
- * Layer 1: OSM Overpass API data (most accurate, when available)
- * Layer 2: Major water bodies (Great Lakes, bays, inland seas)
- * Layer 3: Global coastline heuristics (oceans via geographic math)
- * Layer 4: Distance constraint (ultimate fallback - prevents infinite wandering)
+ * Layer 1: OSM Overpass API data (most accurate for local water bodies)
+ * Layer 2: Natural Earth data (authoritative global ocean & major lake polygons)
+ *
+ * Natural Earth data source: https://www.naturalearthdata.com/ (public domain)
  */
 function isLikelyWater(
   pos: Position,
   homePos: Position,
   terrainData?: { waterPolygons: Array<{ points: Position[]; bbox: { south: number; west: number; north: number; east: number } }>; isCoastal: boolean }
 ): boolean {
-  // === LAYER 1: OSM Terrain Data (most accurate) ===
+  // === LAYER 1: OSM Terrain Data (most accurate for local water) ===
   // If we have OSM terrain data from the Overpass API, use it first
+  // This catches ponds, small lakes, local water bodies
   if (terrainData && terrainData.waterPolygons.length > 0) {
     for (const water of terrainData.waterPolygons) {
       // Quick bbox check
@@ -123,29 +124,13 @@ function isLikelyWater(
         return true;
       }
     }
-    // OSM data is authoritative - if we have it and point isn't in water polygons,
-    // still check other layers for large bodies OSM might not have captured
   }
 
-  // === LAYER 2: Major Water Bodies (lakes, bays, inland seas) ===
-  // These are predefined globally - Great Lakes, SF Bay, Baltic Sea, etc.
-  if (isInMajorWater(pos)) {
+  // === LAYER 2: Natural Earth Data (authoritative global coverage) ===
+  // Uses real geographic data from Natural Earth dataset
+  // Covers all oceans and major lakes worldwide
+  if (isInNaturalEarthWater(pos)) {
     return true;
-  }
-
-  // === LAYER 3: Global Coastline Heuristics (oceans) ===
-  // Uses geographic math to approximate coastlines worldwide
-  // This catches ocean areas without needing hardcoded city boundaries
-  if (isLikelyInOcean(pos)) {
-    return true;
-  }
-
-  // === LAYER 4: Distance Constraint (ultimate fallback) ===
-  // Prevent pets from wandering infinitely far
-  // If more than 50km from home, something is wrong
-  const distFromHome = distance(pos, homePos);
-  if (distFromHome > 50000) {
-    return true; // Treat as impassable boundary
   }
 
   return false;
@@ -204,8 +189,12 @@ class SearcherAgent {
   private spiralRadius: number = 50;
   private searchStartDelay: number;
   private terrainData: TerrainDataType;
+  private skipTerrainChecks: boolean;
+  private activeSearchHours: number = 0; // Track actual hours spent searching
+  private isTransitioning: boolean = false; // Going home or returning to search area
+  private lastSearchPosition: Position | null = null; // Last position before going home
 
-  constructor(id: number, home: Position, rng: SeededRandom, searchStartDelay: number = 2, terrainData?: TerrainDataType) {
+  constructor(id: number, home: Position, rng: SeededRandom, searchStartDelay: number = 2, terrainData?: TerrainDataType, skipTerrainChecks: boolean = false) {
     this.id = id;
     this.homePosition = { ...home };
     this.position = { ...home };
@@ -215,17 +204,38 @@ class SearcherAgent {
     this.rng = rng;
     this.searchStartDelay = searchStartDelay;
     this.terrainData = terrainData;
+    this.skipTerrainChecks = skipTerrainChecks;
     // Randomize search pattern
     const patterns: Array<'spiral' | 'grid' | 'random'> = ['spiral', 'grid', 'random'];
     this.searchPattern = patterns[Math.floor(rng.next() * 3)];
   }
 
   update(hour: number, timeStepHours: number, currentTimeOfDay: number): void {
+    const speed = 3000; // 3 km/h walking speed
+    const distanceM = speed * timeStepHours;
+
     // Searchers only active during daylight (7am - 9pm)
     if (currentTimeOfDay < 7 || currentTimeOfDay > 21) {
       this.isActive = false;
-      // Return home at night
-      this.position = { ...this.homePosition };
+      // Save last search position before heading home
+      if (!this.isTransitioning && distance(this.position, this.homePosition) > 50) {
+        this.lastSearchPosition = { ...this.position };
+        this.isTransitioning = true;
+      }
+      // Gradually move toward home instead of teleporting
+      const distToHome = distance(this.position, this.homePosition);
+      if (distToHome > distanceM) {
+        // Move toward home at walking speed
+        const homeDir = Math.atan2(
+          this.homePosition.lng - this.position.lng,
+          this.homePosition.lat - this.position.lat
+        ) * 180 / Math.PI;
+        this.position = offsetPosition(this.position, distanceM, homeDir);
+      } else {
+        // Close enough, snap to home
+        this.position = { ...this.homePosition };
+        this.isTransitioning = false;
+      }
       this.recordPath(hour);
       return;
     }
@@ -237,32 +247,68 @@ class SearcherAgent {
       return;
     }
 
+    // If we have a saved search position (returning from night), move back to it
+    if (this.lastSearchPosition && distance(this.position, this.lastSearchPosition) > distanceM) {
+      this.isActive = true;
+      this.isTransitioning = true;
+      // Move toward last search position
+      const targetDir = Math.atan2(
+        this.lastSearchPosition.lng - this.position.lng,
+        this.lastSearchPosition.lat - this.position.lat
+      ) * 180 / Math.PI;
+      this.position = offsetPosition(this.position, distanceM, targetDir);
+      this.recordPath(hour);
+      return;
+    }
+
+    // Clear transition state once we reach the search area
+    if (this.lastSearchPosition) {
+      this.lastSearchPosition = null;
+      this.isTransitioning = false;
+    }
+
     this.isActive = true;
-    const speed = 3000; // 3 km/h walking speed
-    const distanceM = speed * timeStepHours;
+    // Only accumulate search hours when actively searching (not transitioning)
+    this.activeSearchHours += timeStepHours;
 
     let newPos: Position;
 
     switch (this.searchPattern) {
       case 'spiral':
-        // Expanding spiral from home - angle increases, radius grows over time
-        this.spiralAngle += 15;
-        this.spiralRadius = Math.min(this.searchRadius, 50 + hour * 30);
+        // Expanding spiral from home - based on active search hours, not total hours
+        // Angle increases slowly: ~30 degrees per hour of actual searching
+        this.spiralAngle += 30 * timeStepHours;
+        // Radius grows slowly: starts at 50m, expands ~50m per active search hour, max 2km
+        this.spiralRadius = Math.min(this.searchRadius, 50 + this.activeSearchHours * 50);
         this.heading = this.spiralAngle;
-        newPos = offsetPosition(this.homePosition, this.spiralRadius, this.spiralAngle);
+        // Move incrementally toward spiral target instead of teleporting
+        const spiralTarget = offsetPosition(this.homePosition, this.spiralRadius, this.spiralAngle);
+        const distToTarget = distance(this.position, spiralTarget);
+        if (distToTarget > distanceM) {
+          // Move toward spiral position at walking speed
+          const targetDir = Math.atan2(
+            spiralTarget.lng - this.position.lng,
+            spiralTarget.lat - this.position.lat
+          ) * 180 / Math.PI;
+          newPos = offsetPosition(this.position, distanceM, targetDir);
+        } else {
+          // Close enough, use exact spiral position
+          newPos = spiralTarget;
+        }
         break;
 
       case 'grid':
-        // Grid pattern - move in cardinal directions
-        if (this.rng.next() < 0.2) {
+        // Grid pattern - move in cardinal directions, turn at intervals
+        // Move forward, occasionally turn 90 degrees
+        if (this.rng.next() < 0.05 * timeStepHours * 60) { // ~5% chance per minute
           this.heading = Math.round(this.heading / 90) * 90 + (this.rng.next() < 0.5 ? 90 : -90);
         }
         newPos = offsetPosition(this.position, distanceM, this.heading);
         break;
 
       case 'random':
-        // Random walk with tendency to cover new ground
-        this.heading += this.rng.uniform(-30, 30);
+        // Random walk - gradual direction changes
+        this.heading += this.rng.uniform(-15, 15) * timeStepHours * 12; // Smoother turns
         newPos = offsetPosition(this.position, distanceM, this.heading);
         break;
 
@@ -271,7 +317,8 @@ class SearcherAgent {
     }
 
     // Water avoidance - searchers don't search in water
-    if (isLikelyWater(newPos, this.homePosition, this.terrainData)) {
+    // Skip for batch runs - just need statistical outcomes
+    if (!this.skipTerrainChecks && isLikelyWater(newPos, this.homePosition, this.terrainData)) {
       // Turn around and try a different direction
       this.heading = (this.heading + 180 + this.rng.uniform(-45, 45)) % 360;
       newPos = offsetPosition(this.position, distanceM, this.heading);
@@ -369,7 +416,8 @@ export class BehavioralSimulationEngine {
 
     // === CRITICAL: Check if starting position is in water ===
     // If the user clicked on water, find nearest land position
-    if (isLikelyWater(this.state.position, this.homePosition, config.terrainData)) {
+    // Skip for batch runs - just need statistical outcomes, not accurate geography
+    if (!config.skipTerrainChecks && isLikelyWater(this.state.position, this.homePosition, config.terrainData)) {
       const escapedPos = this.escapeFromWater(this.state.position);
       if (escapedPos) {
         this.state.position = escapedPos;
@@ -380,8 +428,9 @@ export class BehavioralSimulationEngine {
     // Initialize searchers with terrain data for water avoidance
     const searchDelay = config.searchStartDelay ?? 2;
     const terrainData = config.terrainData;
+    const skipTerrain = config.skipTerrainChecks ?? false;
     for (let i = 0; i < config.numSearchers; i++) {
-      this.searchers.push(new SearcherAgent(i, startPosition, this.rng, searchDelay, terrainData));
+      this.searchers.push(new SearcherAgent(i, startPosition, this.rng, searchDelay, terrainData, skipTerrain));
     }
   }
 
@@ -433,15 +482,17 @@ export class BehavioralSimulationEngine {
     for (let step = 0; step < maxSteps; step++) {
       const simHour = step * timeStepHours;
 
-      // Record path
-      this.path.push({
-        hour: simHour,
-        lat: this.state.position.lat,
-        lng: this.state.position.lng,
-        fear: this.state.fearLevel,
-        hunger: this.state.hungerLevel,
-        state: this.getStateString(),
-      });
+      // Record path (skip for batch mode - not needed for statistical outcomes)
+      if (!this.config.skipTerrainChecks) {
+        this.path.push({
+          hour: simHour,
+          lat: this.state.position.lat,
+          lng: this.state.position.lng,
+          fear: this.state.fearLevel,
+          hunger: this.state.hungerLevel,
+          state: this.getStateString(),
+        });
+      }
 
       // Update physiology
       this.updatePhysiology(timeStepHours);
@@ -665,40 +716,145 @@ export class BehavioralSimulationEngine {
       this.heading = ((this.heading % 360) + 360) % 360;
       let newPos = offsetPosition(this.state.position, distanceM, this.heading);
 
-      // Water/terrain avoidance - if new position is in water, try alternatives
-      if (isLikelyWater(newPos, this.homePosition, this.config.terrainData)) {
-        // Try multiple escape directions
-        const escapeDirections = [
-          this.heading + 180, // Opposite direction
-          this.heading + 90,  // Right
-          this.heading - 90,  // Left
-          this.heading + 135, // Back-right
-          this.heading - 135, // Back-left
-          this.heading + 45,  // Forward-right
-          this.heading - 45,  // Forward-left
-        ];
+      // Skip terrain checks for batch simulations (just need statistical outcomes)
+      if (!this.config.skipTerrainChecks) {
+        // Water/terrain avoidance - if new position is in water, try alternatives
+        if (isLikelyWater(newPos, this.homePosition, this.config.terrainData)) {
+          // Try multiple escape directions
+          const escapeDirections = [
+            this.heading + 180, // Opposite direction
+            this.heading + 90,  // Right
+            this.heading - 90,  // Left
+            this.heading + 135, // Back-right
+            this.heading - 135, // Back-left
+            this.heading + 45,  // Forward-right
+            this.heading - 45,  // Forward-left
+          ];
 
-        let escaped = false;
-        for (const dir of escapeDirections) {
-          const normalizedDir = ((dir % 360) + 360) % 360;
-          const testPos = offsetPosition(this.state.position, distanceM, normalizedDir);
-          if (!isLikelyWater(testPos, this.homePosition, this.config.terrainData)) {
-            this.heading = normalizedDir;
-            newPos = testPos;
-            escaped = true;
-            break;
+          let escaped = false;
+          for (const dir of escapeDirections) {
+            const normalizedDir = ((dir % 360) + 360) % 360;
+            const testPos = offsetPosition(this.state.position, distanceM, normalizedDir);
+            if (!isLikelyWater(testPos, this.homePosition, this.config.terrainData)) {
+              this.heading = normalizedDir;
+              newPos = testPos;
+              escaped = true;
+              break;
+            }
+          }
+
+          // If all directions lead to water, stay put
+          if (!escaped) {
+            return; // Don't move this timestep
           }
         }
+      }
 
-        // If all directions lead to water, stay put
-        if (!escaped) {
-          return; // Don't move this timestep
+      // Road crossing check - pets avoid major roads or face danger when crossing
+      const terrainData = this.config.terrainData;
+      if (!this.config.skipTerrainChecks && terrainData?.roads && terrainData.roads.length > 0) {
+        const roadCrossing = this.checkRoadCrossingLocal(this.state.position, newPos, terrainData.roads);
+
+        if (roadCrossing.crosses) {
+          // Determine if pet will attempt to cross or avoid
+          const attemptCross = this.rng.next() < roadCrossing.crossingDifficulty;
+
+          if (!attemptCross) {
+            // Pet avoids the road - try alternative directions
+            const avoidDirections = [
+              this.heading + 90,  // Right
+              this.heading - 90,  // Left
+              this.heading + 45,  // Forward-right
+              this.heading - 45,  // Forward-left
+              this.heading + 135, // Back-right
+              this.heading - 135, // Back-left
+            ];
+
+            let avoided = false;
+            for (const dir of avoidDirections) {
+              const normalizedDir = ((dir % 360) + 360) % 360;
+              const testPos = offsetPosition(this.state.position, distanceM * 0.5, normalizedDir);
+              const testCrossing = this.checkRoadCrossingLocal(this.state.position, testPos, terrainData.roads);
+
+              if (!testCrossing.crosses && !isLikelyWater(testPos, this.homePosition, this.config.terrainData)) {
+                this.heading = normalizedDir;
+                newPos = testPos;
+                avoided = true;
+                break;
+              }
+            }
+
+            // If can't avoid, stay put this timestep
+            if (!avoided) {
+              return;
+            }
+          } else {
+            // Pet attempts to cross - check for danger
+            const dangerRoll = this.rng.next();
+            if (dangerRoll < roadCrossing.dangerLevel * 0.1) {
+              // Pet was struck by vehicle - deceased
+              this.state.isDeceased = true;
+              return;
+            }
+            // Pet successfully crossed (with luck)
+          }
         }
       }
 
       this.totalDistanceM += distanceM;
       this.state.position = newPos;
     }
+  }
+
+  // Local road crossing check using terrain data
+  private checkRoadCrossingLocal(
+    from: Position,
+    to: Position,
+    roads: RoadSegment[]
+  ): RoadCrossingResult {
+    let worstCrossing: RoadCrossingResult = {
+      crosses: false,
+      crossingDifficulty: 1,
+      dangerLevel: 0,
+    };
+
+    for (const road of roads) {
+      for (let i = 0; i < road.points.length - 1; i++) {
+        if (this.lineSegmentsIntersect(from, to, road.points[i], road.points[i + 1])) {
+          if (road.dangerLevel > worstCrossing.dangerLevel) {
+            worstCrossing = {
+              crosses: true,
+              road,
+              crossingDifficulty: road.crossingDifficulty,
+              dangerLevel: road.dangerLevel,
+            };
+          }
+        }
+      }
+    }
+
+    return worstCrossing;
+  }
+
+  // Check if two line segments intersect
+  private lineSegmentsIntersect(
+    p1: Position, p2: Position,
+    p3: Position, p4: Position
+  ): boolean {
+    const d1 = this.direction(p3, p4, p1);
+    const d2 = this.direction(p3, p4, p2);
+    const d3 = this.direction(p1, p2, p3);
+    const d4 = this.direction(p1, p2, p4);
+
+    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+        ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+      return true;
+    }
+    return false;
+  }
+
+  private direction(pi: Position, pj: Position, pk: Position): number {
+    return (pk.lng - pi.lng) * (pj.lat - pi.lat) - (pj.lng - pi.lng) * (pk.lat - pi.lat);
   }
 
   private checkSelfReturn(distFromHome: number, simHour: number): boolean {
@@ -859,10 +1015,20 @@ export function runBatch(
   const results: SimulationResult[] = [];
   const baseSeed = baseConfig.seed || Math.floor(Math.random() * 1000000);
 
+  // Don't store ANY paths during batch - they're fetched on-demand
+  // This allows running 100+ simulations without memory issues
+
   for (let i = 0; i < numRuns; i++) {
     const config = { ...baseConfig, seed: baseSeed + i };
     const engine = new BehavioralSimulationEngine(profile, startPosition, config);
-    results.push(engine.run());
+    const result = engine.run();
+
+    // Keep only summary data, discard large path arrays immediately
+    results.push({
+      ...result,
+      petPath: [], // Clear to save memory
+      searcherPaths: [], // Clear to save memory
+    });
 
     if (onProgress) {
       onProgress(i + 1);

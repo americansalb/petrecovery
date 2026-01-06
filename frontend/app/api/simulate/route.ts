@@ -4,6 +4,8 @@
  */
 
 import { NextResponse } from 'next/server';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Extend timeout for batch simulations (Vercel Pro: 60s max, Hobby: 10s)
 export const maxDuration = 60;
@@ -14,8 +16,59 @@ import {
   SimulationConfig,
   DOG_TEMPERAMENTS,
   CAT_TEMPERAMENTS,
+  PathPoint,
 } from '@/app/lib/behavioral-simulation';
-import { fetchTerrainData } from '@/app/lib/behavioral-simulation/terrain';
+
+/**
+ * Sample path data to reduce response size
+ * 720 hours with 5-min steps = 8,640 points -> sample to ~360 points (every 30 min)
+ */
+function samplePath(path: PathPoint[], sampleInterval: number = 6): PathPoint[] {
+  if (path.length <= 100) return path; // Don't sample short paths
+  const sampled: PathPoint[] = [];
+  for (let i = 0; i < path.length; i += sampleInterval) {
+    sampled.push(path[i]);
+  }
+  // Always include the last point
+  if (sampled[sampled.length - 1] !== path[path.length - 1]) {
+    sampled.push(path[path.length - 1]);
+  }
+  return sampled;
+}
+import { fetchTerrainData, TerrainData } from '@/app/lib/behavioral-simulation/terrain';
+import { findNearestCachedCity, getCityCacheKey, CityInfo } from '@/app/lib/terrain/cityTerrainCache';
+import { loadNaturalEarthData } from '@/app/lib/terrain/naturalEarthWater';
+
+// In-memory cache for loaded terrain files (persists across requests)
+const terrainFileCache = new Map<string, TerrainData>();
+
+/**
+ * Load cached terrain data from static JSON file
+ */
+async function loadCachedTerrainFile(city: CityInfo): Promise<TerrainData | null> {
+  const cacheKey = getCityCacheKey(city);
+
+  // Check in-memory cache first
+  if (terrainFileCache.has(cacheKey)) {
+    return terrainFileCache.get(cacheKey)!;
+  }
+
+  try {
+    // Try to load from public/data/terrain directory
+    const filePath = path.join(process.cwd(), 'public', 'data', 'terrain', `${cacheKey}.json`);
+    const fileContent = fs.readFileSync(filePath, 'utf-8');
+    const data = JSON.parse(fileContent) as TerrainData;
+
+    // Store in memory cache
+    terrainFileCache.set(cacheKey, data);
+    console.log(`Loaded cached terrain for ${city.name}: ${data.waterAreas?.length || 0} water areas, ${data.roads?.length || 0} roads`);
+
+    return data;
+  } catch {
+    // File doesn't exist or can't be read
+    return null;
+  }
+}
 
 interface SimulateRequest {
   species: 'dog' | 'cat';
@@ -61,83 +114,167 @@ export async function POST(request: Request) {
     };
 
     // Build config - default 30 days (720 hours)
+    // Batch: 1min steps, no terrain/path recording (just statistics)
+    // Single: 5min steps, full terrain checks (detailed animation)
+    const isBatch = (body.batchSize || 1) > 1;
+
     const config: SimulationConfig = {
       seed: body.seed || Math.floor(Math.random() * 1000000),
       maxHours: body.maxHours || 720,
-      timeStepMinutes: 5,
+      timeStepMinutes: isBatch ? 1 : 5,
       startHour: 10,
       searchRadiusM: 2000,
       numSearchers: body.numSearchers || 3,
       searchStartDelay: body.searchStartDelay || 2,
       useTraps: false,
       useScentArticles: false,
+      skipTerrainChecks: isBatch, // Skip water/road checks for fast batch runs
     };
 
     const startPosition = { lat: body.latitude, lng: body.longitude };
 
-    // Fetch terrain data from OSM for water detection (5km radius around home)
-    let terrainData: SimulationConfig['terrainData'];
-    try {
-      const osmTerrain = await fetchTerrainData(startPosition, 5000);
-      if (osmTerrain.waterAreas.length > 0) {
-        terrainData = {
-          waterPolygons: osmTerrain.waterAreas.map(w => ({
-            points: w.points,
-            bbox: w.bbox,
-          })),
-          isCoastal: osmTerrain.isCoastal,
-        };
-        console.log(`Loaded ${terrainData.waterPolygons.length} water areas for simulation`);
-      }
-    } catch (err) {
-      console.warn('Could not fetch terrain data:', err);
+    // Skip terrain fetching entirely for batch - just need statistical outcomes
+    // Terrain is only needed for single sims where we animate the actual path
+    if (isBatch) {
+      console.log('🎲 Batch mode: skipping terrain fetch for speed');
     }
 
-    // Add terrain data to config
-    config.terrainData = terrainData;
+    // Only fetch terrain for single simulations (needed for animation)
+    // Batch simulations skip terrain for speed - they just need statistical outcomes
+    let terrainData: SimulationConfig['terrainData'];
+    let terrainSource: string = 'none';
+    let cachedCity: CityInfo | null = null;
 
-    // Limit batch size to prevent timeout (max 60 seconds on Vercel Pro)
-    // Each simulation takes ~50-100ms, so cap at 500 for safety
-    const safeBatchSize = Math.min(body.batchSize || 1, 500);
+    if (!isBatch) {
+      // Load Natural Earth water data for global ocean/lake detection (cached after first load)
+      await loadNaturalEarthData();
+
+      // Fetch terrain data with priority: cached file > OSM API > heuristics fallback
+      // 1. Check for pre-cached terrain file (instant, 20km radius)
+      cachedCity = findNearestCachedCity(body.latitude, body.longitude);
+      if (cachedCity) {
+        const cachedTerrain = await loadCachedTerrainFile(cachedCity);
+        if (cachedTerrain) {
+          terrainData = {
+            waterPolygons: cachedTerrain.waterAreas?.map(w => ({
+              points: w.points,
+              bbox: w.bbox,
+            })) || [],
+            isCoastal: cachedTerrain.isCoastal || false,
+            roads: cachedTerrain.roads || [],
+            hasHighways: cachedTerrain.hasHighways || false,
+            hasRailways: cachedTerrain.hasRailways || false,
+          };
+          terrainSource = 'cached';
+          console.log(`Using CACHED terrain for ${cachedCity.name}: ${terrainData.waterPolygons.length} water areas`);
+        }
+      }
+
+      // 2. If no cache, try OSM API (slower, 20km radius)
+      if (!terrainData) {
+        try {
+          const osmTerrain = await fetchTerrainData(startPosition, 20000);
+          terrainData = {
+            waterPolygons: osmTerrain.waterAreas.map(w => ({
+              points: w.points,
+              bbox: w.bbox,
+            })),
+            isCoastal: osmTerrain.isCoastal,
+            roads: osmTerrain.roads,
+            hasHighways: osmTerrain.hasHighways,
+            hasRailways: osmTerrain.hasRailways,
+          };
+          terrainSource = 'osm';
+          console.log(`Loaded terrain from API: ${terrainData.waterPolygons.length} water areas`);
+        } catch (err) {
+          console.warn('Could not fetch terrain data from API:', err);
+          terrainSource = 'fallback';
+        }
+      }
+
+      // Add terrain data to config for single sim
+      config.terrainData = terrainData;
+    }
+    // Batch mode: config.terrainData stays undefined = no terrain checks = fast
+
+    // Limit batch size based on simulation duration to prevent timeout
+    // 720 hours (30 days) simulation takes ~400ms each, 60s timeout, terrain takes ~10s
+    // Allow up to 100 simulations - response is tiny without path data
+    const MAX_BATCH_SIZE = 100;
+    const safeBatchSize = Math.min(body.batchSize || 1, MAX_BATCH_SIZE);
+
+    const stepsPerSim = Math.ceil(config.maxHours * 60 / config.timeStepMinutes);
+    console.log(`🎲 Simulation: batch=${safeBatchSize}, hours=${config.maxHours}, step=${config.timeStepMinutes}min, steps/sim=${stepsPerSim}`);
 
     // Run single or batch
     if (safeBatchSize > 1) {
-      const batchResult = runBatch(profile, startPosition, config, safeBatchSize);
+      try {
+        const startTime = Date.now();
+        console.log(`🎲 Starting batch of ${safeBatchSize} simulations...`);
 
-      return NextResponse.json({
-        success: true,
-        type: 'batch',
-        profile: {
-          species,
-          temperament: profile.temperament,
-          temperamentName: species === 'dog'
-            ? DOG_TEMPERAMENTS[profile.temperament as keyof typeof DOG_TEMPERAMENTS]?.name
-            : CAT_TEMPERAMENTS[profile.temperament as keyof typeof CAT_TEMPERAMENTS]?.name,
-        },
-        result: {
-          totalRuns: batchResult.totalRuns,
-          successRate: batchResult.successRate.toFixed(1),
-          avgTimeToFindHours: batchResult.avgTimeToFindHours?.toFixed(1),
-          medianTimeToFindHours: batchResult.medianTimeToFindHours?.toFixed(1),
-          avgDistanceM: Math.round(batchResult.avgDistanceM),
-          outcomes: batchResult.outcomes,
-        },
-        // Include first 10 detailed simulations with paths for viewing
-        sampleSimulations: batchResult.simulations.slice(0, 10).map(sim => ({
-          id: sim.id,
-          outcome: sim.outcome,
-          outcomeDescription: sim.outcomeDescription,
-          timeToOutcomeHours: sim.timeToOutcomeHours,
-          maxDistanceM: Math.round(sim.maxDistanceFromHomeM),
-          pathLength: sim.petPath.length,
-          petPath: sim.petPath,
-          searcherPaths: sim.searcherPaths,
-        })),
-      });
+        const batchResult = runBatch(profile, startPosition, config, safeBatchSize, (completed) => {
+          if (completed % 10 === 0 || completed === safeBatchSize) {
+            console.log(`🎲 Batch progress: ${completed}/${safeBatchSize}`);
+          }
+        });
+
+        console.log(`🎲 Batch complete in ${Date.now() - startTime}ms. Success rate: ${batchResult.successRate.toFixed(1)}%`);
+
+        // Build response - NO path data, just outcomes for map visualization
+        // Paths are fetched separately when user clicks to animate
+        const responseData = {
+          success: true,
+          type: 'batch',
+          profile: {
+            species,
+            temperament: profile.temperament,
+            temperamentName: species === 'dog'
+              ? DOG_TEMPERAMENTS[profile.temperament as keyof typeof DOG_TEMPERAMENTS]?.name
+              : CAT_TEMPERAMENTS[profile.temperament as keyof typeof CAT_TEMPERAMENTS]?.name,
+          },
+          result: {
+            totalRuns: batchResult.totalRuns,
+            successRate: batchResult.successRate.toFixed(1),
+            avgTimeToFindHours: batchResult.avgTimeToFindHours?.toFixed(1),
+            medianTimeToFindHours: batchResult.medianTimeToFindHours?.toFixed(1),
+            avgDistanceM: Math.round(batchResult.avgDistanceM),
+            outcomes: batchResult.outcomes,
+          },
+          // All simulation outcomes for map visualization (no paths!)
+          // ~100 bytes per sim = 10KB for 100 sims
+          simulations: batchResult.simulations.map((sim, index) => ({
+            id: sim.id,
+            index, // For re-running with same seed
+            seed: sim.seed,
+            outcome: sim.outcome,
+            outcomeDescription: sim.outcomeDescription,
+            timeToOutcomeHours: sim.timeToOutcomeHours,
+            finalPosition: sim.finalPosition,
+            maxDistanceM: Math.round(sim.maxDistanceFromHomeM),
+          })),
+        };
+
+        // Log response size for debugging
+        const jsonStr = JSON.stringify(responseData);
+        console.log(`🎲 Response size: ${(jsonStr.length / 1024).toFixed(1)}KB, simulations: ${responseData.simulations.length}`);
+
+        return NextResponse.json(responseData);
+      } catch (error) {
+        console.error('🎲 Batch simulation failed:', error);
+        return NextResponse.json(
+          { error: 'Batch simulation failed', details: String(error) },
+          { status: 500 }
+        );
+      }
     } else {
       // Single simulation
+      const startTime = Date.now();
+      console.log(`🎲 Running single simulation...`);
+
       const engine = new BehavioralSimulationEngine(profile, startPosition, config);
       const result = engine.run();
+
+      console.log(`🎲 Single sim complete in ${Date.now() - startTime}ms. Outcome: ${result.outcome}`);
 
       // Check if position was adjusted due to water
       const positionAdjusted =
@@ -169,6 +306,15 @@ export async function POST(request: Request) {
         },
         path: result.petPath,
         searcherPaths: result.searcherPaths,
+        // Include terrain data for visualization
+        terrain: terrainData ? {
+          waterPolygons: terrainData.waterPolygons,
+          roads: terrainData.roads,
+          hasHighways: terrainData.hasHighways,
+          hasRailways: terrainData.hasRailways,
+          source: terrainSource,
+          cachedCity: cachedCity ? `${cachedCity.name}, ${cachedCity.state}` : undefined,
+        } : { source: terrainSource },
       });
     }
   } catch (error) {
