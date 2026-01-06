@@ -6,12 +6,14 @@
  * Based on BEHAVIORAL_PROFILES.md research
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { DOG_TEMPERAMENTS, CAT_TEMPERAMENTS } from '@/app/lib/behavioral-simulation';
 import {
   Map, Play, Pause, RotateCcw, BarChart3, Loader2,
-  Settings, ChevronLeft, ChevronRight, X
+  Settings, ChevronLeft, ChevronRight, X,
+  SkipBack, SkipForward, ChevronsLeft, ChevronsRight,
+  Minus, Plus
 } from 'lucide-react';
 
 // Dynamically import map to avoid SSR issues with Leaflet
@@ -90,6 +92,9 @@ const AGE_OPTIONS = [
   { value: 'SEN', label: 'Senior' },
 ];
 
+// Speed presets for quick selection (outside component to avoid recreation)
+const SPEED_PRESETS = [0.25, 0.5, 1, 2, 4, 8, 12, 24, 48, 96];
+
 export default function SimulatePage() {
   // Pet profile
   const [species, setSpecies] = useState<'dog' | 'cat'>('dog');
@@ -120,6 +125,9 @@ export default function SimulatePage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackMinute, setPlaybackMinute] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(4); // 4 hours per second default
+  const [isDragging, setIsDragging] = useState(false);
+  const sliderRef = useRef<HTMLInputElement>(null);
+  const wasPlayingRef = useRef(false);
 
   const temperaments = species === 'dog' ? DOG_TEMPERAMENTS : CAT_TEMPERAMENTS;
 
@@ -287,6 +295,127 @@ export default function SimulatePage() {
   };
 
   const currentPos = getCurrentPosition();
+
+  // Skip functions for playback navigation
+  const skipTime = useCallback((minutes: number) => {
+    const maxMinute = maxHours * 60;
+    setPlaybackMinute((prev) => Math.max(0, Math.min(maxMinute, prev + minutes)));
+  }, [maxHours]);
+
+  const skipHour = (direction: 1 | -1) => skipTime(direction * 60);
+  const skipDay = (direction: 1 | -1) => skipTime(direction * 1440);
+  const stepFrame = (direction: 1 | -1) => skipTime(direction * 5); // 5 minutes per frame
+
+  // Adjust speed up/down
+  const adjustSpeed = useCallback((increase: boolean) => {
+    const currentIdx = SPEED_PRESETS.findIndex(s => s >= playbackSpeed);
+    const idx = currentIdx === -1 ? SPEED_PRESETS.length - 1 : currentIdx;
+    const newIdx = increase
+      ? Math.min(SPEED_PRESETS.length - 1, idx + 1)
+      : Math.max(0, idx - 1);
+    setPlaybackSpeed(SPEED_PRESETS[newIdx]);
+  }, [playbackSpeed]);
+
+  // Keyboard shortcuts for playback control
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle if we have a simulation result and not typing in an input
+      if (!result?.path || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      switch (e.key) {
+        case ' ': // Space - toggle play/pause
+          e.preventDefault();
+          setIsPlaying(prev => !prev);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          if (e.shiftKey) {
+            skipDay(-1); // Shift+Left = skip back 1 day
+          } else if (e.ctrlKey || e.metaKey) {
+            stepFrame(-1); // Ctrl+Left = step back 1 frame
+          } else {
+            skipHour(-1); // Left = skip back 1 hour
+          }
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          if (e.shiftKey) {
+            skipDay(1); // Shift+Right = skip forward 1 day
+          } else if (e.ctrlKey || e.metaKey) {
+            stepFrame(1); // Ctrl+Right = step forward 1 frame
+          } else {
+            skipHour(1); // Right = skip forward 1 hour
+          }
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          adjustSpeed(true); // Increase speed
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          adjustSpeed(false); // Decrease speed
+          break;
+        case 'Home':
+          e.preventDefault();
+          setPlaybackMinute(0);
+          break;
+        case 'End':
+          e.preventDefault();
+          setPlaybackMinute(maxHours * 60);
+          break;
+        case 'r':
+        case 'R':
+          if (!e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            setPlaybackMinute(0);
+            setIsPlaying(false);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [result?.path, maxHours, skipTime, adjustSpeed]);
+
+  // Smooth slider handling - pause during drag, resume after
+  const handleSliderMouseDown = () => {
+    wasPlayingRef.current = isPlaying;
+    setIsDragging(true);
+    setIsPlaying(false);
+  };
+
+  const handleSliderMouseUp = () => {
+    setIsDragging(false);
+    if (wasPlayingRef.current) {
+      setIsPlaying(true);
+    }
+  };
+
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPlaybackMinute(parseInt(e.target.value));
+  };
+
+  // Format time display
+  const formatTime = (minutes: number) => {
+    const days = Math.floor(minutes / 1440);
+    const hours = Math.floor((minutes % 1440) / 60);
+    const mins = Math.floor(minutes % 60);
+    if (days > 0) {
+      return `${days}d ${hours}h ${mins}m`;
+    }
+    return `${hours}h ${mins}m`;
+  };
+
+  // Format speed display
+  const formatSpeed = (speed: number) => {
+    if (speed >= 24) {
+      return `${(speed / 24).toFixed(speed % 24 === 0 ? 0 : 1)} day/s`;
+    }
+    return `${speed} hr/s`;
+  };
 
   return (
     <div className="h-screen w-screen overflow-hidden relative bg-gray-900">
@@ -755,79 +884,194 @@ export default function SimulatePage() {
 
       {/* Bottom Playback Controls */}
       {result?.path && result.path.length > 0 && (
-        <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur rounded-xl shadow-xl z-[1000] p-4">
-          <div className="flex items-center gap-4">
-            {/* Play/Pause/Reset */}
-            <div className="flex items-center gap-2">
+        <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur rounded-xl shadow-xl z-[1000] p-3">
+          {/* Main controls row */}
+          <div className="flex items-center gap-3">
+            {/* Transport controls */}
+            <div className="flex items-center gap-1">
+              {/* Skip to start */}
+              <button
+                onClick={() => setPlaybackMinute(0)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Go to start (Home)"
+              >
+                <SkipBack className="w-4 h-4" />
+              </button>
+
+              {/* Skip back 1 day */}
+              <button
+                onClick={() => skipDay(-1)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Back 1 day (Shift+Left)"
+              >
+                <ChevronsLeft className="w-4 h-4" />
+              </button>
+
+              {/* Skip back 1 hour */}
+              <button
+                onClick={() => skipHour(-1)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Back 1 hour (Left)"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {/* Play/Pause - larger and prominent */}
               <button
                 onClick={togglePlayback}
-                className={`p-3 rounded-full transition-colors ${
-                  isPlaying ? 'bg-red-100 hover:bg-red-200' : 'bg-green-100 hover:bg-green-200'
+                className={`p-3 rounded-full transition-all transform hover:scale-105 ${
+                  isPlaying
+                    ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg'
+                    : 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg'
                 }`}
+                title="Play/Pause (Space)"
               >
-                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
               </button>
+
+              {/* Skip forward 1 hour */}
               <button
-                onClick={resetPlayback}
-                className="p-3 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                onClick={() => skipHour(1)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Forward 1 hour (Right)"
               >
-                <RotateCcw className="w-5 h-5" />
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              {/* Skip forward 1 day */}
+              <button
+                onClick={() => skipDay(1)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Forward 1 day (Shift+Right)"
+              >
+                <ChevronsRight className="w-4 h-4" />
+              </button>
+
+              {/* Skip to end */}
+              <button
+                onClick={() => setPlaybackMinute(maxHours * 60)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Go to end (End)"
+              >
+                <SkipForward className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Speed control - hours of simulation per real second */}
-            <select
-              value={playbackSpeed}
-              onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
-              className="border rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="0.5">0.5 hr/s (slow)</option>
-              <option value="1">1 hr/s</option>
-              <option value="2">2 hr/s</option>
-              <option value="4">4 hr/s</option>
-              <option value="8">8 hr/s</option>
-              <option value="12">12 hr/s</option>
-              <option value="24">1 day/s</option>
-              <option value="48">2 days/s (fast)</option>
-            </select>
+            {/* Divider */}
+            <div className="w-px h-8 bg-gray-200" />
+
+            {/* Speed control with +/- buttons */}
+            <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1">
+              <button
+                onClick={() => adjustSpeed(false)}
+                className="p-1 rounded hover:bg-gray-200 transition-colors"
+                title="Slower (Down arrow)"
+                disabled={playbackSpeed <= SPEED_PRESETS[0]}
+              >
+                <Minus className="w-3 h-3" />
+              </button>
+              <span className="text-sm font-medium w-16 text-center tabular-nums">
+                {formatSpeed(playbackSpeed)}
+              </span>
+              <button
+                onClick={() => adjustSpeed(true)}
+                className="p-1 rounded hover:bg-gray-200 transition-colors"
+                title="Faster (Up arrow)"
+                disabled={playbackSpeed >= SPEED_PRESETS[SPEED_PRESETS.length - 1]}
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className="w-px h-8 bg-gray-200" />
 
             {/* Timeline slider */}
             <div className="flex-1 flex items-center gap-3">
-              <input
-                type="range"
-                min={0}
-                max={maxHours * 60}
-                value={playbackMinute}
-                onChange={(e) => {
-                  setPlaybackMinute(parseInt(e.target.value));
-                  setIsPlaying(false);
-                }}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-              />
-              <span className="text-sm font-mono w-32 text-right bg-gray-100 px-3 py-1 rounded-lg">
-                {Math.floor(playbackMinute / 1440)}d {Math.floor((playbackMinute % 1440) / 60)}h
+              <span className="text-xs text-gray-500 w-16 text-right tabular-nums">
+                {formatTime(playbackMinute)}
+              </span>
+              <div className="flex-1 relative group">
+                <input
+                  ref={sliderRef}
+                  type="range"
+                  min={0}
+                  max={maxHours * 60}
+                  value={playbackMinute}
+                  onChange={handleSliderChange}
+                  onMouseDown={handleSliderMouseDown}
+                  onMouseUp={handleSliderMouseUp}
+                  onTouchStart={handleSliderMouseDown}
+                  onTouchEnd={handleSliderMouseUp}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer
+                             [&::-webkit-slider-thumb]:appearance-none
+                             [&::-webkit-slider-thumb]:w-4
+                             [&::-webkit-slider-thumb]:h-4
+                             [&::-webkit-slider-thumb]:bg-blue-500
+                             [&::-webkit-slider-thumb]:rounded-full
+                             [&::-webkit-slider-thumb]:cursor-grab
+                             [&::-webkit-slider-thumb]:active:cursor-grabbing
+                             [&::-webkit-slider-thumb]:shadow-md
+                             [&::-webkit-slider-thumb]:hover:bg-blue-600
+                             [&::-webkit-slider-thumb]:hover:scale-110
+                             [&::-webkit-slider-thumb]:transition-all
+                             [&::-moz-range-thumb]:w-4
+                             [&::-moz-range-thumb]:h-4
+                             [&::-moz-range-thumb]:bg-blue-500
+                             [&::-moz-range-thumb]:rounded-full
+                             [&::-moz-range-thumb]:cursor-grab
+                             [&::-moz-range-thumb]:border-none
+                             [&::-moz-range-thumb]:shadow-md"
+                  style={{
+                    background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(playbackMinute / (maxHours * 60)) * 100}%, #e5e7eb ${(playbackMinute / (maxHours * 60)) * 100}%, #e5e7eb 100%)`
+                  }}
+                />
+                {/* Hover preview - shows time at hover position */}
+                <div className="absolute -top-8 left-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div
+                    className="absolute bg-gray-800 text-white text-xs px-2 py-1 rounded transform -translate-x-1/2"
+                    style={{ left: `${(playbackMinute / (maxHours * 60)) * 100}%` }}
+                  >
+                    {formatTime(playbackMinute)}
+                  </div>
+                </div>
+              </div>
+              <span className="text-xs text-gray-500 w-16 tabular-nums">
+                {formatTime(maxHours * 60)}
               </span>
             </div>
 
+            {/* Divider */}
+            <div className="w-px h-8 bg-gray-200" />
+
             {/* Current state display */}
             {currentPos && (
-              <div className="flex items-center gap-4 text-sm border-l pl-4 ml-2">
-                <div className={`px-3 py-1 rounded-full font-medium ${
+              <div className="flex items-center gap-3 text-sm">
+                <div className={`px-3 py-1 rounded-full text-xs font-medium ${
                   currentPos.state === 'fleeing' ? 'bg-red-100 text-red-700' :
-                  currentPos.state === 'hiding' ? 'bg-gray-100 text-gray-700' :
-                  currentPos.state === 'traveling' ? 'bg-yellow-100 text-yellow-700' :
+                  currentPos.state === 'hiding' ? 'bg-gray-200 text-gray-700' :
+                  currentPos.state === 'traveling' ? 'bg-amber-100 text-amber-700' :
                   'bg-green-100 text-green-700'
                 }`}>
                   {currentPos.state.charAt(0).toUpperCase() + currentPos.state.slice(1)}
                 </div>
-                <div className="text-gray-600">
-                  Fear: <span className="font-medium">{(currentPos.fear * 100).toFixed(0)}%</span>
+                <div className="text-xs text-gray-500">
+                  <span className="text-red-500 font-medium">{(currentPos.fear * 100).toFixed(0)}%</span> fear
                 </div>
-                <div className="text-gray-600">
-                  Hunger: <span className="font-medium">{(currentPos.hunger * 100).toFixed(0)}%</span>
+                <div className="text-xs text-gray-500">
+                  <span className="text-orange-500 font-medium">{(currentPos.hunger * 100).toFixed(0)}%</span> hunger
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Keyboard shortcuts hint - collapsible */}
+          <div className="mt-2 pt-2 border-t border-gray-100 text-[10px] text-gray-400 flex items-center justify-center gap-4">
+            <span><kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-500">Space</kbd> Play/Pause</span>
+            <span><kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-500">←/→</kbd> ±1 hour</span>
+            <span><kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-500">Shift+←/→</kbd> ±1 day</span>
+            <span><kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-500">↑/↓</kbd> Speed</span>
+            <span><kbd className="px-1 py-0.5 bg-gray-100 rounded text-gray-500">R</kbd> Reset</span>
           </div>
         </div>
       )}
