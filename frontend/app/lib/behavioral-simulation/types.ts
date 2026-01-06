@@ -81,6 +81,21 @@ export interface TerrainData {
   hasRailways?: boolean;
 }
 
+// Pre-computed water grid for fast lookups
+export interface WaterGrid {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+  cellSizeLat: number;
+  cellSizeLng: number;
+  numRows: number;
+  numCols: number;
+  cells: Uint8Array;
+  source: string;
+  timestamp: number;
+}
+
 export interface SimulationConfig {
   seed?: number;
   maxHours: number;
@@ -92,6 +107,7 @@ export interface SimulationConfig {
   useTraps: boolean;
   useScentArticles: boolean;
   terrainData?: TerrainData; // OSM-based water detection
+  waterGrid?: WaterGrid; // Pre-computed water grid for accurate detection
   skipTerrainChecks?: boolean; // Skip water/road checks for fast batch runs
 }
 

@@ -6,7 +6,7 @@
 import {
   Species, Temperament, AnimalProfile, AnimalState, Position,
   SimulationConfig, SimulationResult, PathPoint, BatchResult,
-  CatHidingPhase, RoadSegment,
+  CatHidingPhase, RoadSegment, WaterGrid,
 } from './types';
 import {
   DOG_TEMPERAMENTS, CAT_TEMPERAMENTS, DISPLACEMENT,
@@ -93,9 +93,35 @@ function pointInPolygon(point: Position, polygon: Position[]): boolean {
 }
 
 /**
+ * Check if a position is in water using the pre-computed grid
+ * Fast O(1) lookup
+ */
+function isInWaterGrid(pos: Position, grid: WaterGrid): boolean {
+  // Check bounds
+  if (pos.lat < grid.minLat || pos.lat > grid.maxLat ||
+      pos.lng < grid.minLng || pos.lng > grid.maxLng) {
+    // Outside grid - fall back to Natural Earth
+    return isInNaturalEarthWater(pos);
+  }
+
+  // Calculate cell index
+  const row = Math.floor((pos.lat - grid.minLat) / grid.cellSizeLat);
+  const col = Math.floor((pos.lng - grid.minLng) / grid.cellSizeLng);
+
+  // Bounds check
+  if (row < 0 || row >= grid.numRows || col < 0 || col >= grid.numCols) {
+    return isInNaturalEarthWater(pos);
+  }
+
+  const index = row * grid.numCols + col;
+  return grid.cells[index] === 1;
+}
+
+/**
  * Multi-layer water detection system that works GLOBALLY
  *
- * Layer 1: OSM Overpass API data (most accurate for local water bodies)
+ * Layer 0: Pre-computed water grid (most accurate, includes bays/rivers from APIs)
+ * Layer 1: OSM Overpass API data (good for local water bodies)
  * Layer 2: Natural Earth data (authoritative global ocean & major lake polygons)
  *
  * Natural Earth data source: https://www.naturalearthdata.com/ (public domain)
@@ -103,10 +129,20 @@ function pointInPolygon(point: Position, polygon: Position[]): boolean {
 function isLikelyWater(
   pos: Position,
   homePos: Position,
-  terrainData?: { waterPolygons: Array<{ points: Position[]; bbox: { south: number; west: number; north: number; east: number } }>; isCoastal: boolean }
+  terrainData?: { waterPolygons: Array<{ points: Position[]; bbox: { south: number; west: number; north: number; east: number } }>; isCoastal: boolean },
+  waterGrid?: WaterGrid
 ): boolean {
-  // === LAYER 1: OSM Terrain Data (most accurate for local water) ===
-  // If we have OSM terrain data from the Overpass API, use it first
+  // === LAYER 0: Pre-computed Water Grid (most accurate) ===
+  // Uses API-verified water detection for the simulation area
+  // This catches bays, rivers, and all water bodies that polygon data misses
+  if (waterGrid) {
+    if (isInWaterGrid(pos, waterGrid)) {
+      return true;
+    }
+  }
+
+  // === LAYER 1: OSM Terrain Data (accurate for local water) ===
+  // If we have OSM terrain data from the Overpass API, use it
   // This catches ponds, small lakes, local water bodies
   if (terrainData && terrainData.waterPolygons.length > 0) {
     for (const water of terrainData.waterPolygons) {
@@ -189,12 +225,13 @@ class SearcherAgent {
   private spiralRadius: number = 50;
   private searchStartDelay: number;
   private terrainData: TerrainDataType;
+  private waterGrid?: WaterGrid;
   private skipTerrainChecks: boolean;
   private activeSearchHours: number = 0; // Track actual hours spent searching
   private isTransitioning: boolean = false; // Going home or returning to search area
   private lastSearchPosition: Position | null = null; // Last position before going home
 
-  constructor(id: number, home: Position, rng: SeededRandom, searchStartDelay: number = 2, terrainData?: TerrainDataType, skipTerrainChecks: boolean = false) {
+  constructor(id: number, home: Position, rng: SeededRandom, searchStartDelay: number = 2, terrainData?: TerrainDataType, waterGrid?: WaterGrid, skipTerrainChecks: boolean = false) {
     this.id = id;
     this.homePosition = { ...home };
     this.position = { ...home };
@@ -204,6 +241,7 @@ class SearcherAgent {
     this.rng = rng;
     this.searchStartDelay = searchStartDelay;
     this.terrainData = terrainData;
+    this.waterGrid = waterGrid;
     this.skipTerrainChecks = skipTerrainChecks;
     // Randomize search pattern
     const patterns: Array<'spiral' | 'grid' | 'random'> = ['spiral', 'grid', 'random'];
@@ -318,12 +356,12 @@ class SearcherAgent {
 
     // Water avoidance - searchers don't search in water
     // Skip for batch runs - just need statistical outcomes
-    if (!this.skipTerrainChecks && isLikelyWater(newPos, this.homePosition, this.terrainData)) {
+    if (!this.skipTerrainChecks && isLikelyWater(newPos, this.homePosition, this.terrainData, this.waterGrid)) {
       // Turn around and try a different direction
       this.heading = (this.heading + 180 + this.rng.uniform(-45, 45)) % 360;
       newPos = offsetPosition(this.position, distanceM, this.heading);
       // If still in water, stay put
-      if (isLikelyWater(newPos, this.homePosition, this.terrainData)) {
+      if (isLikelyWater(newPos, this.homePosition, this.terrainData, this.waterGrid)) {
         this.recordPath(hour);
         return;
       }
@@ -417,7 +455,7 @@ export class BehavioralSimulationEngine {
     // === CRITICAL: Check if starting position is in water ===
     // If the user clicked on water, find nearest land position
     // Skip for batch runs - just need statistical outcomes, not accurate geography
-    if (!config.skipTerrainChecks && isLikelyWater(this.state.position, this.homePosition, config.terrainData)) {
+    if (!config.skipTerrainChecks && isLikelyWater(this.state.position, this.homePosition, config.terrainData, config.waterGrid)) {
       const escapedPos = this.escapeFromWater(this.state.position);
       if (escapedPos) {
         this.state.position = escapedPos;
@@ -428,9 +466,10 @@ export class BehavioralSimulationEngine {
     // Initialize searchers with terrain data for water avoidance
     const searchDelay = config.searchStartDelay ?? 2;
     const terrainData = config.terrainData;
+    const waterGrid = config.waterGrid;
     const skipTerrain = config.skipTerrainChecks ?? false;
     for (let i = 0; i < config.numSearchers; i++) {
-      this.searchers.push(new SearcherAgent(i, startPosition, this.rng, searchDelay, terrainData, skipTerrain));
+      this.searchers.push(new SearcherAgent(i, startPosition, this.rng, searchDelay, terrainData, waterGrid, skipTerrain));
     }
   }
 
@@ -719,7 +758,7 @@ export class BehavioralSimulationEngine {
       // Skip terrain checks for batch simulations (just need statistical outcomes)
       if (!this.config.skipTerrainChecks) {
         // Water/terrain avoidance - if new position is in water, try alternatives
-        if (isLikelyWater(newPos, this.homePosition, this.config.terrainData)) {
+        if (isLikelyWater(newPos, this.homePosition, this.config.terrainData, this.config.waterGrid)) {
           // Try multiple escape directions
           const escapeDirections = [
             this.heading + 180, // Opposite direction
@@ -735,7 +774,7 @@ export class BehavioralSimulationEngine {
           for (const dir of escapeDirections) {
             const normalizedDir = ((dir % 360) + 360) % 360;
             const testPos = offsetPosition(this.state.position, distanceM, normalizedDir);
-            if (!isLikelyWater(testPos, this.homePosition, this.config.terrainData)) {
+            if (!isLikelyWater(testPos, this.homePosition, this.config.terrainData, this.config.waterGrid)) {
               this.heading = normalizedDir;
               newPos = testPos;
               escaped = true;
@@ -776,7 +815,7 @@ export class BehavioralSimulationEngine {
               const testPos = offsetPosition(this.state.position, distanceM * 0.5, normalizedDir);
               const testCrossing = this.checkRoadCrossingLocal(this.state.position, testPos, terrainData.roads);
 
-              if (!testCrossing.crosses && !isLikelyWater(testPos, this.homePosition, this.config.terrainData)) {
+              if (!testCrossing.crosses && !isLikelyWater(testPos, this.homePosition, this.config.terrainData, this.config.waterGrid)) {
                 this.heading = normalizedDir;
                 newPos = testPos;
                 avoided = true;
@@ -982,7 +1021,7 @@ export class BehavioralSimulationEngine {
     for (const dist of distances) {
       for (const dir of directions) {
         const testPos = offsetPosition(pos, dist, dir);
-        if (!isLikelyWater(testPos, this.homePosition, this.config.terrainData)) {
+        if (!isLikelyWater(testPos, this.homePosition, this.config.terrainData, this.config.waterGrid)) {
           console.log(`Escaped from water: moved ${dist}m in direction ${dir}° from (${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}) to (${testPos.lat.toFixed(4)}, ${testPos.lng.toFixed(4)})`);
           return testPos;
         }

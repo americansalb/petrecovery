@@ -38,6 +38,7 @@ function samplePath(path: PathPoint[], sampleInterval: number = 6): PathPoint[] 
 import { fetchTerrainData, TerrainData } from '@/app/lib/behavioral-simulation/terrain';
 import { findNearestCachedCity, getCityCacheKey, CityInfo } from '@/app/lib/terrain/cityTerrainCache';
 import { loadNaturalEarthData } from '@/app/lib/terrain/naturalEarthWater';
+import { buildWaterGrid, WaterGrid } from '@/app/lib/terrain/waterGrid';
 
 // In-memory cache for loaded terrain files (persists across requests)
 const terrainFileCache = new Map<string, TerrainData>();
@@ -194,6 +195,20 @@ export async function POST(request: Request) {
 
       // Add terrain data to config for single sim
       config.terrainData = terrainData;
+
+      // Build water grid for accurate water detection (uses APIs for bays/rivers)
+      // This is critical for detecting SF Bay and similar water bodies
+      // that polygon-based detection misses
+      try {
+        console.log('🌊 Building water grid for accurate detection...');
+        const waterGrid = await buildWaterGrid(startPosition, 10000, 200); // 10km radius, 200m cells
+        config.waterGrid = waterGrid;
+        const waterCells = waterGrid.cells.reduce((sum, cell) => sum + cell, 0);
+        console.log(`🌊 Water grid built: ${waterGrid.numRows}x${waterGrid.numCols} = ${waterGrid.numRows * waterGrid.numCols} cells, ${waterCells} water cells`);
+      } catch (err) {
+        console.warn('🌊 Could not build water grid:', err);
+        // Proceed without water grid - will fall back to OSM + Natural Earth
+      }
     }
     // Batch mode: config.terrainData stays undefined = no terrain checks = fast
 
