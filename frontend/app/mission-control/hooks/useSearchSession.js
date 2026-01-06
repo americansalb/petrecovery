@@ -1,32 +1,27 @@
 'use client';
 
 /**
- * useSearchSession - Simplified GPS Search Hook
+ * useSearchSession - Mark Location as Searched
  *
- * Simple state machine:
- * - IDLE: No active search
- * - SEARCHING: GPS tracking active
+ * IMPORTANT: Continuous GPS tracking does not work reliably in web browsers.
+ * For real-time GPS tracking, users should download the native mobile app.
  *
- * Server is ALWAYS the source of truth.
+ * This hook provides a "Mark Location as Searched" feature:
+ * - User taps a button to mark their current location
+ * - Location is captured once and sent to the server
+ * - Locations are displayed as markers on the map
+ *
+ * This approach works well on mobile web browsers since it only requires
+ * a single location capture per action (not continuous tracking).
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-
-import { getPointsMultiplier } from '@/app/lib/searchProbability';
-import { useGPS, GPS_MODE } from '@/app/lib/gpsService';
+import { useGPS } from '@/app/lib/gpsService';
 
 const CONFIG = {
-  MAX_WALKING_SPEED_MPH: 5,
   SEARCH_RADIUS_MILES: 2,
-  MIN_SESSION_MINUTES: 5,
-  MIN_SESSION_MILES: 0.1,
-  POINTS_PER_MILE: 100,
-  // GPS validation thresholds
-  MAX_JUMP_DISTANCE_MILES: 0.5, // Skip pings that jump more than this
-  MAX_GLITCH_SPEED_MPH: 20, // Obvious GPS glitch if faster than this
-  // Ping retry configuration
-  PING_MAX_RETRIES: 3,
-  PING_RETRY_DELAYS: [1000, 2000, 4000], // Exponential backoff in ms
+  POINTS_PER_MARK: 10, // Points earned per marked location
+  MIN_DISTANCE_BETWEEN_MARKS_FEET: 100, // Minimum distance between marks to count
 };
 
 // Calculate distance between two points (miles)
@@ -42,366 +37,68 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// Retry a ping with exponential backoff
-async function sendPingWithRetry(url, body, maxRetries = CONFIG.PING_MAX_RETRIES) {
-  let lastError;
+export default function useSearchSession(missionId, lastSeenLocation) {
+  // GPS service for one-time location capture
+  const { getPosition, isSupported: gpsSupported, error: gpsServiceError } = useGPS();
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      if (res.ok) {
-        return { success: true, data: await res.json() };
-      }
-
-      // Server returned error - don't retry for client errors (4xx)
-      if (res.status >= 400 && res.status < 500) {
-        const data = await res.json().catch(() => ({}));
-        return { success: false, error: data.error || `Server error: ${res.status}` };
-      }
-
-      // Server error (5xx) - retry
-      lastError = new Error(`Server error: ${res.status}`);
-    } catch (err) {
-      lastError = err;
-    }
-
-    // Wait before retry (exponential backoff)
-    if (attempt < maxRetries) {
-      const delay = CONFIG.PING_RETRY_DELAYS[attempt] || 4000;
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-
-  console.error('[GPS] Ping failed after retries:', lastError);
-  return { success: false, error: lastError?.message || 'Network error' };
-}
-
-export default function useSearchSession(missionId, lastSeenLocation, probabilityZones = null) {
-  // Centralized GPS service
-  const { location: gpsLocation, startTracking, subscribe, getPosition, isSupported: gpsSupported, error: gpsServiceError } = useGPS();
-  const gpsUnsubscribeRef = useRef(null);
-
-  // Core state - kept minimal
-  const [isSearching, setIsSearching] = useState(false);
-  const [sessionId, setSessionId] = useState(null);
+  // State
+  const [markedLocations, setMarkedLocations] = useState([]);
+  const [isMarking, setIsMarking] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isStarting, setIsStarting] = useState(false);
-  const [isEnding, setIsEnding] = useState(false);
   const [error, setError] = useState(null);
-
-  // Stats
   const [stats, setStats] = useState({
-    durationSeconds: 0,
-    totalDistanceMiles: 0,
-    validatedDistanceMiles: 0,
+    locationsMarked: 0,
     estimatedPoints: 0,
-    gridCellsCovered: 0,
-    zoneMultiplier: 1.0, // Average zone multiplier for searched area
   });
 
-  // Path for map visualization
-  const [path, setPath] = useState([]);
-
-  // Refs for session management
-  const timerRef = useRef(null);
-  const lastPingRef = useRef(null);
+  // Ref for current mission
   const currentMissionRef = useRef(missionId);
-  const isSearchingRef = useRef(false);
-  const sessionIdRef = useRef(null);
-  const sessionStartedAtRef = useRef(null); // Track when session started for accurate duration
-  const isEndingRef = useRef(false); // Prevent race condition with checkSession
-  const processLocationRef = useRef(null); // Stable ref for processLocation callback
 
-  // Keep refs in sync with state - still needed for async callbacks
+  // Reset when mission changes
   useEffect(() => {
-    isSearchingRef.current = isSearching;
-  }, [isSearching]);
-
-  useEffect(() => {
-    sessionIdRef.current = sessionId;
-  }, [sessionId]);
-
-  // Check for existing session on mount
-  useEffect(() => {
-    if (!missionId) return;
-
-    // Reset if mission changed
     if (missionId !== currentMissionRef.current) {
       currentMissionRef.current = missionId;
-      // Clear refs first
-      isSearchingRef.current = false;
-      sessionIdRef.current = null;
-      setIsSearching(false);
-      setSessionId(null);
-      setStats({
-        durationSeconds: 0,
-        totalDistanceMiles: 0,
-        validatedDistanceMiles: 0,
-        estimatedPoints: 0,
-        gridCellsCovered: 0,
-      });
-      setPath([]);
+      setMarkedLocations([]);
+      setStats({ locationsMarked: 0, estimatedPoints: 0 });
       setError(null);
     }
+  }, [missionId]);
 
-    const checkSession = async () => {
-      // Don't check if we're in the middle of ending a session (race condition prevention)
-      if (isEndingRef.current) {
-        console.log('[useSearchSession] Skipping checkSession - ending in progress');
-        setIsLoading(false);
-        return;
-      }
+  // Load existing marked locations from server
+  useEffect(() => {
+    if (!missionId) {
+      setIsLoading(false);
+      return;
+    }
 
+    const loadMarkedLocations = async () => {
       try {
         const res = await fetch(`/api/mission/${missionId}/search`);
         if (res.ok) {
           const data = await res.json();
-          // Double-check we're still not ending (API call took time)
-          if (data.activeSession && !isEndingRef.current) {
-            // Resume existing session - set refs FIRST
-            sessionIdRef.current = data.activeSession.id;
-            isSearchingRef.current = true;
-            sessionStartedAtRef.current = new Date(data.activeSession.startedAt).getTime();
-
-            setSessionId(data.activeSession.id);
-            setIsSearching(true);
-
-            // Use server's distance values (they're accumulated on server)
-            setStats(prev => ({
-              ...prev,
-              durationSeconds: Math.floor((Date.now() - sessionStartedAtRef.current) / 1000),
-              validatedDistanceMiles: data.activeSession.validatedDistanceMiles || 0,
-              totalDistanceMiles: data.activeSession.totalDistanceMiles || 0,
-              gridCellsCovered: data.activeSession.gridCellsCovered || 0,
-            }));
+          if (data.markedLocations) {
+            setMarkedLocations(data.markedLocations);
+            setStats({
+              locationsMarked: data.markedLocations.length,
+              estimatedPoints: data.markedLocations.length * CONFIG.POINTS_PER_MARK,
+            });
           }
         }
       } catch (err) {
-        console.error('Error checking session:', err);
+        console.error('Error loading marked locations:', err);
       } finally {
         setIsLoading(false);
       }
     };
 
-    checkSession();
+    loadMarkedLocations();
   }, [missionId]);
 
-  // Duration timer - calculates from session start time (works even after backgrounding)
-  useEffect(() => {
-    if (isSearching && sessionStartedAtRef.current) {
-      timerRef.current = setInterval(() => {
-        // Calculate from actual start time, not incremental
-        // This ensures accurate time even if app was backgrounded
-        const elapsed = Math.floor((Date.now() - sessionStartedAtRef.current) / 1000);
-        setStats(prev => ({
-          ...prev,
-          durationSeconds: elapsed,
-        }));
-      }, 1000);
-    } else {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isSearching]);
-
-  // Calculate average zone multiplier from path
-  useEffect(() => {
-    if (!path.length || !probabilityZones) {
-      setStats(prev => ({ ...prev, zoneMultiplier: 1.0 }));
-      return;
-    }
-
-    // Calculate multiplier for each valid point in path
-    const validPoints = path.filter(p => p.valid);
-    if (!validPoints.length) return;
-
-    const totalMultiplier = validPoints.reduce((sum, point) => {
-      const mult = getPointsMultiplier([point.lat, point.lng], probabilityZones);
-      return sum + mult;
-    }, 0);
-
-    const avgMultiplier = totalMultiplier / validPoints.length;
-    setStats(prev => ({ ...prev, zoneMultiplier: avgMultiplier }));
-  }, [path, probabilityZones]);
-
-  // Estimated points calculation - only show if minimum requirements met
-  useEffect(() => {
-    const durationMinutes = stats.durationSeconds / 60;
-    const meetsMinimum = durationMinutes >= CONFIG.MIN_SESSION_MINUTES &&
-                         stats.validatedDistanceMiles >= CONFIG.MIN_SESSION_MILES;
-
-    if (!meetsMinimum) {
-      setStats(prev => ({ ...prev, estimatedPoints: 0 }));
-      return;
-    }
-
-    const basePoints = stats.validatedDistanceMiles * CONFIG.POINTS_PER_MILE;
-    const gridBonus = stats.gridCellsCovered * 5;
-    const timeBonus = Math.min(Math.floor(stats.durationSeconds / 900) * 10, 40);
-
-    // Apply zone multiplier to base points
-    const zoneBonus = basePoints * (stats.zoneMultiplier - 1); // Only the bonus part
-
-    setStats(prev => ({
-      ...prev,
-      estimatedPoints: Math.round(basePoints + zoneBonus + gridBonus + timeBonus),
-    }));
-  }, [stats.validatedDistanceMiles, stats.gridCellsCovered, stats.durationSeconds, stats.zoneMultiplier]);
-
-  // Process GPS update
-  const processLocation = useCallback(async (position) => {
-    // CRITICAL: Check refs, not state! State values are stale in watchPosition callback
-    const currentSessionId = sessionIdRef.current;
-    const currentlySearching = isSearchingRef.current;
-
-    if (!currentSessionId || !currentlySearching) {
-      console.log('[GPS] Ignoring ping - search not active (session:', currentSessionId, 'searching:', currentlySearching, ')');
-      return;
-    }
-
-    const { latitude, longitude, accuracy, heading, speed } = position.coords;
-    const timestamp = Date.now();
-
-    // Calculate distance from previous
-    let distance = 0;
-    let speedMph = 0;
-    if (lastPingRef.current) {
-      distance = haversineDistance(
-        lastPingRef.current.lat, lastPingRef.current.lng,
-        latitude, longitude
-      );
-      const timeDeltaHours = (timestamp - lastPingRef.current.timestamp) / 3600000;
-      if (timeDeltaHours > 0) {
-        speedMph = distance / timeDeltaHours;
-      }
-    }
-
-    // Check if in search zone
-    let inZone = true;
-    if (lastSeenLocation?.lat && lastSeenLocation?.lng) {
-      const distFromLastSeen = haversineDistance(
-        latitude, longitude,
-        lastSeenLocation.lat, lastSeenLocation.lng
-      );
-      inZone = distFromLastSeen <= CONFIG.SEARCH_RADIUS_MILES;
-    }
-
-    // STEP 1: Detect GPS glitches (obvious errors we should ignore entirely)
-    const isGlitch = distance > CONFIG.MAX_JUMP_DISTANCE_MILES || speedMph > CONFIG.MAX_GLITCH_SPEED_MPH;
-
-    if (isGlitch) {
-      // GPS glitch detected - update baseline so next ping has a fresh start
-      // but don't record this point in the path or send to server
-      console.log(`[GPS] Glitch detected: distance=${distance.toFixed(3)}mi, speed=${speedMph.toFixed(1)}mph - resetting baseline`);
-      lastPingRef.current = { lat: latitude, lng: longitude, timestamp };
-      return;
-    }
-
-    // STEP 2: Validate for points (walking speed + in zone = earns points)
-    const isValidForPoints = speedMph <= CONFIG.MAX_WALKING_SPEED_MPH && inZone;
-
-    // Update local path (record all non-glitch points, mark validity for visualization)
-    setPath(prev => [...prev, {
-      lat: latitude,
-      lng: longitude,
-      valid: isValidForPoints,
-      timestamp,
-    }]);
-
-    // Update local stats (only count validated distance)
-    if (distance > 0.001) {
-      setStats(prev => ({
-        ...prev,
-        totalDistanceMiles: prev.totalDistanceMiles + distance,
-        validatedDistanceMiles: isValidForPoints
-          ? prev.validatedDistanceMiles + distance
-          : prev.validatedDistanceMiles,
-      }));
-    }
-
-    // Store as last ping
-    lastPingRef.current = { lat: latitude, lng: longitude, timestamp };
-
-    // Send to server with retry (don't lose data on spotty networks)
-    sendPingWithRetry(`/api/mission/${missionId}/search`, {
-      action: 'ping',
-      sessionId: currentSessionId,
-      latitude,
-      longitude,
-      accuracy,
-      heading,
-      speed,
-      isValid: isValidForPoints,
-    });
-  }, [missionId, lastSeenLocation]); // Removed sessionId, isSearching - we use refs now
-
-  // Keep processLocation ref updated so GPS subscription always has latest version
-  useEffect(() => {
-    processLocationRef.current = processLocation;
-  }, [processLocation]);
-
-  // GPS watching effect - uses centralized GPS service
-  useEffect(() => {
-    if (!isSearching || !sessionId) {
-      // Unsubscribe from GPS service
-      if (gpsUnsubscribeRef.current) {
-        gpsUnsubscribeRef.current();
-        gpsUnsubscribeRef.current = null;
-      }
-      return;
-    }
-
-    if (!gpsSupported) {
-      setError('GPS not available');
-      return;
-    }
-
-    // Start high accuracy tracking for search sessions
-    startTracking(GPS_MODE.HIGH_ACCURACY);
-
-    // Subscribe to location updates from centralized service
-    // Use ref to get latest processLocation - prevents resubscription when callback changes
-    gpsUnsubscribeRef.current = subscribe((location) => {
-      // Create a position-like object for processLocation
-      const position = {
-        coords: {
-          latitude: location.lat,
-          longitude: location.lng,
-          accuracy: location.accuracy || 50,
-          heading: null,
-          speed: null,
-        },
-      };
-      // Use ref to call latest processLocation without dependency
-      processLocationRef.current?.(position);
-    });
-
-    return () => {
-      if (gpsUnsubscribeRef.current) {
-        gpsUnsubscribeRef.current();
-        gpsUnsubscribeRef.current = null;
-      }
-    };
-  }, [isSearching, sessionId, gpsSupported, startTracking, subscribe]); // Removed processLocation - use ref
-
-  // Start search
-  const startSearch = useCallback(async () => {
-    console.log('[useSearchSession] startSearch called, missionId:', missionId, 'isStarting:', isStarting);
-
-    if (!missionId || isStarting) {
-      console.log('[useSearchSession] Cannot start - no missionId or already starting');
-      return { success: false };
+  // Mark current location as searched
+  const markLocation = useCallback(async (notes = null) => {
+    if (!missionId) {
+      setError('No mission selected');
+      return { success: false, error: 'No mission selected' };
     }
 
     if (!gpsSupported) {
@@ -409,261 +106,123 @@ export default function useSearchSession(missionId, lastSeenLocation, probabilit
       return { success: false, error: 'GPS not available' };
     }
 
-    setIsStarting(true);
+    if (isMarking) {
+      return { success: false, error: 'Already marking location' };
+    }
+
+    setIsMarking(true);
     setError(null);
-    console.log('[useSearchSession] Set isStarting to true');
 
     try {
-      // Get current position from centralized GPS service
+      // Get current location (one-time capture)
       const location = await getPosition();
-      console.log('[useSearchSession] Got position via GPS service:', location.lat, location.lng);
+      const { lat, lng, accuracy } = location;
 
-      const { lat: latitude, lng: longitude } = location;
+      // Check if in search zone
+      let inZone = true;
+      if (lastSeenLocation?.lat && lastSeenLocation?.lng) {
+        const distFromLastSeen = haversineDistance(
+          lat, lng,
+          lastSeenLocation.lat, lastSeenLocation.lng
+        );
+        inZone = distFromLastSeen <= CONFIG.SEARCH_RADIUS_MILES;
+      }
 
-      // Call API - it will force-end any existing sessions
+      // Check distance from last marked location
+      let tooClose = false;
+      if (markedLocations.length > 0) {
+        const lastMark = markedLocations[markedLocations.length - 1];
+        const distFromLast = haversineDistance(lat, lng, lastMark.lat, lastMark.lng);
+        const distFeet = distFromLast * 5280; // Convert miles to feet
+        tooClose = distFeet < CONFIG.MIN_DISTANCE_BETWEEN_MARKS_FEET;
+      }
+
+      if (tooClose) {
+        setError('You already marked this area. Move at least 100 feet before marking again.');
+        return { success: false, error: 'Too close to last marked location' };
+      }
+
+      // Send to server
       const res = await fetch(`/api/mission/${missionId}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'start',
-          latitude,
-          longitude,
+          action: 'mark',
+          latitude: lat,
+          longitude: lng,
+          accuracy,
+          inZone,
+          notes,
         }),
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to start');
+        throw new Error(data.error || 'Failed to mark location');
       }
 
       const data = await res.json();
-      console.log('[useSearchSession] Start API response:', data);
 
-      // Set refs FIRST - ensures callbacks see correct values immediately
-      const startTime = Date.now();
-      sessionIdRef.current = data.sessionId;
-      isSearchingRef.current = true;
-      sessionStartedAtRef.current = startTime;
-      console.log('[useSearchSession] Set refs, sessionId:', data.sessionId);
+      // Update local state
+      const newMark = {
+        id: data.markId || Date.now().toString(),
+        lat,
+        lng,
+        accuracy,
+        inZone,
+        notes,
+        timestamp: Date.now(),
+      };
 
-      // Set state
-      setSessionId(data.sessionId);
-      setIsSearching(true);
-      console.log('[useSearchSession] Set state, isSearching now true');
-      setStats({
-        durationSeconds: 0,
-        totalDistanceMiles: 0,
-        validatedDistanceMiles: 0,
-        estimatedPoints: 0,
-        gridCellsCovered: 0, // Start at 0 - earn by moving
-        zoneMultiplier: 1.0,
-      });
-      setPath([{ lat: latitude, lng: longitude, valid: true, timestamp: startTime }]);
-      lastPingRef.current = { lat: latitude, lng: longitude, timestamp: startTime };
-
-      return { success: true, sessionId: data.sessionId };
-    } catch (err) {
-      const msg = err.code === 1 ? 'Location permission denied' :
-                  err.code === 2 ? 'GPS unavailable' :
-                  err.message || 'Failed to start';
-      setError(msg);
-      return { success: false, error: msg };
-    } finally {
-      setIsStarting(false);
-    }
-  }, [missionId, isStarting, gpsSupported, getPosition]);
-
-  // End search
-  const endSearch = useCallback(async () => {
-    console.log('[useSearchSession] endSearch called, isEnding:', isEnding, 'sessionIdRef:', sessionIdRef.current);
-
-    if (isEnding || isEndingRef.current) {
-      console.log('[useSearchSession] Already ending, returning early');
-      return { success: false };
-    }
-
-    // Set BOTH state and ref to prevent race conditions
-    setIsEnding(true);
-    isEndingRef.current = true;
-    console.log('[useSearchSession] Set isEnding to true (both state and ref)');
-
-    // CRITICAL: Update refs FIRST - this stops pending callbacks immediately
-    const currentSessionId = sessionIdRef.current;
-    isSearchingRef.current = false;
-    sessionIdRef.current = null;
-    sessionStartedAtRef.current = null;
-    console.log('[useSearchSession] Cleared refs, currentSessionId:', currentSessionId);
-
-    // Unsubscribe from GPS service
-    if (gpsUnsubscribeRef.current) {
-      gpsUnsubscribeRef.current();
-      gpsUnsubscribeRef.current = null;
-    }
-
-    // Stop timer
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
-    // Capture stats before resetting
-    const currentStats = { ...stats };
-
-    // Reset UI state
-    setIsSearching(false);
-    setSessionId(null);
-    console.log('[useSearchSession] Reset UI state, isSearching now false');
-
-    // Call API and WAIT for it to complete before clearing isEnding flag
-    try {
-      console.log('[useSearchSession] Calling end API for session:', currentSessionId);
-      const res = await fetch(`/api/mission/${missionId}/search`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'end',
-          sessionId: currentSessionId,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      console.log('[useSearchSession] API response:', data);
-
-      // Only clear the ending flag AFTER API confirms session is ended
-      setIsEnding(false);
-      isEndingRef.current = false;
-      console.log('[useSearchSession] endSearch complete, success - cleared isEnding flag');
+      setMarkedLocations(prev => [...prev, newMark]);
+      setStats(prev => ({
+        locationsMarked: prev.locationsMarked + 1,
+        estimatedPoints: prev.estimatedPoints + (data.pointsEarned || CONFIG.POINTS_PER_MARK),
+      }));
 
       return {
         success: true,
-        stats: data.stats || currentStats,
-        points: data.points || { total: currentStats.estimatedPoints },
-        meetsMinimum: data.meetsMinimum,
+        markId: data.markId,
+        pointsEarned: data.pointsEarned || CONFIG.POINTS_PER_MARK,
+        inZone,
       };
     } catch (err) {
-      console.error('[useSearchSession] End search error:', err);
-      // Still clear the flag on error so user can retry
-      setIsEnding(false);
-      isEndingRef.current = false;
-      return { success: false, error: err.message };
+      const msg = err.code === 1 ? 'Location permission denied. Please enable GPS access.' :
+                  err.code === 2 ? 'GPS unavailable. Please check your location settings.' :
+                  err.message || 'Failed to mark location';
+      setError(msg);
+      return { success: false, error: msg };
+    } finally {
+      setIsMarking(false);
     }
-  }, [missionId, isEnding, stats]); // Removed sessionId - we use ref now
+  }, [missionId, gpsSupported, getPosition, lastSeenLocation, markedLocations, isMarking]);
 
-  // Force stop (used for cleanup)
-  const forceStop = useCallback(async () => {
-    // Set ending flag to prevent race conditions
-    isEndingRef.current = true;
-
-    // CRITICAL: Update refs FIRST - stops pending callbacks immediately
-    const currentSessionId = sessionIdRef.current;
-    isSearchingRef.current = false;
-    sessionIdRef.current = null;
-    sessionStartedAtRef.current = null;
-
-    // Unsubscribe from GPS service
-    if (gpsUnsubscribeRef.current) {
-      gpsUnsubscribeRef.current();
-      gpsUnsubscribeRef.current = null;
-    }
-
-    // Stop timer
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
-    // End on server and wait for it
-    if (currentSessionId) {
-      try {
-        await fetch(`/api/mission/${missionId}/search`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'end', sessionId: currentSessionId }),
-        });
-      } catch (e) {
-        console.error('[useSearchSession] forceStop API error:', e);
-      }
-    }
-
-    // Reset state
-    setIsSearching(false);
-    setSessionId(null);
-    setIsEnding(false);
-    isEndingRef.current = false;
-    setStats({
-      durationSeconds: 0,
-      totalDistanceMiles: 0,
-      validatedDistanceMiles: 0,
-      estimatedPoints: 0,
-      gridCellsCovered: 0,
-    });
-    setPath([]);
-    lastPingRef.current = null;
-  }, [missionId]); // Removed sessionId - we use ref now
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      // Clear refs first to stop any pending callbacks
-      isSearchingRef.current = false;
-      sessionIdRef.current = null;
-
-      // Unsubscribe from GPS service
-      if (gpsUnsubscribeRef.current) {
-        gpsUnsubscribeRef.current();
-        gpsUnsubscribeRef.current = null;
-      }
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
+  // Clear all marked locations (local only - doesn't delete from server)
+  const clearMarks = useCallback(() => {
+    setMarkedLocations([]);
+    setStats({ locationsMarked: 0, estimatedPoints: 0 });
   }, []);
-
-  // Format duration
-  const formatDuration = (seconds) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    if (hrs > 0) {
-      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   return {
     // State
-    isSearching,
+    markedLocations,
     isLoading,
-    isStarting,
-    isEnding,
+    isMarking,
     error,
-    session: sessionId ? { id: sessionId } : null,
-    isActive: isSearching, // Alias for compatibility
-
-    // Stats
     stats,
-    formattedDuration: formatDuration(stats.durationSeconds),
-    path,
-
-    // Validation state (simplified - always valid for now)
-    validation: {
-      inZone: true,
-      validSpeed: true,
-      distanceFromZone: 0,
-      currentSpeed: 0,
-      lastWarning: error,
-    },
 
     // Actions
-    startSearch,
-    endSearch,
-    cancelSearch: forceStop, // Alias for compatibility
-    forceStop,
+    markLocation,
+    clearMarks,
+
+    // Computed
+    hasMarks: markedLocations.length > 0,
+    canMark: gpsSupported && !isMarking,
+
+    // GPS error from service
+    gpsError: gpsServiceError,
 
     // Config
     config: CONFIG,
-    meetsMinimumRequirements:
-      stats.durationSeconds >= CONFIG.MIN_SESSION_MINUTES * 60 &&
-      stats.validatedDistanceMiles >= CONFIG.MIN_SESSION_MILES,
   };
 }

@@ -3,143 +3,29 @@
 /**
  * SAR Map View - Simplified map for Search and Rescue operations
  *
+ * NOTE: Continuous GPS tracking has been removed as it doesn't work reliably
+ * in web browsers. For real-time GPS tracking, users should use the mobile app.
+ *
  * Features:
  * - Last seen location marker
  * - Sighting markers with time decay coloring
  * - Probability circles (search radius based on time elapsed)
- * - User location tracking
+ * - User location (one-time capture via button)
+ * - Marked search locations (instead of continuous GPS path)
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import MapLegend from './MapLegend';
-import { useGPS, GPS_MODE } from '@/app/lib/gpsService';
-import { Map as MapIcon, Satellite, Locate, Maximize, Layers } from 'lucide-react';
+import { useGPS } from '@/app/lib/gpsService';
+import { Map as MapIcon, Satellite, Locate, Maximize } from 'lucide-react';
 
 // Travel speeds (miles per hour) for search radius calculation
 const PET_SPEEDS = {
   DOG: { wander: 3, run: 15 },
   CAT: { wander: 1.5, run: 8 },
   DEFAULT: { wander: 2, run: 10 }
-};
-
-// Vision radius for coverage (14 meters = ~45 feet)
-const VISION_RADIUS_METERS = 14;
-
-// Convert meters to pixels at a given zoom level and latitude
-// This ensures the corridor width stays consistent in real-world size
-function metersToPixels(meters, lat, zoom) {
-  // Earth circumference at equator in meters
-  const earthCircumference = 40075016.686;
-  // Meters per pixel at equator at zoom 0
-  const metersPerPixelAtZoom0 = earthCircumference / 256;
-  // Adjust for latitude (map gets compressed toward poles)
-  const latRadians = lat * Math.PI / 180;
-  const metersPerPixel = metersPerPixelAtZoom0 * Math.cos(latRadians) / Math.pow(2, zoom);
-  return meters / metersPerPixel;
-}
-
-// Max distance between consecutive points before we consider it a GPS jump (meters)
-const MAX_POINT_GAP_METERS = 100; // ~330 feet - if gap is bigger, don't draw a line
-
-// Helper to calculate distance between two points (meters)
-function getDistanceMeters(lat1, lng1, lat2, lng2) {
-  const R = 6371000; // Earth's radius in meters
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-// Smooth GPS path using weighted moving average to reduce jitter from weak signals
-function smoothPath(pathCoords, windowSize = 3) {
-  if (!pathCoords || pathCoords.length < windowSize) return pathCoords;
-
-  const smoothed = [];
-  const half = Math.floor(windowSize / 2);
-
-  for (let i = 0; i < pathCoords.length; i++) {
-    // For edge points, use smaller window
-    const start = Math.max(0, i - half);
-    const end = Math.min(pathCoords.length - 1, i + half);
-    const windowPoints = pathCoords.slice(start, end + 1);
-
-    // Weighted average - center point has more weight
-    let totalWeight = 0;
-    let sumLat = 0;
-    let sumLng = 0;
-
-    windowPoints.forEach((point, idx) => {
-      // Weight decreases with distance from center
-      const distFromCenter = Math.abs(idx - (i - start));
-      const weight = 1 / (distFromCenter + 1);
-      totalWeight += weight;
-      sumLat += point[0] * weight;
-      sumLng += point[1] * weight;
-    });
-
-    smoothed.push([sumLat / totalWeight, sumLng / totalWeight]);
-  }
-
-  return smoothed;
-}
-
-// Split path into segments, breaking at GPS jumps
-function splitPathAtJumps(pathCoords, maxGapMeters = MAX_POINT_GAP_METERS) {
-  if (!pathCoords || pathCoords.length < 2) return [pathCoords];
-
-  const segments = [];
-  let currentSegment = [pathCoords[0]];
-
-  for (let i = 1; i < pathCoords.length; i++) {
-    const prev = pathCoords[i - 1];
-    const curr = pathCoords[i];
-    const dist = getDistanceMeters(prev[0], prev[1], curr[0], curr[1]);
-
-    if (dist > maxGapMeters) {
-      // GPS jump detected - end current segment, start new one
-      if (currentSegment.length > 1) {
-        // Apply smoothing before adding segment
-        segments.push(smoothPath(currentSegment));
-      }
-      currentSegment = [curr];
-    } else {
-      currentSegment.push(curr);
-    }
-  }
-
-  // Add final segment with smoothing
-  if (currentSegment.length > 1) {
-    segments.push(smoothPath(currentSegment));
-  }
-
-  return segments;
-}
-
-// Coverage opacity levels based on search count - VISIBLE values
-const getCoverageOpacity = (searchCount) => {
-  if (searchCount <= 0) return 0;
-  if (searchCount === 1) return 0.35;  // 35% - clearly visible
-  if (searchCount === 2) return 0.45;
-  if (searchCount === 3) return 0.55;
-  if (searchCount === 4) return 0.65;
-  if (searchCount === 5) return 0.75;
-  return 0.85; // 6+ people = max
-};
-
-// Calculate decayed opacity (15% reduction per 24 hours, min 20%)
-// Slower decay so old searches remain visible
-const getDecayedOpacity = (baseOpacity, hoursAgo) => {
-  const periods = Math.floor(hoursAgo / 24); // per day instead of per 12 hours
-  let opacity = baseOpacity;
-  for (let i = 0; i < periods; i++) {
-    opacity *= 0.85; // 15% reduction instead of 25%
-  }
-  return Math.max(opacity, 0.20); // Minimum 20% instead of 7.5%
 };
 
 export default function SARMapView({
@@ -150,12 +36,12 @@ export default function SARMapView({
   petSpecies = 'DOG',
   hoursElapsed = 24,
   showControls = false,
-  gpsPath = [], // Current user's active GPS path
+  markedLocations = [], // Marked search locations (replaces gpsPath)
   coverageTrails = [], // Historical search trails from all team members
   activeSearchersCount = 0, // Number of team members actively searching
   showProbabilityCircles = false,
-  showProbabilityZones = false, // New: Show research-based probability zones
-  probabilityZones = null, // New: Data from calculateProbabilityZones()
+  showProbabilityZones = false, // Show research-based probability zones
+  probabilityZones = null, // Data from calculateProbabilityZones()
   showLegend = true,
   interactive = true
 }) {
@@ -163,20 +49,18 @@ export default function SARMapView({
   const mapInstance = useRef(null);
   const markersRef = useRef([]);
   const circlesRef = useRef([]);
-  const gpsLayersRef = useRef([]);
+  const markedLocationsLayersRef = useRef([]); // For marked location markers
   const coverageLayersRef = useRef([]); // For team coverage trails
   const poiMarkersRef = useRef([]); // For shelter/vet markers
   const userMarkerRef = useRef(null);
-  const corridorLayersRef = useRef([]); // For zoom-adjustable corridors
   const [showPOIs, setShowPOIs] = useState(false); // Toggle POI visibility (Off by default for cleaner map)
   const [mapLayer, setMapLayer] = useState('satellite');
   const baseLayersRef = useRef({});
   const [showCoverage, setShowCoverage] = useState(true); // Toggle coverage overlay (On by default to show search trails)
-  const heatmapLayersRef = useRef([]);
   const renderGenRef = useRef(0); // Track render generation for cleanup race conditions
 
-  // Use centralized GPS service instead of local watchPosition
-  const { location: gpsLocation, error: gpsError, startTracking, getPosition, isSupported } = useGPS();
+  // Use GPS service for one-time location capture
+  const { location: gpsLocation, getPosition, isSupported, isLoading: gpsLoading } = useGPS();
   const userLocation = gpsLocation?.coords || null;
 
   // Calculate search radius based on time and pet type
@@ -191,6 +75,21 @@ export default function SARMapView({
     }
     return { inner: 3, middle: 8, outer: speeds.wander * 24 };
   };
+
+  // Center on user location
+  const centerOnUser = useCallback(async () => {
+    try {
+      const pos = await getPosition();
+      if (pos && mapInstance.current) {
+        mapInstance.current.flyTo([pos.lat, pos.lng], 17, {
+          animate: true,
+          duration: 1
+        });
+      }
+    } catch (err) {
+      console.error('Failed to get location:', err);
+    }
+  }, [getPosition]);
 
   // Initialize map
   useEffect(() => {
@@ -222,34 +121,16 @@ export default function SARMapView({
     // Add default layer (satellite)
     baseLayersRef.current[mapLayer].addTo(mapInstance.current);
 
-    // Handle zoom changes - update corridor widths to maintain real-world size
-    mapInstance.current.on('zoomend', () => {
-      const zoom = mapInstance.current.getZoom();
-      const mapCenter = mapInstance.current.getCenter();
-      const corridorWidth = metersToPixels(VISION_RADIUS_METERS * 2, mapCenter.lat, zoom);
-
-      // Update all corridor layers with new width
-      corridorLayersRef.current.forEach(layer => {
-        if (layer.setStyle) {
-          layer.setStyle({ weight: Math.max(corridorWidth, 4) }); // Minimum 4px for visibility
-        }
-      });
-    });
-
-    // Start GPS tracking via centralized service (balanced mode for map viewing)
-    startTracking(GPS_MODE.BALANCED);
-
-    // Cleanup map on unmount (GPS cleanup handled by GPSProvider)
+    // Cleanup map on unmount
     return () => {
       if (mapInstance.current) {
         mapInstance.current.remove();
         mapInstance.current = null;
       }
     };
-  }, [startTracking]);
+  }, []);
 
   // Center map on lastSeen when it becomes available (only once per mission)
-  // This fixes the issue where map shows world view when lastSeen loads async
   const hasInitialCenterRef = useRef(false);
   const lastSeenCenterKeyRef = useRef(null);
   useEffect(() => {
@@ -286,14 +167,14 @@ export default function SARMapView({
     baseLayersRef.current[mapLayer].addTo(mapInstance.current);
   }, [mapLayer]);
 
-  // Update user location marker - big and visible with pulsing effect
+  // Update user location marker
   useEffect(() => {
     if (!mapInstance.current || !userLocation) return;
 
     if (userMarkerRef.current) {
       userMarkerRef.current.setLatLng(userLocation);
     } else {
-      // Simpler user marker - just a blue dot with pulse, no label to avoid overlap
+      // User marker - blue dot with pulse
       const userIcon = L.divIcon({
         className: 'user-location-marker',
         html: `
@@ -334,7 +215,6 @@ export default function SARMapView({
   }, [userLocation]);
 
   // Fit bounds to show both user location and last seen
-  // Only mark as done when we have BOTH locations
   const hasFitBoundsRef = useRef(false);
   const lastSeenKeyRef = useRef(null);
 
@@ -367,12 +247,7 @@ export default function SARMapView({
       // Add user location if available
       if (userLocation) {
         bounds.extend(userLocation);
-        // Only mark as done if we have user location
-        // This ensures we'll re-fit when user location becomes available
         hasFitBoundsRef.current = true;
-        console.log('[Map] Fitting bounds with both locations');
-      } else {
-        console.log('[Map] Fitting bounds without user location (will re-fit when available)');
       }
 
       // If we have valid bounds, fit to them
@@ -409,15 +284,13 @@ export default function SARMapView({
 
     cleanupLayers();
 
-    // Add last seen marker - compact, no overlapping labels
+    // Add last seen marker
     if (lastSeen) {
-      // Determine if this is a sighting or original last seen
       const isLatestSighting = lastSeen.isLatestSighting;
-      const markerColor = isLatestSighting ? '#f59e0b' : '#ef4444'; // amber for sighting, red for last seen
+      const markerColor = isLatestSighting ? '#f59e0b' : '#ef4444';
       const emoji = isLatestSighting ? '👁' : '📍';
       const labelText = isLatestSighting ? 'Latest Sighting' : 'Last Seen';
 
-      // Compact marker without permanent label (tap to see popup)
       const lastSeenIcon = L.divIcon({
         className: 'last-seen-marker',
         html: `
@@ -443,12 +316,12 @@ export default function SARMapView({
         .addTo(mapInstance.current);
       markersRef.current.push(lastSeenMarker);
 
-      // Add search probability circles (OPTIONAL - usually too confusing)
+      // Add search probability circles (OPTIONAL)
       if (showProbabilityCircles) {
         const radius = getSearchRadius();
         const milesToMeters = (miles) => miles * 1609.34;
 
-        // Inner circle (high probability) - much less prominent
+        // Inner circle (high probability)
         const innerCircle = L.circle([lastSeen.lat, lastSeen.lng], {
           radius: milesToMeters(radius.inner),
           color: '#22c55e',
@@ -482,18 +355,15 @@ export default function SARMapView({
         circlesRef.current.push(outerCircle);
       }
 
-      // Add research-based probability zones (NEW - toggleable)
-      // Draw as octant segments so each section is clickable with its own info
+      // Add research-based probability zones
       if (showProbabilityZones && probabilityZones?.zones) {
-        console.log('[Map] Rendering probability zones:', probabilityZones.zones.length, 'zones');
         const milesToMeters = (miles) => miles * 1609.34;
         const zoneCenter = probabilityZones.center || [lastSeen.lat, lastSeen.lng];
-        console.log('[Map] Zone center:', zoneCenter);
 
         // Helper to generate arc coordinates for a pie slice
-        const generateArcCoords = (center, innerRadius, outerRadius, startAngle, endAngle, numPoints = 16) => {
+        const generateArcCoords = (centerCoords, innerRadius, outerRadius, startAngle, endAngle, numPoints = 16) => {
           const coords = [];
-          const [lat, lng] = center;
+          const [lat, lng] = centerCoords;
 
           // Outer arc (from startAngle to endAngle)
           for (let i = 0; i <= numPoints; i++) {
@@ -504,7 +374,7 @@ export default function SARMapView({
             coords.push([lat + latOffset, lng + lngOffset]);
           }
 
-          // Inner arc (from endAngle back to startAngle) - or center point if innerRadius is 0
+          // Inner arc (from endAngle back to startAngle)
           if (innerRadius > 0) {
             for (let i = numPoints; i >= 0; i--) {
               const angle = startAngle + (i / numPoints) * (endAngle - startAngle);
@@ -514,18 +384,17 @@ export default function SARMapView({
               coords.push([lat + latOffset, lng + lngOffset]);
             }
           } else {
-            // For innermost zone, close to center
-            coords.push(center);
+            coords.push(centerCoords);
           }
 
           return coords;
         };
 
-        // Sort zones from smallest to largest for ring creation
+        // Sort zones from smallest to largest
         const sortedZones = [...probabilityZones.zones].sort((a, b) => a.radius - b.radius);
-        const ZONE_OPACITY = 0.35; // More visible opacity for zones on satellite
+        const ZONE_OPACITY = 0.35;
 
-        // Octant definitions (8 sections, 45° each)
+        // Octant definitions
         const octants = [
           { name: 'N', fullName: 'North', startAngle: -22.5, endAngle: 22.5 },
           { name: 'NE', fullName: 'Northeast', startAngle: 22.5, endAngle: 67.5 },
@@ -538,12 +407,9 @@ export default function SARMapView({
         ];
 
         sortedZones.forEach((zone, zoneIndex) => {
-          console.log('[Map] Drawing zone octants:', zone.name, 'radius:', zone.radius, 'miles');
-
           const outerRadius = milesToMeters(zone.radius);
           const innerRadius = zoneIndex === 0 ? 0 : milesToMeters(sortedZones[zoneIndex - 1].radius);
 
-          // Create 8 octant segments for this zone
           octants.forEach((octant) => {
             const sliceCoords = generateArcCoords(
               zoneCenter,
@@ -557,21 +423,17 @@ export default function SARMapView({
               color: zone.color,
               fillColor: zone.color,
               fillOpacity: ZONE_OPACITY,
-              weight: 0, // No stroke - divider lines handle boundaries
+              weight: 0,
               opacity: 0,
             });
 
-            // Calculate octant-specific probability (individual zone probability / 8)
             const zoneProbability = zone.probabilityPercent || zone.cumulativePercent;
             const octantProbability = (zoneProbability / 8).toFixed(1);
-
-            // Use miles consistently (convert to decimal miles)
             const radiusMiles = zone.radius;
             const radiusText = radiusMiles < 0.1
               ? `${(radiusMiles * 5280).toFixed(0)} ft`
               : `${radiusMiles.toFixed(2)} mi`;
 
-            // User-friendly zone descriptions
             const zoneDescriptions = {
               HIGH: { label: 'HIGH PROBABILITY', tip: 'Best place to search first!' },
               MEDIUM: { label: 'MEDIUM PROBABILITY', tip: 'Good area to search' },
@@ -609,11 +471,9 @@ export default function SARMapView({
           });
         });
 
-        // Draw octant divider lines at BOUNDARIES (not centers)
+        // Draw octant divider lines
         const outermostRadius = milesToMeters(sortedZones[sortedZones.length - 1].radius);
         const [centerLat, centerLng] = zoneCenter;
-
-        // Boundary angles between octants (where one octant ends and next begins)
         const boundaryAngles = [22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5];
 
         boundaryAngles.forEach((angle) => {
@@ -632,7 +492,7 @@ export default function SARMapView({
           circlesRef.current.push(line);
         });
 
-        // Direction labels at octant CENTERS (not boundaries)
+        // Direction labels
         const octantLabels = [
           { angle: 0, label: 'N' },
           { angle: 45, label: 'NE' },
@@ -673,31 +533,19 @@ export default function SARMapView({
           labelMarker.addTo(mapInstance.current);
           circlesRef.current.push(labelMarker);
         });
-      } else if (showProbabilityZones) {
-        console.log('[Map] Probability zones enabled but no zone data:', { showProbabilityZones, zones: probabilityZones?.zones });
       }
     }
 
     // Add sighting markers with expanding zones
-    sightings.forEach((sighting, index) => {
-      // Skip sightings without valid coordinates
-      if (!sighting.latitude || !sighting.longitude) {
-        console.warn('[Map] Skipping sighting without coordinates:', sighting);
-        return;
-      }
+    sightings.forEach((sighting) => {
+      if (!sighting.latitude || !sighting.longitude) return;
 
-      // Use sightedAt if available, fall back to createdAt (when report was submitted)
       const sightingTime = sighting.sightedAt || sighting.createdAt || new Date().toISOString();
       const hoursSinceSighting = (Date.now() - new Date(sightingTime).getTime()) / 3600000;
-
-      // Determine if sighting is confirmed (use 'verified' from DB, fall back to 'isConfirmed')
       const isConfirmed = sighting.verified === true || sighting.isConfirmed === true;
-
-      // Zone color: blue for unconfirmed, green for confirmed
       const zoneColor = isConfirmed ? '#22c55e' : '#3b82f6';
 
-      // Calculate expanding radius based on time since sighting
-      // Starts at ~500ft (0.1 miles), grows ~0.25 miles per hour, caps at 3 miles
+      // Calculate expanding radius
       const baseRadiusMiles = 0.1;
       const growthRatePerHour = 0.25;
       const maxRadiusMiles = 3;
@@ -712,27 +560,23 @@ export default function SARMapView({
         fillOpacity: 0.12,
         weight: 2,
         opacity: 0.7,
-        dashArray: isConfirmed ? '' : '6, 4', // Empty string for solid, dashed for unconfirmed
+        dashArray: isConfirmed ? '' : '6, 4',
       });
 
-      // Format time ago text
       const timeAgoText = hoursSinceSighting < 1
         ? 'Just now'
         : hoursSinceSighting < 24
           ? `${Math.floor(hoursSinceSighting)}h ago`
           : `${Math.floor(hoursSinceSighting / 24)}d ago`;
 
-      // Format radius text
       const radiusText = radiusMiles < 0.5
         ? `${Math.round(radiusMiles * 5280)} ft radius`
         : `${radiusMiles.toFixed(1)} mi radius`;
 
-      // Popup content for the zone
       const statusLabel = isConfirmed ? '✓ CONFIRMED' : 'UNCONFIRMED';
       const statusColor = isConfirmed ? '#22c55e' : '#3b82f6';
 
-      // Shared popup content builder
-      const buildPopupContent = (includePhoto = false) => `
+      const buildPopupContent = () => `
         <div style="text-align:center;padding:6px;min-width:160px;">
           <div style="font-weight:700;color:${statusColor};font-size:12px;margin-bottom:4px;">
             👁 ${statusLabel}
@@ -740,32 +584,15 @@ export default function SARMapView({
           <div style="font-size:14px;font-weight:600;color:#333;">
             ${timeAgoText} • ${radiusText}
           </div>
-          ${isConfirmed && sighting.confirmedBy ? `
-            <div style="font-size:11px;color:#666;margin-top:4px;">
-              Verified by ${sighting.confirmedBy}
-            </div>
-          ` : ''}
           ${sighting.description ? `
             <div style="font-size:11px;color:#666;margin-top:6px;padding-top:6px;border-top:1px solid #eee;">
               "${sighting.description.slice(0, 60)}${sighting.description.length > 60 ? '...' : ''}"
             </div>
           ` : ''}
-          ${includePhoto && (sighting.photoUrl || sighting.photoUrls) ? `
-            <div style="margin-top:8px;">
-              <a href="${sighting.photoUrl || (Array.isArray(sighting.photoUrls) ? sighting.photoUrls[0] : JSON.parse(sighting.photoUrls || '[]')[0])}" target="_blank" style="color:#3b82f6;font-size:11px;text-decoration:none;">
-                📷 View Photo
-              </a>
-            </div>
-          ` : ''}
-          ${!isConfirmed ? `
-            <div style="font-size:10px;color:#888;margin-top:6px;">
-              Owner can confirm this sighting
-            </div>
-          ` : ''}
         </div>
       `;
 
-      sightingZone.bindPopup(buildPopupContent(true));
+      sightingZone.bindPopup(buildPopupContent());
       sightingZone.addTo(mapInstance.current);
       sightingZone.bringToBack();
       circlesRef.current.push(sightingZone);
@@ -792,243 +619,135 @@ export default function SARMapView({
       });
 
       const marker = L.marker([sighting.latitude, sighting.longitude], { icon: sightingIcon, zIndexOffset: 500 })
-        .bindPopup(buildPopupContent(true))
+        .bindPopup(buildPopupContent())
         .addTo(mapInstance.current);
       markersRef.current.push(marker);
     });
 
-    // Add GPS paths (search areas walked)
-    gpsLayersRef.current.forEach(layer => layer.remove());
-    gpsLayersRef.current = [];
-
-    // Clear corridor refs when redrawing
-    corridorLayersRef.current = [];
-
-    if (gpsPath && gpsPath.length > 1) {
-      // Convert GPS path to leaflet format
-      const pathCoords = gpsPath.map(point => [point.lat, point.lng]);
-
-      // Split path into segments at GPS jumps to avoid drawing lines across the map
-      const segments = splitPathAtJumps(pathCoords);
-
-      // Calculate search duration
-      const startTime = gpsPath[0].timestamp;
-      const endTime = gpsPath[gpsPath.length - 1].timestamp;
-      const durationMinutes = Math.round((endTime - startTime) / 60000);
-
-      // Calculate corridor width based on current zoom (14m vision radius = 28m corridor width)
-      const zoom = mapInstance.current.getZoom();
-      const mapCenter = mapInstance.current.getCenter();
-      const corridorWidth = metersToPixels(VISION_RADIUS_METERS * 2, mapCenter.lat, zoom);
-
-      // Draw each segment separately
-      segments.forEach((segmentCoords, idx) => {
-        if (segmentCoords.length < 2) return;
-
-        // Draw visible corridor showing search area covered (vision radius ~14m = ~45ft)
-        // Width scales with zoom to maintain real-world size
-        // High opacity so it fully covers probability zones beneath
-        const searchCorridor = L.polyline(segmentCoords, {
-          color: '#a855f7', // Purple
-          weight: Math.max(corridorWidth, 4), // Dynamic width, min 4px
-          opacity: 0.85, // High opacity to overlay zones beneath
-          smoothFactor: 1,
-          lineJoin: 'round',
-          lineCap: 'round'
-        }).addTo(mapInstance.current);
-        searchCorridor.bringToFront();
-
-        // Store reference for zoom updates
-        corridorLayersRef.current.push(searchCorridor);
-
-        // Add click handler to show details (only on first segment)
-        if (idx === 0) {
-          searchCorridor.on('click', () => {
-            L.popup()
-              .setLatLng(segmentCoords[Math.floor(segmentCoords.length / 2)])
-              .setContent(`
-                <div style="min-width: 200px;">
-                  <b style="color:#a855f7">Your Search</b><br>
-                  <span style="font-size:13px">${durationMinutes} min</span>
-                </div>
-              `)
-              .openOn(mapInstance.current);
-          });
-        }
-        gpsLayersRef.current.push(searchCorridor);
-
-        // Draw center line showing exact path walked
-        const polyline = L.polyline(segmentCoords, {
-          color: '#a855f7', // Purple
-          weight: 3,
-          opacity: 0.9,
-          smoothFactor: 1
-        }).addTo(mapInstance.current);
-        polyline.bringToFront();
-        gpsLayersRef.current.push(polyline);
-      });
-
-      // Note: Removed start marker as requested - the path itself shows where search started
-
-      // Note: We don't fitBounds here to avoid constant zooming during active tracking
-    }
-
-    // Note: We removed the individual coverage circles (heatmap) as they were visually cluttered.
-    // The purple corridor already shows the search coverage area effectively.
-    heatmapLayersRef.current.forEach(layer => layer.remove());
-    heatmapLayersRef.current = [];
-
-    // Return cleanup function - called when deps change or unmount
+    // Return cleanup function
     return () => {
-      // Only cleanup if this is still the current render generation
       if (currentGen === renderGenRef.current) {
         cleanupLayers();
       }
     };
-  }, [lastSeen, sightings, petSpecies, hoursElapsed, gpsPath, showProbabilityZones, probabilityZones]);
+  }, [lastSeen, sightings, petSpecies, hoursElapsed, showProbabilityZones, probabilityZones]);
 
-  // Render team coverage trails
+  // Render marked search locations (replaces GPS path)
+  useEffect(() => {
+    if (!mapInstance.current) return;
+
+    // Clear existing marked location layers
+    markedLocationsLayersRef.current.forEach(layer => {
+      try { layer.remove(); } catch (e) { /* already removed */ }
+    });
+    markedLocationsLayersRef.current = [];
+
+    if (!markedLocations || markedLocations.length === 0) return;
+
+    // Add markers for each marked location
+    markedLocations.forEach((mark, index) => {
+      if (!mark.lat || !mark.lng) return;
+
+      // Determine marker color based on whether it's in the search zone
+      const markerColor = mark.inZone !== false ? '#a855f7' : '#6b7280'; // Purple if in zone, gray if out
+
+      const markIcon = L.divIcon({
+        className: 'marked-location',
+        html: `
+          <div style="
+            width: 24px;
+            height: 24px;
+            background: ${markerColor};
+            border: 2px solid white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px ${markerColor}80;
+            font-size: 11px;
+            font-weight: 700;
+            color: white;
+          ">${index + 1}</div>
+        `,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+
+      const timeAgo = mark.timestamp
+        ? new Date(mark.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : '';
+
+      const marker = L.marker([mark.lat, mark.lng], { icon: markIcon })
+        .bindPopup(`
+          <div style="text-align:center;padding:4px;">
+            <div style="font-weight:600;color:${markerColor};">Location #${index + 1}</div>
+            ${timeAgo ? `<div style="font-size:11px;color:#666;">${timeAgo}</div>` : ''}
+            ${mark.notes ? `<div style="font-size:11px;color:#333;margin-top:4px;">${mark.notes}</div>` : ''}
+            ${mark.inZone === false ? `<div style="font-size:10px;color:#f59e0b;margin-top:4px;">Outside search zone</div>` : ''}
+          </div>
+        `)
+        .addTo(mapInstance.current);
+
+      markedLocationsLayersRef.current.push(marker);
+
+      // Add a small circle around each marked location to show approximate search coverage
+      const coverageCircle = L.circle([mark.lat, mark.lng], {
+        radius: 50, // 50 meters radius for visual coverage
+        color: markerColor,
+        fillColor: markerColor,
+        fillOpacity: 0.15,
+        weight: 1,
+        opacity: 0.5,
+      }).addTo(mapInstance.current);
+      coverageCircle.bringToBack();
+      markedLocationsLayersRef.current.push(coverageCircle);
+    });
+
+  }, [markedLocations]);
+
+  // Render team coverage trails (historical data from other team members)
   useEffect(() => {
     if (!mapInstance.current || !showCoverage) return;
 
     // Clear existing coverage layers
-    coverageLayersRef.current.forEach(layer => layer.remove());
+    coverageLayersRef.current.forEach(layer => {
+      try { layer.remove(); } catch (e) { /* already removed */ }
+    });
     coverageLayersRef.current = [];
 
-    if (!coverageTrails || coverageTrails.length === 0) {
-      console.log('[Map] No coverage trails to render');
-      return;
-    }
-
-    // Filter out current user's ACTIVE session - it's already rendered via gpsPath prop
-    // This prevents duplicate rendering (purple gpsPath + blue coverage trail)
-    const trailsToRender = coverageTrails.filter(trail => {
-      // Skip current user's active session - already shown via gpsPath
-      if (trail.isCurrentUser && trail.isActive) {
-        console.log('[Map] Skipping current user active trail (already rendered via gpsPath)');
-        return false;
-      }
-      return true;
-    });
-
-    if (trailsToRender.length === 0) {
-      console.log('[Map] No coverage trails to render after filtering');
-      return;
-    }
-
-    console.log('[Map] Rendering', trailsToRender.length, 'coverage trails');
+    if (!coverageTrails || coverageTrails.length === 0) return;
 
     // Render each team member's trail
-    trailsToRender.forEach(trail => {
-      if (!trail.path || trail.path.length < 2) {
-        console.log('[Map] Skipping trail with insufficient points:', trail.path?.length || 0);
-        return;
-      }
+    coverageTrails.forEach(trail => {
+      if (!trail.path || trail.path.length < 2) return;
 
       const pathCoords = trail.path.map(p => [p.lat, p.lng]);
-      const hoursAgo = trail.hoursAgo || 0;
-      const isCurrentUser = trail.isCurrentUser || false;
+      const lineColor = trail.color || '#6366f1';
 
-      console.log('[Map] Drawing trail:', trail.userName, 'points:', pathCoords.length, 'hoursAgo:', hoursAgo.toFixed(1), 'isActive:', trail.isActive);
+      // Draw trail line
+      const trailLine = L.polyline(pathCoords, {
+        color: lineColor,
+        weight: 3,
+        opacity: 0.6,
+        smoothFactor: 1,
+      }).addTo(mapInstance.current);
 
-      // Split path into segments at GPS jumps
-      const segments = splitPathAtJumps(pathCoords);
+      trailLine.on('click', (e) => {
+        const searchDate = trail.endedAt
+          ? new Date(trail.endedAt).toLocaleDateString()
+          : new Date(trail.startedAt).toLocaleDateString();
 
-      // SAME decay for everyone - the point is to show areas need searching again
-      const baseOpacity = getCoverageOpacity(1);
-      const decayedOpacity = getDecayedOpacity(baseOpacity, hoursAgo);
-
-      // Current user's paths are BLUE, others keep their team color
-      const corridorColor = isCurrentUser ? '#3b82f6' : '#a855f7';
-      const lineColor = isCurrentUser ? '#3b82f6' : trail.color;
-      const lineOpacity = trail.isActive ? 0.9 : Math.max(decayedOpacity * 4, 0.3);
-
-      // Calculate corridor width based on current zoom
-      const zoom = mapInstance.current.getZoom();
-      const mapCenter = mapInstance.current.getCenter();
-      const corridorWidth = metersToPixels(VISION_RADIUS_METERS * 2, mapCenter.lat, zoom);
-
-      // Draw each segment separately
-      segments.forEach(segmentCoords => {
-        if (segmentCoords.length < 2) return;
-
-        // Calculate corridor opacity - more visible than before
-        const corridorOpacity = trail.isActive ? 0.45 : Math.max(decayedOpacity, 0.25);
-
-        const coverageCorridor = L.polyline(segmentCoords, {
-          color: corridorColor,
-          weight: Math.max(corridorWidth, 4), // Dynamic width, min 4px
-          opacity: corridorOpacity,
-          smoothFactor: 1,
-          lineJoin: 'round',
-          lineCap: 'round',
-        }).addTo(mapInstance.current);
-        coverageCorridor.bringToFront();
-
-        // Store reference for zoom updates
-        corridorLayersRef.current.push(coverageCorridor);
-
-        // Add click handler for popup
-        coverageCorridor.on('click', (e) => {
-          const searchDate = trail.endedAt
-            ? new Date(trail.endedAt).toLocaleDateString()
-            : new Date(trail.startedAt).toLocaleDateString();
-          const displayName = isCurrentUser ? 'Your Search' : trail.userName;
-          const displayColor = isCurrentUser ? '#3b82f6' : trail.color;
-
-          L.popup()
-            .setLatLng(e.latlng)
-            .setContent(`
-              <div>
-                <b style="color:${displayColor}">${displayName}</b>
-                ${trail.isActive ? '<span style="color:#22c55e;margin-left:6px">● Live</span>' : `<br><small style="color:#666">${searchDate}</small>`}
-              </div>
-            `)
-            .openOn(mapInstance.current);
-        });
-        coverageLayersRef.current.push(coverageCorridor);
-
-        // Draw trail line on top - all solid lines for consistency
-        const trailLine = L.polyline(segmentCoords, {
-          color: lineColor,
-          weight: 3,
-          opacity: lineOpacity,
-          smoothFactor: 1,
-        }).addTo(mapInstance.current);
-        trailLine.bringToFront();
-        coverageLayersRef.current.push(trailLine);
+        L.popup()
+          .setLatLng(e.latlng)
+          .setContent(`
+            <div>
+              <b style="color:${lineColor}">${trail.userName || 'Team Member'}</b>
+              <br><small style="color:#666">${searchDate}</small>
+            </div>
+          `)
+          .openOn(mapInstance.current);
       });
-
-      // Add pulsing dot for active searchers
-      if (trail.isActive && pathCoords.length > 0) {
-        const lastPoint = pathCoords[pathCoords.length - 1];
-        const activeIcon = L.divIcon({
-          className: 'active-searcher-marker',
-          html: `
-            <div style="
-              width: 16px;
-              height: 16px;
-              background: ${trail.color};
-              border: 2px solid white;
-              border-radius: 50%;
-              box-shadow: 0 0 10px ${trail.color}80;
-              animation: pulse 1.5s infinite;
-            "></div>
-            <style>
-              @keyframes pulse {
-                0%, 100% { transform: scale(1); opacity: 1; }
-                50% { transform: scale(1.3); opacity: 0.7; }
-              }
-            </style>
-          `,
-          iconSize: [16, 16],
-          iconAnchor: [8, 8],
-        });
-        const activeMarker = L.marker(lastPoint, { icon: activeIcon })
-          .bindPopup(`<strong style="color: ${trail.color};">${trail.userName}</strong><br/>Searching now...`)
-          .addTo(mapInstance.current);
-        coverageLayersRef.current.push(activeMarker);
-      }
+      coverageLayersRef.current.push(trailLine);
     });
 
   }, [coverageTrails, showCoverage]);
@@ -1038,17 +757,18 @@ export default function SARMapView({
     if (!mapInstance.current || !showPOIs) return;
 
     // Clear existing POI markers
-    poiMarkersRef.current.forEach(marker => marker.remove());
+    poiMarkersRef.current.forEach(marker => {
+      try { marker.remove(); } catch (e) { /* already removed */ }
+    });
     poiMarkersRef.current = [];
 
     if (!pois || pois.length === 0) return;
 
-    // Color mapping for POI types
     const typeColors = {
-      SHELTER: '#6366f1', // Indigo
-      RESCUE: '#8b5cf6', // Purple
-      VET: '#10b981', // Emerald
-      ANIMAL_CONTROL: '#f59e0b', // Amber
+      SHELTER: '#6366f1',
+      RESCUE: '#8b5cf6',
+      VET: '#10b981',
+      ANIMAL_CONTROL: '#f59e0b',
     };
 
     pois.forEach(poi => {
@@ -1104,7 +824,7 @@ export default function SARMapView({
     <div className="w-full h-full relative">
       <div ref={mapRef} className="w-full h-full" />
 
-      {/* Layer Toggle & Location Buttons - Always show for interactive maps */}
+      {/* Layer Toggle & Location Buttons */}
       {interactive && (
         <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2">
           {/* Layer Toggle */}
@@ -1122,30 +842,12 @@ export default function SARMapView({
 
           {/* Center on my location button */}
           <button
-            onClick={async () => {
-              // Pulse animation
-              const btn = document.getElementById('my-loc-btn');
-              if (btn) btn.classList.add('animate-pulse');
-
-              const pos = await getPosition();
-              if (pos && mapInstance.current) {
-                mapInstance.current.flyTo([pos.latitude, pos.longitude], 17, {
-                  animate: true,
-                  duration: 1
-                });
-              } else {
-                startTracking(GPS_MODE.HIGH_ACCURACY);
-              }
-
-              setTimeout(() => {
-                if (btn) btn.classList.remove('animate-pulse');
-              }, 1000);
-            }}
-            id="my-loc-btn"
-            className="group w-12 h-12 flex items-center justify-center rounded-xl bg-blue-600/80 backdrop-blur-md border border-white/10 text-white shadow-xl hover:bg-blue-500/90 active:scale-95 transition-all"
+            onClick={centerOnUser}
+            disabled={gpsLoading}
+            className="group w-12 h-12 flex items-center justify-center rounded-xl bg-blue-600/80 backdrop-blur-md border border-white/10 text-white shadow-xl hover:bg-blue-500/90 active:scale-95 transition-all disabled:opacity-50"
             title="My Location"
           >
-            <Locate size={20} className="text-white" />
+            <Locate size={20} className={`text-white ${gpsLoading ? 'animate-pulse' : ''}`} />
           </button>
 
           {/* Fit Bounds */}
@@ -1163,49 +865,44 @@ export default function SARMapView({
             <Maximize size={20} className="text-slate-200 group-hover:text-white" />
           </button>
         </div>
-      )
-      }
+      )}
 
-      {/* Legend - Collapsible, positioned top-left */}
-      {
-        showLegend && (
-          <MapLegend
-            showSightings={sightings.length > 0}
-            showSearchPath={gpsPath && gpsPath.length > 0 || coverageTrails.length > 0}
-            showActiveSearches={activeSearchersCount > 0}
-            showPOIs={pois.length > 0}
-            showProbabilityZones={showProbabilityZones}
-            activeSearchersCount={activeSearchersCount}
-          />
-        )
-      }
+      {/* Legend */}
+      {showLegend && (
+        <MapLegend
+          showSightings={sightings.length > 0}
+          showSearchPath={markedLocations && markedLocations.length > 0 || coverageTrails.length > 0}
+          showActiveSearches={activeSearchersCount > 0}
+          showPOIs={pois.length > 0}
+          showProbabilityZones={showProbabilityZones}
+          activeSearchersCount={activeSearchersCount}
+        />
+      )}
 
       {/* Zoom Controls (if enabled) */}
-      {
-        showControls && (
-          <div className="absolute top-4 right-4 flex flex-col gap-2 z-[400]">
-            <button
-              onClick={() => mapInstance.current?.zoomIn()}
-              className="w-10 h-10 bg-slate-900/90 backdrop-blur text-white rounded-xl flex items-center justify-center hover:bg-slate-800"
-            >
-              +
-            </button>
-            <button
-              onClick={() => mapInstance.current?.zoomOut()}
-              className="w-10 h-10 bg-slate-900/90 backdrop-blur text-white rounded-xl flex items-center justify-center hover:bg-slate-800"
-            >
-              −
-            </button>
-            <button
-              onClick={() => userLocation && mapInstance.current?.setView(userLocation, 17)}
-              className="w-10 h-10 bg-slate-900/90 backdrop-blur text-white rounded-xl flex items-center justify-center hover:bg-slate-800"
-              title="Center on my location"
-            >
-              📍
-            </button>
-          </div>
-        )
-      }
-    </div >
+      {showControls && (
+        <div className="absolute top-4 right-4 flex flex-col gap-2 z-[400]">
+          <button
+            onClick={() => mapInstance.current?.zoomIn()}
+            className="w-10 h-10 bg-slate-900/90 backdrop-blur text-white rounded-xl flex items-center justify-center hover:bg-slate-800"
+          >
+            +
+          </button>
+          <button
+            onClick={() => mapInstance.current?.zoomOut()}
+            className="w-10 h-10 bg-slate-900/90 backdrop-blur text-white rounded-xl flex items-center justify-center hover:bg-slate-800"
+          >
+            −
+          </button>
+          <button
+            onClick={() => userLocation && mapInstance.current?.setView(userLocation, 17)}
+            className="w-10 h-10 bg-slate-900/90 backdrop-blur text-white rounded-xl flex items-center justify-center hover:bg-slate-800"
+            title="Center on my location"
+          >
+            📍
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

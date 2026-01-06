@@ -6,27 +6,28 @@
  * Consolidates all mission control state and logic:
  * - Mission fetching and switching
  * - Sightings management
- * - GPS tracking
+ * - User location (one-time, not continuous tracking)
  * - Tasks management
  * - Team data
  * - UI state (modals, tabs, etc.)
  *
- * All features preserved from MissionControlV3.
+ * NOTE: Continuous GPS tracking has been removed as it doesn't work reliably
+ * in web browsers. For real-time GPS tracking, users should use the mobile app.
+ * This hook now provides one-time location capture only.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { fetchWithRetry, formatErrorMessage, isOnline } from '@/app/lib/utils';
-import { useGPS, GPS_MODE } from '@/app/lib/gpsService';
+import { useGPS } from '@/app/lib/gpsService';
 
 export default function useMissionControl(session) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const missionId = searchParams.get('mission');
 
-  // Centralized GPS service
-  const { location: gpsLocation, error: gpsError, startTracking, stopTracking: stopGPSService, subscribe, isSupported: gpsSupported } = useGPS();
-  const gpsUnsubscribeRef = useRef(null);
+  // GPS service for one-time location capture
+  const { location: gpsLocation, error: gpsError, getPosition, isSupported: gpsSupported, isLoading: gpsLoading } = useGPS();
 
   // ============================================================
   // MISSION STATE
@@ -59,9 +60,7 @@ export default function useMissionControl(session) {
   // ============================================================
   const [sightings, setSightings] = useState([]);
   const [team, setTeam] = useState([]);
-  const [gpsPath, setGpsPath] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [isGPSTracking, setIsGPSTracking] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [isJoining, setIsJoining] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState(['immediate']);
@@ -167,31 +166,19 @@ export default function useMissionControl(session) {
   }, [activeMission?.id]);
 
   // ============================================================
-  // LOCAL STORAGE - GPS and Tasks
+  // LOCAL STORAGE - Tasks
   // ============================================================
 
-  // Load GPS path and tasks from localStorage
+  // Load tasks from localStorage
   useEffect(() => {
     if (!activeMission?.id) return;
-    const storageKey = `case_${activeMission.id}_gps`;
     const tasksKey = `case_${activeMission.id}_tasks`;
-
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try { setGpsPath(JSON.parse(saved)); } catch (e) {}
-    }
 
     const savedTasks = localStorage.getItem(tasksKey);
     if (savedTasks) {
       try { setTasks(JSON.parse(savedTasks)); } catch (e) {}
     }
   }, [activeMission?.id]);
-
-  // Save GPS path to localStorage
-  useEffect(() => {
-    if (!activeMission?.id || gpsPath.length === 0) return;
-    localStorage.setItem(`case_${activeMission.id}_gps`, JSON.stringify(gpsPath));
-  }, [gpsPath, activeMission?.id]);
 
   // Save tasks to localStorage
   useEffect(() => {
@@ -303,56 +290,22 @@ export default function useMissionControl(session) {
     }
   }, [activeMission, missionId, fetchMission, fetchAvailableMissions, showNotification, isJoining]);
 
-  // GPS Tracking - uses centralized GPS service
-  const startGPSTracking = useCallback(() => {
+  // Get current location (one-time capture)
+  const refreshLocation = useCallback(async () => {
     if (!gpsSupported) {
       showNotification('error', 'GPS not available on this device');
-      return;
+      return null;
     }
 
-    // Start high accuracy tracking for active searching
-    const started = startTracking(GPS_MODE.HIGH_ACCURACY);
-    if (!started) {
-      showNotification('error', 'Failed to start GPS tracking');
-      return;
+    try {
+      const location = await getPosition();
+      showNotification('info', 'Location updated');
+      return location;
+    } catch (err) {
+      showNotification('error', err.message || 'Failed to get location');
+      return null;
     }
-
-    setIsGPSTracking(true);
-    setGpsPath([]);
-    showNotification('info', 'GPS tracking started. Your search path is being recorded.');
-
-    // Subscribe to location updates
-    gpsUnsubscribeRef.current = subscribe((location) => {
-      setGpsPath(prev => [...prev, {
-        lat: location.lat,
-        lng: location.lng,
-        timestamp: Date.now(),
-      }]);
-    });
-  }, [gpsSupported, startTracking, subscribe, showNotification]);
-
-  const stopGPSTracking = useCallback(() => {
-    // Unsubscribe from location updates
-    if (gpsUnsubscribeRef.current) {
-      gpsUnsubscribeRef.current();
-      gpsUnsubscribeRef.current = null;
-    }
-
-    setIsGPSTracking(false);
-    if (gpsPath.length > 0) {
-      showNotification('success', `Recorded ${gpsPath.length} GPS points. View your search path on the Map tab.`);
-    }
-  }, [gpsPath.length, showNotification]);
-
-  // Cleanup GPS subscription on mission change or unmount
-  useEffect(() => {
-    return () => {
-      if (gpsUnsubscribeRef.current) {
-        gpsUnsubscribeRef.current();
-        gpsUnsubscribeRef.current = null;
-      }
-    };
-  }, [missionId]);
+  }, [gpsSupported, getPosition, showNotification]);
 
   // ============================================================
   // COMPUTED VALUES
@@ -408,21 +361,19 @@ export default function useMissionControl(session) {
     // Data state
     sightings,
     team,
-    gpsPath,
-    setGpsPath,
     tasks,
     setTasks,
-    isGPSTracking,
-    setIsGPSTracking,
     isJoining,
     selectedTask,
     setSelectedTask,
     expandedCategories,
     setExpandedCategories,
 
-    // GPS state from centralized service
+    // GPS state - one-time location only
     gpsLocation,
     gpsError,
+    gpsLoading,
+    gpsSupported,
 
     // Computed values
     timeMissing,
@@ -440,8 +391,7 @@ export default function useMissionControl(session) {
     goToNextMission,
     selectMission,
     handleJoinMission,
-    startGPSTracking,
-    stopGPSTracking,
+    refreshLocation,
 
     // Router
     router,
