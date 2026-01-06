@@ -234,9 +234,9 @@ export async function POST(request: Request) {
           },
           result: {
             totalRuns: batchResult.totalRuns,
-            successRate: batchResult.successRate.toFixed(1),
-            avgTimeToFindHours: batchResult.avgTimeToFindHours?.toFixed(1),
-            medianTimeToFindHours: batchResult.medianTimeToFindHours?.toFixed(1),
+            successRate: batchResult.successRate,
+            avgTimeToFindHours: batchResult.avgTimeToFindHours,
+            medianTimeToFindHours: batchResult.medianTimeToFindHours,
             avgDistanceM: Math.round(batchResult.avgDistanceM),
             outcomes: batchResult.outcomes,
           },
