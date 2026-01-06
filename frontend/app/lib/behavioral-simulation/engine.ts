@@ -367,6 +367,16 @@ export class BehavioralSimulationEngine {
 
     this.heading = this.rng.uniform(0, 360);
 
+    // === CRITICAL: Check if starting position is in water ===
+    // If the user clicked on water, find nearest land position
+    if (isLikelyWater(this.state.position, this.homePosition, config.terrainData)) {
+      const escapedPos = this.escapeFromWater(this.state.position);
+      if (escapedPos) {
+        this.state.position = escapedPos;
+        this.homePosition = escapedPos; // Also update home if it was in water
+      }
+    }
+
     // Initialize searchers with terrain data for water avoidance
     const searchDelay = config.searchStartDelay ?? 2;
     const terrainData = config.terrainData;
@@ -483,6 +493,7 @@ export class BehavioralSimulationEngine {
       outcome,
       outcomeDescription: this.getOutcomeDescription(outcome),
       timeToOutcomeHours: outcomeTime,
+      startPosition: { ...this.homePosition }, // Actual start position (may differ if escaped from water)
       finalPosition: { ...this.state.position },
       petPath: this.path,
       searcherPaths: this.searchers.map(s => s.path),
@@ -654,16 +665,33 @@ export class BehavioralSimulationEngine {
       this.heading = ((this.heading % 360) + 360) % 360;
       let newPos = offsetPosition(this.state.position, distanceM, this.heading);
 
-      // Water/terrain avoidance - if new position is in water, turn around
+      // Water/terrain avoidance - if new position is in water, try alternatives
       if (isLikelyWater(newPos, this.homePosition, this.config.terrainData)) {
-        // Turn back toward home or inland
-        const homeDir = getBearing(this.state.position, this.homePosition);
-        this.heading = homeDir + this.rng.uniform(-60, 60);
-        this.heading = ((this.heading % 360) + 360) % 360;
-        newPos = offsetPosition(this.state.position, distanceM, this.heading);
+        // Try multiple escape directions
+        const escapeDirections = [
+          this.heading + 180, // Opposite direction
+          this.heading + 90,  // Right
+          this.heading - 90,  // Left
+          this.heading + 135, // Back-right
+          this.heading - 135, // Back-left
+          this.heading + 45,  // Forward-right
+          this.heading - 45,  // Forward-left
+        ];
 
-        // If still in water after turning, just stay put
-        if (isLikelyWater(newPos, this.homePosition, this.config.terrainData)) {
+        let escaped = false;
+        for (const dir of escapeDirections) {
+          const normalizedDir = ((dir % 360) + 360) % 360;
+          const testPos = offsetPosition(this.state.position, distanceM, normalizedDir);
+          if (!isLikelyWater(testPos, this.homePosition, this.config.terrainData)) {
+            this.heading = normalizedDir;
+            newPos = testPos;
+            escaped = true;
+            break;
+          }
+        }
+
+        // If all directions lead to water, stay put
+        if (!escaped) {
           return; // Don't move this timestep
         }
       }
@@ -779,6 +807,29 @@ export class BehavioralSimulationEngine {
     if (this.state.fearLevel > 0.7) return 'fleeing';
     if (this.state.fearLevel > 0.4) return 'traveling';
     return 'foraging';
+  }
+
+  /**
+   * Escape from water by trying multiple directions
+   * Returns new position on land, or null if unable to escape
+   */
+  private escapeFromWater(pos: Position): Position | null {
+    // Try 8 cardinal/ordinal directions at increasing distances
+    const directions = [0, 45, 90, 135, 180, 225, 270, 315];
+    const distances = [100, 250, 500, 1000, 2000]; // meters
+
+    for (const dist of distances) {
+      for (const dir of directions) {
+        const testPos = offsetPosition(pos, dist, dir);
+        if (!isLikelyWater(testPos, this.homePosition, this.config.terrainData)) {
+          return testPos;
+        }
+      }
+    }
+
+    // If all directions fail, return null - simulation will proceed but log warning
+    console.warn('Could not escape from water at', pos);
+    return null;
   }
 
   private getOutcomeDescription(outcome: string): string {

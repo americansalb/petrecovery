@@ -139,6 +139,11 @@ export async function POST(request: Request) {
       const engine = new BehavioralSimulationEngine(profile, startPosition, config);
       const result = engine.run();
 
+      // Check if position was adjusted due to water
+      const positionAdjusted =
+        Math.abs(result.startPosition.lat - startPosition.lat) > 0.0001 ||
+        Math.abs(result.startPosition.lng - startPosition.lng) > 0.0001;
+
       return NextResponse.json({
         success: true,
         type: 'single',
@@ -155,10 +160,12 @@ export async function POST(request: Request) {
           outcome: result.outcome,
           outcomeDescription: result.outcomeDescription,
           timeToOutcomeHours: result.timeToOutcomeHours,
+          startPosition: result.startPosition, // Actual start position
           finalPosition: result.finalPosition,
           petDistanceM: Math.round(result.petDistanceM),
           maxDistanceFromHomeM: Math.round(result.maxDistanceFromHomeM),
           stats: result.stats,
+          positionAdjusted, // True if start was moved from water to land
         },
         path: result.petPath,
         searcherPaths: result.searcherPaths,

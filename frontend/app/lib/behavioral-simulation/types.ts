@@ -95,6 +95,7 @@ export interface SimulationResult {
   outcome: string;
   outcomeDescription: string;
   timeToOutcomeHours: number | null;
+  startPosition: Position; // Actual start position (may differ from clicked location if escaped from water)
   finalPosition: Position;
   petPath: PathPoint[];
   searcherPaths: PathPoint[][];
