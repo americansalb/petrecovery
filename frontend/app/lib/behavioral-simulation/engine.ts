@@ -12,6 +12,8 @@ import {
   DOG_TEMPERAMENTS, CAT_TEMPERAMENTS, DISPLACEMENT,
   MOVEMENT_SPEEDS, PHYSIOLOGY, TIME_OF_DAY, SEARCHER_PARAMS, SURVIVAL,
 } from './constants';
+import { isLikelyInOcean } from '../terrain/globalWaterHeuristics';
+import { isInMajorWater } from '../terrain/majorWaterBodies';
 
 // Seeded random number generator
 class SeededRandom {
@@ -90,13 +92,21 @@ function pointInPolygon(point: Position, polygon: Position[]): boolean {
   return inside;
 }
 
-// Water detection using OSM terrain data (if available) or comprehensive fallback
+/**
+ * Multi-layer water detection system that works GLOBALLY
+ *
+ * Layer 1: OSM Overpass API data (most accurate, when available)
+ * Layer 2: Major water bodies (Great Lakes, bays, inland seas)
+ * Layer 3: Global coastline heuristics (oceans via geographic math)
+ * Layer 4: Distance constraint (ultimate fallback - prevents infinite wandering)
+ */
 function isLikelyWater(
   pos: Position,
   homePos: Position,
   terrainData?: { waterPolygons: Array<{ points: Position[]; bbox: { south: number; west: number; north: number; east: number } }>; isCoastal: boolean }
 ): boolean {
-  // If we have OSM terrain data, use it for accurate detection
+  // === LAYER 1: OSM Terrain Data (most accurate) ===
+  // If we have OSM terrain data from the Overpass API, use it first
   if (terrainData && terrainData.waterPolygons.length > 0) {
     for (const water of terrainData.waterPolygons) {
       // Quick bbox check
@@ -113,129 +123,30 @@ function isLikelyWater(
         return true;
       }
     }
-    return false;
+    // OSM data is authoritative - if we have it and point isn't in water polygons,
+    // still check other layers for large bodies OSM might not have captured
   }
 
-  // === COMPREHENSIVE HARDCODED WATER BOUNDARIES ===
-  // Used when OSM data is unavailable
-
-  // SAN FRANCISCO BAY AREA (most detailed)
-  // Pacific Ocean - west coast of SF peninsula
-  if (pos.lng < -122.509 && pos.lat > 37.70 && pos.lat < 37.80) {
-    return true; // Ocean Beach area
-  }
-  if (pos.lng < -122.512 && pos.lat > 37.78 && pos.lat < 37.82) {
-    return true; // Lands End / Cliff House
-  }
-
-  // San Francisco Bay - main bay body
-  // The Embarcadero / Ferry Building is at ~-122.393
-  if (pos.lng > -122.39 && pos.lat > 37.70 && pos.lat < 37.85) {
-    // Check if actually in the bay (not on land in Oakland/Berkeley)
-    // The bay extends from the SF waterfront to roughly the Oakland shore
-    if (pos.lng < -122.20) {
-      return true; // SF Bay proper
-    }
-  }
-
-  // South of SF - SFO airport area bay
-  if (pos.lng > -122.42 && pos.lng < -122.10 && pos.lat > 37.55 && pos.lat < 37.65) {
-    return true; // South SF Bay
-  }
-
-  // Golden Gate strait
-  if (pos.lat > 37.80 && pos.lat < 37.84 && pos.lng > -122.52 && pos.lng < -122.45) {
-    return true; // Under the bridge
-  }
-
-  // North Bay / Richardson Bay
-  if (pos.lat > 37.84 && pos.lat < 37.90 && pos.lng > -122.50 && pos.lng < -122.42) {
+  // === LAYER 2: Major Water Bodies (lakes, bays, inland seas) ===
+  // These are predefined globally - Great Lakes, SF Bay, Baltic Sea, etc.
+  if (isInMajorWater(pos)) {
     return true;
   }
 
-  // LOS ANGELES AREA
-  // Santa Monica Bay
-  if (pos.lng < -118.50 && pos.lat > 33.85 && pos.lat < 34.05) {
-    return true;
-  }
-  // Pacific off Venice/Marina del Rey
-  if (pos.lng < -118.47 && pos.lat > 33.95 && pos.lat < 34.00) {
-    return true;
-  }
-  // LA/Long Beach Harbor
-  if (pos.lng < -118.20 && pos.lng > -118.30 && pos.lat > 33.70 && pos.lat < 33.78) {
+  // === LAYER 3: Global Coastline Heuristics (oceans) ===
+  // Uses geographic math to approximate coastlines worldwide
+  // This catches ocean areas without needing hardcoded city boundaries
+  if (isLikelyInOcean(pos)) {
     return true;
   }
 
-  // SAN DIEGO
-  if (pos.lng < -117.24 && pos.lat > 32.65 && pos.lat < 32.85) {
-    return true; // Pacific coast
+  // === LAYER 4: Distance Constraint (ultimate fallback) ===
+  // Prevent pets from wandering infinitely far
+  // If more than 50km from home, something is wrong
+  const distFromHome = distance(pos, homePos);
+  if (distFromHome > 50000) {
+    return true; // Treat as impassable boundary
   }
-  // San Diego Bay
-  if (pos.lng > -117.18 && pos.lng < -117.10 && pos.lat > 32.60 && pos.lat < 32.75) {
-    return true;
-  }
-
-  // SEATTLE / PUGET SOUND
-  // Elliott Bay
-  if (pos.lng < -122.35 && pos.lat > 47.58 && pos.lat < 47.65) {
-    return true;
-  }
-  // Lake Union
-  if (pos.lng > -122.35 && pos.lng < -122.32 && pos.lat > 47.63 && pos.lat < 47.66) {
-    return true;
-  }
-  // Lake Washington
-  if (pos.lng > -122.28 && pos.lng < -122.20 && pos.lat > 47.50 && pos.lat < 47.75) {
-    return true;
-  }
-
-  // MIAMI / SOUTH FLORIDA
-  // Biscayne Bay
-  if (pos.lng > -80.15 && pos.lat > 25.70 && pos.lat < 25.85) {
-    return true;
-  }
-  // Atlantic Ocean
-  if (pos.lng > -80.10 && pos.lat > 25.65 && pos.lat < 26.00) {
-    return true;
-  }
-
-  // NEW YORK AREA
-  // Hudson River mouth / NY Harbor
-  if (pos.lng > -74.05 && pos.lng < -73.95 && pos.lat > 40.60 && pos.lat < 40.75) {
-    return true;
-  }
-  // East River
-  if (pos.lng > -73.98 && pos.lng < -73.92 && pos.lat > 40.70 && pos.lat < 40.80) {
-    return true;
-  }
-  // Jamaica Bay
-  if (pos.lng > -73.90 && pos.lng < -73.75 && pos.lat > 40.58 && pos.lat < 40.65) {
-    return true;
-  }
-
-  // BOSTON
-  // Boston Harbor
-  if (pos.lng > -71.05 && pos.lat > 42.30 && pos.lat < 42.40) {
-    return true;
-  }
-  // Charles River
-  if (pos.lng > -71.15 && pos.lng < -71.05 && pos.lat > 42.35 && pos.lat < 42.38) {
-    return true;
-  }
-
-  // CHICAGO - Lake Michigan
-  if (pos.lng > -87.60 && pos.lat > 41.70 && pos.lat < 42.10) {
-    return true;
-  }
-
-  // GENERAL OCEAN BOUNDARIES (far offshore)
-  // Pacific coast
-  if (pos.lng < -124.0) return true;
-  // Atlantic coast
-  if (pos.lng > -66.0 && pos.lat > 35.0 && pos.lat < 45.0) return true;
-  // Gulf of Mexico
-  if (pos.lat < 25.5 && pos.lng > -97.0 && pos.lng < -80.0) return true;
 
   return false;
 }
