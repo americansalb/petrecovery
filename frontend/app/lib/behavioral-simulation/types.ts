@@ -58,6 +58,15 @@ export interface SearcherState {
   fatigue: number;
 }
 
+// Terrain data for water detection
+export interface TerrainData {
+  waterPolygons: Array<{
+    points: Position[];
+    bbox: { south: number; west: number; north: number; east: number };
+  }>;
+  isCoastal: boolean;
+}
+
 export interface SimulationConfig {
   seed?: number;
   maxHours: number;
@@ -68,6 +77,7 @@ export interface SimulationConfig {
   searchStartDelay?: number;
   useTraps: boolean;
   useScentArticles: boolean;
+  terrainData?: TerrainData; // OSM-based water detection
 }
 
 export interface PathPoint {
@@ -85,6 +95,7 @@ export interface SimulationResult {
   outcome: string;
   outcomeDescription: string;
   timeToOutcomeHours: number | null;
+  startPosition: Position; // Actual start position (may differ from clicked location if escaped from water)
   finalPosition: Position;
   petPath: PathPoint[];
   searcherPaths: PathPoint[][];

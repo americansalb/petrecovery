@@ -135,6 +135,15 @@ export default function SimulatePage() {
       setResult(data);
       setResultsOpen(true);
 
+      // If position was adjusted (moved from water to land), update the UI coordinates
+      if (data.type === 'single' && data.result?.startPosition) {
+        if (data.result.positionAdjusted) {
+          console.log('Start position was in water, adjusted to:', data.result.startPosition);
+          setLatitude(data.result.startPosition.lat);
+          setLongitude(data.result.startPosition.lng);
+        }
+      }
+
       // Auto-start playback for single simulations
       if (data.type === 'single' && data.path?.length > 0) {
         setIsPlaying(true);
@@ -510,6 +519,14 @@ export default function SimulatePage() {
               <span className="font-medium">{result.profile.temperamentName}</span>
               <span className="text-gray-500 ml-1">{species}</span>
             </div>
+
+            {/* Warning if position was adjusted */}
+            {result.type === 'single' && result.result?.positionAdjusted && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+                <span className="font-medium">Note:</span> The selected location was in water.
+                Start position was automatically moved to nearest land.
+              </div>
+            )}
 
             {result.type === 'batch' ? (
               <div className="space-y-4">

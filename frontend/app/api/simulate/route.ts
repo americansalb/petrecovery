@@ -15,6 +15,7 @@ import {
   DOG_TEMPERAMENTS,
   CAT_TEMPERAMENTS,
 } from '@/app/lib/behavioral-simulation';
+import { fetchTerrainData } from '@/app/lib/behavioral-simulation/terrain';
 
 interface SimulateRequest {
   species: 'dog' | 'cat';
@@ -74,6 +75,27 @@ export async function POST(request: Request) {
 
     const startPosition = { lat: body.latitude, lng: body.longitude };
 
+    // Fetch terrain data from OSM for water detection (5km radius around home)
+    let terrainData: SimulationConfig['terrainData'];
+    try {
+      const osmTerrain = await fetchTerrainData(startPosition, 5000);
+      if (osmTerrain.waterAreas.length > 0) {
+        terrainData = {
+          waterPolygons: osmTerrain.waterAreas.map(w => ({
+            points: w.points,
+            bbox: w.bbox,
+          })),
+          isCoastal: osmTerrain.isCoastal,
+        };
+        console.log(`Loaded ${terrainData.waterPolygons.length} water areas for simulation`);
+      }
+    } catch (err) {
+      console.warn('Could not fetch terrain data:', err);
+    }
+
+    // Add terrain data to config
+    config.terrainData = terrainData;
+
     // Limit batch size to prevent timeout (max 60 seconds on Vercel Pro)
     // Each simulation takes ~50-100ms, so cap at 500 for safety
     const safeBatchSize = Math.min(body.batchSize || 1, 500);
@@ -117,6 +139,11 @@ export async function POST(request: Request) {
       const engine = new BehavioralSimulationEngine(profile, startPosition, config);
       const result = engine.run();
 
+      // Check if position was adjusted due to water
+      const positionAdjusted =
+        Math.abs(result.startPosition.lat - startPosition.lat) > 0.0001 ||
+        Math.abs(result.startPosition.lng - startPosition.lng) > 0.0001;
+
       return NextResponse.json({
         success: true,
         type: 'single',
@@ -133,10 +160,12 @@ export async function POST(request: Request) {
           outcome: result.outcome,
           outcomeDescription: result.outcomeDescription,
           timeToOutcomeHours: result.timeToOutcomeHours,
+          startPosition: result.startPosition, // Actual start position
           finalPosition: result.finalPosition,
           petDistanceM: Math.round(result.petDistanceM),
           maxDistanceFromHomeM: Math.round(result.maxDistanceFromHomeM),
           stats: result.stats,
+          positionAdjusted, // True if start was moved from water to land
         },
         path: result.petPath,
         searcherPaths: result.searcherPaths,
