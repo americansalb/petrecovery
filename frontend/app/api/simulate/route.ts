@@ -164,51 +164,77 @@ export async function POST(request: Request) {
     // Add terrain data to config
     config.terrainData = terrainData;
 
-    // Limit batch size to prevent timeout (max 60 seconds on Vercel Pro)
-    // Each simulation takes ~50-100ms, so cap at 500 for safety
-    const safeBatchSize = Math.min(body.batchSize || 1, 500);
+    // Limit batch size based on simulation duration to prevent timeout
+    // 720 hours (30 days) simulation takes ~500ms each, 60s timeout, terrain takes ~10s
+    // So we have ~50s for simulations = ~100 runs max for 30-day sims
+    const maxBatchForDuration = Math.floor(50000 / (config.maxHours * 0.7)); // ~0.7ms per hour
+    const safeBatchSize = Math.min(body.batchSize || 1, maxBatchForDuration, 100);
+
+    console.log(`🎲 Simulation: batch=${safeBatchSize}, hours=${config.maxHours}, searchers=${config.numSearchers}`);
 
     // Run single or batch
     if (safeBatchSize > 1) {
-      const batchResult = runBatch(profile, startPosition, config, safeBatchSize);
+      try {
+        const startTime = Date.now();
+        console.log(`🎲 Starting batch of ${safeBatchSize} simulations...`);
 
-      return NextResponse.json({
-        success: true,
-        type: 'batch',
-        profile: {
-          species,
-          temperament: profile.temperament,
-          temperamentName: species === 'dog'
-            ? DOG_TEMPERAMENTS[profile.temperament as keyof typeof DOG_TEMPERAMENTS]?.name
-            : CAT_TEMPERAMENTS[profile.temperament as keyof typeof CAT_TEMPERAMENTS]?.name,
-        },
-        result: {
-          totalRuns: batchResult.totalRuns,
-          successRate: batchResult.successRate.toFixed(1),
-          avgTimeToFindHours: batchResult.avgTimeToFindHours?.toFixed(1),
-          medianTimeToFindHours: batchResult.medianTimeToFindHours?.toFixed(1),
-          avgDistanceM: Math.round(batchResult.avgDistanceM),
-          outcomes: batchResult.outcomes,
-        },
-        // Include first 5 simulations with paths for viewing (memory limited)
-        sampleSimulations: batchResult.simulations
-          .filter(sim => sim.petPath.length > 0) // Only include ones with paths
-          .slice(0, 5)
-          .map(sim => ({
-            id: sim.id,
-            outcome: sim.outcome,
-            outcomeDescription: sim.outcomeDescription,
-            timeToOutcomeHours: sim.timeToOutcomeHours,
-            maxDistanceM: Math.round(sim.maxDistanceFromHomeM),
-            pathLength: sim.petPath.length,
-            petPath: sim.petPath,
-            searcherPaths: sim.searcherPaths,
-          })),
-      });
+        const batchResult = runBatch(profile, startPosition, config, safeBatchSize, (completed) => {
+          if (completed % 10 === 0 || completed === safeBatchSize) {
+            console.log(`🎲 Batch progress: ${completed}/${safeBatchSize}`);
+          }
+        });
+
+        console.log(`🎲 Batch complete in ${Date.now() - startTime}ms. Success rate: ${batchResult.successRate.toFixed(1)}%`);
+
+        return NextResponse.json({
+          success: true,
+          type: 'batch',
+          profile: {
+            species,
+            temperament: profile.temperament,
+            temperamentName: species === 'dog'
+              ? DOG_TEMPERAMENTS[profile.temperament as keyof typeof DOG_TEMPERAMENTS]?.name
+              : CAT_TEMPERAMENTS[profile.temperament as keyof typeof CAT_TEMPERAMENTS]?.name,
+          },
+          result: {
+            totalRuns: batchResult.totalRuns,
+            successRate: batchResult.successRate.toFixed(1),
+            avgTimeToFindHours: batchResult.avgTimeToFindHours?.toFixed(1),
+            medianTimeToFindHours: batchResult.medianTimeToFindHours?.toFixed(1),
+            avgDistanceM: Math.round(batchResult.avgDistanceM),
+            outcomes: batchResult.outcomes,
+          },
+          // Include first 5 simulations with paths for viewing (memory limited)
+          sampleSimulations: batchResult.simulations
+            .filter(sim => sim.petPath.length > 0) // Only include ones with paths
+            .slice(0, 5)
+            .map(sim => ({
+              id: sim.id,
+              outcome: sim.outcome,
+              outcomeDescription: sim.outcomeDescription,
+              timeToOutcomeHours: sim.timeToOutcomeHours,
+              maxDistanceM: Math.round(sim.maxDistanceFromHomeM),
+              pathLength: sim.petPath.length,
+              petPath: sim.petPath,
+              searcherPaths: sim.searcherPaths,
+            })),
+        });
+      } catch (error) {
+        console.error('🎲 Batch simulation failed:', error);
+        return NextResponse.json(
+          { error: 'Batch simulation failed', details: String(error) },
+          { status: 500 }
+        );
+      }
     } else {
       // Single simulation
+      const startTime = Date.now();
+      console.log(`🎲 Running single simulation...`);
+
       const engine = new BehavioralSimulationEngine(profile, startPosition, config);
       const result = engine.run();
+
+      console.log(`🎲 Single sim complete in ${Date.now() - startTime}ms. Outcome: ${result.outcome}`);
 
       // Check if position was adjusted due to water
       const positionAdjusted =
