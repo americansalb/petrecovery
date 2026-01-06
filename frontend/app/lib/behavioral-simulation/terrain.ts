@@ -1,7 +1,12 @@
 /**
  * Terrain Detection using OpenStreetMap Overpass API
  * Fetches water bodies, roads, highways, and railways for any location globally
+ *
+ * Features persistent tile-based caching - fetch once, use forever
  */
+
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface Position {
   lat: number;
@@ -45,6 +50,65 @@ export interface TerrainData {
   hasRailways: boolean;
 }
 
+// ============================================================================
+// TILE-BASED PERSISTENT CACHE
+// ============================================================================
+
+const TILE_SIZE = 0.1; // 0.1 degree tiles (~11km at equator)
+const CACHE_DIR = path.join(process.cwd(), 'public', 'data', 'terrain-cache');
+
+// Get tile key for a position
+function getTileKey(lat: number, lng: number): string {
+  const tileLat = Math.floor(lat / TILE_SIZE) * TILE_SIZE;
+  const tileLng = Math.floor(lng / TILE_SIZE) * TILE_SIZE;
+  // Format: lat_lng with underscores replacing dots and minus signs
+  const latStr = tileLat.toFixed(1).replace('.', '_').replace('-', 'n');
+  const lngStr = tileLng.toFixed(1).replace('.', '_').replace('-', 'n');
+  return `tile_${latStr}_${lngStr}`;
+}
+
+// Get cache file path for a tile
+function getCacheFilePath(tileKey: string): string {
+  return path.join(CACHE_DIR, `${tileKey}.json`);
+}
+
+// Load terrain from cache
+function loadFromCache(tileKey: string): TerrainData | null {
+  try {
+    const filePath = getCacheFilePath(tileKey);
+    if (fs.existsSync(filePath)) {
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      console.log(`Loaded terrain from cache: ${tileKey}`);
+      return data as TerrainData;
+    }
+  } catch (e) {
+    console.warn(`Failed to load cache for ${tileKey}:`, e);
+  }
+  return null;
+}
+
+// Save terrain to cache
+function saveToCache(tileKey: string, data: TerrainData): void {
+  try {
+    // Ensure cache directory exists
+    if (!fs.existsSync(CACHE_DIR)) {
+      fs.mkdirSync(CACHE_DIR, { recursive: true });
+    }
+    const filePath = getCacheFilePath(tileKey);
+    fs.writeFileSync(filePath, JSON.stringify(data));
+    console.log(`Saved terrain to cache: ${tileKey} (${data.waterAreas.length} water areas)`);
+  } catch (e) {
+    console.warn(`Failed to save cache for ${tileKey}:`, e);
+  }
+}
+
+// In-memory cache for current session (faster than disk)
+const memoryCache = new Map<string, TerrainData>();
+
+// ============================================================================
+// CORE TERRAIN FETCHING
+// ============================================================================
+
 // Calculate bounding box for search radius
 function getBoundingBox(center: Position, radiusM: number): BoundingBox {
   const latOffset = radiusM / 111000;
@@ -59,22 +123,46 @@ function getBoundingBox(center: Position, radiusM: number): BoundingBox {
 }
 
 // Fetch water and road data from OSM Overpass API with timeout
+// Uses persistent tile-based caching - fetch once, use forever
 export async function fetchTerrainData(
   center: Position,
   radiusM: number = 5000,
-  timeoutMs: number = 8000
+  timeoutMs: number = 15000
 ): Promise<TerrainData> {
   const bbox = getBoundingBox(center, radiusM);
+
+  // Check which tiles we need for this bbox
+  const tileKey = getTileKey(center.lat, center.lng);
+
+  // 1. Check memory cache first (fastest)
+  if (memoryCache.has(tileKey)) {
+    console.log(`Using memory-cached terrain: ${tileKey}`);
+    return memoryCache.get(tileKey)!;
+  }
+
+  // 2. Check disk cache (persistent)
+  const cached = loadFromCache(tileKey);
+  if (cached) {
+    memoryCache.set(tileKey, cached);
+    return cached;
+  }
+
+  // 3. Fetch from OSM Overpass API
+  console.log(`Fetching terrain from OSM for tile: ${tileKey}`);
   const bboxStr = `${bbox.south},${bbox.west},${bbox.north},${bbox.east}`;
 
   // Overpass query for water POLYGONS (lakes, ponds) and major roads
   // NOTE: We intentionally EXCLUDE linear waterways (rivers, streams, canals)
   // because they are lines, not polygons, and cause incorrect water detection
   const query = `
-    [out:json][timeout:10];
+    [out:json][timeout:25];
     (
       // Water bodies (closed polygons only - lakes, ponds, reservoirs)
       way["natural"="water"](${bboxStr});
+      relation["natural"="water"](${bboxStr});
+      way["water"](${bboxStr});
+      way["landuse"="reservoir"](${bboxStr});
+      way["landuse"="basin"](${bboxStr});
       way["natural"="coastline"](${bboxStr});
       // Major roads - motorways, trunk roads, primary roads
       way["highway"="motorway"](${bboxStr});
@@ -96,22 +184,46 @@ export async function fetchTerrainData(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    const response = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `data=${encodeURIComponent(query)}`,
-      signal: controller.signal,
-    });
+    // Try multiple Overpass servers for reliability
+    const servers = [
+      'https://overpass-api.de/api/interpreter',
+      'https://overpass.kumi.systems/api/interpreter',
+      'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+    ];
+
+    let response: Response | null = null;
+    let lastError: Error | null = null;
+
+    for (const server of servers) {
+      try {
+        response = await fetch(server, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `data=${encodeURIComponent(query)}`,
+          signal: controller.signal,
+        });
+        if (response.ok) break;
+      } catch (e) {
+        lastError = e as Error;
+        console.warn(`Server ${server} failed, trying next...`);
+      }
+    }
 
     clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      console.warn('Overpass API request failed, using hardcoded fallback');
+    if (!response || !response.ok) {
+      console.warn('All Overpass API servers failed:', lastError?.message);
       return createEmptyTerrainData(bbox);
     }
 
     const data = await response.json();
-    return parseOverpassResponse(data, bbox);
+    const terrainData = parseOverpassResponse(data, bbox);
+
+    // 4. Save to cache for future use
+    saveToCache(tileKey, terrainData);
+    memoryCache.set(tileKey, terrainData);
+
+    return terrainData;
   } catch (error) {
     console.warn('Failed to fetch terrain data:', error);
     return createEmptyTerrainData(bbox);
@@ -143,20 +255,49 @@ function getRoadProperties(highwayType: string): { type: RoadType; crossingDiffi
 // Parse Overpass API response
 function parseOverpassResponse(data: any, bbox: BoundingBox): TerrainData {
   const nodes = new Map<number, Position>();
+  const ways = new Map<number, number[]>(); // wayId -> nodeIds
   const waterAreas: WaterPolygon[] = [];
   const coastlineSegments: Position[][] = [];
   const roads: RoadSegment[] = [];
   let hasHighways = false;
   let hasRailways = false;
 
-  // First pass: collect all nodes
+  // First pass: collect all nodes and ways
   for (const element of data.elements || []) {
     if (element.type === 'node') {
       nodes.set(element.id, { lat: element.lat, lng: element.lon });
+    } else if (element.type === 'way') {
+      ways.set(element.id, element.nodes || []);
     }
   }
 
-  // Second pass: build polygons, lines, and roads
+  // Helper to check if a polygon is water
+  function isWaterFeature(tags: any): boolean {
+    if (!tags) return false;
+    return tags.natural === 'water' ||
+           tags.water !== undefined ||
+           tags.landuse === 'reservoir' ||
+           tags.landuse === 'basin';
+  }
+
+  // Helper to add water polygon if valid
+  function addWaterPolygon(points: Position[]): void {
+    if (points.length < 4) return;
+    const first = points[0];
+    const last = points[points.length - 1];
+    const isClosed = Math.abs(first.lat - last.lat) < 0.0001 &&
+                    Math.abs(first.lng - last.lng) < 0.0001;
+    if (isClosed) {
+      const polyBbox = getPolygonBbox(points);
+      waterAreas.push({
+        type: 'water',
+        points,
+        bbox: polyBbox,
+      });
+    }
+  }
+
+  // Second pass: build polygons, lines, and roads from ways
   for (const element of data.elements || []) {
     if (element.type === 'way' && element.nodes) {
       const points = element.nodes
@@ -170,27 +311,9 @@ function parseOverpassResponse(data: any, bbox: BoundingBox): TerrainData {
       // Water features
       if (tags.natural === 'coastline') {
         coastlineSegments.push(points);
-      } else if (tags.natural === 'water') {
-        // natural=water is typically a closed polygon (lake, pond, reservoir)
-        // Only add if it's actually closed (first and last point are same or very close)
-        if (points.length >= 4) {
-          const first = points[0];
-          const last = points[points.length - 1];
-          const isClosed = Math.abs(first.lat - last.lat) < 0.0001 &&
-                          Math.abs(first.lng - last.lng) < 0.0001;
-          if (isClosed) {
-            const polyBbox = getPolygonBbox(points);
-            waterAreas.push({
-              type: 'water',
-              points,
-              bbox: polyBbox,
-            });
-          }
-        }
+      } else if (isWaterFeature(tags)) {
+        addWaterPolygon(points);
       }
-      // NOTE: waterway (rivers, streams, canals) are LINEAR features, not polygons
-      // They should NOT be used for point-in-polygon checks
-      // The isLikelyWater function in engine.ts handles water avoidance via heuristics
 
       // Roads and highways
       if (tags.highway) {
@@ -212,10 +335,29 @@ function parseOverpassResponse(data: any, bbox: BoundingBox): TerrainData {
           type: 'railway',
           points,
           name: tags.name,
-          crossingDifficulty: 0.3, // Pets can cross but it's risky
-          dangerLevel: 0.7, // Very dangerous if train comes
+          crossingDifficulty: 0.3,
+          dangerLevel: 0.7,
         });
         hasRailways = true;
+      }
+    }
+
+    // Handle relations (multipolygons for larger water bodies)
+    if (element.type === 'relation' && element.members) {
+      const tags = element.tags || {};
+      if (isWaterFeature(tags) && tags.type === 'multipolygon') {
+        // Collect all outer way members
+        for (const member of element.members) {
+          if (member.type === 'way' && member.role === 'outer') {
+            const wayNodes = ways.get(member.ref);
+            if (wayNodes) {
+              const points = wayNodes
+                .map((nodeId: number) => nodes.get(nodeId))
+                .filter(Boolean) as Position[];
+              addWaterPolygon(points);
+            }
+          }
+        }
       }
     }
   }
