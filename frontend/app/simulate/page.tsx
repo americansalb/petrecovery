@@ -319,34 +319,34 @@ export default function SimulatePage() {
     };
   }, [isPlaying, result?.path, maxHours, playbackSpeed]);
 
-  // Interpolate position between two path points for smooth animation
-  const interpolatePosition = (path: PathPoint[], currentHour: number): PathPoint | null => {
+  // Interpolate position using binary search for O(log n) performance
+  // This is critical for smooth animation with 8000+ path points
+  const interpolatePosition = useCallback((path: PathPoint[], currentHour: number): PathPoint | null => {
     if (!path || path.length === 0) return null;
+    if (path.length === 1) return path[0];
 
-    // Find the two points to interpolate between
-    let before = path[0];
-    let after = path[path.length - 1];
+    // Binary search to find the segment containing currentHour
+    let low = 0;
+    let high = path.length - 1;
 
-    for (let i = 0; i < path.length - 1; i++) {
-      if (path[i].hour <= currentHour && path[i + 1].hour >= currentHour) {
-        before = path[i];
-        after = path[i + 1];
-        break;
+    // Edge cases
+    if (currentHour <= path[0].hour) return path[0];
+    if (currentHour >= path[high].hour) return path[high];
+
+    // Binary search for the correct segment
+    while (low < high - 1) {
+      const mid = Math.floor((low + high) / 2);
+      if (path[mid].hour <= currentHour) {
+        low = mid;
+      } else {
+        high = mid;
       }
-      if (path[i].hour <= currentHour) {
-        before = path[i];
-      }
     }
 
-    // If exact match or past end, return the point
-    if (before.hour === after.hour || currentHour >= after.hour) {
-      return after;
-    }
-    if (currentHour <= before.hour) {
-      return before;
-    }
+    const before = path[low];
+    const after = path[high];
 
-    // Linear interpolation
+    // Linear interpolation between the two points
     const ratio = (currentHour - before.hour) / (after.hour - before.hour);
     return {
       hour: currentHour,
@@ -356,7 +356,7 @@ export default function SimulatePage() {
       hunger: before.hunger + (after.hunger - before.hunger) * ratio,
       state: ratio < 0.5 ? before.state : after.state,
     };
-  };
+  }, []);
 
   // Get current positions for playback with smooth interpolation
   const getCurrentPosition = () => {

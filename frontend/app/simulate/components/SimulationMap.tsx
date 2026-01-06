@@ -301,7 +301,27 @@ function getRoadWeight(road: RoadSegment): number {
   }
 }
 
-// Animated path component with fading trail
+// Binary search to find last index where hour <= target
+function findVisibleEndIndex(path: PathPoint[], targetHour: number): number {
+  if (path.length === 0) return -1;
+  if (targetHour >= path[path.length - 1].hour) return path.length - 1;
+  if (targetHour < path[0].hour) return -1;
+
+  let low = 0;
+  let high = path.length - 1;
+  while (low < high) {
+    const mid = Math.ceil((low + high + 1) / 2);
+    if (path[mid].hour <= targetHour) {
+      low = mid;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return low;
+}
+
+// Animated path component with fading trail - OPTIMIZED
+// Pre-builds all segments once, then slices for current time
 function AnimatedPath({
   path,
   currentHour
@@ -309,72 +329,78 @@ function AnimatedPath({
   path: PathPoint[];
   currentHour: number;
 }) {
-  // Build segments with opacity based on recency
-  const segments = useMemo(() => {
+  // Pre-compute all segments once when path changes (not every frame!)
+  const allSegments = useMemo(() => {
     if (path.length < 2) return [];
 
     const result: Array<{
       positions: [number, number][];
       color: string;
-      opacity: number;
+      startHour: number;
+      endHour: number;
     }> = [];
 
-    // Filter points up to current time
-    const visiblePoints = path.filter(p => p.hour <= currentHour);
-    if (visiblePoints.length < 2) return [];
+    let currentSegment: { positions: [number, number][]; color: string; startHour: number; endHour: number } | null = null;
 
-    // Create segments with fading opacity
-    const fadeWindow = 24; // Hours over which trail fades
-    let currentSegment: { positions: [number, number][]; color: string; hours: number[] } | null = null;
-
-    for (let i = 0; i < visiblePoints.length; i++) {
-      const point = visiblePoints[i];
+    for (let i = 0; i < path.length; i++) {
+      const point = path[i];
       const color = getPathColor(point.state);
 
       if (!currentSegment || currentSegment.color !== color) {
         if (currentSegment && currentSegment.positions.length > 0) {
-          // Calculate opacity based on most recent point in segment
-          const maxHour = Math.max(...currentSegment.hours);
-          const age = currentHour - maxHour;
-          const opacity = Math.max(0.15, 1 - (age / fadeWindow) * 0.85);
-
-          result.push({
-            positions: currentSegment.positions,
-            color: currentSegment.color,
-            opacity,
-          });
-
+          result.push(currentSegment);
           // Start new segment with last point for continuity
           const lastPos = currentSegment.positions[currentSegment.positions.length - 1];
-          currentSegment = { positions: [lastPos], color, hours: [point.hour] };
+          currentSegment = {
+            positions: [lastPos],
+            color,
+            startHour: point.hour,
+            endHour: point.hour,
+          };
         } else {
-          currentSegment = { positions: [], color, hours: [] };
+          currentSegment = {
+            positions: [],
+            color,
+            startHour: point.hour,
+            endHour: point.hour,
+          };
         }
       }
 
       currentSegment.positions.push([point.lat, point.lng]);
-      currentSegment.hours.push(point.hour);
+      currentSegment.endHour = point.hour;
     }
 
     // Add final segment
     if (currentSegment && currentSegment.positions.length >= 2) {
-      const maxHour = Math.max(...currentSegment.hours);
-      const age = currentHour - maxHour;
-      const opacity = Math.max(0.15, 1 - (age / fadeWindow) * 0.85);
-
-      result.push({
-        positions: currentSegment.positions,
-        color: currentSegment.color,
-        opacity,
-      });
+      result.push(currentSegment);
     }
 
     return result;
-  }, [path, currentHour]);
+  }, [path]); // Only recalculate when path changes, NOT every frame!
+
+  // Calculate visible segments and opacity (fast operation)
+  const visibleSegments = useMemo(() => {
+    const fadeWindow = 24;
+    return allSegments
+      .filter(seg => seg.startHour <= currentHour)
+      .map(seg => {
+        // Calculate how much of this segment is visible
+        const visibleEndHour = Math.min(seg.endHour, currentHour);
+        const age = currentHour - visibleEndHour;
+        const opacity = Math.max(0.15, 1 - (age / fadeWindow) * 0.85);
+
+        return {
+          positions: seg.positions,
+          color: seg.color,
+          opacity,
+        };
+      });
+  }, [allSegments, currentHour]);
 
   return (
     <>
-      {segments.map((segment, index) => (
+      {visibleSegments.map((segment, index) => (
         <Polyline
           key={`trail-${index}`}
           positions={segment.positions}
