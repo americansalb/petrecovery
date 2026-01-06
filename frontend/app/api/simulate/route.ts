@@ -89,9 +89,6 @@ interface SimulateRequest {
 
 export async function POST(request: Request) {
   try {
-    // Load Natural Earth water data (cached after first load)
-    await loadNaturalEarthData();
-
     const body: SimulateRequest = await request.json();
 
     // Validate required fields
@@ -149,6 +146,9 @@ export async function POST(request: Request) {
     let cachedCity: CityInfo | null = null;
 
     if (!isBatch) {
+      // Load Natural Earth water data for global ocean/lake detection (cached after first load)
+      await loadNaturalEarthData();
+
       // Fetch terrain data with priority: cached file > OSM API > heuristics fallback
       // 1. Check for pre-cached terrain file (instant, 20km radius)
       cachedCity = findNearestCachedCity(body.latitude, body.longitude);
