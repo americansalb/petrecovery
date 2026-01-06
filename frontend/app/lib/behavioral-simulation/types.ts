@@ -92,6 +92,7 @@ export interface SimulationConfig {
   useTraps: boolean;
   useScentArticles: boolean;
   terrainData?: TerrainData; // OSM-based water detection
+  skipTerrainChecks?: boolean; // Skip water/road checks for fast batch runs
 }
 
 export interface PathPoint {

@@ -117,76 +117,85 @@ export async function POST(request: Request) {
     };
 
     // Build config - default 30 days (720 hours)
-    // Use larger time steps for batch simulations (faster, less granular)
-    // Single sim: 5 min steps (8,640 steps for 720h) - smooth animation
-    // Batch sim: 30 min steps (1,440 steps for 720h) - 6x faster computation
+    // Batch: 30min steps, no terrain checks (just statistics, ~1sec per sim)
+    // Single: 5min steps, full terrain checks (detailed animation)
     const isBatch = (body.batchSize || 1) > 1;
-    const timeStepMinutes = isBatch ? 30 : 5;
 
     const config: SimulationConfig = {
       seed: body.seed || Math.floor(Math.random() * 1000000),
       maxHours: body.maxHours || 720,
-      timeStepMinutes,
+      timeStepMinutes: isBatch ? 30 : 5,
       startHour: 10,
       searchRadiusM: 2000,
       numSearchers: body.numSearchers || 3,
       searchStartDelay: body.searchStartDelay || 2,
       useTraps: false,
       useScentArticles: false,
+      skipTerrainChecks: isBatch, // Skip water/road checks for fast batch runs
     };
 
     const startPosition = { lat: body.latitude, lng: body.longitude };
 
-    // Fetch terrain data with priority: cached file > OSM API > heuristics fallback
+    // Skip terrain fetching entirely for batch - just need statistical outcomes
+    // Terrain is only needed for single sims where we animate the actual path
+    if (isBatch) {
+      console.log('🎲 Batch mode: skipping terrain fetch for speed');
+    }
+
+    // Only fetch terrain for single simulations (needed for animation)
+    // Batch simulations skip terrain for speed - they just need statistical outcomes
     let terrainData: SimulationConfig['terrainData'];
-    let terrainSource: 'cache' | 'api' | 'heuristics' = 'heuristics';
+    let terrainSource: string = 'none';
+    let cachedCity: CityInfo | null = null;
 
-    // 1. Check for pre-cached terrain file (instant, 20km radius)
-    const cachedCity = findNearestCachedCity(body.latitude, body.longitude);
-    if (cachedCity) {
-      const cachedTerrain = await loadCachedTerrainFile(cachedCity);
-      if (cachedTerrain) {
-        terrainData = {
-          waterPolygons: cachedTerrain.waterAreas?.map(w => ({
-            points: w.points,
-            bbox: w.bbox,
-          })) || [],
-          isCoastal: cachedTerrain.isCoastal || false,
-          roads: cachedTerrain.roads || [],
-          hasHighways: cachedTerrain.hasHighways || false,
-          hasRailways: cachedTerrain.hasRailways || false,
-        };
-        terrainSource = 'cache';
-        console.log(`Using CACHED terrain for ${cachedCity.name}: ${terrainData.waterPolygons.length} water areas, ${terrainData.roads?.length || 0} roads`);
+    if (!isBatch) {
+      // Fetch terrain data with priority: cached file > OSM API > heuristics fallback
+      // 1. Check for pre-cached terrain file (instant, 20km radius)
+      cachedCity = findNearestCachedCity(body.latitude, body.longitude);
+      if (cachedCity) {
+        const cachedTerrain = await loadCachedTerrainFile(cachedCity);
+        if (cachedTerrain) {
+          terrainData = {
+            waterPolygons: cachedTerrain.waterAreas?.map(w => ({
+              points: w.points,
+              bbox: w.bbox,
+            })) || [],
+            isCoastal: cachedTerrain.isCoastal || false,
+            roads: cachedTerrain.roads || [],
+            hasHighways: cachedTerrain.hasHighways || false,
+            hasRailways: cachedTerrain.hasRailways || false,
+          };
+          terrainSource = 'cached';
+          console.log(`Using CACHED terrain for ${cachedCity.name}: ${terrainData.waterPolygons.length} water areas`);
+        }
       }
-    }
 
-    // 2. If no cache, try OSM API (slower, 20km radius)
-    if (!terrainData) {
-      try {
-        const osmTerrain = await fetchTerrainData(startPosition, 20000); // Increased to 20km
-        terrainData = {
-          waterPolygons: osmTerrain.waterAreas.map(w => ({
-            points: w.points,
-            bbox: w.bbox,
-          })),
-          isCoastal: osmTerrain.isCoastal,
-          roads: osmTerrain.roads,
-          hasHighways: osmTerrain.hasHighways,
-          hasRailways: osmTerrain.hasRailways,
-        };
-        terrainSource = 'api';
-        console.log(`Loaded terrain from API: ${terrainData.waterPolygons.length} water areas, ${terrainData.roads?.length || 0} roads/railways`);
-      } catch (err) {
-        console.warn('Could not fetch terrain data from API:', err);
-        // 3. Fall back to global heuristics (no detailed terrain, but ocean/coastline detection still works)
-        terrainSource = 'heuristics';
-        console.log('Using global water heuristics (no detailed terrain)');
+      // 2. If no cache, try OSM API (slower, 20km radius)
+      if (!terrainData) {
+        try {
+          const osmTerrain = await fetchTerrainData(startPosition, 20000);
+          terrainData = {
+            waterPolygons: osmTerrain.waterAreas.map(w => ({
+              points: w.points,
+              bbox: w.bbox,
+            })),
+            isCoastal: osmTerrain.isCoastal,
+            roads: osmTerrain.roads,
+            hasHighways: osmTerrain.hasHighways,
+            hasRailways: osmTerrain.hasRailways,
+          };
+          terrainSource = 'osm';
+          console.log(`Loaded terrain from API: ${terrainData.waterPolygons.length} water areas`);
+        } catch (err) {
+          console.warn('Could not fetch terrain data from API:', err);
+          terrainSource = 'fallback';
+        }
       }
-    }
 
-    // Add terrain data to config
-    config.terrainData = terrainData;
+      // Add terrain data to config for single sim
+      config.terrainData = terrainData;
+    }
+    // Batch mode: config.terrainData stays undefined = no terrain checks = fast
 
     // Limit batch size based on simulation duration to prevent timeout
     // 720 hours (30 days) simulation takes ~400ms each, 60s timeout, terrain takes ~10s

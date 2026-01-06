@@ -189,11 +189,12 @@ class SearcherAgent {
   private spiralRadius: number = 50;
   private searchStartDelay: number;
   private terrainData: TerrainDataType;
+  private skipTerrainChecks: boolean;
   private activeSearchHours: number = 0; // Track actual hours spent searching
   private isTransitioning: boolean = false; // Going home or returning to search area
   private lastSearchPosition: Position | null = null; // Last position before going home
 
-  constructor(id: number, home: Position, rng: SeededRandom, searchStartDelay: number = 2, terrainData?: TerrainDataType) {
+  constructor(id: number, home: Position, rng: SeededRandom, searchStartDelay: number = 2, terrainData?: TerrainDataType, skipTerrainChecks: boolean = false) {
     this.id = id;
     this.homePosition = { ...home };
     this.position = { ...home };
@@ -203,6 +204,7 @@ class SearcherAgent {
     this.rng = rng;
     this.searchStartDelay = searchStartDelay;
     this.terrainData = terrainData;
+    this.skipTerrainChecks = skipTerrainChecks;
     // Randomize search pattern
     const patterns: Array<'spiral' | 'grid' | 'random'> = ['spiral', 'grid', 'random'];
     this.searchPattern = patterns[Math.floor(rng.next() * 3)];
@@ -315,7 +317,8 @@ class SearcherAgent {
     }
 
     // Water avoidance - searchers don't search in water
-    if (isLikelyWater(newPos, this.homePosition, this.terrainData)) {
+    // Skip for batch runs - just need statistical outcomes
+    if (!this.skipTerrainChecks && isLikelyWater(newPos, this.homePosition, this.terrainData)) {
       // Turn around and try a different direction
       this.heading = (this.heading + 180 + this.rng.uniform(-45, 45)) % 360;
       newPos = offsetPosition(this.position, distanceM, this.heading);
@@ -413,7 +416,8 @@ export class BehavioralSimulationEngine {
 
     // === CRITICAL: Check if starting position is in water ===
     // If the user clicked on water, find nearest land position
-    if (isLikelyWater(this.state.position, this.homePosition, config.terrainData)) {
+    // Skip for batch runs - just need statistical outcomes, not accurate geography
+    if (!config.skipTerrainChecks && isLikelyWater(this.state.position, this.homePosition, config.terrainData)) {
       const escapedPos = this.escapeFromWater(this.state.position);
       if (escapedPos) {
         this.state.position = escapedPos;
@@ -424,8 +428,9 @@ export class BehavioralSimulationEngine {
     // Initialize searchers with terrain data for water avoidance
     const searchDelay = config.searchStartDelay ?? 2;
     const terrainData = config.terrainData;
+    const skipTerrain = config.skipTerrainChecks ?? false;
     for (let i = 0; i < config.numSearchers; i++) {
-      this.searchers.push(new SearcherAgent(i, startPosition, this.rng, searchDelay, terrainData));
+      this.searchers.push(new SearcherAgent(i, startPosition, this.rng, searchDelay, terrainData, skipTerrain));
     }
   }
 
@@ -709,40 +714,43 @@ export class BehavioralSimulationEngine {
       this.heading = ((this.heading % 360) + 360) % 360;
       let newPos = offsetPosition(this.state.position, distanceM, this.heading);
 
-      // Water/terrain avoidance - if new position is in water, try alternatives
-      if (isLikelyWater(newPos, this.homePosition, this.config.terrainData)) {
-        // Try multiple escape directions
-        const escapeDirections = [
-          this.heading + 180, // Opposite direction
-          this.heading + 90,  // Right
-          this.heading - 90,  // Left
-          this.heading + 135, // Back-right
-          this.heading - 135, // Back-left
-          this.heading + 45,  // Forward-right
-          this.heading - 45,  // Forward-left
-        ];
+      // Skip terrain checks for batch simulations (just need statistical outcomes)
+      if (!this.config.skipTerrainChecks) {
+        // Water/terrain avoidance - if new position is in water, try alternatives
+        if (isLikelyWater(newPos, this.homePosition, this.config.terrainData)) {
+          // Try multiple escape directions
+          const escapeDirections = [
+            this.heading + 180, // Opposite direction
+            this.heading + 90,  // Right
+            this.heading - 90,  // Left
+            this.heading + 135, // Back-right
+            this.heading - 135, // Back-left
+            this.heading + 45,  // Forward-right
+            this.heading - 45,  // Forward-left
+          ];
 
-        let escaped = false;
-        for (const dir of escapeDirections) {
-          const normalizedDir = ((dir % 360) + 360) % 360;
-          const testPos = offsetPosition(this.state.position, distanceM, normalizedDir);
-          if (!isLikelyWater(testPos, this.homePosition, this.config.terrainData)) {
-            this.heading = normalizedDir;
-            newPos = testPos;
-            escaped = true;
-            break;
+          let escaped = false;
+          for (const dir of escapeDirections) {
+            const normalizedDir = ((dir % 360) + 360) % 360;
+            const testPos = offsetPosition(this.state.position, distanceM, normalizedDir);
+            if (!isLikelyWater(testPos, this.homePosition, this.config.terrainData)) {
+              this.heading = normalizedDir;
+              newPos = testPos;
+              escaped = true;
+              break;
+            }
           }
-        }
 
-        // If all directions lead to water, stay put
-        if (!escaped) {
-          return; // Don't move this timestep
+          // If all directions lead to water, stay put
+          if (!escaped) {
+            return; // Don't move this timestep
+          }
         }
       }
 
       // Road crossing check - pets avoid major roads or face danger when crossing
       const terrainData = this.config.terrainData;
-      if (terrainData?.roads && terrainData.roads.length > 0) {
+      if (!this.config.skipTerrainChecks && terrainData?.roads && terrainData.roads.length > 0) {
         const roadCrossing = this.checkRoadCrossingLocal(this.state.position, newPos, terrainData.roads);
 
         if (roadCrossing.crosses) {
