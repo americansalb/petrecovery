@@ -114,14 +114,14 @@ export async function POST(request: Request) {
     };
 
     // Build config - default 30 days (720 hours)
-    // Batch: 60min steps, no terrain/path recording (just statistics, very fast)
+    // Batch: 15min steps, no terrain/path recording (just statistics)
     // Single: 5min steps, full terrain checks (detailed animation)
     const isBatch = (body.batchSize || 1) > 1;
 
     const config: SimulationConfig = {
       seed: body.seed || Math.floor(Math.random() * 1000000),
       maxHours: body.maxHours || 720,
-      timeStepMinutes: isBatch ? 60 : 5,
+      timeStepMinutes: isBatch ? 15 : 5,
       startHour: 10,
       searchRadiusM: 2000,
       numSearchers: body.numSearchers || 3,
