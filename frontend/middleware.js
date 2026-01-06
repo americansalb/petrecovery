@@ -169,6 +169,31 @@ export async function middleware(request) {
   const { pathname } = request.nextUrl;
   const clientIp = getClientIp(request);
 
+  // FAST PATH: Immediately reject obvious bot probes and invalid paths
+  // This prevents wasting resources on WordPress scanners, PHP probes, etc.
+  if (
+    pathname.endsWith('.php') ||
+    pathname.includes('wp-admin') ||
+    pathname.includes('wp-content') ||
+    pathname.includes('wp-includes') ||
+    pathname.includes('.well-known/') ||
+    pathname.includes('xmlrpc') ||
+    pathname.includes('phpmyadmin') ||
+    pathname.includes('mysql') ||
+    pathname.includes('.env') ||
+    pathname.includes('.git')
+  ) {
+    return new NextResponse(null, { status: 404 });
+  }
+
+  // Health check endpoint for deployment - respond immediately
+  if (pathname === '/api/health' || pathname === '/_health') {
+    return new NextResponse(JSON.stringify({ status: 'ok' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   // Skip middleware for static assets and files with common extensions
   if (
     pathname.startsWith('/_next') ||
