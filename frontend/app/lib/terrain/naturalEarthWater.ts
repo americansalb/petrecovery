@@ -1,8 +1,9 @@
 /**
  * Natural Earth Water Detection
  *
- * Uses Natural Earth dataset (public domain) for authoritative global water detection.
- * This replaces hand-coded heuristics with real geographic data.
+ * Uses Natural Earth 10m land polygons for global land/water detection.
+ * Logic: If a point is NOT on any land polygon, it's in water (ocean).
+ * For bays and inland water, we combine with OSM local water data.
  *
  * Data source: https://www.naturalearthdata.com/
  * GeoJSON source: https://github.com/martynafford/natural-earth-geojson
@@ -20,14 +21,14 @@ interface BBox {
   maxLng: number;
 }
 
-interface WaterPolygon {
+interface LandPolygon {
   coordinates: number[][][]; // [lng, lat][] rings
   bbox: BBox;
 }
 
 // Cache for loaded data
-let oceanPolygons: WaterPolygon[] | null = null;
-let lakePolygons: WaterPolygon[] | null = null;
+let landPolygons: LandPolygon[] | null = null;
+let lakePolygons: LandPolygon[] | null = null;
 let loadingPromise: Promise<void> | null = null;
 
 /**
@@ -67,9 +68,9 @@ function pointInPolygon(pos: Position, coords: number[][]): boolean {
 }
 
 /**
- * Check if point is in a water polygon (handles holes)
+ * Check if point is in a polygon (handles holes)
  */
-function isInWaterPolygon(pos: Position, polygon: WaterPolygon): boolean {
+function isInPolygon(pos: Position, polygon: LandPolygon): boolean {
   // Quick bbox check
   if (pos.lat < polygon.bbox.minLat || pos.lat > polygon.bbox.maxLat ||
       pos.lng < polygon.bbox.minLng || pos.lng > polygon.bbox.maxLng) {
@@ -82,10 +83,10 @@ function isInWaterPolygon(pos: Position, polygon: WaterPolygon): boolean {
     return false;
   }
 
-  // Check holes (if point is in a hole, it's not in water)
+  // Check holes (if point is in a hole, it's not in the polygon)
   for (let i = 1; i < polygon.coordinates.length; i++) {
     if (pointInPolygon(pos, polygon.coordinates[i])) {
-      return false; // In a hole (island within water)
+      return false;
     }
   }
 
@@ -95,8 +96,8 @@ function isInWaterPolygon(pos: Position, polygon: WaterPolygon): boolean {
 /**
  * Parse GeoJSON and extract polygons with bboxes
  */
-function parseGeoJSON(geojson: any): WaterPolygon[] {
-  const polygons: WaterPolygon[] = [];
+function parseGeoJSON(geojson: any): LandPolygon[] {
+  const polygons: LandPolygon[] = [];
 
   for (const feature of geojson.features || []) {
     const geometry = feature.geometry;
@@ -121,11 +122,11 @@ function parseGeoJSON(geojson: any): WaterPolygon[] {
 }
 
 /**
- * Load Natural Earth water data from static files
+ * Load Natural Earth land and lake data from static files
  * Works in both browser (fetch) and Node.js (fs) environments
  */
 export async function loadNaturalEarthData(): Promise<void> {
-  if (oceanPolygons !== null && lakePolygons !== null) {
+  if (landPolygons !== null && lakePolygons !== null) {
     return; // Already loaded
   }
 
@@ -138,18 +139,18 @@ export async function loadNaturalEarthData(): Promise<void> {
       // Detect environment and load accordingly
       if (typeof window !== 'undefined') {
         // Browser environment - use fetch
-        const [oceanResponse, lakesResponse] = await Promise.all([
-          fetch('/data/natural-earth/ocean.json'),
+        const [landResponse, lakesResponse] = await Promise.all([
+          fetch('/data/natural-earth/land_10m.json'),
           fetch('/data/natural-earth/lakes.json'),
         ]);
 
-        if (oceanResponse.ok) {
-          const oceanData = await oceanResponse.json();
-          oceanPolygons = parseGeoJSON(oceanData);
-          console.log(`Loaded ${oceanPolygons.length} ocean polygons`);
+        if (landResponse.ok) {
+          const landData = await landResponse.json();
+          landPolygons = parseGeoJSON(landData);
+          console.log(`Loaded ${landPolygons.length} land polygons (10m resolution)`);
         } else {
-          console.warn('Failed to load ocean data:', oceanResponse.status);
-          oceanPolygons = [];
+          console.warn('Failed to load land data:', landResponse.status);
+          landPolygons = [];
         }
 
         if (lakesResponse.ok) {
@@ -168,13 +169,13 @@ export async function loadNaturalEarthData(): Promise<void> {
         const dataDir = path.join(process.cwd(), 'public', 'data', 'natural-earth');
 
         try {
-          const oceanPath = path.join(dataDir, 'ocean.json');
-          const oceanData = JSON.parse(fs.readFileSync(oceanPath, 'utf-8'));
-          oceanPolygons = parseGeoJSON(oceanData);
-          console.log(`Loaded ${oceanPolygons.length} ocean polygons from ${oceanPath}`);
+          const landPath = path.join(dataDir, 'land_10m.json');
+          const landData = JSON.parse(fs.readFileSync(landPath, 'utf-8'));
+          landPolygons = parseGeoJSON(landData);
+          console.log(`Loaded ${landPolygons.length} land polygons from ${landPath}`);
         } catch (e) {
-          console.warn('Failed to load ocean data from disk:', e);
-          oceanPolygons = [];
+          console.warn('Failed to load land data from disk:', e);
+          landPolygons = [];
         }
 
         try {
@@ -189,7 +190,7 @@ export async function loadNaturalEarthData(): Promise<void> {
       }
     } catch (error) {
       console.error('Failed to load Natural Earth data:', error);
-      oceanPolygons = [];
+      landPolygons = [];
       lakePolygons = [];
     }
   })();
@@ -198,13 +199,13 @@ export async function loadNaturalEarthData(): Promise<void> {
 }
 
 /**
- * Check if a point is in the ocean (using Natural Earth data)
+ * Check if a point is on land (using Natural Earth 10m land data)
  */
-export function isInOcean(pos: Position): boolean {
-  if (!oceanPolygons) return false;
+export function isOnLand(pos: Position): boolean {
+  if (!landPolygons) return true; // Default to land if data not loaded
 
-  for (const polygon of oceanPolygons) {
-    if (isInWaterPolygon(pos, polygon)) {
+  for (const polygon of landPolygons) {
+    if (isInPolygon(pos, polygon)) {
       return true;
     }
   }
@@ -219,7 +220,7 @@ export function isInMajorLake(pos: Position): boolean {
   if (!lakePolygons) return false;
 
   for (const polygon of lakePolygons) {
-    if (isInWaterPolygon(pos, polygon)) {
+    if (isInPolygon(pos, polygon)) {
       return true;
     }
   }
@@ -228,26 +229,48 @@ export function isInMajorLake(pos: Position): boolean {
 }
 
 /**
+ * Check if a point is in the ocean (NOT on land)
+ * This is the inverse of isOnLand - if not on any land polygon, it's ocean
+ */
+export function isInOcean(pos: Position): boolean {
+  return !isOnLand(pos);
+}
+
+/**
  * Check if a point is in any water body (ocean or major lake)
- * This is the main function to use for water detection
+ * For ocean: uses land polygon inverse (NOT on land = ocean)
+ * For lakes: uses lake polygons directly
+ *
+ * Note: Bays like SF Bay may show as "land" because Natural Earth's
+ * land polygons include bays. For accurate bay detection, use OSM data.
  */
 export function isInNaturalEarthWater(pos: Position): boolean {
-  return isInOcean(pos) || isInMajorLake(pos);
+  // If not on land, it's in the ocean
+  if (isInOcean(pos)) {
+    return true;
+  }
+
+  // Check major lakes
+  if (isInMajorLake(pos)) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
  * Check if Natural Earth data is loaded
  */
 export function isDataLoaded(): boolean {
-  return oceanPolygons !== null && lakePolygons !== null;
+  return landPolygons !== null && lakePolygons !== null;
 }
 
 /**
  * Get statistics about loaded data
  */
-export function getStats(): { oceanPolygons: number; lakePolygons: number } {
+export function getStats(): { landPolygons: number; lakePolygons: number } {
   return {
-    oceanPolygons: oceanPolygons?.length || 0,
+    landPolygons: landPolygons?.length || 0,
     lakePolygons: lakePolygons?.length || 0,
   };
 }
