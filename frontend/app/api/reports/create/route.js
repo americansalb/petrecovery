@@ -81,21 +81,24 @@ export async function POST(request) {
     const result = await prisma.$transaction(async (tx) => {
       let user = existingUser;
 
-      // Create account only if:
-      // 1. User doesn't exist
-      // 2. Either logged in via session OR explicitly requested account creation
-      const shouldCreateAccount = !user && (session?.user || createAccount);
-
-      if (shouldCreateAccount) {
+      // Create account if doesn't exist (always need user record for pets/cases)
+      if (!user) {
         let passwordHash;
 
-        if (password) {
-          // User provided password during registration
+        if (password && createAccount) {
+          // User explicitly opted in with password
           passwordHash = await bcrypt.hash(password, 12);
-        } else {
-          // Generate temporary password (for session-based or legacy flows)
+          accountCreated = true;
+        } else if (session?.user) {
+          // Logged in via session
           tempPassword = crypto.randomBytes(12).toString('base64');
           passwordHash = await bcrypt.hash(tempPassword, 12);
+          accountCreated = true;
+        } else {
+          // Guest report - create account but user didn't opt in for full access
+          tempPassword = crypto.randomBytes(12).toString('base64');
+          passwordHash = await bcrypt.hash(tempPassword, 12);
+          // accountCreated stays false - they didn't explicitly create account
         }
 
         user = await tx.user.create({
@@ -108,8 +111,6 @@ export async function POST(request) {
             emailVerified: null, // Email not verified yet
           }
         });
-
-        accountCreated = true;
       }
 
       // Use existing pet if selectedPetId provided, otherwise create new
