@@ -564,8 +564,11 @@ export async function POST(request) {
           });
         });
       }
-    } else if (!user) {
-      // Guest report: no account created
+    }
+
+    // Send guest report email if account was not explicitly created
+    if (!accountCreated && !session?.user) {
+      // Guest report: user exists in DB but didn't opt in for account
       // Send "claim your report" email (will be fully implemented in Phase 3.3)
       sendEmail({
         to: email,
