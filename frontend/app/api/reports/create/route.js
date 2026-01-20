@@ -22,7 +22,8 @@ export async function POST(request) {
       petName, breed, color, size, distinctiveMarks,
       lastSeenAddress, center, radiusMiles, timeElapsed, petType,
       petSize, isIndoorCat, // New fields for probability zones
-      photos, locationType, cityName, selectedPetId
+      photos, locationType, cityName, selectedPetId,
+      createAccount, password // Account creation consent fields
     } = body;
 
     // For dogs, use petSize if provided (more specific than generic size)
@@ -80,10 +81,22 @@ export async function POST(request) {
     const result = await prisma.$transaction(async (tx) => {
       let user = existingUser;
 
-      // Create account if doesn't exist
-      if (!user) {
-        tempPassword = crypto.randomBytes(12).toString('base64');
-        const passwordHash = await bcrypt.hash(tempPassword, 12);
+      // Create account only if:
+      // 1. User doesn't exist
+      // 2. Either logged in via session OR explicitly requested account creation
+      const shouldCreateAccount = !user && (session?.user || createAccount);
+
+      if (shouldCreateAccount) {
+        let passwordHash;
+
+        if (password) {
+          // User provided password during registration
+          passwordHash = await bcrypt.hash(password, 12);
+        } else {
+          // Generate temporary password (for session-based or legacy flows)
+          tempPassword = crypto.randomBytes(12).toString('base64');
+          passwordHash = await bcrypt.hash(tempPassword, 12);
+        }
 
         user = await tx.user.create({
           data: {
@@ -92,6 +105,7 @@ export async function POST(request) {
             firstName,
             passwordHash,
             role: 'USER',
+            emailVerified: null, // Email not verified yet
           }
         });
 
@@ -371,6 +385,39 @@ export async function POST(request) {
           });
           console.log('[Report Debug] Created assignment:', { id: assignment.id, missionId: assignment.missionId, rescueSquadId: assignment.rescueSquadId });
 
+          // Auto-join reporter to rescue squad (Phase 1.2)
+          // Only add if this is the primary squad (first one) and user exists
+          if (squad === squadsToNotify[0] && user) {
+            try {
+              // Check if user is already a member
+              const existingMember = await prisma.rescueSquadMember.findFirst({
+                where: {
+                  rescueSquadId: squad.id,
+                  userId: user.id
+                }
+              });
+
+              if (!existingMember) {
+                // Auto-add user as member
+                await prisma.rescueSquadMember.create({
+                  data: {
+                    rescueSquadId: squad.id,
+                    userId: user.id,
+                    role: 'MEMBER',
+                    isActive: true,
+                    joinedAt: new Date()
+                  }
+                });
+                console.log('[Report Debug] Auto-joined reporter to squad:', squad.name);
+              } else {
+                console.log('[Report Debug] Reporter already member of squad:', squad.name);
+              }
+            } catch (memberError) {
+              // Non-fatal: log but continue
+              console.error('[Report Debug] Failed to auto-join reporter to squad:', memberError);
+            }
+          }
+
           // Create automatic mascot post about the new case
           try {
             const isNearbyAssist = squad.isNearbyAssist;
@@ -468,11 +515,70 @@ export async function POST(request) {
     });
 
     // Send email in background
-    if (accountCreated && tempPassword) {
+    if (accountCreated) {
+      if (tempPassword) {
+        // Legacy flow: send welcome email with temp password
+        sendEmail({
+          to: email,
+          subject: 'Your PetRecovery.org Account - Lost Pet Alert Created',
+          html: buildWelcomeEmail(firstName, petName, email, tempPassword, nearbyPatrol.length)
+        }).catch(err => {
+          logEvent({
+            event_type: 'email.send_failed',
+            correlation_id: correlationId,
+            resource_type: 'email',
+            action: 'create',
+            result: 'failure',
+            error_message: err.message
+          });
+        });
+      } else if (createAccount && password) {
+        // New flow: user chose to create account with their own password
+        // Send verification email (will be implemented in Phase 3.1)
+        sendEmail({
+          to: email,
+          subject: 'Welcome to PetRecovery.org - Verify Your Email',
+          html: `
+            <h2>Welcome to PetRecovery.org, ${firstName}!</h2>
+            <p>Thank you for creating an account. Your lost pet report for <strong>${petName}</strong> has been submitted successfully.</p>
+            <p><strong>Case Number:</strong> ${report.caseNumber}</p>
+            <p>You can now log in with your email (${email}) and the password you created.</p>
+            <p><strong>Next steps:</strong></p>
+            <ul>
+              <li>Log in to view your case dashboard</li>
+              <li>Coordinate with your assigned rescue squad</li>
+              <li>Update information as needed</li>
+            </ul>
+            <p>We'll send you updates when volunteers report sightings.</p>
+            <p>Email verification link will be sent separately (coming soon).</p>
+          `
+        }).catch(err => {
+          logEvent({
+            event_type: 'email.send_failed',
+            correlation_id: correlationId,
+            resource_type: 'email',
+            action: 'create',
+            result: 'failure',
+            error_message: err.message
+          });
+        });
+      }
+    } else if (!user) {
+      // Guest report: no account created
+      // Send "claim your report" email (will be fully implemented in Phase 3.3)
       sendEmail({
         to: email,
-        subject: 'Your PetRecovery.org Account - Lost Pet Alert Created',
-        html: buildWelcomeEmail(firstName, petName, email, tempPassword, nearbyPatrol.length)
+        subject: 'Lost Pet Report Submitted - Track Your Case',
+        html: `
+          <h2>Lost Pet Report Submitted</h2>
+          <p>Hi ${firstName},</p>
+          <p>Your lost pet report for <strong>${petName}</strong> has been submitted.</p>
+          <p><strong>Case Number:</strong> ${report.caseNumber}</p>
+          <p>We'll notify you by email if anyone spots your pet.</p>
+          <p><strong>Want to track progress and coordinate with volunteers?</strong></p>
+          <p>Create an account to access your case dashboard and work with your rescue squad.</p>
+          <p>[Claim Report button will be added in Phase 3.3]</p>
+        `
       }).catch(err => {
         logEvent({
           event_type: 'email.send_failed',
