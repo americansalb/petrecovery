@@ -141,9 +141,16 @@ export default function JoinMissionPage() {
     }
   };
 
-  // Go to full mission control
+  // Go to squad coordination page
   const goToMission = () => {
-    router.push(`/cases/${missionId}?volunteer=${volunteerId}`);
+    // Try to redirect to squad page if available
+    const squadId = mission?.case?.assignments?.[0]?.rescueSquad?.id;
+    if (squadId) {
+      router.push(`/rescue-squads/${squadId}?joined=true`);
+    } else {
+      // Fallback to case page if no squad
+      router.push(`/cases/${mission?.case?.caseNumber || missionId}?volunteer=${volunteerId}`);
+    }
   };
 
   // Error states

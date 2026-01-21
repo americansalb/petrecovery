@@ -6,7 +6,7 @@ import { Home, PawPrint, Search, Users, Menu } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Home' },
-  { href: '/pets', icon: PawPrint, label: 'Missions' },
+  { href: '/pets', icon: PawPrint, label: 'My Pets' },
   { href: '/database', icon: Search, label: 'Search' },
   { href: '/rescue-squads/search', icon: Users, label: 'Squads' },
   { href: '/settings', icon: Menu, label: 'More' },
