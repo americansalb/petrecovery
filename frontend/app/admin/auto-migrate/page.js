@@ -108,10 +108,10 @@ export default function AutoMigratePage() {
             <h1 className="text-3xl font-bold text-white mb-3">Running Migration...</h1>
             <p className="text-slate-400 text-lg">Creating database tables for community posts</p>
             <div className="mt-6 space-y-2 text-left bg-slate-900/50 rounded-xl p-4">
-              <p className="text-sm text-slate-500">⏳ Creating SquadPost table...</p>
-              <p className="text-sm text-slate-500">⏳ Creating SquadPostComment table...</p>
-              <p className="text-sm text-slate-500">⏳ Creating SquadPostVote table...</p>
-              <p className="text-sm text-slate-500">⏳ Creating SquadCommentVote table...</p>
+              <p className="text-sm text-slate-500">⏳ Creating ForcePost table...</p>
+              <p className="text-sm text-slate-500">⏳ Creating ForcePostComment table...</p>
+              <p className="text-sm text-slate-500">⏳ Creating ForcePostVote table...</p>
+              <p className="text-sm text-slate-500">⏳ Creating ForceCommentVote table...</p>
             </div>
           </div>
         )}

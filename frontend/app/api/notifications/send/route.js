@@ -13,7 +13,7 @@ import webpush from 'web-push';
 // These should be in environment variables
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:notifications@petrecovery.org';
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:notifications@reunitepets.org';
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
@@ -34,7 +34,7 @@ export async function POST(request) {
       title,
       body,
       missionId,
-      squadId,
+      forceId,
       divisionId,
       targetUserIds,
       urgent = false,
@@ -54,11 +54,11 @@ export async function POST(request) {
     if (targetUserIds && targetUserIds.length > 0) {
       // Send to specific users
       whereClause.userId = { in: targetUserIds };
-    } else if (squadId) {
-      // Send to all squad members
+    } else if (forceId) {
+      // Send to all force members
       const members = await prisma.squadMembership.findMany({
         where: {
-          rescueSquadId: squadId,
+          rescueForceId: forceId,
           isActive: true,
           ...(divisionId ? { divisionId } : {}),
         },
@@ -81,7 +81,7 @@ export async function POST(request) {
       whereClause.userId = { in: userIds };
     } else if (missionId) {
       // Send to all users who have interacted with this case
-      // (volunteers, squad members assigned, etc.)
+      // (volunteers, force members assigned, etc.)
       const mission = await prisma.missionControl.findFirst({
         where: { caseId: missionId },
         include: {
@@ -124,7 +124,7 @@ export async function POST(request) {
         type,
         missionId,
         missionNumber: caseInfo?.caseNumber,
-        squadId,
+        forceId,
         missionId,
         urgent,
         timestamp: Date.now(),

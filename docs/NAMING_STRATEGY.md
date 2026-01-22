@@ -1,8 +1,8 @@
-# PetRecovery Naming Strategy
+# ReunitePets Naming Strategy
 
 ## Overview
 
-This document captures the official naming conventions for PetRecovery.org and provides guidance for maintaining consistency across the codebase.
+This document captures the official naming conventions for ReunitePets.org and provides guidance for maintaining consistency across the codebase.
 
 **Status: ✅ IMPLEMENTED** - All naming changes completed on 2025-12-12.
 
@@ -10,15 +10,15 @@ This document captures the official naming conventions for PetRecovery.org and p
 
 ## Official Names
 
-### 1. Platform: **PetRecovery**
-- **Full name**: PetRecovery.org
+### 1. Platform: **ReunitePets**
+- **Full name**: ReunitePets.org
 - **Usage**: Website branding, legal references, email domains
 - **Tagline**: "Bring Them Home"
 - **Status**: ✅ Unchanged
 
-### 2. Communities: **Rescue Squads**
-- **Singular**: Rescue Squad
-- **Plural**: Rescue Squads
+### 2. Communities: **Rescue Forces**
+- **Singular**: Rescue Force
+- **Plural**: Rescue Forces
 - **Usage**: Volunteer community groups organized by city
 - **Connotation**: First-responder energy, heroism, teamwork
 - **Status**: ✅ Unchanged
@@ -28,7 +28,7 @@ This document captures the official naming conventions for PetRecovery.org and p
 - **Plural**: Missions
 - **Usage**: Individual lost pet recovery efforts
 - **Previously**: "Case" / "Cases" (now deprecated)
-- **Rationale**: "Mission" pairs with "Rescue Squad" (squads run missions), supports gamification, feels action-oriented
+- **Rationale**: "Mission" pairs with "Rescue Force" (squads run missions), supports gamification, feels action-oriented
 - **Status**: ✅ Migrated from "Case/Cases"
 
 ### 4. Mascot: **Sarama**
@@ -49,7 +49,7 @@ Sarama (Sanskrit: सरमा, "the fleet one") is a mythological being from Hi
 - Followed a long journey to find where they were hidden
 - Helped reunite them with their rightful owners
 
-This origin story perfectly mirrors PetRecovery's mission: helping families find and recover their lost pets.
+This origin story perfectly mirrors ReunitePets's mission: helping families find and recover their lost pets.
 
 The spelling "Surumaa" was an attempt to aid English pronunciation, but "Sarama" preserves the cultural connection and is more distinctive as a brand name.
 
@@ -68,7 +68,7 @@ The spelling "Surumaa" was an attempt to aid English pronunciation, but "Sarama"
 
 ### Sarama Migration (Completed)
 - `lib/brandAssets.js`: `SURUMAA_*` → `SARAMA_*`
-- System user email: `surumaa@petrecovery.app` → `sarama@petrecovery.app`
+- System user email: `surumaa@reunitepets.app` → `sarama@reunitepets.app`
 - Route: `/about-surumaa` → `/about-sarama`
 - All UI text and alt attributes updated
 
@@ -87,23 +87,23 @@ The Prisma schema still uses `Case` model names for database compatibility. A fu
 ## Style Guide
 
 ### Capitalization
-- **Rescue Squad**: Capitalize when referring to the feature/concept
+- **Rescue Force**: Capitalize when referring to the feature/concept
 - **Mission**: Capitalize when referring to the feature/concept
 - **Sarama**: Always capitalize (proper noun)
 
 ### Articles
 - "a Mission" (not "a mission")
-- "the Rescue Squad" or "your Rescue Squad"
+- "the Rescue Force" or "your Rescue Force"
 - "Sarama says..." (no article needed)
 
 ### Plurals
-- "Rescue Squads across the country..."
+- "Rescue Forces across the country..."
 - "Active Missions in your area..."
 
 ### In Code
 - Variables: `missionId`, `missionData`, `rescueSquad`
 - Components: `MissionCard`, `RescueSquadList`
-- Routes: `/missions`, `/rescue-squads`
+- Routes: `/missions`, `/rescue-forces`
 - Database: `Case`, `RescueSquad` (PascalCase for models - schema pending)
 
 ---
@@ -114,7 +114,7 @@ Volunteer progression levels (aligned with guardian/protector theme):
 
 | Level | Name | Requirement |
 |-------|------|-------------|
-| 1 | Scout | Joined a Rescue Squad |
+| 1 | Scout | Joined a Rescue Force |
 | 2 | Sentry | Participated in first Mission |
 | 3 | Shepherd | Marked 5+ search areas |
 | 4 | Pathfinder | 1+ successful reunion |

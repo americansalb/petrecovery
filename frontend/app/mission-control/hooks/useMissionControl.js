@@ -257,15 +257,15 @@ export default function useMissionControl(session) {
     if (isJoining) return; // Prevent double-click
 
     try {
-      const squadId = activeMission.rescueSquadId || activeMission.squadId || activeMission.assignments?.[0]?.rescueSquadId;
-      if (!squadId) {
-        showNotification('info', 'This case needs a rescue squad first. Find one nearby to coordinate the search!');
+      const forceId = activeMission.rescueForceId || activeMission.forceId || activeMission.assignments?.[0]?.rescueForceId;
+      if (!forceId) {
+        showNotification('info', 'This case needs a rescue force first. Find one nearby to coordinate the search!');
         return;
       }
 
       setIsJoining(true);
 
-      const res = await fetchWithRetry(`/api/rescue-squads/${squadId}/missions/${activeMission.id}/help`, {
+      const res = await fetchWithRetry(`/api/rescue-forces/${forceId}/missions/${activeMission.id}/help`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });

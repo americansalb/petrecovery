@@ -13,10 +13,10 @@ The Community system was an early design concept that included:
 
 This hierarchical approach was later replaced by a simpler, more effective model.
 
-## Current System: Rescue Squads + Divisions
+## Current System: Rescue Forces + Divisions
 
 The production system now uses:
-- **Rescue Squads** - City-level volunteer teams (replaces Communities/Metro Areas)
+- **Rescue Forces** - City-level volunteer teams (replaces Communities/Metro Areas)
 - **Divisions** - Neighborhood subdivisions within large city squads (replaces Subcommunities)
 
 See `/frontend/prisma/schema.prisma` for the current implementation.
@@ -30,7 +30,7 @@ See `/frontend/prisma/schema.prisma` for the current implementation.
 
 ## Migration Notes
 
-The legacy Community models still exist in `schema.prisma` marked as "LEGACY - Keeping for backwards compatibility", but they are not integrated with the active Rescue Squad system.
+The legacy Community models still exist in `schema.prisma` marked as "LEGACY - Keeping for backwards compatibility", but they are not integrated with the active Rescue Force system.
 
 **Date Archived:** 2025-11-20
-**Replaced By:** Rescue Squad + Division system
+**Replaced By:** Rescue Force + Division system

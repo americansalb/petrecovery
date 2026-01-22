@@ -13,14 +13,14 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const rescueSquadId = searchParams.get('rescueSquadId');
+    const rescueForceId = searchParams.get('rescueForceId');
 
-    const where = rescueSquadId ? { rescueSquadId } : {};
+    const where = rescueForceId ? { rescueForceId } : {};
 
     const divisions = await prisma.division.findMany({
       where,
       include: {
-        rescueSquad: {
+        rescueForce: {
           select: {
             id: true,
             name: true,
@@ -35,7 +35,7 @@ export async function GET(request) {
         }
       },
       orderBy: [
-        { rescueSquad: { name: 'asc' } },
+        { rescueForce: { name: 'asc' } },
         { name: 'asc' }
       ]
     });
@@ -57,40 +57,40 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { rescueSquadId, name, description, boundaries, centerLatitude, centerLongitude } = body;
+    const { rescueForceId, name, description, boundaries, centerLatitude, centerLongitude } = body;
 
     // Validate required fields
-    if (!rescueSquadId || !name) {
-      return NextResponse.json({ error: 'Rescue Squad and name are required' }, { status: 400 });
+    if (!rescueForceId || !name) {
+      return NextResponse.json({ error: 'Rescue Force and name are required' }, { status: 400 });
     }
 
-    // Check if rescue squad exists
-    const rescueSquad = await prisma.rescueSquad.findUnique({
-      where: { id: rescueSquadId }
+    // Check if rescue force exists
+    const rescueForce = await prisma.rescueForce.findUnique({
+      where: { id: rescueForceId }
     });
 
-    if (!rescueSquad) {
-      return NextResponse.json({ error: 'Rescue Squad not found' }, { status: 404 });
+    if (!rescueForce) {
+      return NextResponse.json({ error: 'Rescue Force not found' }, { status: 404 });
     }
 
-    // Check for duplicate division name within this squad
+    // Check for duplicate division name within this force
     const existing = await prisma.division.findFirst({
       where: {
-        rescueSquadId,
+        rescueForceId,
         name
       }
     });
 
     if (existing) {
       return NextResponse.json({
-        error: `Division "${name}" already exists in ${rescueSquad.name}`
+        error: `Division "${name}" already exists in ${rescueForce.name}`
       }, { status: 400 });
     }
 
     // Create the division
     const division = await prisma.division.create({
       data: {
-        rescueSquadId,
+        rescueForceId,
         name,
         description: description || null,
         boundaries: boundaries || null,
@@ -99,7 +99,7 @@ export async function POST(request) {
         isActive: true
       },
       include: {
-        rescueSquad: {
+        rescueForce: {
           select: {
             name: true,
             city: true,

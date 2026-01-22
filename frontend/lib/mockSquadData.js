@@ -1,15 +1,15 @@
 /**
  * Mock data for Squad Hub development
  *
- * Simulates the response from GET /api/squads/[citySlug]/hub
+ * Simulates the response from GET /api/forces/[citySlug]/hub
  */
 
 export const mockChicagoSquadData = {
-  squad: {
+  force: {
     id: 'squad_chicago',
     citySlug: 'chicago',
     cityName: 'Chicago',
-    displayName: 'Chicago Rescue Squad',
+    displayName: 'Chicago Rescue Force',
     memberCount: 847,
     onDutyCount: 23,
     centerLat: 41.8781,
@@ -361,7 +361,7 @@ export const mockChicagoSquadData = {
       id: 'ann_001',
       authorId: 'user_002',
       authorName: 'David L.',
-      title: 'Welcome to Chicago Rescue Squad!',
+      title: 'Welcome to Chicago Rescue Force!',
       content: 'Thank you for joining our community. Remember to always stay safe during searches and coordinate with your team. Check the Active tab to see cases that need help.',
       createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
       isPinned: true,
@@ -471,7 +471,7 @@ export const mockChicagoSquadData = {
       {
         id: 'user_002',
         name: 'David L.',
-        role: 'SQUAD_LEAD',
+        role: 'FORCE_LEAD',
         divisionId: 'div_lakeview',
         divisionName: 'Lakeview',
         isOnDuty: true,
@@ -557,11 +557,11 @@ export const mockChicagoSquadData = {
 
 // Small city mock (no divisions needed)
 export const mockCarpenstersvilleSquadData = {
-  squad: {
+  force: {
     id: 'squad_carpentersville',
     citySlug: 'carpentersville',
     cityName: 'Carpentersville',
-    displayName: 'Carpentersville Rescue Squad',
+    displayName: 'Carpentersville Rescue Force',
     memberCount: 45,
     onDutyCount: 3,
     centerLat: 42.1214,
@@ -640,7 +640,7 @@ export const mockCarpenstersvilleSquadData = {
       {
         id: 'user_cv_001',
         name: 'John D.',
-        role: 'SQUAD_LEAD',
+        role: 'FORCE_LEAD',
         divisionId: 'div_entire_city',
         divisionName: 'Entire City',
         isOnDuty: true,
@@ -669,7 +669,7 @@ export function getMockSquadData(citySlug) {
     case 'carpentersville':
       return mockCarpenstersvilleSquadData;
     default:
-      // Return null for unknown squads - let the page show an error
+      // Return null for unknown forces - let the page show an error
       // instead of incorrectly showing Chicago data
       return null;
   }

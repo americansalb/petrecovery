@@ -4,7 +4,7 @@
  * Command Center - Leader's Strategic View
  *
  * Zone management, volunteer deployment, resource coordination.
- * The "RTS" (Real-Time Strategy) interface for squad leaders.
+ * The "RTS" (Real-Time Strategy) interface for force leaders.
  */
 
 import { useState, useEffect } from 'react';

@@ -20,7 +20,7 @@ export default function AdminCreateDivisionPage() {
   // Multi-step state
   const [step, setStep] = useState(1); // 1: ZIP, 2: Draw & Name
   const [zipCode, setZipCode] = useState('');
-  const [rescueSquad, setRescueSquad] = useState(null);
+  const [rescueForce, setRescueForce] = useState(null);
   const [zipLocation, setZipLocation] = useState(null);
 
   const [divisionName, setDivisionName] = useState('');
@@ -50,18 +50,18 @@ export default function AdminCreateDivisionPage() {
 
       setZipLocation({ lat, lng, city, state });
 
-      // Find rescue squad for this ZIP
-      const squadRes = await fetch(`/api/rescue-squads?zipCode=${zipCode}&radius=50`);
-      const squadData = await squadRes.json();
+      // Find rescue force for this ZIP
+      const forceRes = await fetch(`/api/rescue-forces?zipCode=${zipCode}&radius=50`);
+      const forceData = await forceRes.json();
 
       // Find the city that matches or is closest
-      const citySquad = squadData.cities?.find(c => c.exists && c.city === city);
+      const cityForce = forceData.cities?.find(c => c.exists && c.city === city);
 
-      if (!citySquad || !citySquad.squad) {
-        throw new Error(`No rescue squad found for ${city}, ${state}. Please create the rescue squad first.`);
+      if (!cityForce || !cityForce.force) {
+        throw new Error(`No rescue force found for ${city}, ${state}. Please create the rescue force first.`);
       }
 
-      setRescueSquad(citySquad.squad);
+      setRescueForce(cityForce.force);
 
       // Move to step 2 and load the map
       setStep(2);
@@ -227,7 +227,7 @@ export default function AdminCreateDivisionPage() {
       const centerLongitude = sumLng / polygon.length;
       const centerLatitude = sumLat / polygon.length;
 
-      // Validate polygon is within reasonable distance of the rescue squad's area
+      // Validate polygon is within reasonable distance of the rescue force's area
       const distanceFromZip = calculateDistance(
         zipLocation.lat,
         zipLocation.lng,
@@ -238,12 +238,12 @@ export default function AdminCreateDivisionPage() {
       if (distanceFromZip > 25) {
         throw new Error(
           `The division boundary is too far (${distanceFromZip.toFixed(1)} miles) from ${zipLocation.city}. ` +
-          `Please draw a boundary within the ${rescueSquad.name} service area.`
+          `Please draw a boundary within the ${rescueForce.name} service area.`
         );
       }
 
       const payload = {
-        rescueSquadId: rescueSquad.id,
+        rescueForceId: rescueForce.id,
         name: finalDivisionName,
         description: null,
         boundaries: polygon,
@@ -402,7 +402,7 @@ export default function AdminCreateDivisionPage() {
                   color: '#64748b',
                   marginTop: '0.5rem'
                 }}>
-                  This will determine which Rescue Squad this division belongs to
+                  This will determine which Rescue Force this division belongs to
                 </p>
               </div>
 
@@ -421,16 +421,16 @@ export default function AdminCreateDivisionPage() {
                   cursor: loading || zipCode.length !== 5 ? 'not-allowed' : 'pointer'
                 }}
               >
-                {loading ? 'Finding Rescue Squad...' : 'Continue →'}
+                {loading ? 'Finding Rescue Force...' : 'Continue →'}
               </button>
             </div>
           </form>
         )}
 
         {/* Step 2: Draw Map & Name Division */}
-        {step === 2 && rescueSquad && (
+        {step === 2 && rescueForce && (
           <form onSubmit={handleDivisionSubmit}>
-            {/* Squad Info Banner */}
+            {/* Force Info Banner */}
             <div style={{
               background: 'white',
               borderRadius: '12px',
@@ -448,7 +448,7 @@ export default function AdminCreateDivisionPage() {
                   Creating division for
                 </div>
                 <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0f172a' }}>
-                  {rescueSquad.name}
+                  {rescueForce.name}
                 </div>
                 <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>
                   {zipLocation.city}, {zipLocation.state} • ZIP {zipCode}

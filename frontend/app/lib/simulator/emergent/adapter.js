@@ -161,7 +161,7 @@ export function convertLegacyConfig(legacyConfig) {
     postedOnSocialMedia: legacyConfig.postedOnSocialMedia === true,
     postedFlyers: legacyConfig.postedFlyers === true,
     contactedShelters: legacyConfig.contactedShelters === true,
-    listedOnPetRecoveryPlatform: legacyConfig.listedOnPetRecoveryPlatform === true,
+    listedOnReunitePetsPlatform: legacyConfig.listedOnReunitePetsPlatform === true,
   });
 
   const environmentConfig = buildEnvironmentConfig({

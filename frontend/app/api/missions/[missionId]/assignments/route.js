@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 
-// GET /api/missions/[id]/assignments - Get all squad assignments for a case
+// GET /api/missions/[id]/assignments - Get all force assignments for a case
 export async function GET(request, { params }) {
   try {
     const { id } = params;
@@ -11,11 +11,11 @@ export async function GET(request, { params }) {
     const assignments = await prisma.caseAssignment.findMany({
       where: { missionId: id },
       include: {
-        rescueSquad: {
+        rescueForce: {
           select: {
             id: true,
             name: true,
-            rescueSquadLevel: true,
+            rescueForceLevel: true,
             successfulReunions: true,
           },
         },
@@ -53,7 +53,7 @@ export async function GET(request, { params }) {
   }
 }
 
-// POST /api/missions/[id]/assignments - Squad leader accepts a case
+// POST /api/missions/[id]/assignments - Force leader accepts a case
 export async function POST(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
@@ -63,11 +63,11 @@ export async function POST(request, { params }) {
 
     const { id: missionId } = params;
     const body = await request.json();
-    const { rescueSquadId } = body;
+    const { rescueForceId } = body;
 
-    if (!rescueSquadId) {
+    if (!rescueForceId) {
       return NextResponse.json(
-        { error: 'Rescue squad ID required' },
+        { error: 'Rescue force ID required' },
         { status: 400 }
       );
     }
@@ -88,10 +88,10 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Check if user is a leader of the squad
-    const membership = await prisma.rescueSquadMember.findFirst({
+    // Check if user is a leader of the force
+    const membership = await prisma.rescueForceMember.findFirst({
       where: {
-        rescueSquadId,
+        rescueForceId,
         userId: session.user.id,
         role: { in: ['FOUNDER', 'LEADER'] },
         isActive: true,
@@ -100,24 +100,24 @@ export async function POST(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'Only squad leaders can accept cases' },
+        { error: 'Only force leaders can accept cases' },
         { status: 403 }
       );
     }
 
-    // Check if squad already accepted this case
+    // Check if force already accepted this case
     const existingAssignment = await prisma.caseAssignment.findUnique({
       where: {
-        missionId_rescueSquadId: {
+        missionId_rescueForceId: {
           missionId,
-          rescueSquadId,
+          rescueForceId,
         },
       },
     });
 
     if (existingAssignment) {
       return NextResponse.json(
-        { error: 'Your squad has already accepted this case' },
+        { error: 'Your force has already accepted this case' },
         { status: 400 }
       );
     }
@@ -126,7 +126,7 @@ export async function POST(request, { params }) {
     const assignment = await prisma.caseAssignment.create({
       data: {
         missionId,
-        rescueSquadId,
+        rescueForceId,
         acceptedById: session.user.id,
         status: 'ACCEPTED',
       },
@@ -140,7 +140,7 @@ export async function POST(request, { params }) {
             lastSeenAddress: true,
           },
         },
-        rescueSquad: {
+        rescueForce: {
           select: {
             id: true,
             name: true,
@@ -158,17 +158,74 @@ export async function POST(request, { params }) {
       },
     });
 
-    // Update squad stats
-    await prisma.rescueSquad.update({
-      where: { id: rescueSquadId },
+    // Update force stats
+    await prisma.rescueForce.update({
+      where: { id: rescueForceId },
       data: {
         totalMissionsAccepted: { increment: 1 },
       },
     });
 
-    // TODO: Send notifications to all active squad members
-    // - Push notification: "Your squad accepted a new case!"
-    // - Email: Mission details with opt-in link
+    // Send notifications to all active force members
+    try {
+      // Get force and mission details with members
+      const forceWithMembers = await prisma.rescueForce.findUnique({
+        where: { id: rescueForceId },
+        select: {
+          name: true,
+          members: {
+            where: { status: 'ACTIVE' },
+            select: {
+              userId: true,
+              user: {
+                select: { email: true },
+              },
+            },
+          },
+        },
+      });
+
+      const mission = await prisma.case.findUnique({
+        where: { id: missionId },
+        select: {
+          missionNumber: true,
+          petName: true,
+          petSpecies: true,
+          city: true,
+          state: true,
+        },
+      });
+
+      if (forceWithMembers && mission) {
+        const memberIds = forceWithMembers.members.map(m => m.userId);
+        const memberEmails = forceWithMembers.members.map(m => m.user.email).filter(Boolean);
+        const location = `${mission.city}, ${mission.state}`;
+
+        // Send push notifications
+        const { sendMissionAssignmentPushNotification } = await import('@/app/lib/notifications');
+        await sendMissionAssignmentPushNotification({
+          memberIds,
+          forceName: forceWithMembers.name,
+          petName: mission.petName || mission.petSpecies,
+          missionNumber: mission.missionNumber,
+          location,
+        });
+
+        // Send email notifications
+        const { sendCaseAssignmentNotification } = await import('@/app/lib/notifications');
+        await sendCaseAssignmentNotification({
+          memberEmails,
+          forceName: forceWithMembers.name,
+          petName: mission.petName,
+          petSpecies: mission.petSpecies,
+          missionNumber: mission.missionNumber,
+          location,
+        });
+      }
+    } catch (notificationError) {
+      console.error('Error sending mission assignment notifications:', notificationError);
+      // Don't fail the request if notifications fail
+    }
 
     return NextResponse.json({ assignment }, { status: 201 });
   } catch (error) {

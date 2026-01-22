@@ -223,7 +223,7 @@ export class ChatBot {
   async generateResponse(intent, state, context) {
     const responses = {
       GREETING: {
-        text: `Hello! I'm the PetRecovery assistant. I can help you report sightings, check on lost pet cases, or join search efforts. What would you like to do?`,
+        text: `Hello! I'm the ReunitePets assistant. I can help you report sightings, check on lost pet cases, or join search efforts. What would you like to do?`,
         suggestions: ['Report a sighting', 'Check my case status', 'Join a search'],
       },
       HELP: {
@@ -246,8 +246,8 @@ export class ChatBot {
         suggestions: ['Show my cases', 'Latest sightings'],
       },
       JOIN_SEARCH: {
-        text: `That's wonderful that you want to help! There are currently ${context.activeMissions || 'several'} active searches near you. Would you like to see nearby cases or join a rescue squad?`,
-        suggestions: ['Show nearby cases', 'Join a squad', 'How does searching work?'],
+        text: `That's wonderful that you want to help! There are currently ${context.activeMissions || 'several'} active searches near you. Would you like to see nearby cases or join a rescue force?`,
+        suggestions: ['Show nearby cases', 'Join a force', 'How does searching work?'],
         actions: [{ type: 'show_map', filter: 'active_cases' }],
       },
       REPORT_LOST: {

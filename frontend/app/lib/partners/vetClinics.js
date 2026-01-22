@@ -155,7 +155,7 @@ View case online: ${process.env.NEXT_PUBLIC_BASE_URL}/cases/${petData.missionNum
 
 Thank you for your help in reuniting pets with their families!
 
-PetRecovery.org
+ReunitePets.org
     `.trim();
   }
 
@@ -173,7 +173,7 @@ If anyone has reported a missing pet matching this description, please direct th
 ${process.env.NEXT_PUBLIC_BASE_URL}/cases/${petData.missionNumber}
 
 Thank you!
-PetRecovery.org
+ReunitePets.org
   `.trim();
 }
 

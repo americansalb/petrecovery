@@ -42,7 +42,7 @@
 
 ### Step 1: Update Prisma Schema
 
-**File:** `/home/user/petrecovery/frontend/prisma/schema.prisma`
+**File:** `/home/user/reunitepets/frontend/prisma/schema.prisma`
 
 Changes needed:
 

@@ -5,7 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 /**
- * SquadCoverageMap - Shows a map of the squad's coverage area
+ * ForceCoverageMap - Shows a map of the force's coverage area
  * @param {Object} props
  * @param {number} props.latitude - Center latitude
  * @param {number} props.longitude - Center longitude
@@ -13,7 +13,7 @@ import 'leaflet/dist/leaflet.css';
  * @param {string} props.city - City name
  * @param {string} props.state - State abbreviation
  */
-export default function SquadCoverageMap({ latitude, longitude, radiusMiles, city, state }) {
+export default function ForceCoverageMap({ latitude, longitude, radiusMiles, city, state }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
 
@@ -34,7 +34,7 @@ export default function SquadCoverageMap({ latitude, longitude, radiusMiles, cit
       maxZoom: 19
     }).addTo(map);
 
-    // Add marker for squad center
+    // Add marker for force center
     const markerIcon = L.divIcon({
       className: 'custom-marker',
       html: `
@@ -59,7 +59,7 @@ export default function SquadCoverageMap({ latitude, longitude, radiusMiles, cit
 
     L.marker([latitude, longitude], { icon: markerIcon })
       .addTo(map)
-      .bindPopup(`<b>${city} Rescue Squad</b><br/>${city}, ${state}`);
+      .bindPopup(`<b>${city} Rescue Force</b><br/>${city}, ${state}`);
 
     // Add circle for coverage radius
     const radiusMeters = radiusMiles * 1609.34; // Convert miles to meters

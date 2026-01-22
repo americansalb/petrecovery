@@ -328,7 +328,7 @@ model RescueSquad {
 
 ### TASK-C04.1: Legal Gating UI Pattern
 
-**Reuse Pattern from Rescue Squads**:
+**Reuse Pattern from Rescue Forces**:
 - Add legal error banner to all 3 pages (list, detail, new)
 - Banner style: Yellow/amber background, warning icon, clear message
 - "Review & Accept Now" button → `/legal/consent?returnUrl=<current-page>`
@@ -405,7 +405,7 @@ model RescueSquad {
   ```markdown
   **Next Phase:**
   - 🔨 Phase 13-14: Pet Profiles + Lost-Pet Mission MVP (IN PROGRESS)
-  - ✅ Migrate rescue squad endpoints to logEvent() (COMPLETE)
+  - ✅ Migrate rescue force endpoints to logEvent() (COMPLETE)
   ```
 
 **Acceptance Criteria**:

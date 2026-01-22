@@ -15,7 +15,7 @@ export default function DivisionRequestPage() {
   const [myRequests, setMyRequests] = useState([]);
 
   const [formData, setFormData] = useState({
-    rescueSquadId: '',
+    rescueForceId: '',
     proposedName: '',
     justification: '',
     zipCodes: '',
@@ -37,17 +37,17 @@ export default function DivisionRequestPage() {
 
   const fetchMySquads = async () => {
     try {
-      const res = await fetch('/api/rescue-squads');
+      const res = await fetch('/api/rescue-forces');
       if (res.ok) {
         const data = await res.json();
-        // Filter to squads where I'm a member
-        const myMemberships = data.squads.filter(s =>
+        // Filter to forces where I'm a member
+        const myMemberships = data.forces.filter(s =>
           s.members?.some(m => m.userId === session?.user?.id && m.isActive)
         );
         setMySquads(myMemberships);
       }
     } catch (err) {
-      console.error('Error fetching squads:', err);
+      console.error('Error fetching forces:', err);
     }
   };
 
@@ -107,7 +107,7 @@ export default function DivisionRequestPage() {
 
       // Reset form
       setFormData({
-        rescueSquadId: '',
+        rescueForceId: '',
         proposedName: '',
         justification: '',
         zipCodes: '',
@@ -185,11 +185,11 @@ export default function DivisionRequestPage() {
               fontSize: '1.1rem',
               color: '#64748b'
             }}>
-              Propose a neighborhood subdivision for your Rescue Squad
+              Propose a neighborhood subdivision for your Rescue Force
             </p>
           </div>
           <Link
-            href="/rescue-squads"
+            href="/rescue-forces"
             style={{
               padding: '0.75rem 1.5rem',
               background: 'white',
@@ -200,7 +200,7 @@ export default function DivisionRequestPage() {
               fontWeight: '700'
             }}
           >
-            ← Back to Squads
+            ← Back to Forces
           </Link>
         </div>
 
@@ -256,13 +256,13 @@ export default function DivisionRequestPage() {
                   color: '#0f172a',
                   marginBottom: '0.5rem'
                 }}>
-                  Join a Rescue Squad First
+                  Join a Rescue Force First
                 </h2>
                 <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-                  You must be a member of a Rescue Squad before you can request a Division.
+                  You must be a member of a Rescue Force before you can request a Division.
                 </p>
                 <Link
-                  href="/rescue-squads"
+                  href="/rescue-forces"
                   style={{
                     display: 'inline-block',
                     padding: '0.75rem 1.5rem',
@@ -273,7 +273,7 @@ export default function DivisionRequestPage() {
                     fontWeight: '700'
                   }}
                 >
-                  Browse Rescue Squads
+                  Browse Rescue Forces
                 </Link>
               </div>
             ) : (
@@ -292,7 +292,7 @@ export default function DivisionRequestPage() {
                   Division Details
                 </h2>
 
-                {/* Rescue Squad Selection */}
+                {/* Rescue Force Selection */}
                 <div style={{ marginBottom: '1.5rem' }}>
                   <label style={{
                     display: 'block',
@@ -300,11 +300,11 @@ export default function DivisionRequestPage() {
                     fontWeight: '700',
                     color: '#0f172a'
                   }}>
-                    Rescue Squad *
+                    Rescue Force *
                   </label>
                   <select
-                    name="rescueSquadId"
-                    value={formData.rescueSquadId}
+                    name="rescueForceId"
+                    value={formData.rescueForceId}
                     onChange={handleChange}
                     required
                     style={{
@@ -315,10 +315,10 @@ export default function DivisionRequestPage() {
                       fontSize: '1rem'
                     }}
                   >
-                    <option value="">Select a squad...</option>
-                    {mySquads.map(squad => (
-                      <option key={squad.id} value={squad.id}>
-                        {squad.name}
+                    <option value="">Select a force...</option>
+                    {mySquads.map(force => (
+                      <option key={force.id} value={force.id}>
+                        {force.name}
                       </option>
                     ))}
                   </select>

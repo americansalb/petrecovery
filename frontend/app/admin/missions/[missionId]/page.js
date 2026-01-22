@@ -35,9 +35,9 @@ export default function CaseDetailPage({ params }) {
 
   // Assignment state (Phase 22-24: TASK-R05)
   const [availableCoordinators, setAvailableCoordinators] = useState([]);
-  const [availableSquads, setAvailableSquads] = useState([]);
+  const [availableForces, setAvailableForces] = useState([]);
   const [assigningCoordinator, setAssigningCoordinator] = useState(false);
-  const [assigningSquad, setAssigningSquad] = useState(false);
+  const [assigningForce, setAssigningForce] = useState(false);
   const [assignmentMessage, setAssignmentMessage] = useState(null); // { type: 'success' | 'error', text: '...' }
 
   // Auth check and redirect
@@ -75,12 +75,12 @@ export default function CaseDetailPage({ params }) {
         setAvailableCoordinators(staffUsers);
       }
 
-      // Fetch active squads
-      const squadsResponse = await fetch('/api/squads');
-      if (squadsResponse.ok) {
-        const squadsData = await squadsResponse.json();
-        const activeSquads = squadsData.squads.filter(s => s.isActive);
-        setAvailableSquads(activeSquads);
+      // Fetch active forces
+      const forcesResponse = await fetch('/api/forces');
+      if (forcesResponse.ok) {
+        const forcesData = await forcesResponse.json();
+        const activeForces = forcesData.forces.filter(s => s.isActive);
+        setAvailableForces(activeForces);
       }
     } catch (err) {
       console.error('Failed to fetch assignment options:', err);
@@ -221,21 +221,21 @@ export default function CaseDetailPage({ params }) {
     }
   };
 
-  const handleSquadAssignment = async (squadId) => {
-    setAssigningSquad(true);
+  const handleForceAssignment = async (forceId) => {
+    setAssigningForce(true);
     setAssignmentMessage(null);
 
     try {
-      const response = await fetch('/api/missions/' + params.id + '/assign-squad', {
+      const response = await fetch('/api/missions/' + params.id + '/assign-force', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ squadId })
+        body: JSON.stringify({ forceId })
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || data.error || 'Failed to assign squad');
+        throw new Error(data.message || data.error || 'Failed to assign force');
       }
 
       setAssignmentMessage({ type: 'success', text: data.message });
@@ -245,7 +245,7 @@ export default function CaseDetailPage({ params }) {
       setAssignmentMessage({ type: 'error', text: err.message });
       setTimeout(() => setAssignmentMessage(null), 5000);
     } finally {
-      setAssigningSquad(false);
+      setAssigningForce(false);
     }
   };
 
@@ -703,7 +703,7 @@ export default function CaseDetailPage({ params }) {
                 )}
               </div>
 
-              {/* Squad Assignment */}
+              {/* Force Assignment */}
               <div>
                 <label style={{
                   display: 'block',
@@ -712,29 +712,29 @@ export default function CaseDetailPage({ params }) {
                   color: '#374151',
                   marginBottom: '0.5rem'
                 }}>
-                  Owning Squad
+                  Owning Force
                 </label>
                 <select
-                  value={missionData.squadId || ''}
-                  onChange={(e) => handleSquadAssignment(e.target.value || null)}
-                  disabled={assigningSquad}
+                  value={missionData.forceId || ''}
+                  onChange={(e) => handleForceAssignment(e.target.value || null)}
+                  disabled={assigningForce}
                   style={{
                     width: '100%',
                     padding: '0.5rem',
                     border: '1px solid #d1d5db',
                     borderRadius: '6px',
                     fontSize: '0.875rem',
-                    opacity: assigningSquad ? 0.5 : 1
+                    opacity: assigningForce ? 0.5 : 1
                   }}
                 >
-                  <option value="">No squad</option>
-                  {availableSquads.map(squad => (
-                    <option key={squad.id} value={squad.id}>
-                      {squad.name} ({squad.city}, {squad.state})
+                  <option value="">No force</option>
+                  {availableForces.map(force => (
+                    <option key={force.id} value={force.id}>
+                      {force.name} ({force.city}, {force.state})
                     </option>
                   ))}
                 </select>
-                {assigningSquad && (
+                {assigningForce && (
                   <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
                     Updating...
                   </div>

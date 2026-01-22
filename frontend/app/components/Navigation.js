@@ -3,7 +3,7 @@
 /**
  * Navigation Component - Phase 2 Redesign
  *
- * Clean, modern navigation using PetRecovery Design System:
+ * Clean, modern navigation using ReunitePets Design System:
  * - Midnight Blue background (solid, not gradient)
  * - Lucide icons instead of emojis
  * - Flashlight Yellow for CTAs
@@ -81,10 +81,10 @@ export default function Navigation() {
       const res = await fetch('/api/dashboard');
       if (res.ok) {
         const data = await res.json();
-        setUserSquads(data.squads || []);
+        setUserSquads(data.forces || []);
       }
     } catch (err) {
-      console.error('Error loading squads:', err);
+      console.error('Error loading forces:', err);
     }
   };
 
@@ -119,9 +119,9 @@ export default function Navigation() {
               <Building2 className="w-4 h-4" />
               Shelters
             </Link>
-            <Link href="/rescue-squads/search" className="hidden lg:flex items-center gap-2 px-4 py-2 text-midnight-300 hover:text-white font-medium text-sm rounded-lg hover:bg-midnight-800 transition">
+            <Link href="/rescue-forces/search" className="hidden lg:flex items-center gap-2 px-4 py-2 text-midnight-300 hover:text-white font-medium text-sm rounded-lg hover:bg-midnight-800 transition">
               <Users className="w-4 h-4" />
-              Rescue Squads
+              Rescue Forces
             </Link>
 
             {/* Report Buttons for Guest */}
@@ -179,17 +179,17 @@ export default function Navigation() {
                 <DropdownLink href="/missions" icon={ClipboardList} title="My Missions" description="Active lost/found reports" />
               </NavDropdown>
 
-              {/* Search Dropdown - Database, Shelters, Squads */}
+              {/* Search Dropdown - Database, Shelters, Forces */}
               <NavDropdown
                 label="Search"
                 icon={Search}
-                active={pathname === '/database' || pathname.includes('/shelters') || pathname === '/rescue-squads/search'}
+                active={pathname === '/database' || pathname.includes('/shelters') || pathname === '/rescue-forces/search'}
                 isOpen={activeDropdown === 'search'}
                 onToggle={() => toggleDropdown('search')}
               >
                 <DropdownLink href="/database" icon={Database} title="Pet Database" description="Search lost & found pets" />
                 <DropdownLink href="/shelters" icon={Building2} title="Find Shelters" description="Animal shelters near you" />
-                <DropdownLink href="/rescue-squads/search" icon={Users} title="Find Rescue Squads" description="Volunteer groups near you" />
+                <DropdownLink href="/rescue-forces/search" icon={Users} title="Find Rescue Forces" description="Volunteer groups near you" />
               </NavDropdown>
 
               {/* Rescue Hub */}
@@ -198,29 +198,29 @@ export default function Navigation() {
                 Hub
               </NavLink>
 
-              {/* My Rescue Squads Dropdown - Only shows if user has squads */}
+              {/* My Rescue Forces Dropdown - Only shows if user has forces */}
               {userSquads.length > 0 && (
                 <NavDropdown
-                  label="My Rescue Squads"
+                  label="My Rescue Forces"
                   icon={Shield}
-                  active={pathname.includes('/rescue-squads') && pathname !== '/rescue-squads/search'}
-                  isOpen={activeDropdown === 'squads'}
-                  onToggle={() => toggleDropdown('squads')}
+                  active={pathname.includes('/rescue-forces') && pathname !== '/rescue-forces/search'}
+                  isOpen={activeDropdown === 'forces'}
+                  onToggle={() => toggleDropdown('forces')}
                   badge={userSquads.length}
                 >
                   <div className="max-h-64 overflow-y-auto">
-                    {userSquads.map(squad => (
+                    {userSquads.map(force => (
                       <Link
-                        key={squad.id}
-                        href={`/rescue-squads/${squad.id}`}
+                        key={force.id}
+                        href={`/rescue-forces/${force.id}`}
                         className="flex items-center gap-3 px-4 py-2.5 hover:bg-midnight-50 transition"
                       >
                         <div className="w-8 h-8 rounded-lg bg-midnight-900 text-white flex items-center justify-center text-sm font-bold">
-                          {squad.name?.[0] || '?'}
+                          {force.name?.[0] || '?'}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-midnight-900 truncate">{squad.name}</div>
-                          <div className="text-xs text-midnight-500">{squad.city}, {squad.state}</div>
+                          <div className="font-medium text-midnight-900 truncate">{force.name}</div>
+                          <div className="text-xs text-midnight-500">{force.city}, {force.state}</div>
                         </div>
                       </Link>
                     ))}
@@ -240,7 +240,7 @@ export default function Navigation() {
                   <DropdownLink href="/admin" icon={BarChart3} title="Dashboard" description="Overview & stats" />
                   <DropdownLink href="/admin/users" icon={Users} title="Users" description="Manage all users" />
                   <DropdownLink href="/admin/pets" icon={PawPrint} title="Pets" description="All pet profiles" />
-                  <DropdownLink href="/admin/rescue-squads" icon={Shield} title="Rescue Squads" description="Manage squads" />
+                  <DropdownLink href="/admin/rescue-forces" icon={Shield} title="Rescue Forces" description="Manage forces" />
                   <DropdownLink href="/admin/divisions" icon={MapPin} title="Divisions" description="Geographic areas" />
                   <DropdownLink href="/admin/missions" icon={ClipboardList} title="Missions" description="All lost pet missions" />
                   <DropdownDivider />
@@ -402,7 +402,7 @@ export default function Navigation() {
 
           <MobileNavLink href="/database" icon={Database} label="Pet Database" active={pathname === '/database'} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/shelters" icon={Building2} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
-          <MobileNavLink href="/rescue-squads/search" icon={Users} label="Find Rescue Squads" active={pathname === '/rescue-squads/search'} onClick={() => setMobileMenuOpen(false)} />
+          <MobileNavLink href="/rescue-forces/search" icon={Users} label="Find Rescue Forces" active={pathname === '/rescue-forces/search'} onClick={() => setMobileMenuOpen(false)} />
 
           <div className="border-t border-midnight-100 my-2" />
           <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
@@ -414,21 +414,21 @@ export default function Navigation() {
             <>
               <div className="border-t border-midnight-100 my-2" />
               <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
-                My Rescue Squads
+                My Rescue Forces
               </div>
-              {userSquads.slice(0, 5).map(squad => (
+              {userSquads.slice(0, 5).map(force => (
                 <Link
-                  key={squad.id}
-                  href={`/rescue-squads/${squad.id}`}
+                  key={force.id}
+                  href={`/rescue-forces/${force.id}`}
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-midnight-50"
                 >
                   <div className="w-8 h-8 rounded-lg bg-midnight-900 text-white flex items-center justify-center text-sm font-bold">
-                    {squad.name?.[0] || '?'}
+                    {force.name?.[0] || '?'}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-midnight-900 truncate text-sm">{squad.name}</div>
-                    <div className="text-xs text-midnight-500">{squad.city}, {squad.state}</div>
+                    <div className="font-medium text-midnight-900 truncate text-sm">{force.name}</div>
+                    <div className="text-xs text-midnight-500">{force.city}, {force.state}</div>
                   </div>
                 </Link>
               ))}
@@ -444,7 +444,7 @@ export default function Navigation() {
               <MobileNavLink href="/admin" icon={BarChart3} label="Admin Dashboard" active={pathname === '/admin'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/admin/users" icon={Users} label="Manage Users" active={pathname === '/admin/users'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/admin/pets" icon={PawPrint} label="Manage Pets" active={pathname === '/admin/pets'} onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavLink href="/admin/rescue-squads" icon={Shield} label="Manage Squads" active={pathname === '/admin/rescue-squads'} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/admin/rescue-forces" icon={Shield} label="Manage Forces" active={pathname === '/admin/rescue-forces'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/admin/divisions" icon={MapPin} label="Manage Divisions" active={pathname === '/admin/divisions'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/admin/missions" icon={ClipboardList} label="Manage Missions" active={pathname === '/admin/missions'} onClick={() => setMobileMenuOpen(false)} />
             </>

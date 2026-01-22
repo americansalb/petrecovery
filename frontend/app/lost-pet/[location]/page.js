@@ -21,7 +21,7 @@ export default function LocationLandingPage() {
   const params = useParams();
   const [loading, setLoading] = useState(true);
   const [cases, setCases] = useState([]);
-  const [squads, setSquads] = useState([]);
+  const [forces, setForces] = useState([]);
   const [stats, setStats] = useState({});
 
   const locationSlug = params.location;
@@ -41,11 +41,11 @@ export default function LocationLandingPage() {
         setCases(data.cases || []);
       }
 
-      // Load squads for this location
-      const squadsRes = await fetch(`/api/rescue-squads?state=${location.state}&limit=4`);
-      if (squadsRes.ok) {
-        const data = await squadsRes.json();
-        setSquads(data.squads || []);
+      // Load forces for this location
+      const forcesRes = await fetch(`/api/rescue-forces?state=${location.state}&limit=4`);
+      if (forcesRes.ok) {
+        const data = await forcesRes.json();
+        setForces(data.forces || []);
       }
 
       // Mock stats for now
@@ -213,7 +213,7 @@ export default function LocationLandingPage() {
           }}>
             <PawPrint size={48} color="#cbd5e1" style={{ marginBottom: '1rem' }} />
             <p>No active cases in this area right now.</p>
-            <p>That's good news! Help us stay ready by joining a rescue squad.</p>
+            <p>That's good news! Help us stay ready by joining a rescue force.</p>
           </div>
         ) : (
           <div style={{
@@ -228,7 +228,7 @@ export default function LocationLandingPage() {
         )}
       </div>
 
-      {/* Rescue Squads */}
+      {/* Rescue Forces */}
       <div style={{
         background: 'white',
         padding: '3rem 2rem',
@@ -240,10 +240,10 @@ export default function LocationLandingPage() {
             color: '#0f172a',
             marginBottom: '1.5rem',
           }}>
-            Rescue Squads in {location.state}
+            Rescue Forces in {location.state}
           </h2>
 
-          {squads.length === 0 ? (
+          {forces.length === 0 ? (
             <div style={{
               background: '#f8fafc',
               padding: '2rem',
@@ -251,10 +251,10 @@ export default function LocationLandingPage() {
               textAlign: 'center',
             }}>
               <p style={{ color: '#64748b' }}>
-                No rescue squads in this area yet.
+                No rescue forces in this area yet.
               </p>
               <Link
-                href="/rescue-squads/create"
+                href="/rescue-forces/create"
                 style={{
                   display: 'inline-block',
                   marginTop: '1rem',
@@ -266,7 +266,7 @@ export default function LocationLandingPage() {
                   fontWeight: 500,
                 }}
               >
-                Start a Squad
+                Start a Force
               </Link>
             </div>
           ) : (
@@ -275,8 +275,8 @@ export default function LocationLandingPage() {
               gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
               gap: '1rem',
             }}>
-              {squads.map((squad) => (
-                <SquadCard key={squad.id} squad={squad} />
+              {forces.map((force) => (
+                <SquadCard key={force.id} force={force} />
               ))}
             </div>
           )}
@@ -300,7 +300,7 @@ export default function LocationLandingPage() {
 
         <div style={{ color: '#475569', lineHeight: 1.7 }}>
           <p style={{ marginBottom: '1rem' }}>
-            If you've lost a pet in {location.city}, {location.state}, PetRecovery.org
+            If you've lost a pet in {location.city}, {location.state}, ReunitePets.org
             is here to help. Our community-powered platform connects pet owners with
             local volunteers who can help search for missing pets.
           </p>
@@ -309,7 +309,7 @@ export default function LocationLandingPage() {
             What to do if you've lost a pet in {location.city}:
           </h3>
           <ol style={{ paddingLeft: '1.5rem' }}>
-            <li>Report your lost pet on PetRecovery.org immediately</li>
+            <li>Report your lost pet on ReunitePets.org immediately</li>
             <li>Search your neighborhood and nearby areas</li>
             <li>Contact local shelters and animal control</li>
             <li>Post on social media and neighborhood apps</li>
@@ -406,10 +406,10 @@ function MissionCard({ missionData }) {
   );
 }
 
-function SquadCard({ squad }) {
+function ForceCard({ force }) {
   return (
     <Link
-      href={`/rescue-squads/${squad.id}`}
+      href={`/rescue-forces/${force.id}`}
       style={{
         display: 'block',
         background: '#f8fafc',
@@ -424,7 +424,7 @@ function SquadCard({ squad }) {
         color: '#0f172a',
         margin: '0 0 0.5rem 0',
       }}>
-        {squad.name}
+        {force.name}
       </h3>
       <div style={{
         display: 'flex',
@@ -432,8 +432,8 @@ function SquadCard({ squad }) {
         color: '#64748b',
         fontSize: '0.85rem',
       }}>
-        <span>{squad._count?.members || 0} members</span>
-        <span>{squad.successfulReunions || 0} reunions</span>
+        <span>{force._count?.members || 0} members</span>
+        <span>{force.successfulReunions || 0} reunions</span>
       </div>
     </Link>
   );

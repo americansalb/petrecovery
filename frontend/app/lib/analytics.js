@@ -19,7 +19,7 @@ export async function getDashboardStats(dateRange = 30) {
     resolvedCases,
     totalUsers,
     activeUsers,
-    totalSquads,
+    totalForces,
     recentMissions,
     recentReunions,
   ] = await Promise.all([
@@ -46,8 +46,8 @@ export async function getDashboardStats(dateRange = 30) {
       },
     }),
 
-    // Total squads
-    prisma.rescueSquad.count({
+    // Total forces
+    prisma.rescueForce.count({
       where: { isActive: true },
     }),
 
@@ -72,7 +72,7 @@ export async function getDashboardStats(dateRange = 30) {
     resolutionRate: totalCases > 0 ? (resolvedCases / totalCases * 100).toFixed(1) : 0,
     totalUsers,
     activeUsers,
-    totalSquads,
+    totalForces,
     recentMissions,
     recentReunions,
     dateRange,
@@ -199,19 +199,19 @@ export async function getUserRegistrationTrends(days = 30) {
 }
 
 /**
- * Get squad activity metrics
+ * Get force activity metrics
  */
 export async function getSquadMetrics() {
   const [
-    totalSquads,
+    totalForces,
     totalMembers,
-    topSquads,
+    topForces,
   ] = await Promise.all([
-    prisma.rescueSquad.count({ where: { isActive: true } }),
+    prisma.rescueForce.count({ where: { isActive: true } }),
 
-    prisma.rescueSquadMember.count({ where: { isActive: true } }),
+    prisma.rescueForceMember.count({ where: { isActive: true } }),
 
-    prisma.rescueSquad.findMany({
+    prisma.rescueForce.findMany({
       where: { isActive: true },
       select: {
         id: true,
@@ -231,10 +231,10 @@ export async function getSquadMetrics() {
   ]);
 
   return {
-    totalSquads,
+    totalForces,
     totalMembers,
-    averageMembersPerSquad: totalSquads > 0 ? (totalMembers / totalSquads).toFixed(1) : 0,
-    topSquads: topSquads.map((s) => ({
+    averageMembersPerForce: totalForces > 0 ? (totalMembers / totalForces).toFixed(1) : 0,
+    topForces: topForces.map((s) => ({
       id: s.id,
       name: s.name,
       location: `${s.city}, ${s.state}`,

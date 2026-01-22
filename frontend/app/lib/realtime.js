@@ -96,9 +96,9 @@ export async function broadcastCaseUpdate(missionId, event, data, participantUse
 }
 
 /**
- * Send squad message in real-time
+ * Send force message in real-time
  */
-export function broadcastSquadMessage(memberUserIds, message) {
+export function broadcastForceMessage(memberUserIds, message) {
   return broadcastToUsers(memberUserIds, {
     type: 'squad_message',
     payload: message,

@@ -405,14 +405,14 @@ export default function SimulatorConfig({
 
             <label
               className={`flex items-center gap-2 px-3 py-3 rounded-lg border cursor-pointer transition-colors ${
-                config.listedOnPetRecoveryPlatform ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'
+                config.listedOnReunitePetsPlatform ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'
               }`}
               title="Listed on PetFBI, Pawboost, etc. +15% visibility"
             >
               <input
                 type="checkbox"
-                checked={config.listedOnPetRecoveryPlatform || false}
-                onChange={(e) => updateConfig('listedOnPetRecoveryPlatform', e.target.checked)}
+                checked={config.listedOnReunitePetsPlatform || false}
+                onChange={(e) => updateConfig('listedOnReunitePetsPlatform', e.target.checked)}
                 className="rounded text-indigo-600 w-4 h-4"
               />
               <span className="text-sm font-medium">Listed on Pet Recovery Site</span>

@@ -320,7 +320,7 @@ export async function getUserTrustScore(userId) {
       _count: {
         select: {
           cases: true,
-          rescueSquadMemberships: true,
+          rescueForceMemberships: true,
         },
       },
     },
@@ -336,7 +336,7 @@ export async function getUserTrustScore(userId) {
 
   // Activity bonus
   score += Math.min(user._count.cases * 2, 10);
-  score += Math.min(user._count.rescueSquadMemberships * 5, 10);
+  score += Math.min(user._count.rescueForceMemberships * 5, 10);
 
   // Success bonus
   score += Math.min(user.successfulReunions * 3, 10);

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 
-// GET /api/missions/my-feed - Get cases prioritized by Division → Squad → Distance
+// GET /api/missions/my-feed - Get cases prioritized by Division → Force → Distance
 export async function GET(request) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,14 +14,14 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const includeCompleted = searchParams.get('includeCompleted') === 'true';
 
-    // Get user's rescue squad memberships (including divisions)
-    const memberships = await prisma.rescueSquadMember.findMany({
+    // Get user's rescue force memberships (including divisions)
+    const memberships = await prisma.rescueForceMember.findMany({
       where: {
         userId: session.user.id,
         isActive: true,
       },
       include: {
-        rescueSquad: {
+        rescueForce: {
           select: {
             id: true,
             name: true,
@@ -44,20 +44,20 @@ export async function GET(request) {
     if (memberships.length === 0) {
       return NextResponse.json({
         cases: [],
-        message: 'Join a Rescue Squad to see active cases',
+        message: 'Join a Rescue Force to see active cases',
       });
     }
 
-    // Extract squad and division IDs
-    const squadIds = memberships.map((m) => m.rescueSquadId);
+    // Extract force and division IDs
+    const forceIds = memberships.map((m) => m.rescueForceId);
     const divisionIds = memberships
       .filter((m) => m.divisionId)
       .map((m) => m.divisionId);
 
-    // Get all active cases assigned to user's squads
+    // Get all active cases assigned to user's forces
     const caseAssignments = await prisma.caseAssignment.findMany({
       where: {
-        rescueSquadId: { in: squadIds },
+        rescueForceId: { in: forceIds },
         status: { in: ['ACCEPTED', 'ACTIVE', 'STANDBY'] },
       },
       include: {
@@ -71,7 +71,7 @@ export async function GET(request) {
             },
           },
         },
-        rescueSquad: {
+        rescueForce: {
           select: {
             id: true,
             name: true,
@@ -100,18 +100,18 @@ export async function GET(request) {
       const missionData = assignment.case;
 
       // Determine match type and priority
-      let matchType = 'OTHER_SQUAD';
+      let matchType = 'OTHER_FORCE';
       let priority = 3;
       let matchedDivision = null;
       let matchedSquad = null;
 
-      // Find the user's membership in this squad
+      // Find the user's membership in this force
       const membership = memberships.find(
-        (m) => m.rescueSquadId === assignment.rescueSquadId
+        (m) => m.rescueForceId === assignment.rescueForceId
       );
 
       if (membership) {
-        matchedSquad = membership.rescueSquad;
+        matchedSquad = membership.rescueForce;
 
         // Check if case is in user's division
         if (membership.divisionId && divisionIds.includes(membership.divisionId)) {
@@ -134,9 +134,9 @@ export async function GET(request) {
           }
         }
 
-        // If not in division, but in squad
-        if (matchType === 'OTHER_SQUAD') {
-          matchType = 'YOUR_SQUAD';
+        // If not in division, but in force
+        if (matchType === 'OTHER_FORCE') {
+          matchType = 'YOUR_FORCE';
           priority = 2;
         }
       }
@@ -144,14 +144,14 @@ export async function GET(request) {
       // Calculate distance to user's location (if available)
       let distanceToUser = null;
       if (
-        membership?.rescueSquad?.centerLatitude &&
-        membership?.rescueSquad?.centerLongitude
+        membership?.rescueForce?.centerLatitude &&
+        membership?.rescueForce?.centerLongitude
       ) {
         distanceToUser = calculateDistance(
           missionData.lastSeenLatitude,
           missionData.lastSeenLongitude,
-          membership.rescueSquad.centerLatitude,
-          membership.rescueSquad.centerLongitude
+          membership.rescueForce.centerLatitude,
+          membership.rescueForce.centerLongitude
         );
       }
 
@@ -184,8 +184,8 @@ export async function GET(request) {
         matchPriority: priority,
         distanceToUser,
 
-        // Squad/Division info
-        rescueSquad: matchedSquad,
+        // Force/Division info
+        rescueForce: matchedSquad,
         division: matchedDivision,
 
         // Assignment info
@@ -201,7 +201,7 @@ export async function GET(request) {
 
     // Sort by priority, then distance
     const sortedCases = enrichedCases.sort((a, b) => {
-      // First by match priority (1 = division, 2 = squad, 3 = other)
+      // First by match priority (1 = division, 2 = force, 3 = other)
       if (a.matchPriority !== b.matchPriority) {
         return a.matchPriority - b.matchPriority;
       }
@@ -229,7 +229,7 @@ export async function GET(request) {
         total: sortedCases.length,
         inDivision: sortedCases.filter((c) => c.matchType === 'YOUR_DIVISION')
           .length,
-        inSquad: sortedCases.filter((c) => c.matchType === 'YOUR_SQUAD')
+        inSquad: sortedCases.filter((c) => c.matchType === 'YOUR_FORCE')
           .length,
         participating: sortedCases.filter((c) => c.isParticipating).length,
       },

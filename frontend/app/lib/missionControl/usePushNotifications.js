@@ -96,10 +96,10 @@ export default function usePushNotifications() {
       });
 
       // Get device ID from localStorage or generate new one
-      let deviceId = localStorage.getItem('petrecovery_device_id');
+      let deviceId = localStorage.getItem('reunitepets_device_id');
       if (!deviceId) {
         deviceId = 'device_' + Math.random().toString(36).substring(2, 15);
-        localStorage.setItem('petrecovery_device_id', deviceId);
+        localStorage.setItem('reunitepets_device_id', deviceId);
       }
 
       // Send subscription to server
@@ -140,7 +140,7 @@ export default function usePushNotifications() {
       await subscription.unsubscribe();
 
       // Remove from server
-      const deviceId = localStorage.getItem('petrecovery_device_id');
+      const deviceId = localStorage.getItem('reunitepets_device_id');
       await fetch('/api/notifications/subscribe', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },

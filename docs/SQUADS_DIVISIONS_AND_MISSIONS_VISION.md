@@ -1,16 +1,16 @@
 # Squads, Divisions & Missions – Product Vision
 
-PetRecovery.org should feel like the **best search & rescue UI in the world**, starting with lost pets. This doc nails down what **Squads**, **Divisions**, and **Missions** *mean* so we stop drifting.
+ReunitePets.org should feel like the **best search & rescue UI in the world**, starting with lost pets. This doc nails down what **Squads**, **Divisions**, and **Missions** *mean* so we stop drifting.
 
 ---
 
 ## 1. Glossary (Source of Truth)
 
 **City**
-Canonical geographic unit. Every U.S. city has exactly one **Rescue Squad** in PetRecovery.org.
+Canonical geographic unit. Every U.S. city has exactly one **Rescue Force** in ReunitePets.org.
 
-**Rescue Squad (Squad)**
-- One per city: `Chicago Rescue Squad`, `Carpentersville Rescue Squad`, etc.
+**Rescue Force (Squad)**
+- One per city: `Chicago Rescue Force`, `Carpentersville Rescue Force`, etc.
 - Represents the *whole community* of rescuers for that city.
 - Contains zero or more **Divisions** (neighborhood-level units).
 - People join squads, then optionally "tune" what divisions they care about.
@@ -50,7 +50,7 @@ Canonical geographic unit. Every U.S. city has exactly one **Rescue Squad** in P
 ```text
 COUNTRY: United States
   └── City (Chicago)
-        └── Squad (Chicago Rescue Squad)
+        └── Squad (Chicago Rescue Force)
               ├── Divisions
               │    ├── Lakeview
               │    │     ├── Mission #CHI-LKV-0001 (Max)
@@ -66,7 +66,7 @@ For a small city (no real neighborhood complexity), we still model a single divi
 
 ```text
 City: Carpentersville
-  └── Carpentersville Rescue Squad
+  └── Carpentersville Rescue Force
         └── Division: "Entire City" (can be hidden in the UI)
               ├── Mission #CRP-0001
               ├── Mission #CRP-0002
@@ -91,7 +91,7 @@ City: Carpentersville
 
 ### 3.1. Joining a Squad
 
-When a user hits "Join Chicago Rescue Squad":
+When a user hits "Join Chicago Rescue Force":
 
 1. They become a member of that Squad (city-level).
 2. Onboarding asks:
@@ -297,7 +297,7 @@ If another AI (Claude, Gemini, etc.) is confused, these are the non-negotiables:
 
 | State | Description |
 |-------|-------------|
-| **Not a member** | CTA is "Join {City} Rescue Squad" |
+| **Not a member** | CTA is "Join {City} Rescue Force" |
 | **Member, Off Duty** | Default state. Can see missions, manually accept. Low-frequency notifications. |
 | **Member, On Duty** | Actively available. Appears as green presence. Prioritized for notifications. Location shown if permitted. |
 

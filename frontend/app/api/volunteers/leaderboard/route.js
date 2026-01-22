@@ -10,7 +10,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || 'all'; // all, month, week
     const category = searchParams.get('category') || 'reunions'; // reunions, searches, acreage, honors
-    const squadId = searchParams.get('squadId');
+    const forceId = searchParams.get('forceId');
     const limit = parseInt(searchParams.get('limit') || '50');
 
     let dateFilter = {};
@@ -33,9 +33,9 @@ export async function GET(request) {
         leaders = await prisma.user.findMany({
           where: {
             successfulReunions: { gt: 0 },
-            ...(squadId && {
-              rescueSquadMemberships: {
-                some: { rescueSquadId: squadId, isActive: true },
+            ...(forceId && {
+              rescueForceMemberships: {
+                some: { rescueForceId: forceId, isActive: true },
               },
             }),
           },
@@ -66,9 +66,9 @@ export async function GET(request) {
         leaders = await prisma.user.findMany({
           where: {
             areasMarkedCount: { gt: 0 },
-            ...(squadId && {
-              rescueSquadMemberships: {
-                some: { rescueSquadId: squadId, isActive: true },
+            ...(forceId && {
+              rescueForceMemberships: {
+                some: { rescueForceId: forceId, isActive: true },
               },
             }),
           },
@@ -99,9 +99,9 @@ export async function GET(request) {
         leaders = await prisma.user.findMany({
           where: {
             totalAcreageSearched: { gt: 0 },
-            ...(squadId && {
-              rescueSquadMemberships: {
-                some: { rescueSquadId: squadId, isActive: true },
+            ...(forceId && {
+              rescueForceMemberships: {
+                some: { rescueForceId: forceId, isActive: true },
               },
             }),
           },
@@ -132,9 +132,9 @@ export async function GET(request) {
         leaders = await prisma.user.findMany({
           where: {
             honorsReceived: { gt: 0 },
-            ...(squadId && {
-              rescueSquadMemberships: {
-                some: { rescueSquadId: squadId, isActive: true },
+            ...(forceId && {
+              rescueForceMemberships: {
+                some: { rescueForceId: forceId, isActive: true },
               },
             }),
           },
@@ -165,16 +165,16 @@ export async function GET(request) {
         return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
     }
 
-    // Get squad leaderboard if requested
+    // Get force leaderboard if requested
     let squadLeaders = [];
-    if (!squadId) {
-      squadLeaders = await prisma.rescueSquad.findMany({
+    if (!forceId) {
+      squadLeaders = await prisma.rescueForce.findMany({
         where: { isActive: true, isDeleted: false },
         select: {
           id: true,
           name: true,
           logoUrl: true,
-          rescueSquadLevel: true,
+          rescueForceLevel: true,
           successfulReunions: true,
           totalAcreageSearched: true,
           _count: {
@@ -187,10 +187,10 @@ export async function GET(request) {
 
       squadLeaders = squadLeaders.map((s, idx) => ({
         rank: idx + 1,
-        squadId: s.id,
+        forceId: s.id,
         name: s.name,
         logo: s.logoUrl,
-        level: s.rescueSquadLevel,
+        level: s.rescueForceLevel,
         reunions: s.successfulReunions,
         acreage: Math.round(s.totalAcreageSearched),
         members: s._count.members,

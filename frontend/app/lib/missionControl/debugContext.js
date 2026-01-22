@@ -6,7 +6,7 @@
  * Allows admins to override algorithm variables for testing:
  * - Current time (test dawn/dusk/night bonuses)
  * - Hours missing (test phase transitions)
- * - User role (test owner vs squad views)
+ * - User role (test owner vs force views)
  * - User location (test proximity bonuses)
  * - Pet type (test cat vs dog actions)
  */
@@ -29,12 +29,12 @@ export const DEBUG_PRESETS = {
   },
   'phase2_dog_midday': {
     name: 'Phase 2 Dog - Midday',
-    description: 'Medium dog missing 8 hours, 2pm, squad member',
+    description: 'Medium dog missing 8 hours, 2pm, force member',
     hoursMissing: 8,
     simulatedHour: 14,
     petType: 'DOG',
     petSize: 'MEDIUM',
-    role: 'SQUAD',
+    role: 'FORCE',
     proximityMiles: 2,
     healthCondition: 'NONE',
   },
@@ -78,7 +78,7 @@ export const DEBUG_PRESETS = {
     hoursMissing: 6,
     simulatedHour: 14,
     petType: 'BOTH',
-    role: 'SQUAD',
+    role: 'FORCE',
     proximityMiles: 2.5,
     healthCondition: 'NONE',
   },
@@ -88,7 +88,7 @@ export const DEBUG_PRESETS = {
     hoursMissing: 6,
     simulatedHour: 21,
     petType: 'BOTH',
-    role: 'SQUAD',
+    role: 'FORCE',
     proximityMiles: 2.5,
     healthCondition: 'NONE',
   },
@@ -181,7 +181,7 @@ export function DebugProvider({ children, isAdmin = false }) {
 
     // Role override
     useRealRole: true,
-    role: 'OWNER', // OWNER or SQUAD
+    role: 'OWNER', // OWNER or FORCE
 
     // Location override
     useRealLocation: true,

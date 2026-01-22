@@ -140,20 +140,20 @@ function MissionControlContent() {
   // Handle joining mission
   const handleJoinMission = async (missionIdToJoin) => {
     try {
-      // Need squadId - extract from assignments or direct field
-      const squadId =
-        activeMission?.rescueSquadId ||
-        activeMission?.squadId ||
-        activeMission?.assignments?.[0]?.rescueSquad?.id ||
-        activeMission?.assignments?.[0]?.rescueSquadId;
+      // Need forceId - extract from assignments or direct field
+      const forceId =
+        activeMission?.rescueForceId ||
+        activeMission?.forceId ||
+        activeMission?.assignments?.[0]?.rescueForce?.id ||
+        activeMission?.assignments?.[0]?.rescueForceId;
 
-      if (!squadId) {
-        console.error('Mission missing squadId. Mission data:', activeMission);
+      if (!forceId) {
+        console.error('Mission missing forceId. Mission data:', activeMission);
         console.error('Assignments:', activeMission?.assignments);
         return;
       }
 
-      const res = await fetchWithRetry(`/api/rescue-squads/${squadId}/cases/${missionIdToJoin}/help`, {
+      const res = await fetchWithRetry(`/api/rescue-forces/${forceId}/cases/${missionIdToJoin}/help`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -384,10 +384,10 @@ function EmptyState({ missions, onSelectMission, onRefresh }) {
             No active missions assigned to you yet.
           </p>
           <button
-            onClick={() => window.location.href = '/rescue-squads'}
+            onClick={() => window.location.href = '/rescue-forces'}
             className="px-6 py-3 bg-gradient-to-r from-flash-500 to-flash-400 text-midnight-900 font-bold rounded-xl hover:scale-105 transition shadow-lg shadow-flash-500/30"
           >
-            Join a Rescue Squad
+            Join a Rescue Force
           </button>
         </div>
       )}

@@ -5,7 +5,7 @@
 
 ## Overview
 
-This implementation adds a **Division** system to PetRecovery.org, allowing large city Rescue Squads to be subdivided into neighborhood-level teams. This replaces the legacy "Community/Metro/Subcommunity" terminology with a cleaner "Rescue Squad/Division" model.
+This implementation adds a **Division** system to ReunitePets.org, allowing large city Rescue Forces to be subdivided into neighborhood-level teams. This replaces the legacy "Community/Metro/Subcommunity" terminology with a cleaner "Rescue Force/Division" model.
 
 ---
 
@@ -17,11 +17,11 @@ This implementation adds a **Division** system to PetRecovery.org, allowing larg
 
 #### Added Models:
 
-**Division** - Neighborhood subdivision within a Rescue Squad
+**Division** - Neighborhood subdivision within a Rescue Force
 ```prisma
 model Division {
   id              String   @id
-  rescueSquadId   String   // Parent Rescue Squad
+  rescueSquadId   String   // Parent Rescue Force
   name            String   // "North Side", "Downtown"
   description     String?
 
@@ -89,7 +89,7 @@ division        Division? @relation(fields: [divisionId], references: [id])
 
 #### Legacy Models:
 - Community models marked as "LEGACY - Keeping for backwards compatibility"
-- Not integrated with active Rescue Squad system
+- Not integrated with active Rescue Force system
 
 ---
 
@@ -99,7 +99,7 @@ division        Division? @relation(fields: [divisionId], references: [id])
 
 **POST /api/divisions/request**
 - User submits request to create a new Division
-- Validates user is member of target Rescue Squad
+- Validates user is member of target Rescue Force
 - Checks for duplicate Division names
 - Creates pending request for admin review
 
@@ -112,7 +112,7 @@ division        Division? @relation(fields: [divisionId], references: [id])
 - Unified case feed across all user's squads
 - Prioritizes cases by:
   1. User's Division(s)
-  2. User's Rescue Squad(s)
+  2. User's Rescue Force(s)
   3. Distance
   4. Case priority level
 - Returns clean, intuitive case list
@@ -173,16 +173,16 @@ Moved to `/archived_legacy_docs/`:
 ### Hierarchy
 
 ```
-Rescue Squad (City-level)
+Rescue Force (City-level)
   ├─ Division A (Neighborhood)
   ├─ Division B (Neighborhood)
   └─ Division C (Neighborhood)
 ```
 
-### Example: Chicago Rescue Squad
+### Example: Chicago Rescue Force
 
 ```
-Chicago Rescue Squad
+Chicago Rescue Force
   ├─ North Side Division
   ├─ South Side Division
   ├─ West Side Division
@@ -193,7 +193,7 @@ Chicago Rescue Squad
 
 ## User Flows
 
-### 1. User Joins Rescue Squad
+### 1. User Joins Rescue Force
 
 1. User searches by zip code
 2. Finds nearby squads (Join) or cities without squads (Create)
@@ -221,7 +221,7 @@ Chicago Rescue Squad
 1. User opens case feed
 2. Cases prioritized:
    - **Priority 1:** Cases in user's Division
-   - **Priority 2:** Cases in user's Rescue Squad (other divisions)
+   - **Priority 2:** Cases in user's Rescue Force (other divisions)
    - **Priority 3:** Cases in user's other squads
 3. Clean UI shows match type + distance
 
@@ -422,13 +422,13 @@ To fully remove legacy Community models:
 ## Questions Answered
 
 ### Q: What replaces Communities?
-**A:** Rescue Squads (city-level)
+**A:** Rescue Forces (city-level)
 
 ### Q: What replaces Subcommunities?
 **A:** Divisions (neighborhood-level)
 
 ### Q: What replaces Metro Areas?
-**A:** Rescue Squads (they are the primary organizational unit)
+**A:** Rescue Forces (they are the primary organizational unit)
 
 ### Q: Can users create Divisions?
 **A:** No, they request them. Admins approve/create.

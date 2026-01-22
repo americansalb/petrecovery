@@ -41,7 +41,7 @@ export async function GET(request) {
       select: {
         successfulReunions: true,
         areasMarkedCount: true,
-        squadsJoinedCount: true,
+        forcesJoinedCount: true,
       },
     });
 
@@ -49,7 +49,7 @@ export async function GET(request) {
     const points =
       (user.successfulReunions || 0) * 1000 +
       (user.areasMarkedCount || 0) * 10 +
-      (user.squadsJoinedCount || 0) * 50;
+      (user.forcesJoinedCount || 0) * 50;
 
     const level = calculateLevel(points);
 

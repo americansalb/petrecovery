@@ -163,7 +163,7 @@ export default function ReportFoundPet() {
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(foundAddress)}&format=json&limit=1&countrycodes=us`,
         {
           headers: {
-            'User-Agent': 'PetRecovery.org'
+            'User-Agent': 'ReunitePets.org'
           }
         }
       );

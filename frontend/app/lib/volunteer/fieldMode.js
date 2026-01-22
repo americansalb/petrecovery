@@ -21,7 +21,7 @@ export async function startFieldMode(sessionId, location) {
           assignment: {
             include: {
               case: true,
-              rescueSquad: true,
+              rescueForce: true,
             }
           }
         }
@@ -69,7 +69,7 @@ export async function startFieldMode(sessionId, location) {
           lng: session.gridCell.centerLongitude,
         },
       } : null,
-      squadName: session.participant.assignment.rescueSquad?.name,
+      forceName: session.participant.assignment.rescueForce?.name,
     },
     // Pre-configured actions for the UI
     actions: getFieldActions(session),
@@ -452,7 +452,7 @@ async function requestHelp(session, data) {
     }
   });
 
-  // Notify squad leaders and nearby volunteers
+  // Notify force leaders and nearby volunteers
   await notifyHelpRequest(session);
 
   return {
@@ -599,7 +599,7 @@ async function notifyOwnerPetFound(missionData, sighting) {
 
 async function notifyNearbyVolunteers(missionId, sighting) {
   try {
-    // Get case assignment to find squad members
+    // Get case assignment to find force members
     const missionData = await prisma.case.findUnique({
       where: { id: missionId },
       select: {
@@ -651,11 +651,11 @@ async function notifyHelpRequest(session) {
   try {
     if (!session?.participant?.assignment) return;
 
-    // Get squad leaders for this assignment
+    // Get force leaders for this assignment
     const assignment = await prisma.caseAssignment.findUnique({
       where: { id: session.participant.assignment.id },
       select: {
-        rescueSquad: {
+        rescueForce: {
           select: {
             members: {
               where: {
@@ -672,9 +672,9 @@ async function notifyHelpRequest(session) {
       }
     });
 
-    if (!assignment?.rescueSquad?.members) return;
+    if (!assignment?.rescueForce?.members) return;
 
-    const leaderIds = assignment.rescueSquad.members.map(m => m.userId).filter(Boolean);
+    const leaderIds = assignment.rescueForce.members.map(m => m.userId).filter(Boolean);
     if (leaderIds.length === 0) return;
 
     const subscriptions = await prisma.pushSubscription.findMany({

@@ -3,7 +3,7 @@
  * GET /api/public/homepage
  *
  * Returns all data needed for the homepage in a single efficient request:
- * - Platform metrics (pets reunited, users, squads, etc.)
+ * - Platform metrics (pets reunited, users, forces, etc.)
  * - Recent reunions for ticker
  * - Active cases needing help
  * - Recent activity feed
@@ -49,7 +49,7 @@ export async function GET(request) {
       // Core metrics
       reunitedCount,
       totalUsers,
-      activeSquads,
+      activeForces,
       totalVolunteers,
       openCases,
       citiesWithSquads,
@@ -63,7 +63,7 @@ export async function GET(request) {
       recentSightingsCount,
       // This week's reunions
       weeklyReunions,
-      // Featured squads
+      // Featured forces
       featuredSquads,
     ] = await Promise.all([
       // Pets reunited total
@@ -72,19 +72,19 @@ export async function GET(request) {
       // Total users
       prisma.user.count(),
 
-      // Active rescue squads
-      prisma.rescueSquad.count({ where: { isActive: true } }),
+      // Active rescue forces
+      prisma.rescueForce.count({ where: { isActive: true } }),
 
-      // Total active squad members
-      prisma.rescueSquadMember.count({ where: { isActive: true } }),
+      // Total active force members
+      prisma.rescueForceMember.count({ where: { isActive: true } }),
 
       // Open/active cases
       prisma.case.count({
         where: { status: { in: ['ACTIVE', 'IN_PROGRESS'] } }
       }),
 
-      // Unique cities with squads
-      prisma.rescueSquad.groupBy({
+      // Unique cities with forces
+      prisma.rescueForce.groupBy({
         by: ['city', 'state'],
         where: { isActive: true },
         _count: true
@@ -153,8 +153,8 @@ export async function GET(request) {
         }
       }),
 
-      // Featured/active squads with member counts
-      prisma.rescueSquad.findMany({
+      // Featured/active forces with member counts
+      prisma.rescueForce.findMany({
         where: { isActive: true },
         orderBy: [
           { members: { _count: 'desc' } },
@@ -239,15 +239,15 @@ export async function GET(request) {
     // Format avg reunion time
     const avgHours = avgReunionTime._avg?.timeToReunionHours || 0;
 
-    // Transform featured squads
-    const squadsForDisplay = featuredSquads.map((squad) => ({
-      id: squad.id,
-      name: squad.name,
-      city: squad.city,
-      state: squad.state,
-      logoUrl: squad.logoUrl ? normalizePhotoUrl(squad.logoUrl) : null,
-      photoUrl: squad.photoUrl ? normalizePhotoUrl(squad.photoUrl) : null,
-      memberCount: squad._count.members,
+    // Transform featured forces
+    const squadsForDisplay = featuredSquads.map((force) => ({
+      id: force.id,
+      name: force.name,
+      city: force.city,
+      state: force.state,
+      logoUrl: force.logoUrl ? normalizePhotoUrl(force.logoUrl) : null,
+      photoUrl: force.photoUrl ? normalizePhotoUrl(force.photoUrl) : null,
+      memberCount: force._count.members,
     }));
 
     // Build response
@@ -255,7 +255,7 @@ export async function GET(request) {
       metrics: {
         petsReunited: reunitedCount,
         totalUsers: totalUsers,
-        activeSquads: activeSquads,
+        activeForces: activeForces,
         totalVolunteers: totalVolunteers,
         openCases: openCases,
         citiesCovered: citiesWithSquads.length,
@@ -290,7 +290,7 @@ export async function GET(request) {
       metrics: {
         petsReunited: 0,
         totalUsers: 0,
-        activeSquads: 0,
+        activeForces: 0,
         totalVolunteers: 0,
         openCases: 0,
         citiesCovered: 0,

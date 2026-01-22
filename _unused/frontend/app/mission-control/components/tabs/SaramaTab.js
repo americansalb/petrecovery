@@ -3,7 +3,7 @@
 /**
  * SaramaTab - Sarama AI Companion Tab for Mission Control
  *
- * Sarama is everyone's first rescue squad member - automatically assigned
+ * Sarama is everyone's first rescue force member - automatically assigned
  * to every case from the moment it's created.
  *
  * Features:

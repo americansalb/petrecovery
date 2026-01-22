@@ -15,7 +15,7 @@ self.addEventListener('push', function(event) {
       body: body || 'New notification',
       icon: icon || '/icons/paw-192.png',
       badge: badge || '/icons/badge-72.png',
-      tag: tag || 'petrecovery',
+      tag: tag || 'reunitepets',
       renotify: true,
       vibrate: [200, 100, 200],
       data: notificationData || {},
@@ -24,7 +24,7 @@ self.addEventListener('push', function(event) {
     };
 
     event.waitUntil(
-      self.registration.showNotification(title || 'PetRecovery', options)
+      self.registration.showNotification(title || 'ReunitePets', options)
     );
   } catch (err) {
     console.error('Push notification error:', err);
@@ -55,8 +55,8 @@ self.addEventListener('notificationclick', function(event) {
     case 'JOIN_REQUEST':
       url = `/join/${data.missionId}`;
       break;
-    case 'SQUAD_ALERT':
-      url = `/rescue-squads/${data.squadId}`;
+    case 'FORCE_ALERT':
+      url = `/rescue-forces/${data.forceId}`;
       break;
     default:
       if (data.missionNumber) {

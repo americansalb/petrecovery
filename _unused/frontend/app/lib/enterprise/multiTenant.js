@@ -88,7 +88,7 @@ export async function createTenant(prisma, tenantData) {
     name,
     type: tenantType.id,
     plan: tenantPlan.id,
-    domain: domain || `${name.toLowerCase().replace(/\s+/g, '-')}.petrecovery.org`,
+    domain: domain || `${name.toLowerCase().replace(/\s+/g, '-')}.reunitepets.org`,
     status: 'ACTIVE',
     settings: {
       branding: branding || {},
@@ -122,7 +122,7 @@ export async function createTenant(prisma, tenantData) {
     },
     urls: {
       dashboard: `https://${tenant.domain}/dashboard`,
-      api: `https://api.petrecovery.org/v1/tenants/${tenantId}`,
+      api: `https://api.reunitepets.org/v1/tenants/${tenantId}`,
     },
   };
 }
@@ -163,7 +163,7 @@ export async function configureBranding(prisma, tenantId, branding) {
     emailTemplates: emailTemplates || {},
     loginBackground: loginBackground || null,
     footer: {
-      text: footerText || 'Powered by PetRecovery.org',
+      text: footerText || 'Powered by ReunitePets.org',
       showPoweredBy: branding.showPoweredBy !== false,
     },
     updatedAt: new Date().toISOString(),
@@ -187,8 +187,8 @@ export async function configureBranding(prisma, tenantId, branding) {
 
   return {
     branding: brandingConfig,
-    cssUrl: `https://assets.petrecovery.org/tenants/${tenantId}/brand.css`,
-    previewUrl: `https://${tenantId}.petrecovery.org/preview`,
+    cssUrl: `https://assets.reunitepets.org/tenants/${tenantId}/brand.css`,
+    previewUrl: `https://${tenantId}.reunitepets.org/preview`,
   };
 }
 
@@ -280,9 +280,9 @@ export async function createAPIKey(prisma, tenantId, keyConfig) {
     apiKey, // Only returned once, must be saved by user
     warning: 'Save this API key securely. It cannot be retrieved again.',
     usage: {
-      baseUrl: 'https://api.petrecovery.org/v1',
+      baseUrl: 'https://api.reunitepets.org/v1',
       authHeader: 'Authorization: Bearer YOUR_API_KEY',
-      docsUrl: 'https://docs.petrecovery.org/api',
+      docsUrl: 'https://docs.reunitepets.org/api',
     },
   };
 }
@@ -385,7 +385,7 @@ export async function installIntegration(prisma, tenantId, integrationId, config
   return {
     installation,
     integration,
-    webhookUrl: `https://api.petrecovery.org/webhooks/tenants/${tenantId}/integrations/${integrationId}`,
+    webhookUrl: `https://api.reunitepets.org/webhooks/tenants/${tenantId}/integrations/${integrationId}`,
     status: 'Connected',
   };
 }

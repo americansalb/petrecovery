@@ -17,7 +17,7 @@ export async function getLiveOpsData(missionId) {
       assignments: {
         where: { status: 'ACCEPTED' },
         include: {
-          rescueSquad: true,
+          rescueForce: true,
           participants: {
             where: { isActive: true },
             include: {

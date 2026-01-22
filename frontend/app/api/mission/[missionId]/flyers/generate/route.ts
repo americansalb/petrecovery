@@ -110,7 +110,7 @@ export async function POST(
     }
 
     // Build case URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://petrecovery.com';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://reunitepets.com';
     const caseUrl = `${baseUrl}/case/${missionId}`;
 
     // Generate QR code URL (using a free QR code API)

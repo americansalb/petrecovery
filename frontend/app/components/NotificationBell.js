@@ -17,7 +17,7 @@ import {
 const NOTIFICATION_ICONS = {
   CASE_UPDATE: { icon: AlertCircle, color: '#f59e0b', bg: '#fef3c7' },
   SIGHTING: { icon: MapPin, color: '#10b981', bg: '#d1fae5' },
-  SQUAD_MESSAGE: { icon: Users, color: '#4f46e5', bg: '#e0e7ff' },
+  FORCE_MESSAGE: { icon: Users, color: '#4f46e5', bg: '#e0e7ff' },
   SYSTEM: { icon: Megaphone, color: '#6b7280', bg: '#f3f4f6' },
   DEFAULT: { icon: Bell, color: '#64748b', bg: '#f1f5f9' }
 };

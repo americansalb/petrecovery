@@ -778,15 +778,15 @@ export default function ReportLostPet() {
               </div>
             )}
 
-            {/* Squad Joined Notice */}
-            {reportResult.assignedSquad && (
+            {/* Force Joined Notice */}
+            {reportResult.assignedForce && (
               <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 text-left">
                 <div className="flex items-start gap-3">
                   <Heart size={20} className="text-green-500 mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="font-medium text-green-800">You've joined {reportResult.assignedSquad.name}!</p>
+                    <p className="font-medium text-green-800">You've joined {reportResult.assignedForce.name}!</p>
                     <p className="text-sm text-green-600">
-                      Your neighbors are ready to help search. Coordinate with them on the squad dashboard.
+                      Your neighbors are ready to help search. Coordinate with them on the force dashboard.
                     </p>
                   </div>
                 </div>
@@ -826,13 +826,13 @@ export default function ReportLostPet() {
               View Your Case Page
             </Link>
 
-            {/* Squad CTA - if assigned to squad */}
-            {reportResult.assignedSquad && (
+            {/* Force CTA - if assigned to force */}
+            {reportResult.assignedForce && (
               <Link
-                href={`/rescue-squads/${reportResult.assignedSquad.id}`}
+                href={`/rescue-forces/${reportResult.assignedForce.id}`}
                 className="block w-full py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all mb-3"
               >
-                Coordinate with Squad
+                Coordinate with Force
               </Link>
             )}
 
@@ -976,7 +976,7 @@ export default function ReportLostPet() {
                   />
                   <div className="flex-1">
                     <span className="text-sm font-medium text-gray-900 block">Create account to track progress and coordinate with volunteers</span>
-                    <span className="text-xs text-gray-600 block mt-1">You'll be able to view your case, update information, and communicate with your rescue squad</span>
+                    <span className="text-xs text-gray-600 block mt-1">You'll be able to view your case, update information, and communicate with your rescue force</span>
                   </div>
                 </label>
               </div>

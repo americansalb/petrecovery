@@ -53,10 +53,10 @@ export async function createDonationSession(options) {
         price_data: {
           currency: 'usd',
           product_data: {
-            name: missionId ? `Donation for ${caseName}'s Search` : 'PetRecovery Donation',
+            name: missionId ? `Donation for ${caseName}'s Search` : 'ReunitePets Donation',
             description: missionId
               ? 'Support the search effort'
-              : 'Support PetRecovery.org operations',
+              : 'Support ReunitePets.org operations',
           },
           unit_amount: Math.round(amount * 100), // Stripe uses cents
         },
@@ -340,7 +340,7 @@ export const SUBSCRIPTION_TIERS = {
     features: [
       'Report lost/found pets',
       'Basic search tools',
-      'Join rescue squads',
+      'Join rescue forces',
       'Community access',
     ],
   },
@@ -357,12 +357,12 @@ export const SUBSCRIPTION_TIERS = {
     ],
   },
   PRO: {
-    name: 'Pro Squad',
+    name: 'Pro Force',
     priceId: process.env.STRIPE_PRO_PRICE_ID,
     price: 15,
     features: [
       'All Supporter features',
-      'Squad management tools',
+      'Force management tools',
       'Shelter API access',
       'Advanced mapping',
       'Priority support',

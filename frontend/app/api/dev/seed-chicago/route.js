@@ -5,23 +5,23 @@ import bcrypt from 'bcryptjs';
 /**
  * POST /api/admin/seed-chicago
  *
- * Seeds the Chicago Rescue Squad with test data.
+ * Seeds the Chicago Rescue Force with test data.
  * This endpoint should only be used in development.
  */
 export async function POST() {
   try {
-    console.log('Seeding Chicago Rescue Squad...');
+    console.log('Seeding Chicago Rescue Force...');
 
-    // Check if Chicago squad already exists
-    const existing = await prisma.rescueSquad.findFirst({
+    // Check if Chicago force already exists
+    const existing = await prisma.rescueForce.findFirst({
       where: { city: { equals: 'Chicago', mode: 'insensitive' } },
     });
 
     if (existing) {
       return NextResponse.json({
-        message: 'Chicago Rescue Squad already exists',
-        squadId: existing.id,
-        url: `/rescue-squads/${existing.id}`,
+        message: 'Chicago Rescue Force already exists',
+        forceId: existing.id,
+        url: `/rescue-forces/${existing.id}`,
       });
     }
 
@@ -57,10 +57,10 @@ export async function POST() {
       users.push(user);
     }
 
-    // Create Chicago Rescue Squad
-    const chicagoSquad = await prisma.rescueSquad.create({
+    // Create Chicago Rescue Force
+    const chicagoSquad = await prisma.rescueForce.create({
       data: {
-        name: 'Chicago Rescue Squad',
+        name: 'Chicago Rescue Force',
         description: 'Helping reunite lost pets with their families across the Chicagoland area.',
         city: 'Chicago',
         state: 'IL',
@@ -97,7 +97,7 @@ export async function POST() {
     for (const divData of divisionsData) {
       const division = await prisma.division.create({
         data: {
-          rescueSquadId: chicagoSquad.id,
+          rescueForceId: chicagoSquad.id,
           name: divData.name,
           description: `${divData.name} neighborhood division`,
           centerLatitude: divData.centerLatitude,
@@ -109,7 +109,7 @@ export async function POST() {
       divisions.push(division);
     }
 
-    // Create squad members
+    // Create force members
     const memberAssignments = [
       { userIndex: 0, divisionIndex: 0, role: 'FOUNDER', isOnDuty: true },
       { userIndex: 1, divisionIndex: 0, role: 'MEMBER', isOnDuty: true },
@@ -127,9 +127,9 @@ export async function POST() {
       const user = users[ma.userIndex];
       const division = divisions[ma.divisionIndex];
 
-      const member = await prisma.rescueSquadMember.create({
+      const member = await prisma.rescueForceMember.create({
         data: {
-          rescueSquadId: chicagoSquad.id,
+          rescueForceId: chicagoSquad.id,
           userId: user.id,
           divisionId: division.id,
           role: ma.role,
@@ -285,7 +285,7 @@ export async function POST() {
     for (const petCase of cases) {
       const assignment = await prisma.caseAssignment.create({
         data: {
-          rescueSquadId: chicagoSquad.id,
+          rescueForceId: chicagoSquad.id,
           missionId: petCase.id,
           status: petCase.status === 'RESOLVED' ? 'COMPLETED' : 'ACTIVE',
           acceptedAt: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000),
@@ -315,7 +315,7 @@ export async function POST() {
     // Create activities
     const activityTypes = [
       { type: 'CASE_ACCEPTED', message: 'accepted case' },
-      { type: 'MEMBER_JOINED', message: 'joined the squad' },
+      { type: 'MEMBER_JOINED', message: 'joined the force' },
       { type: 'SIGHTING_REPORTED', message: 'reported a sighting' },
     ];
 
@@ -327,7 +327,7 @@ export async function POST() {
       try {
         await prisma.squadActivity.create({
           data: {
-            rescueSquadId: chicagoSquad.id,
+            rescueForceId: chicagoSquad.id,
             type: actType.type,
             message: actType.message,
             actorId: actor.userId,
@@ -376,7 +376,7 @@ export async function POST() {
       try {
         await prisma.squadTask.create({
           data: {
-            rescueSquadId: chicagoSquad.id,
+            rescueForceId: chicagoSquad.id,
             title: req.title,
             description: req.description,
             type: 'REQUEST',
@@ -394,10 +394,10 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
-      message: 'Chicago Rescue Squad seeded successfully!',
-      squadId: chicagoSquad.id,
-      url: `/rescue-squads/${chicagoSquad.id}`,
-      slugUrl: '/rescue-squads/chicago',
+      message: 'Chicago Rescue Force seeded successfully!',
+      forceId: chicagoSquad.id,
+      url: `/rescue-forces/${chicagoSquad.id}`,
+      slugUrl: '/rescue-forces/chicago',
       testUsers: testUsers.map(u => u.email),
       password: 'testuser123',
       stats: {
@@ -408,9 +408,9 @@ export async function POST() {
       },
     });
   } catch (error) {
-    console.error('Error seeding Chicago squad:', error);
+    console.error('Error seeding Chicago force:', error);
     return NextResponse.json(
-      { error: 'Failed to seed Chicago squad', details: error.message },
+      { error: 'Failed to seed Chicago force', details: error.message },
       { status: 500 }
     );
   }

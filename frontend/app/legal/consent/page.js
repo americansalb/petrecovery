@@ -10,7 +10,7 @@ import Link from 'next/link';
  * Phase 0: Legal Baseline - User-facing legal acceptance flow
  *
  * Allows users to review and accept Terms of Service and Liability Waiver
- * before participating in rescue squad activities.
+ * before participating in rescue force activities.
  */
 function LegalConsentContent() {
   const { data: session, status } = useSession();
@@ -186,7 +186,7 @@ function LegalConsentContent() {
           }}>
             {returnUrl ? (
               <>
-                Before you can participate in rescue squad activities, please review and accept our legal agreements below.
+                Before you can participate in rescue force activities, please review and accept our legal agreements below.
                 These protect both you and the ReunitePets.org community.
               </>
             ) : (

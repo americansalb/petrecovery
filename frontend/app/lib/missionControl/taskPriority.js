@@ -356,7 +356,7 @@ export const ACTION_TYPES = {
     whyImportant: 'Scared cats often won\'t come to you, but will enter a trap for food',
   },
 
-  // BOTH OWNER AND SQUAD
+  // BOTH OWNER AND FORCE
   call_shelter: {
     id: 'call_shelter',
     title: 'Call shelter',
@@ -1083,7 +1083,7 @@ export function sortTasksByPriority(tasks, missionData, context = {}) {
  * Get tasks filtered by user role
  *
  * @param {Array} tasks - All tasks
- * @param {string} userRole - OWNER or SQUAD
+ * @param {string} userRole - OWNER or FORCE
  * @returns {Object} - { ownerTasks, squadTasks }
  */
 export function filterTasksByRole(tasks, userRole) {
@@ -1092,7 +1092,7 @@ export function filterTasksByRole(tasks, userRole) {
   );
 
   const squadTasks = tasks.filter(t =>
-    t.role === 'SQUAD' || t.role === 'BOTH'
+    t.role === 'FORCE' || t.role === 'BOTH'
   );
 
   return { ownerTasks, squadTasks };

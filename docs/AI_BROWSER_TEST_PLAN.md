@@ -1,7 +1,7 @@
-# AI Browser Test Plan - PetRecovery.org
+# AI Browser Test Plan - ReunitePets.org
 
 **Purpose:** Step-by-step testing instructions for an AI browser agent
-**Target URL:** https://petrecovery.onrender.com (or production URL)
+**Target URL:** https://reunitepets.onrender.com (or production URL)
 **Test Account:** Create fresh account during testing
 
 ---
@@ -84,16 +84,16 @@ Pass Criteria:
 - Pet cards are clickable
 ```
 
-### Test 1.4: Rescue Squads Page
+### Test 1.4: Rescue Forces Page
 ```
-URL: /rescue-squads
+URL: /rescue-forces
 Expected:
-- Page loads showing rescue squad information
+- Page loads showing rescue force information
 - Search functionality visible
 - List of squads or empty state message
 
 Actions:
-1. Navigate to /rescue-squads
+1. Navigate to /rescue-forces
 2. Verify page loads without error
 3. Look for search input field
 4. If squads exist, verify they show: name, location, member count

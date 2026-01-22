@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Login Page - Updated with PetRecovery Design System
+ * Login Page - Updated with ReunitePets Design System
  * Uses: Midnight Blue + Flashlight Yellow color palette
  */
 

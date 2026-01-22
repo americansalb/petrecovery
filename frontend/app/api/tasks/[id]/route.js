@@ -74,7 +74,7 @@ export async function PATCH(request, { params }) {
     const task = await prisma.squadTask.findUnique({
       where: { id },
       include: {
-        rescueSquad: true,
+        rescueForce: true,
       },
     });
 
@@ -87,9 +87,9 @@ export async function PATCH(request, { params }) {
     const isCreator = task.creatorId === session.user.id;
     const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
 
-    const squadMembership = await prisma.rescueSquadMember.findFirst({
+    const squadMembership = await prisma.rescueForceMember.findFirst({
       where: {
-        rescueSquadId: task.rescueSquadId,
+        rescueForceId: task.rescueForceId,
         userId: session.user.id,
         isActive: true,
       },
@@ -262,9 +262,9 @@ export async function DELETE(request, { params }) {
     const isCreator = task.creatorId === session.user.id;
     const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
 
-    const squadMembership = await prisma.rescueSquadMember.findFirst({
+    const squadMembership = await prisma.rescueForceMember.findFirst({
       where: {
-        rescueSquadId: task.rescueSquadId,
+        rescueForceId: task.rescueForceId,
         userId: session.user.id,
         isActive: true,
       },

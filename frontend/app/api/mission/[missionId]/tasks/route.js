@@ -52,7 +52,7 @@ export async function GET(request, { params }) {
     const isOwner = missionRecord.reporterId === user.id;
     const petType = missionRecord.pet?.species || 'DOG';
 
-    // Get squad tasks for this case
+    // Get force tasks for this case
     const squadTasks = await prisma.squadTask.findMany({
       where: { missionId },
       include: {

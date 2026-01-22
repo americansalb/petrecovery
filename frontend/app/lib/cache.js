@@ -1,5 +1,5 @@
 /**
- * Caching Layer for PetRecovery
+ * Caching Layer for ReunitePets
  *
  * Provides in-memory caching with optional Redis support.
  * Used for frequently accessed data like case lists, user profiles, etc.
@@ -184,10 +184,10 @@ export const cacheKeys = {
   userStats: (id) => `user:${id}:stats`,
   userCases: (id) => `user:${id}:cases`,
 
-  // Squad-related keys
-  squad: (id) => `squad:${id}`,
-  squadMembers: (id) => `squad:${id}:members`,
-  squadList: (filters) => `squads:list:${JSON.stringify(filters)}`,
+  // Force-related keys
+  force: (id) => `force:${id}`,
+  squadMembers: (id) => `force:${id}:members`,
+  squadList: (filters) => `forces:list:${JSON.stringify(filters)}`,
 
   // Analytics
   dailyStats: (date) => `analytics:daily:${date}`,
@@ -254,10 +254,10 @@ export async function invalidateCache(entityType, entityId) {
       cacheKeys.userStats(entityId),
       cacheKeys.userCases(entityId),
     ],
-    squad: [
-      cacheKeys.squad(entityId),
+    force: [
+      cacheKeys.force(entityId),
       cacheKeys.squadMembers(entityId),
-      'squads:list:*',
+      'forces:list:*',
     ],
   };
 

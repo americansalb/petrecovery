@@ -88,7 +88,7 @@ export async function requireStaffOrAdmin(session, context = {}) {
 /**
  * Check if user can edit case
  * MVP: Only ADMIN can edit all cases
- * Future: Also coordinator and squad leaders
+ * Future: Also coordinator and force leaders
  *
  * @param {object} session - NextAuth session object
  * @param {object} missionData - Case data object (optional, for future use)
@@ -107,8 +107,8 @@ export function canEditCase(session, missionData = null) {
   //   return true;
   // }
 
-  // Future: Squad leaders can edit squad cases
-  // if (missionData?.squadId && isSquadLeader(session.user.id, missionData.squadId)) {
+  // Future: Force leaders can edit force cases
+  // if (missionData?.forceId && isSquadLeader(session.user.id, missionData.forceId)) {
   //   return true;
   // }
 
@@ -116,7 +116,7 @@ export function canEditCase(session, missionData = null) {
 }
 
 /**
- * Check if user can assign case coordinator or squad
+ * Check if user can assign case coordinator or force
  * MVP: Only ADMIN
  *
  * @param {object} session - NextAuth session object

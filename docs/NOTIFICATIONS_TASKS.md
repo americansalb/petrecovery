@@ -45,7 +45,7 @@ const transporter = nodemailer.createTransport({
 export async function sendEmail({ to, subject, html }) {
   try {
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || `PetRecovery <${process.env.EMAIL_USER}>`,
+      from: process.env.EMAIL_FROM || `ReunitePets <${process.env.EMAIL_USER}>`,
       to,
       subject,
       html,
@@ -190,7 +190,7 @@ export async function sendMissionReportConfirmation(missionData, options = {}) {
           <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
             <p>Hi ${missionData.contactName || 'there'},</p>
 
-            <p>Thank you for submitting a lost pet report to PetRecovery.org.</p>
+            <p>Thank you for submitting a lost pet report to ReunitePets.org.</p>
 
             <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
               <h3 style="margin-top: 0; color: #1f2937;">Mission Details:</h3>
@@ -218,7 +218,7 @@ export async function sendMissionReportConfirmation(missionData, options = {}) {
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
             <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+              <strong>ReunitePets.org</strong> - Reuniting Lost Pets with Their Families
             </p>
           </div>
         </body>
@@ -363,7 +363,7 @@ export async function sendAdminPublicReportAlert(missionData) {
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
             <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              <strong>PetRecovery.org</strong> - Admin Notification System
+              <strong>ReunitePets.org</strong> - Admin Notification System
             </p>
           </div>
         </body>
@@ -528,7 +528,7 @@ export async function sendMissionStatusUpdate(missionData, previousStatus, newSt
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
             <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+              <strong>ReunitePets.org</strong> - Reuniting Lost Pets with Their Families
             </p>
           </div>
         </body>
@@ -931,7 +931,7 @@ Add to `SETUP.md`:
 ```markdown
 ### Notifications Configuration (Phase 25-26)
 
-PetRecovery.org sends transactional email notifications for key mission lifecycle events.
+ReunitePets.org sends transactional email notifications for key mission lifecycle events.
 
 #### Email Service Setup
 
@@ -942,10 +942,10 @@ Configure your SMTP email service using these environment variables:
 EMAIL_SERVICE=gmail                                    # SMTP service (e.g., gmail, sendgrid)
 EMAIL_USER=your-email@gmail.com                       # SMTP username
 EMAIL_PASSWORD=your-app-specific-password             # SMTP password or API key
-EMAIL_FROM="PetRecovery.org <your-email@gmail.com>"  # Sender display name
+EMAIL_FROM="ReunitePets.org <your-email@gmail.com>"  # Sender display name
 
 # Required: Admin Notification Email
-ADMIN_NOTIFICATION_EMAIL=admin@petrecovery.org        # Email for admin alerts
+ADMIN_NOTIFICATION_EMAIL=admin@reunitepets.org        # Email for admin alerts
 ```
 
 **Gmail Setup (Development):**

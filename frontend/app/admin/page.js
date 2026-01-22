@@ -91,9 +91,9 @@ export default function AdminDashboard() {
               change={`${stats.activeUsers} active`}
             />
             <QuickStatCard
-              title="Rescue Squads"
-              value={stats.totalSquads}
-              change="Active squads"
+              title="Rescue Forces"
+              value={stats.totalForces}
+              change="Active forces"
             />
           </div>
         )}
@@ -125,9 +125,9 @@ export default function AdminDashboard() {
             icon="📋"
           />
           <AdminCard
-            title="Rescue Squads"
-            description="Manage squads, verify organizations, and review activity"
-            href="/admin/rescue-squads"
+            title="Rescue Forces"
+            description="Manage forces, verify organizations, and review activity"
+            href="/admin/rescue-forces"
             icon="🛡️"
           />
           <AdminCard
@@ -195,7 +195,7 @@ export default function AdminDashboard() {
             />
             <ActivityItem
               icon="🦮"
-              text="New rescue squad created: LA Pet Rescue Team"
+              text="New rescue force created: LA Pet Rescue Team"
               time="2 hours ago"
             />
             <ActivityItem

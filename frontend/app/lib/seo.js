@@ -4,7 +4,7 @@
  * Schema.org structured data and meta tag generation
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://petrecovery.org';
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://reunitepets.org';
 
 /**
  * Generate Lost Pet schema.org JSON-LD
@@ -43,46 +43,46 @@ export function generateOrganizationSchema() {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'PetRecovery.org',
+    name: 'ReunitePets.org',
     url: BASE_URL,
     logo: `${BASE_URL}/logo.png`,
     description: 'Community-powered pet recovery platform helping reunite lost pets with their families',
     sameAs: [
-      'https://facebook.com/petrecovery',
-      'https://twitter.com/petrecovery',
-      'https://instagram.com/petrecovery',
+      'https://facebook.com/reunitepets',
+      'https://twitter.com/reunitepets',
+      'https://instagram.com/reunitepets',
     ],
     contactPoint: {
       '@type': 'ContactPoint',
       contactType: 'customer support',
-      email: 'support@petrecovery.org',
+      email: 'support@reunitepets.org',
     },
   };
 }
 
 /**
- * Generate Rescue Squad (LocalBusiness) schema.org JSON-LD
+ * Generate Rescue Force (LocalBusiness) schema.org JSON-LD
  */
-export function generateSquadSchema(squad) {
+export function generateSquadSchema(force) {
   return {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
-    '@id': `${BASE_URL}/rescue-squads/${squad.id}`,
-    name: squad.name,
-    description: squad.description,
-    url: `${BASE_URL}/rescue-squads/${squad.id}`,
+    '@id': `${BASE_URL}/rescue-forces/${force.id}`,
+    name: force.name,
+    description: force.description,
+    url: `${BASE_URL}/rescue-forces/${force.id}`,
     areaServed: {
       '@type': 'City',
-      name: squad.city,
+      name: force.city,
       containedInPlace: {
         '@type': 'State',
-        name: squad.state,
+        name: force.state,
       },
     },
-    aggregateRating: squad.successfulReunions > 0 ? {
+    aggregateRating: force.successfulReunions > 0 ? {
       '@type': 'AggregateRating',
-      ratingValue: Math.min(5, 4 + squad.successfulReunions / 10),
-      reviewCount: squad.totalCasesCompleted,
+      ratingValue: Math.min(5, 4 + force.successfulReunions / 10),
+      reviewCount: force.totalCasesCompleted,
     } : undefined,
   };
 }
@@ -132,28 +132,28 @@ export function generateMetaTags({
   type = 'website',
   keywords,
 }) {
-  const fullTitle = title ? `${title} | PetRecovery.org` : 'PetRecovery.org - Find Lost Pets';
+  const fullTitle = title ? `${title} | ReunitePets.org` : 'ReunitePets.org - Find Lost Pets';
   const fullUrl = url ? `${BASE_URL}${url}` : BASE_URL;
   const fullImage = image || `${BASE_URL}/og-image.png`;
 
   return {
     title: fullTitle,
-    description: description || 'Community-powered pet recovery platform. Report lost pets, join rescue squads, and help reunite pets with their families.',
-    keywords: keywords || 'lost pet, found pet, missing dog, missing cat, pet recovery, rescue squad',
+    description: description || 'Community-powered pet recovery platform. Report lost pets, join rescue forces, and help reunite pets with their families.',
+    keywords: keywords || 'lost pet, found pet, missing dog, missing cat, pet recovery, rescue force',
     openGraph: {
       title: fullTitle,
       description,
       url: fullUrl,
       type,
       images: [{ url: fullImage }],
-      siteName: 'PetRecovery.org',
+      siteName: 'ReunitePets.org',
     },
     twitter: {
       card: 'summary_large_image',
       title: fullTitle,
       description,
       images: [fullImage],
-      site: '@petrecovery',
+      site: '@reunitepets',
     },
     alternates: {
       canonical: fullUrl,
@@ -179,17 +179,17 @@ export function generateCaseMetaTags(missionData) {
 }
 
 /**
- * Generate squad-specific meta tags
+ * Generate force-specific meta tags
  */
-export function generateSquadMetaTags(squad) {
-  const title = `${squad.name} - Pet Rescue Squad in ${squad.city}, ${squad.state}`;
-  const description = `Join ${squad.name} and help find lost pets in ${squad.city}. ${squad.successfulReunions} successful reunions. ${squad._count?.members || 0} active members.`;
+export function generateSquadMetaTags(force) {
+  const title = `${force.name} - Pet Rescue Force in ${force.city}, ${force.state}`;
+  const description = `Join ${force.name} and help find lost pets in ${force.city}. ${force.successfulReunions} successful reunions. ${force._count?.members || 0} active members.`;
 
   return generateMetaTags({
     title,
     description,
-    url: `/rescue-squads/${squad.id}`,
+    url: `/rescue-forces/${force.id}`,
     type: 'profile',
-    keywords: `pet rescue ${squad.city}, lost pet ${squad.state}, volunteer pet search`,
+    keywords: `pet rescue ${force.city}, lost pet ${force.state}, volunteer pet search`,
   });
 }

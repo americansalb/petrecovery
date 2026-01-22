@@ -257,7 +257,7 @@ async function testBlockedSquadCreate() {
   // This test verifies the error handling, not actual blocking
   // To truly test blocking, we'd need a test user without waiver
 
-  const res = await fetch('/api/rescue-squads', {
+  const res = await fetch('/api/rescue-forces', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -519,7 +519,7 @@ export async function POST(request) {
 
 ```javascript
 async function testCreateSquad() {
-  const res = await fetch('/api/rescue-squads', {
+  const res = await fetch('/api/rescue-forces', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -543,7 +543,7 @@ async function testCreateSquad() {
 
 ```javascript
 async function testSearchSquads() {
-  const res = await fetch('/api/rescue-squads?search=78701&radius=25');
+  const res = await fetch('/api/rescue-forces?search=78701&radius=25');
 
   if (!res.ok) {
     throw new Error(`Search failed: ${res.status}`);
@@ -559,7 +559,7 @@ async function testSearchSquads() {
 ```javascript
 async function testJoinSquad() {
   // First, find or create a test squad
-  const searchRes = await fetch('/api/rescue-squads?search=78701');
+  const searchRes = await fetch('/api/rescue-forces?search=78701');
   const { cities } = await searchRes.json();
 
   const testCity = cities.find(c => c.exists && c.squad);
@@ -567,7 +567,7 @@ async function testJoinSquad() {
     throw new Error('No test squad found - run Create Squad test first');
   }
 
-  const res = await fetch(`/api/rescue-squads/${testCity.squad.id}/join`, {
+  const res = await fetch(`/api/rescue-forces/${testCity.squad.id}/join`, {
     method: 'POST'
   });
 
@@ -590,7 +590,7 @@ async function testJoinSquad() {
 ```javascript
 async function testLeaveSquad() {
   // Find a squad the user is a member of
-  const searchRes = await fetch('/api/rescue-squads?search=78701');
+  const searchRes = await fetch('/api/rescue-forces?search=78701');
   const { cities } = await searchRes.json();
 
   const memberSquad = cities.find(c => c.exists && c.squad && c.squad.isMember);
@@ -598,7 +598,7 @@ async function testLeaveSquad() {
     throw new Error('Not a member of any test squad - run Join Squad test first');
   }
 
-  const res = await fetch(`/api/rescue-squads/${memberSquad.squad.id}/leave`, {
+  const res = await fetch(`/api/rescue-forces/${memberSquad.squad.id}/leave`, {
     method: 'POST'
   });
 
@@ -894,7 +894,7 @@ function SquadGenerator() {
       const city = cityList[i % cityList.length];
 
       try {
-        const res = await fetch('/api/rescue-squads', {
+        const res = await fetch('/api/rescue-forces', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1117,7 +1117,7 @@ function DataCleanup() {
     let missionCount = 0;
 
     // Find and delete test squads
-    const squadRes = await fetch('/api/rescue-squads?search=78701');
+    const squadRes = await fetch('/api/rescue-forces?search=78701');
     const { cities } = await squadRes.json();
 
     for (const city of cities) {
@@ -1350,7 +1350,7 @@ After completing all tasks, verify:
 
 **Functionality (No Regressions):**
 - [ ] `/` - Homepage works
-- [ ] `/rescue-squads/search` - Squad search works
+- [ ] `/rescue-forces/search` - Squad search works
 - [ ] `/admin/health` - All tabs load
 - [ ] `/admin/missions` - Mission list works
 - [ ] `/admin/missions/new` - Mission creation works

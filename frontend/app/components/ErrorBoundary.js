@@ -185,7 +185,7 @@ class ErrorBoundary extends React.Component {
             }}>
               If this problem persists, please{' '}
               <a
-                href="mailto:support@petrecovery.org"
+                href="mailto:support@reunitepets.org"
                 style={{ color: '#2563eb', textDecoration: 'none' }}
               >
                 contact support

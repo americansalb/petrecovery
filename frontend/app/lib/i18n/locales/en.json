@@ -38,7 +38,7 @@
     "cases": "Lost Pets",
     "report": "Report Lost Pet",
     "found": "Report Found Pet",
-    "squads": "Rescue Squads",
+    "squads": "Rescue Forces",
     "about": "About",
     "help": "Help",
     "account": "Account",
@@ -89,7 +89,7 @@
     "giant": "Giant (over 90 lbs)"
   },
   "squads": {
-    "rescueSquad": "Rescue Squad",
+    "rescueSquad": "Rescue Force",
     "joinSquad": "Join Squad",
     "leaveSquad": "Leave Squad",
     "createSquad": "Create Squad",

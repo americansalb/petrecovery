@@ -1,4 +1,4 @@
-# PetRecovery.org - Complete Business Vision
+# ReunitePets.org - Complete Business Vision
 
 **Document Purpose:** Master document capturing the complete business vision, all products, monetization strategies, and technical architecture. This is the single source of truth for any developer or AI assistant working on this project.
 
@@ -42,7 +42,7 @@ This philosophy drives every decision:
 
 **FREE Forever (No Gatekeeping):**
 - Lost pet listings and visibility (based on urgency/recency, NEVER money)
-- Volunteer coordination and Rescue Squads
+- Volunteer coordination and Rescue Forces
 - AI pet matching
 - Printable flyers/posters (PDF generation)
 - Reward facilitation (we don't take a cut)
@@ -73,7 +73,7 @@ This is the Wikipedia/Craigslist model - lean, ethical, sustainable:
 
 | Product | Type | Target User | Revenue Model |
 |---------|------|-------------|---------------|
-| **PetRecovery.org** | Consumer platform | Pet owners, volunteers | Crowdfunded ads (15% margin) + tips |
+| **ReunitePets.org** | Consumer platform | Pet owners, volunteers | Crowdfunded ads (15% margin) + tips |
 | **Shelter CRM** | B2B SaaS | Shelters, rescues, vet clinics | Freemium subscriptions |
 
 ### Why Two Products?
@@ -113,7 +113,7 @@ PawBoost has operated for 10+ years with this model:
 
 ### What PawBoost Doesn't Have (Our Advantages)
 
-| Feature | PawBoost | PetRecovery.org |
+| Feature | PawBoost | ReunitePets.org |
 |---------|----------|-----------------|
 | Facebook/Instagram ads | ✅ | ✅ |
 | YouTube/Gmail/Discover ads | ❌ | ✅ |
@@ -153,7 +153,7 @@ From ASPCA research and peer-reviewed studies:
 
 ---
 
-## Part 4: Product 1 - Consumer Platform (PetRecovery.org)
+## Part 4: Product 1 - Consumer Platform (ReunitePets.org)
 
 ### What's Already Built
 
@@ -163,7 +163,7 @@ The platform already has sophisticated features:
 |---------|--------|-------------|
 | Lost/Found pet listings | ✅ Built | Full case management |
 | AI pet matching | ✅ Built | Match lost pets with found reports |
-| Volunteer coordination (Rescue Squads) | ✅ Built | Organized search parties |
+| Volunteer coordination (Rescue Forces) | ✅ Built | Organized search parties |
 | GPS search tracking | ✅ Built | Track volunteer coverage |
 | Route optimization | ✅ Built | Probability zones, search planning |
 | Points/gamification | ✅ Built | Reward volunteers |
@@ -248,10 +248,10 @@ Repurpose the existing membership management software (being built separately) f
 ```
 Pet owner loses pet
         ↓
-Posts on PetRecovery.org (FREE)
+Posts on ReunitePets.org (FREE)
         ↓
 Alert goes to:
-├── Local volunteers (Rescue Squad)
+├── Local volunteers (Rescue Force)
 ├── Nearby shelters (via Shelter CRM)  ←── Connection point
 ├── Community (via ads, if funded)
         ↓
@@ -271,13 +271,13 @@ When a shelter uses our CRM:
 1. They receive automatic alerts about lost pets in their area
 2. They can check incoming strays against lost pet database
 3. They become part of the reunion network
-4. Their community sees PetRecovery.org branding
+4. Their community sees ReunitePets.org branding
 
 **This turns every shelter into a marketing channel.**
 
 ### Data Sharing Benefits
 
-| Shelter Gets | PetRecovery Gets |
+| Shelter Gets | ReunitePets Gets |
 |--------------|------------------|
 | Lost pet alerts for their area | Distribution to shelter's community |
 | Found pet matching | More shelter adoption |
@@ -337,7 +337,7 @@ Pet found!
               ↓
 "Max is home! Thank you to 12 contributors!"
               ↓
-Optional: Gratitude tip to PetRecovery
+Optional: Gratitude tip to ReunitePets
 ```
 
 ### Pricing Structure
@@ -399,7 +399,7 @@ Calculation:
 ```
 💰 YOUR $40 CAMPAIGN
 
-Platform fee (15%):           $6.00  → Keeps PetRecovery running
+Platform fee (15%):           $6.00  → Keeps ReunitePets running
 Ad spend:                    $34.00
 
 Where ads will run:
@@ -763,7 +763,7 @@ STRIPE_CHARGEBACK_PROTECTION=true
 
 ### vs PawBoost (Consumer)
 
-| Feature | PawBoost | PetRecovery |
+| Feature | PawBoost | ReunitePets |
 |---------|----------|-------------|
 | Facebook/Instagram ads | ✅ | ✅ |
 | YouTube/Gmail/Discover ads | ❌ | ✅ |
@@ -776,7 +776,7 @@ STRIPE_CHARGEBACK_PROTECTION=true
 
 ### vs Shelterluv/PetPoint (Shelter CRM)
 
-| Feature | Competitors | PetRecovery |
+| Feature | Competitors | ReunitePets |
 |---------|-------------|-------------|
 | Price | $100-500/mo | Free tier + $50-150/mo |
 | Lost pet integration | ❌ | ✅ Native |
@@ -785,7 +785,7 @@ STRIPE_CHARGEBACK_PROTECTION=true
 
 ### Moats We're Building
 
-1. **Volunteer network** - Rescue Squads are hard to replicate
+1. **Volunteer network** - Rescue Forces are hard to replicate
 2. **Shelter network** - Each shelter = distribution partner
 3. **Community trust** - Reunions build reputation
 4. **Reddit approvals** - Mod-approved posting rights take time

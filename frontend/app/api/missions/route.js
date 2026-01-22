@@ -41,7 +41,7 @@ export async function GET(request) {
     const search = searchParams.get('search');
     const myOnly = searchParams.get('myOnly') === 'true';
     const unassigned = searchParams.get('unassigned') === 'true';
-    const squadId = searchParams.get('squadId');
+    const forceId = searchParams.get('forceId');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
     const offset = parseInt(searchParams.get('offset') || '0');
 
@@ -64,14 +64,14 @@ export async function GET(request) {
       where.reporterId = session.user.id;
     }
 
-    // Filter by unassigned cases (no squad assignments)
+    // Filter by unassigned cases (no force assignments)
     if (unassigned) {
       where.assignments = { none: {} };
     }
 
-    // Filter by specific squad
-    if (squadId) {
-      where.assignments = { some: { rescueSquadId: squadId } };
+    // Filter by specific force
+    if (forceId) {
+      where.assignments = { some: { rescueForceId: forceId } };
     }
 
     // Text search
@@ -100,7 +100,7 @@ export async function GET(request) {
           },
           assignments: {
             include: {
-              rescueSquad: {
+              rescueForce: {
                 select: {
                   id: true,
                   name: true,
@@ -155,8 +155,8 @@ export async function GET(request) {
       // Counts
       updatesCount: c._count.updates,
       sightingsCount: c._count.sightings,
-      // Assigned squad (first one)
-      assignedSquad: c.assignments[0]?.rescueSquad || null,
+      // Assigned force (first one)
+      assignedForce: c.assignments[0]?.rescueForce || null,
     }));
 
     const responseTime = Date.now() - startTime;
@@ -168,7 +168,7 @@ export async function GET(request) {
       result: 'success',
       actor_user_id: session.user.id,
       metadata: {
-        filters: { status, reportType, species, search, myOnly, unassigned, squadId },
+        filters: { status, reportType, species, search, myOnly, unassigned, forceId },
         results_count: cases.length,
         total_count: totalCount,
         limit,
@@ -182,7 +182,7 @@ export async function GET(request) {
       count: cases.length,
       total: totalCount,
       hasMore: offset + cases.length < totalCount,
-      filters: { status, reportType, species, search, myOnly, unassigned, squadId, limit, offset }
+      filters: { status, reportType, species, search, myOnly, unassigned, forceId, limit, offset }
     });
 
   } catch (error) {
@@ -212,7 +212,7 @@ export async function GET(request) {
  * POST /api/missions - Create case
  *
  * DEPRECATED: Use /api/reports/create for the full case creation flow
- * which includes squad assignment, patrol notifications, etc.
+ * which includes force assignment, patrol notifications, etc.
  */
 export async function POST(request) {
   return NextResponse.json({

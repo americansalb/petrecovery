@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-export default function SquadActivityFeed({ squadId, missionId = null, isLeader = false }) {
+export default function ForceActivityFeed({ forceId, missionId = null, isLeader = false }) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, cases, members, tasks
@@ -14,11 +14,11 @@ export default function SquadActivityFeed({ squadId, missionId = null, isLeader 
     // Refresh every 30 seconds
     const interval = setInterval(loadActivities, 30000);
     return () => clearInterval(interval);
-  }, [squadId, missionId, filter]);
+  }, [forceId, missionId, filter]);
 
   const loadActivities = async () => {
     try {
-      let url = `/api/rescue-squads/${squadId}/activities?filter=${filter}`;
+      let url = `/api/rescue-forces/${forceId}/activities?filter=${filter}`;
       if (missionId) {
         url += `&missionId=${missionId}`;
       }
@@ -108,7 +108,7 @@ export default function SquadActivityFeed({ squadId, missionId = null, isLeader 
             fontSize: '0.9rem',
             color: '#64748b'
           }}>
-            Real-time updates from your squad
+            Real-time updates from your force
           </p>
         </div>
 
@@ -171,7 +171,7 @@ export default function SquadActivityFeed({ squadId, missionId = null, isLeader 
             No Recent Activity
           </div>
           <div style={{ fontSize: '0.9rem', color: '#64748b' }}>
-            Squad activity will appear here as members work on cases
+            Force activity will appear here as members work on cases
           </div>
         </div>
       ) : (

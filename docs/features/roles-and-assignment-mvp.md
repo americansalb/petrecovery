@@ -13,7 +13,7 @@ We're building a **clear roles and permissions model** plus **explicit mission a
 
 - **Global role enforcement**: Consistent permission checks across all admin surfaces (`/admin/health`, `/admin/qa`, `/admin/missions`, etc.).
 - **Mission coordinator tracking**: Each mission has an optional "primary coordinator" responsible for its progress.
-- **Owning squad clarity**: Explicit assignment of missions to rescue squads (building on existing `squadId` relationship).
+- **Owning squad clarity**: Explicit assignment of missions to rescue forces (building on existing `squadId` relationship).
 - **Full observability**: All permission failures and assignment changes emit structured events visible in `/admin/health`.
 
 This is a **minimal, pragmatic** implementation:
@@ -249,7 +249,7 @@ model User {
 **Semantics:**
 
 - `coordinatorId` = primary person responsible (typically ADMIN or MODERATOR)
-- `squadId` = rescue squad assigned to help (already exists)
+- `squadId` = rescue force assigned to help (already exists)
 - Both are **optional** and **independent**:
   - A mission can have a coordinator but no squad
   - A mission can be assigned to a squad but no specific coordinator
@@ -504,7 +504,7 @@ export async function POST(request, { params }) {
     "squadId": "clx456def...",
     "squad": {
       "id": "clx456def...",
-      "name": "Chicago Rescue Squad",
+      "name": "Chicago Rescue Force",
       "city": "Chicago",
       "state": "IL"
     }
@@ -855,4 +855,4 @@ Phase 22-24 is **COMPLETE** when:
 
 ---
 
-**This spec provides the foundation for clear ownership, consistent permissions, and observable access control across PetRecovery.org's internal operations.**
+**This spec provides the foundation for clear ownership, consistent permissions, and observable access control across ReunitePets.org's internal operations.**

@@ -111,7 +111,7 @@ async function getConversionCohorts(months) {
       },
       select: {
         id: true,
-        rescueSquadMemberships: { select: { id: true } },
+        rescueForceMemberships: { select: { id: true } },
         cases: { select: { id: true } },
         caseParticipations: { select: { id: true } },
       },
@@ -120,7 +120,7 @@ async function getConversionCohorts(months) {
     const cohortSize = cohortUsers.length;
 
     // Calculate conversion metrics
-    const joinedSquad = cohortUsers.filter((u) => u.rescueSquadMemberships.length > 0).length;
+    const joinedSquad = cohortUsers.filter((u) => u.rescueForceMemberships.length > 0).length;
     const reportedCase = cohortUsers.filter((u) => u.cases.length > 0).length;
     const participatedInCase = cohortUsers.filter((u) => u.caseParticipations.length > 0).length;
 
@@ -166,7 +166,7 @@ async function getEngagementCohorts(months) {
       select: {
         id: true,
         rescueLevel: true,
-        squadsJoinedCount: true,
+        forcesJoinedCount: true,
         areasMarkedCount: true,
         successfulReunions: true,
       },
@@ -182,7 +182,7 @@ async function getEngagementCohorts(months) {
 
     const avgMetrics = {
       squadsJoined: cohortSize > 0
-        ? Math.round(cohortUsers.reduce((sum, u) => sum + u.squadsJoinedCount, 0) / cohortSize * 10) / 10
+        ? Math.round(cohortUsers.reduce((sum, u) => sum + u.forcesJoinedCount, 0) / cohortSize * 10) / 10
         : 0,
       areasMarked: cohortSize > 0
         ? Math.round(cohortUsers.reduce((sum, u) => sum + u.areasMarkedCount, 0) / cohortSize * 10) / 10

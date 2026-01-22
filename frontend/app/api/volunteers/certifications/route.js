@@ -47,9 +47,9 @@ const CERTIFICATION_TYPES = {
     validityMonths: 12,
     requiresApproval: true,
   },
-  SQUAD_LEADER: {
-    name: 'Squad Leader',
-    description: 'Certified to lead search squads',
+  FORCE_LEADER: {
+    name: 'Force Leader',
+    description: 'Certified to lead search forces',
     validityMonths: 12,
     requiresApproval: true,
   },

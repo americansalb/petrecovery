@@ -46,7 +46,7 @@ export async function getImpactSummary(userId) {
               foundById: true,
             }
           },
-          rescueSquad: {
+          rescueForce: {
             select: { name: true }
           }
         }
@@ -85,7 +85,7 @@ export async function getImpactSummary(userId) {
       petSpecies: missionData.petSpecies,
       petPhotoUrl: missionData.petPhotoUrl,
       status: missionData.status,
-      squadName: p.assignment.rescueSquad?.name,
+      forceName: p.assignment.rescueForce?.name,
       myContribution: {
         searchHours: p.searchHours,
         areasMarked: p.areasMarked,

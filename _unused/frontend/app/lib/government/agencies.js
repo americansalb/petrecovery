@@ -209,7 +209,7 @@ export async function reportStrayToAnimalControl(reportData) {
     urgency: urgency || 'normal', // normal, urgent, emergency
     photoUrls: photos || [],
     reportedAt: new Date().toISOString(),
-    source: 'PetRecovery.org',
+    source: 'ReunitePets.org',
   };
 
   const response = await submitToAgency(agency, report);
@@ -353,7 +353,7 @@ export async function requestHoldExtension(intakeId, agencyId, reason) {
   const extension = await submitHoldExtension(agencyId, intakeId, {
     reason,
     requestedDays: 7,
-    requestedBy: 'PetRecovery.org on behalf of owner',
+    requestedBy: 'ReunitePets.org on behalf of owner',
   });
 
   return {

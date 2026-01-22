@@ -50,7 +50,7 @@ export async function GET(request) {
       squadStats,
       recentActivity,
       dailyStats,
-      topSquads,
+      topForces,
       caseResolutions,
     ] = await Promise.all([
       // User stats
@@ -93,23 +93,23 @@ export async function GET(request) {
         };
       }),
 
-      // Squad stats
-      prisma.rescueSquad.aggregate({
+      // Force stats
+      prisma.rescueForce.aggregate({
         _count: true,
         _avg: {
           totalCasesCompleted: true,
           successfulReunions: true,
         },
       }).then(async (agg) => {
-        const activeSquads = await prisma.rescueSquad.count({
+        const activeForces = await prisma.rescueForce.count({
           where: { isActive: true, isAcceptingCases: true },
         });
-        const totalMembers = await prisma.rescueSquadMember.count({
+        const totalMembers = await prisma.rescueForceMember.count({
           where: { isActive: true },
         });
         return {
           total: agg._count,
-          active: activeSquads,
+          active: activeForces,
           members: totalMembers,
           avgCasesCompleted: Math.round(agg._avg.totalCasesCompleted || 0),
           avgReunions: Math.round(agg._avg.successfulReunions || 0),
@@ -121,7 +121,7 @@ export async function GET(request) {
         where: {
           timestamp: { gte: startDate },
           event_type: {
-            in: ['case.created', 'case.resolved', 'squad.created', 'user.registered'],
+            in: ['case.created', 'case.resolved', 'force.created', 'user.registered'],
           },
         },
         orderBy: { timestamp: 'desc' },
@@ -134,8 +134,8 @@ export async function GET(request) {
         orderBy: { date: 'asc' },
       }),
 
-      // Top performing squads
-      prisma.rescueSquad.findMany({
+      // Top performing forces
+      prisma.rescueForce.findMany({
         where: { isActive: true },
         orderBy: { successfulReunions: 'desc' },
         take: 5,
@@ -165,10 +165,10 @@ export async function GET(request) {
       range,
       users: userStats,
       cases: caseStats,
-      squads: squadStats,
+      forces: squadStats,
       recentActivity,
       dailyStats,
-      topSquads: topSquads.map((s) => ({
+      topForces: topForces.map((s) => ({
         ...s,
         memberCount: s._count.members,
       })),

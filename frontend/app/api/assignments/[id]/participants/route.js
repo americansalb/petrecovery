@@ -54,7 +54,7 @@ export async function POST(request, { params }) {
     const assignment = await prisma.caseAssignment.findUnique({
       where: { id: assignmentId },
       include: {
-        rescueSquad: true,
+        rescueForce: true,
         case: true,
       },
     });
@@ -74,10 +74,10 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Check if user is a member of the squad
-    const membership = await prisma.rescueSquadMember.findFirst({
+    // Check if user is a member of the force
+    const membership = await prisma.rescueForceMember.findFirst({
       where: {
-        rescueSquadId: assignment.rescueSquadId,
+        rescueForceId: assignment.rescueForceId,
         userId: session.user.id,
         isActive: true,
       },
@@ -85,7 +85,7 @@ export async function POST(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'You must be a member of this squad to participate' },
+        { error: 'You must be a member of this force to participate' },
         { status: 403 }
       );
     }
@@ -157,8 +157,8 @@ export async function POST(request, { params }) {
       },
     });
 
-    // Update squad member stats
-    await prisma.rescueSquadMember.update({
+    // Update force member stats
+    await prisma.rescueForceMember.update({
       where: { id: membership.id },
       data: {
         casesParticipated: { increment: 1 },

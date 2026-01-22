@@ -16,7 +16,7 @@ Users are confused about where they should be and what they should be doing. Two
 
 ### The Two Views:
 
-**Squad Hub** (`/rescue-squads/[id]`)
+**Squad Hub** (`/rescue-forces/[id]`)
 - City-level overview
 - See ALL cases in the squad
 - Squad-wide chat
@@ -44,7 +44,7 @@ Users are confused about where they should be and what they should be doing. Two
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  SQUAD BAR (Always visible, minimal)                        │
-│  [Austin Rescue Squad ▼]  [3 Active Cases]  [12 Members]   │
+│  [Austin Rescue Force ▼]  [3 Active Cases]  [12 Members]   │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  CASE RAIL (Left sidebar, collapsible)     MAIN WORK AREA  │
@@ -336,10 +336,10 @@ Instead of tabs, use a **primary view + expandable panels** model:
 
 ## Visual Mockups (ASCII)
 
-### SQUAD HUB - Desktop (`/rescue-squads/[id]`)
+### SQUAD HUB - Desktop (`/rescue-forces/[id]`)
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ 🐾 PetRecovery       ← Back to Squads    [+ Report Lost Pet]      👤 You │
+│ 🐾 ReunitePets       ← Back to Squads    [+ Report Lost Pet]      👤 You │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │  AUSTIN RESCUE SQUAD                           12 members • 4 on duty   │
@@ -378,7 +378,7 @@ Instead of tabs, use a **primary view + expandable panels** model:
 ### MISSION CONTROL - Desktop (`/mission-control?mission=X`)
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ 🐾 PetRecovery       ← Back to Squad     [+ Report Sighting]      👤 You │
+│ 🐾 ReunitePets       ← Back to Squad     [+ Report Sighting]      👤 You │
 ├────────────────────┬─────────────────────────────────────────────────────┤
 │                    │                                                     │
 │  YOUR MISSIONS     │  🐕 BUDDY - Golden Retriever              [Actions]│
@@ -452,7 +452,7 @@ Instead of tabs, use a **primary view + expandable panels** model:
 ┌─────────────────────────┐
 │ ← Back   AUSTIN    👤   │
 ├─────────────────────────┤
-│ Austin Rescue Squad     │
+│ Austin Rescue Force     │
 │ 12 members • 4 on duty  │
 ├─────────────────────────┤
 │                         │

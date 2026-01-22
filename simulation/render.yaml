@@ -3,7 +3,7 @@
 
 services:
   - type: web
-    name: petrecovery-monte-carlo
+    name: reunitepets-monte-carlo
     runtime: python
     region: oregon
     plan: starter

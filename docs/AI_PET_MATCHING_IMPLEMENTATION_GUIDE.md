@@ -12,7 +12,7 @@ This section provides all context needed to understand the existing codebase bef
 
 ## 1.1 Project Overview
 
-**PetRecovery.org** is a Next.js 14 application for reuniting lost pets with their owners through organized rescue squads.
+**ReunitePets.org** is a Next.js 14 application for reuniting lost pets with their owners through organized rescue forces.
 
 ### Tech Stack
 | Layer | Technology |
@@ -27,7 +27,7 @@ This section provides all context needed to understand the existing codebase bef
 
 ### Directory Structure
 ```
-/home/user/petrecovery/
+/home/user/reunitepets/
 └── frontend/
     ├── app/
     │   ├── page.js                    # Homepage
@@ -54,7 +54,7 @@ This section provides all context needed to understand the existing codebase bef
     │   ├── register/
     │   ├── dashboard/                 # User dashboard
     │   ├── missions/                     # Mission management pages
-    │   ├── rescue-squads/             # Squad pages
+    │   ├── rescue-forces/             # Squad pages
     │   └── admin/                     # Admin pages
     │       ├── page.js                # Admin dashboard
     │       ├── health/                # System health
@@ -250,7 +250,7 @@ export default function ExamplePage() {
 ```javascript
 // Existing upload endpoint: POST /api/upload
 // Request: FormData with 'file' field
-// Response: { url: "https://petrecovery.b-cdn.net/pets/xxx.jpg" }
+// Response: { url: "https://reunitepets.b-cdn.net/pets/xxx.jpg" }
 
 const uploadImage = async (file) => {
   const formData = new FormData();
@@ -274,9 +274,9 @@ Existing variables the system uses:
 DATABASE_URL="postgresql://..."
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="..."
-BUNNY_STORAGE_ZONE="petrecovery"
+BUNNY_STORAGE_ZONE="reunitepets"
 BUNNY_API_KEY="..."
-BUNNY_CDN_URL="https://petrecovery.b-cdn.net"
+BUNNY_CDN_URL="https://reunitepets.b-cdn.net"
 ```
 
 New variables needed for AI features:
@@ -324,7 +324,7 @@ model PetPhoto {
   uploadedBy      User     @relation("UploadedPhotos", fields: [uploadedById], references: [id])
 
   // Image URLs
-  imageUrl        String                    // Full size: https://petrecovery.b-cdn.net/pets/xxx.jpg
+  imageUrl        String                    // Full size: https://reunitepets.b-cdn.net/pets/xxx.jpg
   thumbnailUrl    String?                   // 200x200 thumbnail
 
   // Display order
@@ -803,7 +803,7 @@ model Mission {
 
 ```bash
 # After updating schema.prisma, run:
-cd /home/user/petrecovery/frontend
+cd /home/user/reunitepets/frontend
 npx prisma db push
 
 # Or for production with migration history:
@@ -837,10 +837,10 @@ async function seedAIData() {
 
   // Create test user if not exists
   const testUser = await prisma.user.upsert({
-    where: { email: 'ai-test@petrecovery.org' },
+    where: { email: 'ai-test@reunitepets.org' },
     update: {},
     create: {
-      email: 'ai-test@petrecovery.org',
+      email: 'ai-test@reunitepets.org',
       firstName: 'AI',
       lastName: 'Test',
       role: 'ADMIN',
@@ -865,7 +865,7 @@ async function seedAIData() {
     data: {
       petId: testPet.id,
       uploadedById: testUser.id,
-      imageUrl: 'https://petrecovery.b-cdn.net/test/dog1.jpg',
+      imageUrl: 'https://reunitepets.b-cdn.net/test/dog1.jpg',
       displayOrder: 0,
       isPrimary: true,
       processingStatus: 'COMPLETED',
@@ -880,7 +880,7 @@ async function seedAIData() {
     data: {
       petId: testPet.id,
       uploadedById: testUser.id,
-      imageUrl: 'https://petrecovery.b-cdn.net/test/dog2.jpg',
+      imageUrl: 'https://reunitepets.b-cdn.net/test/dog2.jpg',
       displayOrder: 1,
       isPrimary: false,
       processingStatus: 'COMPLETED',
@@ -3021,7 +3021,7 @@ Files to MODIFY:
 
 Install with:
 ```bash
-cd /home/user/petrecovery/frontend
+cd /home/user/reunitepets/frontend
 npm install react-dropzone onnxruntime-node
 ```
 

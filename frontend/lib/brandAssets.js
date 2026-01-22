@@ -18,7 +18,7 @@ export const BRAND_ASSETS = {
     tagline: 'Your Guide Home',
   },
 
-  // PetRecovery logos - FINAL 2025
+  // ReunitePets logos - FINAL 2025
   logos: {
     primary: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(9).svg`,  // Front page hero (Dog Image)
     icon: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(8).svg`,  // Nav bar & favicon (Logo)

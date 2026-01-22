@@ -43,7 +43,7 @@ export default function PrismaAdminPage() {
             Regenerate Prisma Client
           </h2>
           <p className="text-slate-300 mb-6">
-            If you've run database migrations via raw SQL (like the SquadPost tables),
+            If you've run database migrations via raw SQL (like the ForcePost tables),
             you need to regenerate the Prisma client so it knows about the new tables.
           </p>
 
@@ -119,7 +119,7 @@ export default function PrismaAdminPage() {
             </li>
             <li className="flex gap-2">
               <span className="text-cyan-400">•</span>
-              <span>When the posts API returns 500 errors about missing SquadPost model</span>
+              <span>When the posts API returns 500 errors about missing ForcePost model</span>
             </li>
           </ul>
         </div>

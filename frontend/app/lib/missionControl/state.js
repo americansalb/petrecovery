@@ -20,7 +20,7 @@ export async function getMissionState(missionId) {
           reporter: { select: { id: true, firstName: true, phone: true } },
           assignments: {
             include: {
-              rescueSquad: true,
+              rescueForce: true,
               participants: {
                 include: {
                   user: { select: { id: true, firstName: true, lastName: true } }

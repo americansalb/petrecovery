@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Public Lost Pet Missions List Page - Updated with PetRecovery Design System
+ * Public Lost Pet Missions List Page - Updated with ReunitePets Design System
  * Uses: Midnight Blue + Flashlight Yellow color palette
  *
  * Route: /missions

@@ -38,10 +38,10 @@ Future phases will add: owner accounts, public comments, geospatial maps, email 
 
 ### Current State
 
-After Phase 13–14, we have a **fully functional internal mission management system** where admins and rescue squad members can:
+After Phase 13–14, we have a **fully functional internal mission management system** where admins and rescue force members can:
 - Create and track lost pet missions
 - Update mission status and add notes
-- Associate missions with rescue squads
+- Associate missions with rescue forces
 
 However:
 - **The public cannot see any of this data**
@@ -145,7 +145,7 @@ However:
 ### Reporter Stories
 
 **Story 4: Report Lost Pet**
-- As a **pet owner**, I want to **report my lost pet online** so that **rescue squads can start helping immediately**.
+- As a **pet owner**, I want to **report my lost pet online** so that **rescue forces can start helping immediately**.
 - Acceptance: Public form creates mission with source = PUBLIC_REPORT, shows confirmation
 
 **Story 5: Submit Without Account**
@@ -549,7 +549,7 @@ model LostPetMission {
 │  ☑ I understand that my report will be         │
 │    reviewed by volunteers and that my          │
 │    contact information may be shared with      │
-│    rescue squads to help find my pet.          │
+│    rescue forces to help find my pet.          │
 │                                                 │
 │  [Submit Report]                               │
 │                                                 │
@@ -567,7 +567,7 @@ model LostPetMission {
 │  What happens next:                            │
 │  1. Our volunteer team will review your report │
 │  2. You'll be contacted within 24 hours        │
-│  3. Your mission will be visible to rescue squads │
+│  3. Your mission will be visible to rescue forces │
 │                                                 │
 │  [View Your Mission] [Report Another Pet]         │
 └─────────────────────────────────────────────────┘
@@ -652,12 +652,12 @@ All public pages include static disclaimers:
 **On `/missions/[missionNumber]` Detail Page:**
 > **Privacy Notice:** Contact information is provided with the owner's consent. Please respect their privacy and only contact them if you have relevant information about their lost pet.
 >
-> **Safety Notice:** If you find a lost pet, do not attempt to capture it yourself if it appears injured, sick, or dangerous. Contact your local animal control or rescue squad for assistance.
+> **Safety Notice:** If you find a lost pet, do not attempt to capture it yourself if it appears injured, sick, or dangerous. Contact your local animal control or rescue force for assistance.
 
 **On `/missions/report` Form:**
 > **By submitting this report, you acknowledge that:**
 > - Your information will be reviewed by volunteer staff
-> - Your contact information may be shared with rescue squads
+> - Your contact information may be shared with rescue forces
 > - Your mission may be published publicly to help find your pet
 > - This service is provided as-is with no guarantees
 > - You agree to our Terms of Service and Privacy Policy
@@ -732,7 +732,7 @@ Update `/admin/qa` generators:
 
 **NEVER expose publicly:**
 - `createdById` (internal user IDs)
-- `squadId` (internal rescue squad IDs)
+- `squadId` (internal rescue force IDs)
 - `source` field (implementation detail)
 - Internal notes with type="SYSTEM_STATUS_CHANGE"
 - Any admin-only metadata

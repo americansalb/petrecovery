@@ -1,6 +1,6 @@
-# PetRecovery.org Deployment Guide
+# ReunitePets.org Deployment Guide
 
-This document covers deploying PetRecovery.org to production environments.
+This document covers deploying ReunitePets.org to production environments.
 
 ## Prerequisites
 
@@ -15,8 +15,8 @@ The fastest way to deploy is using Docker Compose:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/petrecovery.git
-cd petrecovery/frontend
+git clone https://github.com/your-org/reunitepets.git
+cd reunitepets/frontend
 
 # Copy and configure environment
 cp .env.example .env.local
@@ -39,7 +39,7 @@ docker-compose exec app npm run seed:metros
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:5432/db` |
-| `NEXTAUTH_URL` | Public URL of your site | `https://petrecovery.org` |
+| `NEXTAUTH_URL` | Public URL of your site | `https://reunitepets.org` |
 | `NEXTAUTH_SECRET` | Random 32+ character string | Generate with `openssl rand -base64 32` |
 
 ### Email Configuration
@@ -50,7 +50,7 @@ For sending password resets, verification emails, and notifications:
 EMAIL_SERVICE="sendgrid"  # or gmail, mailgun
 EMAIL_USER="your-email@example.com"
 EMAIL_PASSWORD="your-api-key"
-EMAIL_FROM="PetRecovery <noreply@petrecovery.org>"
+EMAIL_FROM="ReunitePets <noreply@reunitepets.org>"
 ```
 
 ### File Storage (Bunny CDN)
@@ -58,9 +58,9 @@ EMAIL_FROM="PetRecovery <noreply@petrecovery.org>"
 For pet photo uploads:
 
 ```env
-BUNNY_STORAGE_ZONE="petrecovery"
+BUNNY_STORAGE_ZONE="reunitepets"
 BUNNY_API_KEY="your-api-key"
-BUNNY_CDN_URL="https://cdn.petrecovery.org"
+BUNNY_CDN_URL="https://cdn.reunitepets.org"
 ```
 
 ### Rate Limiting (Production)
@@ -127,7 +127,7 @@ npm run start
 
 ```bash
 # Create database
-createdb petrecovery
+createdb reunitepets
 
 # Run migrations
 npx prisma migrate deploy
@@ -140,10 +140,10 @@ npm run seed:metros
 
 ```bash
 # Backup database
-pg_dump petrecovery > backup_$(date +%Y%m%d).sql
+pg_dump reunitepets > backup_$(date +%Y%m%d).sql
 
 # Restore database
-psql petrecovery < backup_20240101.sql
+psql reunitepets < backup_20240101.sql
 ```
 
 ## SSL/TLS Configuration
@@ -159,7 +159,7 @@ For production, always use HTTPS. Options:
 The application exposes a health endpoint:
 
 ```bash
-curl https://petrecovery.org/api/health
+curl https://reunitepets.org/api/health
 ```
 
 Expected response:
@@ -239,9 +239,9 @@ Before going live:
 
 ### Getting Help
 
-1. Check the [Issues](https://github.com/your-org/petrecovery/issues)
-2. Review [Discussions](https://github.com/your-org/petrecovery/discussions)
-3. Contact: support@petrecovery.org
+1. Check the [Issues](https://github.com/your-org/reunitepets/issues)
+2. Review [Discussions](https://github.com/your-org/reunitepets/discussions)
+3. Contact: support@reunitepets.org
 
 ## CI/CD Pipeline
 

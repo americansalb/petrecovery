@@ -198,7 +198,7 @@ export default function AdminDivisionRequestsPage() {
                   Approve Division Request
                 </h3>
                 <p style={{ fontSize: '0.9rem', color: '#64748b' }}>
-                  This will create a new division in the squad
+                  This will create a new division in the force
                 </p>
               </div>
             </div>
@@ -213,7 +213,7 @@ export default function AdminDivisionRequestsPage() {
                 Proposed: {approveModal.proposedName}
               </div>
               <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                For: {approveModal.rescueSquad?.name}
+                For: {approveModal.rescueForce?.name}
               </div>
             </div>
 
@@ -709,7 +709,7 @@ export default function AdminDivisionRequestsPage() {
                     }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                         <Building2 size={16} />
-                        {request.rescueSquad?.name || 'Unknown Squad'}
+                        {request.rescueForce?.name || 'Unknown Force'}
                       </span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                         <Users size={16} />

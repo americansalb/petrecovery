@@ -137,7 +137,7 @@ export async function sendSms(to, body, options = {}) {
  * Send a verification code via SMS
  */
 export async function sendVerificationCode(to, code) {
-  const body = `Your PetRecovery verification code is: ${code}. This code expires in 10 minutes.`;
+  const body = `Your ReunitePets verification code is: ${code}. This code expires in 10 minutes.`;
   return sendSms(to, body);
 }
 
@@ -145,7 +145,7 @@ export async function sendVerificationCode(to, code) {
  * Send a sighting alert
  */
 export async function sendSightingAlert(to, petName, location, caseUrl) {
-  const body = `🔔 PetRecovery Alert: Someone may have spotted ${petName}! Location: ${location}. View details: ${caseUrl}`;
+  const body = `🔔 ReunitePets Alert: Someone may have spotted ${petName}! Location: ${location}. View details: ${caseUrl}`;
   return sendSms(to, body);
 }
 
@@ -193,10 +193,10 @@ export async function sendEmergencyBroadcast(recipients, petName, description, l
  */
 export const SMS_TEMPLATES = {
   WELCOME: (name) =>
-    `Welcome to PetRecovery, ${name}! You've enabled SMS alerts. Reply STOP to unsubscribe.`,
+    `Welcome to ReunitePets, ${name}! You've enabled SMS alerts. Reply STOP to unsubscribe.`,
 
   VERIFICATION: (code) =>
-    `Your PetRecovery verification code is: ${code}. This code expires in 10 minutes.`,
+    `Your ReunitePets verification code is: ${code}. This code expires in 10 minutes.`,
 
   SIGHTING_ALERT: (petName, location, url) =>
     `🔔 Possible sighting of ${petName} near ${location}! Details: ${url}`,
@@ -216,8 +216,8 @@ export const SMS_TEMPLATES = {
   NEW_MESSAGE: (from, url) =>
     `You have a new message from ${from} about your lost pet. View: ${url}`,
 
-  SQUAD_ALERT: (squadName, message) =>
-    `[${squadName}] ${message}`,
+  FORCE_ALERT: (forceName, message) =>
+    `[${forceName}] ${message}`,
 
   NEARBY_LOST_PET: (petName, distance, url) =>
     `📍 Lost pet alert: ${petName} was reported missing ${distance} away. Help spread the word: ${url}`,

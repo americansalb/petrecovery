@@ -1,4 +1,4 @@
-// Jest configuration for PetRecovery
+// Jest configuration for ReunitePets
 // https://nextjs.org/docs/testing
 
 const nextJest = require('next/jest');

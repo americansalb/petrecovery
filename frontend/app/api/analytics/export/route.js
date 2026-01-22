@@ -89,8 +89,8 @@ export async function GET(request) {
         filename = `users-${range}`;
         break;
 
-      case 'squads':
-        data = await prisma.rescueSquad.findMany({
+      case 'forces':
+        data = await prisma.rescueForce.findMany({
           where: { createdAt: { gte: startDate } },
           select: {
             name: true,
@@ -105,7 +105,7 @@ export async function GET(request) {
           orderBy: { createdAt: 'desc' },
         });
         headers = ['Name', 'City', 'State', 'Active', 'Cases Completed', 'Reunions', 'Created', 'Members'];
-        filename = `squads-${range}`;
+        filename = `forces-${range}`;
         data = data.map((s) => ({
           ...s,
           memberCount: s._count.members,
@@ -177,7 +177,7 @@ function generateCSV(data, headers, type) {
           formatDate(item.lastActive),
         ];
         break;
-      case 'squads':
+      case 'forces':
         row = [
           escapeCSV(item.name),
           escapeCSV(item.city || ''),

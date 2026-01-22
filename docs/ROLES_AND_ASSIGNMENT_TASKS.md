@@ -1084,7 +1084,7 @@ export default function AdminMissionDetailPage({ params }) {
     setCoordinators(users || []);
 
     // Fetch active squads
-    const squadsRes = await fetch('/api/rescue-squads?active=true');
+    const squadsRes = await fetch('/api/rescue-forces?active=true');
     const { cities } = await squadsRes.json();
     // Extract squads from cities response
     const allSquads = cities
@@ -1489,7 +1489,7 @@ async function testAssignMissionSquad() {
   }
 
   // Find an active squad
-  const squadsRes = await fetch('/api/rescue-squads?active=true&limit=1');
+  const squadsRes = await fetch('/api/rescue-forces?active=true&limit=1');
   const { cities } = await squadsRes.json();
 
   const testSquad = cities.find(c => c.squad);

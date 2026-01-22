@@ -156,7 +156,7 @@ export async function DELETE(request) {
     const isCoordinator = await prisma.caseAssignment.findFirst({
       where: {
         missionId,
-        rescueSquad: {
+        rescueForce: {
           members: {
             some: {
               userId: session.user.id,

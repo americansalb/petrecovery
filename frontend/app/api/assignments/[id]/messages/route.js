@@ -59,7 +59,7 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Verify user is a participant or squad leader
+    // Verify user is a participant or force leader
     const assignment = await prisma.caseAssignment.findUnique({
       where: { id: assignmentId },
       include: {
@@ -69,7 +69,7 @@ export async function POST(request, { params }) {
             isActive: true,
           },
         },
-        rescueSquad: {
+        rescueForce: {
           include: {
             members: {
               where: {
@@ -91,7 +91,7 @@ export async function POST(request, { params }) {
     }
 
     const isParticipant = assignment.participants.length > 0;
-    const isLeader = assignment.rescueSquad.members.length > 0;
+    const isLeader = assignment.rescueForce.members.length > 0;
 
     if (!isParticipant && !isLeader) {
       return NextResponse.json(
@@ -103,7 +103,7 @@ export async function POST(request, { params }) {
     // Only leaders can send ANNOUNCEMENT type messages
     if (type === 'ANNOUNCEMENT' && !isLeader) {
       return NextResponse.json(
-        { error: 'Only squad leaders can send announcements' },
+        { error: 'Only force leaders can send announcements' },
         { status: 403 }
       );
     }
@@ -129,9 +129,53 @@ export async function POST(request, { params }) {
       },
     });
 
-    // TODO: Send push notifications to other participants
-    // - Real-time chat notifications
-    // - Email digest for offline users
+    // Send push notifications to other participants
+    try {
+      // Get assignment details with participants and mission
+      const assignment = await prisma.caseAssignment.findUnique({
+        where: { id },
+        select: {
+          mission: {
+            select: {
+              missionNumber: true,
+              ownerId: true,
+            },
+          },
+          participants: {
+            where: {
+              AND: [
+                { status: 'ACTIVE' },
+                { userId: { not: session.user.id } }, // Don't notify the sender
+              ],
+            },
+            select: { userId: true },
+          },
+        },
+      });
+
+      if (assignment && message.type === 'USER') {
+        const participantIds = [
+          ...assignment.participants.map(p => p.userId),
+          assignment.mission.ownerId, // Also notify pet owner
+        ].filter(Boolean).filter(id => id !== session.user.id);
+
+        if (participantIds.length > 0) {
+          const { sendChatMessagePushNotification } = await import('@/app/lib/notifications');
+          const senderName = `${session.user.firstName || ''} ${session.user.lastName || ''}`.trim() || 'Team member';
+          const messagePreview = content.length > 100 ? content.substring(0, 97) + '...' : content;
+
+          await sendChatMessagePushNotification({
+            participantIds,
+            senderName,
+            messagePreview,
+            missionNumber: assignment.mission.missionNumber,
+          });
+        }
+      }
+    } catch (notificationError) {
+      console.error('Error sending chat message notifications:', notificationError);
+      // Don't fail the request if notifications fail
+    }
 
     return NextResponse.json({ message }, { status: 201 });
   } catch (error) {

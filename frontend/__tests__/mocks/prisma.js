@@ -52,7 +52,7 @@ const mockPrismaClient = {
     delete: jest.fn(),
     count: jest.fn(),
   },
-  rescueSquad: {
+  rescueForce: {
     findUnique: jest.fn(),
     findFirst: jest.fn(),
     findMany: jest.fn(),

@@ -57,7 +57,7 @@ const DEFAULT_ICONS = {
 };
 
 // localStorage key prefix
-const STORAGE_KEY = 'petrecovery_dismissed_tips';
+const STORAGE_KEY = 'reunitepets_dismissed_tips';
 
 export default function ContextualTip({
   tipId,

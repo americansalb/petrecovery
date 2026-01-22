@@ -34,7 +34,7 @@ if (!BUNNY_STORAGE_ZONE || !BUNNY_API_KEY) {
 async function testUpload() {
   console.log('2. Testing upload to Bunny.net...\n');
 
-  const testContent = 'Test upload from PetRecovery.org';
+  const testContent = 'Test upload from ReunitePets.org';
   const timestamp = Date.now();
   const filename = `test/upload-test-${timestamp}.txt`;
   const uploadUrl = `${BUNNY_STORAGE_URL}/${BUNNY_STORAGE_ZONE}/${filename}`;

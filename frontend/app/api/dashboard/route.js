@@ -33,11 +33,11 @@ export async function GET(request) {
           }
         },
         profile: true,
-        // Include rescue squad memberships
-        rescueSquadMemberships: {
+        // Include rescue force memberships
+        rescueForceMemberships: {
           where: { isActive: true },
           include: {
-            rescueSquad: {
+            rescueForce: {
               select: {
                 id: true,
                 name: true,
@@ -45,7 +45,7 @@ export async function GET(request) {
                 state: true,
                 logoUrl: true,
                 photoUrl: true,
-                rescueSquadLevel: true,
+                rescueForceLevel: true,
                 totalCasesCompleted: true,
                 successfulReunions: true,
                 isActive: true,
@@ -81,7 +81,7 @@ export async function GET(request) {
                     caseNumber: true,
                   }
                 },
-                rescueSquad: {
+                rescueForce: {
                   select: {
                     id: true,
                     name: true,
@@ -104,7 +104,7 @@ export async function GET(request) {
     }
 
     console.log('📊 Dashboard: User found:', user.id, user.email);
-    console.log('📊 Dashboard: Raw memberships:', JSON.stringify(user.rescueSquadMemberships || [], null, 2));
+    console.log('📊 Dashboard: Raw memberships:', JSON.stringify(user.rescueForceMemberships || [], null, 2));
 
     // Get sighting counts for each case
     const missionIds = user.cases.map(c => c.id);
@@ -150,14 +150,14 @@ export async function GET(request) {
     // Get all unique case IDs user is involved with
     const allInvolvedCaseIds = [...new Set([...ownedCaseIds, ...participatingCaseIds])];
 
-    // Fetch squad assignments for all involved cases
+    // Fetch force assignments for all involved cases
     const caseAssignments = await prisma.caseAssignment.findMany({
       where: {
         missionId: { in: allInvolvedCaseIds },
         status: 'ACCEPTED'
       },
       include: {
-        rescueSquad: {
+        rescueForce: {
           select: {
             id: true,
             name: true,
@@ -178,8 +178,8 @@ export async function GET(request) {
         assignmentsByCaseId[assignment.missionId] = [];
       }
       assignmentsByCaseId[assignment.missionId].push({
-        squadId: assignment.rescueSquad.id,
-        squadName: assignment.rescueSquad.name,
+        forceId: assignment.rescueForce.id,
+        forceName: assignment.rescueForce.name,
         volunteerCount: assignment._count.participants,
       });
     }
@@ -241,7 +241,7 @@ export async function GET(request) {
         isOwner: false,
         squadsHelping,
         totalVolunteers: squadsHelping.reduce((sum, s) => sum + s.volunteerCount, 0),
-        mySquad: participation.assignment.rescueSquad?.name,
+        mySquad: participation.assignment.rescueForce?.name,
       });
     }
 
@@ -320,29 +320,29 @@ export async function GET(request) {
         }));
     }
 
-    // Format squad memberships - filter out inactive squads and null values
-    console.log('📊 Dashboard: rescueSquadMemberships count:', user.rescueSquadMemberships?.length || 0);
-    if (user.rescueSquadMemberships?.length > 0) {
-      console.log('📊 Dashboard: First membership:', JSON.stringify(user.rescueSquadMemberships[0], null, 2));
+    // Format force memberships - filter out inactive forces and null values
+    console.log('📊 Dashboard: rescueForceMemberships count:', user.rescueForceMemberships?.length || 0);
+    if (user.rescueForceMemberships?.length > 0) {
+      console.log('📊 Dashboard: First membership:', JSON.stringify(user.rescueForceMemberships[0], null, 2));
     }
 
-    const squads = user.rescueSquadMemberships
-      .filter(membership => membership.rescueSquad && membership.rescueSquad.isActive)
+    const forces = user.rescueForceMemberships
+      .filter(membership => membership.rescueForce && membership.rescueForce.isActive)
       .map(membership => ({
-        id: membership.rescueSquad.id,
-        name: membership.rescueSquad.name,
-        city: membership.rescueSquad.city,
-        state: membership.rescueSquad.state,
-        logoUrl: membership.rescueSquad.logoUrl,
-        photoUrl: membership.rescueSquad.photoUrl,
-        level: membership.rescueSquad.rescueSquadLevel,
-        memberCount: membership.rescueSquad._count.members,
-        totalCasesCompleted: membership.rescueSquad.totalCasesCompleted,
-        successfulReunions: membership.rescueSquad.successfulReunions,
+        id: membership.rescueForce.id,
+        name: membership.rescueForce.name,
+        city: membership.rescueForce.city,
+        state: membership.rescueForce.state,
+        logoUrl: membership.rescueForce.logoUrl,
+        photoUrl: membership.rescueForce.photoUrl,
+        level: membership.rescueForce.rescueForceLevel,
+        memberCount: membership.rescueForce._count.members,
+        totalCasesCompleted: membership.rescueForce.totalCasesCompleted,
+        successfulReunions: membership.rescueForce.successfulReunions,
         myRole: membership.role,
         division: membership.division,
         joinedAt: membership.joinedAt,
-        // Personal stats within this squad
+        // Personal stats within this force
         casesParticipated: membership.casesParticipated,
         searchHours: membership.searchHours,
         areasMarked: membership.areasMarked,
@@ -360,7 +360,7 @@ export async function GET(request) {
         status: participation.assignment.case.status,
         lastSeenAt: participation.assignment.case.lastSeenAt,
         assignmentId: participation.assignment.id,
-        squadName: participation.assignment.rescueSquad?.name,
+        forceName: participation.assignment.rescueForce?.name,
         activeVolunteers: participation.assignment._count.participants,
         myContribution: {
           areasMarked: participation.areasMarked,
@@ -447,13 +447,13 @@ export async function GET(request) {
           lastLoginAt: true,
           emailVerified: true,
           profileImage: true,
-          squadsJoinedCount: true,
+          forcesJoinedCount: true,
           areasMarkedCount: true,
           successfulReunions: true,
           _count: {
             select: {
               cases: true,
-              rescueSquadMemberships: { where: { isActive: true } },
+              rescueForceMemberships: { where: { isActive: true } },
             }
           }
         }
@@ -470,11 +470,11 @@ export async function GET(request) {
         lastLoginAt: u.lastLoginAt,
         emailVerified: !!u.emailVerified,
         profileImage: u.profileImage,
-        squadsJoinedCount: u.squadsJoinedCount || u._count.rescueSquadMemberships,
+        forcesJoinedCount: u.forcesJoinedCount || u._count.rescueForceMemberships,
         areasMarkedCount: u.areasMarkedCount || 0,
         successfulReunions: u.successfulReunions || 0,
         casesCount: u._count.cases,
-        squadsCount: u._count.rescueSquadMemberships,
+        squadsCount: u._count.rescueForceMemberships,
       }));
     }
 
@@ -486,7 +486,7 @@ export async function GET(request) {
         email: user.email,
         role: user.role,
         rescueLevel: user.rescueLevel,
-        squadsJoinedCount: user.squadsJoinedCount,
+        forcesJoinedCount: user.forcesJoinedCount,
         areasMarkedCount: user.areasMarkedCount,
         totalAcreageSearched: user.totalAcreageSearched,
         successfulReunions: user.successfulReunions,
@@ -498,7 +498,7 @@ export async function GET(request) {
       reports, // LOST pets I reported - Will be [] if no reports
       nearbyAlerts, // Nearby LOST pets from others - Will be [] if none
       foundByMe, // FOUND pets I reported - Will be [] if none
-      squads, // Squads user belongs to
+      forces, // Forces user belongs to
       activeMissions, // Cases user is actively helping with
       missions, // Unified list: all cases user is involved with (owner or volunteer)
       activeSearches, // Active GPS search sessions

@@ -373,7 +373,7 @@ export default function CommunityPage({ params }) {
                 {community.activeSquadsCount > 0 && (
                   <div>
                     <strong style={{ color: '#0f172a', fontSize: '1.5rem' }}>{community.activeSquadsCount}</strong>
-                    <div>Active Squads</div>
+                    <div>Active Forces</div>
                   </div>
                 )}
                 {community.subcommunityCount > 0 && (
@@ -454,7 +454,7 @@ export default function CommunityPage({ params }) {
                     color: '#64748b'
                   }}>
                     {sub.memberCount} members
-                    {sub.activeSquadsCount > 0 && ` • ${sub.activeSquadsCount} active squads`}
+                    {sub.activeSquadsCount > 0 && ` • ${sub.activeSquadsCount} active forces`}
                   </div>
                 </Link>
               ))}

@@ -11,7 +11,7 @@
 // CONSTANTS
 // =============================================================================
 
-const DB_NAME = 'petrecovery_offline';
+const DB_NAME = 'reunitepets_offline';
 const DB_VERSION = 1;
 const STORE_NAME = 'pending_actions';
 const SYNC_INTERVAL = 30000; // 30 seconds

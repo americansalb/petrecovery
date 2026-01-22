@@ -27,13 +27,13 @@ export default function NewCasePage() {
     contactName: '',
     contactPhone: '',
     contactEmail: '',
-    // Squad
-    squadId: '',
+    // Force
+    forceId: '',
     // Flags
     isUrgent: false
   });
 
-  const [squads, setSquads] = useState([]);
+  const [forces, setForces] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [legalError, setLegalError] = useState(null);
@@ -48,22 +48,22 @@ export default function NewCasePage() {
     }
   }, [status, session, router]);
 
-  // Fetch squads for dropdown
+  // Fetch forces for dropdown
   useEffect(() => {
     if (status === 'authenticated' && isAdmin(session)) {
-      fetchSquads();
+      fetchForces();
     }
   }, [status, session]);
 
-  const fetchSquads = async () => {
+  const fetchForces = async () => {
     try {
-      const response = await fetch('/api/squads');
+      const response = await fetch('/api/forces');
       if (response.ok) {
         const data = await response.json();
-        setSquads(data.squads || []);
+        setForces(data.forces || []);
       }
     } catch (err) {
-      console.error('Failed to fetch squads:', err);
+      console.error('Failed to fetch forces:', err);
     }
   };
 
@@ -125,7 +125,7 @@ export default function NewCasePage() {
         contactName: formData.contactName.trim() || null,
         contactPhone: formData.contactPhone.trim() || null,
         contactEmail: formData.contactEmail.trim() || null,
-        squadId: formData.squadId || null,
+        forceId: formData.forceId || null,
         isUrgent: formData.isUrgent
       };
 
@@ -455,18 +455,18 @@ export default function NewCasePage() {
             </div>
           </Section>
 
-          {/* Squad Assignment Section */}
-          <Section title="Squad Assignment (Optional)">
-            <FormField label="Assign to Squad" style={{ marginTop: '1rem' }}>
+          {/* Force Assignment Section */}
+          <Section title="Force Assignment (Optional)">
+            <FormField label="Assign to Force" style={{ marginTop: '1rem' }}>
               <select
-                value={formData.squadId}
-                onChange={(e) => handleChange('squadId', e.target.value)}
+                value={formData.forceId}
+                onChange={(e) => handleChange('forceId', e.target.value)}
                 style={inputStyle()}
               >
                 <option value="">Assign later in admin tools</option>
-                {squads.map(squad => (
-                  <option key={squad.id} value={squad.id}>
-                    {squad.name} ({squad.city}, {squad.state})
+                {forces.map(force => (
+                  <option key={force.id} value={force.id}>
+                    {force.name} ({force.city}, {force.state})
                   </option>
                 ))}
               </select>

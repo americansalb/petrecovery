@@ -73,7 +73,7 @@ export async function GET(request) {
     // Fetch from Nominatim with proper headers
     const response = await fetch(nominatimUrl, {
       headers: {
-        'User-Agent': 'PetRecovery.org (contact@petrecovery.org)',
+        'User-Agent': 'ReunitePets.org (contact@reunitepets.org)',
         'Accept': 'application/json',
       },
     });

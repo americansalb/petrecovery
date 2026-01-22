@@ -26,7 +26,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'stats';
     const divisionId = searchParams.get('divisionId');
-    const squadId = searchParams.get('squadId');
+    const forceId = searchParams.get('forceId');
     const period = searchParams.get('period') || 'week';
 
     switch (type) {
@@ -45,13 +45,13 @@ export async function GET(request) {
         return NextResponse.json({ success: true, leaderboard: divisionBoard });
 
       case 'squadLeaderboard':
-        if (!squadId) {
+        if (!forceId) {
           return NextResponse.json(
-            { error: 'Squad ID required' },
+            { error: 'Force ID required' },
             { status: 400 }
           );
         }
-        const squadBoard = await getSquadLeaderboard(squadId, period);
+        const squadBoard = await getSquadLeaderboard(forceId, period);
         return NextResponse.json({ success: true, leaderboard: squadBoard });
 
       default:

@@ -58,10 +58,10 @@ export const ACHIEVEMENTS = {
   },
 
   // Community achievements
-  SQUAD_FOUNDER: {
+  FORCE_FOUNDER: {
     id: 'squad_founder',
-    name: 'Squad Founder',
-    description: 'Create a rescue squad',
+    name: 'Force Founder',
+    description: 'Create a rescue force',
     icon: '👑',
     points: 300,
     tier: 'silver',
@@ -69,7 +69,7 @@ export const ACHIEVEMENTS = {
   TEAM_PLAYER: {
     id: 'team_player',
     name: 'Team Player',
-    description: 'Participate in 50 squad activities',
+    description: 'Participate in 50 force activities',
     icon: '🤝',
     points: 400,
     tier: 'silver',
@@ -181,7 +181,7 @@ export function checkAchievements(userStats, existingAchievements = []) {
   }
 
   if (!earnedIds.has('squad_founder') && userStats.squadsCreated >= 1) {
-    newAchievements.push(ACHIEVEMENTS.SQUAD_FOUNDER);
+    newAchievements.push(ACHIEVEMENTS.FORCE_FOUNDER);
   }
 
   if (!earnedIds.has('team_player') && userStats.squadActivities >= 50) {
@@ -236,7 +236,7 @@ export function calculateLevel(totalPoints) {
  * Get leaderboard for a time period
  */
 export async function getLeaderboard(prisma, options = {}) {
-  const { period = 'weekly', limit = 50, squadId = null } = options;
+  const { period = 'weekly', limit = 50, forceId = null } = options;
 
   // Calculate date range
   const now = new Date();
@@ -264,9 +264,9 @@ export async function getLeaderboard(prisma, options = {}) {
 
   // Query for top users by points
   const users = await prisma.user.findMany({
-    where: squadId ? {
-      rescueSquadMemberships: {
-        some: { rescueSquadId: squadId },
+    where: forceId ? {
+      rescueForceMemberships: {
+        some: { rescueForceId: forceId },
       },
     } : undefined,
     select: {
@@ -277,7 +277,7 @@ export async function getLeaderboard(prisma, options = {}) {
       rescueLevel: true,
       successfulReunions: true,
       areasMarkedCount: true,
-      squadsJoinedCount: true,
+      forcesJoinedCount: true,
     },
     orderBy: { successfulReunions: 'desc' },
     take: limit,
@@ -294,7 +294,7 @@ export async function getLeaderboard(prisma, options = {}) {
     stats: {
       reunions: user.successfulReunions,
       areasSearched: user.areasMarkedCount,
-      squadsJoined: user.squadsJoinedCount,
+      squadsJoined: user.forcesJoinedCount,
     },
   }));
 }
@@ -306,12 +306,12 @@ function calculateUserPoints(user) {
   return (
     (user.successfulReunions || 0) * 1000 +
     (user.areasMarkedCount || 0) * 10 +
-    (user.squadsJoinedCount || 0) * 50
+    (user.forcesJoinedCount || 0) * 50
   );
 }
 
 /**
- * Get squad competition standings
+ * Get force competition standings
  */
 export async function getSquadCompetition(prisma, competitionId) {
   const competition = await prisma.squadCompetition.findUnique({
@@ -319,7 +319,7 @@ export async function getSquadCompetition(prisma, competitionId) {
     include: {
       entries: {
         include: {
-          squad: {
+          force: {
             select: {
               id: true,
               name: true,
@@ -340,9 +340,9 @@ export async function getSquadCompetition(prisma, competitionId) {
     ...competition,
     standings: competition.entries.map((entry, index) => ({
       rank: index + 1,
-      squadId: entry.squad.id,
-      squadName: entry.squad.name,
-      logoUrl: entry.squad.logoUrl,
+      forceId: entry.force.id,
+      forceName: entry.force.name,
+      logoUrl: entry.force.logoUrl,
       score: entry.score,
       metrics: entry.metrics ? JSON.parse(entry.metrics) : {},
     })),
@@ -400,7 +400,7 @@ async function getUserStats(prisma, userId) {
       _count: {
         select: {
           searchAreas: true,
-          rescueSquadMemberships: true,
+          rescueForceMemberships: true,
         },
       },
     },
@@ -409,7 +409,7 @@ async function getUserStats(prisma, userId) {
   return {
     searchCount: user._count.searchAreas,
     reunionCount: user.successfulReunions,
-    squadActivities: user._count.rescueSquadMemberships,
+    squadActivities: user._count.rescueForceMemberships,
     squadsCreated: 0, // Would query separately
     nightSearchCount: 0, // Would need time-based query
     earlySearchCount: 0,

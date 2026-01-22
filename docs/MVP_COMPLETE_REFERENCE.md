@@ -1,4 +1,4 @@
-# PetRecovery Technical Reference
+# ReunitePets Technical Reference
 
 > **Last Updated**: November 27, 2025
 > **Status**: Pre-MVP Development Phase (~45% complete)
@@ -30,10 +30,10 @@
 
 ## Project Overview
 
-PetRecovery is a community-driven platform for reuniting lost pets with their families. The platform enables:
+ReunitePets is a community-driven platform for reuniting lost pets with their families. The platform enables:
 
 - **Pet Owners**: Report lost pets, receive community alerts
-- **Community Members**: Join rescue squads, help search for lost pets
+- **Community Members**: Join rescue forces, help search for lost pets
 - **Admins**: Manage missions, squads, and monitor platform health
 
 ### Tech Stack
@@ -59,7 +59,7 @@ frontend/
 │   │   ├── auth/               # NextAuth
 │   │   ├── missions/              # Mission management (authenticated)
 │   │   ├── public/missions/       # Public mission portal (no auth)
-│   │   ├── rescue-squads/      # Squad operations
+│   │   ├── rescue-forces/      # Squad operations
 │   │   ├── divisions/          # Division management
 │   │   ├── admin/              # Admin-only endpoints
 │   │   └── legal/              # Legal document & consent
@@ -262,14 +262,14 @@ model EventLog {
 | GET | `/api/public/missions/[missionNumber]` | None | Get public mission detail |
 | POST | `/api/public/missions` | None | Submit lost pet report |
 
-### Rescue Squads
+### Rescue Forces
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
-| GET | `/api/rescue-squads` | Optional | Search squads by ZIP/city |
-| POST | `/api/rescue-squads` | Required + Waiver | Create new squad |
-| GET | `/api/rescue-squads/[id]` | Optional | Get squad detail |
-| POST | `/api/rescue-squads/[id]/join` | Required + Waiver | Join squad |
-| POST | `/api/rescue-squads/[id]/leave` | Required | Leave squad |
+| GET | `/api/rescue-forces` | Optional | Search squads by ZIP/city |
+| POST | `/api/rescue-forces` | Required + Waiver | Create new squad |
+| GET | `/api/rescue-forces/[id]` | Optional | Get squad detail |
+| POST | `/api/rescue-forces/[id]/join` | Required + Waiver | Join squad |
+| POST | `/api/rescue-forces/[id]/leave` | Required | Leave squad |
 
 ### Legal
 | Method | Route | Auth | Description |
@@ -313,9 +313,9 @@ model EventLog {
 | `/dashboard` | User dashboard |
 | `/profile` | User profile management |
 | `/legal/consent` | Accept terms & waiver |
-| `/rescue-squads` | Browse rescue squads |
-| `/rescue-squads/search` | Search squads by location |
-| `/rescue-squads/[id]` | Squad detail |
+| `/rescue-forces` | Browse rescue forces |
+| `/rescue-forces/search` | Search squads by location |
+| `/rescue-forces/[id]` | Squad detail |
 | `/divisions/request` | Request new division |
 | `/report/new` | Report lost pet (authenticated) |
 | `/report/found` | Report found pet |
@@ -326,8 +326,8 @@ model EventLog {
 | `/admin/missions` | Admin | List all missions |
 | `/admin/missions/new` | Admin | Create new mission |
 | `/admin/missions/[id]` | Admin | Mission detail with actions |
-| `/admin/rescue-squads` | Admin | Manage squads |
-| `/admin/rescue-squads/create` | Admin | Create squad |
+| `/admin/rescue-forces` | Admin | Manage squads |
+| `/admin/rescue-forces/create` | Admin | Create squad |
 | `/admin/divisions` | Admin | Manage divisions |
 | `/admin/health` | Admin | Health dashboard |
 | `/admin/qa` | Admin | QA test harness |
@@ -370,7 +370,7 @@ Example: `CHI-2025-0001` (Chicago, 2025, 1st mission)
 - `publicContactOk` - Whether contact info is visible publicly
 - Sensitive fields (createdById, squadId, source) never exposed via public API
 
-### 3. Rescue Squads & Divisions
+### 3. Rescue Forces & Divisions
 
 **Squad Features:**
 - City-based squads (one per city)
@@ -390,7 +390,7 @@ Example: `CHI-2025-0001` (Chicago, 2025, 1st mission)
 2. **Liability Waiver** - Required before participating in rescue activities
 
 **Gated Actions (require waiver acceptance):**
-- Creating/joining rescue squads
+- Creating/joining rescue forces
 - Creating/viewing missions
 - Participating in rescue operations
 
@@ -454,8 +454,8 @@ Set these environment variables:
 EMAIL_SERVICE=gmail
 EMAIL_USER=your-email@gmail.com
 EMAIL_PASSWORD=your-app-password
-EMAIL_FROM=PetRecovery <your-email@gmail.com>
-ADMIN_NOTIFICATION_EMAIL=admin@petrecovery.org
+EMAIL_FROM=ReunitePets <your-email@gmail.com>
+ADMIN_NOTIFICATION_EMAIL=admin@reunitepets.org
 ```
 
 ### Notification Types
@@ -469,7 +469,7 @@ ADMIN_NOTIFICATION_EMAIL=admin@petrecovery.org
 ### Email Templates
 
 All emails use HTML templates with:
-- PetRecovery branding
+- ReunitePets branding
 - Mission details summary
 - Next steps for recipient
 - Links to relevant pages
@@ -521,7 +521,7 @@ All emails use HTML templates with:
 
 ```env
 # Database
-DATABASE_URL=postgresql://user:password@host:5432/petrecovery
+DATABASE_URL=postgresql://user:password@host:5432/reunitepets
 
 # NextAuth
 NEXTAUTH_SECRET=your-secret-key-here
@@ -531,7 +531,7 @@ NEXTAUTH_URL=https://your-domain.com
 EMAIL_SERVICE=gmail
 EMAIL_USER=your-email@gmail.com
 EMAIL_PASSWORD=your-app-password
-ADMIN_NOTIFICATION_EMAIL=admin@petrecovery.org
+ADMIN_NOTIFICATION_EMAIL=admin@reunitepets.org
 ```
 
 ### Optional

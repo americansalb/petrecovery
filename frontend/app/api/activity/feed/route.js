@@ -17,17 +17,17 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const cursor = searchParams.get('cursor');
     const limit = parseInt(searchParams.get('limit') || '20');
-    const type = searchParams.get('type'); // all, followed, nearby, squads
+    const type = searchParams.get('type'); // all, followed, nearby, forces
 
-    // Get user's followed cases and squads
+    // Get user's followed cases and forces
     const [followedCases, userSquads, userProfile] = await Promise.all([
       prisma.caseFollow.findMany({
         where: { userId: session.user.id },
         select: { missionId: true },
       }),
-      prisma.rescueSquadMember.findMany({
+      prisma.rescueForceMember.findMany({
         where: { userId: session.user.id, isActive: true },
-        select: { rescueSquadId: true },
+        select: { rescueForceId: true },
       }),
       prisma.userProfile.findUnique({
         where: { userId: session.user.id },
@@ -36,7 +36,7 @@ export async function GET(request) {
     ]);
 
     const followedCaseIds = followedCases.map(f => f.missionId);
-    const squadIds = userSquads.map(s => s.rescueSquadId);
+    const forceIds = userSquads.map(s => s.rescueForceId);
 
     // Build activity feed from multiple sources
     const activities = [];
@@ -102,17 +102,17 @@ export async function GET(request) {
       })));
     }
 
-    // Squad activities
-    if ((type === 'all' || type === 'squads') && squadIds.length > 0) {
+    // Force activities
+    if ((type === 'all' || type === 'forces') && forceIds.length > 0) {
       const squadActivities = await prisma.squadActivity.findMany({
         where: {
-          rescueSquadId: { in: squadIds },
+          rescueForceId: { in: forceIds },
           ...(cursor && { createdAt: { lt: new Date(cursor) } }),
         },
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          rescueSquad: {
+          rescueForce: {
             select: { name: true },
           },
           actor: {
@@ -122,11 +122,11 @@ export async function GET(request) {
       });
 
       activities.push(...squadActivities.map(a => ({
-        id: `squad-${a.id}`,
-        type: 'SQUAD_ACTIVITY',
+        id: `force-${a.id}`,
+        type: 'FORCE_ACTIVITY',
         activityType: a.type,
         content: a.message,
-        squadName: a.rescueSquad.name,
+        forceName: a.rescueForce.name,
         actor: a.actor?.firstName,
         actorAvatar: a.actor?.profileImage,
         createdAt: a.createdAt,

@@ -240,14 +240,14 @@ export async function POST(request) {
       });
     }
 
-    // Find and assign to rescue squads based on location type
-    // Use squad's coverage area (radiusMiles) + 1 mile buffer for all location types
-    let assignedSquad = null;
-    let assignedSquads = [];
-    const COVERAGE_BUFFER = 1; // Add 1 mile to squad's coverage radius
+    // Find and assign to rescue forces based on location type
+    // Use force's coverage area (radiusMiles) + 1 mile buffer for all location types
+    let assignedForce = null;
+    let assignedForces = [];
+    const COVERAGE_BUFFER = 1; // Add 1 mile to force's coverage radius
 
     try {
-      const squads = await prisma.rescueSquad.findMany({
+      const forces = await prisma.rescueForce.findMany({
         where: { isActive: true },
         select: {
           id: true,
@@ -259,26 +259,26 @@ export async function POST(request) {
         },
       });
 
-      console.log('[Report Debug] Found', squads.length, 'active squads');
+      console.log('[Report Debug] Found', forces.length, 'active forces');
       console.log('[Report Debug] Case center:', center);
       console.log('[Report Debug] Location type:', locationType, 'City name:', cityName);
 
-      // Calculate distance for all squads
-      const squadsWithDistance = squads
-        .filter(squad => squad.centerLatitude && squad.centerLongitude)
-        .map(squad => ({
-          ...squad,
+      // Calculate distance for all forces
+      const squadsWithDistance = forces
+        .filter(force => force.centerLatitude && force.centerLongitude)
+        .map(force => ({
+          ...force,
           distance: calculateDistance(
             center[0], center[1],
-            squad.centerLatitude, squad.centerLongitude
+            force.centerLatitude, force.centerLongitude
           ),
-          effectiveRadius: squad.radiusMiles + COVERAGE_BUFFER, // Squad coverage + buffer
+          effectiveRadius: force.radiusMiles + COVERAGE_BUFFER, // Force coverage + buffer
         }));
 
-      console.log('[Report Debug] Squads with valid coordinates:', squadsWithDistance.length);
-      // Log a few closest squads with their coverage
+      console.log('[Report Debug] Forces with valid coordinates:', squadsWithDistance.length);
+      // Log a few closest forces with their coverage
       const closestSquads = [...squadsWithDistance].sort((a, b) => a.distance - b.distance).slice(0, 5);
-      console.log('[Report Debug] 5 closest squads:', closestSquads.map(s => ({
+      console.log('[Report Debug] 5 closest forces:', closestSquads.map(s => ({
         name: s.name,
         city: s.city,
         distance: s.distance.toFixed(2),
@@ -286,50 +286,50 @@ export async function POST(request) {
         withinCoverage: s.distance <= s.effectiveRadius
       })));
 
-      // Determine which squads to notify - use squad's actual coverage area
-      // A squad is notified if the report location falls within their coverage radius
+      // Determine which forces to notify - use force's actual coverage area
+      // A force is notified if the report location falls within their coverage radius
       let squadsToNotify = [];
 
-      // Check if report falls within each squad's coverage area (distance <= squad.radiusMiles + buffer)
-      squadsToNotify = squadsWithDistance.filter(squad => {
-        const withinCoverage = squad.distance <= squad.effectiveRadius;
+      // Check if report falls within each force's coverage area (distance <= force.radiusMiles + buffer)
+      squadsToNotify = squadsWithDistance.filter(force => {
+        const withinCoverage = force.distance <= force.effectiveRadius;
 
         if (withinCoverage) {
-          console.log('[Report Debug] Report within squad coverage:', {
-            name: squad.name,
-            city: squad.city,
-            distance: squad.distance.toFixed(2),
-            squadRadius: squad.radiusMiles,
-            effectiveRadius: squad.effectiveRadius,
+          console.log('[Report Debug] Report within force coverage:', {
+            name: force.name,
+            city: force.city,
+            distance: force.distance.toFixed(2),
+            squadRadius: force.radiusMiles,
+            effectiveRadius: force.effectiveRadius,
           });
         }
         return withinCoverage;
       });
 
-      // Also check for city name match as fallback (for squads without coordinates)
+      // Also check for city name match as fallback (for forces without coordinates)
       if (cityName) {
         const normalizedCityName = cityName.toLowerCase().trim();
-        const cityMatchSquads = squadsWithDistance.filter(squad => {
-          const squadCity = (squad.city || '').toLowerCase().trim();
+        const cityMatchSquads = squadsWithDistance.filter(force => {
+          const squadCity = (force.city || '').toLowerCase().trim();
           const sameCity = squadCity === normalizedCityName;
-          const alreadyIncluded = squadsToNotify.some(s => s.id === squad.id);
+          const alreadyIncluded = squadsToNotify.some(s => s.id === force.id);
           return sameCity && !alreadyIncluded;
         });
 
         if (cityMatchSquads.length > 0) {
-          console.log('[Report Debug] Adding city-matched squads:', cityMatchSquads.map(s => s.name));
+          console.log('[Report Debug] Adding city-matched forces:', cityMatchSquads.map(s => s.name));
           squadsToNotify.push(...cityMatchSquads);
         }
       }
 
-      console.log('[Report Debug] Squads to notify:', squadsToNotify.length);
+      console.log('[Report Debug] Forces to notify:', squadsToNotify.length);
 
-      // If no squads cover this location, auto-create one for this city AND find nearby squads
+      // If no forces cover this location, auto-create one for this city AND find nearby forces
       if (squadsToNotify.length === 0 && cityName) {
-        console.log('[Report Debug] No local squads found - auto-creating squad for:', cityName);
+        console.log('[Report Debug] No local forces found - auto-creating force for:', cityName);
 
-        // Auto-create a rescue squad for this city
-        const newSquad = await prisma.rescueSquad.create({
+        // Auto-create a rescue force for this city
+        const newSquad = await prisma.rescueForce.create({
           data: {
             name: `${cityName} Pet Rescue`,
             city: cityName,
@@ -338,13 +338,13 @@ export async function POST(request) {
             centerLongitude: center[1],
             radiusMiles: 5, // Default 5 mile coverage
             isActive: true,
-            description: `🆕 Community rescue squad for ${cityName}. Auto-created to help reunite pets with their families. Join to help coordinate local pet searches!`,
+            description: `🆕 Community rescue force for ${cityName}. Auto-created to help reunite pets with their families. Join to help coordinate local pet searches!`,
           },
         });
 
-        console.log('[Report Debug] Auto-created squad:', { id: newSquad.id, name: newSquad.name });
+        console.log('[Report Debug] Auto-created force:', { id: newSquad.id, name: newSquad.name });
 
-        // Add the auto-created squad to the list
+        // Add the auto-created force to the list
         squadsToNotify.push({
           ...newSquad,
           distance: 0,
@@ -352,18 +352,18 @@ export async function POST(request) {
           isAutoCreated: true,
         });
 
-        // Also find squads within 10 miles as "nearby assist" squads
-        // These are squads whose coverage doesn't reach the report, but are close enough to help
+        // Also find forces within 10 miles as "nearby assist" forces
+        // These are forces whose coverage doesn't reach the report, but are close enough to help
         const NEARBY_ASSIST_RADIUS = 10; // miles
-        const nearbyAssistSquads = squadsWithDistance.filter(squad =>
-          squad.distance <= NEARBY_ASSIST_RADIUS && squad.distance > squad.effectiveRadius
+        const nearbyAssistSquads = squadsWithDistance.filter(force =>
+          force.distance <= NEARBY_ASSIST_RADIUS && force.distance > force.effectiveRadius
         );
 
         if (nearbyAssistSquads.length > 0) {
-          console.log('[Report Debug] Found', nearbyAssistSquads.length, 'nearby assist squads within 10 miles');
-          nearbyAssistSquads.forEach(squad => {
-            squad.isNearbyAssist = true;
-            squadsToNotify.push(squad);
+          console.log('[Report Debug] Found', nearbyAssistSquads.length, 'nearby assist forces within 10 miles');
+          nearbyAssistSquads.forEach(force => {
+            force.isNearbyAssist = true;
+            squadsToNotify.push(force);
           });
         }
       }
@@ -371,67 +371,67 @@ export async function POST(request) {
       // Sort by distance (closest first)
       squadsToNotify.sort((a, b) => a.distance - b.distance);
 
-      // Create assignments for all qualifying squads (unlimited)
+      // Create assignments for all qualifying forces (unlimited)
       if (squadsToNotify.length > 0) {
-        console.log('[Report Debug] Creating assignments for', squadsToNotify.length, 'squads');
-        for (const squad of squadsToNotify) {
-          console.log('[Report Debug] Creating assignment for squad:', { id: squad.id, name: squad.name, city: squad.city, distance: squad.distance });
+        console.log('[Report Debug] Creating assignments for', squadsToNotify.length, 'forces');
+        for (const force of squadsToNotify) {
+          console.log('[Report Debug] Creating assignment for force:', { id: force.id, name: force.name, city: force.city, distance: force.distance });
           const assignment = await prisma.caseAssignment.create({
             data: {
               missionId: report.id,
-              rescueSquadId: squad.id,
+              rescueForceId: force.id,
               status: 'ACCEPTED',
               acceptedById: user.id, // Required field - use reporter as initial accepter
             },
           });
-          console.log('[Report Debug] Created assignment:', { id: assignment.id, missionId: assignment.missionId, rescueSquadId: assignment.rescueSquadId });
+          console.log('[Report Debug] Created assignment:', { id: assignment.id, missionId: assignment.missionId, rescueForceId: assignment.rescueForceId });
 
-          // Auto-join reporter to rescue squad (Phase 1.2)
-          // Only add if this is the primary squad (first one) and user exists
-          if (squad === squadsToNotify[0] && user) {
+          // Auto-join reporter to rescue force (Phase 1.2)
+          // Only add if this is the primary force (first one) and user exists
+          if (force === squadsToNotify[0] && user) {
             try {
               // Check if user is already a member
-              const existingMember = await prisma.rescueSquadMember.findFirst({
+              const existingMember = await prisma.rescueForceMember.findFirst({
                 where: {
-                  rescueSquadId: squad.id,
+                  rescueForceId: force.id,
                   userId: user.id
                 }
               });
 
               if (!existingMember) {
                 // Auto-add user as member
-                await prisma.rescueSquadMember.create({
+                await prisma.rescueForceMember.create({
                   data: {
-                    rescueSquadId: squad.id,
+                    rescueForceId: force.id,
                     userId: user.id,
                     role: 'MEMBER',
                     isActive: true,
                     joinedAt: new Date()
                   }
                 });
-                console.log('[Report Debug] Auto-joined reporter to squad:', squad.name);
+                console.log('[Report Debug] Auto-joined reporter to force:', force.name);
               } else {
-                console.log('[Report Debug] Reporter already member of squad:', squad.name);
+                console.log('[Report Debug] Reporter already member of force:', force.name);
               }
             } catch (memberError) {
               // Non-fatal: log but continue
-              console.error('[Report Debug] Failed to auto-join reporter to squad:', memberError);
+              console.error('[Report Debug] Failed to auto-join reporter to force:', memberError);
             }
           }
 
           // Create automatic mascot post about the new case
           try {
-            const isNearbyAssist = squad.isNearbyAssist;
-            const distanceText = squad.distance ? `~${squad.distance.toFixed(1)} miles away` : '';
+            const isNearbyAssist = force.isNearbyAssist;
+            const distanceText = force.distance ? `~${force.distance.toFixed(1)} miles away` : '';
 
             let postContent;
             const petTypeDisplay = petType || 'pet';
-            if (squad.isAutoCreated) {
-              // Welcome post for newly auto-created squad
-              postContent = `🎉 **Welcome to ${squad.name}!** 🎉\n\nThis squad was just created to help find ${petName}!\n\n🚨 **First Case:** ${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nJoin this squad to help reunite pets with their families in your community! 🐾`;
+            if (force.isAutoCreated) {
+              // Welcome post for newly auto-created force
+              postContent = `🎉 **Welcome to ${force.name}!** 🎉\n\nThis force was just created to help find ${petName}!\n\n🚨 **First Case:** ${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nJoin this force to help reunite pets with their families in your community! 🐾`;
             } else if (isNearbyAssist) {
               // Nearby assist post
-              postContent = `🆘 **Nearby Assist Request!** 🆘\n\n${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, went missing ${distanceText} from your coverage area.\n\n📍 Location: ${lastSeenAddress}\n📋 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nNo local squad in that area yet - your help could make the difference! 🙏`;
+              postContent = `🆘 **Nearby Assist Request!** 🆘\n\n${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, went missing ${distanceText} from your coverage area.\n\n📍 Location: ${lastSeenAddress}\n📋 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nNo local force in that area yet - your help could make the difference! 🙏`;
             } else {
               // Regular case alert
               postContent = `🚨 **New Case Alert!** 🚨\n\n${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nIf you're in the area, please keep an eye out and report any sightings. Every pair of eyes helps! 👀`;
@@ -439,36 +439,36 @@ export async function POST(request) {
 
             await prisma.squadPost.create({
               data: {
-                rescueSquadId: squad.id,
+                rescueForceId: force.id,
                 authorId: user.id,
                 content: postContent,
                 isSystemPost: true,
-                isPinned: squad.isAutoCreated, // Pin the welcome post for new squads
+                isPinned: force.isAutoCreated, // Pin the welcome post for new forces
               }
             });
-            console.log('[Report Debug] Created mascot post for squad:', squad.name, isNearbyAssist ? '(nearby assist)' : '');
+            console.log('[Report Debug] Created mascot post for force:', force.name, isNearbyAssist ? '(nearby assist)' : '');
           } catch (postError) {
             // Non-fatal: log but continue
             console.error('[Report Debug] Failed to create mascot post:', postError);
           }
 
-          assignedSquads.push({
-            id: squad.id,
-            name: squad.name,
-            city: squad.city,
-            distance: squad.distance,
+          assignedForces.push({
+            id: force.id,
+            name: force.name,
+            city: force.city,
+            distance: force.distance,
           });
         }
 
-        // Set the closest squad as the primary assigned squad
+        // Set the closest force as the primary assigned force
         const closestSquad = squadsToNotify[0];
-        assignedSquad = {
+        assignedForce = {
           id: closestSquad.id,
           name: closestSquad.name,
           city: closestSquad.city,
         };
 
-        // Log squad assignments
+        // Log force assignments
         await logEvent({
           event_type: 'case.assigned_to_squads',
           correlation_id: correlationId,
@@ -480,15 +480,15 @@ export async function POST(request) {
             locationType,
             cityName: cityName || '',
             squadsNotified: squadsToNotify.length,
-            primarySquadId: closestSquad.id,
+            primaryForceId: closestSquad.id,
             primarySquadName: closestSquad.name,
-            squads: assignedSquads.map(s => ({ id: s.id, name: s.name, distance: s.distance.toFixed(2) })),
+            forces: assignedForces.map(s => ({ id: s.id, name: s.name, distance: s.distance.toFixed(2) })),
           },
         });
       }
     } catch (squadError) {
       // Non-fatal: log but continue - case still created successfully
-      console.error('Squad assignment error:', squadError);
+      console.error('Force assignment error:', squadError);
       await logEvent({
         event_type: 'case.squad_assignment_failed',
         correlation_id: correlationId,
@@ -521,7 +521,7 @@ export async function POST(request) {
         // Legacy flow: send welcome email with temp password
         sendEmail({
           to: email,
-          subject: 'Your PetRecovery.org Account - Lost Pet Alert Created',
+          subject: 'Your ReunitePets.org Account - Lost Pet Alert Created',
           html: buildWelcomeEmail(firstName, petName, email, tempPassword, nearbyPatrol.length)
         }).catch(err => {
           logEvent({
@@ -538,16 +538,16 @@ export async function POST(request) {
         // Send verification email (will be implemented in Phase 3.1)
         sendEmail({
           to: email,
-          subject: 'Welcome to PetRecovery.org - Verify Your Email',
+          subject: 'Welcome to ReunitePets.org - Verify Your Email',
           html: `
-            <h2>Welcome to PetRecovery.org, ${firstName}!</h2>
+            <h2>Welcome to ReunitePets.org, ${firstName}!</h2>
             <p>Thank you for creating an account. Your lost pet report for <strong>${petName}</strong> has been submitted successfully.</p>
             <p><strong>Case Number:</strong> ${report.caseNumber}</p>
             <p>You can now log in with your email (${email}) and the password you created.</p>
             <p><strong>Next steps:</strong></p>
             <ul>
               <li>Log in to view your case dashboard</li>
-              <li>Coordinate with your assigned rescue squad</li>
+              <li>Coordinate with your assigned rescue force</li>
               <li>Update information as needed</li>
             </ul>
             <p>We'll send you updates when volunteers report sightings.</p>
@@ -580,7 +580,7 @@ export async function POST(request) {
           <p><strong>Case Number:</strong> ${report.caseNumber}</p>
           <p>We'll notify you by email if anyone spots your pet.</p>
           <p><strong>Want to track progress and coordinate with volunteers?</strong></p>
-          <p>Create an account to access your case dashboard and work with your rescue squad.</p>
+          <p>Create an account to access your case dashboard and work with your rescue force.</p>
           <p>[Claim Report button will be added in Phase 3.3]</p>
         `
       }).catch(err => {
@@ -602,9 +602,9 @@ export async function POST(request) {
       petName: report.petName,
       accountCreated,
       patrolAlerted: nearbyPatrol.length,
-      assignedSquad,
-      squadsNotified: assignedSquads.length,
-      allAssignedSquads: assignedSquads,
+      assignedForce,
+      squadsNotified: assignedForces.length,
+      allAssignedSquads: assignedForces,
     });
 
   } catch (error) {

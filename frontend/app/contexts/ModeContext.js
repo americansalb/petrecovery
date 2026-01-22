@@ -9,7 +9,7 @@ export function ModeProvider({ children }) {
 
   // Load from localStorage
   useEffect(() => {
-    const savedMode = localStorage.getItem('petrecovery_mode');
+    const savedMode = localStorage.getItem('reunitepets_mode');
     if (savedMode) {
       setMode(savedMode);
     }
@@ -17,7 +17,7 @@ export function ModeProvider({ children }) {
 
   const switchMode = (newMode) => {
     setMode(newMode);
-    localStorage.setItem('petrecovery_mode', newMode);
+    localStorage.setItem('reunitepets_mode', newMode);
   };
 
   return (

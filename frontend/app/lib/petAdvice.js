@@ -1,7 +1,7 @@
-// PetRecovery.org - Complete Pet Recovery Advice Logic
+// ReunitePets.org - Complete Pet Recovery Advice Logic
 // This is the core advice engine - carefully crafted, not AI-generated
 
-const PetRecoveryAdvice = {
+const ReunitePetsAdvice = {
   // DOG LOGIC
   dog: {
     scenarios: {
@@ -477,11 +477,11 @@ function getAdvice(petType, scenario, timeElapsed) {
 
   try {
     // Try to find specific advice for this time period
-    let specificAdvice = PetRecoveryAdvice[pet]?.scenarios?.[situation]?.[time];
+    let specificAdvice = ReunitePetsAdvice[pet]?.scenarios?.[situation]?.[time];
 
     // If not found, try fallback to less_than_day (core techniques apply across all time periods)
     if (!specificAdvice) {
-      specificAdvice = PetRecoveryAdvice[pet]?.scenarios?.[situation]?.['less_than_day'];
+      specificAdvice = ReunitePetsAdvice[pet]?.scenarios?.[situation]?.['less_than_day'];
     }
 
     if (specificAdvice) {
@@ -491,7 +491,7 @@ function getAdvice(petType, scenario, timeElapsed) {
       advice.reassurance = specificAdvice.reassurance || "";
 
       // Add time-specific context if using fallback
-      if (PetRecoveryAdvice[pet]?.scenarios?.[situation]?.[time] === undefined && time !== 'less_than_day') {
+      if (ReunitePetsAdvice[pet]?.scenarios?.[situation]?.[time] === undefined && time !== 'less_than_day') {
         advice.reassurance = "NOTE: The same core search techniques apply regardless of how long your pet has been missing. " + advice.reassurance;
       }
     } else {
@@ -509,4 +509,4 @@ function getAdvice(petType, scenario, timeElapsed) {
 }
 
 // EXPORT FOR USE
-module.exports = { PetRecoveryAdvice, getAdvice };
+module.exports = { ReunitePetsAdvice, getAdvice };

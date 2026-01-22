@@ -6,7 +6,7 @@
  * Features preserved from original:
  * - Mission Control branding
  * - List of available missions (if any)
- * - Link to join a rescue squad
+ * - Link to join a rescue force
  * - Refresh button
  */
 
@@ -84,15 +84,15 @@ export default function EmptyState({ missions = [], onSelectMission, onRefresh }
         <div className="text-center max-w-md">
           <p className="text-slate-400 mb-6">No active missions yet</p>
           <a
-            href="/rescue-squads/search"
+            href="/rescue-forces/search"
             className="inline-block px-6 py-3 bg-flash-500 text-slate-900 font-bold rounded-xl text-lg hover:bg-flash-400 transition hover:scale-105 mb-6"
           >
-            Join a Rescue Squad
+            Join a Rescue Force
           </a>
 
-          {/* Explanation of how squads work */}
+          {/* Explanation of how forces work */}
           <div className="mt-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50 text-left">
-            <h4 className="text-white font-semibold mb-2 text-sm">How Rescue Squads Work</h4>
+            <h4 className="text-white font-semibold mb-2 text-sm">How Rescue Forces Work</h4>
             <ul className="text-slate-400 text-sm space-y-2">
               <li className="flex items-start gap-2">
                 <span className="text-flash-400">•</span>
@@ -100,11 +100,11 @@ export default function EmptyState({ missions = [], onSelectMission, onRefresh }
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-flash-400">•</span>
-                <span>When a pet goes missing, <strong className="text-slate-300">nearby squads are automatically notified</strong></span>
+                <span>When a pet goes missing, <strong className="text-slate-300">nearby forces are automatically notified</strong></span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-flash-400">•</span>
-                <span>Join squads in your area to <strong className="text-slate-300">help find lost pets</strong> and coordinate searches</span>
+                <span>Join forces in your area to <strong className="text-slate-300">help find lost pets</strong> and coordinate searches</span>
               </li>
             </ul>
           </div>

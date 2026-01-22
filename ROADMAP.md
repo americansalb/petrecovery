@@ -1,4 +1,4 @@
-# PetRecovery.org - Project Roadmap
+# ReunitePets.org - Project Roadmap
 
 **Last Updated:** November 27, 2025
 **Status:** MVP Complete
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-PetRecovery.org is a community-powered platform to help reunite lost pets with their families. This project follows a 108-phase roadmap. Significant work has been completed across infrastructure, mission management, public portal, notifications, and now the core coordination features.
+ReunitePets.org is a community-powered platform to help reunite lost pets with their families. This project follows a 108-phase roadmap. Significant work has been completed across infrastructure, mission management, public portal, notifications, and now the core coordination features.
 
 ---
 
@@ -404,7 +404,7 @@ BUNNY_CDN_URL=https://your-zone.b-cdn.net
 
 ## Conclusion
 
-The PetRecovery project is **MVP Complete**. All core features are functional and the platform is ready for beta testing.
+The ReunitePets project is **MVP Complete**. All core features are functional and the platform is ready for beta testing.
 
 **Current Status:**
 - 18+ phases complete

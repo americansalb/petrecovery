@@ -1,7 +1,7 @@
 /**
  * Phase 7: Leadership Tools
  *
- * Squad commander and division lead controls for coordinating volunteers.
+ * Force commander and division lead controls for coordinating volunteers.
  */
 
 import prisma from '@/app/lib/prisma';
@@ -11,18 +11,18 @@ import { sendPushToUser, PUSH_TEMPLATES } from '@/app/lib/push';
 /**
  * Get leadership dashboard data
  */
-export async function getLeadershipDashboard(userId, squadId) {
+export async function getLeadershipDashboard(userId, forceId) {
   // Verify user is a leader
   const membership = await prisma.squadMembership.findFirst({
     where: {
       userId,
-      rescueSquadId: squadId,
+      rescueForceId: forceId,
       role: { in: ['COMMANDER', 'DIVISION_LEAD', 'COORDINATOR'] },
       isActive: true,
     },
     include: {
       division: true,
-      rescueSquad: {
+      rescueForce: {
         include: {
           divisions: true,
           _count: {
@@ -37,7 +37,7 @@ export async function getLeadershipDashboard(userId, squadId) {
   });
 
   if (!membership) {
-    return { success: false, error: 'Not authorized as squad leader' };
+    return { success: false, error: 'Not authorized as force leader' };
   }
 
   const isCommander = membership.role === 'COMMANDER';
@@ -46,7 +46,7 @@ export async function getLeadershipDashboard(userId, squadId) {
   // Get active cases
   const activeMissions = await prisma.caseAssignment.findMany({
     where: {
-      rescueSquadId: squadId,
+      rescueForceId: forceId,
       status: 'ACCEPTED',
       case: { status: 'ACTIVE' },
     },
@@ -63,7 +63,7 @@ export async function getLeadershipDashboard(userId, squadId) {
   // Get pending join requests
   const joinRequests = await prisma.squadJoinRequest.findMany({
     where: {
-      rescueSquadId: squadId,
+      rescueForceId: forceId,
       status: 'PENDING',
       ...(divisionId && !isCommander ? { divisionId } : {}),
     },
@@ -84,7 +84,7 @@ export async function getLeadershipDashboard(userId, squadId) {
   // Get member list
   const members = await prisma.squadMembership.findMany({
     where: {
-      rescueSquadId: squadId,
+      rescueForceId: forceId,
       isActive: true,
       ...(divisionId && !isCommander ? { divisionId } : {}),
     },
@@ -104,20 +104,20 @@ export async function getLeadershipDashboard(userId, squadId) {
   });
 
   // Get recent activity
-  const recentActivity = await getSquadActivity(squadId, divisionId, 20);
+  const recentActivity = await getForceActivity(forceId, divisionId, 20);
 
   return {
     success: true,
     role: membership.role,
     isCommander,
-    squad: {
-      id: membership.rescueSquad.id,
-      name: membership.rescueSquad.name,
-      memberCount: membership.rescueSquad._count.members,
-      activeCaseCount: membership.rescueSquad._count.assignments,
+    force: {
+      id: membership.rescueForce.id,
+      name: membership.rescueForce.name,
+      memberCount: membership.rescueForce._count.members,
+      activeCaseCount: membership.rescueForce._count.assignments,
     },
     division: membership.division,
-    divisions: isCommander ? membership.rescueSquad.divisions : null,
+    divisions: isCommander ? membership.rescueForce.divisions : null,
     activeMissions: activeMissions.map(a => ({
       assignmentId: a.id,
       missionId: a.case.id,
@@ -154,7 +154,7 @@ export async function approveJoinRequest(requestId, approverId, options = {}) {
 
   const request = await prisma.squadJoinRequest.findUnique({
     where: { id: requestId },
-    include: { rescueSquad: true }
+    include: { rescueForce: true }
   });
 
   if (!request) {
@@ -165,7 +165,7 @@ export async function approveJoinRequest(requestId, approverId, options = {}) {
   const membership = await prisma.squadMembership.create({
     data: {
       userId: request.userId,
-      rescueSquadId: request.rescueSquadId,
+      rescueForceId: request.rescueForceId,
       divisionId: divisionId || request.divisionId,
       role,
       isActive: true,
@@ -182,16 +182,16 @@ export async function approveJoinRequest(requestId, approverId, options = {}) {
     }
   });
 
-  // Update squad member count
-  await prisma.rescueSquad.update({
-    where: { id: request.rescueSquadId },
+  // Update force member count
+  await prisma.rescueForce.update({
+    where: { id: request.rescueForceId },
     data: { memberCount: { increment: 1 } }
   });
 
   return {
     success: true,
     membershipId: membership.id,
-    message: `Welcome to ${request.rescueSquad.name}!`,
+    message: `Welcome to ${request.rescueForce.name}!`,
   };
 }
 
@@ -228,7 +228,7 @@ export async function changeMemberRole(membershipId, newRole, changerId) {
   const changerMembership = await prisma.squadMembership.findFirst({
     where: {
       userId: changerId,
-      rescueSquadId: membership.rescueSquadId,
+      rescueForceId: membership.rescueForceId,
       role: 'COMMANDER',
       isActive: true,
     }
@@ -259,12 +259,12 @@ export async function assignToDivision(membershipId, divisionId, assignerId) {
 }
 
 /**
- * Remove member from squad
+ * Remove member from force
  */
 export async function removeMember(membershipId, removerId, reason = null) {
   const membership = await prisma.squadMembership.findUnique({
     where: { id: membershipId },
-    include: { rescueSquad: true }
+    include: { rescueForce: true }
   });
 
   if (!membership) {
@@ -280,9 +280,9 @@ export async function removeMember(membershipId, removerId, reason = null) {
     }
   });
 
-  // Update squad member count
-  await prisma.rescueSquad.update({
-    where: { id: membership.rescueSquadId },
+  // Update force member count
+  await prisma.rescueForce.update({
+    where: { id: membership.rescueForceId },
     data: { memberCount: { decrement: 1 } }
   });
 
@@ -292,7 +292,7 @@ export async function removeMember(membershipId, removerId, reason = null) {
 /**
  * Create a new division
  */
-export async function createDivision(squadId, divisionData, creatorId) {
+export async function createDivision(forceId, divisionData, creatorId) {
   const {
     name,
     description,
@@ -306,7 +306,7 @@ export async function createDivision(squadId, divisionData, creatorId) {
   const membership = await prisma.squadMembership.findFirst({
     where: {
       userId: creatorId,
-      rescueSquadId: squadId,
+      rescueForceId: forceId,
       role: 'COMMANDER',
       isActive: true,
     }
@@ -318,7 +318,7 @@ export async function createDivision(squadId, divisionData, creatorId) {
 
   const division = await prisma.division.create({
     data: {
-      rescueSquadId: squadId,
+      rescueForceId: forceId,
       name,
       description,
       centerLatitude,
@@ -336,16 +336,16 @@ export async function createDivision(squadId, divisionData, creatorId) {
 }
 
 /**
- * Broadcast message to division or squad
+ * Broadcast message to division or force
  */
 export async function broadcastMessage(options) {
-  const { senderId, squadId, divisionId, message, type = 'ANNOUNCEMENT' } = options;
+  const { senderId, forceId, divisionId, message, type = 'ANNOUNCEMENT' } = options;
 
   // Verify sender is leader
   const membership = await prisma.squadMembership.findFirst({
     where: {
       userId: senderId,
-      rescueSquadId: squadId,
+      rescueForceId: forceId,
       role: { in: ['COMMANDER', 'DIVISION_LEAD', 'COORDINATOR'] },
       isActive: true,
     }
@@ -364,17 +364,17 @@ export async function broadcastMessage(options) {
       priority: 'NORMAL',
     });
   } else {
-    // Send to entire squad
-    const squad = await prisma.rescueSquad.findUnique({
-      where: { id: squadId },
+    // Send to entire force
+    const force = await prisma.rescueForce.findUnique({
+      where: { id: forceId },
       include: { divisions: { where: { isActive: true } } }
     });
 
     const results = [];
-    for (const division of squad.divisions) {
+    for (const division of force.divisions) {
       const result = await sendDivisionAlert(division.id, {
         type,
-        title: 'Squad Announcement',
+        title: 'Force Announcement',
         body: message,
         priority: 'NORMAL',
       });
@@ -465,15 +465,15 @@ export async function closeSearchSection(options) {
 }
 
 /**
- * Get squad activity feed
+ * Get force activity feed
  */
-async function getSquadActivity(squadId, divisionId, limit = 20) {
+async function getForceActivity(forceId, divisionId, limit = 20) {
   const activities = [];
 
   // Get recent participations
   const participations = await prisma.caseParticipant.findMany({
     where: {
-      assignment: { rescueSquadId: squadId },
+      assignment: { rescueForceId: forceId },
     },
     orderBy: { optedInAt: 'desc' },
     take: limit,
@@ -499,7 +499,7 @@ async function getSquadActivity(squadId, divisionId, limit = 20) {
     where: {
       case: {
         assignments: {
-          some: { rescueSquadId: squadId }
+          some: { rescueForceId: forceId }
         }
       }
     },

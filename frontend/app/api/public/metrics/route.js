@@ -67,19 +67,19 @@ export async function GET(request) {
     const totalUsers = await prisma.user.count();
     console.log(`[PUBLIC-METRICS] Total users: ${totalUsers}`);
 
-    // Count active rescue squads
-    console.log('[PUBLIC-METRICS] Counting active rescue squads...');
-    const activeSquads = await prisma.rescueSquad.count({
+    // Count active rescue forces
+    console.log('[PUBLIC-METRICS] Counting active rescue forces...');
+    const activeForces = await prisma.rescueForce.count({
       where: { isActive: true }
     });
-    console.log(`[PUBLIC-METRICS] Active squads: ${activeSquads}`);
+    console.log(`[PUBLIC-METRICS] Active forces: ${activeForces}`);
 
-    // Count total squad members
-    console.log('[PUBLIC-METRICS] Counting squad members...');
-    const totalSquadMembers = await prisma.rescueSquadMember.count({
+    // Count total force members
+    console.log('[PUBLIC-METRICS] Counting force members...');
+    const totalSquadMembers = await prisma.rescueForceMember.count({
       where: { isActive: true }
     });
-    console.log(`[PUBLIC-METRICS] Total squad members: ${totalSquadMembers}`);
+    console.log(`[PUBLIC-METRICS] Total force members: ${totalSquadMembers}`);
 
     // Count open/active cases
     console.log('[PUBLIC-METRICS] Counting open cases...');
@@ -90,21 +90,21 @@ export async function GET(request) {
     });
     console.log(`[PUBLIC-METRICS] Open cases: ${openMissions}`);
 
-    // Count cities with squads
-    console.log('[PUBLIC-METRICS] Counting cities with squads...');
-    const citiesWithSquads = await prisma.rescueSquad.groupBy({
+    // Count cities with forces
+    console.log('[PUBLIC-METRICS] Counting cities with forces...');
+    const citiesWithSquads = await prisma.rescueForce.groupBy({
       by: ['city', 'state'],
       where: { isActive: true },
       _count: true
     });
     const uniqueCities = citiesWithSquads.length;
-    console.log(`[PUBLIC-METRICS] Cities with squads: ${uniqueCities}`);
+    console.log(`[PUBLIC-METRICS] Cities with forces: ${uniqueCities}`);
 
     // Build metrics object
     const metrics = {
       pets_reunited: totalReunited,
       total_users: totalUsers,
-      active_squads: activeSquads,
+      active_forces: activeForces,
       total_volunteers: totalSquadMembers,
       open_cases: openMissions,
       cities_covered: uniqueCities,
@@ -130,7 +130,7 @@ export async function GET(request) {
       metadata: {
         pets_reunited: totalReunited,
         total_users: totalUsers,
-        active_squads: activeSquads,
+        active_forces: activeForces,
         response_time_ms: responseTime
       }
     });
@@ -173,7 +173,7 @@ export async function GET(request) {
     return NextResponse.json({
       pets_reunited: 0,
       total_users: 0,
-      active_squads: 0,
+      active_forces: 0,
       total_volunteers: 0,
       open_cases: 0,
       cities_covered: 0,

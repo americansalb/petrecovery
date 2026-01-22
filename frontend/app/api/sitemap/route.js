@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://petrecovery.org';
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://reunitepets.org';
 
 export async function GET() {
   try {
@@ -15,8 +15,8 @@ export async function GET() {
     // Placeholder for legacy missions (model no longer exists)
     const missions = [];
 
-    // Get rescue squads
-    const squads = await prisma.rescueSquad.findMany({
+    // Get rescue forces
+    const forces = await prisma.rescueForce.findMany({
       where: { isActive: true, isDeleted: false },
       select: { id: true, updatedAt: true },
       take: 500,
@@ -26,14 +26,14 @@ export async function GET() {
     const staticPages = [
       { url: '/', priority: 1.0, changefreq: 'daily' },
       { url: '/cases', priority: 0.9, changefreq: 'hourly' },
-      { url: '/rescue-squads', priority: 0.8, changefreq: 'daily' },
+      { url: '/rescue-forces', priority: 0.8, changefreq: 'daily' },
       { url: '/database', priority: 0.7, changefreq: 'daily' },
       { url: '/advice', priority: 0.6, changefreq: 'weekly' },
       { url: '/about', priority: 0.5, changefreq: 'monthly' },
       { url: '/found', priority: 0.8, changefreq: 'daily' },
     ];
 
-    const xml = generateSitemapXML(staticPages, cases, missions, squads);
+    const xml = generateSitemapXML(staticPages, cases, missions, forces);
 
     return new Response(xml, {
       headers: {
@@ -47,7 +47,7 @@ export async function GET() {
   }
 }
 
-function generateSitemapXML(staticPages, cases, missions, squads) {
+function generateSitemapXML(staticPages, cases, missions, forces) {
   let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
   xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
@@ -80,10 +80,10 @@ function generateSitemapXML(staticPages, cases, missions, squads) {
   </url>\n`;
   }
 
-  // Squads
-  for (const s of squads) {
+  // Forces
+  for (const s of forces) {
     xml += `  <url>
-    <loc>${BASE_URL}/rescue-squads/${s.id}</loc>
+    <loc>${BASE_URL}/rescue-forces/${s.id}</loc>
     <lastmod>${s.updatedAt.toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>

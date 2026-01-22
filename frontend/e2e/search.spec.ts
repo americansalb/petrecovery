@@ -16,7 +16,7 @@ test.describe('Global Search', () => {
     await expect(searchInput).toBeVisible();
   });
 
-  test('should search across cases and squads', async ({ page }) => {
+  test('should search across cases and forces', async ({ page }) => {
     await page.goto('/');
 
     const searchInput = page.getByRole('searchbox')

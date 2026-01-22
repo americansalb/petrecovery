@@ -8,7 +8,7 @@ import prisma from '@/app/lib/prisma';
  *
  * Returns all missions (cases) that the user is involved with:
  * - Cases they own
- * - Cases they're helping with (through squad assignments)
+ * - Cases they're helping with (through force assignments)
  */
 export async function GET(request) {
   try {
@@ -42,8 +42,8 @@ export async function GET(request) {
         lastSeenLongitude: true,
         assignments: {
           select: {
-            rescueSquadId: true,
-            rescueSquad: {
+            rescueForceId: true,
+            rescueForce: {
               select: { id: true, name: true },
             },
           },
@@ -61,7 +61,7 @@ export async function GET(request) {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Get cases where user is a participant (through squad assignments)
+    // Get cases where user is a participant (through force assignments)
     const participantCases = await prisma.case.findMany({
       where: {
         assignments: {
@@ -92,8 +92,8 @@ export async function GET(request) {
         lastSeenLongitude: true,
         assignments: {
           select: {
-            rescueSquadId: true,
-            rescueSquad: {
+            rescueForceId: true,
+            rescueForce: {
               select: { id: true, name: true },
             },
           },
@@ -121,8 +121,8 @@ export async function GET(request) {
           ? Math.floor((Date.now() - new Date(caseItem.lastSeenAt).getTime()) / 3600000)
           : 0;
 
-        // Get squadId from first assignment
-        const squadId = caseItem.assignments?.[0]?.rescueSquad?.id || caseItem.assignments?.[0]?.rescueSquadId;
+        // Get forceId from first assignment
+        const forceId = caseItem.assignments?.[0]?.rescueForce?.id || caseItem.assignments?.[0]?.rescueForceId;
 
         allCasesMap.set(caseItem.id, {
           id: caseItem.id,
@@ -147,7 +147,7 @@ export async function GET(request) {
             ? `${hoursMissing}h`
             : `${Math.floor(hoursMissing / 24)}d ${hoursMissing % 24}h`,
           helperCount: 0, // TODO: Calculate actual helper count
-          rescueSquadId: squadId,
+          rescueForceId: forceId,
           // Owner contact info (for email forms)
           ownerName: caseItem.reporter
             ? `${caseItem.reporter.firstName || ''} ${caseItem.reporter.lastName || ''}`.trim()

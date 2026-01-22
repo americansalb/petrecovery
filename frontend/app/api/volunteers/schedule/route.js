@@ -5,7 +5,7 @@ import prisma from '@/app/lib/prisma';
 
 /**
  * GET /api/volunteers/schedule
- * Get volunteer schedules for a squad or case
+ * Get volunteer schedules for a force or case
  */
 export async function GET(request) {
   try {
@@ -15,15 +15,15 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const squadId = searchParams.get('squadId');
+    const forceId = searchParams.get('forceId');
     const missionId = searchParams.get('missionId');
     const date = searchParams.get('date'); // YYYY-MM-DD
     const weekOf = searchParams.get('weekOf'); // Get full week
 
     const where = {};
 
-    if (squadId) {
-      where.squadId = squadId;
+    if (forceId) {
+      where.forceId = forceId;
     }
 
     if (missionId) {
@@ -55,7 +55,7 @@ export async function GET(request) {
         case: {
           select: { id: true, petName: true, caseNumber: true },
         },
-        squad: {
+        force: {
           select: { id: true, name: true },
         },
       },
@@ -91,7 +91,7 @@ export async function POST(request) {
     }
 
     const {
-      squadId,
+      forceId,
       missionId,
       startTime,
       endTime,
@@ -107,23 +107,23 @@ export async function POST(request) {
     }
 
     // Verify user is coordinator or leader
-    if (squadId) {
-      const membership = await prisma.rescueSquadMember.findFirst({
+    if (forceId) {
+      const membership = await prisma.rescueForceMember.findFirst({
         where: {
           userId: session.user.id,
-          rescueSquadId: squadId,
+          rescueForceId: forceId,
           role: { in: ['LEADER', 'COORDINATOR', 'FOUNDER'] },
         },
       });
 
       if (!membership) {
-        return NextResponse.json({ error: 'Must be squad leader/coordinator' }, { status: 403 });
+        return NextResponse.json({ error: 'Must be force leader/coordinator' }, { status: 403 });
       }
     }
 
     const shift = await prisma.volunteerShift.create({
       data: {
-        squadId,
+        forceId,
         missionId,
         createdById: session.user.id,
         title: title || 'Search Shift',

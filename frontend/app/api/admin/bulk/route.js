@@ -142,8 +142,8 @@ async function syncUserStats(userIds) {
         },
       });
 
-      // Count squads joined
-      const squadsJoined = await prisma.rescueSquadMember.count({
+      // Count forces joined
+      const squadsJoined = await prisma.rescueForceMember.count({
         where: { userId },
       });
 
@@ -163,7 +163,7 @@ async function syncUserStats(userIds) {
         where: { id: userId },
         data: {
           successfulReunions: reunions,
-          squadsJoinedCount: squadsJoined,
+          forcesJoinedCount: squadsJoined,
           areasMarkedCount: areasMarked,
           totalAcreageSearched: totalAcreage,
         },

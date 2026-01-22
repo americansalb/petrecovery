@@ -1,4 +1,4 @@
-# PetRecovery.org - Project Vision & Implementation Path
+# ReunitePets.org - Project Vision & Implementation Path
 
 **Last Updated:** 2025-11-27
 **Status:** Pre-MVP Development (~45% complete)
@@ -9,8 +9,8 @@
 
 ## 🎯 Core Vision
 
-PetRecovery.org is a community-powered platform to help reunite lost pets with their families through:
-- **Rescue Squads**: City-based volunteer groups that help search for lost pets
+ReunitePets.org is a community-powered platform to help reunite lost pets with their families through:
+- **Rescue Forces**: City-based volunteer groups that help search for lost pets
 - **Mission Management**: Track lost pet missions with assignments and search coordination
 - **Simple UX**: Clean, intuitive interface that works for everyone
 
@@ -18,12 +18,12 @@ PetRecovery.org is a community-powered platform to help reunite lost pets with t
 
 ## 🚨 Current Issues (Nov 24, 2025)
 
-### 1. Rescue Squad Search - FIXED ✅
+### 1. Rescue Force Search - FIXED ✅
 **Status:** FIXED - Restored debugging logs
 **What Happened:**
-- Commit `c3e92c3` (Nov 21) "redesigned" rescue squad search to be city-based
+- Commit `c3e92c3` (Nov 21) "redesigned" rescue force search to be city-based
 - Removed 1,323 lines of code, added only 269 lines
-- Deleted `/rescue-squads/create/page.js` and `/api/rescue-squads/join-or-create/route.js`
+- Deleted `/rescue-forces/create/page.js` and `/api/rescue-forces/join-or-create/route.js`
 - User reports: "It used to be working perfectly before I asked it to optimize"
 
 **Root Cause Analysis:**
@@ -39,7 +39,7 @@ The "optimization" removed:
 - ✅ **Maintained code clarity** - Comments explain the flow
 
 **Current Implementation (Debuggable):**
-- Location: `/frontend/app/api/rescue-squads/route.js` (270 lines)
+- Location: `/frontend/app/api/rescue-forces/route.js` (270 lines)
 - Flow:
   1. User enters ZIP code (logged)
   2. System geocodes ZIP → gets city/state/coordinates (logged)
@@ -209,11 +209,11 @@ Platform IS ready for:
 
 ## 📋 Implementation Path
 
-### Phase 1: Stabilize Rescue Squad Search ✅ COMPLETED
-**Goal:** Get rescue squad search back to working state
+### Phase 1: Stabilize Rescue Force Search ✅ COMPLETED
+**Goal:** Get rescue force search back to working state
 
 #### Step 1: Investigate & Document
-- [x] Read current rescue squad search code
+- [x] Read current rescue force search code
 - [x] Check git history for what changed
 - [x] Compare old (417 lines) vs new (193 lines) implementation
 - [x] Document what's actually broken vs what's missing
@@ -221,8 +221,8 @@ Platform IS ready for:
 
 #### Step 2: Fix Issues
 - [x] Identified root cause: Missing debugging logs
-- [x] Restored comprehensive logging to GET /api/rescue-squads
-- [x] Restored comprehensive logging to POST /api/rescue-squads
+- [x] Restored comprehensive logging to GET /api/rescue-forces
+- [x] Restored comprehensive logging to POST /api/rescue-forces
 - [x] Added step-by-step logging with clear indicators (✅, ❌, 📋, etc.)
 - [x] Kept the improved city-based design (simpler is better)
 
@@ -245,7 +245,7 @@ Platform IS ready for:
 #### Documentation
 - [x] Create this VISION.md file
 - [ ] Add inline code comments explaining WHY things work the way they do
-- [ ] Document rescue squad architecture in separate doc
+- [ ] Document rescue force architecture in separate doc
 
 #### Git Workflow
 - [ ] Use descriptive commit messages
@@ -257,13 +257,13 @@ Platform IS ready for:
 
 ## 🏗️ System Architecture
 
-### Rescue Squad System
+### Rescue Force System
 
 #### Database Schema
 ```
 RescueSquad {
   id: String (UUID)
-  name: String (e.g., "San Francisco Rescue Squad")
+  name: String (e.g., "San Francisco Rescue Force")
   city: String
   state: String
   zipCodes: String (JSON array)
@@ -286,13 +286,13 @@ RescueSquadMember {
 ```
 
 #### Key Files
-- `/frontend/app/rescue-squads/search/page.js` - Search UI
-- `/frontend/app/api/rescue-squads/route.js` - Search & Create API
-- `/frontend/app/rescue-squads/[id]/page.js` - Squad detail page
+- `/frontend/app/rescue-forces/search/page.js` - Search UI
+- `/frontend/app/api/rescue-forces/route.js` - Search & Create API
+- `/frontend/app/rescue-forces/[id]/page.js` - Squad detail page
 - `/frontend/lib/zip-city-mapping.js` - ZIP code utilities
 
 #### Design Principles
-1. **City-Based:** One squad per city (e.g., "San Francisco Rescue Squad")
+1. **City-Based:** One squad per city (e.g., "San Francisco Rescue Force")
 2. **Radius Search:** Haversine distance calculation for nearby squads
 3. **Simple Creation:** ZIP code → geocode → create squad for that city
 4. **Auto-Join:** Creator becomes FOUNDER member automatically
@@ -317,7 +317,7 @@ RescueSquadMember {
 Use format: `[Component] Action: Description`
 
 Examples:
-- `[Rescue Squads] Fix: Restore radius search functionality`
+- `[Rescue Forces] Fix: Restore radius search functionality`
 - `[API] Add: Logging to squad creation endpoint`
 - `[Docs] Update: VISION.md with current status`
 
@@ -365,18 +365,18 @@ This branch is ready to merge when:
 ### Important Commits
 - `c3e92c3` - Redesign to city-based (simplified, may have broken things)
 - `b680924` - Last known working version before redesign
-- `d9346ff` - Current HEAD (merged rescue squad features)
+- `d9346ff` - Current HEAD (merged rescue force features)
 
 ### Testing URLs
-- Search: `/rescue-squads/search`
-- Admin: `/admin/rescue-squads`
-- Squad Detail: `/rescue-squads/[id]`
+- Search: `/rescue-forces/search`
+- Admin: `/admin/rescue-forces`
+- Squad Detail: `/rescue-forces/[id]`
 
 ### API Endpoints
-- `GET /api/rescue-squads?zipCode=X&radius=Y` - Search
-- `POST /api/rescue-squads` - Create new squad
-- `POST /api/rescue-squads/[id]/join` - Join squad
-- `GET /api/admin/rescue-squads` - Admin list all
+- `GET /api/rescue-forces?zipCode=X&radius=Y` - Search
+- `POST /api/rescue-forces` - Create new squad
+- `POST /api/rescue-forces/[id]/join` - Join squad
+- `GET /api/admin/rescue-forces` - Admin list all
 
 ---
 

@@ -1,8 +1,8 @@
-# PetRecovery.org - Rescue Squad Implementation Progress
+# ReunitePets.org - Rescue Force Implementation Progress
 
 ## 🎯 Mission Accomplished
 
-**We completely redesigned and implemented the Rescue Squad → Case architecture that differentiates you from PawBoost and HomeAgain.**
+**We completely redesigned and implemented the Rescue Force → Case architecture that differentiates you from PawBoost and HomeAgain.**
 
 ---
 
@@ -33,13 +33,13 @@ RescueSquadMember        CaseParticipant (opts into cases)
 
 ### 2. **Complete Backend API System** (1,469 new lines of code)
 
-#### **Rescue Squad Formation APIs**
-- `GET /api/rescue-squads?zip=60614` - Search squads by location (Haversine distance)
-- `POST /api/rescue-squads` - Create new squad (auto-assign founder)
-- `GET /api/rescue-squads/[id]` - Squad details with members and active cases
-- `PATCH /api/rescue-squads/[id]` - Update squad (leaders only)
-- `POST /api/rescue-squads/[id]/join` - Join squad (auto level-up to SCOUT)
-- `POST /api/rescue-squads/[id]/leave` - Leave squad (founder protection)
+#### **Rescue Force Formation APIs**
+- `GET /api/rescue-forces?zip=60614` - Search squads by location (Haversine distance)
+- `POST /api/rescue-forces` - Create new squad (auto-assign founder)
+- `GET /api/rescue-forces/[id]` - Squad details with members and active cases
+- `PATCH /api/rescue-forces/[id]` - Update squad (leaders only)
+- `POST /api/rescue-forces/[id]/join` - Join squad (auto level-up to SCOUT)
+- `POST /api/rescue-forces/[id]/leave` - Leave squad (founder protection)
 
 #### **Case Assignment APIs**
 - `GET /api/cases/[id]/assignments` - See which squads accepted case
@@ -117,7 +117,7 @@ RescueSquadMember        CaseParticipant (opts into cases)
 **Commits:** 5 major commits
 1. Schema redesign documentation
 2. Complete schema migration
-3. Rescue Squad formation APIs
+3. Rescue Force formation APIs
 4. Case assignment & participant APIs
 5. Coordination APIs (chat, search, sightings)
 
@@ -125,7 +125,7 @@ RescueSquadMember        CaseParticipant (opts into cases)
 
 ## 🎯 What Makes This Different from PawBoost
 
-| Feature | PawBoost | PetRecovery.org |
+| Feature | PawBoost | ReunitePets.org |
 |---------|----------|-----------------|
 | **Alerts** | ✅ Email to 7.4M volunteers | ✅ Push notifications to nearby squads |
 | **Volunteer Model** | Passive individuals | **Persistent organized teams** |
@@ -173,7 +173,7 @@ RescueSquadMember        CaseParticipant (opts into cases)
 
 **PawBoost says:** "We'll tell 7 million people your pet is lost"
 
-**You say:** "We'll organize rescue squads to actively search with real-time coordination"
+**You say:** "We'll organize rescue forces to actively search with real-time coordination"
 
 **The proof:**
 - Real-time chat keeps everyone aligned

@@ -351,7 +351,7 @@ async function handleStart(userId, missionId, body) {
     });
 
     if (!existingParticipant) {
-      // Use quickJoinCase to properly join with squad assignment
+      // Use quickJoinCase to properly join with force assignment
       const joinResult = await quickJoinCase(missionId, {
         userId,
         location: latitude && longitude ? { lat: latitude, lng: longitude } : null,

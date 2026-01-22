@@ -57,9 +57,9 @@
 - [ ] Contact info gated for logged-in users
 - [ ] No auth required to browse
 
-### Phase R7: Rescue Squads
-- [ ] `/rescue-squads` - Page loads
-- [ ] `/rescue-squads/search` - Search works
+### Phase R7: Rescue Forces
+- [ ] `/rescue-forces` - Page loads
+- [ ] `/rescue-forces/search` - Search works
 - [ ] Can join a squad
 - [ ] Can create a squad
 - [ ] Squad detail page works
@@ -129,10 +129,10 @@ Found:
 [ ] GET /api/public/missions
 
 Squads:
-[ ] GET /api/rescue-squads
-[ ] POST /api/rescue-squads
-[ ] GET /api/rescue-squads/[id]
-[ ] POST /api/rescue-squads/[id]/join
+[ ] GET /api/rescue-forces
+[ ] POST /api/rescue-forces
+[ ] GET /api/rescue-forces/[id]
+[ ] POST /api/rescue-forces/[id]/join
 
 Upload:
 [ ] POST /api/upload
@@ -198,7 +198,7 @@ Dashboard:
    - Contact owner (if logged in)
 
 3. **A volunteer can:**
-   - Browse rescue squads
+   - Browse rescue forces
    - Join a squad
    - See missions in their area
    - Add sightings to missions
@@ -233,7 +233,7 @@ Dashboard:
 | R4: Report Lost | 2-4 hours | Low |
 | R5: Report Found | 2-3 hours | Low |
 | R6: Public Database | 1-2 hours | Medium |
-| R7: Rescue Squads | 3-5 hours | Low |
+| R7: Rescue Forces | 3-5 hours | Low |
 | R8: Mission Coordination | 4-6 hours | Low |
 | R9: Pet Profiles | 2-3 hours | Medium |
 | R10: Notifications | 2-3 hours | Medium |

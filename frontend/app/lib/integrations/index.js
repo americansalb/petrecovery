@@ -49,7 +49,7 @@ export async function broadcastToCaseIntegrations(prisma, missionId, eventType, 
       OR: [
         { missionId },
         {
-          rescueSquad: {
+          rescueForce: {
             cases: {
               some: { id: missionId },
             },
@@ -97,7 +97,7 @@ export async function createIntegration(prisma, {
   type,
   webhookUrl,
   missionId,
-  squadId,
+  forceId,
   name,
 }) {
   // Verify webhook before saving
@@ -128,7 +128,7 @@ export async function createIntegration(prisma, {
       isActive: true,
       createdById: userId,
       missionId: missionId || null,
-      rescueSquadId: squadId || null,
+      rescueForceId: forceId || null,
     },
   });
 
@@ -154,7 +154,7 @@ export async function testIntegration(prisma, integrationId) {
 
   if (integration.type === 'SLACK') {
     return slack.sendWebhookMessage(config.webhookUrl, {
-      text: ':white_check_mark: Test message from PetRecovery - your integration is working!',
+      text: ':white_check_mark: Test message from ReunitePets - your integration is working!',
     });
   } else if (integration.type === 'DISCORD') {
     return discord.sendTestMessage(config.webhookUrl);
@@ -194,7 +194,7 @@ export async function getUserIntegrations(prisma, userId) {
       case: {
         select: { id: true, petName: true, missionNumber: true },
       },
-      rescueSquad: {
+      rescueForce: {
         select: { id: true, name: true },
       },
     },
@@ -211,7 +211,7 @@ export async function getCaseIntegrations(prisma, missionId) {
       OR: [
         { missionId },
         {
-          rescueSquad: {
+          rescueForce: {
             cases: {
               some: { id: missionId },
             },
@@ -220,7 +220,7 @@ export async function getCaseIntegrations(prisma, missionId) {
       ],
     },
     include: {
-      rescueSquad: {
+      rescueForce: {
         select: { id: true, name: true },
       },
     },
@@ -228,12 +228,12 @@ export async function getCaseIntegrations(prisma, missionId) {
 }
 
 /**
- * Get integrations for a squad
+ * Get integrations for a force
  */
-export async function getSquadIntegrations(prisma, squadId) {
+export async function getSquadIntegrations(prisma, forceId) {
   return prisma.integration.findMany({
     where: {
-      rescueSquadId: squadId,
+      rescueForceId: forceId,
     },
     orderBy: { createdAt: 'desc' },
   });

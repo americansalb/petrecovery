@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 
 // Sample user: Sarama - experienced rescue volunteer
 const SARAMA_PROFILE = {
-  email: 'sarama@petrecovery.org',
+  email: 'sarama@reunitepets.org',
   firstName: 'Sarama',
   lastName: 'Volunteer',
   bio: 'Rescue volunteer since 2018. Specializing in scared/shy dogs. Based in Texas but help coordinate transports nationwide.',
@@ -189,7 +189,7 @@ Photo of Mabel: She's a tricolor beagle with the sweetest face. A bit overweight
    - Dogs can smell this from miles away
 
 7. **File reports online**
-   - PetRecovery.org (here!)
+   - ReunitePets.org (here!)
    - Petfinder
    - PawBoost
    - Local lost pet Facebook groups

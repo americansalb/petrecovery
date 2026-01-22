@@ -36,19 +36,19 @@ setup('authenticate', async ({ page }) => {
   await page.context().storageState({ path: authFile });
 });
 
-setup('authenticate as squad leader', async ({ page }) => {
+setup('authenticate as force leader', async ({ page }) => {
   // Skip if no test credentials provided
-  if (!process.env.TEST_SQUAD_LEADER_EMAIL || !process.env.TEST_SQUAD_LEADER_PASSWORD) {
-    console.log('No squad leader credentials provided, skipping');
+  if (!process.env.TEST_FORCE_LEADER_EMAIL || !process.env.TEST_FORCE_LEADER_PASSWORD) {
+    console.log('No force leader credentials provided, skipping');
     return;
   }
 
-  const squadLeaderAuthFile = path.join(__dirname, '../.playwright/.auth/squad-leader.json');
+  const squadLeaderAuthFile = path.join(__dirname, '../.playwright/.auth/force-leader.json');
 
   await page.goto('/login');
 
-  await page.getByLabel(/email/i).fill(process.env.TEST_SQUAD_LEADER_EMAIL);
-  await page.getByLabel(/password/i).fill(process.env.TEST_SQUAD_LEADER_PASSWORD);
+  await page.getByLabel(/email/i).fill(process.env.TEST_FORCE_LEADER_EMAIL);
+  await page.getByLabel(/password/i).fill(process.env.TEST_FORCE_LEADER_PASSWORD);
 
   await page.getByRole('button', { name: /sign in|log in/i }).click();
 

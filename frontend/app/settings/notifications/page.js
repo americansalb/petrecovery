@@ -503,8 +503,8 @@ export default function NotificationSettingsPage() {
             onChange={(checked) => setEmailPrefs({ ...emailPrefs, sightingAlerts: checked })}
           />
           <ToggleRow
-            label="Squad Messages"
-            description="Messages from your rescue squad"
+            label="Force Messages"
+            description="Messages from your rescue force"
             icon={<MessageSquare size={18} color="#4f46e5" />}
             checked={emailPrefs.squadMessages}
             onChange={(checked) => setEmailPrefs({ ...emailPrefs, squadMessages: checked })}

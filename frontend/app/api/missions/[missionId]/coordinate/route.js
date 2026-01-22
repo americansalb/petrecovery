@@ -7,7 +7,7 @@ import prisma from '@/app/lib/prisma';
  * GET /api/missions/[id]/coordinate
  *
  * Fetches case data along with assignment info for coordination.
- * Requires user to be a member of a squad assigned to this case.
+ * Requires user to be a member of a force assigned to this case.
  *
  * Phase 1.2: Mission Coordination UI
  */
@@ -43,7 +43,7 @@ export async function GET(request, { params }) {
       include: {
         assignments: {
           include: {
-            rescueSquad: {
+            rescueForce: {
               include: {
                 members: {
                   where: {
@@ -75,13 +75,13 @@ export async function GET(request, { params }) {
     console.log(`[COORDINATE-API] Case found: ${missionRecord.id}`);
     console.log(`[COORDINATE-API] Assignments count: ${missionRecord.assignments.length}`);
 
-    // Find an assignment where the user is a squad member
+    // Find an assignment where the user is a force member
     let userAssignment = null;
     let isLeader = false;
     let isParticipant = false;
 
     for (const assignment of missionRecord.assignments) {
-      const squadMembership = assignment.rescueSquad.members[0];
+      const squadMembership = assignment.rescueForce.members[0];
       if (squadMembership) {
         userAssignment = assignment;
         isLeader = ['FOUNDER', 'LEADER', 'COORDINATOR'].includes(squadMembership.role);
@@ -95,9 +95,9 @@ export async function GET(request, { params }) {
     }
 
     if (!userAssignment) {
-      console.log('[COORDINATE-API] User is not a member of any assigned squad');
+      console.log('[COORDINATE-API] User is not a member of any assigned force');
       return NextResponse.json(
-        { error: 'You are not a member of a squad assigned to this case' },
+        { error: 'You are not a member of a force assigned to this case' },
         { status: 403 }
       );
     }
@@ -127,7 +127,7 @@ export async function GET(request, { params }) {
       assignment: {
         id: userAssignment.id,
         status: userAssignment.status,
-        squadName: userAssignment.rescueSquad.name,
+        forceName: userAssignment.rescueForce.name,
         activeMembers: userAssignment.activeMembers,
         areasSearched: userAssignment.areasSearched,
         searchHours: userAssignment.searchHours,

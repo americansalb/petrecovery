@@ -206,10 +206,10 @@ export default function IntegrationsSettingsPage() {
                           {integration.case && (
                             <span>Case: {integration.case.petName}</span>
                           )}
-                          {integration.rescueSquad && (
-                            <span>Squad: {integration.rescueSquad.name}</span>
+                          {integration.rescueForce && (
+                            <span>Squad: {integration.rescueForce.name}</span>
                           )}
-                          {!integration.case && !integration.rescueSquad && (
+                          {!integration.case && !integration.rescueForce && (
                             <span>All notifications</span>
                           )}
                           <span

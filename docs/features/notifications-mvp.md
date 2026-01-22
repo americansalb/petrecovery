@@ -190,7 +190,7 @@ For this MVP, we support **only email notifications**. All notifications are **t
   ```
   Hi {ContactName},
 
-  Thank you for submitting a lost pet report to PetRecovery.org.
+  Thank you for submitting a lost pet report to ReunitePets.org.
 
   Mission Details:
   - Mission Number: {MissionNumber}
@@ -207,7 +207,7 @@ For this MVP, we support **only email notifications**. All notifications are **t
 
   If you have questions, please reply to this email.
 
-  PetRecovery.org Team
+  ReunitePets.org Team
   ```
 
 **Notification 1B: Admin Alert**
@@ -258,7 +258,7 @@ For this MVP, we support **only email notifications**. All notifications are **t
 
   We'll notify you of any further updates.
 
-  PetRecovery.org Team
+  ReunitePets.org Team
   ```
 
 - **Body (example for RESOLVED):**
@@ -274,7 +274,7 @@ For this MVP, we support **only email notifications**. All notifications are **t
 
   We're so glad {PetName} is safe!
 
-  Thank you for using PetRecovery.org.
+  Thank you for using ReunitePets.org.
   ```
 
 ### Trigger 3 (Optional): Mission Made Public
@@ -296,7 +296,7 @@ For this MVP, we support **only email notifications**. All notifications are **t
 
   Your contact information is {ContactPrivacyMessage}.
 
-  PetRecovery.org Team
+  ReunitePets.org Team
   ```
 
 **Note:** This trigger can be deferred if admin doesn't have UI to toggle `isPublic` yet. Document as "Phase 2" enhancement.
@@ -359,7 +359,7 @@ const transporter = nodemailer.createTransport({
 export async function sendEmail({ to, subject, html }) {
   try {
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || `PetRecovery <${process.env.EMAIL_USER}>`,
+      from: process.env.EMAIL_FROM || `ReunitePets <${process.env.EMAIL_USER}>`,
       to,
       subject,
       html,
@@ -784,7 +784,7 @@ const ERROR_IMPACT = {
   "error_message": "Connection timeout to smtp.gmail.com",
   "metadata": {
     "notification_type": "admin_alert",
-    "recipient": "admin@petrecovery.org",
+    "recipient": "admin@reunitepets.org",
     "mission_number": "CHI-2025-0042"
   }
 }
@@ -850,8 +850,8 @@ All notifications in this MVP are **transactional** (not marketing):
    EMAIL_SERVICE=gmail
    EMAIL_USER=test@gmail.com
    EMAIL_PASSWORD=app_specific_password
-   EMAIL_FROM="PetRecovery Test <test@gmail.com>"
-   ADMIN_NOTIFICATION_EMAIL=admin@petrecovery.org
+   EMAIL_FROM="ReunitePets Test <test@gmail.com>"
+   ADMIN_NOTIFICATION_EMAIL=admin@reunitepets.org
    ```
 
 2. Use a test email service (Gmail with app password or Mailtrap for dev)
@@ -1019,7 +1019,7 @@ Add to `/admin/qa` page:
 **Advanced Triggers:**
 - New sighting reported on mission
 - Mission comment added
-- Mission assigned to rescue squad
+- Mission assigned to rescue force
 - Rescue squad member joins mission
 - Follow city/area subscriptions (notify on new missions in area)
 
@@ -1055,15 +1055,15 @@ Add to `/admin/qa` page:
 ```bash
 # Email Service Configuration
 EMAIL_SERVICE=gmail                          # SMTP service provider
-EMAIL_USER=petrecovery@gmail.com             # SMTP username
+EMAIL_USER=reunitepets@gmail.com             # SMTP username
 EMAIL_PASSWORD=your_app_specific_password    # SMTP password
-EMAIL_FROM="PetRecovery.org <petrecovery@gmail.com>"  # Sender address
+EMAIL_FROM="ReunitePets.org <reunitepets@gmail.com>"  # Sender address
 
 # Notification Recipients
-ADMIN_NOTIFICATION_EMAIL=admin@petrecovery.org  # Admin alert recipient
+ADMIN_NOTIFICATION_EMAIL=admin@reunitepets.org  # Admin alert recipient
 
 # Base URL (for links in emails)
-NEXT_PUBLIC_BASE_URL=https://petrecovery.org    # Production URL
+NEXT_PUBLIC_BASE_URL=https://reunitepets.org    # Production URL
 ```
 
 ### Setup Instructions

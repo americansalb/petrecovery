@@ -1,4 +1,4 @@
-// Migration script: Update RescueSquadMemberRole enum values
+// Migration script: Update RescueForceMemberRole enum values
 // Run this BEFORE deploying the new schema with: node scripts/migrate-roles.js
 
 const { PrismaClient } = require('@prisma/client');
@@ -12,13 +12,13 @@ async function migrateRoles() {
     // Use raw SQL to update enum values
     // This must happen before the schema change
     await prisma.$executeRaw`
-      UPDATE "RescueSquadMember"
+      UPDATE "RescueForceMember"
       SET role = CASE
         WHEN role = 'FOUNDER' THEN 'ADMINISTRATOR'::text
         WHEN role = 'LEADER' THEN 'MODERATOR'::text
         WHEN role = 'COORDINATOR' THEN 'MEMBER'::text
         ELSE role::text
-      END::"RescueSquadMemberRole"
+      END::"RescueForceMemberRole"
     `;
 
     console.log('✓ Role migration completed successfully');

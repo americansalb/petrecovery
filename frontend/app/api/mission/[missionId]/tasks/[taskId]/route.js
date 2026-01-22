@@ -35,7 +35,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get squad task if exists
+    // Get force task if exists
     const squadTask = await prisma.squadTask.findFirst({
       where: { missionId, taskType: taskId },
       include: {
@@ -161,27 +161,27 @@ export async function POST(request, { params }) {
 // =============================================================================
 
 async function handleJoin(userId, missionId, taskId) {
-  // Get or create squad task
+  // Get or create force task
   let squadTask = await prisma.squadTask.findFirst({
     where: { missionId, taskType: taskId },
   });
 
   if (!squadTask) {
-    // Need to find a rescue squad for this case
-    const rescueSquad = await prisma.rescueSquad.findFirst({
+    // Need to find a rescue force for this case
+    const rescueForce = await prisma.rescueForce.findFirst({
       where: { cases: { some: { id: missionId } } },
     });
 
-    if (!rescueSquad) {
+    if (!rescueForce) {
       return NextResponse.json(
-        { error: 'No rescue squad found for this case' },
+        { error: 'No rescue force found for this case' },
         { status: 400 }
       );
     }
 
     squadTask = await prisma.squadTask.create({
       data: {
-        rescueSquad: { connect: { id: rescueSquad.id } },
+        rescueForce: { connect: { id: rescueForce.id } },
         missionId,
         taskType: taskId,
         title: taskId,
@@ -261,27 +261,27 @@ async function handleComplete(userId, missionId, taskId, body) {
 async function handleRequestHelp(userId, missionId, taskId, body) {
   const { message } = body;
 
-  // Get or create squad task
+  // Get or create force task
   let squadTask = await prisma.squadTask.findFirst({
     where: { missionId, taskType: taskId },
   });
 
   if (!squadTask) {
-    // Need to find a rescue squad for this case
-    const rescueSquad = await prisma.rescueSquad.findFirst({
+    // Need to find a rescue force for this case
+    const rescueForce = await prisma.rescueForce.findFirst({
       where: { cases: { some: { id: missionId } } },
     });
 
-    if (!rescueSquad) {
+    if (!rescueForce) {
       return NextResponse.json(
-        { error: 'No rescue squad found for this case' },
+        { error: 'No rescue force found for this case' },
         { status: 400 }
       );
     }
 
     squadTask = await prisma.squadTask.create({
       data: {
-        rescueSquad: { connect: { id: rescueSquad.id } },
+        rescueForce: { connect: { id: rescueForce.id } },
         missionId,
         taskType: taskId,
         title: taskId,

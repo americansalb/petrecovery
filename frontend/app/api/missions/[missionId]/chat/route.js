@@ -93,7 +93,7 @@ export async function POST(request, { params }) {
     // Verify mission exists
     const mission = await prisma.case.findUnique({
       where: { id: missionId },
-      select: { id: true, rescueSquadId: true },
+      select: { id: true, rescueForceId: true },
     });
 
     if (!mission) {
@@ -106,27 +106,27 @@ export async function POST(request, { params }) {
       select: { firstName: true, lastName: true },
     });
 
-    // If no rescue squad, create one for this mission
-    let rescueSquadId = mission.rescueSquadId;
-    if (!rescueSquadId) {
-      const squad = await prisma.rescueSquad.create({
+    // If no rescue force, create one for this mission
+    let rescueForceId = mission.rescueForceId;
+    if (!rescueForceId) {
+      const force = await prisma.rescueForce.create({
         data: {
-          name: `Mission Squad`,
+          name: `Mission Force`,
           caseId: missionId,
         },
       });
-      rescueSquadId = squad.id;
-      // Update mission with squad
+      rescueForceId = force.id;
+      // Update mission with force
       await prisma.case.update({
         where: { id: missionId },
-        data: { rescueSquadId: squad.id },
+        data: { rescueForceId: force.id },
       });
     }
 
-    // Create chat message as SquadActivity
+    // Create chat message as ForceActivity
     const message = await prisma.squadActivity.create({
       data: {
-        rescueSquadId: rescueSquadId,
+        rescueForceId: rescueForceId,
         type: 'CHAT_MESSAGE',
         message: content.trim(),
         actorId: session.user.id,

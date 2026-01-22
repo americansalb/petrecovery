@@ -4,7 +4,7 @@
  * Handles push notifications and offline caching.
  */
 
-const CACHE_NAME = 'petrecovery-v1';
+const CACHE_NAME = 'reunitepets-v1';
 const OFFLINE_URL = '/offline.html';
 
 // Files to cache for offline access
@@ -110,7 +110,7 @@ self.addEventListener('push', (event) => {
     body: data.body || 'You have a new notification',
     icon: data.icon || '/icons/icon-192x192.png',
     badge: data.badge || '/icons/badge-72x72.png',
-    tag: data.tag || 'petrecovery-notification',
+    tag: data.tag || 'reunitepets-notification',
     renotify: data.renotify || false,
     requireInteraction: data.requireInteraction || false,
     silent: data.silent || false,
@@ -145,7 +145,7 @@ self.addEventListener('push', (event) => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'PetRecovery', options)
+    self.registration.showNotification(data.title || 'ReunitePets', options)
   );
 });
 

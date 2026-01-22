@@ -95,7 +95,7 @@ export default function AdminDivisionsPage() {
               Delete Division?
             </h3>
             <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-              Delete &quot;{deleteConfirmOpen.divisionName}&quot;? Members will stay in the parent squad.
+              Delete &quot;{deleteConfirmOpen.divisionName}&quot;? Members will stay in the parent force.
             </p>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button
@@ -182,13 +182,13 @@ export default function AdminDivisionsPage() {
               Manage Divisions
             </h1>
             <p style={{ fontSize: '1.1rem', color: '#64748b' }}>
-              Neighborhood subdivisions within rescue squads
+              Neighborhood subdivisions within rescue forces
             </p>
           </div>
 
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
             <Link
-              href="/admin/rescue-squads"
+              href="/admin/rescue-forces"
               style={{
                 padding: '0.75rem 1.5rem',
                 background: 'white',
@@ -199,7 +199,7 @@ export default function AdminDivisionsPage() {
                 fontWeight: '700'
               }}
             >
-              ← Back to Squads
+              ← Back to Forces
             </Link>
 
             <Link
@@ -295,7 +295,7 @@ export default function AdminDivisionsPage() {
                     Division
                   </th>
                   <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '700' }}>
-                    Rescue Squad
+                    Rescue Force
                   </th>
                   <th style={{ padding: '1rem', textAlign: 'center', fontWeight: '700' }}>
                     Members
@@ -320,10 +320,10 @@ export default function AdminDivisionsPage() {
                     </td>
                     <td style={{ padding: '1rem' }}>
                       <div style={{ fontWeight: '500' }}>
-                        {division.rescueSquad.name}
+                        {division.rescueForce.name}
                       </div>
                       <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
-                        {division.rescueSquad.city}, {division.rescueSquad.state}
+                        {division.rescueForce.city}, {division.rescueForce.state}
                       </div>
                     </td>
                     <td style={{ padding: '1rem', textAlign: 'center' }}>

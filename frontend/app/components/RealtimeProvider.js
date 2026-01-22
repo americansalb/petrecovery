@@ -157,7 +157,7 @@ function getToastColor(type) {
       return '#10b981';
     case 'CASE_UPDATE':
       return '#f59e0b';
-    case 'SQUAD_MESSAGE':
+    case 'FORCE_MESSAGE':
       return '#4f46e5';
     case 'SYSTEM':
       return '#6b7280';

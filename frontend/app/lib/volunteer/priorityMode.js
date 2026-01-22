@@ -88,7 +88,7 @@ export async function activatePriorityMode(missionId, options = {}) {
     include: {
       assignments: {
         include: {
-          rescueSquad: {
+          rescueForce: {
             include: {
               divisions: true,
             }
@@ -134,17 +134,17 @@ export async function activatePriorityMode(missionId, options = {}) {
  * Trigger volunteer surge for a case
  */
 async function triggerVolunteerSurge(missionData) {
-  // Get all squads covering this area
-  const squads = await findSquadsCoveringLocation(
+  // Get all forces covering this area
+  const forces = await findSquadsCoveringLocation(
     missionData.lastSeenLatitude,
     missionData.lastSeenLongitude
   );
 
   const results = [];
 
-  for (const squad of squads) {
+  for (const force of forces) {
     // Alert all divisions in surge mode
-    for (const division of squad.divisions || []) {
+    for (const division of force.divisions || []) {
       const result = await sendDivisionAlert(division.id, {
         type: 'PRIORITY_SURGE',
         title: `🚨 URGENT: ${missionData.petName} just went missing!`,
@@ -156,7 +156,7 @@ async function triggerVolunteerSurge(missionData) {
     }
 
     // Also alert individual members with high response rates
-    const topResponders = await getTopResponders(squad.id, 20);
+    const topResponders = await getTopResponders(force.id, 20);
     await sendSurgeNotificationToUsers(topResponders, missionData);
   }
 
@@ -168,7 +168,7 @@ async function triggerVolunteerSurge(missionData) {
     data: {
       missionId: missionData.id,
       type: 'PRIORITY_ACTIVATED',
-      squadsNotified: squads.length,
+      squadsNotified: forces.length,
       volunteersNotified: results.reduce((sum, r) => sum + (r.sent || 0), 0),
     }
   });
@@ -177,12 +177,12 @@ async function triggerVolunteerSurge(missionData) {
 }
 
 /**
- * Get top responding volunteers in a squad
+ * Get top responding volunteers in a force
  */
-async function getTopResponders(squadId, limit = 20) {
+async function getTopResponders(forceId, limit = 20) {
   const members = await prisma.squadMembership.findMany({
     where: {
-      rescueSquadId: squadId,
+      rescueForceId: forceId,
       isActive: true,
     },
     include: {
@@ -508,10 +508,10 @@ export async function getSurgeStats(missionId) {
 }
 
 /**
- * Find squads covering a location
+ * Find forces covering a location
  */
 async function findSquadsCoveringLocation(lat, lng) {
-  const squads = await prisma.rescueSquad.findMany({
+  const forces = await prisma.rescueForce.findMany({
     where: { isActive: true },
     include: {
       divisions: {
@@ -520,15 +520,15 @@ async function findSquadsCoveringLocation(lat, lng) {
     }
   });
 
-  return squads.filter(squad => {
-    if (!squad.centerLatitude || !squad.centerLongitude) return false;
+  return forces.filter(force => {
+    if (!force.centerLatitude || !force.centerLongitude) return false;
 
     const distance = haversineDistance(
       lat, lng,
-      squad.centerLatitude, squad.centerLongitude
+      force.centerLatitude, force.centerLongitude
     );
 
-    return distance <= (squad.radiusMiles || 10);
+    return distance <= (force.radiusMiles || 10);
   });
 }
 

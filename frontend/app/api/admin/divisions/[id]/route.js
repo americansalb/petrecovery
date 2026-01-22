@@ -40,15 +40,15 @@ export async function DELETE(request, { params }) {
       }
     });
 
-    // Remove division assignment from members (move to squad-level)
-    await prisma.rescueSquadMember.updateMany({
+    // Remove division assignment from members (move to force-level)
+    await prisma.rescueForceMember.updateMany({
       where: { divisionId: id },
       data: { divisionId: null }
     });
 
     return NextResponse.json({
       success: true,
-      message: `Division deleted successfully (${division._count.members} members moved to squad-level)`,
+      message: `Division deleted successfully (${division._count.members} members moved to force-level)`,
       metadata: {
         membersAffected: division._count.members,
         softDelete: true,
@@ -94,7 +94,7 @@ export async function PATCH(request, { params }) {
         ...(isActive !== undefined && { isActive })
       },
       include: {
-        rescueSquad: {
+        rescueForce: {
           select: {
             name: true,
             city: true,

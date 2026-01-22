@@ -18,7 +18,7 @@ export async function GET(request, { params }) {
         createdAt: true,
 
         // Stats
-        squadsJoinedCount: true,
+        forcesJoinedCount: true,
         areasMarkedCount: true,
         totalAcreageSearched: true,
         successfulReunions: true,
@@ -29,7 +29,7 @@ export async function GET(request, { params }) {
           select: {
             cases: true,
             caseSightings: true,
-            rescueSquadMemberships: true,
+            rescueForceMemberships: true,
             receivedHonors: true,
           },
         },
@@ -77,7 +77,7 @@ export async function GET(request, { params }) {
         level: user.rescueLevel,
         memberSince: user.createdAt,
         stats: {
-          squadsJoined: user.squadsJoinedCount,
+          squadsJoined: user.forcesJoinedCount,
           areasSearched: user.areasMarkedCount,
           acreageCovered: Math.round(user.totalAcreageSearched * 10) / 10,
           reunions: user.successfulReunions,
@@ -112,8 +112,8 @@ function getUserBadges(userId, user) {
   if (user.areasMarkedCount >= 10) badges.push({ id: 'searcher', name: 'Active Searcher', icon: '🔍' });
   if (user.totalAcreageSearched >= 100) badges.push({ id: 'explorer', name: 'Explorer', icon: '🗺️' });
 
-  // Squad badges
-  if (user.squadsJoinedCount >= 3) badges.push({ id: 'team_player', name: 'Team Player', icon: '🤝' });
+  // Force badges
+  if (user.forcesJoinedCount >= 3) badges.push({ id: 'team_player', name: 'Team Player', icon: '🤝' });
 
   // Honor badges
   if (user.honorsReceived >= 5) badges.push({ id: 'respected', name: 'Respected', icon: '🙏' });

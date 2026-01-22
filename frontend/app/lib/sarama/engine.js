@@ -1,7 +1,7 @@
 /**
  * Sarama Chat Engine - Core conversation logic
  * 
- * Sarama is the empathetic AI companion for PetRecovery.org.
+ * Sarama is the empathetic AI companion for ReunitePets.org.
  * Named after the divine dog from the Rig Veda who tracked and found what was lost.
  */
 
@@ -96,7 +96,7 @@ export function buildSystemPrompt(context = {}) {
 
     const missingFields = getMissingFields(collectedData);
 
-    return `You are Sarama, a caring AI companion for PetRecovery.org. Your name comes from the divine dog in the Rig Veda who tracked and found what was lost.
+    return `You are Sarama, a caring AI companion for ReunitePets.org. Your name comes from the divine dog in the Rig Veda who tracked and found what was lost.
 
 PERSONALITY:
 - Warm, empathetic, and patient

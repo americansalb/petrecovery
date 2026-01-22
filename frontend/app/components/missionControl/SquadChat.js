@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * SquadChat Component
+ * ForceChat Component
  *
- * In-mission chat for squad coordination with Scout tip integration.
+ * In-mission chat for force coordination with Scout tip integration.
  * Features:
  * - Real-time message display
  * - Scout tip sharing
@@ -17,10 +17,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Send, MessageCircle, X, ChevronDown, ChevronUp, Users } from 'lucide-react';
 
 // =============================================================================
-// SQUAD CHAT HOOK
+// FORCE CHAT HOOK
 // =============================================================================
 
-export function useSquadChat(squadId, missionId, options = {}) {
+export function useSquadChat(forceId, missionId, options = {}) {
   const { autoRefresh = true, refreshInterval = 10000 } = options;
 
   const [messages, setMessages] = useState([]);
@@ -32,12 +32,12 @@ export function useSquadChat(squadId, missionId, options = {}) {
 
   // Fetch messages
   const fetchMessages = useCallback(async () => {
-    if (!squadId) return;
+    if (!forceId) return;
 
     try {
       const url = missionId
-        ? `/api/rescue-squads/${squadId}/chat?missionId=${missionId}`
-        : `/api/rescue-squads/${squadId}/chat`;
+        ? `/api/rescue-forces/${forceId}/chat?missionId=${missionId}`
+        : `/api/rescue-forces/${forceId}/chat`;
 
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch messages');
@@ -51,16 +51,16 @@ export function useSquadChat(squadId, missionId, options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [squadId, missionId]);
+  }, [forceId, missionId]);
 
   // Send message
   const sendMessage = useCallback(async (content) => {
-    if (!squadId || !content?.trim()) return { success: false };
+    if (!forceId || !content?.trim()) return { success: false };
 
     setSending(true);
 
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/chat`, {
+      const res = await fetch(`/api/rescue-forces/${forceId}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content, missionId }),
@@ -80,7 +80,7 @@ export function useSquadChat(squadId, missionId, options = {}) {
     } finally {
       setSending(false);
     }
-  }, [squadId, missionId]);
+  }, [forceId, missionId]);
 
   // Share Scout tip to chat
   const shareScoutTip = useCallback(async (tip) => {
@@ -95,11 +95,11 @@ export function useSquadChat(squadId, missionId, options = {}) {
 
   // Auto-refresh
   useEffect(() => {
-    if (autoRefresh && squadId) {
+    if (autoRefresh && forceId) {
       refreshIntervalRef.current = setInterval(fetchMessages, refreshInterval);
       return () => clearInterval(refreshIntervalRef.current);
     }
-  }, [autoRefresh, refreshInterval, squadId, fetchMessages]);
+  }, [autoRefresh, refreshInterval, forceId, fetchMessages]);
 
   return {
     messages,
@@ -113,11 +113,11 @@ export function useSquadChat(squadId, missionId, options = {}) {
 }
 
 // =============================================================================
-// SQUAD CHAT COMPONENT
+// FORCE CHAT COMPONENT
 // =============================================================================
 
-export default function SquadChat({
-  squadId,
+export default function ForceChat({
+  forceId,
   missionId,
   variant = 'compact', // 'compact' | 'expanded' | 'floating'
   onClose,
@@ -130,7 +130,7 @@ export default function SquadChat({
     error,
     sendMessage,
     fetchMessages,
-  } = useSquadChat(squadId, missionId);
+  } = useSquadChat(forceId, missionId);
 
   const [inputValue, setInputValue] = useState('');
   const [isExpanded, setIsExpanded] = useState(variant === 'expanded');

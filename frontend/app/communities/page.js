@@ -331,7 +331,7 @@ export default function CommunitiesPage() {
                   </div>
                   {community.activeSquadsCount > 0 && (
                     <div>
-                      <strong style={{ color: '#0f172a' }}>{community.activeSquadsCount}</strong> active squads
+                      <strong style={{ color: '#0f172a' }}>{community.activeSquadsCount}</strong> active forces
                     </div>
                   )}
                   {community.subcommunityCount > 0 && (

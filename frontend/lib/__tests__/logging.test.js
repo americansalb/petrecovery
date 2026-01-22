@@ -62,13 +62,13 @@ test('emits basic successful event', () => {
 // Test 2: Event with all fields
 test('emits event with all fields', () => {
   const event = logEvent({
-    event_type: 'squad.created',
+    event_type: 'force.created',
     timestamp: '2025-11-24T12:00:00Z',
     correlation_id: 'test-correlation-id',
     actor_user_id: 'user-123',
     actor_role: 'VOLUNTEER',
-    resource_type: 'squad',
-    resource_id: 'squad-456',
+    resource_type: 'force',
+    resource_id: 'force-456',
     action: 'create',
     result: 'success',
     metadata: { city: 'Austin', state: 'TX' },
@@ -84,8 +84,8 @@ test('emits event with all fields', () => {
 // Test 3: Failure event with error details
 test('emits failure event with error details', () => {
   const event = logEvent({
-    event_type: 'squad.create_failed',
-    resource_type: 'squad',
+    event_type: 'force.create_failed',
+    resource_type: 'force',
     action: 'create',
     result: 'failure',
     error_code: 'VALIDATION_ERROR',

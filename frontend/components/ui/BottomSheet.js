@@ -195,7 +195,7 @@ export function MissionBottomSheet({
         <div className="text-center py-8">
           <div className="text-4xl mb-3">🐾</div>
           <p className="text-slate-400">No active missions</p>
-          <p className="text-slate-500 text-sm mt-1">Join a rescue squad to help!</p>
+          <p className="text-slate-500 text-sm mt-1">Join a rescue force to help!</p>
         </div>
       ) : (
         <div className="space-y-2">

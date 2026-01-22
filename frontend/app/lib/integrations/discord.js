@@ -1,5 +1,5 @@
 /**
- * Discord Integration for PetRecovery
+ * Discord Integration for ReunitePets
  *
  * Sends notifications to Discord channels via webhooks.
  */
@@ -186,12 +186,12 @@ export function formatSightingAlert(sightingData) {
 }
 
 /**
- * Format a squad update for Discord
+ * Format a force update for Discord
  */
-export function formatSquadUpdate(squadData, updateType) {
+export function formatSquadUpdate(forceData, updateType) {
   const configs = {
     new_member: {
-      title: ':wave: New Squad Member',
+      title: ':wave: New Force Member',
       color: 0x339af0, // Blue
     },
     search_started: {
@@ -208,7 +208,7 @@ export function formatSquadUpdate(squadData, updateType) {
     },
   };
 
-  const config = configs[updateType] || { title: ':bell: Squad Update', color: 0x339af0 };
+  const config = configs[updateType] || { title: ':bell: Force Update', color: 0x339af0 };
 
   return {
     embeds: [
@@ -217,17 +217,17 @@ export function formatSquadUpdate(squadData, updateType) {
         color: config.color,
         fields: [
           {
-            name: 'Squad',
-            value: squadData.squadName,
+            name: 'Force',
+            value: forceData.forceName,
             inline: true,
           },
           {
             name: 'Case',
-            value: `${squadData.petName} (#${squadData.missionNumber})`,
+            value: `${forceData.petName} (#${forceData.missionNumber})`,
             inline: true,
           },
         ],
-        description: squadData.details || undefined,
+        description: forceData.details || undefined,
         timestamp: new Date().toISOString(),
       },
     ],
@@ -237,7 +237,7 @@ export function formatSquadUpdate(squadData, updateType) {
 /**
  * Format area summary for Discord
  */
-export function formatAreaSummary(squadData) {
+export function formatAreaSummary(forceData) {
   return {
     embeds: [
       {
@@ -245,23 +245,23 @@ export function formatAreaSummary(squadData) {
         color: 0x845ef7, // Purple
         fields: [
           {
-            name: 'Squad',
-            value: squadData.squadName,
+            name: 'Force',
+            value: forceData.forceName,
             inline: true,
           },
           {
             name: 'Areas Searched',
-            value: `${squadData.areasSearched || 0}`,
+            value: `${forceData.areasSearched || 0}`,
             inline: true,
           },
           {
             name: 'Acreage Covered',
-            value: `${squadData.acreageCovered?.toFixed(1) || 0} acres`,
+            value: `${forceData.acreageCovered?.toFixed(1) || 0} acres`,
             inline: true,
           },
           {
             name: 'Active Searchers',
-            value: `${squadData.activeSearchers || 0}`,
+            value: `${forceData.activeSearchers || 0}`,
             inline: true,
           },
         ],
@@ -275,7 +275,7 @@ export function formatAreaSummary(squadData) {
  * Send notification to all configured Discord webhooks for a case
  */
 export async function notifyDiscordChannels(prisma, missionId, messageFormatter, data) {
-  // Get all Discord integrations for squads associated with this case
+  // Get all Discord integrations for forces associated with this case
   const integrations = await prisma.integration.findMany({
     where: {
       type: 'DISCORD',
@@ -283,7 +283,7 @@ export async function notifyDiscordChannels(prisma, missionId, messageFormatter,
       OR: [
         { missionId },
         {
-          rescueSquad: {
+          rescueForce: {
             cases: {
               some: { id: missionId },
             },
@@ -331,11 +331,11 @@ export async function verifyWebhook(webhookUrl) {
  */
 export async function sendTestMessage(webhookUrl) {
   return sendWebhookMessage(webhookUrl, {
-    content: ':white_check_mark: PetRecovery webhook connected successfully! You will receive pet alerts in this channel.',
+    content: ':white_check_mark: ReunitePets webhook connected successfully! You will receive pet alerts in this channel.',
     embeds: [
       {
         title: 'Webhook Verified',
-        description: 'This Discord channel is now linked to PetRecovery. You will receive notifications for lost pet alerts, sightings, and reunions.',
+        description: 'This Discord channel is now linked to ReunitePets. You will receive notifications for lost pet alerts, sightings, and reunions.',
         color: 0x51cf66,
         timestamp: new Date().toISOString(),
       },

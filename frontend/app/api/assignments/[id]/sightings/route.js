@@ -127,10 +127,73 @@ export async function POST(request, { params }) {
       });
     }
 
-    // TODO: Send urgent notifications to:
-    // - Pet owner (immediate push notification + SMS)
-    // - All case participants (push notification)
-    // - Squad leaders (push notification)
+    // Send urgent notifications to owner and participants
+    try {
+      // Get mission and owner details
+      const assignment = await prisma.caseAssignment.findUnique({
+        where: { id: assignmentId },
+        include: {
+          mission: {
+            select: {
+              id: true,
+              missionNumber: true,
+              petName: true,
+              ownerId: true,
+              contactEmail: true,
+              contactPhone: true,
+              contactName: true,
+            },
+          },
+          participants: {
+            where: { status: 'ACTIVE' },
+            select: { userId: true },
+          },
+        },
+      });
+
+      if (assignment?.mission) {
+        const { mission, participants } = assignment;
+        const participantIds = participants.map(p => p.userId);
+        const locationText = address || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+
+        // Send push notifications
+        const { sendSightingPushNotification } = await import('@/app/lib/notifications');
+        await sendSightingPushNotification({
+          ownerId: mission.ownerId,
+          participantIds,
+          petName: mission.petName || 'your pet',
+          missionNumber: mission.missionNumber,
+          location: locationText,
+          confidence: confidenceLevel,
+        });
+
+        // Send email to owner
+        const { sendSightingNotification } = await import('@/app/lib/notifications');
+        if (mission.contactEmail) {
+          await sendSightingNotification({
+            ownerEmail: mission.contactEmail,
+            ownerName: mission.contactName,
+            petName: mission.petName,
+            missionNumber: mission.missionNumber,
+            sightingLocation: locationText,
+            sightingTime: new Date().toLocaleString(),
+            sightingDescription: description || 'No additional details provided',
+            confidenceLevel,
+          });
+        }
+
+        // TODO: Send SMS to owner (requires Twilio integration)
+        // if (mission.contactPhone) {
+        //   await sendSMS({
+        //     to: mission.contactPhone,
+        //     message: `URGENT: ${mission.petName} sighted near ${locationText}! View details: ${process.env.NEXT_PUBLIC_BASE_URL}/cases/${mission.missionNumber}`,
+        //   });
+        // }
+      }
+    } catch (notificationError) {
+      console.error('Error sending sighting notifications:', notificationError);
+      // Don't fail the request if notifications fail
+    }
 
     // Create a system message in chat
     const confidenceText =

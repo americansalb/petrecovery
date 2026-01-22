@@ -1,5 +1,5 @@
 /**
- * Slack Integration for PetRecovery
+ * Slack Integration for ReunitePets
  *
  * Sends notifications to Slack channels via webhooks and app integrations.
  */
@@ -205,11 +205,11 @@ export function formatSightingAlert(sightingData) {
 }
 
 /**
- * Format a squad update for Slack
+ * Format a force update for Slack
  */
-export function formatSquadUpdate(squadData, updateType) {
+export function formatSquadUpdate(forceData, updateType) {
   const titles = {
-    new_member: ':wave: New Squad Member',
+    new_member: ':wave: New Force Member',
     search_started: ':mag: Search Started',
     search_ended: ':checkered_flag: Search Ended',
     area_covered: ':white_check_mark: Area Covered',
@@ -221,7 +221,7 @@ export function formatSquadUpdate(squadData, updateType) {
         type: 'header',
         text: {
           type: 'plain_text',
-          text: titles[updateType] || ':bell: Squad Update',
+          text: titles[updateType] || ':bell: Force Update',
           emoji: true,
         },
       },
@@ -229,7 +229,7 @@ export function formatSquadUpdate(squadData, updateType) {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `*Squad:* ${squadData.squadName}\n*Case:* ${squadData.petName} (#${squadData.missionNumber})`,
+          text: `*Squad:* ${forceData.forceName}\n*Case:* ${forceData.petName} (#${forceData.missionNumber})`,
         },
       },
       {
@@ -237,7 +237,7 @@ export function formatSquadUpdate(squadData, updateType) {
         elements: [
           {
             type: 'mrkdwn',
-            text: squadData.details || 'No additional details',
+            text: forceData.details || 'No additional details',
           },
         ],
       },
@@ -249,7 +249,7 @@ export function formatSquadUpdate(squadData, updateType) {
  * Send notification to all configured Slack webhooks for a case
  */
 export async function notifySlackChannels(prisma, missionId, messageFormatter, data) {
-  // Get all Slack integrations for squads associated with this case
+  // Get all Slack integrations for forces associated with this case
   const integrations = await prisma.integration.findMany({
     where: {
       type: 'SLACK',
@@ -257,7 +257,7 @@ export async function notifySlackChannels(prisma, missionId, messageFormatter, d
       OR: [
         { missionId },
         {
-          rescueSquad: {
+          rescueForce: {
             cases: {
               some: { id: missionId },
             },
@@ -287,7 +287,7 @@ export async function notifySlackChannels(prisma, missionId, messageFormatter, d
 export async function verifyWebhook(webhookUrl) {
   try {
     const testMessage = {
-      text: 'PetRecovery webhook verification - this channel is now connected!',
+      text: 'ReunitePets webhook verification - this channel is now connected!',
     };
 
     const response = await fetch(webhookUrl, {

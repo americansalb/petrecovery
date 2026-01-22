@@ -170,7 +170,7 @@ function MissionControlContent() {
     cancelSearch,
   } = searchSession;
 
-  // Chat - uses mission-level chat API (no squad membership required)
+  // Chat - uses mission-level chat API (no force membership required)
   const chat = useMissionChat(activeMission?.id);
 
   // Search coverage - historical trails from all team members

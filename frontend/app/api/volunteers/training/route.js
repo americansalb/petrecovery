@@ -88,11 +88,11 @@ const TRAINING_MODULES = [
   },
   {
     id: 'leadership',
-    title: 'Squad Leadership Training',
+    title: 'Force Leadership Training',
     description: 'Leading and coordinating search teams',
     duration: 60,
     type: 'interactive',
-    requiredFor: ['SQUAD_LEADER'],
+    requiredFor: ['FORCE_LEADER'],
     order: 10,
   },
 ];
@@ -255,7 +255,7 @@ export async function POST(request) {
       const earnedCertifications = [];
 
       // Check each certification
-      const certTypes = ['BASIC_SEARCH', 'ADVANCED_SEARCH', 'NIGHT_SEARCH', 'TRAP_HANDLING', 'FIRST_AID_PET', 'SQUAD_LEADER'];
+      const certTypes = ['BASIC_SEARCH', 'ADVANCED_SEARCH', 'NIGHT_SEARCH', 'TRAP_HANDLING', 'FIRST_AID_PET', 'FORCE_LEADER'];
 
       for (const certType of certTypes) {
         const requiredModules = TRAINING_MODULES.filter(m => m.requiredFor.includes(certType));

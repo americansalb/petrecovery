@@ -120,7 +120,7 @@ export default function OfflinePage() {
           }}>
             <li style={{ marginBottom: '0.5rem' }}>View previously loaded cases</li>
             <li style={{ marginBottom: '0.5rem' }}>Draft sighting reports (syncs when online)</li>
-            <li style={{ marginBottom: '0.5rem' }}>View cached squad information</li>
+            <li style={{ marginBottom: '0.5rem' }}>View cached force information</li>
             <li>Access saved search areas</li>
           </ul>
         </div>

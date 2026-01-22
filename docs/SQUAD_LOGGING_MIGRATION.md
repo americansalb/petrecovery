@@ -1,6 +1,6 @@
-# Rescue Squad Logging Migration
+# Rescue Force Logging Migration
 
-**Goal:** Migrate all rescue squad endpoints from console.log to structured logEvent() calls
+**Goal:** Migrate all rescue force endpoints from console.log to structured logEvent() calls
 
 **Status:** Ready for Implementation
 **Priority:** High (Next Tactical Priority from VISION.md)
@@ -10,7 +10,7 @@
 
 ## Context
 
-During the "rescue squad search restoration" work (Nov 24), extensive `console.log` statements were added back to aid debugging. These logs are helpful but should now be migrated to structured `logEvent()` calls to:
+During the "rescue force search restoration" work (Nov 24), extensive `console.log` statements were added back to aid debugging. These logs are helpful but should now be migrated to structured `logEvent()` calls to:
 
 1. **Enable error tracking** in Admin Health Dashboard
 2. **Provide searchable event history** via EventLog model
@@ -23,27 +23,27 @@ During the "rescue squad search restoration" work (Nov 24), extensive `console.l
 
 ### Endpoints to Migrate
 
-1. **`/api/rescue-squads` (GET)** - Squad search
+1. **`/api/rescue-forces` (GET)** - Squad search
    - Currently: ~7 console.log statements
    - Events needed: `squad.search_attempted`, `squad.search_completed`, `squad.search_failed`
 
-2. **`/api/rescue-squads` (POST)** - Squad creation
+2. **`/api/rescue-forces` (POST)** - Squad creation
    - Currently: console.log + some console.error
    - Events needed: `squad.create_attempted`, `squad.created`, `squad.create_failed`
 
-3. **`/api/rescue-squads/[id]/join` (POST)** - Join squad
+3. **`/api/rescue-forces/[id]/join` (POST)** - Join squad
    - Status: Already uses logEvent() with legal gating ✅
    - May need review for completeness
 
-4. **`/api/rescue-squads/[id]/leave` (POST)** - Leave squad
+4. **`/api/rescue-forces/[id]/leave` (POST)** - Leave squad
    - Currently: Unknown (needs assessment)
    - Events needed: `squad.leave_attempted`, `squad.left`, `squad.leave_failed`
 
-5. **`/api/rescue-squads/[id]` (GET)** - Get squad details
+5. **`/api/rescue-forces/[id]` (GET)** - Get squad details
    - Currently: Likely console.log
    - Events needed: `squad.detail_viewed`, `squad.detail_failed`
 
-6. **`/api/admin/rescue-squads` endpoints**
+6. **`/api/admin/rescue-forces` endpoints**
    - Status: Unknown (needs assessment)
    - Will determine event types after review
 
@@ -146,9 +146,9 @@ await logEvent({
 
 ## Implementation Tasks
 
-### TASK-SL01: Migrate GET /api/rescue-squads (Search) ✅ COMPLETE
+### TASK-SL01: Migrate GET /api/rescue-forces (Search) ✅ COMPLETE
 
-**File:** `frontend/app/api/rescue-squads/route.js` (GET handler)
+**File:** `frontend/app/api/rescue-forces/route.js` (GET handler)
 
 **Changes:**
 1. Add events:
@@ -170,9 +170,9 @@ await logEvent({
 
 ---
 
-### TASK-SL02: Migrate POST /api/rescue-squads (Create) ✅ COMPLETE
+### TASK-SL02: Migrate POST /api/rescue-forces (Create) ✅ COMPLETE
 
-**File:** `frontend/app/api/rescue-squads/route.js` (POST handler)
+**File:** `frontend/app/api/rescue-forces/route.js` (POST handler)
 
 **Changes:**
 1. Add events:
@@ -197,8 +197,8 @@ await logEvent({
 ### TASK-SL03: Migrate remaining squad endpoints ✅ COMPLETE
 
 **Files:**
-- `frontend/app/api/rescue-squads/[id]/route.js` (GET detail)
-- `frontend/app/api/rescue-squads/[id]/leave/route.js` (POST leave)
+- `frontend/app/api/rescue-forces/[id]/route.js` (GET detail)
+- `frontend/app/api/rescue-forces/[id]/leave/route.js` (POST leave)
 
 **Process:**
 1. Read each endpoint
@@ -255,7 +255,7 @@ await logEvent({
 **Acceptance Criteria:**
 - [x] VISION.md reflects completed migration
 - [x] Task file shows all tasks complete
-- [x] Commit message: "[Tactical] Complete rescue squad logging migration"
+- [x] Commit message: "[Tactical] Complete rescue force logging migration"
 
 ---
 

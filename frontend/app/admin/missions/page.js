@@ -664,7 +664,7 @@ export default function AdminMissionsPage() {
                   <th style={headerStyle}>Location</th>
                   <th style={headerStyle}>Status</th>
                   <th style={headerStyle}>Coordinator</th>
-                  <th style={headerStyle}>Squad</th>
+                  <th style={headerStyle}>Force</th>
                   <th style={headerStyle}>Created</th>
                   <th style={headerStyle}>Notes</th>
                   <th style={{ ...headerStyle, width: '100px', textAlign: 'center' }}>Actions</th>
@@ -741,7 +741,7 @@ export default function AdminMissionsPage() {
                           : '-'}
                       </td>
                       <td style={cellStyle} onClick={() => router.push('/admin/missions/' + caseItem.id)}>
-                        {caseItem.assignedSquad ? (
+                        {caseItem.assignedForce ? (
                           <span style={{
                             padding: '0.25rem 0.5rem',
                             background: '#e0f2fe',
@@ -749,7 +749,7 @@ export default function AdminMissionsPage() {
                             borderRadius: '4px',
                             fontSize: '0.8rem'
                           }}>
-                            {caseItem.assignedSquad.name}
+                            {caseItem.assignedForce.name}
                           </span>
                         ) : (
                           <span style={{ color: '#ef4444', fontWeight: '500' }}>Unassigned</span>

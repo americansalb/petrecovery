@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="petrecovery-simulation",
+    name="reunitepets-simulation",
     version="1.0.0",
     author="Pet Recovery Team",
     description="Monte Carlo simulation engine for lost pet recovery based on behavioral research",
@@ -49,7 +49,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "petrecovery-sim=simulation.demo:main",
+            "reunitepets-sim=simulation.demo:main",
         ],
     },
 )

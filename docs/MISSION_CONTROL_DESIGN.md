@@ -19,7 +19,7 @@ A search and rescue coordination interface that feels like a **real-time operati
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
-│ ◀ MISSION CONTROL          Streamwood Rescue Squad          [Kevin] ▼     │
+│ ◀ MISSION CONTROL          Streamwood Rescue Force          [Kevin] ▼     │
 │     3 active searches • 5 volunteers online • Last activity: 2 min ago    │
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                    │                       │

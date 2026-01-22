@@ -110,7 +110,7 @@ export default function WaiverModal({ isOpen, onClose, onAccepted }) {
               <h3 className="font-bold text-white">Terms of Service</h3>
             </div>
             <p className="text-slate-300 text-sm mb-4 leading-relaxed">
-              You agree to use PetRecovery.org responsibly, respect other users, and follow
+              You agree to use ReunitePets.org responsibly, respect other users, and follow
               all applicable laws. We provide this platform "as is" and you use it at your
               own risk. We're not responsible for pet recovery outcomes.
             </p>
@@ -148,7 +148,7 @@ export default function WaiverModal({ isOpen, onClose, onAccepted }) {
             <p className="text-slate-300 text-sm mb-4 leading-relaxed">
               <strong className="text-white">⚠️ Important:</strong> Pet search and rescue involves risks
               including physical injury, property damage, and animal encounters. By participating, you
-              voluntarily assume these risks and release PetRecovery.org, its users, and partners from
+              voluntarily assume these risks and release ReunitePets.org, its users, and partners from
               liability. You're responsible for your own safety and insurance.
             </p>
             <label className="flex items-start gap-3 cursor-pointer group">

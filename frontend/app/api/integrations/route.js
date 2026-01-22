@@ -29,7 +29,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { type, webhookUrl, missionId, squadId, name } = await request.json();
+    const { type, webhookUrl, missionId, forceId, name } = await request.json();
 
     if (!type || !webhookUrl) {
       return NextResponse.json(
@@ -45,7 +45,7 @@ export async function POST(request) {
       );
     }
 
-    // Verify user has access to the case or squad
+    // Verify user has access to the case or force
     if (missionId) {
       const caseAccess = await prisma.case.findFirst({
         where: {
@@ -65,18 +65,18 @@ export async function POST(request) {
       }
     }
 
-    if (squadId) {
-      const squadAccess = await prisma.rescueSquadMember.findFirst({
+    if (forceId) {
+      const squadAccess = await prisma.rescueForceMember.findFirst({
         where: {
           userId: session.user.id,
-          rescueSquadId: squadId,
+          rescueForceId: forceId,
           role: { in: ['LEADER', 'COORDINATOR'] },
         },
       });
 
       if (!squadAccess) {
         return NextResponse.json(
-          { error: 'Must be squad leader or coordinator' },
+          { error: 'Must be force leader or coordinator' },
           { status: 403 }
         );
       }
@@ -87,7 +87,7 @@ export async function POST(request) {
       type,
       webhookUrl,
       missionId,
-      squadId,
+      forceId,
       name,
     });
 

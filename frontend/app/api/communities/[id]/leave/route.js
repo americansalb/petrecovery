@@ -61,8 +61,8 @@ export async function POST(request, { params }) {
       }
     });
 
-    // Note: Rescue squads are independent of communities (geographically-based).
-    // Squad memberships are not affected by community membership changes.
+    // Note: Rescue forces are independent of communities (geographically-based).
+    // Force memberships are not affected by community membership changes.
 
     await logEvent({
       event_type: 'community.member_left',

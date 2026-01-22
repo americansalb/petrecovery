@@ -137,7 +137,7 @@ export async function POST(request, { params }) {
         assignments: {
           where: { status: 'ACTIVE' },
           select: {
-            squadId: true,
+            forceId: true,
             participants: {
               select: {
                 user: {
@@ -253,7 +253,7 @@ export async function POST(request, { params }) {
             </div>
 
             <p style="color: #6b7280; font-size: 12px; padding: 20px;">
-              Case #${missionData.caseNumber} • PetRecovery.org
+              Case #${missionData.caseNumber} • ReunitePets.org
             </p>
           </div>
         `

@@ -93,7 +93,7 @@ export async function GET(request, { params }) {
         },
         assignments: {
           include: {
-            rescueSquad: {
+            rescueForce: {
               select: {
                 id: true,
                 name: true,

@@ -11,9 +11,19 @@
 import { sendEmail } from '@/app/lib/email';
 import { logEvent } from '@/lib/logging';
 import prisma from '@/app/lib/prisma';
+import webpush from 'web-push';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL;
+
+// Configure web-push with VAPID keys
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT || 'mailto:admin@reunitepets.org',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+}
 
 /**
  * Send confirmation email to contact when public report is submitted
@@ -61,7 +71,7 @@ export async function sendCaseReportConfirmation(missionData, options = {}) {
           <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
             <p>Hi ${missionData.contactName || 'there'},</p>
 
-            <p>Thank you for submitting a lost pet report to PetRecovery.org.</p>
+            <p>Thank you for submitting a lost pet report to ReunitePets.org.</p>
 
             <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
               <h3 style="margin-top: 0; color: #1f2937;">Case Details:</h3>
@@ -89,7 +99,7 @@ export async function sendCaseReportConfirmation(missionData, options = {}) {
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
             <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+              <strong>ReunitePets.org</strong> - Reuniting Lost Pets with Their Families
             </p>
           </div>
         </body>
@@ -237,7 +247,7 @@ export async function sendAdminPublicReportAlert(missionData) {
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
             <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              <strong>PetRecovery.org</strong> - Admin Notification System
+              <strong>ReunitePets.org</strong> - Admin Notification System
             </p>
           </div>
         </body>
@@ -345,7 +355,7 @@ export async function sendCaseStatusUpdate(missionData, previousStatus, newStatu
       'ACTIVE_SEARCH': {
         title: 'Active Search Started',
         icon: '🔍',
-        message: `Rescue squad volunteers are actively searching for ${missionData.petName || 'your pet'} in ${missionData.city}.`,
+        message: `Rescue force volunteers are actively searching for ${missionData.petName || 'your pet'} in ${missionData.city}.`,
         color: '#f59e0b'
       },
       'RESOLVED': {
@@ -407,7 +417,7 @@ export async function sendCaseStatusUpdate(missionData, previousStatus, newStatu
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
             <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+              <strong>ReunitePets.org</strong> - Reuniting Lost Pets with Their Families
             </p>
           </div>
         </body>
@@ -577,7 +587,7 @@ export async function sendFoundPetNotification(data) {
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
             <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+              <strong>ReunitePets.org</strong> - Reuniting Lost Pets with Their Families
             </p>
           </div>
         </body>
@@ -742,7 +752,7 @@ export async function sendSightingNotification(data) {
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
             <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+              <strong>ReunitePets.org</strong> - Reuniting Lost Pets with Their Families
             </p>
           </div>
         </body>
@@ -796,11 +806,11 @@ export async function sendSightingNotification(data) {
 }
 
 /**
- * Send notification to squad members when a case is assigned
+ * Send notification to force members when a case is assigned
  *
  * @param {Object} data - Notification data
  * @param {Array} data.memberEmails - Array of member emails
- * @param {string} data.squadName - Name of the rescue squad
+ * @param {string} data.forceName - Name of the rescue force
  * @param {string} data.petName - Name of the pet
  * @param {string} data.petSpecies - Species of the pet
  * @param {string} data.missionNumber - Mission number
@@ -810,7 +820,7 @@ export async function sendSightingNotification(data) {
 export async function sendCaseAssignmentNotification(data) {
   const {
     memberEmails,
-    squadName,
+    forceName,
     petName,
     petSpecies,
     missionNumber,
@@ -833,7 +843,7 @@ export async function sendCaseAssignmentNotification(data) {
 
         <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
           <p style="font-size: 16px; margin-top: 0;">
-            <strong>${squadName}</strong> has accepted a new case!
+            <strong>${forceName}</strong> has accepted a new case!
           </p>
 
           <div style="background: #dbeafe; border: 2px solid #2563eb; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -845,7 +855,7 @@ export async function sendCaseAssignmentNotification(data) {
             </ul>
           </div>
 
-          <p>As a member of ${squadName}, you can join this search effort!</p>
+          <p>As a member of ${forceName}, you can join this search effort!</p>
 
           <div style="text-align: center; margin: 30px 0;">
             <a href="${BASE_URL}/cases/${missionNumber}/coordinate"
@@ -855,13 +865,13 @@ export async function sendCaseAssignmentNotification(data) {
           </div>
 
           <p style="color: #6b7280; font-size: 14px;">
-            You're receiving this because you're a member of ${squadName}.
+            You're receiving this because you're a member of ${forceName}.
           </p>
 
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
           <p style="color: #6b7280; font-size: 14px; margin: 0;">
-            <strong>PetRecovery.org</strong> - Organized Rescue Squads
+            <strong>ReunitePets.org</strong> - Organized Rescue Forces
           </p>
         </div>
       </body>
@@ -873,7 +883,7 @@ export async function sendCaseAssignmentNotification(data) {
     try {
       const result = await sendEmail({
         to: email,
-        subject: `${squadName}: New case assigned - ${petName || petSpecies} in ${location}`,
+        subject: `${forceName}: New case assigned - ${petName || petSpecies} in ${location}`,
         html
       });
       if (result.success) {
@@ -896,7 +906,7 @@ export async function sendCaseAssignmentNotification(data) {
     result: sent > 0 ? 'success' : 'failure',
     metadata: {
       notification_type: 'case_assignment',
-      squad_name: squadName,
+      force_name: forceName,
       total_recipients: memberEmails.length,
       sent,
       failed
@@ -963,7 +973,7 @@ export async function sendCommunityRequestNotification(data) {
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
           <p style="color: #6b7280; font-size: 14px; margin: 0;">
-            <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+            <strong>ReunitePets.org</strong> - Reuniting Lost Pets with Their Families
           </p>
         </div>
       </body>
@@ -1004,7 +1014,7 @@ export async function sendCommunityRequestNotification(data) {
  *
  * @param {Object} params - Notification parameters
  * @param {string} params.userId - User ID to notify
- * @param {string} params.type - Notification type (CASE_UPDATE, SIGHTING, SQUAD_MESSAGE, SYSTEM)
+ * @param {string} params.type - Notification type (CASE_UPDATE, SIGHTING, FORCE_MESSAGE, SYSTEM)
  * @param {string} params.title - Notification title
  * @param {string} params.message - Notification message
  * @param {Object} params.data - Additional data (will be JSON stringified)
@@ -1114,48 +1124,48 @@ export async function notifyUserSighting({ userId, petName, missionNumber, locat
 }
 
 /**
- * Notify squad members about a case assignment
+ * Notify force members about a case assignment
  */
-export async function notifySquadCaseAssignment({ memberIds, squadName, petName, missionNumber, location }) {
+export async function notifySquadCaseAssignment({ memberIds, forceName, petName, missionNumber, location }) {
   return createBulkNotifications(memberIds, {
-    type: 'SQUAD_MESSAGE',
-    title: `${squadName}: New case assigned`,
-    message: `Your squad has taken on a new case: ${petName} in ${location}. Join the search effort!`,
-    data: { squadName, missionNumber, petName, location },
+    type: 'FORCE_MESSAGE',
+    title: `${forceName}: New case assigned`,
+    message: `Your force has taken on a new case: ${petName} in ${location}. Join the search effort!`,
+    data: { forceName, missionNumber, petName, location },
     actionUrl: `/cases/${missionNumber}/coordinate`,
   });
 }
 
 /**
- * Notify squad leaders about a new member join request
+ * Notify force leaders about a new member join request
  */
-export async function notifySquadJoinRequest({ leaderIds, squadName, squadId, requesterName }) {
+export async function notifySquadJoinRequest({ leaderIds, forceName, forceId, requesterName }) {
   return createBulkNotifications(leaderIds, {
-    type: 'SQUAD_MESSAGE',
-    title: `New join request for ${squadName}`,
-    message: `${requesterName} has requested to join your squad. Review their request.`,
-    data: { squadName, squadId, requesterName },
-    actionUrl: `/rescue-squads/${squadId}/members`,
+    type: 'FORCE_MESSAGE',
+    title: `New join request for ${forceName}`,
+    message: `${requesterName} has requested to join your force. Review their request.`,
+    data: { forceName, forceId, requesterName },
+    actionUrl: `/rescue-forces/${forceId}/members`,
   });
 }
 
 /**
- * Notify user about role change in squad
+ * Notify user about role change in force
  */
-export async function notifyUserRoleChange({ userId, squadName, squadId, newRole, changedBy }) {
+export async function notifyUserRoleChange({ userId, forceName, forceId, newRole, changedBy }) {
   const roleMessages = {
-    LEADER: `You've been promoted to Leader in ${squadName}! You can now manage members and accept cases.`,
-    COORDINATOR: `You've been made a Coordinator in ${squadName}! You can now help organize searches.`,
-    MEMBER: `Your role in ${squadName} has been updated to Member.`,
+    LEADER: `You've been promoted to Leader in ${forceName}! You can now manage members and accept cases.`,
+    COORDINATOR: `You've been made a Coordinator in ${forceName}! You can now help organize searches.`,
+    MEMBER: `Your role in ${forceName} has been updated to Member.`,
   };
 
   return createInAppNotification({
     userId,
-    type: 'SQUAD_MESSAGE',
-    title: `Role updated in ${squadName}`,
-    message: roleMessages[newRole] || `Your role in ${squadName} has been changed to ${newRole}.`,
-    data: { squadName, squadId, newRole, changedBy },
-    actionUrl: `/rescue-squads/${squadId}`,
+    type: 'FORCE_MESSAGE',
+    title: `Role updated in ${forceName}`,
+    message: roleMessages[newRole] || `Your role in ${forceName} has been changed to ${newRole}.`,
+    data: { forceName, forceId, newRole, changedBy },
+    actionUrl: `/rescue-forces/${forceId}`,
   });
 }
 
@@ -1169,5 +1179,252 @@ export async function notifyUserSystem({ userId, title, message, actionUrl = nul
     title,
     message,
     actionUrl,
+  });
+}
+
+// ============================================================================
+// PUSH NOTIFICATIONS
+// ============================================================================
+
+/**
+ * Send push notification to a single subscription
+ *
+ * @param {Object} subscription - Push subscription object
+ * @param {Object} payload - Notification payload
+ * @param {string} payload.title - Notification title
+ * @param {string} payload.body - Notification body
+ * @param {string} payload.icon - Icon URL (optional)
+ * @param {Object} payload.data - Additional data (optional)
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+async function sendSinglePushNotification(subscription, payload) {
+  try {
+    const pushSubscription = {
+      endpoint: subscription.endpoint,
+      keys: {
+        p256dh: subscription.p256dh,
+        auth: subscription.auth,
+      },
+    };
+
+    await webpush.sendNotification(
+      pushSubscription,
+      JSON.stringify(payload)
+    );
+
+    return { success: true };
+  } catch (error) {
+    // Handle expired/invalid subscriptions
+    if (error.statusCode === 404 || error.statusCode === 410) {
+      // Subscription no longer valid - delete it
+      try {
+        await prisma.pushSubscription.deleteMany({
+          where: { endpoint: subscription.endpoint },
+        });
+      } catch (deleteError) {
+        console.error('Error deleting invalid subscription:', deleteError);
+      }
+      return { success: false, error: 'Subscription expired', expired: true };
+    }
+
+    console.error('Error sending push notification:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Send push notification to user(s)
+ *
+ * @param {Object} options - Notification options
+ * @param {string|Array<string>} options.userId - User ID or array of user IDs
+ * @param {string} options.title - Notification title
+ * @param {string} options.body - Notification body
+ * @param {string} options.type - Notification type (SIGHTING, MISSION_STARTED, etc.)
+ * @param {Object} options.data - Additional data to pass to notification
+ * @param {boolean} options.urgent - Whether notification requires interaction
+ * @returns {Promise<{success: boolean, sent: number, failed: number}>}
+ */
+export async function sendPushNotification({
+  userId,
+  title,
+  body,
+  type,
+  data = {},
+  urgent = false,
+}) {
+  // Skip if VAPID keys not configured
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+    console.warn('⚠️  VAPID keys not configured, skipping push notification');
+    return { success: false, sent: 0, failed: 0, error: 'VAPID keys not configured' };
+  }
+
+  try {
+    const userIds = Array.isArray(userId) ? userId : [userId];
+
+    // Get all active push subscriptions for these users
+    const subscriptions = await prisma.pushSubscription.findMany({
+      where: {
+        userId: { in: userIds },
+      },
+    });
+
+    if (subscriptions.length === 0) {
+      console.log(`ℹ️  No push subscriptions found for user(s)`);
+      return { success: true, sent: 0, failed: 0, error: 'No subscriptions' };
+    }
+
+    // Prepare payload
+    const payload = {
+      title,
+      body,
+      icon: '/icons/paw-192.png',
+      badge: '/icons/badge-72.png',
+      tag: `reunitepets-${type}`,
+      data: {
+        type,
+        ...data,
+        urgent,
+      },
+    };
+
+    // Send to all subscriptions
+    let sent = 0;
+    let failed = 0;
+    const sendPromises = subscriptions.map(async (sub) => {
+      const result = await sendSinglePushNotification(sub, payload);
+      if (result.success) {
+        sent++;
+      } else {
+        failed++;
+      }
+    });
+
+    await Promise.all(sendPromises);
+
+    await logEvent({
+      event_type: 'notification.push_sent',
+      resource_type: 'notification',
+      action: 'create',
+      result: sent > 0 ? 'success' : 'failure',
+      metadata: {
+        notification_type: type,
+        total_subscriptions: subscriptions.length,
+        sent,
+        failed,
+      },
+    });
+
+    return { success: sent > 0, sent, failed };
+  } catch (error) {
+    console.error('Error sending push notifications:', error);
+    await logEvent({
+      event_type: 'notification.push_failed',
+      resource_type: 'notification',
+      action: 'create',
+      result: 'failure',
+      error_code: 'PUSH_ERROR',
+      error_message: error.message,
+      metadata: {
+        notification_type: type,
+      },
+    });
+    return { success: false, sent: 0, failed: 0, error: error.message };
+  }
+}
+
+/**
+ * Send push notification about a new sighting to owner and participants
+ */
+export async function sendSightingPushNotification({
+  ownerId,
+  participantIds = [],
+  petName,
+  missionNumber,
+  location,
+  confidence,
+}) {
+  const allUserIds = [ownerId, ...participantIds].filter(Boolean);
+
+  return sendPushNotification({
+    userId: allUserIds,
+    title: `New Sighting: ${petName}!`,
+    body: `Someone spotted ${petName} near ${location}. Confidence: ${confidence}/10`,
+    type: 'SIGHTING',
+    data: {
+      missionNumber,
+      location,
+      confidence,
+    },
+    urgent: confidence >= 7, // High confidence sightings are urgent
+  });
+}
+
+/**
+ * Send push notification when force accepts a case
+ */
+export async function sendMissionAssignmentPushNotification({
+  memberIds,
+  forceName,
+  petName,
+  missionNumber,
+  location,
+}) {
+  return sendPushNotification({
+    userId: memberIds,
+    title: `${forceName}: New Case!`,
+    body: `${petName} lost in ${location}. Join the search!`,
+    type: 'MISSION_STARTED',
+    data: {
+      missionNumber,
+      forceName,
+      petName,
+      location,
+    },
+    urgent: false,
+  });
+}
+
+/**
+ * Send push notification for squad chat messages
+ */
+export async function sendChatMessagePushNotification({
+  participantIds,
+  senderName,
+  messagePreview,
+  missionNumber,
+}) {
+  return sendPushNotification({
+    userId: participantIds,
+    title: `${senderName} (Mission ${missionNumber})`,
+    body: messagePreview,
+    type: 'CHAT_MESSAGE',
+    data: {
+      missionNumber,
+      senderName,
+    },
+    urgent: false,
+  });
+}
+
+/**
+ * Send containment mode alert
+ */
+export async function sendContainmentAlertPushNotification({
+  participantIds,
+  petName,
+  missionNumber,
+  location,
+}) {
+  return sendPushNotification({
+    userId: participantIds,
+    title: `URGENT: ${petName} in Containment Mode!`,
+    body: `Cat hiding detected near ${location}. Do NOT actively search - set up monitoring.`,
+    type: 'CONTAINMENT',
+    data: {
+      missionNumber,
+      petName,
+      location,
+    },
+    urgent: true,
   });
 }

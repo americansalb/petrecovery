@@ -21,7 +21,7 @@ export async function quickJoinCase(missionId, volunteerInfo) {
       assignments: {
         where: { status: 'ACCEPTED' },
         include: {
-          rescueSquad: {
+          rescueForce: {
             include: {
               divisions: true,
             }
@@ -44,14 +44,14 @@ export async function quickJoinCase(missionId, volunteerInfo) {
 
   // If no assignment exists, this is a community case - create ad-hoc participation
   if (!assignment) {
-    // Find nearest squad or create community assignment
+    // Find nearest force or create community assignment
     const nearestSquad = await findNearestSquad(location);
 
     if (nearestSquad) {
       assignment = await prisma.caseAssignment.create({
         data: {
           missionId,
-          rescueSquadId: nearestSquad.id,
+          rescueForceId: nearestSquad.id,
           status: 'ACCEPTED',
           acceptedById: nearestSquad.leaderId || 'system',
         }
@@ -112,7 +112,7 @@ export async function quickJoinCase(missionId, volunteerInfo) {
 
   // Find best division for this volunteer based on location
   const suggestedDivision = await findBestDivision(
-    assignment.rescueSquad,
+    assignment.rescueForce,
     location
   );
 
@@ -132,9 +132,9 @@ export async function quickJoinCase(missionId, volunteerInfo) {
     participantId: participant.id,
     sessionId: searchSession.id,
     assignmentId: assignment.id,
-    squadName: assignment.rescueSquad?.name,
+    forceName: assignment.rescueForce?.name,
     divisionName: suggestedDivision?.name,
-    message: `You're in! ${assignment.rescueSquad?.name || 'The search team'} is glad to have you.`,
+    message: `You're in! ${assignment.rescueForce?.name || 'The search team'} is glad to have you.`,
     nextAction: {
       type: 'VIEW_ASSIGNMENT',
       prompt: 'See where to search',
@@ -188,7 +188,7 @@ async function getOrCreateGuestVolunteer({ deviceId, phone, name, location }) {
   // Create new guest volunteer
   const newGuest = await prisma.user.create({
     data: {
-      email: `guest_${deviceId || Date.now()}@petrecovery.local`,
+      email: `guest_${deviceId || Date.now()}@reunitepets.local`,
       firstName: name || 'Anonymous',
       lastName: 'Helper',
       role: 'GUEST',
@@ -208,14 +208,14 @@ async function getOrCreateGuestVolunteer({ deviceId, phone, name, location }) {
 }
 
 /**
- * Find the nearest active rescue squad
+ * Find the nearest active rescue force
  */
 async function findNearestSquad(location) {
   if (!location?.lat || !location?.lng) {
     return null;
   }
 
-  const squads = await prisma.rescueSquad.findMany({
+  const forces = await prisma.rescueForce.findMany({
     where: { isActive: true },
     select: {
       id: true,
@@ -230,17 +230,17 @@ async function findNearestSquad(location) {
   let nearest = null;
   let minDistance = Infinity;
 
-  for (const squad of squads) {
-    if (!squad.centerLatitude || !squad.centerLongitude) continue;
+  for (const force of forces) {
+    if (!force.centerLatitude || !force.centerLongitude) continue;
 
     const distance = haversineDistance(
       location.lat, location.lng,
-      squad.centerLatitude, squad.centerLongitude
+      force.centerLatitude, force.centerLongitude
     );
 
-    if (distance < minDistance && distance <= (squad.radiusMiles || 50)) {
+    if (distance < minDistance && distance <= (force.radiusMiles || 50)) {
       minDistance = distance;
-      nearest = squad;
+      nearest = force;
     }
   }
 
@@ -248,17 +248,17 @@ async function findNearestSquad(location) {
 }
 
 /**
- * Find the best division within a squad for a volunteer
+ * Find the best division within a force for a volunteer
  */
-async function findBestDivision(squad, location) {
-  if (!squad?.divisions?.length || !location?.lat || !location?.lng) {
+async function findBestDivision(force, location) {
+  if (!force?.divisions?.length || !location?.lat || !location?.lng) {
     return null;
   }
 
   let bestDivision = null;
   let minDistance = Infinity;
 
-  for (const division of squad.divisions) {
+  for (const division of force.divisions) {
     if (!division.isActive || !division.centerLatitude || !division.centerLongitude) {
       continue;
     }
@@ -338,7 +338,7 @@ export async function getVolunteerStatus(missionId, userId) {
       assignment: {
         include: {
           case: true,
-          rescueSquad: true,
+          rescueForce: true,
           _count: { select: { participants: { where: { isActive: true } } } }
         }
       }
@@ -368,7 +368,7 @@ export async function getVolunteerStatus(missionId, userId) {
     sessionStatus: session?.status || 'READY',
     assignedCell: session?.gridCell,
     division: session?.division,
-    squadName: participation.assignment.rescueSquad?.name,
+    forceName: participation.assignment.rescueForce?.name,
     activeVolunteers: participation.assignment._count.participants,
     myStats: {
       searchHours: participation.searchHours,

@@ -1,4 +1,4 @@
-# PetRecovery.org - Launch Phases
+# ReunitePets.org - Launch Phases
 
 > **Generated:** 2025-11-29
 > **Status:** Pre-Launch Assessment Complete
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-After comprehensive codebase analysis, PetRecovery.org is **more complete than initially assessed**:
+After comprehensive codebase analysis, ReunitePets.org is **more complete than initially assessed**:
 
 | Component | Status | Completeness |
 |-----------|--------|--------------|
@@ -541,15 +541,15 @@ describe('Lost Pet Recovery Flow', () => {
 ```env
 # Required for production
 DATABASE_URL=postgresql://...
-NEXTAUTH_URL=https://petrecovery.org
+NEXTAUTH_URL=https://reunitepets.org
 NEXTAUTH_SECRET=<32+ char secret>
 
 # Email (required)
 EMAIL_SERVICE=gmail
 EMAIL_USER=...
 EMAIL_PASSWORD=...
-EMAIL_FROM=noreply@petrecovery.org
-ADMIN_NOTIFICATION_EMAIL=admin@petrecovery.org
+EMAIL_FROM=noreply@reunitepets.org
+ADMIN_NOTIFICATION_EMAIL=admin@reunitepets.org
 
 # File Storage (required)
 BUNNY_STORAGE_ZONE=...

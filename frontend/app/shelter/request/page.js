@@ -207,7 +207,7 @@ export default function ShelterRequestPage() {
               </div>
               <div>
                 <div className="font-medium text-gray-800">Public Profile</div>
-                <div className="text-sm text-gray-500">Your own page on PetRecovery</div>
+                <div className="text-sm text-gray-500">Your own page on ReunitePets</div>
               </div>
             </div>
             <div className="flex items-start gap-3">

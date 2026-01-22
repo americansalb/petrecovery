@@ -1,7 +1,7 @@
 {
-  "name": "petrecovery",
+  "name": "reunitepets",
   "version": "1.0.0",
-  "description": "PetRecovery.org - Lost Pet Recovery Platform",
+  "description": "ReunitePets.org - Lost Pet Recovery Platform",
   "scripts": {
     "build": "cd frontend && npm install && npm run build",
     "start": "cd frontend && npm start"

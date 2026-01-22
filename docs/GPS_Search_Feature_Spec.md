@@ -441,7 +441,7 @@ function calculatePoints(session) {
 ```
 ┌────────────────────────────────────────┐
 │  🔍 Search Active - 0.8 mi             │
-│  Tap to return to PetRecovery          │
+│  Tap to return to ReunitePets          │
 └────────────────────────────────────────┘
 ```
 

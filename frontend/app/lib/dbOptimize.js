@@ -50,7 +50,7 @@ export async function getCaseOptimized(missionId, options = {}) {
         assignments: {
           select: {
             id: true,
-            rescueSquad: {
+            rescueForce: {
               select: { id: true, name: true },
             },
             participants: {
@@ -190,12 +190,12 @@ export async function batchGetUsers(userIds) {
 }
 
 /**
- * Get squad with member count (optimized)
+ * Get force with member count (optimized)
  */
-export async function getSquadWithStats(squadId) {
-  const [squad, memberCount, activeCaseCount] = await Promise.all([
-    prisma.rescueSquad.findUnique({
-      where: { id: squadId },
+export async function getSquadWithStats(forceId) {
+  const [force, memberCount, activeCaseCount] = await Promise.all([
+    prisma.rescueForce.findUnique({
+      where: { id: forceId },
       select: {
         id: true,
         name: true,
@@ -205,26 +205,26 @@ export async function getSquadWithStats(squadId) {
         state: true,
         isActive: true,
         isAcceptingCases: true,
-        rescueSquadLevel: true,
+        rescueForceLevel: true,
         totalCasesCompleted: true,
         successfulReunions: true,
       },
     }),
-    prisma.rescueSquadMember.count({
-      where: { rescueSquadId: squadId, isActive: true },
+    prisma.rescueForceMember.count({
+      where: { rescueForceId: forceId, isActive: true },
     }),
     prisma.caseAssignment.count({
       where: {
-        rescueSquadId: squadId,
+        rescueForceId: forceId,
         status: { in: ['ACCEPTED', 'ACTIVE'] },
       },
     }),
   ]);
 
-  if (!squad) return null;
+  if (!force) return null;
 
   return {
-    ...squad,
+    ...force,
     memberCount,
     activeCaseCount,
   };
@@ -316,13 +316,13 @@ export async function getAggregatedStats() {
         activeMissions,
         reunions,
         totalUsers,
-        totalSquads,
+        totalForces,
       ] = await Promise.all([
         prisma.case.count(),
         prisma.case.count({ where: { status: { in: ['ACTIVE', 'IN_PROGRESS'] } } }),
         prisma.case.count({ where: { status: 'REUNITED' } }),
         prisma.user.count(),
-        prisma.rescueSquad.count({ where: { isActive: true, isDeleted: false } }),
+        prisma.rescueForce.count({ where: { isActive: true, isDeleted: false } }),
       ]);
 
       return {
@@ -331,7 +331,7 @@ export async function getAggregatedStats() {
         reunions,
         reunionRate: totalCases > 0 ? (reunions / totalCases * 100).toFixed(1) : 0,
         totalUsers,
-        totalSquads,
+        totalForces,
         updatedAt: new Date().toISOString(),
       };
     },

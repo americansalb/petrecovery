@@ -42,7 +42,7 @@ const PROTECTED_ROUTES = [
   '/settings',
   '/missions/new',
   '/missions/edit',
-  '/rescue-squads/create',
+  '/rescue-forces/create',
   '/admin',
 ];
 

@@ -7,7 +7,7 @@ import { createHash } from 'crypto';
 
 // Blockchain configuration
 const CHAIN_CONFIG = {
-  networkId: 'petrecovery-mainnet',
+  networkId: 'reunitepets-mainnet',
   contractAddress: '0x1234567890abcdef...', // Placeholder
   apiEndpoint: process.env.BLOCKCHAIN_API_URL,
 };
@@ -59,7 +59,7 @@ export async function createPetIdentity(petData, ownerWallet) {
     microchipId: petData.microchipId,
     distinctiveMarks: petData.distinctiveMarks,
     registeredAt: new Date().toISOString(),
-    registeredBy: 'PetRecovery.org',
+    registeredBy: 'ReunitePets.org',
   };
 
   // Create blockchain transaction
@@ -82,7 +82,7 @@ export async function createPetIdentity(petData, ownerWallet) {
     transactionHash: txHash,
     imageHash,
     metadata,
-    explorerUrl: `https://explorer.petrecovery.org/token/${tokenId}`,
+    explorerUrl: `https://explorer.reunitepets.org/token/${tokenId}`,
   };
 }
 
@@ -167,7 +167,7 @@ export async function getPetIdentity(tokenId) {
     ownershipHistory,
     verificationStatus,
     isVerified: verificationStatus.verified,
-    blockchainUrl: `https://explorer.petrecovery.org/token/${tokenId}`,
+    blockchainUrl: `https://explorer.reunitepets.org/token/${tokenId}`,
   };
 }
 
@@ -198,7 +198,7 @@ export async function registerMicrochip(tokenId, microchipData) {
     success: true,
     transactionHash: txHash,
     microchipRegistered: true,
-    verificationUrl: `https://verify.petrecovery.org/chip/${hashMicrochip(chipNumber)}`,
+    verificationUrl: `https://verify.reunitepets.org/chip/${hashMicrochip(chipNumber)}`,
   };
 }
 
@@ -271,7 +271,7 @@ export async function generatePetNFT(tokenId, options = {}) {
 
   const nftMetadata = {
     name: `${petIdentity.metadata.name} - Pet Identity Certificate`,
-    description: `Official PetRecovery.org identity certificate for ${petIdentity.metadata.name}`,
+    description: `Official ReunitePets.org identity certificate for ${petIdentity.metadata.name}`,
     image: petIdentity.imageHash
       ? `ipfs://${petIdentity.imageHash}`
       : 'ipfs://default-pet-image-hash',
@@ -282,7 +282,7 @@ export async function generatePetNFT(tokenId, options = {}) {
       { trait_type: 'Microchip Verified', value: petIdentity.metadata.microchipId ? 'Yes' : 'No' },
       { trait_type: 'Verification Status', value: petIdentity.isVerified ? 'Verified' : 'Pending' },
     ],
-    external_url: `https://petrecovery.org/pet/${tokenId}`,
+    external_url: `https://reunitepets.org/pet/${tokenId}`,
   };
 
   // Mint NFT (simulated)
@@ -302,7 +302,7 @@ export async function generatePetNFT(tokenId, options = {}) {
     nftId: `NFT-${tokenId}`,
     transactionHash: txHash,
     metadata: nftMetadata,
-    openSeaUrl: `https://opensea.io/assets/petrecovery/${tokenId}`,
+    openSeaUrl: `https://opensea.io/assets/reunitepets/${tokenId}`,
   };
 }
 
@@ -334,7 +334,7 @@ export async function searchDecentralizedRegistry(query) {
       lastSeenLocation: r.lastSeenLocation,
       rewardAmount: r.rewardAmount,
       reportedAt: r.reportedAt,
-      verificationUrl: `https://verify.petrecovery.org/pet/${r.tokenId}`,
+      verificationUrl: `https://verify.reunitepets.org/pet/${r.tokenId}`,
     })),
     totalCount: results.length,
     searchedNodes: 5,
@@ -408,7 +408,7 @@ async function getOwnershipHistory(tokenId) {
 }
 
 async function getVerificationStatus(tokenId) {
-  return { verified: true, verifiedAt: '2024-01-16T08:00:00Z', verifier: 'PetRecovery.org' };
+  return { verified: true, verifiedAt: '2024-01-16T08:00:00Z', verifier: 'ReunitePets.org' };
 }
 
 async function recordOwnershipChange(tokenId, from, to, txHash, reason) {

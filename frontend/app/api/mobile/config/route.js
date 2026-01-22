@@ -13,7 +13,7 @@ export async function GET(request) {
   const config = {
     // API configuration
     api: {
-      baseUrl: process.env.NEXT_PUBLIC_BASE_URL || 'https://petrecovery.org',
+      baseUrl: process.env.NEXT_PUBLIC_BASE_URL || 'https://reunitepets.org',
       version: 'v1',
       timeout: 30000,
     },
@@ -34,13 +34,13 @@ export async function GET(request) {
     platform: {
       ios: {
         minVersion: '14.0',
-        appStoreUrl: 'https://apps.apple.com/app/petrecovery',
-        bundleId: 'org.petrecovery.app',
+        appStoreUrl: 'https://apps.apple.com/app/reunitepets',
+        bundleId: 'org.reunitepets.app',
       },
       android: {
         minSdk: 26,
-        playStoreUrl: 'https://play.google.com/store/apps/details?id=org.petrecovery.app',
-        packageName: 'org.petrecovery.app',
+        playStoreUrl: 'https://play.google.com/store/apps/details?id=org.reunitepets.app',
+        packageName: 'org.reunitepets.app',
       },
     },
 
@@ -50,8 +50,8 @@ export async function GET(request) {
       minSupportedVersion: '1.0.0',
       forceUpdate: false,
       updateUrl: platform === 'ios'
-        ? 'https://apps.apple.com/app/petrecovery'
-        : 'https://play.google.com/store/apps/details?id=org.petrecovery.app',
+        ? 'https://apps.apple.com/app/reunitepets'
+        : 'https://play.google.com/store/apps/details?id=org.reunitepets.app',
     },
 
     // Map configuration
@@ -82,8 +82,8 @@ export async function GET(request) {
       },
       {
         id: 'squad_messages',
-        name: 'Squad Messages',
-        description: 'Messages from your rescue squads',
+        name: 'Force Messages',
+        description: 'Messages from your rescue forces',
         importance: 'default',
         sound: true,
         vibrate: false,
@@ -100,11 +100,11 @@ export async function GET(request) {
 
     // Deep linking configuration
     deepLinks: {
-      scheme: 'petrecovery',
-      prefixes: ['https://petrecovery.org', 'petrecovery://'],
+      scheme: 'reunitepets',
+      prefixes: ['https://reunitepets.org', 'reunitepets://'],
       routes: {
         case: '/missions/:id',
-        squad: '/squads/:id',
+        force: '/forces/:id',
         profile: '/users/:id',
         sighting: '/sighting/:missionId',
         search: '/search',
@@ -128,9 +128,9 @@ export async function GET(request) {
 
     // Support
     support: {
-      email: 'support@petrecovery.org',
-      helpUrl: 'https://petrecovery.org/help',
-      feedbackUrl: 'https://petrecovery.org/feedback',
+      email: 'support@reunitepets.org',
+      helpUrl: 'https://reunitepets.org/help',
+      feedbackUrl: 'https://reunitepets.org/feedback',
     },
   };
 

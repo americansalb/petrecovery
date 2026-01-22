@@ -161,10 +161,10 @@ export async function updateUserLocation(userId, latitude, longitude) {
 }
 
 /**
- * Get rescue squads covering a location
+ * Get rescue forces covering a location
  */
 export async function getSquadsCoveringLocation(latitude, longitude) {
-  const squads = await prisma.rescueSquad.findMany({
+  const forces = await prisma.rescueForce.findMany({
     where: {
       isActive: true,
       isAcceptingCases: true,
@@ -181,19 +181,19 @@ export async function getSquadsCoveringLocation(latitude, longitude) {
     },
   });
 
-  return squads.filter((squad) => {
-    if (!squad.centerLatitude || !squad.centerLongitude) return false;
+  return forces.filter((force) => {
+    if (!force.centerLatitude || !force.centerLongitude) return false;
     const distance = calculateDistance(
       latitude, longitude,
-      squad.centerLatitude, squad.centerLongitude
+      force.centerLatitude, force.centerLongitude
     );
-    return distance <= (squad.radiusMiles || 10);
-  }).map((squad) => ({
-    ...squad,
-    memberCount: squad._count.members,
+    return distance <= (force.radiusMiles || 10);
+  }).map((force) => ({
+    ...force,
+    memberCount: force._count.members,
     distance: calculateDistance(
       latitude, longitude,
-      squad.centerLatitude, squad.centerLongitude
+      force.centerLatitude, force.centerLongitude
     ),
   }));
 }

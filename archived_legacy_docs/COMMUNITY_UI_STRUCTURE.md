@@ -68,7 +68,7 @@ This document outlines all pages, components, and user interface elements needed
 ├─────────────────────────────────────────────────┤
 │ Request Community Creation                      │
 │                                                 │
-│ Help us expand PetRecovery to your area!       │
+│ Help us expand ReunitePets to your area!       │
 │                                                 │
 │ Community Type                                  │
 │ ○ Metropolitan Area / County                   │

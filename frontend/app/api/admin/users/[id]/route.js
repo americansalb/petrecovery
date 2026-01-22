@@ -24,8 +24,8 @@ export async function GET(request, { params }) {
       where: { id: params.id },
       include: {
         profile: true,
-        rescueSquadMemberships: {
-          include: { rescueSquad: { select: { id: true, name: true } } },
+        rescueForceMemberships: {
+          include: { rescueForce: { select: { id: true, name: true } } },
         },
         cases: {
           take: 10,

@@ -192,7 +192,7 @@ export default function ReportDetailPage() {
     );
   }
 
-  const { report, pet, reporter, sightings, potentialMatches, isOwner, missionControl, rescueSquads } = data;
+  const { report, pet, reporter, sightings, potentialMatches, isOwner, missionControl, rescueForces } = data;
 
   return (
     <div style={{
@@ -371,7 +371,7 @@ export default function ReportDetailPage() {
         </div>
 
         {/* Mission Control Banner */}
-        {(missionControl || rescueSquads?.length > 0) && (
+        {(missionControl || rescueForces?.length > 0) && (
           <Link
             href={`/mission-control?caseId=${report.id}`}
             style={{
@@ -426,8 +426,8 @@ export default function ReportDetailPage() {
                   fontSize: '0.95rem',
                   color: 'rgba(255, 255, 255, 0.7)',
                 }}>
-                  {rescueSquads?.length > 0 ? (
-                    <>Managed by <strong style={{ color: '#FFCE47' }}>{rescueSquads.map(s => s.name).join(', ')}</strong></>
+                  {rescueForces?.length > 0 ? (
+                    <>Managed by <strong style={{ color: '#FFCE47' }}>{rescueForces.map(s => s.name).join(', ')}</strong></>
                   ) : (
                     'Coordinate the search effort'
                   )}

@@ -18,7 +18,7 @@ export async function GET(request, { params }) {
         case: {
           select: { id: true, petName: true, caseNumber: true },
         },
-        rescueSquad: {
+        rescueForce: {
           select: { id: true, name: true },
         },
       },

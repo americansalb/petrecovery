@@ -180,7 +180,7 @@ For v1:
 
 - Total users
 - Total cities
-- Total rescue squads
+- Total rescue forces
 - (Later additions: total missions, sightings, notifications, etc.)
 
 Backend endpoint: `GET /api/admin/health/metrics`
@@ -349,7 +349,7 @@ Assume TypeScript backend (e.g., Node/Express/Nest/Next API routes), but this is
 
 **Metrics:**
 
-- Direct DB counts (users, cities, rescue squads).
+- Direct DB counts (users, cities, rescue forces).
 - For small scale, simple count queries are OK.
 
 ### 6.3 Performance Considerations
@@ -480,7 +480,7 @@ This feature is done when:
 - [ ] `/admin/health` is reachable and gated by admin auth.
 - [ ] Service health panel shows DB + geocoding (+ email if applicable).
 - [ ] Recent errors panel shows aggregated failures from the last 24h + sample events.
-- [ ] Metrics panel shows counts for users, cities, rescue squads.
+- [ ] Metrics panel shows counts for users, cities, rescue forces.
 - [ ] Tools panel supports:
   - [ ] Test geocoding
   - [ ] Test email

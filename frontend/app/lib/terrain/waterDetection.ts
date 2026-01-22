@@ -97,7 +97,7 @@ async function checkWaterIsItWaterAPI(pos: Position): Promise<WaterCheckResult |
   try {
     const url = `https://isitwater.com/api/v1?latitude=${pos.lat}&longitude=${pos.lng}`;
     const response = await fetch(url, {
-      headers: { 'User-Agent': 'PetRecovery/1.0' },
+      headers: { 'User-Agent': 'ReunitePets/1.0' },
     });
 
     if (!response.ok) return null;
@@ -123,7 +123,7 @@ async function checkWaterOnwaterAPI(pos: Position): Promise<WaterCheckResult | n
   try {
     const url = `https://api.onwater.io/api/v1/results/${pos.lat},${pos.lng}`;
     const response = await fetch(url, {
-      headers: { 'User-Agent': 'PetRecovery/1.0' },
+      headers: { 'User-Agent': 'ReunitePets/1.0' },
     });
 
     if (!response.ok) return null;

@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/missions/[id]/notes - Add note to case
- * Allowed: Mission owner, admin, or squad member assigned to this case
+ * Allowed: Mission owner, admin, or force member assigned to this case
  */
 export async function POST(request, { params }) {
   const startTime = Date.now();
@@ -52,7 +52,7 @@ export async function POST(request, { params }) {
         reporterId: true,
         assignments: {
           select: {
-            rescueSquadId: true,
+            rescueForceId: true,
             participants: {
               where: { userId: session.user.id },
               select: { id: true }

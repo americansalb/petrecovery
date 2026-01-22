@@ -9,7 +9,7 @@ import webpush from 'web-push';
 // Configure web-push with VAPID keys
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:notifications@petrecovery.org';
+const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:notifications@reunitepets.org';
 
 if (vapidPublicKey && vapidPrivateKey) {
   webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
@@ -186,16 +186,16 @@ export const PUSH_TEMPLATES = {
   }),
 
   /**
-   * Squad activity notification
+   * Force activity notification
    */
-  SQUAD_ACTIVITY: (squadName, message, squadId) => ({
-    title: `🦮 ${squadName}`,
+  FORCE_ACTIVITY: (forceName, message, forceId) => ({
+    title: `🦮 ${forceName}`,
     body: message,
-    icon: '/icons/squad-icon.png',
-    tag: `squad-${squadId}`,
-    type: 'SQUAD_ACTIVITY',
-    url: `/rescue-squads/${squadId}`,
-    data: { squadId, type: 'SQUAD_ACTIVITY' },
+    icon: '/icons/force-icon.png',
+    tag: `force-${forceId}`,
+    type: 'FORCE_ACTIVITY',
+    url: `/rescue-forces/${forceId}`,
+    data: { forceId, type: 'FORCE_ACTIVITY' },
   }),
 
   /**

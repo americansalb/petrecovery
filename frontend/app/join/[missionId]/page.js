@@ -27,10 +27,10 @@ export default function JoinMissionPage() {
 
   // Generate or retrieve device ID
   useEffect(() => {
-    let id = localStorage.getItem('petrecovery_device_id');
+    let id = localStorage.getItem('reunitepets_device_id');
     if (!id) {
       id = 'dev_' + Math.random().toString(36).substring(2, 15);
-      localStorage.setItem('petrecovery_device_id', id);
+      localStorage.setItem('reunitepets_device_id', id);
     }
     setDeviceId(id);
 
@@ -141,14 +141,14 @@ export default function JoinMissionPage() {
     }
   };
 
-  // Go to squad coordination page
+  // Go to force coordination page
   const goToMission = () => {
-    // Try to redirect to squad page if available
-    const squadId = mission?.case?.assignments?.[0]?.rescueSquad?.id;
-    if (squadId) {
-      router.push(`/rescue-squads/${squadId}?joined=true`);
+    // Try to redirect to force page if available
+    const forceId = mission?.case?.assignments?.[0]?.rescueForce?.id;
+    if (forceId) {
+      router.push(`/rescue-forces/${forceId}?joined=true`);
     } else {
-      // Fallback to case page if no squad
+      // Fallback to case page if no force
       router.push(`/cases/${mission?.case?.caseNumber || missionId}?volunteer=${volunteerId}`);
     }
   };

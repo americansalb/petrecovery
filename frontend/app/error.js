@@ -8,6 +8,7 @@
  */
 
 import { useEffect } from 'react';
+import * as Sentry from '@sentry/nextjs';
 
 export default function Error({ error, reset }) {
   useEffect(() => {
@@ -20,7 +21,16 @@ export default function Error({ error, reset }) {
     console.error(`[ERROR-PAGE] Timestamp: ${new Date().toISOString()}`);
     console.error('========================================');
 
-    // TODO: Send to error tracking service in production
+    // Send to Sentry error tracking
+    Sentry.captureException(error, {
+      tags: {
+        component: 'error-boundary',
+        digest: error.digest,
+      },
+      extra: {
+        timestamp: new Date().toISOString(),
+      },
+    });
   }, [error]);
 
   const handleRetry = () => {
@@ -160,7 +170,7 @@ export default function Error({ error, reset }) {
         }}>
           If this keeps happening, try clearing your browser cache or{' '}
           <a
-            href="mailto:support@petrecovery.org"
+            href="mailto:support@reunitepets.org"
             style={{ color: '#2563eb', textDecoration: 'none' }}
           >
             contact support

@@ -138,7 +138,7 @@ export async function geocodePostalCode(postalCode, countryCode = 'US') {
       `https://nominatim.openstreetmap.org/search?postalcode=${postalCode}&country=${countryCode}&format=json&limit=1`,
       {
         headers: {
-          'User-Agent': 'PetRecovery.org'
+          'User-Agent': 'ReunitePets.org'
         }
       }
     );

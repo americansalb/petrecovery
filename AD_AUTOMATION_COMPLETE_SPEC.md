@@ -1,4 +1,4 @@
-# PetRecovery.org - Complete Ad Automation & Monetization Specification
+# ReunitePets.org - Complete Ad Automation & Monetization Specification
 
 **Document Purpose:** Complete specification capturing all research, decisions, technical architecture, and implementation details for the ad automation monetization system.
 
@@ -12,7 +12,7 @@
 
 > "Give away everything that can be free. Only monetize where there are real external costs, and take a small margin on top."
 
-This is the foundation of PetRecovery.org's approach:
+This is the foundation of ReunitePets.org's approach:
 
 - **Free forever:** Visibility/priority (based on urgency, recency, proximity - never money), reward facilitation, poster generation, shelter tools, all core features for finding pets
 - **Monetize only:** Things with unavoidable external costs (ad spend) where we provide real value (campaign management)
@@ -85,7 +85,7 @@ Social media ads are ONE tool in a toolkit, not magic. The honest pitch is:
 
 > "Ads increase your chances. They're not guaranteed, but they put your pet in front of thousands of local eyes who might have seen something. Combined with physical searching, flyers, and shelter checks, you maximize your odds."
 
-PetRecovery.org is better positioned than PawBoost because we also have:
+ReunitePets.org is better positioned than PawBoost because we also have:
 - Volunteer search coordination (physical searching - the #1 method)
 - AI matching with found pets
 - Shelter integration
@@ -184,7 +184,7 @@ This means:
 Reddit's API is bot-friendly. The legitimate approach:
 
 1. Identify top 50 local subreddits by population (r/chicago, r/nyc, r/losangeles, etc.)
-2. Message each mod team: "We're PetRecovery.org - can we post lost pet alerts for your area?"
+2. Message each mod team: "We're ReunitePets.org - can we post lost pet alerts for your area?"
 3. Track which subs approve us
 4. Build bot to only post to approved subs
 5. Expand over time
@@ -257,7 +257,7 @@ Pet found!
               ↓
 "Max is home! Thank you to 12 contributors!"
               ↓
-Optional: Gratitude tip to PetRecovery
+Optional: Gratitude tip to ReunitePets
 ```
 
 ### Pricing Structure
@@ -481,7 +481,7 @@ Users see exactly where their money goes:
 ```
 💰 YOUR $40 CAMPAIGN
 
-Platform fee (15%):           $6.00  → Keeps PetRecovery running
+Platform fee (15%):           $6.00  → Keeps ReunitePets running
 Ad spend:                    $34.00
 
 Where ads will run:
@@ -1067,7 +1067,7 @@ export class MetaAdService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           access_token: this.accessToken,
-          name: `PetRecovery - ${caseId}`,
+          name: `ReunitePets - ${caseId}`,
           objective: 'OUTCOME_AWARENESS',
           status: 'ACTIVE',
           special_ad_categories: [], // Lost pet ads don't fall under special categories
@@ -1087,7 +1087,7 @@ export class MetaAdService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           access_token: this.accessToken,
-          name: `PetRecovery AdSet - ${caseId}`,
+          name: `ReunitePets AdSet - ${caseId}`,
           campaign_id: campaign.id,
           billing_event: 'IMPRESSIONS',
           optimization_goal: 'REACH',
@@ -1121,7 +1121,7 @@ export class MetaAdService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           access_token: this.accessToken,
-          name: `PetRecovery Creative - ${caseId}`,
+          name: `ReunitePets Creative - ${caseId}`,
           object_story_spec: JSON.stringify({
             page_id: this.pageId,
             link_data: {
@@ -1149,7 +1149,7 @@ export class MetaAdService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           access_token: this.accessToken,
-          name: `PetRecovery Ad - ${caseId}`,
+          name: `ReunitePets Ad - ${caseId}`,
           adset_id: adSet.id,
           creative: JSON.stringify({ creative_id: adCreative.id }),
           status: 'ACTIVE',
@@ -1255,7 +1255,7 @@ export class GoogleAdService {
 
     // 1. Create Campaign (Demand Gen type)
     const campaign = await customer.campaigns.create({
-      name: `PetRecovery - ${caseId}`,
+      name: `ReunitePets - ${caseId}`,
       advertising_channel_type: 'DEMAND_GEN', // This is for Discovery/YouTube/Gmail
       status: 'ENABLED',
       campaign_budget: {
@@ -1269,7 +1269,7 @@ export class GoogleAdService {
     // 2. Create Ad Group with targeting
     const adGroup = await customer.adGroups.create({
       campaign: campaign.resource_name,
-      name: `PetRecovery AdGroup - ${caseId}`,
+      name: `ReunitePets AdGroup - ${caseId}`,
       status: 'ENABLED',
       type: 'DEMAND_GEN_PRODUCT_AD',
     });
@@ -1289,7 +1289,7 @@ export class GoogleAdService {
 
     // 4. Create Asset (image)
     const imageAsset = await customer.assets.create({
-      name: `PetRecovery Image - ${caseId}`,
+      name: `ReunitePets Image - ${caseId}`,
       type: 'IMAGE',
       image_asset: {
         data: await this.fetchImageAsBase64(creative.imageUrl),
@@ -1304,7 +1304,7 @@ export class GoogleAdService {
         description: { text: creative.description },
         logo: { asset: imageAsset.resource_name },
         marketing_image: { asset: imageAsset.resource_name },
-        business_name: 'PetRecovery',
+        business_name: 'ReunitePets',
         call_to_action_text: 'Learn More',
         final_urls: [creative.linkUrl],
       },
@@ -1771,7 +1771,7 @@ STRIPE_CHARGEBACK_PROTECTION=true  # Enable 0.4% protection
 
 ## Part 11: Competitive Advantages Over PawBoost
 
-| Feature | PawBoost | PetRecovery |
+| Feature | PawBoost | ReunitePets |
 |---------|----------|-------------|
 | Facebook/Instagram ads | ✅ | ✅ |
 | YouTube/Gmail/Discover ads | ❌ | ✅ |
@@ -1804,7 +1804,7 @@ STRIPE_CHARGEBACK_PROTECTION=true  # Enable 0.4% protection
 
 ## Summary
 
-This document captures the complete monetization strategy for PetRecovery.org:
+This document captures the complete monetization strategy for ReunitePets.org:
 
 **Core model:** Crowdfunded ad campaigns with 15% platform fee, $25 minimum
 

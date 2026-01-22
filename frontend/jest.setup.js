@@ -12,7 +12,7 @@ process.env.SMTP_HOST = 'localhost';
 process.env.SMTP_PORT = '1025';
 process.env.SMTP_USER = 'test';
 process.env.SMTP_PASS = 'test';
-process.env.SMTP_FROM = 'test@petrecovery.org';
+process.env.SMTP_FROM = 'test@reunitepets.org';
 
 // Extend Jest matchers if needed
 expect.extend({

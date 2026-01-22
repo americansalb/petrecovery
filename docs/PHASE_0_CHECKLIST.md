@@ -25,8 +25,8 @@ Before we treat MASTER_PLAN.md (Phases 1–108) as executable, these items MUST 
   - **UI:** Errors tab with table + detail drawer showing 10 sample events
 - [x] Key metrics:
   - [x] Total users
-  - [x] Total cities (unique city+state pairs from rescue squads)
-  - [x] Total rescue squads
+  - [x] Total cities (unique city+state pairs from rescue forces)
+  - [x] Total rescue forces
   - [ ] (Later) Total missions, total sightings, total notifications.
   - **Implementation:** `GET /api/admin/health/metrics`
   - **UI:** Metrics Grid with 6 cards (users, cities, squads, active squads, members, active members)
@@ -49,7 +49,7 @@ Before we treat MASTER_PLAN.md (Phases 1–108) as executable, these items MUST 
   - **Location:** `lib/logging.js`
   - **Features:** Auto-timestamps (ISO8601), UUID correlation IDs, metadata size limits (10KB), async DB persistence
 - [x] All rescue-squad–related flows use `logEvent` instead of `console.log`.
-  - **Note:** Admin health endpoints use `logEvent()`. Legacy rescue squad endpoints still use console.log (migration pending)
+  - **Note:** Admin health endpoints use `logEvent()`. Legacy rescue force endpoints still use console.log (migration pending)
 - [x] We have at least one example of `logEvent` per resource:
   - [x] User-related action - `admin.health_check_viewed`, `admin.metrics_viewed`
   - [x] City resolution action - Via geocoding test endpoint
@@ -77,8 +77,8 @@ Before we treat MASTER_PLAN.md (Phases 1–108) as executable, these items MUST 
   - [x] If user lacks current waiver acceptance, they are blocked with 403 + redirect to `/legal/consent`
   - **Implementation:** Waiver checked before squad create/join, returns `redirectTo` URL
 - [x] Critical actions are blocked without acceptance:
-  - [x] Creating a city rescue squad → Blocked in `POST /api/rescue-squads` (line 195-221)
-  - [x] Joining a city rescue squad → Blocked in `POST /api/rescue-squads/[id]/join` (line 15-49)
+  - [x] Creating a city rescue force → Blocked in `POST /api/rescue-forces` (line 195-221)
+  - [x] Joining a city rescue force → Blocked in `POST /api/rescue-forces/[id]/join` (line 15-49)
   - [ ] Creating a lost-pet mission (not implemented yet - Phase 13+)
   - [ ] Accepting/participating in missions (not implemented yet - Phase 25+)
 - [x] All legal acceptance events are logged with `legal.accepted` and include:
@@ -96,11 +96,11 @@ Before we treat MASTER_PLAN.md (Phases 1–108) as executable, these items MUST 
   - [x] Which are not started.
   - **Location:** `VISION.md` - "Current Phase Status" section maps code to 108-phase plan
 - [x] We have identified:
-  - [x] All current uses of rescue squads.
+  - [x] All current uses of rescue forces.
   - [x] All current logging patterns.
   - [ ] All current legal/ToS flows (if any). - **No legal flows implemented yet**
 - [x] Known gaps and tech debt are noted in VISION.md or a tech-debt list.
-  - **Documented:** Legal tracking not started, rescue squad endpoint migration to logEvent pending
+  - **Documented:** Legal tracking not started, rescue force endpoint migration to logEvent pending
 
 ---
 
@@ -127,7 +127,7 @@ Before we treat MASTER_PLAN.md (Phases 1–108) as executable, these items MUST 
 - 3 API endpoints: GET /documents, GET /documents/[slug], POST /accept
 - Waiver gating on squad create/join with event logging
 - `/legal/consent` UI page for legal document review and acceptance
-- Front-end gating in rescue squad pages with user-friendly error banners
+- Front-end gating in rescue force pages with user-friendly error banners
 - **See:** `docs/features/legal-baseline-and-waiver.md` for full spec
 
 ### ✅ Section 4: Code Audit (COMPLETE)
@@ -155,4 +155,4 @@ Before we treat MASTER_PLAN.md (Phases 1–108) as executable, these items MUST 
 
 **Next Phase:**
 - Phase 13-14: Pet Profiles + Lost-Pet Mission MVP
-- Migrate rescue squad endpoints to logEvent()
+- Migrate rescue force endpoints to logEvent()

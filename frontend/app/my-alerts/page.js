@@ -600,14 +600,14 @@ export default function MyAlertsPage() {
                             fontWeight: 'bold',
                             color: '#8b5cf6',
                           }}>
-                            {alert.squad?.name ? '1' : '0'}
+                            {alert.force?.name ? '1' : '0'}
                           </div>
                           <div style={{
                             fontSize: '0.75rem',
                             color: '#6b7280',
                             fontWeight: '600',
                           }}>
-                            Squads
+                            Forces
                           </div>
                         </div>
                         <div style={{ textAlign: 'center' }}>

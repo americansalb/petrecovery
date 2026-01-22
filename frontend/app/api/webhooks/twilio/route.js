@@ -224,11 +224,11 @@ function generateTwiMLResponse(incomingBody) {
   let responseMessage = '';
 
   if (['STOP', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT'].includes(normalizedBody)) {
-    responseMessage = 'You have been unsubscribed from PetRecovery SMS alerts. Reply START to re-subscribe.';
+    responseMessage = 'You have been unsubscribed from ReunitePets SMS alerts. Reply START to re-subscribe.';
   } else if (['START', 'YES', 'UNSTOP'].includes(normalizedBody)) {
-    responseMessage = 'Welcome back to PetRecovery SMS alerts! You will now receive notifications again.';
+    responseMessage = 'Welcome back to ReunitePets SMS alerts! You will now receive notifications again.';
   } else if (['HELP', 'INFO'].includes(normalizedBody)) {
-    responseMessage = 'PetRecovery SMS: Reply STOP to unsubscribe. For help, visit petrecovery.org or email support@petrecovery.org';
+    responseMessage = 'ReunitePets SMS: Reply STOP to unsubscribe. For help, visit reunitepets.org or email support@reunitepets.org';
   }
 
   if (responseMessage) {

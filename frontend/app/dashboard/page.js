@@ -5,7 +5,7 @@
  *
  * Priority order:
  * 1. My Missions (your pets) - always visible at top
- * 2. My Squads (your community)
+ * 2. My Forces (your community)
  * 3. Help Nearby (other missions you can help with)
  * 4. Quick Actions
  */
@@ -80,9 +80,9 @@ export default function DashboardPage() {
 
   if (!session || !userData) return null;
 
-  const { user, squads = [], missions = [], activeSearches = [], nearbyAlerts = [] } = userData;
+  const { user, forces = [], missions = [], activeSearches = [], nearbyAlerts = [] } = userData;
   const firstName = user?.firstName || session.user?.name?.split(' ')[0] || 'there';
-  const hasSquads = squads.length > 0;
+  const hasSquads = forces.length > 0;
 
   // Separate user's own missions from missions they're helping with
   const myMissions = missions.filter(m => m.isOwner);
@@ -193,38 +193,38 @@ export default function DashboardPage() {
         </div>
 
         {/* ============================================ */}
-        {/* SECTION 2: MY SQUADS                        */}
+        {/* SECTION 2: MY FORCES                        */}
         {/* ============================================ */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-blue-500" />
-              <h2 className="text-lg font-bold text-slate-900">My Squads</h2>
+              <h2 className="text-lg font-bold text-slate-900">My Forces</h2>
             </div>
             <Link
-              href="/rescue-squads/search"
+              href="/rescue-forces/search"
               className="flex items-center gap-1 text-sm text-blue-600 font-medium hover:text-blue-700"
             >
               <Plus className="w-4 h-4" />
-              Find Squads
+              Find Forces
             </Link>
           </div>
 
           {hasSquads ? (
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-              {squads.slice(0, 3).map((squad, i) => (
+              {forces.slice(0, 3).map((force, i) => (
                 <Link
-                  key={squad.id}
-                  href={`/rescue-squads/${squad.id}`}
+                  key={force.id}
+                  href={`/rescue-forces/${force.id}`}
                   className={`flex items-center justify-between p-4 hover:bg-slate-50 transition-colors ${
                     i > 0 ? 'border-t border-slate-100' : ''
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    {squad.logoUrl || squad.photoUrl ? (
+                    {force.logoUrl || force.photoUrl ? (
                       <img
-                        src={squad.logoUrl || squad.photoUrl}
-                        alt={squad.name}
+                        src={force.logoUrl || force.photoUrl}
+                        alt={force.name}
                         className="w-12 h-12 rounded-xl object-cover"
                       />
                     ) : (
@@ -233,11 +233,11 @@ export default function DashboardPage() {
                       </div>
                     )}
                     <div>
-                      <div className="font-semibold text-slate-900">{squad.name}</div>
+                      <div className="font-semibold text-slate-900">{force.name}</div>
                       <div className="text-sm text-slate-500">
-                        {squad.memberCount} members
-                        {squad.activeMissions > 0 && (
-                          <span className="text-amber-600 font-medium"> • {squad.activeMissions} active</span>
+                        {force.memberCount} members
+                        {force.activeMissions > 0 && (
+                          <span className="text-amber-600 font-medium"> • {force.activeMissions} active</span>
                         )}
                       </div>
                     </div>
@@ -253,13 +253,13 @@ export default function DashboardPage() {
                   <Users className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-slate-900 mb-1">Join a Rescue Squad</h3>
+                  <h3 className="font-bold text-slate-900 mb-1">Join a Rescue Force</h3>
                   <p className="text-sm text-slate-600 mb-3">
                     Connect with volunteers in your area to help find lost pets together.
                   </p>
-                  <Link href="/rescue-squads/search">
+                  <Link href="/rescue-forces/search">
                     <button className="px-4 py-2 bg-blue-500 text-white text-sm font-semibold rounded-lg hover:bg-blue-600 transition-colors">
-                      Find Squads Near Me
+                      Find Forces Near Me
                     </button>
                   </Link>
                 </div>
@@ -382,7 +382,7 @@ export default function DashboardPage() {
             <Heart className="w-12 h-12 text-slate-300 mx-auto mb-4" />
             <h3 className="font-bold text-slate-900 mb-2">Welcome!</h3>
             <p className="text-slate-500 text-sm max-w-md mx-auto">
-              Join a rescue squad to connect with volunteers in your area and help find lost pets together.
+              Join a rescue force to connect with volunteers in your area and help find lost pets together.
             </p>
           </div>
         )}

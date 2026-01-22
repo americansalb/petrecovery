@@ -1,4 +1,4 @@
-// PetRecovery.org Database Schema - Rescue Squad Model
+// ReunitePets.org Database Schema - Rescue Force Model
 generator client {
   provider = "prisma-client-js"
 }
@@ -28,7 +28,7 @@ model User {
 
   // Rescue Gamification Stats
   rescueLevel     RescueLevel @default(PET_OWNER)
-  squadsJoinedCount Int      @default(0)
+  forcesJoinedCount Int      @default(0)
   areasMarkedCount Int       @default(0)
   totalAcreageSearched Float @default(0)
   successfulReunions Int     @default(0)
@@ -59,22 +59,22 @@ model User {
   caseSightings   CaseSighting[]
   caseUpdates     CaseUpdate[]
 
-  // Rescue Squad Relations
-  rescueSquadMemberships RescueSquadMember[]
+  // Rescue Force Relations
+  rescueForceMemberships RescueForceMember[]
   caseParticipations     CaseParticipant[]
   searchAreas            SearchArea[]
   petSpottings           PetSpotting[]
-  squadMessages          SquadMessage[]
-  receivedHonors         SquadHonor[] @relation("HonoredUser")
-  givenHonors            SquadHonor[] @relation("HonoringUser")
-  squadActivities        SquadActivity[]
-  assignedTasks          SquadTask[] @relation("TaskAssignee")
-  createdTasks           SquadTask[] @relation("TaskCreator")
-  completedTasks         SquadTask[] @relation("TaskCompleter")
-  squadPosts             SquadPost[]
-  squadPostComments      SquadPostComment[]
-  squadPostVotes         SquadPostVote[]
-  squadCommentVotes      SquadCommentVote[]
+  squadMessages          ForceMessage[]
+  receivedHonors         ForceHonor[] @relation("HonoredUser")
+  givenHonors            ForceHonor[] @relation("HonoringUser")
+  squadActivities        ForceActivity[]
+  assignedTasks          ForceTask[] @relation("TaskAssignee")
+  createdTasks           ForceTask[] @relation("TaskCreator")
+  completedTasks         ForceTask[] @relation("TaskCompleter")
+  squadPosts             ForcePost[]
+  squadPostComments      ForcePostComment[]
+  squadPostVotes         ForcePostVote[]
+  squadCommentVotes      ForceCommentVote[]
   taskParticipations     TaskParticipant[]
 
   // Division Relations
@@ -141,7 +141,7 @@ enum UserRole {
 
 enum RescueLevel {
   PET_OWNER    // Level 0: Submitted a lost pet request
-  SCOUT        // Level 1: Joined a rescue squad
+  SCOUT        // Level 1: Joined a rescue force
   SENTRY       // Level 2: Participated in first case
   SHEPHERD     // Level 3: Marked 5+ areas, 15+ acres total
   PATHFINDER   // Level 4: 1+ successful reunion
@@ -277,7 +277,7 @@ model EventLog {
   id              String   @id @default(cuid())
 
   // Event Identity
-  event_type      String   // e.g., "squad.created", "user.login_failed"
+  event_type      String   // e.g., "force.created", "user.login_failed"
   timestamp       DateTime @default(now())
   correlation_id  String   // UUID to trace related events
 
@@ -286,7 +286,7 @@ model EventLog {
   actor_role      String?  // "OWNER", "VOLUNTEER", "ADMIN", etc.
 
   // Resource Context
-  resource_type   String   // "user", "squad", "case", "sighting", etc.
+  resource_type   String   // "user", "force", "case", "sighting", etc.
   resource_id     String?
 
   // Action & Result
@@ -480,8 +480,8 @@ enum ReportType {
 }
 
 enum CaseStatus {
-  ACTIVE           // Just reported, awaiting rescue squad acceptance
-  IN_PROGRESS      // One or more rescue squads actively searching
+  ACTIVE           // Just reported, awaiting rescue force acceptance
+  IN_PROGRESS      // One or more rescue forces actively searching
   SIGHTING_REPORTED // Pet has been sighted
   REUNITED         // Pet found and returned to owner
   CLOSED_OTHER     // Closed for other reasons
@@ -586,15 +586,15 @@ model CaseUpdate {
 // RESCUE SQUAD SYSTEM
 // ============================================================================
 
-model RescueSquad {
+model RescueForce {
   id              String   @id @default(cuid())
 
-  // Rescue Squad Identity
-  name            String   @unique // "Chicago Rescue Squad"
+  // Rescue Force Identity
+  name            String   @unique // "Chicago Rescue Force"
   description     String?
   logoUrl         String?
   photoUrl        String?  // Squad profile photo
-  slogan          String?  // Custom slogan for the squad
+  slogan          String?  // Custom slogan for the force
   zipCode         String?  // Primary ZIP code (for display)
 
   // Location (for browsing/filtering nationally and internationally)
@@ -635,20 +635,20 @@ model RescueSquad {
   avgResponseTimeMinutes Int?   // Avg time to accept a case
 
   // Gamification
-  rescueSquadLevel RescueSquadLevel @default(ROOKIE)
+  rescueForceLevel RescueForceLevel @default(ROOKIE)
   squadPoints      Int      @default(0)
   badges           String   @default("[]") // JSON: ["first_reunion", "speed_demon", etc]
 
   // Relations
-  members          RescueSquadMember[]
+  members          RescueForceMember[]
   caseAssignments  CaseAssignment[]
   divisions        Division[]
   divisionRequests DivisionRequest[]
   cases            LostPetCase[]  // Phase 13-14: Lost Pet Cases MVP
-  activities       SquadActivity[]
-  tasks            SquadTask[]
+  activities       ForceActivity[]
+  tasks            ForceTask[]
   joinRequests     SquadJoinRequest[]
-  posts            SquadPost[]      // Community posts
+  posts            ForcePost[]      // Community posts
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -674,7 +674,7 @@ enum CoverageType {
   CITYWIDE     // Entire city
 }
 
-enum RescueSquadLevel {
+enum RescueForceLevel {
   ROOKIE       // 0-5 cases
   ACTIVE       // 6-20 cases
   VETERAN      // 21-50 cases
@@ -682,10 +682,10 @@ enum RescueSquadLevel {
   LEGENDARY    // 100+ cases
 }
 
-model RescueSquadMember {
+model RescueForceMember {
   id              String   @id @default(cuid())
-  rescueSquadId   String
-  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  rescueForceId   String
+  rescueForce     RescueForce @relation(fields: [rescueForceId], references: [id], onDelete: Cascade)
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -694,12 +694,12 @@ model RescueSquadMember {
   division        Division? @relation(fields: [divisionId], references: [id], onDelete: SetNull)
 
   // Role
-  role            RescueSquadMemberRole @default(MEMBER)
+  role            RescueForceMemberRole @default(MEMBER)
 
   // Status
   isActive        Boolean  @default(true)
 
-  // Stats (Within This Rescue Squad)
+  // Stats (Within This Rescue Force)
   casesParticipated Int    @default(0)
   successfulReunions Int   @default(0)
   searchHours     Float    @default(0)
@@ -712,15 +712,15 @@ model RescueSquadMember {
   joinedAt        DateTime @default(now())
   leftAt          DateTime?
 
-  @@unique([rescueSquadId, userId])
+  @@unique([rescueForceId, userId])
   @@index([userId])
   @@index([role])
   @@index([isActive])
   @@index([divisionId])
 }
 
-enum RescueSquadMemberRole {
-  FOUNDER          // Created the rescue squad
+enum RescueForceMemberRole {
+  FOUNDER          // Created the rescue force
   LEADER           // Can accept cases, manage members
   COORDINATOR      // Can coordinate searches, post updates
   MEMBER           // Regular searcher
@@ -737,18 +737,18 @@ enum AvailabilityStatus {
   AWAY             // Extended absence
 }
 
-// CASE ASSIGNMENT (Rescue Squad Accepts Case)
+// CASE ASSIGNMENT (Rescue Force Accepts Case)
 model CaseAssignment {
   id              String   @id @default(cuid())
   missionId       String   @map("caseId")
   case            Case     @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  rescueSquadId   String
-  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  rescueForceId   String
+  rescueForce     RescueForce @relation(fields: [rescueForceId], references: [id], onDelete: Cascade)
 
   // Assignment Status
   status          AssignmentStatus @default(ACCEPTED)
   acceptedAt      DateTime @default(now())
-  acceptedById    String   // Rescue Squad leader who accepted
+  acceptedById    String   // Rescue Force leader who accepted
 
   // Participation
   activeMembers   Int      @default(0)
@@ -763,23 +763,23 @@ model CaseAssignment {
   participants    CaseParticipant[]
   searchAreas     SearchArea[]
   petSpottings    PetSpotting[]
-  messages        SquadMessage[]
+  messages        ForceMessage[]
 
-  @@unique([missionId, rescueSquadId]) // Rescue Squad can only accept case once
+  @@unique([missionId, rescueForceId]) // Rescue Force can only accept case once
   @@index([missionId])
-  @@index([rescueSquadId])
+  @@index([rescueForceId])
   @@index([status])
 }
 
 enum AssignmentStatus {
-  ACCEPTED         // Rescue Squad accepted, mobilizing
+  ACCEPTED         // Rescue Force accepted, mobilizing
   ACTIVE           // Members actively searching
   STANDBY          // Paused, watching for updates
-  COMPLETED        // Rescue Squad finished their involvement
-  WITHDRAWN        // Rescue Squad withdrew from case
+  COMPLETED        // Rescue Force finished their involvement
+  WITHDRAWN        // Rescue Force withdrew from case
 }
 
-// CASE PARTICIPANT (Rescue Squad Member Opts Into Specific Case)
+// CASE PARTICIPANT (Rescue Force Member Opts Into Specific Case)
 model CaseParticipant {
   id              String   @id @default(cuid())
   assignmentId    String
@@ -806,7 +806,7 @@ model CaseParticipant {
 }
 
 // SQUAD MESSAGE (Case-specific chat)
-model SquadMessage {
+model ForceMessage {
   id              String   @id @default(cuid())
   assignmentId    String
   assignment      CaseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
@@ -881,9 +881,9 @@ model PetSpotting {
   @@index([reportedAt])
 }
 
-model SquadHonor {
+model ForceHonor {
   id              String   @id @default(cuid())
-  rescueSquadId   String
+  rescueForceId   String
 
   // Who gave and received
   honoredUserId   String
@@ -896,17 +896,17 @@ model SquadHonor {
   createdAt       DateTime @default(now())
 
   @@index([honoredUserId])
-  @@index([rescueSquadId])
+  @@index([rescueForceId])
 }
 
 // ============================================================================
 // SQUAD ACTIVITY & TASK SYSTEM
 // ============================================================================
 
-model SquadActivity {
+model ForceActivity {
   id              String   @id @default(cuid())
-  rescueSquadId   String
-  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  rescueForceId   String
+  rescueForce     RescueForce @relation(fields: [rescueForceId], references: [id], onDelete: Cascade)
 
   // Activity type
   type            String   // CASE_ACCEPTED, MEMBER_JOINED, SIGHTING_REPORTED, TASK_CREATED, etc.
@@ -922,16 +922,16 @@ model SquadActivity {
 
   createdAt       DateTime @default(now())
 
-  @@index([rescueSquadId])
+  @@index([rescueForceId])
   @@index([type])
   @@index([caseId])
   @@index([createdAt])
 }
 
-model SquadTask {
+model ForceTask {
   id              String   @id @default(cuid())
-  rescueSquadId   String
-  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  rescueForceId   String
+  rescueForce     RescueForce @relation(fields: [rescueForceId], references: [id], onDelete: Cascade)
 
   // Related case
   caseId          String?
@@ -993,7 +993,7 @@ model SquadTask {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  @@index([rescueSquadId])
+  @@index([rescueForceId])
   @@index([caseId])
   @@index([status])
   @@index([role])
@@ -1007,7 +1007,7 @@ model SquadTask {
 model TaskParticipant {
   id          String   @id @default(cuid())
   taskId      String
-  task        SquadTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task        ForceTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
   userId      String
   user        User     @relation(fields: [userId], references: [id])
 
@@ -1024,10 +1024,10 @@ model TaskParticipant {
 // SQUAD COMMUNITY POSTS (Reddit + Facebook style)
 // ============================================================================
 
-model SquadPost {
+model ForcePost {
   id              String   @id @default(cuid())
-  rescueSquadId   String
-  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  rescueForceId   String
+  rescueForce     RescueForce @relation(fields: [rescueForceId], references: [id], onDelete: Cascade)
 
   // Division (optional - for division-specific posts)
   divisionId      String?
@@ -1057,20 +1057,20 @@ model SquadPost {
   deletedAt       DateTime?
 
   // Relations
-  comments        SquadPostComment[]
-  votes           SquadPostVote[]
+  comments        ForcePostComment[]
+  votes           ForcePostVote[]
 
-  @@index([rescueSquadId, createdAt])
+  @@index([rescueForceId, createdAt])
   @@index([divisionId])
   @@index([authorId])
   @@index([createdAt])
   @@index([upvotes])
 }
 
-model SquadPostComment {
+model ForcePostComment {
   id              String   @id @default(cuid())
   postId          String
-  post            SquadPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post            ForcePost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   // Author
   authorId        String
@@ -1081,8 +1081,8 @@ model SquadPostComment {
 
   // Threading (Reddit-style nested comments)
   parentCommentId String?
-  parentComment   SquadPostComment? @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
-  replies         SquadPostComment[] @relation("CommentReplies")
+  parentComment   ForcePostComment? @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies         ForcePostComment[] @relation("CommentReplies")
 
   // Engagement
   upvotes         Int      @default(0)
@@ -1098,7 +1098,7 @@ model SquadPostComment {
   deletedAt       DateTime?
 
   // Relations
-  votes           SquadCommentVote[]
+  votes           ForceCommentVote[]
 
   @@index([postId, createdAt])
   @@index([authorId])
@@ -1106,10 +1106,10 @@ model SquadPostComment {
   @@index([createdAt])
 }
 
-model SquadPostVote {
+model ForcePostVote {
   id              String   @id @default(cuid())
   postId          String
-  post            SquadPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post            ForcePost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1125,10 +1125,10 @@ model SquadPostVote {
   @@index([userId])
 }
 
-model SquadCommentVote {
+model ForceCommentVote {
   id              String   @id @default(cuid())
   commentId       String
-  comment         SquadPostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  comment         ForcePostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1145,15 +1145,15 @@ model SquadCommentVote {
 }
 
 // ============================================================================
-// DIVISION SYSTEM (Neighborhood subdivisions within Rescue Squads)
+// DIVISION SYSTEM (Neighborhood subdivisions within Rescue Forces)
 // ============================================================================
 
 model Division {
   id              String   @id @default(cuid())
 
-  // Parent Rescue Squad
-  rescueSquadId   String
-  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  // Parent Rescue Force
+  rescueForceId   String
+  rescueForce     RescueForce @relation(fields: [rescueForceId], references: [id], onDelete: Cascade)
 
   // Division Identity
   name            String   // "North Side", "Downtown", "Lincoln Park"
@@ -1162,7 +1162,7 @@ model Division {
   // Coverage (neighborhood-level)
   centerLatitude  Float?
   centerLongitude Float?
-  radiusMiles     Int      @default(3)  // Smaller than squad-level
+  radiusMiles     Int      @default(3)  // Smaller than force-level
   zipCodes        String   @default("[]") // JSON array of zip codes
   customBoundary  String?  // JSON: GeoJSON polygon
 
@@ -1178,15 +1178,15 @@ model Division {
   activeCases     Int      @default(0)
 
   // Relations
-  members         RescueSquadMember[]
+  members         RescueForceMember[]
   divisionRequest DivisionRequest?
-  posts           SquadPost[] @relation("DivisionPosts")
+  posts           ForcePost[] @relation("DivisionPosts")
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  @@unique([rescueSquadId, name]) // Division names unique within squad
-  @@index([rescueSquadId])
+  @@unique([rescueForceId, name]) // Division names unique within force
+  @@index([rescueForceId])
   @@index([isActive])
   @@index([isDeleted])
 }
@@ -1199,8 +1199,8 @@ model DivisionRequest {
   requester       User     @relation(fields: [requesterId], references: [id])
 
   // Request Details
-  rescueSquadId   String   // Which squad to add division to
-  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  rescueForceId   String   // Which force to add division to
+  rescueForce     RescueForce @relation(fields: [rescueForceId], references: [id], onDelete: Cascade)
   proposedName    String   // "North Side", "West End", etc.
   justification   String   // Why this division is needed
 
@@ -1229,7 +1229,7 @@ model DivisionRequest {
   updatedAt       DateTime @updatedAt
 
   @@index([requesterId])
-  @@index([rescueSquadId])
+  @@index([rescueForceId])
   @@index([status])
   @@index([createdAt])
 }
@@ -1449,8 +1449,8 @@ model LostPetCase {
   createdById   String
   createdBy     User              @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
-  squadId       String?
-  squad         RescueSquad?      @relation(fields: [squadId], references: [id], onDelete: SetNull)
+  forceId       String?
+  force         RescueForce?      @relation(fields: [forceId], references: [id], onDelete: SetNull)
 
   // NEW: Optional primary coordinator for this case (Phase 22-24)
   coordinatorId String?
@@ -1461,7 +1461,7 @@ model LostPetCase {
 
   @@index([city, state])
   @@index([status])
-  @@index([squadId])
+  @@index([forceId])
   @@index([isPublic, status])
   @@index([coordinatorId])
 }
@@ -1729,7 +1729,7 @@ model Shelter {
 
   // Relations
   intakes     ShelterIntake[]
-  tasks       SquadTask[]
+  tasks       ForceTask[]
   cityCache   CityCache? @relation("CityShelters", fields: [cityCacheId], references: [id])
   cityCacheId String?
 
@@ -1968,14 +1968,14 @@ model Integration {
   // Creator
   createdById String
 
-  // Scope (optional - for case or squad-specific)
+  // Scope (optional - for case or force-specific)
   caseId      String?
-  rescueSquadId String?
+  rescueForceId String?
 
   @@index([type])
   @@index([createdById])
   @@index([caseId])
-  @@index([rescueSquadId])
+  @@index([rescueForceId])
   @@index([isActive])
 }
 
@@ -2072,7 +2072,7 @@ model ActivityFeedItem {
 
   // Related entities
   caseId      String?
-  squadId     String?
+  forceId     String?
   sightingId  String?
 
   // Visibility
@@ -2125,7 +2125,7 @@ model VolunteerShift {
 
   // Context
   caseId      String?
-  squadId     String?
+  forceId     String?
   eventName   String?
 
   // Timing
@@ -2150,7 +2150,7 @@ model VolunteerShift {
   signups     VolunteerSignup[]
 
   @@index([caseId])
-  @@index([squadId])
+  @@index([forceId])
   @@index([startTime])
   @@index([status])
 }
@@ -2283,7 +2283,7 @@ model Donation {
   // Designation
   type        String   @default("GENERAL") // GENERAL, CASE_SPECIFIC, SQUAD, REWARD_FUND
   caseId      String?
-  squadId     String?
+  forceId     String?
 
   // Payment
   stripePaymentId String?  @unique
@@ -2298,7 +2298,7 @@ model Donation {
 
   @@index([donorId])
   @@index([caseId])
-  @@index([squadId])
+  @@index([forceId])
   @@index([status])
   @@index([createdAt])
 }
@@ -2495,7 +2495,7 @@ model PointsLog {
 
   // Context
   caseId      String?
-  squadId     String?
+  forceId     String?
 
   @@index([userId])
   @@index([createdAt])
@@ -2530,14 +2530,14 @@ model SquadCompetitionEntry {
 
   competitionId String
   competition   SquadCompetition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
-  squadId     String
+  forceId     String
 
   score       Int      @default(0)
   rank        Int?
   metrics     String?  // JSON: detailed metrics
 
-  @@unique([competitionId, squadId])
-  @@index([squadId])
+  @@unique([competitionId, forceId])
+  @@index([forceId])
 }
 
 // ============================================================================
@@ -2915,8 +2915,8 @@ model SearchSession {
   updatedAt       DateTime @updatedAt
 
   // Participation
-  // NOTE: participantId is optional to support direct search sessions without formal RescueSquad membership
-  // Points attribution uses userId directly; participantId is for squad coordination features
+  // NOTE: participantId is optional to support direct search sessions without formal RescueForce membership
+  // Points attribution uses userId directly; participantId is for force coordination features
   participantId   String?
   participant     CaseParticipant? @relation(fields: [participantId], references: [id], onDelete: Cascade)
   missionId       String   @map("caseId")
@@ -3204,8 +3204,8 @@ model SquadJoinRequest {
 
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  rescueSquadId   String
-  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  rescueForceId   String
+  rescueForce     RescueForce @relation(fields: [rescueForceId], references: [id], onDelete: Cascade)
   divisionId      String?
 
   // Request
@@ -3217,8 +3217,8 @@ model SquadJoinRequest {
   reviewedAt      DateTime?
   rejectionReason String?
 
-  @@unique([userId, rescueSquadId])
-  @@index([rescueSquadId])
+  @@unique([userId, rescueForceId])
+  @@index([rescueForceId])
   @@index([status])
 }
 
@@ -3539,7 +3539,7 @@ model MissionBroadcast {
   mission         MissionControl? @relation(fields: [missionId], references: [id], onDelete: Cascade)
 
   // Squad-wide broadcasts
-  squadId         String?
+  forceId         String?
 
   message         String
   type            String   // INFO, ALERT, FREEZE, STAND_DOWN, URGENT
@@ -3547,7 +3547,7 @@ model MissionBroadcast {
   senderId        String?
 
   @@index([missionId])
-  @@index([squadId])
+  @@index([forceId])
   @@index([createdAt])
 }
 

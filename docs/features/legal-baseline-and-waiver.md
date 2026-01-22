@@ -9,10 +9,10 @@
 
 ## 0. Summary
 
-Implement **legal tracking and enforcement** to ensure PetRecovery.org meets basic compliance requirements before public launch. This includes:
+Implement **legal tracking and enforcement** to ensure ReunitePets.org meets basic compliance requirements before public launch. This includes:
 
 - **Terms of Service (ToS)** - Platform usage agreement
-- **Liability Waiver** - Required before joining rescue squads or participating in searches
+- **Liability Waiver** - Required before joining rescue forces or participating in searches
 - **Privacy Policy** - Data handling transparency
 - **Acceptance tracking** - Database records of when users accepted each document
 - **Action gating** - Block risky actions (squad create/join) without waiver acceptance
@@ -31,7 +31,7 @@ This is the **final Phase 0 blocking requirement**. Without it:
 Currently:
 - ❌ No Terms of Service or Liability Waiver documents exist
 - ❌ No tracking of user consent to legal agreements
-- ❌ Users can join rescue squads without accepting liability waiver
+- ❌ Users can join rescue forces without accepting liability waiver
 - ❌ No audit trail for legal compliance
 - ❌ No way to update legal documents and re-prompt users
 
@@ -77,8 +77,8 @@ Currently:
 **Pet Owner / Volunteer**
 
 1. As a **new user**, I want to see the Terms of Service and Privacy Policy during signup, so I understand the platform rules.
-2. As a **user attempting to join a rescue squad**, I must accept the Liability Waiver, so the platform is protected if I get injured during a search.
-3. As a **user attempting to create a rescue squad**, I must accept the Liability Waiver, so I understand the risks before leading searches.
+2. As a **user attempting to join a rescue force**, I must accept the Liability Waiver, so the platform is protected if I get injured during a search.
+3. As a **user attempting to create a rescue force**, I must accept the Liability Waiver, so I understand the risks before leading searches.
 4. As a **user**, I want a clear explanation of what I'm agreeing to, so I can make an informed decision.
 
 **Admin**
@@ -180,7 +180,7 @@ Initial legal documents (examples - replace with actual legal text):
 Last Updated: November 24, 2025
 Version: 1.0.0
 
-By using PetRecovery.org, you agree to:
+By using ReunitePets.org, you agree to:
 
 1. **Accuracy**: Provide accurate information about lost pets
 2. **Conduct**: Treat volunteers and pet owners with respect
@@ -193,23 +193,23 @@ Full terms available at /legal/terms-of-service
 
 **Liability Waiver (v1.0.0):**
 ```markdown
-# Liability Waiver for Rescue Squad Participation
+# Liability Waiver for Rescue Force Participation
 
 Last Updated: November 24, 2025
 Version: 1.0.0
 
 ## IMPORTANT: Read Carefully Before Participating
 
-By joining a rescue squad or participating in pet searches, you acknowledge and agree:
+By joining a rescue force or participating in pet searches, you acknowledge and agree:
 
 1. **Voluntary Participation**: You participate voluntarily at your own risk
 2. **Physical Risks**: Searches may involve outdoor hazards, weather exposure, wildlife, traffic, etc.
 3. **No Guarantee**: We cannot guarantee your safety during searches
-4. **Release of Liability**: You release PetRecovery.org, its operators, and fellow volunteers from liability for injuries
+4. **Release of Liability**: You release ReunitePets.org, its operators, and fellow volunteers from liability for injuries
 5. **Medical Insurance**: You are responsible for your own medical insurance
 6. **Safety Protocols**: You agree to follow safety guidelines provided by squad leaders
 
-**If you do not agree, you may not join rescue squads or participate in searches.**
+**If you do not agree, you may not join rescue forces or participate in searches.**
 
 Full waiver available at /legal/liability-waiver
 ```
@@ -221,11 +221,11 @@ Full waiver available at /legal/liability-waiver
 Last Updated: November 24, 2025
 Version: 1.0.0
 
-PetRecovery.org collects and uses your data as follows:
+ReunitePets.org collects and uses your data as follows:
 
 1. **What We Collect**: Email, name, location (for squad matching), search activity
 2. **How We Use It**: To coordinate pet searches and notify you of nearby missions
-3. **Who We Share With**: Only rescue squad members for active missions
+3. **Who We Share With**: Only rescue force members for active missions
 4. **Your Rights**: Access, update, or delete your data at any time
 5. **Security**: We use industry-standard encryption and security practices
 
@@ -262,8 +262,8 @@ Fetch all active legal documents (public access).
       "slug": "liability-waiver",
       "type": "LIABILITY_WAIVER",
       "version": "1.0.0",
-      "title": "Liability Waiver for Rescue Squad Participation",
-      "summary": "Required before joining rescue squads",
+      "title": "Liability Waiver for Rescue Force Participation",
+      "summary": "Required before joining rescue forces",
       "publishedAt": "2025-11-24T00:00:00Z"
     },
     {
@@ -372,7 +372,7 @@ logEvent({
 
 Add waiver check to risky endpoints:
 
-**POST /api/rescue-squads (Create Squad)**
+**POST /api/rescue-forces (Create Squad)**
 
 Before creating squad, check:
 ```javascript
@@ -397,13 +397,13 @@ if (!session.user.waiverAcceptedAt) {
   return NextResponse.json({
     error: 'Liability waiver required',
     code: 'WAIVER_NOT_ACCEPTED',
-    message: 'You must accept the liability waiver before creating a rescue squad',
-    redirectTo: '/legal/consent?returnUrl=/rescue-squads/create'
+    message: 'You must accept the liability waiver before creating a rescue force',
+    redirectTo: '/legal/consent?returnUrl=/rescue-forces/create'
   }, { status: 403 });
 }
 ```
 
-**POST /api/rescue-squads/[id]/join (Join Squad)**
+**POST /api/rescue-forces/[id]/join (Join Squad)**
 
 Same waiver check as above, with `blocked_action: 'squad_join'` in metadata.
 
@@ -424,7 +424,7 @@ Same waiver check as above, with `blocked_action: 'squad_join'` in metadata.
 
 1. **Header**
    - "Legal Agreements Required"
-   - Brief explanation: "Before participating in rescue squads, please review and accept these documents"
+   - Brief explanation: "Before participating in rescue forces, please review and accept these documents"
 
 2. **Document Accordion**
    - Collapsible sections for each document (ToS, Waiver, Privacy)
@@ -450,7 +450,7 @@ Same waiver check as above, with `blocked_action: 'squad_join'` in metadata.
 ┌─────────────────────────────────────────┐
 │ Legal Agreements Required               │
 │ Please review and accept before         │
-│ participating in rescue squads          │
+│ participating in rescue forces          │
 ├─────────────────────────────────────────┤
 │ ▼ Terms of Service (v1.0.0)             │
 │   Last Updated: Nov 24, 2025            │
@@ -481,7 +481,7 @@ When API returns `403` with `WAIVER_NOT_ACCEPTED`:
 
 **Intercept in Frontend:**
 ```javascript
-const response = await fetch('/api/rescue-squads', {
+const response = await fetch('/api/rescue-forces', {
   method: 'POST',
   body: JSON.stringify(squadData)
 });
@@ -499,7 +499,7 @@ if (response.status === 403) {
 **User Experience:**
 1. User clicks "Create Squad" or "Join Squad"
 2. API returns 403 if waiver not accepted
-3. User redirected to `/legal/consent?returnUrl=/rescue-squads/create`
+3. User redirected to `/legal/consent?returnUrl=/rescue-forces/create`
 4. User reviews and accepts documents
 5. User redirected back to original action
 6. Original action completes successfully
@@ -665,12 +665,12 @@ Legal events appear in Admin Health Dashboard:
    - Returns 400 for invalid version
    - Returns 401 for unauthenticated request
 
-4. **POST /api/rescue-squads (Gated)**
+4. **POST /api/rescue-forces (Gated)**
    - Accepts request if waiver accepted
    - Returns 403 if waiver not accepted
    - Emits legal.blocked_action event on block
 
-5. **POST /api/rescue-squads/[id]/join (Gated)**
+5. **POST /api/rescue-forces/[id]/join (Gated)**
    - Same tests as squad create
 
 ### 9.2 Frontend Tests
@@ -693,7 +693,7 @@ Legal events appear in Admin Health Dashboard:
 
 **Scenario 1: New User Accepts Legal Documents**
 1. Create new user account
-2. Attempt to create rescue squad
+2. Attempt to create rescue force
 3. Redirected to /legal/consent
 4. Review documents
 5. Check all boxes
@@ -704,14 +704,14 @@ Legal events appear in Admin Health Dashboard:
 
 **Scenario 2: Existing User Without Waiver Blocked**
 1. Log in as user without waiver acceptance
-2. Attempt to join rescue squad
+2. Attempt to join rescue force
 3. Verify 403 response
 4. Verify redirect to /legal/consent
 5. Verify legal.blocked_action event logged
 
 **Scenario 3: User With Waiver Allowed**
 1. Log in as user with waiver acceptance
-2. Attempt to create rescue squad
+2. Attempt to create rescue force
 3. Verify success (no redirect)
 4. Verify squad created
 
@@ -731,8 +731,8 @@ This feature is complete when:
 - [x] GET /api/legal/documents returns all active documents
 - [x] GET /api/legal/documents/[slug] returns specific document
 - [x] POST /api/legal/accept updates user fields and emits events
-- [x] POST /api/rescue-squads checks waiver and blocks if missing
-- [x] POST /api/rescue-squads/[id]/join checks waiver and blocks if missing
+- [x] POST /api/rescue-forces checks waiver and blocks if missing
+- [x] POST /api/rescue-forces/[id]/join checks waiver and blocks if missing
 - [x] All legal events emit via logEvent() per LOGGING_STANDARD.md
 
 ### 10.3 Frontend
@@ -808,8 +808,8 @@ When legal documents are updated:
 - ✅ `POST /api/legal/accept` - Accepts legal documents and updates user records
 
 **Action Gating:**
-- ✅ `POST /api/rescue-squads` - Checks waiver acceptance before squad creation
-- ✅ `POST /api/rescue-squads/[id]/join` - Checks waiver acceptance before joining
+- ✅ `POST /api/rescue-forces` - Checks waiver acceptance before squad creation
+- ✅ `POST /api/rescue-forces/[id]/join` - Checks waiver acceptance before joining
 - ✅ Both endpoints return 403 with `code: 'WAIVER_NOT_ACCEPTED'` and `redirectTo` URL
 
 **Event Logging:**
@@ -829,9 +829,9 @@ When legal documents are updated:
 - ✅ Success/error states with friendly messaging
 
 **Front-End Gating:**
-- ✅ `/admin/rescue-squads/create/page.js` - Catches 403 legal errors, shows banner
-- ✅ `/rescue-squads/[id]/page.js` - Catches 403 legal errors on join, shows banner
-- ✅ `/rescue-squads/search/page.js` - Catches 403 legal errors on create/join, shows banner
+- ✅ `/admin/rescue-forces/create/page.js` - Catches 403 legal errors, shows banner
+- ✅ `/rescue-forces/[id]/page.js` - Catches 403 legal errors on join, shows banner
+- ✅ `/rescue-forces/search/page.js` - Catches 403 legal errors on create/join, shows banner
 - ✅ All banners include clear message and "Review & Accept Now" button
 - ✅ Buttons redirect to `/legal/consent?returnUrl=...`
 
@@ -863,14 +863,14 @@ When legal documents are updated:
 - `frontend/app/api/legal/documents/route.js` (new)
 - `frontend/app/api/legal/documents/[slug]/route.js` (new)
 - `frontend/app/api/legal/accept/route.js` (new)
-- `frontend/app/api/rescue-squads/route.js` (modified - waiver gating)
-- `frontend/app/api/rescue-squads/[id]/join/route.js` (modified - waiver gating)
+- `frontend/app/api/rescue-forces/route.js` (modified - waiver gating)
+- `frontend/app/api/rescue-forces/[id]/join/route.js` (modified - waiver gating)
 
 **Frontend UI:**
 - `frontend/app/legal/consent/page.js` (new)
-- `frontend/app/admin/rescue-squads/create/page.js` (modified - legal error banner)
-- `frontend/app/rescue-squads/[id]/page.js` (modified - legal error banner)
-- `frontend/app/rescue-squads/search/page.js` (modified - legal error banner)
+- `frontend/app/admin/rescue-forces/create/page.js` (modified - legal error banner)
+- `frontend/app/rescue-forces/[id]/page.js` (modified - legal error banner)
+- `frontend/app/rescue-forces/search/page.js` (modified - legal error banner)
 
 **Documentation:**
 - `docs/features/legal-baseline-and-waiver.md` (new)

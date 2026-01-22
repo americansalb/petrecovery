@@ -111,7 +111,7 @@ export async function POST(request) {
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
             <h2 style="color: #2563eb;">✅ Test Email Successful</h2>
-            <p>This is a test email from the <strong>PetRecovery.org Admin Health Dashboard</strong>.</p>
+            <p>This is a test email from the <strong>ReunitePets.org Admin Health Dashboard</strong>.</p>
             <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
             <p><strong>Sent to:</strong> ${adminEmail}</p>
             <p><strong>Sent at:</strong> ${new Date().toISOString()}</p>
@@ -121,7 +121,7 @@ export async function POST(request) {
               If you received this email, your email service is configured correctly and working.
             </p>
             <p style="color: #666; font-size: 0.9em;">
-              <strong>PetRecovery.org</strong> | Admin Health Dashboard
+              <strong>ReunitePets.org</strong> | Admin Health Dashboard
             </p>
           </div>
         </body>
@@ -130,7 +130,7 @@ export async function POST(request) {
 
     const emailResult = await sendEmail({
       to: adminEmail,
-      subject: '🧪 PetRecovery.org - Test Email from Admin Dashboard',
+      subject: '🧪 ReunitePets.org - Test Email from Admin Dashboard',
       html: testEmailHtml
     });
 

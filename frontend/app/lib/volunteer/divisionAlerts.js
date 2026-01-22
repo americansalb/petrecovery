@@ -27,7 +27,7 @@ export async function sendDivisionAlert(divisionId, alert) {
           }
         }
       },
-      rescueSquad: true,
+      rescueForce: true,
     }
   });
 
@@ -96,11 +96,11 @@ export async function sendDivisionAlert(divisionId, alert) {
 }
 
 /**
- * Alert all divisions in a squad about a new case
+ * Alert all divisions in a force about a new case
  */
-export async function alertSquadNewCase(squadId, missionData) {
-  const squad = await prisma.rescueSquad.findUnique({
-    where: { id: squadId },
+export async function alertSquadNewCase(forceId, missionData) {
+  const force = await prisma.rescueForce.findUnique({
+    where: { id: forceId },
     include: {
       divisions: {
         where: { isActive: true },
@@ -108,15 +108,15 @@ export async function alertSquadNewCase(squadId, missionData) {
     }
   });
 
-  if (!squad) {
-    return { success: false, error: 'Squad not found' };
+  if (!force) {
+    return { success: false, error: 'Force not found' };
   }
 
   const results = [];
 
   // Find which division(s) are closest to the case
   const nearestDivisions = findNearestDivisions(
-    squad.divisions,
+    force.divisions,
     missionData.lastSeenLatitude,
     missionData.lastSeenLongitude,
     2 // Get top 2 nearest
@@ -135,14 +135,14 @@ export async function alertSquadNewCase(squadId, missionData) {
   }
 
   // Send NORMAL alert to other divisions
-  const otherDivisions = squad.divisions.filter(
+  const otherDivisions = force.divisions.filter(
     d => !nearestDivisions.find(nd => nd.id === d.id)
   );
 
   for (const division of otherDivisions) {
     const result = await sendDivisionAlert(division.id, {
       type: 'NEW_CASE',
-      title: `New case in ${squad.name}`,
+      title: `New case in ${force.name}`,
       body: `${missionData.petName} (${missionData.petSpecies}) lost nearby`,
       missionId: missionData.id,
       priority: 'NORMAL',
@@ -195,7 +195,7 @@ export async function alertDivisionHelpRequest(helpRequest) {
   );
 
   if (!division) {
-    // Fall back to case's assigned squad
+    // Fall back to case's assigned force
     const session = await prisma.searchSession.findUnique({
       where: { id: helpRequest.sessionId },
       include: {
@@ -203,7 +203,7 @@ export async function alertDivisionHelpRequest(helpRequest) {
           include: {
             assignment: {
               include: {
-                rescueSquad: {
+                rescueForce: {
                   include: { divisions: true }
                 }
               }
@@ -213,11 +213,11 @@ export async function alertDivisionHelpRequest(helpRequest) {
       }
     });
 
-    if (!session?.participant?.assignment?.rescueSquad?.divisions?.[0]) {
+    if (!session?.participant?.assignment?.rescueForce?.divisions?.[0]) {
       return { success: false, error: 'No division found' };
     }
 
-    return sendDivisionAlert(session.participant.assignment.rescueSquad.divisions[0].id, {
+    return sendDivisionAlert(session.participant.assignment.rescueForce.divisions[0].id, {
       type: 'HELP_REQUEST',
       title: '🆘 Volunteer needs help!',
       body: helpRequest.message || 'A volunteer is requesting assistance',

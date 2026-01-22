@@ -220,7 +220,7 @@ export async function PATCH(request, { params }) {
           updateData.reunionConfirmed = true;
           updateData.status = 'REUNITED';
           updateData.closedAt = new Date();
-          systemMessage = 'Reunion confirmed! Thank you for using PetRecovery.org to bring this family back together.';
+          systemMessage = 'Reunion confirmed! Thank you for using ReunitePets.org to bring this family back together.';
 
           // Update the lost case as reunited
           await prisma.case.update({

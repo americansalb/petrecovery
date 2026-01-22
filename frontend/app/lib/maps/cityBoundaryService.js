@@ -23,7 +23,7 @@ async function rateLimitedFetch(url) {
 
   const response = await fetch(url, {
     headers: {
-      'User-Agent': 'PetRecovery/1.0 (pet recovery application)',
+      'User-Agent': 'ReunitePets/1.0 (pet recovery application)',
     },
   });
 

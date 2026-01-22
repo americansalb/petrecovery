@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 
-const WELCOME_MESSAGE = `Welcome to your local Rescue Squad!
+const WELCOME_MESSAGE = `Welcome to your local Rescue Force!
 
 We're a community of caring neighbors who work together to help lost pets find their way home.
 
@@ -17,7 +17,7 @@ Every share, every search, every kind word makes a difference. Together, we brin
 
 /**
  * POST /api/admin/seed-welcome
- * Seeds welcome announcements for all squads that don't have one
+ * Seeds welcome announcements for all forces that don't have one
  */
 export async function POST(request) {
   try {
@@ -28,21 +28,21 @@ export async function POST(request) {
     //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     // }
 
-    // Get all active rescue squads
-    const squads = await prisma.rescueSquad.findMany({
+    // Get all active rescue forces
+    const forces = await prisma.rescueForce.findMany({
       where: { isActive: true },
       select: { id: true, city: true },
     });
 
     // Find or create a system user for Sarama
     let systemUser = await prisma.user.findFirst({
-      where: { email: 'sarama@petrecovery.app' },
+      where: { email: 'sarama@reunitepets.app' },
     });
 
     if (!systemUser) {
       systemUser = await prisma.user.create({
         data: {
-          email: 'sarama@petrecovery.app',
+          email: 'sarama@reunitepets.app',
           firstName: 'Sarama',
           lastName: '',
           role: 'ADMIN',
@@ -53,13 +53,13 @@ export async function POST(request) {
     let created = 0;
     let skipped = 0;
 
-    for (const squad of squads) {
+    for (const force of forces) {
       // Check if welcome announcement already exists
       const existing = await prisma.squadActivity.findFirst({
         where: {
-          rescueSquadId: squad.id,
+          rescueForceId: force.id,
           type: 'ANNOUNCEMENT',
-          message: { contains: 'Welcome to your local Rescue Squad' },
+          message: { contains: 'Welcome to your local Rescue Force' },
         },
       });
 
@@ -71,12 +71,12 @@ export async function POST(request) {
       // Create the welcome announcement
       await prisma.squadActivity.create({
         data: {
-          rescueSquadId: squad.id,
+          rescueForceId: force.id,
           actorId: systemUser.id,
           type: 'ANNOUNCEMENT',
           message: WELCOME_MESSAGE,
           details: JSON.stringify({
-            title: 'Welcome to Your Rescue Squad!',
+            title: 'Welcome to Your Rescue Force!',
             isPinned: true,
             isSystemPost: true,
           }),

@@ -1,7 +1,7 @@
 /**
  * UI Component Library
  *
- * PetRecovery Design System
+ * ReunitePets Design System
  * Midnight Blue + Flashlight Yellow
  *
  * Usage:

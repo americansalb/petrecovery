@@ -26,7 +26,7 @@ export async function GET(request, { params }) {
         assignments: {
           take: 1,
           include: {
-            rescueSquad: true,
+            rescueForce: true,
           },
         },
       },
@@ -36,15 +36,15 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
-    const rescueSquadId = missionData.assignments[0]?.rescueSquadId;
+    const rescueForceId = missionData.assignments[0]?.rescueForceId;
 
-    if (!rescueSquadId) {
+    if (!rescueForceId) {
       return NextResponse.json({ tasks: [] });
     }
 
     const tasks = await prisma.squadTask.findMany({
       where: {
-        rescueSquadId,
+        rescueForceId,
         missionId: missionData.id,
       },
       include: {
@@ -122,7 +122,7 @@ export async function POST(request, { params }) {
         assignments: {
           take: 1,
           include: {
-            rescueSquad: true,
+            rescueForce: true,
           },
         },
       },
@@ -132,22 +132,22 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
-    const rescueSquadId = missionData.assignments[0]?.rescueSquadId;
+    const rescueForceId = missionData.assignments[0]?.rescueForceId;
 
-    if (!rescueSquadId) {
+    if (!rescueForceId) {
       return NextResponse.json(
-        { error: 'No squad assigned to this case' },
+        { error: 'No force assigned to this case' },
         { status: 400 }
       );
     }
 
-    // Verify user is coordinator (owner, admin, or squad leader)
+    // Verify user is coordinator (owner, admin, or force leader)
     const isOwner = missionData.reporterId === session.user.id;
     const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
 
-    const squadMembership = await prisma.rescueSquadMember.findFirst({
+    const squadMembership = await prisma.rescueForceMember.findFirst({
       where: {
-        rescueSquadId,
+        rescueForceId,
         userId: session.user.id,
         isActive: true,
       },
@@ -166,7 +166,7 @@ export async function POST(request, { params }) {
     const isCompleted = status === 'COMPLETED';
     const task = await prisma.squadTask.create({
       data: {
-        rescueSquadId,
+        rescueForceId,
         missionId: missionData.id,
         title: title.trim(),
         description: description?.trim() || null,

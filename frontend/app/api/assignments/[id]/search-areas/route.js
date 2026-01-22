@@ -105,7 +105,7 @@ export async function POST(request, { params }) {
       },
     });
 
-    // Update user and squad member stats
+    // Update user and force member stats
     await prisma.user.update({
       where: { id: session.user.id },
       data: {
@@ -114,10 +114,10 @@ export async function POST(request, { params }) {
       },
     });
 
-    const squadMember = await prisma.rescueSquadMember.findFirst({
+    const squadMember = await prisma.rescueForceMember.findFirst({
       where: {
         userId: session.user.id,
-        rescueSquad: {
+        rescueForce: {
           caseAssignments: {
             some: { id: assignmentId },
           },
@@ -127,7 +127,7 @@ export async function POST(request, { params }) {
     });
 
     if (squadMember) {
-      await prisma.rescueSquadMember.update({
+      await prisma.rescueForceMember.update({
         where: { id: squadMember.id },
         data: {
           areasMarked: { increment: 1 },
@@ -136,14 +136,14 @@ export async function POST(request, { params }) {
       });
     }
 
-    // Update squad stats
+    // Update force stats
     const assignment = await prisma.caseAssignment.findUnique({
       where: { id: assignmentId },
-      select: { rescueSquadId: true },
+      select: { rescueForceId: true },
     });
 
-    await prisma.rescueSquad.update({
-      where: { id: assignment.rescueSquadId },
+    await prisma.rescueForce.update({
+      where: { id: assignment.rescueForceId },
       data: {
         totalAcreageSearched: { increment: acreage },
       },

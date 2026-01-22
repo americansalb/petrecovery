@@ -1141,7 +1141,7 @@ export default function PublicMissionDetailPage() {
             <li>• This is a volunteer-run community service. We cannot guarantee the accuracy of information posted.</li>
             <li>• If you find a lost pet, do not attempt to capture it yourself if it appears injured, sick, or dangerous.</li>
             <li>• Contact the owner directly using the information provided above.</li>
-            <li>• For assistance, contact your local animal control or rescue squad.</li>
+            <li>• For assistance, contact your local animal control or rescue force.</li>
           </ul>
         </div>
       </div>
@@ -1299,7 +1299,7 @@ export default function PublicReportPage() {
               <ol className="list-decimal list-inside space-y-2 text-gray-700">
                 <li>Our volunteer team will review your report within 24 hours</li>
                 <li>You'll be contacted at the email or phone number you provided</li>
-                <li>Your mission will be made visible to rescue squads in your area</li>
+                <li>Your mission will be made visible to rescue forces in your area</li>
                 <li>Community members can help search for your pet</li>
               </ol>
             </div>
@@ -1624,7 +1624,7 @@ export default function PublicReportPage() {
                 <strong>By submitting this report, I acknowledge that:</strong>
                 <ul className="mt-2 space-y-1 list-disc list-inside">
                   <li>My information will be reviewed by volunteer staff</li>
-                  <li>My contact information may be shared with rescue squads</li>
+                  <li>My contact information may be shared with rescue forces</li>
                   <li>My mission may be published publicly to help find my pet</li>
                   <li>This service is provided as-is with no guarantees</li>
                 </ul>
@@ -1931,7 +1931,7 @@ After completing all tasks, verify:
 
 **Functionality (No Regressions):**
 - [ ] `/` - Homepage works
-- [ ] `/rescue-squads/search` - Squad search works
+- [ ] `/rescue-forces/search` - Squad search works
 - [ ] `/admin/health` - All tabs load correctly
 - [ ] `/admin/missions` - Mission list works (internal)
 - [ ] `/admin/missions/new` - Mission creation works (internal)

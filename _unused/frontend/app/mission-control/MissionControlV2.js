@@ -184,13 +184,13 @@ export default function MissionControlV2() {
     router.push(`/mission-control?mission=${newMissionId}`, { scroll: false });
   };
 
-  // Handle back to squad
+  // Handle back to force
   const handleBackToSquad = () => {
-    const squadId = activeMission?.assignments?.[0]?.rescueSquadId;
-    if (squadId) {
-      router.push(`/rescue-squads/${squadId}`);
+    const forceId = activeMission?.assignments?.[0]?.rescueForceId;
+    if (forceId) {
+      router.push(`/rescue-forces/${forceId}`);
     } else {
-      router.push('/rescue-squads');
+      router.push('/rescue-forces');
     }
   };
 
@@ -291,10 +291,10 @@ export default function MissionControlV2() {
             <div className="bg-slate-800/50 rounded-2xl p-8">
               <p className="text-slate-400 mb-4">No active missions yet</p>
               <button
-                onClick={() => router.push('/rescue-squads')}
+                onClick={() => router.push('/rescue-forces')}
                 className="px-6 py-3 bg-flash-500 text-midnight-900 font-bold rounded-xl"
               >
-                Find a Rescue Squad
+                Find a Rescue Force
               </button>
             </div>
           )}

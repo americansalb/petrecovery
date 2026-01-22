@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-export default function TaskCoordination({ squadId, missionId, caseName, userRole, userId }) {
+export default function TaskCoordination({ forceId, missionId, caseName, userRole, userId }) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -24,11 +24,11 @@ export default function TaskCoordination({ squadId, missionId, caseName, userRol
     if (isLeader) {
       loadSquadMembers();
     }
-  }, [squadId, missionId]);
+  }, [forceId, missionId]);
 
   const loadTasks = async () => {
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/tasks?missionId=${missionId}`);
+      const res = await fetch(`/api/rescue-forces/${forceId}/tasks?missionId=${missionId}`);
       if (res.ok) {
         const data = await res.json();
         setTasks(data.tasks || []);
@@ -42,7 +42,7 @@ export default function TaskCoordination({ squadId, missionId, caseName, userRol
 
   const loadSquadMembers = async () => {
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/members`);
+      const res = await fetch(`/api/rescue-forces/${forceId}/members`);
       if (res.ok) {
         const data = await res.json();
         setSquadMembers(data.members || []);
@@ -57,7 +57,7 @@ export default function TaskCoordination({ squadId, missionId, caseName, userRol
     setCreating(true);
 
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/tasks`, {
+      const res = await fetch(`/api/rescue-forces/${forceId}/tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -674,7 +674,7 @@ export default function TaskCoordination({ squadId, missionId, caseName, userRol
               <div style={{ fontSize: '0.9rem', color: '#64748b' }}>
                 {isLeader
                   ? 'Create tasks to coordinate search efforts with your team'
-                  : 'Squad leaders will create tasks to organize the search'}
+                  : 'Force leaders will create tasks to organize the search'}
               </div>
             </div>
           )}

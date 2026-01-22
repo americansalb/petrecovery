@@ -6,7 +6,7 @@
  * Shows:
  * - Activity timeline (updates, status changes)
  * - Quick note input
- * - Chat integration (if squad assigned)
+ * - Chat integration (if force assigned)
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -270,8 +270,8 @@ export default function MissionActivityPanel({ missionData, userRole, currentUse
             <div className="flex-1 flex items-center justify-center p-4">
               <div className="text-center text-slate-500">
                 <span className="text-4xl mb-3 block">💬</span>
-                <p className="font-medium mb-1">No Squad Assigned</p>
-                <p className="text-sm">Squad chat will be available once a rescue squad is assigned to this case.</p>
+                <p className="font-medium mb-1">No Force Assigned</p>
+                <p className="text-sm">Force chat will be available once a rescue force is assigned to this case.</p>
               </div>
             </div>
           )}

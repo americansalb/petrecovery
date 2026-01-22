@@ -319,7 +319,7 @@ function MissionControlV3Content() {
       )}
 
       {/* ============================================================ */}
-      {/* CONTEXT BAR - Shows squad hierarchy & back navigation */}
+      {/* CONTEXT BAR - Shows force hierarchy & back navigation */}
       {/* ============================================================ */}
       <ContextBar mission={activeMission} />
 

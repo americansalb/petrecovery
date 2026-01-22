@@ -34,7 +34,7 @@ import {
 import { SARAMA_AVATAR, LOGO_PRIMARY, LOGO_ICON } from '@/lib/brandAssets';
 
 // Auth Modal Component
-const AuthModal = ({ isOpen, onClose, squadToJoin, onAuthSuccess }) => {
+const AuthModal = ({ isOpen, onClose, forceToJoin, onAuthSuccess }) => {
   const [mode, setMode] = useState('login');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -118,9 +118,9 @@ const AuthModal = ({ isOpen, onClose, squadToJoin, onAuthSuccess }) => {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
             {mode === 'login' ? 'Sign In to Join' : 'Create Account to Join'}
           </h2>
-          {squadToJoin && (
+          {forceToJoin && (
             <p className="text-gray-600">
-              Join <span className="font-semibold text-blue-600">{squadToJoin.name}</span>
+              Join <span className="font-semibold text-blue-600">{forceToJoin.name}</span>
             </p>
           )}
         </div>
@@ -271,16 +271,16 @@ export default function Home() {
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [squadToJoin, setSquadToJoin] = useState(null);
-  const [joiningSquad, setJoiningSquad] = useState(null);
-  const [creatingSquad, setCreatingSquad] = useState(null);
+  const [forceToJoin, setForceToJoin] = useState(null);
+  const [joiningForce, setJoiningForce] = useState(null);
+  const [creatingForce, setCreatingForce] = useState(null);
   const [citySuggestions, setCitySuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [data, setData] = useState({
-    metrics: { petsReunited: 0, openCases: 0, activeSquads: 0, totalVolunteers: 0, weeklyReunions: 0 },
+    metrics: { petsReunited: 0, openCases: 0, activeForces: 0, totalVolunteers: 0, weeklyReunions: 0 },
     ticker: [],
     casesNeedingHelp: [],
-    featuredSquads: [],
+    featuredForces: [],
   });
 
   useEffect(() => {
@@ -318,27 +318,27 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [locationQuery]);
 
-  // Search for squads inline - include ALL cities
-  const handleFindSquad = async (e) => {
+  // Search for forces inline - include ALL cities
+  const handleFindForce = async (e) => {
     e.preventDefault();
     if (!locationQuery.trim()) return;
     setShowSuggestions(false);
 
     setSearching(true);
     try {
-      const res = await fetch(`/api/rescue-squads?search=${encodeURIComponent(locationQuery.trim())}`);
+      const res = await fetch(`/api/rescue-forces?search=${encodeURIComponent(locationQuery.trim())}`);
       if (res.ok) {
         const data = await res.json();
-        // Include ALL cities - both with and without squads
+        // Include ALL cities - both with and without forces
         const results = (data.cities || []).map(city => ({
-          id: city.squad?.id || `new-${city.city}-${city.state}`,
-          name: city.squad?.name || `${city.city} Rescue Squad`,
+          id: city.force?.id || `new-${city.city}-${city.state}`,
+          name: city.force?.name || `${city.city} Rescue Force`,
           city: city.city,
           state: city.state,
-          memberCount: city.squad?.memberCount || 0,
+          memberCount: city.force?.memberCount || 0,
           distance: city.distance,
           exists: city.exists,
-          logoUrl: city.squad?.logoUrl || null,
+          logoUrl: city.force?.logoUrl || null,
         }));
         setSearchResults(results);
       }
@@ -354,7 +354,7 @@ export default function Home() {
     setShowSuggestions(false);
     // Trigger search
     setTimeout(() => {
-      const form = document.getElementById('squad-search-form');
+      const form = document.getElementById('force-search-form');
       if (form) form.dispatchEvent(new Event('submit', { bubbles: true }));
     }, 100);
   };
@@ -373,7 +373,7 @@ export default function Home() {
           // Reverse geocode to get ZIP code using Nominatim
           const geoRes = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-            { headers: { 'User-Agent': 'PetRecovery/1.0' } }
+            { headers: { 'User-Agent': 'ReunitePets/1.0' } }
           );
           if (geoRes.ok) {
             const geoData = await geoRes.json();
@@ -383,18 +383,18 @@ export default function Home() {
             if (zipCode || city) {
               const searchTerm = zipCode || city;
               setLocationQuery(searchTerm);
-              const res = await fetch(`/api/rescue-squads?search=${encodeURIComponent(searchTerm)}`);
+              const res = await fetch(`/api/rescue-forces?search=${encodeURIComponent(searchTerm)}`);
               if (res.ok) {
                 const data = await res.json();
                 const results = (data.cities || []).map(c => ({
-                  id: c.squad?.id || `new-${c.city}-${c.state}`,
-                  name: c.squad?.name || `${c.city} Rescue Squad`,
+                  id: c.force?.id || `new-${c.city}-${c.state}`,
+                  name: c.force?.name || `${c.city} Rescue Force`,
                   city: c.city,
                   state: c.state,
-                  memberCount: c.squad?.memberCount || 0,
+                  memberCount: c.force?.memberCount || 0,
                   distance: c.distance,
                   exists: c.exists,
-                  logoUrl: c.squad?.logoUrl || null,
+                  logoUrl: c.force?.logoUrl || null,
                 }));
                 setSearchResults(results);
               }
@@ -417,35 +417,35 @@ export default function Home() {
     );
   };
 
-  // Handle joining a squad
-  const handleJoinSquad = async (squad) => {
+  // Handle joining a force
+  const handleJoinForce = async (force) => {
     if (!session) {
       // Not logged in - show auth modal
-      setSquadToJoin(squad);
+      setForceToJoin(force);
       setShowAuthModal(true);
       return;
     }
 
     // Already logged in - join directly
-    await joinSquadDirectly(squad);
+    await joinForceDirectly(force);
   };
 
-  // Handle creating a new squad
-  const handleCreateSquad = async (cityData) => {
+  // Handle creating a new force
+  const handleCreateForce = async (cityData) => {
     if (!session) {
       // Not logged in - show auth modal with city to create
-      setSquadToJoin({ ...cityData, isNew: true });
+      setForceToJoin({ ...cityData, isNew: true });
       setShowAuthModal(true);
       return;
     }
 
-    await createSquadDirectly(cityData);
+    await createForceDirectly(cityData);
   };
 
-  const createSquadDirectly = async (cityData) => {
-    setCreatingSquad(`${cityData.city}-${cityData.state}`);
+  const createForceDirectly = async (cityData) => {
+    setCreatingForce(`${cityData.city}-${cityData.state}`);
     try {
-      const res = await fetch('/api/rescue-squads', {
+      const res = await fetch('/api/rescue-forces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -457,69 +457,69 @@ export default function Home() {
 
       if (res.ok) {
         const data = await res.json();
-        router.push(`/rescue-squads/${data.squad.id}?created=true`);
+        router.push(`/rescue-forces/${data.force.id}?created=true`);
       } else {
         const data = await res.json();
         if (data.code === 'WAIVER_NOT_ACCEPTED') {
           router.push(data.redirectTo);
         } else {
-          alert(data.error || 'Failed to create squad');
+          alert(data.error || 'Failed to create force');
         }
       }
     } catch (e) {
       console.error(e);
-      alert('Failed to create squad');
+      alert('Failed to create force');
     } finally {
-      setCreatingSquad(null);
+      setCreatingForce(null);
     }
   };
 
-  const joinSquadDirectly = async (squad) => {
-    setJoiningSquad(squad.id);
+  const joinForceDirectly = async (force) => {
+    setJoiningForce(force.id);
     try {
-      const res = await fetch(`/api/rescue-squads/${squad.id}/join`, {
+      const res = await fetch(`/api/rescue-forces/${force.id}/join`, {
         method: 'POST',
       });
 
       if (res.ok) {
-        // Redirect to the squad page
-        router.push(`/rescue-squads/${squad.id}?joined=true`);
+        // Redirect to the force page
+        router.push(`/rescue-forces/${force.id}?joined=true`);
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to join squad');
+        alert(data.error || 'Failed to join force');
       }
     } catch (e) {
       console.error(e);
-      alert('Failed to join squad');
+      alert('Failed to join force');
     } finally {
-      setJoiningSquad(null);
+      setJoiningForce(null);
     }
   };
 
   const handleAuthSuccess = async () => {
     setShowAuthModal(false);
     await updateSession();
-    if (squadToJoin) {
-      if (squadToJoin.isNew) {
-        await createSquadDirectly(squadToJoin);
+    if (forceToJoin) {
+      if (forceToJoin.isNew) {
+        await createForceDirectly(forceToJoin);
       } else {
-        await joinSquadDirectly(squadToJoin);
+        await joinForceDirectly(forceToJoin);
       }
     }
   };
 
-  const { metrics, ticker, casesNeedingHelp, featuredSquads } = data;
+  const { metrics, ticker, casesNeedingHelp, featuredForces } = data;
 
-  // Display squads - either search results or featured
-  const displaySquads = searchResults || featuredSquads;
+  // Display forces - either search results or featured
+  const displayForces = searchResults || featuredForces;
 
   return (
     <div className="min-h-screen bg-white">
       {/* Auth Modal */}
       <AuthModal
         isOpen={showAuthModal}
-        onClose={() => { setShowAuthModal(false); setSquadToJoin(null); }}
-        squadToJoin={squadToJoin}
+        onClose={() => { setShowAuthModal(false); setForceToJoin(null); }}
+        forceToJoin={forceToJoin}
         onAuthSuccess={handleAuthSuccess}
       />
 
@@ -539,9 +539,9 @@ export default function Home() {
               <Search className="w-4 h-4" />
               <span className="hidden sm:inline">Search</span>
             </Link>
-            <Link href="/rescue-squads/search" className="flex items-center gap-1.5 px-3 py-2 bg-midnight-800 hover:bg-midnight-700 text-midnight-200 hover:text-white rounded-lg font-medium transition">
+            <Link href="/rescue-forces/search" className="flex items-center gap-1.5 px-3 py-2 bg-midnight-800 hover:bg-midnight-700 text-midnight-200 hover:text-white rounded-lg font-medium transition">
               <Shield className="w-4 h-4" />
-              <span className="hidden sm:inline">Squads</span>
+              <span className="hidden sm:inline">Forces</span>
             </Link>
             <Link href="/shelters" className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-midnight-800 hover:bg-midnight-700 text-midnight-200 hover:text-white rounded-lg font-medium transition">
               <Building2 className="w-4 h-4" />
@@ -655,8 +655,8 @@ export default function Home() {
                   </div>
                   <div className="flex items-center gap-2 bg-flash-100 px-4 py-2 rounded-full">
                     <Shield className="w-5 h-5 text-flash-600" />
-                    <span className="font-bold text-midnight-900">{metrics.activeSquads}</span>
-                    <span className="text-midnight-600">neighborhood squads</span>
+                    <span className="font-bold text-midnight-900">{metrics.activeForces}</span>
+                    <span className="text-midnight-600">neighborhood forces</span>
                   </div>
                   <div className="flex items-center gap-2 bg-amber-50 px-4 py-2 rounded-full">
                     <Users className="w-5 h-5 text-amber-600" />
@@ -702,8 +702,8 @@ export default function Home() {
               <Link href="/database" className="inline-flex items-center gap-2 hover:text-gray-900 transition">
                 <Search className="w-4 h-4" /> Search lost pets
               </Link>
-              <Link href="/rescue-squads/search" className="inline-flex items-center gap-2 hover:text-gray-900 transition">
-                <Shield className="w-4 h-4" /> Find your squad
+              <Link href="/rescue-forces/search" className="inline-flex items-center gap-2 hover:text-gray-900 transition">
+                <Shield className="w-4 h-4" /> Find your force
               </Link>
               <Link href="/shelters" className="inline-flex items-center gap-2 hover:text-gray-900 transition">
                 <Building2 className="w-4 h-4" /> Check shelters
@@ -891,7 +891,7 @@ export default function Home() {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Rescue Squads - Krishna Blue */}
+            {/* Rescue Forces - Krishna Blue */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -902,9 +902,9 @@ export default function Home() {
               <div className="w-14 h-14 bg-flash-400 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
                 <Shield className="w-7 h-7 text-midnight-900" />
               </div>
-              <h3 className="text-xl font-bold mb-2">Rescue Squads</h3>
+              <h3 className="text-xl font-bold mb-2">Rescue Forces</h3>
               <p className="text-midnight-200 text-sm leading-relaxed">
-                Your neighbors are ready to help. Join your local squad or rally a new one.
+                Your neighbors are ready to help. Join your local force or rally a new one.
               </p>
             </motion.div>
 
@@ -965,7 +965,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Find Your Squad - Midnight Starry Sky Section */}
+      {/* Find Your Force - Midnight Starry Sky Section */}
       <section className="py-20 bg-gradient-to-b from-[#0a1628] via-[#0f1d32] to-[#162544] overflow-hidden relative">
         {/* Starry sky background */}
         <div className="absolute inset-0">
@@ -1018,22 +1018,22 @@ export default function Home() {
                 <span className="text-flash-400">Ready</span>
               </h2>
               <p className="text-midnight-200 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-                Real neighbors. Real care. When a pet goes missing, your local Rescue Squad mobilizes to help.
+                Real neighbors. Real care. When a pet goes missing, your local Rescue Force mobilizes to help.
               </p>
             </motion.div>
           </div>
 
-          {/* Squads Grid - Shows search results or featured squads */}
-          {(searching || displaySquads.length > 0) && (
+          {/* Forces Grid - Shows search results or featured forces */}
+          {(searching || displayForces.length > 0) && (
             <div className="mb-10">
               {/* Results header */}
               {searchResults && (
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-midnight-200">
                     {searchResults.length === 0 ? (
-                      'No squads found in this area'
+                      'No forces found in this area'
                     ) : (
-                      <>Found <span className="font-bold text-flash-400">{searchResults.length}</span> squads near you</>
+                      <>Found <span className="font-bold text-flash-400">{searchResults.length}</span> forces near you</>
                     )}
                   </p>
                   <button
@@ -1050,32 +1050,32 @@ export default function Home() {
                   <Loader2 className="w-8 h-8 text-flash-400 animate-spin" />
                   <span className="ml-3 text-white">Finding your neighbors...</span>
                 </div>
-              ) : displaySquads.length > 0 ? (
+              ) : displayForces.length > 0 ? (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"
                 >
-                  {displaySquads.slice(0, 6).map((squad, i) => (
+                  {displayForces.slice(0, 6).map((force, i) => (
                     <motion.div
-                      key={squad.id}
+                      key={force.id}
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: i * 0.05 }}
                       whileHover={{ scale: 1.02, y: -2 }}
-                      className={`backdrop-blur-sm border rounded-2xl p-5 transition-all ${squad.exists
+                      className={`backdrop-blur-sm border rounded-2xl p-5 transition-all ${force.exists
                         ? 'bg-midnight-700/50 border-midnight-600 hover:border-flash-400/50 hover:bg-midnight-700/70'
                         : 'bg-flash-400/10 border-flash-400/30 hover:bg-flash-400/20'
                         }`}
                     >
                       <div className="flex items-center gap-4 mb-4">
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${squad.exists
+                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${force.exists
                           ? 'bg-gradient-to-br from-flash-400 to-amber-500'
                           : 'bg-gradient-to-br from-emerald-400 to-green-500'
                           }`}>
-                          {squad.logoUrl ? (
-                            <img src={squad.logoUrl} alt={squad.name} className="w-14 h-14 rounded-2xl object-cover" />
-                          ) : squad.exists ? (
+                          {force.logoUrl ? (
+                            <img src={force.logoUrl} alt={force.name} className="w-14 h-14 rounded-2xl object-cover" />
+                          ) : force.exists ? (
                             <Shield className="w-7 h-7 text-midnight-900" />
                           ) : (
                             <UserPlus className="w-7 h-7 text-white" />
@@ -1083,26 +1083,26 @@ export default function Home() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="text-white font-bold truncate text-lg">
-                            {squad.exists ? squad.name : `${squad.city} Rescue Squad`}
+                            {force.exists ? force.name : `${force.city} Rescue Force`}
                           </h3>
                           <p className="text-midnight-300 text-sm flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
-                            {squad.city}, {squad.state}
+                            {force.city}, {force.state}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
-                        {squad.exists ? (
+                        {force.exists ? (
                           <>
                             <div className="text-midnight-300 text-sm">
-                              <span className="text-flash-400 font-bold">{squad.memberCount || 0}</span> neighbors
+                              <span className="text-flash-400 font-bold">{force.memberCount || 0}</span> neighbors
                             </div>
                             <button
-                              onClick={() => handleJoinSquad(squad)}
-                              disabled={joiningSquad === squad.id}
+                              onClick={() => handleJoinForce(force)}
+                              disabled={joiningForce === force.id}
                               className="bg-flash-400 hover:bg-flash-300 text-midnight-900 px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2 shadow-lg shadow-flash-400/20"
                             >
-                              {joiningSquad === squad.id ? (
+                              {joiningForce === force.id ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               ) : (
                                 <>
@@ -1118,16 +1118,16 @@ export default function Home() {
                               Be the founder!
                             </div>
                             <button
-                              onClick={() => handleCreateSquad(squad)}
-                              disabled={creatingSquad === `${squad.city}-${squad.state}`}
+                              onClick={() => handleCreateForce(force)}
+                              disabled={creatingForce === `${force.city}-${force.state}`}
                               className="bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2 shadow-lg"
                             >
-                              {creatingSquad === `${squad.city}-${squad.state}` ? (
+                              {creatingForce === `${force.city}-${force.state}` ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               ) : (
                                 <>
                                   <Shield className="w-4 h-4" />
-                                  Start Squad
+                                  Start Force
                                 </>
                               )}
                             </button>
@@ -1139,13 +1139,13 @@ export default function Home() {
                 </motion.div>
               ) : searchResults && searchResults.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-midnight-300 mb-4">No squads in this area yet - be the first!</p>
+                  <p className="text-midnight-300 mb-4">No forces in this area yet - be the first!</p>
                   <Link
-                    href="/rescue-squads/create"
+                    href="/rescue-forces/create"
                     className="inline-flex items-center gap-2 bg-flash-400 hover:bg-flash-300 text-midnight-900 px-6 py-3 rounded-xl font-bold transition shadow-lg"
                   >
                     <Shield className="w-5 h-5" />
-                    Start the First Squad
+                    Start the First Force
                   </Link>
                 </div>
               ) : null}
@@ -1159,9 +1159,9 @@ export default function Home() {
             viewport={{ once: true }}
             className="bg-midnight-700/50 backdrop-blur-sm border border-midnight-600 rounded-3xl p-6 md:p-8 max-w-2xl mx-auto"
           >
-            <h3 className="text-white font-bold text-xl mb-2 text-center">Find Your Local Squad</h3>
+            <h3 className="text-white font-bold text-xl mb-2 text-center">Find Your Local Force</h3>
             <p className="text-midnight-300 text-center mb-6">Enter your location to find neighbors ready to help</p>
-            <form id="squad-search-form" onSubmit={handleFindSquad} className="flex flex-col sm:flex-row gap-3 mb-4">
+            <form id="force-search-form" onSubmit={handleFindForce} className="flex flex-col sm:flex-row gap-3 mb-4">
               <div className="flex-1 relative">
                 <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400 pointer-events-none z-10" />
                 <input
@@ -1217,11 +1217,11 @@ export default function Home() {
               </button>
               <span className="text-midnight-500 hidden sm:block">or</span>
               <Link
-                href="/rescue-squads/create"
+                href="/rescue-forces/create"
                 className="inline-flex items-center gap-2 text-flash-400 hover:text-flash-300 transition font-medium"
               >
                 <Shield className="w-4 h-4" />
-                Start a new squad
+                Start a new force
               </Link>
             </div>
           </motion.div>
@@ -1235,8 +1235,8 @@ export default function Home() {
             className="flex flex-wrap justify-center gap-10 mt-12 text-center"
           >
             <div className="bg-midnight-700/30 px-6 py-4 rounded-2xl">
-              <div className="text-3xl font-bold text-flash-400">{metrics.activeSquads}</div>
-              <div className="text-midnight-300 text-sm">Active Squads</div>
+              <div className="text-3xl font-bold text-flash-400">{metrics.activeForces}</div>
+              <div className="text-midnight-300 text-sm">Active Forces</div>
             </div>
             <div className="bg-midnight-700/30 px-6 py-4 rounded-2xl">
               <div className="text-3xl font-bold text-flash-400">{metrics.citiesCovered || 0}</div>
@@ -1327,7 +1327,7 @@ export default function Home() {
           <div className="grid md:grid-cols-4 gap-8">
             {[
               { icon: Bell, title: 'Report', desc: '2 minutes to create your case', color: 'bg-red-500' },
-              { icon: Radio, title: 'Alert', desc: 'Squad gets notified instantly', color: 'bg-amber-500' },
+              { icon: Radio, title: 'Alert', desc: 'Force gets notified instantly', color: 'bg-amber-500' },
               { icon: Navigation, title: 'Search', desc: 'GPS-tracked volunteers mobilize', color: 'bg-blue-500' },
               { icon: Heart, title: 'Reunite', desc: 'Community brings them home', color: 'bg-green-500' },
             ].map((step, i) => (
@@ -1402,7 +1402,7 @@ export default function Home() {
                 <li><Link href="/report/new" className="hover:text-white transition">Report Lost Pet</Link></li>
                 <li><Link href="/report/found" className="hover:text-white transition">Report Found Pet</Link></li>
                 <li><Link href="/database" className="hover:text-white transition">Search Database</Link></li>
-                <li><Link href="/rescue-squads/search" className="hover:text-white transition">Find Squads</Link></li>
+                <li><Link href="/rescue-forces/search" className="hover:text-white transition">Find Forces</Link></li>
               </ul>
             </div>
             <div>

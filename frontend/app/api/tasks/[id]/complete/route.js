@@ -16,7 +16,7 @@ export async function POST(request, { params }) {
     const task = await prisma.squadTask.findUnique({
       where: { id: taskId },
       include: {
-        rescueSquad: true
+        rescueForce: true
       }
     });
 
@@ -25,16 +25,16 @@ export async function POST(request, { params }) {
     }
 
     // Verify user is assigned to this task or is a leader
-    const membership = await prisma.rescueSquadMember.findFirst({
+    const membership = await prisma.rescueForceMember.findFirst({
       where: {
-        rescueSquadId: task.rescueSquadId,
+        rescueForceId: task.rescueForceId,
         userId: session.user.id,
         isActive: true
       }
     });
 
     if (!membership) {
-      return NextResponse.json({ error: 'Not a squad member' }, { status: 403 });
+      return NextResponse.json({ error: 'Not a force member' }, { status: 403 });
     }
 
     const isLeader = ['FOUNDER', 'LEADER'].includes(membership.role);
@@ -66,7 +66,7 @@ export async function POST(request, { params }) {
     // Create activity log
     await prisma.squadActivity.create({
       data: {
-        rescueSquadId: task.rescueSquadId,
+        rescueForceId: task.rescueForceId,
         missionId: task.missionId,
         type: 'TASK_COMPLETED',
         message: `Task completed: ${task.title}`,

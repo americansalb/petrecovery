@@ -1,4 +1,4 @@
-# PetRecovery.org CI/CD Pipeline
+# ReunitePets.org CI/CD Pipeline
 # Runs on push to main and all pull requests
 
 name: CI/CD
@@ -167,7 +167,7 @@ jobs:
         with:
           context: frontend
           push: false
-          tags: petrecovery:${{ github.sha }}
+          tags: reunitepets:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

@@ -26,33 +26,33 @@ export async function POST(request) {
 
     // Apply the community posts migration - each statement separately
 
-    // 1. Add RescueSquad fields
+    // 1. Add RescueForce fields
     try {
-      await prisma.$executeRawUnsafe(`ALTER TABLE "RescueSquad" ADD COLUMN IF NOT EXISTS "photoUrl" TEXT`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "RescueForce" ADD COLUMN IF NOT EXISTS "photoUrl" TEXT`);
     } catch (e) {
       console.log('[MIGRATE] photoUrl column may already exist');
     }
 
     try {
-      await prisma.$executeRawUnsafe(`ALTER TABLE "RescueSquad" ADD COLUMN IF NOT EXISTS "slogan" TEXT`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "RescueForce" ADD COLUMN IF NOT EXISTS "slogan" TEXT`);
     } catch (e) {
       console.log('[MIGRATE] slogan column may already exist');
     }
 
     try {
-      await prisma.$executeRawUnsafe(`ALTER TABLE "RescueSquad" ADD COLUMN IF NOT EXISTS "zipCode" TEXT`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "RescueForce" ADD COLUMN IF NOT EXISTS "zipCode" TEXT`);
     } catch (e) {
       console.log('[MIGRATE] zipCode column may already exist');
     }
 
-    console.log('[MIGRATE] Added RescueSquad fields');
+    console.log('[MIGRATE] Added RescueForce fields');
 
-    // 2. Create SquadPost table
+    // 2. Create ForcePost table
     try {
       await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "SquadPost" (
+        CREATE TABLE IF NOT EXISTS "ForcePost" (
             "id" TEXT NOT NULL,
-            "rescueSquadId" TEXT NOT NULL,
+            "rescueForceId" TEXT NOT NULL,
             "divisionId" TEXT,
             "authorId" TEXT NOT NULL,
             "title" TEXT,
@@ -66,18 +66,18 @@ export async function POST(request) {
             "editedAt" TIMESTAMP(3),
             "isDeleted" BOOLEAN NOT NULL DEFAULT false,
             "deletedAt" TIMESTAMP(3),
-            CONSTRAINT "SquadPost_pkey" PRIMARY KEY ("id")
+            CONSTRAINT "ForcePost_pkey" PRIMARY KEY ("id")
         )
       `);
-      console.log('[MIGRATE] Created SquadPost table');
+      console.log('[MIGRATE] Created ForcePost table');
     } catch (e) {
-      console.log('[MIGRATE] SquadPost table may already exist');
+      console.log('[MIGRATE] ForcePost table may already exist');
     }
 
-    // 3. Create SquadPostComment table
+    // 3. Create ForcePostComment table
     try {
       await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "SquadPostComment" (
+        CREATE TABLE IF NOT EXISTS "ForcePostComment" (
             "id" TEXT NOT NULL,
             "postId" TEXT NOT NULL,
             "authorId" TEXT NOT NULL,
@@ -90,67 +90,67 @@ export async function POST(request) {
             "editedAt" TIMESTAMP(3),
             "isDeleted" BOOLEAN NOT NULL DEFAULT false,
             "deletedAt" TIMESTAMP(3),
-            CONSTRAINT "SquadPostComment_pkey" PRIMARY KEY ("id")
+            CONSTRAINT "ForcePostComment_pkey" PRIMARY KEY ("id")
         )
       `);
-      console.log('[MIGRATE] Created SquadPostComment table');
+      console.log('[MIGRATE] Created ForcePostComment table');
     } catch (e) {
-      console.log('[MIGRATE] SquadPostComment table may already exist');
+      console.log('[MIGRATE] ForcePostComment table may already exist');
     }
 
-    // 4. Create SquadPostVote table
+    // 4. Create ForcePostVote table
     try {
       await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "SquadPostVote" (
+        CREATE TABLE IF NOT EXISTS "ForcePostVote" (
             "id" TEXT NOT NULL,
             "postId" TEXT NOT NULL,
             "userId" TEXT NOT NULL,
             "vote" INTEGER NOT NULL,
             "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            CONSTRAINT "SquadPostVote_pkey" PRIMARY KEY ("id")
+            CONSTRAINT "ForcePostVote_pkey" PRIMARY KEY ("id")
         )
       `);
-      console.log('[MIGRATE] Created SquadPostVote table');
+      console.log('[MIGRATE] Created ForcePostVote table');
     } catch (e) {
-      console.log('[MIGRATE] SquadPostVote table may already exist');
+      console.log('[MIGRATE] ForcePostVote table may already exist');
     }
 
-    // 5. Create SquadCommentVote table
+    // 5. Create ForceCommentVote table
     try {
       await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "SquadCommentVote" (
+        CREATE TABLE IF NOT EXISTS "ForceCommentVote" (
             "id" TEXT NOT NULL,
             "commentId" TEXT NOT NULL,
             "userId" TEXT NOT NULL,
             "vote" INTEGER NOT NULL,
             "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            CONSTRAINT "SquadCommentVote_pkey" PRIMARY KEY ("id")
+            CONSTRAINT "ForceCommentVote_pkey" PRIMARY KEY ("id")
         )
       `);
-      console.log('[MIGRATE] Created SquadCommentVote table');
+      console.log('[MIGRATE] Created ForceCommentVote table');
     } catch (e) {
-      console.log('[MIGRATE] SquadCommentVote table may already exist');
+      console.log('[MIGRATE] ForceCommentVote table may already exist');
     }
 
     // 6. Create indexes (each separately)
     const indexes = [
-      `CREATE INDEX IF NOT EXISTS "SquadPost_rescueSquadId_createdAt_idx" ON "SquadPost"("rescueSquadId", "createdAt")`,
-      `CREATE INDEX IF NOT EXISTS "SquadPost_divisionId_idx" ON "SquadPost"("divisionId")`,
-      `CREATE INDEX IF NOT EXISTS "SquadPost_authorId_idx" ON "SquadPost"("authorId")`,
-      `CREATE INDEX IF NOT EXISTS "SquadPost_createdAt_idx" ON "SquadPost"("createdAt")`,
-      `CREATE INDEX IF NOT EXISTS "SquadPost_upvotes_idx" ON "SquadPost"("upvotes")`,
-      `CREATE INDEX IF NOT EXISTS "SquadPostComment_postId_createdAt_idx" ON "SquadPostComment"("postId", "createdAt")`,
-      `CREATE INDEX IF NOT EXISTS "SquadPostComment_authorId_idx" ON "SquadPostComment"("authorId")`,
-      `CREATE INDEX IF NOT EXISTS "SquadPostComment_parentCommentId_idx" ON "SquadPostComment"("parentCommentId")`,
-      `CREATE INDEX IF NOT EXISTS "SquadPostComment_createdAt_idx" ON "SquadPostComment"("createdAt")`,
-      `CREATE INDEX IF NOT EXISTS "SquadPostVote_postId_idx" ON "SquadPostVote"("postId")`,
-      `CREATE INDEX IF NOT EXISTS "SquadPostVote_userId_idx" ON "SquadPostVote"("userId")`,
-      `CREATE UNIQUE INDEX IF NOT EXISTS "SquadPostVote_postId_userId_key" ON "SquadPostVote"("postId", "userId")`,
-      `CREATE INDEX IF NOT EXISTS "SquadCommentVote_commentId_idx" ON "SquadCommentVote"("commentId")`,
-      `CREATE INDEX IF NOT EXISTS "SquadCommentVote_userId_idx" ON "SquadCommentVote"("userId")`,
-      `CREATE UNIQUE INDEX IF NOT EXISTS "SquadCommentVote_commentId_userId_key" ON "SquadCommentVote"("commentId", "userId")`,
+      `CREATE INDEX IF NOT EXISTS "ForcePost_rescueForceId_createdAt_idx" ON "ForcePost"("rescueForceId", "createdAt")`,
+      `CREATE INDEX IF NOT EXISTS "ForcePost_divisionId_idx" ON "ForcePost"("divisionId")`,
+      `CREATE INDEX IF NOT EXISTS "ForcePost_authorId_idx" ON "ForcePost"("authorId")`,
+      `CREATE INDEX IF NOT EXISTS "ForcePost_createdAt_idx" ON "ForcePost"("createdAt")`,
+      `CREATE INDEX IF NOT EXISTS "ForcePost_upvotes_idx" ON "ForcePost"("upvotes")`,
+      `CREATE INDEX IF NOT EXISTS "ForcePostComment_postId_createdAt_idx" ON "ForcePostComment"("postId", "createdAt")`,
+      `CREATE INDEX IF NOT EXISTS "ForcePostComment_authorId_idx" ON "ForcePostComment"("authorId")`,
+      `CREATE INDEX IF NOT EXISTS "ForcePostComment_parentCommentId_idx" ON "ForcePostComment"("parentCommentId")`,
+      `CREATE INDEX IF NOT EXISTS "ForcePostComment_createdAt_idx" ON "ForcePostComment"("createdAt")`,
+      `CREATE INDEX IF NOT EXISTS "ForcePostVote_postId_idx" ON "ForcePostVote"("postId")`,
+      `CREATE INDEX IF NOT EXISTS "ForcePostVote_userId_idx" ON "ForcePostVote"("userId")`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "ForcePostVote_postId_userId_key" ON "ForcePostVote"("postId", "userId")`,
+      `CREATE INDEX IF NOT EXISTS "ForceCommentVote_commentId_idx" ON "ForceCommentVote"("commentId")`,
+      `CREATE INDEX IF NOT EXISTS "ForceCommentVote_userId_idx" ON "ForceCommentVote"("userId")`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "ForceCommentVote_commentId_userId_key" ON "ForceCommentVote"("commentId", "userId")`,
     ];
 
     for (const indexSql of indexes) {
@@ -165,35 +165,35 @@ export async function POST(request) {
 
     // 7. Add foreign key constraints (each separately)
     const foreignKeys = [
-      `ALTER TABLE "SquadPost" DROP CONSTRAINT IF EXISTS "SquadPost_rescueSquadId_fkey"`,
-      `ALTER TABLE "SquadPost" ADD CONSTRAINT "SquadPost_rescueSquadId_fkey" FOREIGN KEY ("rescueSquadId") REFERENCES "RescueSquad"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "ForcePost" DROP CONSTRAINT IF EXISTS "ForcePost_rescueForceId_fkey"`,
+      `ALTER TABLE "ForcePost" ADD CONSTRAINT "ForcePost_rescueForceId_fkey" FOREIGN KEY ("rescueForceId") REFERENCES "RescueForce"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
 
-      `ALTER TABLE "SquadPost" DROP CONSTRAINT IF EXISTS "SquadPost_divisionId_fkey"`,
-      `ALTER TABLE "SquadPost" ADD CONSTRAINT "SquadPost_divisionId_fkey" FOREIGN KEY ("divisionId") REFERENCES "Division"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+      `ALTER TABLE "ForcePost" DROP CONSTRAINT IF EXISTS "ForcePost_divisionId_fkey"`,
+      `ALTER TABLE "ForcePost" ADD CONSTRAINT "ForcePost_divisionId_fkey" FOREIGN KEY ("divisionId") REFERENCES "Division"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
 
-      `ALTER TABLE "SquadPost" DROP CONSTRAINT IF EXISTS "SquadPost_authorId_fkey"`,
-      `ALTER TABLE "SquadPost" ADD CONSTRAINT "SquadPost_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "ForcePost" DROP CONSTRAINT IF EXISTS "ForcePost_authorId_fkey"`,
+      `ALTER TABLE "ForcePost" ADD CONSTRAINT "ForcePost_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
 
-      `ALTER TABLE "SquadPostComment" DROP CONSTRAINT IF EXISTS "SquadPostComment_postId_fkey"`,
-      `ALTER TABLE "SquadPostComment" ADD CONSTRAINT "SquadPostComment_postId_fkey" FOREIGN KEY ("postId") REFERENCES "SquadPost"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "ForcePostComment" DROP CONSTRAINT IF EXISTS "ForcePostComment_postId_fkey"`,
+      `ALTER TABLE "ForcePostComment" ADD CONSTRAINT "ForcePostComment_postId_fkey" FOREIGN KEY ("postId") REFERENCES "ForcePost"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
 
-      `ALTER TABLE "SquadPostComment" DROP CONSTRAINT IF EXISTS "SquadPostComment_authorId_fkey"`,
-      `ALTER TABLE "SquadPostComment" ADD CONSTRAINT "SquadPostComment_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "ForcePostComment" DROP CONSTRAINT IF EXISTS "ForcePostComment_authorId_fkey"`,
+      `ALTER TABLE "ForcePostComment" ADD CONSTRAINT "ForcePostComment_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
 
-      `ALTER TABLE "SquadPostComment" DROP CONSTRAINT IF EXISTS "SquadPostComment_parentCommentId_fkey"`,
-      `ALTER TABLE "SquadPostComment" ADD CONSTRAINT "SquadPostComment_parentCommentId_fkey" FOREIGN KEY ("parentCommentId") REFERENCES "SquadPostComment"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "ForcePostComment" DROP CONSTRAINT IF EXISTS "ForcePostComment_parentCommentId_fkey"`,
+      `ALTER TABLE "ForcePostComment" ADD CONSTRAINT "ForcePostComment_parentCommentId_fkey" FOREIGN KEY ("parentCommentId") REFERENCES "ForcePostComment"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
 
-      `ALTER TABLE "SquadPostVote" DROP CONSTRAINT IF EXISTS "SquadPostVote_postId_fkey"`,
-      `ALTER TABLE "SquadPostVote" ADD CONSTRAINT "SquadPostVote_postId_fkey" FOREIGN KEY ("postId") REFERENCES "SquadPost"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "ForcePostVote" DROP CONSTRAINT IF EXISTS "ForcePostVote_postId_fkey"`,
+      `ALTER TABLE "ForcePostVote" ADD CONSTRAINT "ForcePostVote_postId_fkey" FOREIGN KEY ("postId") REFERENCES "ForcePost"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
 
-      `ALTER TABLE "SquadPostVote" DROP CONSTRAINT IF EXISTS "SquadPostVote_userId_fkey"`,
-      `ALTER TABLE "SquadPostVote" ADD CONSTRAINT "SquadPostVote_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "ForcePostVote" DROP CONSTRAINT IF EXISTS "ForcePostVote_userId_fkey"`,
+      `ALTER TABLE "ForcePostVote" ADD CONSTRAINT "ForcePostVote_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
 
-      `ALTER TABLE "SquadCommentVote" DROP CONSTRAINT IF EXISTS "SquadCommentVote_commentId_fkey"`,
-      `ALTER TABLE "SquadCommentVote" ADD CONSTRAINT "SquadCommentVote_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "SquadPostComment"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "ForceCommentVote" DROP CONSTRAINT IF EXISTS "ForceCommentVote_commentId_fkey"`,
+      `ALTER TABLE "ForceCommentVote" ADD CONSTRAINT "ForceCommentVote_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "ForcePostComment"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
 
-      `ALTER TABLE "SquadCommentVote" DROP CONSTRAINT IF EXISTS "SquadCommentVote_userId_fkey"`,
-      `ALTER TABLE "SquadCommentVote" ADD CONSTRAINT "SquadCommentVote_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+      `ALTER TABLE "ForceCommentVote" DROP CONSTRAINT IF EXISTS "ForceCommentVote_userId_fkey"`,
+      `ALTER TABLE "ForceCommentVote" ADD CONSTRAINT "ForceCommentVote_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
     ];
 
     for (const fkSql of foreignKeys) {
@@ -210,7 +210,7 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       message: 'Database migration applied successfully',
-      tables: ['SquadPost', 'SquadPostComment', 'SquadPostVote', 'SquadCommentVote'],
+      tables: ['ForcePost', 'ForcePostComment', 'ForcePostVote', 'ForceCommentVote'],
     });
 
   } catch (error) {

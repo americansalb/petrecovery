@@ -146,7 +146,7 @@ export default function JoinPatrol() {
         `https://nominatim.openstreetmap.org/search?postalcode=${zipCode}&country=US&format=json&limit=1`,
         {
           headers: {
-            'User-Agent': 'PetRecovery.org'
+            'User-Agent': 'ReunitePets.org'
           }
         }
       );

@@ -190,9 +190,9 @@ model LostPetMission {
 ### No New API Endpoints Required
 
 QA harness uses existing endpoints:
-- `POST /api/rescue-squads` (create squad)
-- `GET /api/rescue-squads` (search)
-- `POST /api/rescue-squads/[id]/join` (join)
+- `POST /api/rescue-forces` (create squad)
+- `GET /api/rescue-forces` (search)
+- `POST /api/rescue-forces/[id]/join` (join)
 - `POST /api/missions` (create mission)
 - `POST /api/missions/[id]/status` (update)
 - `POST /api/missions/[id]/notes` (add note)
@@ -343,7 +343,7 @@ Match existing `/admin/health` design:
 
 2. **Test: Blocked Action - Squad Create**
    - Create test user WITHOUT waiver
-   - Attempt `POST /api/rescue-squads`
+   - Attempt `POST /api/rescue-forces`
    - **Pass criteria**: 403 status, `code: WAIVER_NOT_ACCEPTED`, `redirectTo` present
 
 3. **Test: Blocked Action - Mission Create**
@@ -355,21 +355,21 @@ Match existing `/admin/health` design:
 
 1. **Test: Create Squad - Happy Path**
    - Ensure test user has waiver
-   - Create squad: `POST /api/rescue-squads` with `{ city: "[TEST] Austin", state: "TX", zipCode: "78701" }`
+   - Create squad: `POST /api/rescue-forces` with `{ city: "[TEST] Austin", state: "TX", zipCode: "78701" }`
    - **Pass criteria**: 201 status, squad returned with id
 
 2. **Test: Search Squads by ZIP**
-   - Search: `GET /api/rescue-squads?search=78701`
+   - Search: `GET /api/rescue-forces?search=78701`
    - **Pass criteria**: 200 status, cities array returned
 
 3. **Test: Join Squad**
    - Create test squad if needed
-   - Join: `POST /api/rescue-squads/[id]/join`
+   - Join: `POST /api/rescue-forces/[id]/join`
    - **Pass criteria**: 200 status, membership created
 
 4. **Test: Leave Squad**
    - Ensure test user is member
-   - Leave: `POST /api/rescue-squads/[id]/leave`
+   - Leave: `POST /api/rescue-forces/[id]/leave`
    - **Pass criteria**: 200 status, success: true
 
 ### Mission Test Suite
@@ -400,7 +400,7 @@ Match existing `/admin/health` design:
 **Process:**
 1. For each city:
    - Use cities.js to get ZIP code
-   - Create squad with name: `"[TEST] {city} Rescue Squad"`
+   - Create squad with name: `"[TEST] {city} Rescue Force"`
    - Add founder (session user or create test user)
 
 **Output:**

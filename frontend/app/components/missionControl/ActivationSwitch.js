@@ -4,7 +4,7 @@
  * Activation Switch
  *
  * The visual transition from static case page to live operation.
- * Only owner or squad leaders can activate.
+ * Only owner or force leaders can activate.
  */
 
 import { useState } from 'react';
@@ -76,7 +76,7 @@ export default function ActivationSwitch({ missionId, mission, userRole, onActiv
         <h2 style={styles.sectionTitle}>Start Live Search</h2>
         <p style={styles.description}>
           Activate Mission Control to coordinate volunteers in real-time.
-          Nearby squad members will be notified.
+          Nearby force members will be notified.
         </p>
 
         {/* Radius selector */}
@@ -119,7 +119,7 @@ export default function ActivationSwitch({ missionId, mission, userRole, onActiv
           </button>
         ) : (
           <p style={styles.cannotActivate}>
-            Only the pet owner or squad leaders can activate live search.
+            Only the pet owner or force leaders can activate live search.
           </p>
         )}
       </div>
@@ -128,7 +128,7 @@ export default function ActivationSwitch({ missionId, mission, userRole, onActiv
       <div style={styles.infoSection}>
         <h3 style={styles.infoTitle}>What happens when you go live?</h3>
         <ul style={styles.infoList}>
-          <li>Nearby squad members get notified</li>
+          <li>Nearby force members get notified</li>
           <li>A search grid is generated around last seen location</li>
           <li>Volunteers can join with one tap</li>
           <li>Real-time coordination begins</li>

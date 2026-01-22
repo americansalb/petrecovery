@@ -1,10 +1,10 @@
 # Handoff Doc: Phases 15–26 (Public Portal, Roles/Assignment, Notifications)
 
-**Repo:** americansalb/petrecovery
+**Repo:** americansalb/reunitepets
 **Branch:** claude/cleanup-navbar-vision-01YCsTCcdvUhKCneDuk5ybgz
 **Date:** November 25, 2025
 
-This document is a handoff for a new chat / new assistant continuing work on the PetRecovery.org 108-phase roadmap, with focus on Phases 15–16, 22–24, and 25–26.
+This document is a handoff for a new chat / new assistant continuing work on the ReunitePets.org 108-phase roadmap, with focus on Phases 15–16, 22–24, and 25–26.
 
 Use this as your mental "context restore" so you don't have to re-open every file before being productive.
 

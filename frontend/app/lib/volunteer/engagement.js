@@ -458,9 +458,9 @@ export async function getDivisionLeaderboard(divisionId, period = 'week') {
 }
 
 /**
- * Get squad leaderboard (divisions ranked)
+ * Get force leaderboard (divisions ranked)
  */
-export async function getSquadLeaderboard(squadId, period = 'week') {
+export async function getSquadLeaderboard(forceId, period = 'week') {
   const startDate = new Date();
   if (period === 'week') {
     startDate.setDate(startDate.getDate() - 7);
@@ -470,7 +470,7 @@ export async function getSquadLeaderboard(squadId, period = 'week') {
 
   const divisions = await prisma.division.findMany({
     where: {
-      rescueSquadId: squadId,
+      rescueForceId: forceId,
       isActive: true,
     },
     include: {

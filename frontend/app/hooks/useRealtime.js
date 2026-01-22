@@ -9,7 +9,7 @@ import { useSession } from 'next-auth/react';
  * @param {Object} options
  * @param {Function} options.onNotification - Callback when notification received
  * @param {Function} options.onCaseUpdate - Callback when case update received
- * @param {Function} options.onSquadMessage - Callback when squad message received
+ * @param {Function} options.onForceMessage - Callback when force message received
  * @param {Function} options.onSighting - Callback when sighting reported
  * @param {boolean} options.enabled - Whether to enable the connection
  * @returns {Object} { connected, reconnect }
@@ -17,7 +17,7 @@ import { useSession } from 'next-auth/react';
 export function useRealtime({
   onNotification,
   onCaseUpdate,
-  onSquadMessage,
+  onForceMessage,
   onSighting,
   enabled = true,
 } = {}) {
@@ -29,10 +29,10 @@ export function useRealtime({
 
   // Store handlers in refs to prevent reconnection when callbacks change
   // This is critical - inline callbacks would cause constant reconnects
-  const handlersRef = useRef({ onNotification, onCaseUpdate, onSquadMessage, onSighting });
+  const handlersRef = useRef({ onNotification, onCaseUpdate, onForceMessage, onSighting });
   useEffect(() => {
-    handlersRef.current = { onNotification, onCaseUpdate, onSquadMessage, onSighting };
-  }, [onNotification, onCaseUpdate, onSquadMessage, onSighting]);
+    handlersRef.current = { onNotification, onCaseUpdate, onForceMessage, onSighting };
+  }, [onNotification, onCaseUpdate, onForceMessage, onSighting]);
 
   const connect = useCallback(() => {
     if (!session?.user?.id || !enabled) return;
@@ -75,7 +75,7 @@ export function useRealtime({
               break;
 
             case 'squad_message':
-              handlers.onSquadMessage?.(data.payload);
+              handlers.onForceMessage?.(data.payload);
               break;
 
             case 'sighting':

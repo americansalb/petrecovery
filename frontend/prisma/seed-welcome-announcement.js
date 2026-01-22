@@ -1,6 +1,6 @@
 /**
  * Seed script to create a welcome announcement from Sarama (mascot)
- * for all existing rescue squads
+ * for all existing rescue forces
  *
  * Run with: node prisma/seed-welcome-announcement.js
  */
@@ -9,7 +9,7 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
-const WELCOME_MESSAGE = `Welcome to your local Rescue Squad! 🐾
+const WELCOME_MESSAGE = `Welcome to your local Rescue Force! 🐾
 
 We're a community of caring neighbors who work together to help lost pets find their way home.
 
@@ -22,25 +22,25 @@ Here's how you can help:
 Every share, every search, every kind word makes a difference. Together, we bring pets home!`;
 
 async function seedWelcomeAnnouncements() {
-  console.log('Seeding welcome announcements for all rescue squads...');
+  console.log('Seeding welcome announcements for all rescue forces...');
 
-  // Get all active rescue squads
-  const squads = await prisma.rescueSquad.findMany({
+  // Get all active rescue forces
+  const forces = await prisma.rescueForce.findMany({
     where: { isActive: true },
     select: { id: true, city: true },
   });
 
-  console.log(`Found ${squads.length} active squads`);
+  console.log(`Found ${forces.length} active forces`);
 
   // Find or create a system user for Sarama
   let systemUser = await prisma.user.findFirst({
-    where: { email: 'sarama@petrecovery.app' },
+    where: { email: 'sarama@reunitepets.app' },
   });
 
   if (!systemUser) {
     systemUser = await prisma.user.create({
       data: {
-        email: 'sarama@petrecovery.app',
+        email: 'sarama@reunitepets.app',
         firstName: 'Sarama',
         lastName: '',
         role: 'ADMIN',
@@ -52,18 +52,18 @@ async function seedWelcomeAnnouncements() {
   let created = 0;
   let skipped = 0;
 
-  for (const squad of squads) {
+  for (const force of forces) {
     // Check if welcome announcement already exists
     const existing = await prisma.squadActivity.findFirst({
       where: {
-        rescueSquadId: squad.id,
+        rescueForceId: force.id,
         type: 'ANNOUNCEMENT',
-        message: { contains: 'Welcome to your local Rescue Squad' },
+        message: { contains: 'Welcome to your local Rescue Force' },
       },
     });
 
     if (existing) {
-      console.log(`  Skipping ${squad.city} - already has welcome announcement`);
+      console.log(`  Skipping ${force.city} - already has welcome announcement`);
       skipped++;
       continue;
     }
@@ -71,19 +71,19 @@ async function seedWelcomeAnnouncements() {
     // Create the welcome announcement
     await prisma.squadActivity.create({
       data: {
-        rescueSquadId: squad.id,
+        rescueForceId: force.id,
         actorId: systemUser.id,
         type: 'ANNOUNCEMENT',
         message: WELCOME_MESSAGE,
         details: JSON.stringify({
-          title: 'Welcome to Your Rescue Squad!',
+          title: 'Welcome to Your Rescue Force!',
           isPinned: true,
           isSystemPost: true,
         }),
       },
     });
 
-    console.log(`  Created welcome announcement for ${squad.city}`);
+    console.log(`  Created welcome announcement for ${force.city}`);
     created++;
   }
 

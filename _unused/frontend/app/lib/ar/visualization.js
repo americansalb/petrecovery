@@ -231,8 +231,8 @@ export async function generate3DPetModel(petData) {
 
   return {
     model: modelConfig,
-    glbUrl: `https://assets.petrecovery.org/models/${modelConfig.species}/${modelConfig.breed}.glb`,
-    thumbnailUrl: `https://assets.petrecovery.org/models/thumbnails/${modelConfig.id}.png`,
+    glbUrl: `https://assets.reunitepets.org/models/${modelConfig.species}/${modelConfig.breed}.glb`,
+    thumbnailUrl: `https://assets.reunitepets.org/models/thumbnails/${modelConfig.id}.png`,
     interactive: true,
   };
 }
@@ -374,8 +374,8 @@ export async function generateARPoster(missionData) {
     reward: missionData.rewardAmount,
     arMarker: {
       type: 'qr',
-      data: `petrecovery://case/${missionData.missionNumber}`,
-      embedUrl: `https://petrecovery.org/ar/case/${missionData.missionNumber}`,
+      data: `reunitepets://case/${missionData.missionNumber}`,
+      embedUrl: `https://reunitepets.org/ar/case/${missionData.missionNumber}`,
     },
   };
 
@@ -387,7 +387,7 @@ export async function generateARPoster(missionData) {
     imageUrl: posterImage.url,
     printUrl: posterImage.printUrl,
     arEnabled: true,
-    scanInstructions: 'Scan QR code with PetRecovery app to see AR view',
+    scanInstructions: 'Scan QR code with ReunitePets app to see AR view',
   };
 }
 
@@ -453,7 +453,7 @@ async function findNearbyShelters(location, radiusMiles) {
 }
 
 function getBaseModelUrl(species, breed) {
-  return `https://assets.petrecovery.org/models/${species.toLowerCase()}/base.glb`;
+  return `https://assets.reunitepets.org/models/${species.toLowerCase()}/base.glb`;
 }
 
 function calculateModelScale(size) {
@@ -519,8 +519,8 @@ async function calculateWalkingRoute(start, end) {
 
 async function generatePosterImage(poster) {
   return {
-    url: `https://petrecovery.org/posters/${poster.id}.png`,
-    printUrl: `https://petrecovery.org/posters/${poster.id}.pdf`,
+    url: `https://reunitepets.org/posters/${poster.id}.png`,
+    printUrl: `https://reunitepets.org/posters/${poster.id}.pdf`,
   };
 }
 

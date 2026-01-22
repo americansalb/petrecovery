@@ -320,7 +320,7 @@ export default function AdminUsersPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <div>{user._count?.cases || 0} cases</div>
-                          <div>{user._count?.rescueSquadMemberships || 0} squads</div>
+                          <div>{user._count?.rescueForceMemberships || 0} forces</div>
                           {user.successfulReunions > 0 && (
                             <div className="text-green-600">{user.successfulReunions} reunions</div>
                           )}

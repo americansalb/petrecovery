@@ -9,10 +9,10 @@
 
 ## 0. Summary
 
-We're introducing a **Lost Pet Mission MVP** that lets admins and rescue squads:
+We're introducing a **Lost Pet Mission MVP** that lets admins and rescue forces:
 
 - Capture structured information about a **lost pet** and its situation.
-- Associate missions with **cities** and **rescue squads** (where appropriate).
+- Associate missions with **cities** and **rescue forces** (where appropriate).
 - Track **basic status workflow** (Open → Active Search → Resolved / Closed).
 - Make missions **discoverable** to internal volunteers (Phase 13–14 focuses on internal tools, not full public launch).
 - Emit **structured logging events** so missions show up in the Admin Health Dashboard.
@@ -107,7 +107,7 @@ Right now, the platform has:
 - **G2. Basic status workflow**
   - Mission has a status: `OPEN`, `ACTIVE_SEARCH`, `RESOLVED`, `CLOSED_OTHER`.
 - **G3. Attach to city & (optionally) squad**
-  - Mission stores city, state, zip, and optionally a rescue squad reference.
+  - Mission stores city, state, zip, and optionally a rescue force reference.
 - **G4. Pet + contact info**
   - Capture pet's name, species, key description, and primary contact info.
 - **G5. Internal-only UI**
@@ -137,7 +137,7 @@ We explicitly **do NOT** implement (yet):
 ### 3.1 Admin / Coordinator
 
 1. **Create a new mission**
-   > As an admin, I can create a new lost-pet mission for a given city and optionally associate it with a rescue squad, so volunteers have a clear, shared record of the search.
+   > As an admin, I can create a new lost-pet mission for a given city and optionally associate it with a rescue force, so volunteers have a clear, shared record of the search.
 
 2. **View list of missions**
    > As an admin, I can see a list of recent missions, filter by status and city, and click into a mission for details.
@@ -295,7 +295,7 @@ model LostPetMissionNote {
       "lastSeenAt": "2025-11-24T12:34:56.000Z",
       "createdAt": "2025-11-24T12:00:00.000Z",
       "squadId": "squad_123",
-      "squadName": "Austin City Rescue Squad"
+      "squadName": "Austin City Rescue Force"
     }
   ],
   "meta": {
@@ -661,7 +661,7 @@ logEvent({
   - `waiverAcceptedAt` + `waiverVersionAccepted` set.
 - Any call to `POST /api/missions` or `/api/missions/[id]/status` or `/api/missions/[id]/notes` should:
   - Fetch user.
-  - If waiver not accepted → respond with 403 + `WAIVER_NOT_ACCEPTED` + `redirectTo` as done for rescue squads.
+  - If waiver not accepted → respond with 403 + `WAIVER_NOT_ACCEPTED` + `redirectTo` as done for rescue forces.
   - Emit `legal.blocked_action` with metadata:
     - `blocked_action`: `'mission_create'` | `'mission_update_status'` | `'mission_add_note'`
     - `missionId` if applicable.

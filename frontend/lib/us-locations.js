@@ -1,4 +1,4 @@
-// Comprehensive US location validation for PetRecovery communities
+// Comprehensive US location validation for ReunitePets communities
 // Includes cities, counties, and ZIP code validation
 
 import { getCitiesByZip } from '../app/lib/cities';

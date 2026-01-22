@@ -1,4 +1,4 @@
-# PetRecovery.org - Database Setup Guide
+# ReunitePets.org - Database Setup Guide
 
 This guide will help you connect the application to a real database and implement auto-account creation.
 
@@ -55,7 +55,7 @@ SMTP_HOST="smtp.gmail.com"
 SMTP_PORT="587"
 SMTP_USER="your-email@gmail.com"
 SMTP_PASSWORD="your-gmail-app-password"
-SMTP_FROM="PetRecovery <noreply@petrecovery.org>"
+SMTP_FROM="ReunitePets <noreply@reunitepets.org>"
 ```
 
 **Gmail App Password Setup:**
@@ -77,10 +77,10 @@ The application now uses a simplified email configuration. Update your `/fronten
 EMAIL_SERVICE="gmail"                    # or "sendgrid", "mailgun", etc.
 EMAIL_USER="your-email@gmail.com"
 EMAIL_PASSWORD="your-gmail-app-password"
-EMAIL_FROM="PetRecovery <noreply@petrecovery.org>"
+EMAIL_FROM="ReunitePets <noreply@reunitepets.org>"
 
 # Admin Notifications
-ADMIN_NOTIFICATION_EMAIL="admin@petrecovery.org"  # Receives alerts for new public reports
+ADMIN_NOTIFICATION_EMAIL="admin@reunitepets.org"  # Receives alerts for new public reports
 ```
 
 ### Email Service Setup
@@ -98,7 +98,7 @@ Example configuration:
 EMAIL_SERVICE="gmail"
 EMAIL_USER="youremail@gmail.com"
 EMAIL_PASSWORD="abcd efgh ijkl mnop"  # 16-character app password
-EMAIL_FROM="PetRecovery <noreply@petrecovery.org>"
+EMAIL_FROM="ReunitePets <noreply@reunitepets.org>"
 ADMIN_NOTIFICATION_EMAIL="youremail@gmail.com"
 ```
 
@@ -114,8 +114,8 @@ Example configuration:
 EMAIL_SERVICE="sendgrid"
 EMAIL_USER="apikey"                    # Literally the word "apikey"
 EMAIL_PASSWORD="SG.xxxxxxxxxxxxxxxx"   # Your SendGrid API key
-EMAIL_FROM="PetRecovery <noreply@petrecovery.org>"
-ADMIN_NOTIFICATION_EMAIL="admin@petrecovery.org"
+EMAIL_FROM="ReunitePets <noreply@reunitepets.org>"
+ADMIN_NOTIFICATION_EMAIL="admin@reunitepets.org"
 ```
 
 **Option 3: Other Providers**
@@ -135,7 +135,7 @@ The `ADMIN_NOTIFICATION_EMAIL` receives urgent alerts when:
 **Best practices:**
 - Use a monitored email address (checked frequently)
 - Consider using a distribution list for teams
-- Set up email filters to prioritize PetRecovery alerts
+- Set up email filters to prioritize ReunitePets alerts
 
 ### Testing Email Configuration
 
@@ -159,7 +159,7 @@ EMAIL_PORT="587"
 EMAIL_SECURE="false"                   # true for port 465, false for other ports
 EMAIL_USER="your-username"
 EMAIL_PASSWORD="your-password"
-EMAIL_FROM="PetRecovery <noreply@petrecovery.org>"
+EMAIL_FROM="ReunitePets <noreply@reunitepets.org>"
 ADMIN_NOTIFICATION_EMAIL="admin@example.com"
 ```
 
@@ -304,7 +304,7 @@ export async function POST(request) {
       // Send email with login credentials
       await sendEmail({
         to: email,
-        subject: 'Your PetRecovery.org Account - Lost Pet Alert Created',
+        subject: 'Your ReunitePets.org Account - Lost Pet Alert Created',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #dc2626;">🚨 Lost Pet Alert Created</h2>

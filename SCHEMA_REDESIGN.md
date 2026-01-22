@@ -1,4 +1,4 @@
-# Schema Redesign: Rescue Squad → Case Model
+# Schema Redesign: Rescue Force → Case Model
 
 ## Core Concept Change
 
@@ -8,10 +8,10 @@
 - Members join squads on a per-case basis
 
 **NEW MODEL:**
-- **Rescue Squads** = Persistent volunteer teams (like fire departments)
+- **Rescue Forces** = Persistent volunteer teams (like fire departments)
 - **Cases** = Lost pet reports (like fires/emergencies)
-- Rescue Squads choose which Cases to accept and work on
-- Members join Rescue Squads permanently, then opt-in to specific Cases
+- Rescue Forces choose which Cases to accept and work on
+- Members join Rescue Forces permanently, then opt-in to specific Cases
 
 ---
 
@@ -23,8 +23,8 @@
 model RescueSquad {
   id              String   @id @default(cuid())
 
-  // Rescue Squad Identity
-  name            String   @unique // "Lincoln Park Rescue Squad"
+  // Rescue Force Identity
+  name            String   @unique // "Lincoln Park Rescue Force"
   description     String?
   logoUrl         String?
 
@@ -186,7 +186,7 @@ enum CaseResolution {
 }
 ```
 
-### 3. **CaseAssignment** (Rescue Squad Accepts Case)
+### 3. **CaseAssignment** (Rescue Force Accepts Case)
 
 ```prisma
 model CaseAssignment {
@@ -199,7 +199,7 @@ model CaseAssignment {
   // Assignment Status
   status          AssignmentStatus @default(ACCEPTED)
   acceptedAt      DateTime @default(now())
-  acceptedById    String   // Rescue Squad leader who accepted
+  acceptedById    String   // Rescue Force leader who accepted
 
   // Participation
   activeMembers   Int      @default(0)
@@ -214,22 +214,22 @@ model CaseAssignment {
   participants    CaseParticipant[]
   searchAreas     SearchArea[]
 
-  @@unique([caseId, rescueSquadId]) // Rescue Squad can only accept case once
+  @@unique([caseId, rescueSquadId]) // Rescue Force can only accept case once
   @@index([caseId])
   @@index([rescueSquadId])
   @@index([status])
 }
 
 enum AssignmentStatus {
-  ACCEPTED         // Rescue Squad accepted, mobilizing
+  ACCEPTED         // Rescue Force accepted, mobilizing
   ACTIVE           // Members actively searching
   STANDBY          // Paused, watching for updates
-  COMPLETED        // Rescue Squad finished their involvement
-  WITHDRAWN        // Rescue Squad withdrew from case
+  COMPLETED        // Rescue Force finished their involvement
+  WITHDRAWN        // Rescue Force withdrew from case
 }
 ```
 
-### 4. **CaseParticipant** (Rescue Squad Member Opts Into Specific Case)
+### 4. **CaseParticipant** (Rescue Force Member Opts Into Specific Case)
 
 ```prisma
 model CaseParticipant {
@@ -255,7 +255,7 @@ model CaseParticipant {
 }
 ```
 
-### 5. **RescueSquadMember** (Permanent Rescue Squad Membership)
+### 5. **RescueSquadMember** (Permanent Rescue Force Membership)
 
 ```prisma
 model RescueSquadMember {
@@ -271,7 +271,7 @@ model RescueSquadMember {
   // Status
   isActive        Boolean  @default(true)
 
-  // Stats (Within This Rescue Squad)
+  // Stats (Within This Rescue Force)
   casesParticipated Int    @default(0)
   successfulReunions Int   @default(0)
   searchHours     Float    @default(0)
@@ -291,7 +291,7 @@ model RescueSquadMember {
 }
 
 enum RescueSquadMemberRole {
-  FOUNDER          // Created the rescue squad
+  FOUNDER          // Created the rescue force
   LEADER           // Can accept cases, manage members
   COORDINATOR      // Can coordinate searches, post updates
   MEMBER           // Regular searcher
@@ -312,27 +312,27 @@ enum AvailabilityStatus {
 
 1. Owner fills out lost pet form
 2. System creates **Case** with unique case number
-3. System identifies nearby Rescue Squads (within search radius)
-4. System sends push notification to Rescue Squad leaders:
+3. System identifies nearby Rescue Forces (within search radius)
+4. System sends push notification to Rescue Force leaders:
    - "New case in your area: Golden Retriever lost in Lincoln Park"
    - "Case #CHI-2024-001847 • 0.3 miles from your coverage area"
 5. Meta ads auto-launch to general public
 
-### **Flow 2: Rescue Squad Leader Reviews and Accepts Case**
+### **Flow 2: Rescue Force Leader Reviews and Accepts Case**
 
-1. Rescue Squad leader opens app, sees new case notification
+1. Rescue Force leader opens app, sees new case notification
 2. Views case details:
    - Pet info, photo, description
    - Last seen location (map)
    - Owner contact info
-   - Current status (0 rescue squads assigned)
+   - Current status (0 rescue forces assigned)
 3. Leader taps **"Accept Case"**
 4. System creates **CaseAssignment**
-5. All active rescue squad members get notification:
-   - "Your rescue squad accepted a new case!"
+5. All active rescue force members get notification:
+   - "Your rescue force accepted a new case!"
    - "Golden Retriever - Lincoln Park - Can you help search?"
 
-### **Flow 3: Rescue Squad Member Opts In To Search**
+### **Flow 3: Rescue Force Member Opts In To Search**
 
 1. Member sees notification
 2. Taps "I can help"
@@ -348,34 +348,34 @@ enum AvailabilityStatus {
 1. Sees Facebook/Instagram ad for lost dog
 2. Two options:
    - **"Report a sighting"** → Quick form, no signup
-   - **"Join a rescue squad to help search"** → Signup, join local rescue squad
+   - **"Join a rescue force to help search"** → Signup, join local rescue force
 
 ---
 
 ## Benefits of This Model
 
 ### **1. National Scale From Day 1**
-✅ Anyone can form a rescue squad anywhere
-✅ Cases work without rescue squads (Meta ads + self-service)
-✅ Rescue Squads add value when they exist
+✅ Anyone can form a rescue force anywhere
+✅ Cases work without rescue forces (Meta ads + self-service)
+✅ Rescue Forces add value when they exist
 
 ### **2. Persistent Communities**
-✅ Rescue Squads build identity, reputation, culture
+✅ Rescue Forces build identity, reputation, culture
 ✅ Members stay engaged long-term
-✅ Competition between rescue squads
+✅ Competition between rescue forces
 
 ### **3. Flexible Participation**
-✅ Rescue Squad members can opt-in/out per case
+✅ Rescue Force members can opt-in/out per case
 ✅ Not obligated to help with every case
 ✅ Natural for volunteers with varying availability
 
 ### **4. Chicago Proof Point**
-✅ Build 10 strong rescue squads in Chicago
+✅ Build 10 strong rescue forces in Chicago
 ✅ Demonstrate what organized search looks like
-✅ Case studies: "Chicago rescue squads have 75% reunion rate"
+✅ Case studies: "Chicago rescue forces have 75% reunion rate"
 
 ### **5. Gamification That Works**
-✅ Rescue Squad leaderboards
+✅ Rescue Force leaderboards
 ✅ Individual member stats
 ✅ Badges and achievements
 ✅ Friendly competition
@@ -384,13 +384,13 @@ enum AvailabilityStatus {
 
 ## Next Steps
 
-1. **Migrate existing schema** to new Rescue Squad/Case model
-2. **Build rescue squad formation flow** (anyone can create a rescue squad)
-3. **Build case acceptance flow** (rescue squad leaders review and accept)
+1. **Migrate existing schema** to new Rescue Force/Case model
+2. **Build rescue force formation flow** (anyone can create a rescue force)
+3. **Build case acceptance flow** (rescue force leaders review and accept)
 4. **Build member opt-in flow** (participate in specific cases)
 5. **Add Meta Ads integration** (cases auto-launch ads)
-6. **Chicago launch plan** (recruit 10 founding rescue squads)
+6. **Chicago launch plan** (recruit 10 founding rescue forces)
 
 ---
 
-**This is the model. Rescue Squads are permanent. Cases are temporary. Rescue Squads choose which cases to help with.**
+**This is the model. Rescue Forces are permanent. Cases are temporary. Rescue Forces choose which cases to help with.**

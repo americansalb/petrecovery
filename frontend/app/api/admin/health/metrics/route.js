@@ -3,7 +3,7 @@
  * TASK-004: Key operational metrics for admin dashboard
  *
  * Per admin-health-dashboard.md:
- * - Returns total counts for: users, cities, rescue squads
+ * - Returns total counts for: users, cities, rescue forces
  * - Admin-only access
  * - Simple stat cards on dashboard
  */
@@ -56,8 +56,8 @@ export async function GET(request) {
 
     const [
       usersTotal,
-      rescueSquadsTotal,
-      rescueSquadsActive,
+      rescueForcesTotal,
+      rescueForcesActive,
       uniqueCities,
       casesTotal,
       casesOpen,
@@ -66,16 +66,16 @@ export async function GET(request) {
       // Total users
       prisma.user.count(),
 
-      // Total rescue squads
-      prisma.rescueSquad.count(),
+      // Total rescue forces
+      prisma.rescueForce.count(),
 
-      // Active rescue squads (isActive = true)
-      prisma.rescueSquad.count({
+      // Active rescue forces (isActive = true)
+      prisma.rescueForce.count({
         where: { isActive: true }
       }),
 
-      // Unique cities (from rescue squads with city/state)
-      prisma.rescueSquad.findMany({
+      // Unique cities (from rescue forces with city/state)
+      prisma.rescueForce.findMany({
         where: {
           city: { not: null },
           state: { not: null }
@@ -104,8 +104,8 @@ export async function GET(request) {
     const citiesTotal = uniqueCities.length;
 
     // Additional metrics (can be expanded in future)
-    const squadMembersTotal = await prisma.rescueSquadMember.count();
-    const activeSquadMembers = await prisma.rescueSquadMember.count({
+    const squadMembersTotal = await prisma.rescueForceMember.count();
+    const activeSquadMembers = await prisma.rescueForceMember.count({
       where: { isActive: true }
     });
 
@@ -114,8 +114,8 @@ export async function GET(request) {
     console.log(`📊 [Admin Metrics] Fetched metrics in ${responseTime}ms:`);
     console.log(`   - Users: ${usersTotal}`);
     console.log(`   - Cities: ${citiesTotal}`);
-    console.log(`   - Rescue Squads: ${rescueSquadsTotal} (${rescueSquadsActive} active)`);
-    console.log(`   - Squad Members: ${squadMembersTotal} (${activeSquadMembers} active)`);
+    console.log(`   - Rescue Forces: ${rescueForcesTotal} (${rescueForcesActive} active)`);
+    console.log(`   - Force Members: ${squadMembersTotal} (${activeSquadMembers} active)`);
     console.log(`   - Cases: ${casesTotal} (${casesOpen} active, ${casesActiveSearch} in progress)`);
 
     // ============================================================================
@@ -131,7 +131,7 @@ export async function GET(request) {
       metadata: {
         users_total: usersTotal,
         cities_total: citiesTotal,
-        rescue_squads_total: rescueSquadsTotal,
+        rescue_forces_total: rescueForcesTotal,
         cases_total: casesTotal,
         cases_open: casesOpen,
         cases_active_search: casesActiveSearch,
@@ -149,12 +149,12 @@ export async function GET(request) {
         // Core metrics (Phase 0 requirements)
         users_total: usersTotal,
         cities_total: citiesTotal,
-        rescue_squads_total: rescueSquadsTotal,
+        rescue_forces_total: rescueForcesTotal,
 
         // Additional context
-        rescue_squads_active: rescueSquadsActive,
-        squad_members_total: squadMembersTotal,
-        squad_members_active: activeSquadMembers,
+        rescue_forces_active: rescueForcesActive,
+        force_members_total: squadMembersTotal,
+        force_members_active: activeSquadMembers,
 
         // Phase 13-14: Lost Pet Missions
         cases_total: casesTotal,

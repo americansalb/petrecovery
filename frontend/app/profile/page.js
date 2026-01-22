@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Profile Page - Updated with PetRecovery Design System
+ * Profile Page - Updated with ReunitePets Design System
  * Uses: Midnight Blue + Flashlight Yellow color palette
  */
 
@@ -46,7 +46,7 @@ const RESCUE_LEVELS = {
     borderColor: 'border-midnight-300',
     description: 'Submitted a lost pet request',
     nextLevel: 'SCOUT',
-    requirement: 'Join a rescue squad'
+    requirement: 'Join a rescue force'
   },
   SCOUT: {
     name: 'Scout',
@@ -55,7 +55,7 @@ const RESCUE_LEVELS = {
     color: 'text-green-600',
     bg: 'bg-green-100',
     borderColor: 'border-green-300',
-    description: 'Joined a rescue squad',
+    description: 'Joined a rescue force',
     nextLevel: 'SENTRY',
     requirement: 'Participate in first case'
   },
@@ -193,11 +193,11 @@ export default function ProfilePage() {
     const level = getCurrentLevel();
     if (!level.nextLevel) return 100;
 
-    const { successfulReunions = 0, areasMarkedCount = 0, totalAcreageSearched = 0, squadsJoinedCount = 0 } = user || {};
+    const { successfulReunions = 0, areasMarkedCount = 0, totalAcreageSearched = 0, forcesJoinedCount = 0 } = user || {};
 
     switch (user?.rescueLevel) {
       case 'PET_OWNER':
-        return squadsJoinedCount > 0 ? 100 : 0;
+        return forcesJoinedCount > 0 ? 100 : 0;
       case 'SCOUT':
         return areasMarkedCount > 0 ? 100 : 0;
       case 'SENTRY':
@@ -338,7 +338,7 @@ export default function ProfilePage() {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
-            { label: 'Squads Joined', value: user.squadsJoinedCount || 0, icon: Users, color: 'text-midnight-600', bg: 'bg-midnight-100' },
+            { label: 'Squads Joined', value: user.forcesJoinedCount || 0, icon: Users, color: 'text-midnight-600', bg: 'bg-midnight-100' },
             { label: 'Areas Marked', value: user.areasMarkedCount || 0, icon: MapPin, color: 'text-green-600', bg: 'bg-green-100' },
             { label: 'Acreage Searched', value: `${(user.totalAcreageSearched || 0).toFixed(1)}`, icon: Target, color: 'text-flash-600', bg: 'bg-flash-100' },
             { label: 'Reunions', value: user.successfulReunions || 0, icon: Heart, color: 'text-red-600', bg: 'bg-red-100' },

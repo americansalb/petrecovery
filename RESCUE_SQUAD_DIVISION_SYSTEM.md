@@ -1,10 +1,10 @@
-# Rescue Squad + Division System
+# Rescue Force + Division System
 
 ## Overview
 
-PetRecovery.org uses a two-tier geographic organization system for volunteer coordination:
+ReunitePets.org uses a two-tier geographic organization system for volunteer coordination:
 
-1. **Rescue Squads** - City-level volunteer teams
+1. **Rescue Forces** - City-level volunteer teams
 2. **Divisions** (optional) - Neighborhood subdivisions within large city squads
 
 This system replaces the legacy "Community" model (archived in `/archived_legacy_docs/`).
@@ -13,9 +13,9 @@ This system replaces the legacy "Community" model (archived in `/archived_legacy
 
 ## System Architecture
 
-### Rescue Squads (City-Level)
+### Rescue Forces (City-Level)
 
-**What is a Rescue Squad?**
+**What is a Rescue Force?**
 - Persistent volunteer team covering a city or town
 - Backed by zip codes on the backend
 - Displayed by city name on the frontend
@@ -30,7 +30,7 @@ This system replaces the legacy "Community" model (archived in `/archived_legacy
 
 **Example:**
 ```
-Chicago Rescue Squad
+Chicago Rescue Force
   - Coverage: Citywide
   - Center: 41.8781°N, 87.6298°W
   - Radius: 15 miles
@@ -43,13 +43,13 @@ Chicago Rescue Squad
 ### Divisions (Neighborhood-Level)
 
 **What is a Division?**
-- Neighborhood subdivision within a large city Rescue Squad
+- Neighborhood subdivision within a large city Rescue Force
 - Created by admins based on user requests
 - Only applies to large cities
 - Helps organize volunteer efforts in sprawling metro areas
 
 **Key Features:**
-- Belongs to a parent Rescue Squad
+- Belongs to a parent Rescue Force
 - Smaller geographic coverage (typically 3-mile radius)
 - Neighborhood-specific membership
 - Users can request creation via clean UI
@@ -57,7 +57,7 @@ Chicago Rescue Squad
 
 **Example:**
 ```
-Chicago Rescue Squad
+Chicago Rescue Force
   ├─ North Side Division
   ├─ South Side Division
   ├─ West Side Division
@@ -72,37 +72,37 @@ Chicago Rescue Squad
 
 **Step 1: User registers and confirms email with OTP**
 
-**Step 2: Search for Rescue Squads**
+**Step 2: Search for Rescue Forces**
 - User is asked for their zip code
 - System searches for all cities within 10-mile radius
 - Each city shows either:
-  - **"Join Rescue Squad"** (if squad exists)
-  - **"Create Rescue Squad"** (if no squad exists)
+  - **"Join Rescue Force"** (if squad exists)
+  - **"Create Rescue Force"** (if no squad exists)
 
 **Step 3: Join or Create**
 - **Create:** User becomes founding squad member
 - **Join:** User gets instant access
 
-### 2. Rescue Squad Experience (No Divisions)
+### 2. Rescue Force Experience (No Divisions)
 
 **For small/medium cities without Divisions:**
-- User joins the Rescue Squad
+- User joins the Rescue Force
 - Sees all active cases in their squad's coverage area
 - Can opt into specific cases to participate
 - Communicates in general channel + case-specific channels
 
-### 3. Rescue Squad Experience (With Divisions)
+### 3. Rescue Force Experience (With Divisions)
 
 **For large cities with Divisions:**
 
 **Joining:**
-- User joins Rescue Squad
+- User joins Rescue Force
 - Optionally selects a Division (neighborhood)
 
 **Case Visibility Priority:**
 1. **Priority 1:** Cases in user's Division(s)
-2. **Priority 2:** Cases in other Divisions within same Rescue Squad
-3. **Priority 3:** Cases from other Rescue Squads the user is in
+2. **Priority 2:** Cases in other Divisions within same Rescue Force
+3. **Priority 3:** Cases from other Rescue Forces the user is in
 
 **UI Experience:**
 - Clean, intuitive unified case view across all squads
@@ -243,9 +243,9 @@ model DivisionRequest {
 
 ## API Endpoints
 
-### Rescue Squad Discovery
+### Rescue Force Discovery
 
-**POST /api/rescue-squads/search**
+**POST /api/rescue-forces/search**
 ```json
 {
   "zipCode": "60614",
@@ -259,7 +259,7 @@ Response:
   "nearbySquads": [
     {
       "id": "squad_chi",
-      "name": "Chicago Rescue Squad",
+      "name": "Chicago Rescue Force",
       "distance": 2.3,
       "memberCount": 247,
       "hasDivisions": true,
@@ -316,7 +316,7 @@ Admin approves a Division request, creating the Division.
 
 Returns cases prioritized by:
 1. User's Division(s)
-2. User's Rescue Squad(s)
+2. User's Rescue Force(s)
 3. Distance
 4. Priority level
 
@@ -338,7 +338,7 @@ Response:
       },
       "rescueSquad": {
         "id": "squad_chi",
-        "name": "Chicago Rescue Squad"
+        "name": "Chicago Rescue Force"
       }
     }
   ]
@@ -390,7 +390,7 @@ Response:
 - Metro areas as primary organizational unit
 
 **New System:**
-- Rescue Squads (city-level, persistent)
+- Rescue Forces (city-level, persistent)
 - Divisions (optional neighborhood level)
 - Simplified creation flow
 - City as primary unit
@@ -410,18 +410,18 @@ To fully remove:
 ## Best Practices
 
 ### For Small Cities
-- Single Rescue Squad, no Divisions
+- Single Rescue Force, no Divisions
 - Keep it simple
 - Focus on building volunteer base
 
 ### For Large Cities
-- Start with broad Rescue Squad
+- Start with broad Rescue Force
 - Add Divisions as membership grows
 - 2-4 Divisions typically sufficient
 - Avoid over-fragmentation
 
 ### For Case Assignment
-- Case can be accepted by multiple Rescue Squads
+- Case can be accepted by multiple Rescue Forces
 - Each squad coordinates independently
 - Squad members opt into specific cases
 - Communication happens at case level (not squad-wide)
@@ -460,4 +460,4 @@ To fully remove:
 ---
 
 **Last Updated:** 2025-11-20
-**Version:** 2.0 (Rescue Squad + Division System)
+**Version:** 2.0 (Rescue Force + Division System)

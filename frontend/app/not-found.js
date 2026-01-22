@@ -137,8 +137,8 @@ export default function NotFound() {
               Report Lost Pet
             </Link>
             <span style={{ color: '#d1d5db' }}>|</span>
-            <Link href="/rescue-squads" style={{ color: '#2563eb', textDecoration: 'none' }}>
-              Find Squads
+            <Link href="/rescue-forces" style={{ color: '#2563eb', textDecoration: 'none' }}>
+              Find Forces
             </Link>
             <span style={{ color: '#d1d5db' }}>|</span>
             <Link href="/login" style={{ color: '#2563eb', textDecoration: 'none' }}>

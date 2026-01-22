@@ -60,7 +60,7 @@ export async function POST(request, { params }) {
       // Create the Division
       const division = await tx.division.create({
         data: {
-          rescueSquadId: divisionRequest.rescueSquadId,
+          rescueForceId: divisionRequest.rescueForceId,
           name: name || divisionRequest.proposedName,
           description: description || null,
           centerLatitude: centerLatitude || divisionRequest.centerLatitude || null,

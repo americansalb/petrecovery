@@ -158,11 +158,11 @@
 
 ---
 
-### Flow 8: Rescue Squad Flow
+### Flow 8: Rescue Force Flow
 **Priority: MEDIUM**
 
 1. [ ] Login as user
-2. [ ] Visit `/rescue-squads/search`
+2. [ ] Visit `/rescue-forces/search`
 3. [ ] Search by ZIP code
 4. [ ] View squad details
 5. [ ] Join a squad (must accept waiver)

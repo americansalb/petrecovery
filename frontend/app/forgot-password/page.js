@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Forgot Password Page - Updated with PetRecovery Design System
+ * Forgot Password Page - Updated with ReunitePets Design System
  * Uses: Midnight Blue + Flashlight Yellow color palette
  */
 

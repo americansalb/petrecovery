@@ -382,7 +382,7 @@ export function buildSearcherConfig(userInputs) {
     postedOnSocialMedia = false,      // Facebook, Nextdoor, etc.
     postedFlyers = false,             // Physical flyers in neighborhood
     contactedShelters = false,        // Called local shelters
-    listedOnPetRecoveryPlatform = false,  // PetFBI, Pawboost, etc.
+    listedOnReunitePetsPlatform = false,  // PetFBI, Pawboost, etc.
   } = userInputs;
 
   // Calculate visibility score (0-1) based on outreach efforts
@@ -391,7 +391,7 @@ export function buildSearcherConfig(userInputs) {
   if (postedOnSocialMedia) visibilityScore += 0.25;
   if (postedFlyers) visibilityScore += 0.20;
   if (contactedShelters) visibilityScore += 0.15;
-  if (listedOnPetRecoveryPlatform) visibilityScore += 0.15;
+  if (listedOnReunitePetsPlatform) visibilityScore += 0.15;
   visibilityScore = Math.min(1, visibilityScore);
 
   return {
@@ -408,7 +408,7 @@ export function buildSearcherConfig(userInputs) {
     postedOnSocialMedia,
     postedFlyers,
     contactedShelters,
-    listedOnPetRecoveryPlatform,
+    listedOnReunitePetsPlatform,
     visibilityScore,  // Combined visibility metric
   };
 }

@@ -21,7 +21,7 @@ import {
 const NOTIFICATION_ICONS = {
   CASE_UPDATE: { icon: AlertCircle, color: '#f59e0b', bg: '#fef3c7' },
   SIGHTING: { icon: MapPin, color: '#10b981', bg: '#d1fae5' },
-  SQUAD_MESSAGE: { icon: Users, color: '#4f46e5', bg: '#e0e7ff' },
+  FORCE_MESSAGE: { icon: Users, color: '#4f46e5', bg: '#e0e7ff' },
   SYSTEM: { icon: Megaphone, color: '#6b7280', bg: '#f3f4f6' },
   DEFAULT: { icon: Bell, color: '#64748b', bg: '#f1f5f9' }
 };
@@ -383,7 +383,7 @@ export default function NotificationsPage() {
             <p style={{ color: '#64748b', maxWidth: '400px', margin: '0 auto' }}>
               {filter === 'unread'
                 ? "You're all caught up! Check back later for new updates."
-                : "When you have activity on your cases or squads, you'll see notifications here."}
+                : "When you have activity on your cases or forces, you'll see notifications here."}
             </p>
           </div>
         ) : (

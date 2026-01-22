@@ -77,7 +77,7 @@ export async function GET(request, { params }) {
     });
 
     // Redirect to unsubscribe confirmation page
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://petrecovery.org';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://reunitepets.org';
     return NextResponse.redirect(`${baseUrl}/unsubscribe/success?type=${type || 'all'}`);
 
   } catch (error) {

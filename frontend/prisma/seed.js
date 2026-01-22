@@ -54,7 +54,7 @@ async function main() {
 **Last Updated:** November 24, 2025
 **Version:** 1.0.0
 
-By using PetRecovery.org, you agree to the following terms:
+By using ReunitePets.org, you agree to the following terms:
 
 ## 1. Account Responsibilities
 
@@ -72,20 +72,20 @@ By using PetRecovery.org, you agree to the following terms:
 ## 3. Privacy & Data
 
 - **Data Collection**: We collect information necessary to coordinate pet searches (see Privacy Policy)
-- **Communication**: We may contact you via email regarding your cases and rescue squad activities
-- **Data Sharing**: Your information is only shared with rescue squad members for active cases
+- **Communication**: We may contact you via email regarding your cases and rescue force activities
+- **Data Sharing**: Your information is only shared with rescue force members for active cases
 
-## 4. Rescue Squad Participation
+## 4. Rescue Force Participation
 
-- **Liability**: See our separate Liability Waiver for terms regarding rescue squad participation
-- **Voluntary**: All rescue squad participation is voluntary
-- **Coordination**: Follow instructions from squad leaders and coordinators
+- **Liability**: See our separate Liability Waiver for terms regarding rescue force participation
+- **Voluntary**: All rescue force participation is voluntary
+- **Coordination**: Follow instructions from force leaders and coordinators
 
 ## 5. Content & Intellectual Property
 
 - **Your Content**: You retain ownership of photos and content you upload
 - **License**: You grant us a license to display and distribute your content for pet recovery purposes
-- **Platform Content**: PetRecovery.org branding and platform features are our intellectual property
+- **Platform Content**: ReunitePets.org branding and platform features are our intellectual property
 
 ## 6. Disclaimers
 
@@ -107,8 +107,8 @@ By using PetRecovery.org, you agree to the following terms:
 ## 9. Contact
 
 If you have questions about these terms, please contact us at:
-- Email: legal@petrecovery.org
-- Website: petrecovery.org
+- Email: legal@reunitepets.org
+- Website: reunitepets.org
 
 ## 10. Governing Law
 
@@ -116,22 +116,22 @@ These terms are governed by the laws of the United States and the state in which
 
 ---
 
-**By using PetRecovery.org, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.**`
+**By using ReunitePets.org, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.**`
     },
     {
       slug: 'liability-waiver',
       type: 'LIABILITY_WAIVER',
       version: '1.0.0',
-      title: 'Liability Waiver for Rescue Squad Participation',
-      summary: 'Required before joining rescue squads or participating in searches',
-      content: `# Liability Waiver for Rescue Squad Participation
+      title: 'Liability Waiver for Rescue Force Participation',
+      summary: 'Required before joining rescue forces or participating in searches',
+      content: `# Liability Waiver for Rescue Force Participation
 
 **Last Updated:** November 24, 2025
 **Version:** 1.0.0
 
 ## ⚠️ IMPORTANT: READ CAREFULLY BEFORE PARTICIPATING
 
-By joining a rescue squad or participating in pet searches through PetRecovery.org, you acknowledge and agree to the following terms:
+By joining a rescue force or participating in pet searches through ReunitePets.org, you acknowledge and agree to the following terms:
 
 ## 1. Voluntary Participation
 
@@ -157,10 +157,10 @@ You understand and acknowledge that participating in pet search and rescue activ
 
 ## 3. Release of Liability
 
-In consideration for being allowed to participate in rescue squad activities, you hereby:
+In consideration for being allowed to participate in rescue force activities, you hereby:
 
 ### Release and Hold Harmless
-You release, waive, discharge, and covenant not to sue PetRecovery.org, its operators, officers, employees, volunteers, and fellow rescue squad members (collectively "Released Parties") from any and all liability, claims, demands, actions, and causes of action whatsoever arising out of or related to:
+You release, waive, discharge, and covenant not to sue ReunitePets.org, its operators, officers, employees, volunteers, and fellow rescue force members (collectively "Released Parties") from any and all liability, claims, demands, actions, and causes of action whatsoever arising out of or related to:
 
 - Any loss, damage, or injury (including death) that may be sustained by you
 - Any property damage or loss
@@ -185,7 +185,7 @@ This release applies to claims based on:
 
 You agree to:
 
-- Follow all safety guidelines provided by squad leaders
+- Follow all safety guidelines provided by force leaders
 - Use appropriate safety equipment when recommended
 - Report any hazards or unsafe conditions immediately
 - Stop participation if you feel unsafe or unwell
@@ -199,7 +199,7 @@ You represent and warrant that:
 - You are physically and mentally fit to participate in search activities
 - You have no medical conditions that would prevent safe participation
 - You will not participate if under the influence of drugs or alcohol
-- You will inform squad leaders of any relevant medical conditions or limitations
+- You will inform force leaders of any relevant medical conditions or limitations
 
 ## 7. Indemnification
 
@@ -244,11 +244,11 @@ This waiver is governed by the laws of the United States and the state in which 
 
 ---
 
-**If you do not agree to these terms, you may NOT join rescue squads or participate in search activities.**
+**If you do not agree to these terms, you may NOT join rescue forces or participate in search activities.**
 
 **If you have questions about this waiver, please contact:**
-- Email: legal@petrecovery.org
-- Website: petrecovery.org
+- Email: legal@reunitepets.org
+- Website: reunitepets.org
 
 **For emergency situations during searches, call 911 immediately.**`
     },
@@ -263,14 +263,14 @@ This waiver is governed by the laws of the United States and the state in which 
 **Last Updated:** November 24, 2025
 **Version:** 1.0.0
 
-PetRecovery.org ("we," "us," or "our") respects your privacy and is committed to protecting your personal information.
+ReunitePets.org ("we," "us," or "our") respects your privacy and is committed to protecting your personal information.
 
 ## 1. Information We Collect
 
 ### Personal Information
 - **Account Data**: Email address, name, phone number (optional)
-- **Location Data**: Address, city, state, ZIP code (for rescue squad matching)
-- **Profile Information**: User preferences, rescue squad memberships
+- **Location Data**: Address, city, state, ZIP code (for rescue force matching)
+- **Profile Information**: User preferences, rescue force memberships
 - **Activity Data**: Search participation, cases created, sightings reported
 
 ### Pet Information
@@ -286,9 +286,9 @@ PetRecovery.org ("we," "us," or "our") respects your privacy and is committed to
 ## 2. How We Use Your Information
 
 ### Primary Uses
-- **Pet Recovery**: Coordinate search efforts and notify relevant rescue squads
+- **Pet Recovery**: Coordinate search efforts and notify relevant rescue forces
 - **Communication**: Send case updates, notifications, and platform announcements
-- **Matching**: Connect lost pet cases with nearby rescue squad volunteers
+- **Matching**: Connect lost pet cases with nearby rescue force volunteers
 - **Platform Improvement**: Analyze usage patterns to improve features
 
 ### Secondary Uses
@@ -300,16 +300,16 @@ PetRecovery.org ("we," "us," or "our") respects your privacy and is committed to
 
 ### Who We Share With
 
-**Rescue Squad Members**
-- When you create a lost pet case, your contact information is shared with rescue squad members who accept the case
-- Your search activity is visible to other squad members during active cases
+**Rescue Force Members**
+- When you create a lost pet case, your contact information is shared with rescue force members who accept the case
+- Your search activity is visible to other force members during active cases
 
 **Pet Owners**
 - When you report a sighting, your contact information is shared with the pet owner
 
 **Public Information**
 - Lost pet cases are public and visible to all platform users
-- Your rescue squad membership and general activity may be visible to other users
+- Your rescue force membership and general activity may be visible to other users
 
 ### Who We DO NOT Share With
 - ❌ We DO NOT sell your personal information to third parties
@@ -365,8 +365,8 @@ You have the right to:
 
 ### Exercise Your Rights
 To exercise these rights, contact us at:
-- Email: privacy@petrecovery.org
-- Account Settings: petrecovery.org/settings/privacy
+- Email: privacy@reunitepets.org
+- Account Settings: reunitepets.org/settings/privacy
 
 ## 7. Cookies & Tracking
 
@@ -392,7 +392,7 @@ Third-party services have their own privacy policies. We carefully select partne
 
 ## 9. Children's Privacy
 
-- PetRecovery.org is not intended for users under 18
+- ReunitePets.org is not intended for users under 18
 - We do not knowingly collect information from children
 - If we discover underage users, we will delete their accounts promptly
 - Parents concerned about underage access should contact us immediately
@@ -400,7 +400,7 @@ Third-party services have their own privacy policies. We carefully select partne
 ## 10. International Users
 
 - Our servers are located in the United States
-- By using PetRecovery.org, you consent to data transfer to the US
+- By using ReunitePets.org, you consent to data transfer to the US
 - We comply with applicable international data protection laws
 
 ## 11. Changes to This Policy
@@ -412,27 +412,27 @@ Third-party services have their own privacy policies. We carefully select partne
 
 ### Version History
 - You can view previous versions by contacting us
-- Current version always available at: petrecovery.org/legal/privacy-policy
+- Current version always available at: reunitepets.org/legal/privacy-policy
 
 ## 12. Contact Us
 
 ### Privacy Questions
-Email: privacy@petrecovery.org
+Email: privacy@reunitepets.org
 
 ### Data Requests
-Email: data-requests@petrecovery.org
+Email: data-requests@reunitepets.org
 
 ### General Inquiries
-Website: petrecovery.org/contact
+Website: reunitepets.org/contact
 
 ### Mailing Address
-PetRecovery.org
+ReunitePets.org
 [Address to be added]
 United States
 
 ---
 
-**By using PetRecovery.org, you acknowledge that you have read and understood this Privacy Policy.**
+**By using ReunitePets.org, you acknowledge that you have read and understood this Privacy Policy.**
 
 **Last updated: November 24, 2025**`
     }

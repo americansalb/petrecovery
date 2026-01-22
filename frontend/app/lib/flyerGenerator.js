@@ -81,7 +81,7 @@ export function generateFlyerHTML(missionData, options = {}) {
   } = options;
 
   const preset = FLYER_PRESETS[format] || FLYER_PRESETS.LETTER;
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://petrecovery.org';
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://reunitepets.org';
   const caseUrl = `${baseUrl}/cases/${missionData.caseNumber || missionData.missionNumber || missionData.id}`;
 
   // Format phone number

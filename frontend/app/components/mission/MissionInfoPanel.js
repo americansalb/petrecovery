@@ -8,7 +8,7 @@
  * - Owner/contact info
  * - Status controls
  * - Reward info
- * - Assigned squad/participants
+ * - Assigned force/participants
  */
 
 import { useState } from 'react';
@@ -139,11 +139,11 @@ export default function MissionInfoPanel({ missionData, userRole, onUpdate }) {
         </div>
       )}
 
-      {/* Assigned Squad */}
-      {missionData.assignments?.[0]?.rescueSquad && (
+      {/* Assigned Force */}
+      {missionData.assignments?.[0]?.rescueForce && (
         <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700/50">
           <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-            Assigned Squad
+            Assigned Force
           </h4>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
@@ -151,10 +151,10 @@ export default function MissionInfoPanel({ missionData, userRole, onUpdate }) {
             </div>
             <div>
               <p className="font-medium text-cyan-400">
-                {missionData.assignments[0].rescueSquad.name}
+                {missionData.assignments[0].rescueForce.name}
               </p>
               <p className="text-xs text-slate-400">
-                {missionData.assignments[0].rescueSquad.city}, {missionData.assignments[0].rescueSquad.state}
+                {missionData.assignments[0].rescueForce.city}, {missionData.assignments[0].rescueForce.state}
               </p>
             </div>
           </div>

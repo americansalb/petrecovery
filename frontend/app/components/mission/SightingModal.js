@@ -69,7 +69,7 @@ export default function SightingModal({ missionData, onClose, onSubmitted }) {
         try {
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-            { headers: { 'User-Agent': 'PetRecovery.org' } }
+            { headers: { 'User-Agent': 'ReunitePets.org' } }
           );
           if (res.ok) {
             const data = await res.json();
@@ -106,7 +106,7 @@ export default function SightingModal({ missionData, onClose, onSubmitted }) {
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`,
-        { headers: { 'User-Agent': 'PetRecovery.org' } }
+        { headers: { 'User-Agent': 'ReunitePets.org' } }
       );
 
       if (res.ok) {

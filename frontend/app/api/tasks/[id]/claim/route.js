@@ -16,7 +16,7 @@ export async function POST(request, { params }) {
     const task = await prisma.squadTask.findUnique({
       where: { id: taskId },
       include: {
-        rescueSquad: true
+        rescueForce: true
       }
     });
 
@@ -24,17 +24,17 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    // Verify user is a member of the squad
-    const membership = await prisma.rescueSquadMember.findFirst({
+    // Verify user is a member of the force
+    const membership = await prisma.rescueForceMember.findFirst({
       where: {
-        rescueSquadId: task.rescueSquadId,
+        rescueForceId: task.rescueForceId,
         userId: session.user.id,
         isActive: true
       }
     });
 
     if (!membership) {
-      return NextResponse.json({ error: 'Not a squad member' }, { status: 403 });
+      return NextResponse.json({ error: 'Not a force member' }, { status: 403 });
     }
 
     // Check if task is already assigned
@@ -63,7 +63,7 @@ export async function POST(request, { params }) {
     // Create activity log
     await prisma.squadActivity.create({
       data: {
-        rescueSquadId: task.rescueSquadId,
+        rescueForceId: task.rescueForceId,
         missionId: task.missionId,
         type: 'TASK_ASSIGNED',
         message: `${session.user.firstName} ${session.user.lastName} claimed: ${task.title}`,

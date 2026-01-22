@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * ContextBar - Persistent navigation context showing squad/case hierarchy
+ * ContextBar - Persistent navigation context showing force/case hierarchy
  *
- * Shows: Squad Name → Pet Name
- * Provides clear "back to squad" navigation
+ * Shows: Force Name → Pet Name
+ * Provides clear "back to force" navigation
  * Helps users understand where they are in the app
  */
 
@@ -12,25 +12,25 @@ import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ContextBar({ mission, onBackToSquad }) {
-  // Extract squad info from mission assignments
-  const squad = mission?.assignments?.[0]?.rescueSquad;
-  const squadId = squad?.id || mission?.rescueSquadId || mission?.squadId;
-  const squadName = squad?.name || squad?.city;
+  // Extract force info from mission assignments
+  const force = mission?.assignments?.[0]?.rescueForce;
+  const forceId = force?.id || mission?.rescueForceId || mission?.forceId;
+  const forceName = force?.name || force?.city;
 
-  // If no squad assigned, show link to find squads instead
-  if (!squadId) {
+  // If no force assigned, show link to find forces instead
+  if (!forceId) {
     return (
       <div className="bg-slate-950/95 border-b border-slate-800">
         <div className="max-w-4xl mx-auto px-4 py-2">
           <div className="flex items-center justify-between gap-2">
-            {/* Left: Find Squads */}
+            {/* Left: Find Forces */}
             <Link
-              href="/rescue-squads/search"
+              href="/rescue-forces/search"
               className="flex items-center gap-1.5 text-slate-400 hover:text-white transition group min-w-0"
             >
               <ChevronLeft size={18} className="flex-shrink-0 group-hover:-translate-x-0.5 transition-transform" />
               <span className="text-sm font-medium truncate">
-                Find Rescue Squads
+                Find Rescue Forces
               </span>
             </Link>
 
@@ -61,14 +61,14 @@ export default function ContextBar({ mission, onBackToSquad }) {
     <div className="bg-slate-950/95 border-b border-slate-800">
       <div className="max-w-4xl mx-auto px-4 py-2">
         <div className="flex items-center justify-between gap-2">
-          {/* Left: Back to Squad */}
+          {/* Left: Back to Force */}
           <Link
-            href={`/rescue-squads/${squadId}`}
+            href={`/rescue-forces/${forceId}`}
             className="flex items-center gap-1.5 text-slate-400 hover:text-white transition group min-w-0"
           >
             <ChevronLeft size={18} className="flex-shrink-0 group-hover:-translate-x-0.5 transition-transform" />
             <span className="text-sm font-medium truncate">
-              {squadName || 'Rescue Squad'}
+              {forceName || 'Rescue Force'}
             </span>
           </Link>
 

@@ -235,14 +235,14 @@ export default function DebugPanel({ selectedTask, scoreBreakdown }) {
                 Owner
               </button>
               <button
-                onClick={() => updateOverride('role', 'SQUAD')}
+                onClick={() => updateOverride('role', 'FORCE')}
                 className={`flex-1 p-2 rounded text-sm font-medium transition-colors ${
-                  overrides.role === 'SQUAD'
+                  overrides.role === 'FORCE'
                     ? 'bg-green-600 text-white'
                     : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                 }`}
               >
-                Squad
+                Force
               </button>
             </div>
           )}

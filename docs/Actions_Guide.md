@@ -501,7 +501,7 @@ When the client calls `/search/end`, the server performs these steps atomically:
 1. User previews templated email
 2. Taps "Send"
 3. We send via Resend/SendGrid
-4. From: `rescue-[missionId]@mail.petrecovery.com`
+4. From: `rescue-[missionId]@mail.reunitepets.com`
 5. Reply-to: Owner's email address
 6. We log send, track opens (pixel), detect replies
 
@@ -754,7 +754,7 @@ enum ShelterContactStatus {
 │  ┌────────────────────────────────────────┐              │
 │  │ Resend API                             │              │
 │  │                                        │              │
-│  │ From: rescue-abc123@mail.petrecovery.com             │
+│  │ From: rescue-abc123@mail.reunitepets.com             │
 │  │ Reply-To: owner@gmail.com              │              │
 │  │ To: shelter@example.org                │              │
 │  └────────────────────────────────────────┘              │
@@ -798,7 +798,7 @@ Please check your intake records and let me know if any
 animals matching this description have been brought in.
 
 📍 View full mission with more photos:
-[Link to petrecovery.com/mission/xxx]
+[Link to reunitepets.com/mission/xxx]
 
 Thank you for your help in bringing [Pet Name] home.
 
@@ -807,7 +807,7 @@ Thank you for your help in bringing [Pet Name] home.
 [Owner Email]
 
 ──────────────────────────────────────────
-Sent via PetRecovery.com - Helping reunite lost pets
+Sent via ReunitePets.com - Helping reunite lost pets
 ```
 
 ### Why Fixed Template
@@ -820,7 +820,7 @@ Sent via PetRecovery.com - Helping reunite lost pets
 ### Platform Email Behavior
 
 **Email configuration:**
-- Sent from: `rescue-[missionId]@mail.petrecovery.com`
+- Sent from: `rescue-[missionId]@mail.reunitepets.com`
 - Reply-To header: Owner's email address
 - Body: Fixed template (not editable from UI)
 
@@ -928,7 +928,7 @@ Sent via PetRecovery.com - Helping reunite lost pets
 | Component | Service | Cost |
 |-----------|---------|------|
 | Sending | Resend | ~$1/1000 emails |
-| Domain | mail.petrecovery.com | DNS setup |
+| Domain | mail.reunitepets.com | DNS setup |
 | Open tracking | Resend pixel | Included |
 | Reply detection | Webhook or forward parsing | Custom |
 | Bounce handling | Resend webhooks | Included |
@@ -937,7 +937,7 @@ Sent via PetRecovery.com - Helping reunite lost pets
 
 Every platform email serves as free advertising:
 
-1. **Footer branding:** "Sent via PetRecovery.com - Helping reunite lost pets"
+1. **Footer branding:** "Sent via ReunitePets.com - Helping reunite lost pets"
 2. **Mission link:** Shelter clicks through to see the full mission on our platform
 3. **Invitation CTA:** "Are you a shelter? Create a free account to receive and manage lost pet alerts"
 
@@ -1340,7 +1340,7 @@ In-app flyer PDF generation:
 └─────────────────────────────────────────┘
 ```
 
-**QR Code:** Links to mission page on petrecovery.com with:
+**QR Code:** Links to mission page on reunitepets.com with:
 - More photos
 - Up-to-date sighting info
 - Easy "I saw this pet" button

@@ -36,7 +36,7 @@ export async function GET(request, { params }) {
             status: { in: ['ACCEPTED', 'ACTIVE'] }
           },
           include: {
-            rescueSquad: {
+            rescueForce: {
               select: {
                 id: true,
                 name: true,
@@ -171,10 +171,10 @@ export async function GET(request, { params }) {
       potentialMatches, // Empty array for LOST pets, populated for FOUND pets
       isOwner,
       missionControl: report.missionControl,
-      rescueSquads: report.assignments?.map(a => ({
-        id: a.rescueSquad.id,
-        name: a.rescueSquad.name,
-        avatarUrl: a.rescueSquad.avatarUrl,
+      rescueForces: report.assignments?.map(a => ({
+        id: a.rescueForce.id,
+        name: a.rescueForce.name,
+        avatarUrl: a.rescueForce.avatarUrl,
         status: a.status,
       })) || [],
     }, { status: 200 });

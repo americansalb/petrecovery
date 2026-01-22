@@ -65,7 +65,7 @@ export async function GET(request) {
           _count: {
             select: {
               cases: true,
-              rescueSquadMemberships: true,
+              rescueForceMemberships: true,
             },
           },
         },

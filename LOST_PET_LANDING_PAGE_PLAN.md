@@ -385,7 +385,7 @@ This is **critical data that doesn't exist in the schema** - we need to collect:
 │                                                              │
 │  ┌────────────────────────────────────────────────────────┐ │
 │  │ 👥 SEARCH UPDATE · 5 hours ago                         │ │
-│  │ Oak Park Rescue Squad completed grid search of         │ │
+│  │ Oak Park Rescue Force completed grid search of         │ │
 │  │ Lincoln Park area. No sighting, moving to north zone.  │ │
 │  └────────────────────────────────────────────────────────┘ │
 │                                                              │
@@ -438,7 +438,7 @@ This is **critical data that doesn't exist in the schema** - we need to collect:
 │  │ 🖨️ PRINT FLYERS         │ │ 🔍 JOIN SEARCH          │    │
 │  │                         │ │                         │    │
 │  │ Download ready-to-print │ │ Coordinate with the     │    │
-│  │ flyers with QR code     │ │ rescue squad            │    │
+│  │ flyers with QR code     │ │ rescue force            │    │
 │  │                         │ │                         │    │
 │  │ [Download PDF]          │ │ 12 active searchers     │    │
 │  │                         │ │                         │    │

@@ -6,7 +6,7 @@
  * Collapsed: Shows icon, title, and summary stats
  * Expanded: Slides up over content, shows full panel content
  *
- * Used in both Squad Hub and Mission Control for consistent UX
+ * Used in both Force Hub and Mission Control for consistent UX
  */
 
 import { useState, useRef, useEffect } from 'react';

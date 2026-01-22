@@ -239,7 +239,7 @@ export default function AnalyticsDashboard() {
           </div>
         </div>
 
-        {/* Engagement & Squads */}
+        {/* Engagement & Forces */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Engagement Metrics */}
           <div className="bg-white rounded-lg shadow p-6">
@@ -269,30 +269,30 @@ export default function AnalyticsDashboard() {
             </div>
           </div>
 
-          {/* Squad Metrics */}
+          {/* Force Metrics */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Rescue Squads</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Rescue Forces</h2>
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="text-center">
-                <p className="text-2xl font-bold text-blue-600">{analytics.squads.totalSquads}</p>
-                <p className="text-sm text-gray-500">Total Squads</p>
+                <p className="text-2xl font-bold text-blue-600">{analytics.forces.totalForces}</p>
+                <p className="text-sm text-gray-500">Total Forces</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-green-600">{analytics.squads.totalMembers}</p>
+                <p className="text-2xl font-bold text-green-600">{analytics.forces.totalMembers}</p>
                 <p className="text-sm text-gray-500">Total Members</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-purple-600">{analytics.squads.averageMembersPerSquad}</p>
+                <p className="text-2xl font-bold text-purple-600">{analytics.forces.averageMembersPerForce}</p>
                 <p className="text-sm text-gray-500">Avg Members</p>
               </div>
             </div>
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Top Squads</h3>
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Top Forces</h3>
             <div className="space-y-2">
-              {analytics.squads.topSquads.slice(0, 5).map((squad) => (
-                <div key={squad.id} className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{squad.name}</span>
-                  <span className="text-gray-500">{squad.location}</span>
-                  <span>{squad.members} members</span>
+              {analytics.forces.topForces.slice(0, 5).map((force) => (
+                <div key={force.id} className="flex items-center justify-between text-sm">
+                  <span className="font-medium">{force.name}</span>
+                  <span className="text-gray-500">{force.location}</span>
+                  <span>{force.members} members</span>
                 </div>
               ))}
             </div>

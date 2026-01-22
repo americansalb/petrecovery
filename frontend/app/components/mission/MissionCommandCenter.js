@@ -137,14 +137,14 @@ export default function MissionCommandCenter({ missionId, missionNumber, onClose
       });
     }
 
-    // Squad assigned
-    if (data?.squadId && data?.squad) {
+    // Force assigned
+    if (data?.forceId && data?.force) {
       events.push({
         id: 'squad_assigned',
         type: 'team',
         icon: '👥',
-        title: 'Squad assigned',
-        description: `${data.squad.displayName || data.squad.name} joined`,
+        title: 'Force assigned',
+        description: `${data.force.displayName || data.force.name} joined`,
         timestamp: new Date(data.updatedAt || data.createdAt),
       });
     }
@@ -207,12 +207,12 @@ export default function MissionCommandCenter({ missionId, missionNumber, onClose
     }
   };
 
-  // Navigate back to Squad Hub
+  // Navigate back to Force Hub
   const handleBackToSquad = () => {
-    if (missionData?.squad?.id) {
-      router.push(`/rescue-squads/${missionData.squad.id}`);
-    } else if (missionData?.squadId) {
-      router.push(`/rescue-squads/${missionData.squadId}`);
+    if (missionData?.force?.id) {
+      router.push(`/rescue-forces/${missionData.force.id}`);
+    } else if (missionData?.forceId) {
+      router.push(`/rescue-forces/${missionData.forceId}`);
     } else {
       // Fallback to cases list
       router.push('/missions');
@@ -658,7 +658,7 @@ export default function MissionCommandCenter({ missionId, missionNumber, onClose
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            {missionData?.squad ? `Back to ${missionData.squad.displayName || missionData.squad.name}` : 'Back to Cases'}
+            {missionData?.force ? `Back to ${missionData.force.displayName || missionData.force.name}` : 'Back to Cases'}
           </button>
 
           {/* Pet Card */}

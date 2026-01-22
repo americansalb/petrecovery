@@ -19,7 +19,7 @@ export async function canActivate(missionId, userId) {
       reporter: true,
       assignment: {
         include: {
-          rescueSquad: {
+          rescueForce: {
             include: {
               members: {
                 where: { role: { in: ['LEADER', 'CO_LEADER', 'COORDINATOR'] } }
@@ -38,8 +38,8 @@ export async function canActivate(missionId, userId) {
     return { allowed: true, role: 'OWNER' };
   }
 
-  // Squad/Division leaders can activate
-  const squadLeaders = missionData.assignment?.rescueSquad?.members || [];
+  // Force/Division leaders can activate
+  const squadLeaders = missionData.assignment?.rescueForce?.members || [];
   const isLeader = squadLeaders.some(m => m.userId === userId);
   if (isLeader) {
     return { allowed: true, role: 'LEADER' };
@@ -55,7 +55,7 @@ export async function canActivate(missionId, userId) {
     return { allowed: true, role: 'ADMIN' };
   }
 
-  return { allowed: false, reason: 'Only owner or squad leaders can activate' };
+  return { allowed: false, reason: 'Only owner or force leaders can activate' };
 }
 
 /**
@@ -124,7 +124,7 @@ export async function activateMission(missionId, userId, options = {}) {
     }
   });
 
-  // Send notifications to squad members
+  // Send notifications to force members
   await notifySquadActivation(missionId);
 
   return {
@@ -268,7 +268,7 @@ async function generateSearchZones(missionId, center, radiusMiles) {
 // Push notification functions
 async function notifySquadActivation(missionId) {
   try {
-    // Get case and squad info for notification
+    // Get case and force info for notification
     const missionData = await prisma.case.findUnique({
       where: { id: missionId },
       select: {
@@ -277,7 +277,7 @@ async function notifySquadActivation(missionId) {
         lastSeenAddress: true,
         assignment: {
           select: {
-            rescueSquad: {
+            rescueForce: {
               select: {
                 id: true,
                 name: true,
@@ -292,16 +292,16 @@ async function notifySquadActivation(missionId) {
       }
     });
 
-    if (!missionData?.assignment?.rescueSquad) {
-      console.log(`No squad assigned to case ${missionId}`);
+    if (!missionData?.assignment?.rescueForce) {
+      console.log(`No force assigned to case ${missionId}`);
       return;
     }
 
-    const squad = missionData.assignment.rescueSquad;
-    const userIds = squad.members.map(m => m.userId);
+    const force = missionData.assignment.rescueForce;
+    const userIds = force.members.map(m => m.userId);
 
     if (userIds.length === 0) {
-      console.log(`No active members in squad ${squad.id}`);
+      console.log(`No active members in force ${force.id}`);
       return;
     }
 
@@ -318,7 +318,7 @@ async function notifySquadActivation(missionId) {
     });
 
     if (subscriptions.length === 0) {
-      console.log(`No push subscriptions for squad members`);
+      console.log(`No push subscriptions for force members`);
       return;
     }
 
@@ -327,10 +327,10 @@ async function notifySquadActivation(missionId) {
       subscription: JSON.parse(sub.subscription),
     }));
 
-    const payload = PUSH_TEMPLATES.SQUAD_ACTIVITY(
-      squad.name,
+    const payload = PUSH_TEMPLATES.FORCE_ACTIVITY(
+      force.name,
       `🔴 LIVE SEARCH activated for ${missionData.petName}! Tap to join.`,
-      squad.id
+      force.id
     );
 
     // Override URL to go directly to case

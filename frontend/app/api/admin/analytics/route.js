@@ -52,7 +52,7 @@ export async function GET(request) {
         case 'users':
           data = await getUserRegistrationTrends(days);
           break;
-        case 'squads':
+        case 'forces':
           data = await getSquadMetrics();
           break;
         case 'engagement':
@@ -77,7 +77,7 @@ export async function GET(request) {
       petTypes,
       locations,
       userTrends,
-      squads,
+      forces,
       engagement,
       resolution,
     ] = await Promise.all([
@@ -97,7 +97,7 @@ export async function GET(request) {
       petTypes,
       locations,
       userTrends,
-      squads,
+      forces,
       engagement,
       resolution,
       generatedAt: new Date().toISOString(),

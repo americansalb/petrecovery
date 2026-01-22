@@ -112,7 +112,7 @@ class OverpassClient:
             try:
                 data = urllib.parse.urlencode({"data": overpass_query}).encode()
                 req = urllib.request.Request(url, data=data)
-                req.add_header("User-Agent", "PetRecoverySimulation/1.0")
+                req.add_header("User-Agent", "ReunitePetsSimulation/1.0")
 
                 with urllib.request.urlopen(req, timeout=self.timeout) as response:
                     result = json.loads(response.read().decode())

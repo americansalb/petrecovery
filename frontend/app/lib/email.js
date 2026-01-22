@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
 export async function sendEmail({ to, subject, html }) {
   try {
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || `PetRecovery <${process.env.EMAIL_USER}>`,
+      from: process.env.EMAIL_FROM || `ReunitePets <${process.env.EMAIL_USER}>`,
       to,
       subject,
       html,
@@ -39,7 +39,7 @@ export async function sendVerificationEmail(email, firstName, verifyUrl) {
         <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
           <p>Hi ${firstName || 'there'},</p>
 
-          <p>Welcome to PetRecovery.org! Please verify your email address to activate your account.</p>
+          <p>Welcome to ReunitePets.org! Please verify your email address to activate your account.</p>
 
           <div style="text-align: center; margin: 30px 0;">
             <a href="${verifyUrl}"
@@ -52,7 +52,7 @@ export async function sendVerificationEmail(email, firstName, verifyUrl) {
             <p style="margin: 0;"><strong>Note:</strong> This link will expire in <strong>24 hours</strong>.</p>
           </div>
 
-          <p>If you didn't create an account with PetRecovery.org, you can safely ignore this email.</p>
+          <p>If you didn't create an account with ReunitePets.org, you can safely ignore this email.</p>
 
           <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
             If the button above doesn't work, copy and paste this link into your browser:<br>
@@ -62,7 +62,7 @@ export async function sendVerificationEmail(email, firstName, verifyUrl) {
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
           <p style="color: #6b7280; font-size: 14px; margin: 0;">
-            <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+            <strong>ReunitePets.org</strong> - Reuniting Lost Pets with Their Families
           </p>
         </div>
       </body>
@@ -71,7 +71,7 @@ export async function sendVerificationEmail(email, firstName, verifyUrl) {
 
   return sendEmail({
     to: email,
-    subject: 'Verify Your PetRecovery Email',
+    subject: 'Verify Your ReunitePets Email',
     html: emailHtml
   });
 }
