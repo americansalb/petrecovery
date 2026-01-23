@@ -11,7 +11,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import ForceHubV2 from '@/components/force/ForceHubV2';
+import ForceHubV2 from '@/components/force/SquadHubV2';
 
 export default function DivisionPage() {
   const params = useParams();

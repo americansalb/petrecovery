@@ -14,7 +14,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import ForceHubV2 from '@/components/force/ForceHubV2';
+import ForceHubV2 from '@/components/force/SquadHubV2';
 // V3 attempt: import ForceHubV3 from '@/components/force/ForceHubV3';
 import { getMockSquadData } from '@/lib/mockSquadData';
 
