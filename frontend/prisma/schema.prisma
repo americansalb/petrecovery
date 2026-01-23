@@ -742,8 +742,8 @@ model CaseAssignment {
   id              String   @id @default(cuid())
   missionId       String   @map("caseId")
   case            Case     @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  rescueForceId   String
-  rescueForce     RescueForce @relation(fields: [rescueForceId], references: [id], onDelete: Cascade)
+  rescueForceId   String?
+  rescueForce     RescueForce? @relation(fields: [rescueForceId], references: [id], onDelete: Cascade)
 
   // Assignment Status
   status          AssignmentStatus @default(ACCEPTED)
@@ -765,7 +765,6 @@ model CaseAssignment {
   petSpottings    PetSpotting[]
   messages        ForceMessage[]
 
-  @@unique([missionId, rescueForceId]) // Rescue Force can only accept case once
   @@index([missionId])
   @@index([rescueForceId])
   @@index([status])
