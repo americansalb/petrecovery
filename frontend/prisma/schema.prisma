@@ -742,8 +742,8 @@ model CaseAssignment {
   id              String   @id @default(cuid())
   missionId       String   @map("caseId")
   case            Case     @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  rescueSquadId   String
-  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  rescueSquadId   String?
+  rescueSquad     RescueSquad? @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
 
   // Assignment Status
   status          AssignmentStatus @default(ACCEPTED)
