@@ -7,13 +7,13 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
 import Link from 'next/link';
 import {
   Dog, Cat, Bird, Rabbit, MapPin, Clock,
   Camera, Check, ChevronLeft, ChevronRight,
   AlertTriangle, Loader2, X, Navigation, ExternalLink,
-  Sparkles, Heart, Mail, User, Search, Home, Trees
+  Sparkles, Heart, Mail, User, Search, Home, Trees, Phone
 } from 'lucide-react';
 import ColorSelector from '../../components/ColorSelector';
 import { SARAMA_AVATAR } from '@/lib/brandAssets';
@@ -53,16 +53,19 @@ export default function ReportLostPet() {
   const { data: session, status: authStatus } = useSession();
   const isLoggedIn = authStatus === 'authenticated';
 
-  // Wizard state - step 0 is contact info for non-logged-in users
-  const [step, setStep] = useState(0); // 0=contact, 1=location, 2=pet, 3=name, 4=when, 5=color, 6=photo, 7=confirm
+  // Wizard state - everyone starts at step 1 (location first for engagement)
+  const [step, setStep] = useState(1); // 1=location, 2=pet, 3=name, 4=details, 5=when, 6=color, 7=photo, 8=contact (if not logged in), 9=confirm
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [reportResult, setReportResult] = useState(null);
 
   // Contact info (for non-logged-in users)
   const [contactEmail, setContactEmail] = useState('');
+  const [contactEmailConfirm, setContactEmailConfirm] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactPhoneConfirm, setContactPhoneConfirm] = useState('');
   const [contactName, setContactName] = useState('');
-  const [createAccount, setCreateAccount] = useState(false);
+  const [createAccount, setCreateAccount] = useState(true); // Always create account for reporters
   const [password, setPassword] = useState('');
 
   // Data state
@@ -124,19 +127,21 @@ export default function ReportLostPet() {
   const markerRef = useRef(null);
   const circleRef = useRef(null);
 
-  // Determine starting step based on auth
+  // Everyone starts at step 1 (location) for better engagement
+  // Only set on initial load, not when auth changes mid-flow (e.g. auto-login after submit)
+  const hasInitialized = useRef(false);
   useEffect(() => {
     if (authStatus === 'loading') return;
-    if (isLoggedIn) {
-      setStep(1); // Skip contact step
-    } else {
-      setStep(0); // Show contact step
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      setStep(1);
     }
-  }, [authStatus, isLoggedIn]);
+  }, [authStatus]);
 
-  // Get effective email and name
+  // Get effective contact info
   const effectiveEmail = isLoggedIn ? session?.user?.email : contactEmail;
   const effectiveName = isLoggedIn ? (session?.user?.name || 'Pet Owner') : contactName;
+  const effectivePhone = isLoggedIn ? '' : contactPhone;
 
   // Fetch user's pets
   useEffect(() => {
@@ -609,9 +614,10 @@ export default function ReportLostPet() {
     setError(null);
 
     // Validate required fields before submission
-    if (!effectiveEmail || !effectiveName || !petName || !color || !lastSeenAddress || !center) {
+    const hasContact = effectiveEmail || effectivePhone;
+    if (!hasContact || !effectiveName || !petName || !color || !lastSeenAddress || !center) {
       const missing = [];
-      if (!effectiveEmail) missing.push('email');
+      if (!hasContact) missing.push('email or phone');
       if (!effectiveName) missing.push('name');
       if (!petName) missing.push('pet name');
       if (!color) missing.push('color');
@@ -628,6 +634,7 @@ export default function ReportLostPet() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: effectiveEmail,
+          phone: effectivePhone,
           firstName: effectiveName,
           petName,
           color,
@@ -652,8 +659,23 @@ export default function ReportLostPet() {
 
       // Clear saved location for fresh start on next report
       localStorage.removeItem('reportLocation');
+
+      // Auto-login if account was created with password
+      if (data.accountCreated && createAccount && password && effectiveEmail) {
+        try {
+          await signIn('credentials', {
+            email: effectiveEmail,
+            password: password,
+            redirect: false,
+          });
+        } catch (e) {
+          // Sign-in failed silently - user can login manually later
+          console.error('Auto-login failed:', e);
+        }
+      }
+
       setReportResult(data);
-      setStep(9); // Success step
+      setStep(10); // Success step
     } catch (err) {
       setError(err.message);
     } finally {
@@ -665,13 +687,6 @@ export default function ReportLostPet() {
 
   const canProceed = () => {
     switch (step) {
-      case 0: {
-        const hasValidContact = contactEmail.trim() && isValidEmail(contactEmail) && contactName.trim();
-        if (!hasValidContact) return false;
-        // If creating account, password must be at least 8 characters
-        if (createAccount && password.length < 8) return false;
-        return true;
-      }
       case 1: return !!center;
       case 2: return !!petType;
       case 3: return !!petName.trim();
@@ -681,14 +696,30 @@ export default function ReportLostPet() {
         return true; // Birds/other skip this step
       case 5: return !!timeElapsed;
       case 6: return !!color;
-      case 7: return true; // Photo is optional
-      case 8: return true;
+      case 7: return !uploadingPhoto; // Photo is optional but must finish uploading first
+      case 8: { // Contact info - only for non-logged-in users
+        if (isLoggedIn) return true; // Skip validation for logged-in users
+        // Name is required
+        if (!contactName.trim()) return false;
+        // At least one contact method required
+        const hasEmail = contactEmail.trim() && isValidEmail(contactEmail);
+        const hasPhone = contactPhone.trim() && contactPhone.replace(/\D/g, '').length >= 10;
+        if (!hasEmail && !hasPhone) return false;
+        // If email provided, confirmation must match
+        if (hasEmail && contactEmail !== contactEmailConfirm) return false;
+        // If phone provided, confirmation must match
+        if (hasPhone && contactPhone !== contactPhoneConfirm) return false;
+        // Password is required (always creating account)
+        if (password.length < 8) return false;
+        return true;
+      }
+      case 9: return true; // Review step
       default: return false;
     }
   };
 
-  const totalSteps = isLoggedIn ? 8 : 9;
-  const displayStep = isLoggedIn ? step : step + 1;
+  const totalSteps = isLoggedIn ? 8 : 9; // Logged-in users skip contact step
+  const displayStep = step; // Step number as-is
 
   const nextStep = () => {
     // For birds/other, skip the pet details step (step 4)
@@ -696,12 +727,17 @@ export default function ReportLostPet() {
       setStep(5); // Skip to "when" step
       return;
     }
-    if (canProceed() && step < 8) setStep(step + 1);
-    if (step === 8) handleSubmit();
+    // For logged-in users, skip the contact step (step 8)
+    if (step === 7 && isLoggedIn) {
+      setStep(9); // Skip to review step
+      return;
+    }
+    if (canProceed() && step < 9) setStep(step + 1);
+    if (step === 9) handleSubmit();
   };
 
   const prevStep = () => {
-    const minStep = isLoggedIn ? 1 : 0;
+    const minStep = 1; // Everyone starts at location now
     if (step > minStep) {
       // If we came from selecting existing pet, go back to step 2
       if (step === 5 && selectedPet) {
@@ -709,6 +745,9 @@ export default function ReportLostPet() {
       // For birds/other, skip back over the pet details step
       } else if (step === 5 && petType !== 'dog' && petType !== 'cat') {
         setStep(3);
+      // For logged-in users, skip back over the contact step
+      } else if (step === 9 && isLoggedIn) {
+        setStep(7);
       } else {
         setStep(step - 1);
       }
@@ -732,7 +771,7 @@ export default function ReportLostPet() {
   }
 
   // Success screen
-  if (step === 9 && reportResult) {
+  if (step === 10 && reportResult) {
     return (
       <div className="h-[100dvh] bg-gradient-to-br from-green-50 via-white to-emerald-50 flex flex-col overflow-y-auto">
         <div className="flex-1 flex flex-col items-center justify-center p-6">
@@ -877,127 +916,170 @@ export default function ReportLostPet() {
     );
   }
 
-  const minStep = isLoggedIn ? 1 : 0;
+  const minStep = 1; // Everyone starts at location now
   const stepLabels = isLoggedIn
     ? ['Location', 'Pet', 'Name', 'Details', 'When', 'Color', 'Photo', 'Review']
-    : ['Contact', 'Location', 'Pet', 'Name', 'Details', 'When', 'Color', 'Photo', 'Review'];
+    : ['Location', 'Pet', 'Name', 'Details', 'When', 'Color', 'Photo', 'Contact', 'Review'];
 
   return (
     <div className="h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50 flex flex-col">
       {/* Header */}
-      <header className="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0">
-        <button
-          onClick={() => step > minStep ? prevStep() : null}
-          className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/50 transition-colors"
-        >
+      <header className="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0">
+        <div className="w-16">
           {step > minStep ? (
-            <ChevronLeft size={24} className="text-gray-600" />
+            <button
+              onClick={prevStep}
+              className="flex items-center gap-1 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ChevronLeft size={20} />
+              <span className="text-sm font-medium">Back</span>
+            </button>
           ) : (
-            <Link href="/dashboard"><X size={24} className="text-gray-600" /></Link>
+            <Link href="/dashboard" className="flex items-center gap-1 text-gray-600 hover:text-gray-900">
+              <X size={20} />
+            </Link>
           )}
-        </button>
+        </div>
 
-        <div className="flex-1 mx-4">
-          <div className="flex justify-center gap-1.5">
+        <div className="flex-1 mx-2">
+          <div className="flex justify-center gap-1">
             {Array.from({ length: totalSteps }, (_, i) => {
-              const stepNum = isLoggedIn ? i + 1 : i;
+              let stepNum = i + 1;
+              if (isLoggedIn && i >= 7) stepNum = i + 2;
               const isActive = stepNum <= step;
               const isCurrent = stepNum === step;
               return (
                 <div
                   key={i}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    isCurrent ? 'w-8 bg-gradient-to-r from-orange-400 to-red-500' :
-                    isActive ? 'w-4 bg-orange-300' : 'w-4 bg-gray-200'
+                  className={`h-1 rounded-full transition-all duration-300 ${
+                    isCurrent ? 'w-6 bg-gradient-to-r from-orange-400 to-red-500' :
+                    isActive ? 'w-3 bg-orange-300' : 'w-3 bg-gray-200'
                   }`}
                 />
               );
             })}
           </div>
-          <p className="text-center text-xs text-gray-400 mt-1">
-            {stepLabels[step - minStep] || ''}
-          </p>
         </div>
 
-        <div className="w-10" />
+        <div className="w-16" />
       </header>
 
       {/* Content - scrollable with room for footer */}
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
 
-        {/* Step 0: Contact Info (non-logged-in users) */}
-        {step === 0 && (
-          <div className="flex-1 flex flex-col px-6 py-4 overflow-y-auto">
-            <div className="mb-8">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center mb-4 shadow-lg shadow-blue-200">
-                <Mail size={28} className="text-white" />
-              </div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Let's stay in touch</h1>
-              <p className="text-gray-500 text-lg">We'll notify you when someone spots your pet</p>
+        {/* Step 8: Contact Info (non-logged-in users) - moved to end for better engagement */}
+        {step === 8 && !isLoggedIn && (
+          <div className="flex-1 px-6 py-4 overflow-y-auto">
+            <div className="mb-4">
+              <h1 className="text-2xl font-bold text-gray-900 mb-1">Almost done!</h1>
+              <p className="text-gray-500 text-sm">How can volunteers reach you about {petName}?</p>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-3 pb-4">
+              {/* Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Your name</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Your name *</label>
                 <div className="relative">
-                  <User size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
-                    placeholder="Jane"
-                    className="w-full pl-12 pr-4 py-4 text-lg bg-white border-2 border-gray-200 rounded-2xl focus:border-blue-400 focus:ring-4 focus:ring-blue-50 outline-none transition-all"
+                    placeholder="Jane Smith"
+                    className="w-full pl-9 pr-3 py-2.5 text-sm bg-white border-2 border-gray-200 rounded-xl focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none transition-all"
                     autoFocus
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email address</label>
-                <div className="relative">
-                  <Mail size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <div className="pt-2 border-t border-gray-100">
+                <p className="text-xs text-gray-500 mb-2">Enter email, phone, or both *</p>
+              </div>
+
+              {/* Email + Confirm side by side */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
                   <input
                     type="email"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
                     placeholder="jane@example.com"
-                    className="w-full pl-12 pr-4 py-4 text-lg bg-white border-2 border-gray-200 rounded-2xl focus:border-blue-400 focus:ring-4 focus:ring-blue-50 outline-none transition-all"
+                    className={`w-full px-3 py-2.5 text-sm bg-white border-2 rounded-xl focus:ring-2 focus:ring-blue-50 outline-none transition-all ${
+                      contactEmail && !isValidEmail(contactEmail) ? 'border-red-300' : 'border-gray-200 focus:border-blue-400'
+                    }`}
                   />
                 </div>
-              </div>
-
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={createAccount}
-                    onChange={(e) => setCreateAccount(e.target.checked)}
-                    className="mt-1 w-5 h-5 rounded border-2 border-blue-300 text-blue-600 focus:ring-2 focus:ring-blue-400 cursor-pointer"
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm font-medium text-gray-900 block">Create account to track progress and coordinate with volunteers</span>
-                    <span className="text-xs text-gray-600 block mt-1">You'll be able to view your case, update information, and communicate with your rescue squad</span>
-                  </div>
-                </label>
-              </div>
-
-              {createAccount && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Choose a password</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Confirm email</label>
                   <div className="relative">
                     <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="At least 8 characters"
-                      className="w-full px-4 py-4 text-lg bg-white border-2 border-gray-200 rounded-2xl focus:border-blue-400 focus:ring-4 focus:ring-blue-50 outline-none transition-all"
+                      type="email"
+                      value={contactEmailConfirm}
+                      onChange={(e) => setContactEmailConfirm(e.target.value)}
+                      placeholder="Confirm"
+                      disabled={!contactEmail}
+                      className={`w-full px-3 pr-8 py-2.5 text-sm bg-white border-2 rounded-xl focus:ring-2 focus:ring-blue-50 outline-none transition-all disabled:bg-gray-50 disabled:text-gray-400 ${
+                        contactEmailConfirm && contactEmail !== contactEmailConfirm ? 'border-red-300' : 'border-gray-200 focus:border-blue-400'
+                      }`}
                     />
+                    {contactEmail && contactEmailConfirm && contactEmail === contactEmailConfirm && isValidEmail(contactEmail) && (
+                      <Check size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-green-500" />
+                    )}
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    You'll receive an email to verify your account.
-                  </p>
                 </div>
+              </div>
+              {contactEmailConfirm && contactEmail !== contactEmailConfirm && (
+                <p className="text-xs text-red-500 -mt-1">Emails don't match</p>
               )}
+
+              {/* Phone + Confirm side by side */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder="(555) 123-4567"
+                    className="w-full px-3 py-2.5 text-sm bg-white border-2 border-gray-200 rounded-xl focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Confirm phone</label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      value={contactPhoneConfirm}
+                      onChange={(e) => setContactPhoneConfirm(e.target.value)}
+                      placeholder="Confirm"
+                      disabled={!contactPhone}
+                      className={`w-full px-3 pr-8 py-2.5 text-sm bg-white border-2 rounded-xl focus:ring-2 focus:ring-blue-50 outline-none transition-all disabled:bg-gray-50 disabled:text-gray-400 ${
+                        contactPhoneConfirm && contactPhone !== contactPhoneConfirm ? 'border-red-300' : 'border-gray-200 focus:border-blue-400'
+                      }`}
+                    />
+                    {contactPhone && contactPhoneConfirm && contactPhone === contactPhoneConfirm && contactPhone.replace(/\D/g, '').length >= 10 && (
+                      <Check size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-green-500" />
+                    )}
+                  </div>
+                </div>
+              </div>
+              {contactPhoneConfirm && contactPhone !== contactPhoneConfirm && (
+                <p className="text-xs text-red-500 -mt-1">Phone numbers don't match</p>
+              )}
+
+              {/* Password - required to create account for case tracking */}
+              <div className="pt-2 border-t border-gray-100">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Create a password *</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                  className="w-full px-3 py-2.5 text-sm bg-white border-2 border-gray-200 rounded-xl focus:border-blue-400 focus:ring-2 focus:ring-blue-50 outline-none transition-all"
+                />
+                <p className="text-xs text-gray-400 mt-1">So you can track sightings and coordinate with your rescue team</p>
+              </div>
             </div>
 
             <div className="mt-auto pt-4">
@@ -1218,7 +1300,7 @@ export default function ReportLostPet() {
                   {DOG_SIZE_OPTIONS.map(opt => (
                     <button
                       key={opt.value}
-                      onClick={() => setPetSize(opt.value)}
+                      onClick={() => { setPetSize(opt.value); setStep(5); }}
                       className={`w-full p-4 rounded-2xl border-2 text-left transition-all ${
                         petSize === opt.value
                           ? 'border-orange-400 bg-orange-50 shadow-lg shadow-orange-100'
@@ -1260,7 +1342,7 @@ export default function ReportLostPet() {
                     return (
                       <button
                         key={opt.value}
-                        onClick={() => setIsIndoorCat(opt.value === 'indoor')}
+                        onClick={() => { setIsIndoorCat(opt.value === 'indoor'); setStep(5); }}
                         className={`w-full p-4 rounded-2xl border-2 text-left transition-all ${
                           isSelected
                             ? 'border-purple-400 bg-purple-50 shadow-lg shadow-purple-100'
@@ -1302,7 +1384,7 @@ export default function ReportLostPet() {
               {TIME_OPTIONS.map(opt => (
                 <button
                   key={opt.value}
-                  onClick={() => setTimeElapsed(opt.value)}
+                  onClick={() => { setTimeElapsed(opt.value); setStep(6); }}
                   className={`p-4 rounded-2xl border-2 text-left transition-all ${
                     timeElapsed === opt.value
                       ? 'border-orange-400 bg-orange-50 shadow-lg shadow-orange-100'
@@ -1408,8 +1490,8 @@ export default function ReportLostPet() {
           </div>
         )}
 
-        {/* Step 8: Confirm */}
-        {step === 8 && (
+        {/* Step 9: Confirm */}
+        {step === 9 && (
           <div className="flex-1 px-6 py-4 overflow-y-auto">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center mb-3 shadow-lg shadow-violet-200">
               <Sparkles size={24} className="text-white" />
@@ -1471,7 +1553,8 @@ export default function ReportLostPet() {
                 <div className="flex-1">
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Contact</p>
                   <p className="font-medium text-gray-900">{effectiveName}</p>
-                  <p className="text-sm text-gray-500">{effectiveEmail}</p>
+                  {effectiveEmail && <p className="text-sm text-gray-500">{effectiveEmail}</p>}
+                  {effectivePhone && <p className="text-sm text-gray-500">{effectivePhone}</p>}
                 </div>
               </div>
             </div>
@@ -1489,35 +1572,49 @@ export default function ReportLostPet() {
         )}
       </div>
 
-      {/* Footer with Next button - fixed at bottom, always visible */}
-      {step >= minStep && step < 9 && (
+      {/* Footer with navigation - fixed at bottom */}
+      {step >= minStep && step < 10 && (
         <div className="flex-shrink-0 px-4 sm:px-6 pb-4 pt-3 bg-white border-t border-gray-100" style={{ paddingBottom: 'max(1rem, calc(env(safe-area-inset-bottom, 0px) + 16px))' }}>
-          <button
-            onClick={nextStep}
-            disabled={!canProceed() || isSubmitting}
-            className={`w-full py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2 transition-all ${
-              canProceed() && !isSubmitting
-                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-200 hover:shadow-xl active:scale-[0.98]'
-                : 'bg-gray-200 text-gray-400'
-            }`}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 size={20} className="animate-spin" />
-                <span>Creating alert...</span>
-              </>
-            ) : step === 8 ? (
-              <>
-                <Sparkles size={20} />
-                <span>Send Alert</span>
-              </>
-            ) : (
-              <>
-                <span>Continue</span>
-                <ChevronRight size={20} />
-              </>
+          <div className="flex gap-3">
+            {/* Back button */}
+            {step > minStep && (
+              <button
+                onClick={prevStep}
+                className="px-5 py-3 rounded-2xl font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all flex items-center gap-1"
+              >
+                <ChevronLeft size={18} />
+                Back
+              </button>
             )}
-          </button>
+
+            {/* Continue/Submit button */}
+            <button
+              onClick={nextStep}
+              disabled={!canProceed() || isSubmitting}
+              className={`flex-1 py-3 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all ${
+                canProceed() && !isSubmitting
+                  ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-200 hover:shadow-xl active:scale-[0.98]'
+                  : 'bg-gray-200 text-gray-400'
+              }`}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  <span>Creating alert...</span>
+                </>
+              ) : step === 9 ? (
+                <>
+                  <Sparkles size={18} />
+                  <span>Send Alert</span>
+                </>
+              ) : (
+                <>
+                  <span>Continue</span>
+                  <ChevronRight size={18} />
+                </>
+              )}
+            </button>
+          </div>
         </div>
       )}
 
