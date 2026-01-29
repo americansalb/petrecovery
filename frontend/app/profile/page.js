@@ -46,7 +46,7 @@ const RESCUE_LEVELS = {
     borderColor: 'border-midnight-300',
     description: 'Submitted a lost pet request',
     nextLevel: 'SCOUT',
-    requirement: 'Join a rescue squad'
+    requirement: 'Join a rescue force'
   },
   SCOUT: {
     name: 'Scout',
@@ -55,7 +55,7 @@ const RESCUE_LEVELS = {
     color: 'text-green-600',
     bg: 'bg-green-100',
     borderColor: 'border-green-300',
-    description: 'Joined a rescue squad',
+    description: 'Joined a rescue force',
     nextLevel: 'SENTRY',
     requirement: 'Participate in first case'
   },

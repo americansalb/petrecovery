@@ -121,7 +121,7 @@ export default function Navigation() {
             </Link>
             <Link href="/rescue-squads/search" className="hidden lg:flex items-center gap-2 px-4 py-2 text-midnight-300 hover:text-white font-medium text-sm rounded-lg hover:bg-midnight-800 transition">
               <Users className="w-4 h-4" />
-              Rescue Squads
+              Rescue Forces
             </Link>
 
             {/* Report Buttons for Guest */}
@@ -189,7 +189,7 @@ export default function Navigation() {
               >
                 <DropdownLink href="/database" icon={Database} title="Pet Database" description="Search lost & found pets" />
                 <DropdownLink href="/shelters" icon={Building2} title="Find Shelters" description="Animal shelters near you" />
-                <DropdownLink href="/rescue-squads/search" icon={Users} title="Find Rescue Squads" description="Volunteer groups near you" />
+                <DropdownLink href="/rescue-squads/search" icon={Users} title="Find Rescue Forces" description="Volunteer groups near you" />
               </NavDropdown>
 
               {/* Rescue Hub */}
@@ -198,10 +198,10 @@ export default function Navigation() {
                 Hub
               </NavLink>
 
-              {/* My Rescue Squads Dropdown - Only shows if user has squads */}
+              {/* My Rescue Forces Dropdown - Only shows if user has squads */}
               {userSquads.length > 0 && (
                 <NavDropdown
-                  label="My Rescue Squads"
+                  label="My Rescue Forces"
                   icon={Shield}
                   active={pathname.includes('/rescue-squads') && pathname !== '/rescue-squads/search'}
                   isOpen={activeDropdown === 'squads'}
@@ -240,7 +240,7 @@ export default function Navigation() {
                   <DropdownLink href="/admin" icon={BarChart3} title="Dashboard" description="Overview & stats" />
                   <DropdownLink href="/admin/users" icon={Users} title="Users" description="Manage all users" />
                   <DropdownLink href="/admin/pets" icon={PawPrint} title="Pets" description="All pet profiles" />
-                  <DropdownLink href="/admin/rescue-squads" icon={Shield} title="Rescue Squads" description="Manage squads" />
+                  <DropdownLink href="/admin/rescue-squads" icon={Shield} title="Rescue Forces" description="Manage forces" />
                   <DropdownLink href="/admin/divisions" icon={MapPin} title="Divisions" description="Geographic areas" />
                   <DropdownLink href="/admin/missions" icon={ClipboardList} title="Missions" description="All lost pet missions" />
                   <DropdownDivider />
@@ -402,7 +402,7 @@ export default function Navigation() {
 
           <MobileNavLink href="/database" icon={Database} label="Pet Database" active={pathname === '/database'} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/shelters" icon={Building2} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
-          <MobileNavLink href="/rescue-squads/search" icon={Users} label="Find Rescue Squads" active={pathname === '/rescue-squads/search'} onClick={() => setMobileMenuOpen(false)} />
+          <MobileNavLink href="/rescue-squads/search" icon={Users} label="Find Rescue Forces" active={pathname === '/rescue-squads/search'} onClick={() => setMobileMenuOpen(false)} />
 
           <div className="border-t border-midnight-100 my-2" />
           <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
@@ -414,7 +414,7 @@ export default function Navigation() {
             <>
               <div className="border-t border-midnight-100 my-2" />
               <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
-                My Rescue Squads
+                My Rescue Forces
               </div>
               {userSquads.slice(0, 5).map(squad => (
                 <Link

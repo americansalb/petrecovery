@@ -61,7 +61,7 @@ export async function GET(request, { params }) {
         metadata: { squad_id: params.id }
       });
       return NextResponse.json(
-        { error: 'Rescue squad not found' },
+        { error: 'Rescue force not found' },
         { status: 404 }
       );
     }
@@ -102,7 +102,7 @@ export async function GET(request, { params }) {
       }
     });
     return NextResponse.json(
-      { error: 'Failed to fetch rescue squad' },
+      { error: 'Failed to fetch rescue force' },
       { status: 500 }
     );
   }

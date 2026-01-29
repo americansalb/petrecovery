@@ -345,7 +345,7 @@ export async function sendCaseStatusUpdate(missionData, previousStatus, newStatu
       'ACTIVE_SEARCH': {
         title: 'Active Search Started',
         icon: '🔍',
-        message: `Rescue squad volunteers are actively searching for ${missionData.petName || 'your pet'} in ${missionData.city}.`,
+        message: `Rescue force volunteers are actively searching for ${missionData.petName || 'your pet'} in ${missionData.city}.`,
         color: '#f59e0b'
       },
       'RESOLVED': {
@@ -861,7 +861,7 @@ export async function sendCaseAssignmentNotification(data) {
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
           <p style="color: #6b7280; font-size: 14px; margin: 0;">
-            <strong>PetRecovery.org</strong> - Organized Rescue Squads
+            <strong>PetRecovery.org</strong> - Organized Rescue Forces
           </p>
         </div>
       </body>

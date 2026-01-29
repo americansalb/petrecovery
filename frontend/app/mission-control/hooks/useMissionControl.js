@@ -259,7 +259,7 @@ export default function useMissionControl(session) {
     try {
       const squadId = activeMission.rescueSquadId || activeMission.squadId || activeMission.assignments?.[0]?.rescueSquadId;
       if (!squadId) {
-        showNotification('info', 'This case needs a rescue squad first. Find one nearby to coordinate the search!');
+        showNotification('info', 'This case needs a rescue force first. Find one nearby to coordinate the search!');
         return;
       }
 

@@ -84,10 +84,10 @@ export default function AdminCreateRescueSquadPage() {
           return;
         }
 
-        throw new Error(data.error || 'Failed to create rescue squad');
+        throw new Error(data.error || 'Failed to create rescue force');
       }
 
-      setSuccess(`Rescue Squad "${data.squad.name}" created successfully!`);
+      setSuccess(`Rescue Force "${data.squad.name}" created successfully!`);
 
       // Redirect after 2 seconds
       setTimeout(() => {
@@ -129,13 +129,13 @@ export default function AdminCreateRescueSquadPage() {
               color: '#0f172a',
               marginBottom: '0.5rem'
             }}>
-              Create Rescue Squad
+              Create Rescue Force
             </h1>
             <p style={{
               fontSize: '1.1rem',
               color: '#64748b'
             }}>
-              Set up a new city-level volunteer rescue squad
+              Set up a new city-level volunteer rescue force
             </p>
           </div>
           <Link
@@ -254,7 +254,7 @@ export default function AdminCreateRescueSquadPage() {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              placeholder="e.g., Chicago Rescue Squad"
+              placeholder="e.g., Chicago Rescue Force"
               required
               style={{
                 width: '100%',
@@ -269,7 +269,7 @@ export default function AdminCreateRescueSquadPage() {
               color: '#64748b',
               marginTop: '0.5rem'
             }}>
-              Use the city or town name (e.g., "Denver Rescue Squad")
+              Use the city or town name (e.g., "Denver Rescue Force")
             </p>
           </div>
 
@@ -286,7 +286,7 @@ export default function AdminCreateRescueSquadPage() {
               name="description"
               value={formData.description}
               onChange={handleChange}
-              placeholder="Brief description of this rescue squad..."
+              placeholder="Brief description of this rescue force..."
               rows="3"
               style={{
                 width: '100%',
@@ -577,7 +577,7 @@ export default function AdminCreateRescueSquadPage() {
               transition: 'background 0.2s'
             }}
           >
-            {loading ? 'Creating Rescue Squad...' : 'Create Rescue Squad'}
+            {loading ? 'Creating Rescue Force...' : 'Create Rescue Force'}
           </button>
         </form>
       </div>

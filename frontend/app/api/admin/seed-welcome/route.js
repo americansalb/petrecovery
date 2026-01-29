@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 
-const WELCOME_MESSAGE = `Welcome to your local Rescue Squad!
+const WELCOME_MESSAGE = `Welcome to your local Rescue Force!
 
 We're a community of caring neighbors who work together to help lost pets find their way home.
 
@@ -59,7 +59,7 @@ export async function POST(request) {
         where: {
           rescueSquadId: squad.id,
           type: 'ANNOUNCEMENT',
-          message: { contains: 'Welcome to your local Rescue Squad' },
+          message: { contains: 'Welcome to your local Rescue Force' },
         },
       });
 
@@ -76,7 +76,7 @@ export async function POST(request) {
           type: 'ANNOUNCEMENT',
           message: WELCOME_MESSAGE,
           details: JSON.stringify({
-            title: 'Welcome to Your Rescue Squad!',
+            title: 'Welcome to Your Rescue Force!',
             isPinned: true,
             isSystemPost: true,
           }),

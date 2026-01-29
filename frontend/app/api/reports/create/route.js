@@ -361,7 +361,7 @@ export async function POST(request) {
             centerLongitude: center[1],
             radiusMiles: 5, // Default 5 mile coverage
             isActive: true,
-            description: `🆕 Community rescue squad for ${cityName}. Auto-created to help reunite pets with their families. Join to help coordinate local pet searches!`,
+            description: `🆕 Community rescue force for ${cityName}. Auto-created to help reunite pets with their families. Join to help coordinate local pet searches!`,
           },
         });
 
@@ -570,7 +570,7 @@ export async function POST(request) {
             <p><strong>Next steps:</strong></p>
             <ul>
               <li>Log in to view your case dashboard</li>
-              <li>Coordinate with your assigned rescue squad</li>
+              <li>Coordinate with your assigned rescue force</li>
               <li>Update information as needed</li>
             </ul>
             <p>We'll send you updates when volunteers report sightings.</p>
@@ -603,7 +603,7 @@ export async function POST(request) {
           <p><strong>Case Number:</strong> ${report.caseNumber}</p>
           <p>We'll notify you by email if anyone spots your pet.</p>
           <p><strong>Want to track progress and coordinate with volunteers?</strong></p>
-          <p>Create an account to access your case dashboard and work with your rescue squad.</p>
+          <p>Create an account to access your case dashboard and work with your rescue force.</p>
           <p>[Claim Report button will be added in Phase 3.3]</p>
         `
       }).catch(err => {

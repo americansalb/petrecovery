@@ -69,7 +69,7 @@ export default function AboutPage() {
                 href="/rescue-squads/search"
                 className="px-6 py-3 bg-white/20 text-white font-bold rounded-lg border-2 border-white/30 hover:bg-white/30 transition"
               >
-                Find a Rescue Squad
+                Find a Rescue Force
               </Link>
             </div>
           </div>

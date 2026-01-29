@@ -185,7 +185,7 @@ export default function DivisionRequestPage() {
               fontSize: '1.1rem',
               color: '#64748b'
             }}>
-              Propose a neighborhood subdivision for your Rescue Squad
+              Propose a neighborhood subdivision for your Rescue Force
             </p>
           </div>
           <Link
@@ -200,7 +200,7 @@ export default function DivisionRequestPage() {
               fontWeight: '700'
             }}
           >
-            ← Back to Squads
+            ← Back to Forces
           </Link>
         </div>
 
@@ -256,10 +256,10 @@ export default function DivisionRequestPage() {
                   color: '#0f172a',
                   marginBottom: '0.5rem'
                 }}>
-                  Join a Rescue Squad First
+                  Join a Rescue Force First
                 </h2>
                 <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-                  You must be a member of a Rescue Squad before you can request a Division.
+                  You must be a member of a Rescue Force before you can request a Division.
                 </p>
                 <Link
                   href="/rescue-squads"
@@ -273,7 +273,7 @@ export default function DivisionRequestPage() {
                     fontWeight: '700'
                   }}
                 >
-                  Browse Rescue Squads
+                  Browse Rescue Forces
                 </Link>
               </div>
             ) : (
@@ -300,7 +300,7 @@ export default function DivisionRequestPage() {
                     fontWeight: '700',
                     color: '#0f172a'
                   }}>
-                    Rescue Squad *
+                    Rescue Force *
                   </label>
                   <select
                     name="rescueSquadId"

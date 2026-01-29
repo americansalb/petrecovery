@@ -93,7 +93,7 @@ export default function SquadPage() {
       <div className="min-h-screen bg-midnight-900 flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-flash-400"></div>
-          <p className="mt-4 text-gray-400">Loading squad hub...</p>
+          <p className="mt-4 text-gray-400">Loading force hub...</p>
         </div>
       </div>
     );
@@ -106,11 +106,11 @@ export default function SquadPage() {
         <div className="text-center max-w-md mx-auto px-4">
           <div className="text-6xl mb-4">{isNotFound ? '🐾' : '⚠️'}</div>
           <h1 className="text-2xl font-bold text-white mb-2">
-            {isNotFound ? 'Squad Not Found' : 'Error Loading Squad'}
+            {isNotFound ? 'Force Not Found' : 'Error Loading Force'}
           </h1>
           <p className="text-gray-400 mb-6">
             {isNotFound
-              ? "We couldn't find a rescue squad with that ID. It may not exist yet or the link may be incorrect."
+              ? "We couldn't find a rescue force with that ID. It may not exist yet or the link may be incorrect."
               : error}
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -124,7 +124,7 @@ export default function SquadPage() {
               href="/rescue-squads/search"
               className="px-6 py-3 bg-flash-500 text-midnight-900 font-semibold rounded-lg hover:bg-flash-600 transition"
             >
-              Find a Squad Near You
+              Find a Force Near You
             </a>
           </div>
         </div>

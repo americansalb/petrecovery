@@ -91,7 +91,7 @@ export default function WipeSquadsPage() {
               ⚠️ WARNING: Destructive Action
             </h3>
             <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-              This will delete ALL rescue squad data including squads, members, assignments, and divisions.
+              This will delete ALL rescue force data including squads, members, assignments, and divisions.
               <br /><br />
               <strong style={{ color: '#dc2626' }}>This action cannot be undone.</strong>
             </p>
@@ -265,7 +265,7 @@ export default function WipeSquadsPage() {
             marginLeft: '1.5rem',
             lineHeight: '2'
           }}>
-            <li>All rescue squads</li>
+            <li>All rescue forces</li>
             <li>All squad members</li>
             <li>All case assignments</li>
             <li>All case participants</li>

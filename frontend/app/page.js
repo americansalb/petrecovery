@@ -332,7 +332,7 @@ export default function Home() {
         // Include ALL cities - both with and without squads
         const results = (data.cities || []).map(city => ({
           id: city.squad?.id || `new-${city.city}-${city.state}`,
-          name: city.squad?.name || `${city.city} Rescue Squad`,
+          name: city.squad?.name || `${city.city} Rescue Force`,
           city: city.city,
           state: city.state,
           memberCount: city.squad?.memberCount || 0,
@@ -388,7 +388,7 @@ export default function Home() {
                 const data = await res.json();
                 const results = (data.cities || []).map(c => ({
                   id: c.squad?.id || `new-${c.city}-${c.state}`,
-                  name: c.squad?.name || `${c.city} Rescue Squad`,
+                  name: c.squad?.name || `${c.city} Rescue Force`,
                   city: c.city,
                   state: c.state,
                   memberCount: c.squad?.memberCount || 0,
@@ -902,7 +902,7 @@ export default function Home() {
               <div className="w-14 h-14 bg-flash-400 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
                 <Shield className="w-7 h-7 text-midnight-900" />
               </div>
-              <h3 className="text-xl font-bold mb-2">Rescue Squads</h3>
+              <h3 className="text-xl font-bold mb-2">Rescue Forces</h3>
               <p className="text-midnight-200 text-sm leading-relaxed">
                 Your neighbors are ready to help. Join your local squad or rally a new one.
               </p>
@@ -1018,7 +1018,7 @@ export default function Home() {
                 <span className="text-flash-400">Ready</span>
               </h2>
               <p className="text-midnight-200 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-                Real neighbors. Real care. When a pet goes missing, your local Rescue Squad mobilizes to help.
+                Real neighbors. Real care. When a pet goes missing, your local Rescue Force mobilizes to help.
               </p>
             </motion.div>
           </div>
@@ -1083,7 +1083,7 @@ export default function Home() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="text-white font-bold truncate text-lg">
-                            {squad.exists ? squad.name : `${squad.city} Rescue Squad`}
+                            {squad.exists ? squad.name : `${squad.city} Rescue Force`}
                           </h3>
                           <p className="text-midnight-300 text-sm flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
@@ -1236,7 +1236,7 @@ export default function Home() {
           >
             <div className="bg-midnight-700/30 px-6 py-4 rounded-2xl">
               <div className="text-3xl font-bold text-flash-400">{metrics.activeSquads}</div>
-              <div className="text-midnight-300 text-sm">Active Squads</div>
+              <div className="text-midnight-300 text-sm">Active Forces</div>
             </div>
             <div className="bg-midnight-700/30 px-6 py-4 rounded-2xl">
               <div className="text-3xl font-bold text-flash-400">{metrics.citiesCovered || 0}</div>

@@ -398,7 +398,7 @@ function OverviewPanel({ healthSummary, metrics, loading, errors, onRefresh }) {
       return {
         severity: 'warning',
         headline: 'Geocoding service is degraded.',
-        impact: 'New cases and rescue squad creation may fail for some locations.',
+        impact: 'New cases and rescue force creation may fail for some locations.',
         suggestedNextStep: 'Try "Test Geocoding" in Tools tab, then review related errors.',
         type: 'warning'
       };
@@ -593,7 +593,7 @@ function MetricsGrid({ metrics }) {
   const metricCards = [
     { label: 'Total Users', value: metrics.users_total, key: 'users' },
     { label: 'Total Cities', value: metrics.cities_total, key: 'cities' },
-    { label: 'Total Rescue Squads', value: metrics.rescue_squads_total, key: 'squads' },
+    { label: 'Total Rescue Forces', value: metrics.rescue_squads_total, key: 'squads' },
     { label: 'Active Squads', value: metrics.rescue_squads_active, key: 'active_squads' },
     { label: 'Squad Members', value: metrics.squad_members_total, key: 'members' },
     { label: 'Active Members', value: metrics.squad_members_active, key: 'active_members' },
@@ -1198,7 +1198,7 @@ function TestGeocodeCard({ onSwitchToErrors }) {
                   {result.result?.message || result.result?.error || result.error || 'Unknown error'}
                 </div>
                 <div className="text-xs text-red-600 mt-2">
-                  If this fails for valid ZIP codes, case creation or squad operations may be affected.
+                  If this fails for valid ZIP codes, case creation or force operations may be affected.
                 </div>
                 {/* Jump to Errors (Refinement 2.3) */}
                 {!result.success && onSwitchToErrors && (

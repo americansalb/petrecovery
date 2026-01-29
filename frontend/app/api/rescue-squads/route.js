@@ -427,7 +427,7 @@ export async function POST(request) {
       return NextResponse.json({
         error: 'Liability waiver required',
         code: 'WAIVER_NOT_ACCEPTED',
-        message: 'You must accept the liability waiver before creating a rescue squad. Rescue squad participation involves physical risks.',
+        message: 'You must accept the liability waiver before creating a rescue force. Rescue force participation involves physical risks.',
         redirectTo: `/legal/consent?returnUrl=${encodeURIComponent('/rescue-squads/search')}`
       }, { status: 403 });
     }
@@ -574,7 +574,7 @@ export async function POST(request) {
       console.error('[Squad Create] Boundary fetch failed:', boundaryError.message);
     }
 
-    const squadName = `${city} Rescue Squad`;
+    const squadName = `${city} Rescue Force`;
 
     // Check if squad already exists (active) - filter by country
     const existingActive = await prisma.rescueSquad.findFirst({

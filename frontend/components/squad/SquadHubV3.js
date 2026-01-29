@@ -143,7 +143,7 @@ export default function SquadHubV3({ initialData, squadId }) {
               </div>
             )}
             <div className="flex-1">
-              <h1 className="text-xl font-bold text-white">{squad.displayName || 'Rescue Squad'}</h1>
+              <h1 className="text-xl font-bold text-white">{squad.displayName || 'Rescue Force'}</h1>
               <p className="text-slate-400 text-sm flex items-center gap-1">
                 <MapPin size={14} />
                 {squad.cityName || 'Unknown location'}

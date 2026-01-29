@@ -213,7 +213,7 @@ export default function LocationLandingPage() {
           }}>
             <PawPrint size={48} color="#cbd5e1" style={{ marginBottom: '1rem' }} />
             <p>No active cases in this area right now.</p>
-            <p>That's good news! Help us stay ready by joining a rescue squad.</p>
+            <p>That's good news! Help us stay ready by joining a rescue force.</p>
           </div>
         ) : (
           <div style={{
@@ -240,7 +240,7 @@ export default function LocationLandingPage() {
             color: '#0f172a',
             marginBottom: '1.5rem',
           }}>
-            Rescue Squads in {location.state}
+            Rescue Forces in {location.state}
           </h2>
 
           {squads.length === 0 ? (
@@ -251,7 +251,7 @@ export default function LocationLandingPage() {
               textAlign: 'center',
             }}>
               <p style={{ color: '#64748b' }}>
-                No rescue squads in this area yet.
+                No rescue forces in this area yet.
               </p>
               <Link
                 href="/rescue-squads/create"
@@ -266,7 +266,7 @@ export default function LocationLandingPage() {
                   fontWeight: 500,
                 }}
               >
-                Start a Squad
+                Start a Force
               </Link>
             </div>
           ) : (

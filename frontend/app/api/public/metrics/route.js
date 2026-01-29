@@ -68,7 +68,7 @@ export async function GET(request) {
     console.log(`[PUBLIC-METRICS] Total users: ${totalUsers}`);
 
     // Count active rescue squads
-    console.log('[PUBLIC-METRICS] Counting active rescue squads...');
+    console.log('[PUBLIC-METRICS] Counting active rescue forces...');
     const activeSquads = await prisma.rescueSquad.count({
       where: { isActive: true }
     });

@@ -186,7 +186,7 @@ function LegalConsentContent() {
           }}>
             {returnUrl ? (
               <>
-                Before you can participate in rescue squad activities, please review and accept our legal agreements below.
+                Before you can participate in rescue force activities, please review and accept our legal agreements below.
                 These protect both you and the ReunitePets.org community.
               </>
             ) : (

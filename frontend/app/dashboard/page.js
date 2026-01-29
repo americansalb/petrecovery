@@ -253,7 +253,7 @@ export default function DashboardPage() {
                   <Users className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-slate-900 mb-1">Join a Rescue Squad</h3>
+                  <h3 className="font-bold text-slate-900 mb-1">Join a Rescue Force</h3>
                   <p className="text-sm text-slate-600 mb-3">
                     Connect with volunteers in your area to help find lost pets together.
                   </p>
@@ -382,7 +382,7 @@ export default function DashboardPage() {
             <Heart className="w-12 h-12 text-slate-300 mx-auto mb-4" />
             <h3 className="font-bold text-slate-900 mb-2">Welcome!</h3>
             <p className="text-slate-500 text-sm max-w-md mx-auto">
-              Join a rescue squad to connect with volunteers in your area and help find lost pets together.
+              Join a rescue force to connect with volunteers in your area and help find lost pets together.
             </p>
           </div>
         )}

@@ -200,13 +200,13 @@ export default function AdminRescueSquadsPage() {
               color: '#0f172a',
               marginBottom: '0.5rem'
             }}>
-              Manage Rescue Squads
+              Manage Rescue Forces
             </h1>
             <p style={{
               fontSize: '1.1rem',
               color: '#64748b'
             }}>
-              View, create, and delete rescue squads
+              View, create, and delete rescue forces
             </p>
           </div>
 
@@ -385,7 +385,7 @@ export default function AdminRescueSquadsPage() {
               No squads found
             </h2>
             <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-              {searchQuery ? 'Try a different search' : 'Create your first rescue squad'}
+              {searchQuery ? 'Try a different search' : 'Create your first rescue force'}
             </p>
             {!searchQuery && (
               <Link

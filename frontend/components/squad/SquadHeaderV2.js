@@ -62,7 +62,7 @@ export default function SquadHeaderV2({
                 {squadPhoto ? (
                   <img
                     src={squadPhoto}
-                    alt={`${cityName} Rescue Squad`}
+                    alt={`${cityName} Rescue Force`}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -85,7 +85,7 @@ export default function SquadHeaderV2({
             <div className="flex-1">
               <h1 className="text-4xl sm:text-5xl font-black tracking-tight mb-2">
                 <span className="text-white">{cityName}</span>
-                <span className="text-flash-400"> Rescue Squad</span>
+                <span className="text-flash-400"> Rescue Force</span>
               </h1>
               <p className="text-base text-slate-400 mb-2">
                 {customSlogan}
@@ -108,7 +108,7 @@ export default function SquadHeaderV2({
               {currentDivision?.name || 'Division'}
             </h1>
             <p className="text-base text-slate-400">
-              Part of {cityName} Rescue Squad
+              Part of {cityName} Rescue Force
             </p>
           </div>
         )}

@@ -59,7 +59,7 @@ export default function SquadCoverageMap({ latitude, longitude, radiusMiles, cit
 
     L.marker([latitude, longitude], { icon: markerIcon })
       .addTo(map)
-      .bindPopup(`<b>${city} Rescue Squad</b><br/>${city}, ${state}`);
+      .bindPopup(`<b>${city} Rescue Force</b><br/>${city}, ${state}`);
 
     // Add circle for coverage radius
     const radiusMeters = radiusMiles * 1609.34; // Convert miles to meters

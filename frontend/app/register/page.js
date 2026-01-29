@@ -281,7 +281,7 @@ export default function RegisterPage() {
                   <Link href="/legal/consent" className="text-midnight-900 font-medium underline hover:text-flash-600">
                     Liability Waiver
                   </Link>
-                  . I understand that participation in rescue squad activities involves physical risks.
+                  . I understand that participation in rescue force activities involves physical risks.
                 </span>
               </label>
             </div>

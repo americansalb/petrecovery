@@ -504,7 +504,7 @@ export default function NotificationSettingsPage() {
           />
           <ToggleRow
             label="Squad Messages"
-            description="Messages from your rescue squad"
+            description="Messages from your rescue force"
             icon={<MessageSquare size={18} color="#4f46e5" />}
             checked={emailPrefs.squadMessages}
             onChange={(checked) => setEmailPrefs({ ...emailPrefs, squadMessages: checked })}

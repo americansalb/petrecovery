@@ -340,7 +340,7 @@ export const SUBSCRIPTION_TIERS = {
     features: [
       'Report lost/found pets',
       'Basic search tools',
-      'Join rescue squads',
+      'Join rescue forces',
       'Community access',
     ],
   },

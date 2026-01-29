@@ -87,12 +87,12 @@ export default function EmptyState({ missions = [], onSelectMission, onRefresh }
             href="/rescue-squads/search"
             className="inline-block px-6 py-3 bg-flash-500 text-slate-900 font-bold rounded-xl text-lg hover:bg-flash-400 transition hover:scale-105 mb-6"
           >
-            Join a Rescue Squad
+            Join a Rescue Force
           </a>
 
           {/* Explanation of how squads work */}
           <div className="mt-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50 text-left">
-            <h4 className="text-white font-semibold mb-2 text-sm">How Rescue Squads Work</h4>
+            <h4 className="text-white font-semibold mb-2 text-sm">How Rescue Forces Work</h4>
             <ul className="text-slate-400 text-sm space-y-2">
               <li className="flex items-start gap-2">
                 <span className="text-flash-400">•</span>

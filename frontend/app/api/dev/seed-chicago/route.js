@@ -10,7 +10,7 @@ import bcrypt from 'bcryptjs';
  */
 export async function POST() {
   try {
-    console.log('Seeding Chicago Rescue Squad...');
+    console.log('Seeding Chicago Rescue Force...');
 
     // Check if Chicago squad already exists
     const existing = await prisma.rescueSquad.findFirst({
@@ -19,7 +19,7 @@ export async function POST() {
 
     if (existing) {
       return NextResponse.json({
-        message: 'Chicago Rescue Squad already exists',
+        message: 'Chicago Rescue Force already exists',
         squadId: existing.id,
         url: `/rescue-squads/${existing.id}`,
       });
@@ -60,7 +60,7 @@ export async function POST() {
     // Create Chicago Rescue Squad
     const chicagoSquad = await prisma.rescueSquad.create({
       data: {
-        name: 'Chicago Rescue Squad',
+        name: 'Chicago Rescue Force',
         description: 'Helping reunite lost pets with their families across the Chicagoland area.',
         city: 'Chicago',
         state: 'IL',
@@ -394,7 +394,7 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
-      message: 'Chicago Rescue Squad seeded successfully!',
+      message: 'Chicago Rescue Force seeded successfully!',
       squadId: chicagoSquad.id,
       url: `/rescue-squads/${chicagoSquad.id}`,
       slugUrl: '/rescue-squads/chicago',
