@@ -174,7 +174,7 @@ async function handleJoin(userId, missionId, taskId) {
 
     if (!rescueSquad) {
       return NextResponse.json(
-        { error: 'No rescue squad found for this case' },
+        { error: 'No rescue force found for this case' },
         { status: 400 }
       );
     }
@@ -274,7 +274,7 @@ async function handleRequestHelp(userId, missionId, taskId, body) {
 
     if (!rescueSquad) {
       return NextResponse.json(
-        { error: 'No rescue squad found for this case' },
+        { error: 'No rescue force found for this case' },
         { status: 400 }
       );
     }

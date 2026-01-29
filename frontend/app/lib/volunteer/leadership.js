@@ -37,7 +37,7 @@ export async function getLeadershipDashboard(userId, squadId) {
   });
 
   if (!membership) {
-    return { success: false, error: 'Not authorized as squad leader' };
+    return { success: false, error: 'Not authorized as force leader' };
   }
 
   const isCommander = membership.role === 'COMMANDER';
@@ -374,7 +374,7 @@ export async function broadcastMessage(options) {
     for (const division of squad.divisions) {
       const result = await sendDivisionAlert(division.id, {
         type,
-        title: 'Squad Announcement',
+        title: 'Force Announcement',
         body: message,
         priority: 'NORMAL',
       });

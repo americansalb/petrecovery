@@ -60,8 +60,8 @@ export const ACHIEVEMENTS = {
   // Community achievements
   SQUAD_FOUNDER: {
     id: 'squad_founder',
-    name: 'Squad Founder',
-    description: 'Create a rescue squad',
+    name: 'Force Founder',
+    description: 'Create a rescue force',
     icon: '👑',
     points: 300,
     tier: 'silver',
@@ -69,7 +69,7 @@ export const ACHIEVEMENTS = {
   TEAM_PLAYER: {
     id: 'team_player',
     name: 'Team Player',
-    description: 'Participate in 50 squad activities',
+    description: 'Participate in 50 force activities',
     icon: '🤝',
     points: 400,
     tier: 'silver',

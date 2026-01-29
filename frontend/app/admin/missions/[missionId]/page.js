@@ -235,7 +235,7 @@ export default function CaseDetailPage({ params }) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || data.error || 'Failed to assign squad');
+        throw new Error(data.message || data.error || 'Failed to assign force');
       }
 
       setAssignmentMessage({ type: 'success', text: data.message });

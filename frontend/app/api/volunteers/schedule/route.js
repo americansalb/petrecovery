@@ -117,7 +117,7 @@ export async function POST(request) {
       });
 
       if (!membership) {
-        return NextResponse.json({ error: 'Must be squad leader/coordinator' }, { status: 403 });
+        return NextResponse.json({ error: 'Must be force leader/coordinator' }, { status: 403 });
       }
     }
 

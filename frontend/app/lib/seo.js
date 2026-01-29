@@ -138,8 +138,8 @@ export function generateMetaTags({
 
   return {
     title: fullTitle,
-    description: description || 'Community-powered pet recovery platform. Report lost pets, join rescue squads, and help reunite pets with their families.',
-    keywords: keywords || 'lost pet, found pet, missing dog, missing cat, pet recovery, rescue squad',
+    description: description || 'Community-powered pet recovery platform. Report lost pets, join rescue forces, and help reunite pets with their families.',
+    keywords: keywords || 'lost pet, found pet, missing dog, missing cat, pet recovery, rescue force',
     openGraph: {
       title: fullTitle,
       description,
@@ -182,7 +182,7 @@ export function generateCaseMetaTags(missionData) {
  * Generate squad-specific meta tags
  */
 export function generateSquadMetaTags(squad) {
-  const title = `${squad.name} - Pet Rescue Squad in ${squad.city}, ${squad.state}`;
+  const title = `${squad.name} - Pet Rescue Force in ${squad.city}, ${squad.state}`;
   const description = `Join ${squad.name} and help find lost pets in ${squad.city}. ${squad.successfulReunions} successful reunions. ${squad._count?.members || 0} active members.`;
 
   return generateMetaTags({

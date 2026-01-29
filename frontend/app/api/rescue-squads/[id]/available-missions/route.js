@@ -25,7 +25,7 @@ export async function GET(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'Only squad leaders can browse available cases' },
+        { error: 'Only force leaders can browse available cases' },
         { status: 403 }
       );
     }
@@ -43,7 +43,7 @@ export async function GET(request, { params }) {
     });
 
     if (!squad) {
-      return NextResponse.json({ error: 'Squad not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Force not found' }, { status: 404 });
     }
 
     // Get all case IDs already accepted by this squad

@@ -115,7 +115,7 @@ export async function PATCH(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'Only squad founders and leaders can update divisions' },
+        { error: 'Only force founders and leaders can update divisions' },
         { status: 403 }
       );
     }
@@ -218,7 +218,7 @@ export async function DELETE(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'Only squad founders and leaders can delete divisions' },
+        { error: 'Only force founders and leaders can delete divisions' },
         { status: 403 }
       );
     }

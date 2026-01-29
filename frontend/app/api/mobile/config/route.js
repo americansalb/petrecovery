@@ -82,7 +82,7 @@ export async function GET(request) {
       },
       {
         id: 'squad_messages',
-        name: 'Squad Messages',
+        name: 'Force Messages',
         description: 'Messages from your rescue forces',
         importance: 'default',
         sound: true,

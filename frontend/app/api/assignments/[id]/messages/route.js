@@ -103,7 +103,7 @@ export async function POST(request, { params }) {
     // Only leaders can send ANNOUNCEMENT type messages
     if (type === 'ANNOUNCEMENT' && !isLeader) {
       return NextResponse.json(
-        { error: 'Only squad leaders can send announcements' },
+        { error: 'Only force leaders can send announcements' },
         { status: 403 }
       );
     }

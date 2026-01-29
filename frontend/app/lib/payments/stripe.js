@@ -357,12 +357,12 @@ export const SUBSCRIPTION_TIERS = {
     ],
   },
   PRO: {
-    name: 'Pro Squad',
+    name: 'Pro Force',
     priceId: process.env.STRIPE_PRO_PRICE_ID,
     price: 15,
     features: [
       'All Supporter features',
-      'Squad management tools',
+      'Force management tools',
       'Shelter API access',
       'Advanced mapping',
       'Priority support',

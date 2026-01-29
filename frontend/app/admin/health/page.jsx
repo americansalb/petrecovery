@@ -594,8 +594,8 @@ function MetricsGrid({ metrics }) {
     { label: 'Total Users', value: metrics.users_total, key: 'users' },
     { label: 'Total Cities', value: metrics.cities_total, key: 'cities' },
     { label: 'Total Rescue Forces', value: metrics.rescue_squads_total, key: 'squads' },
-    { label: 'Active Squads', value: metrics.rescue_squads_active, key: 'active_squads' },
-    { label: 'Squad Members', value: metrics.squad_members_total, key: 'members' },
+    { label: 'Active Forces', value: metrics.rescue_squads_active, key: 'active_squads' },
+    { label: 'Force Members', value: metrics.squad_members_total, key: 'members' },
     { label: 'Active Members', value: metrics.squad_members_active, key: 'active_members' },
     { label: 'Total Cases', value: metrics.cases_total, key: 'missions', highlight: true },
     { label: 'Open Cases', value: metrics.cases_open, key: 'cases_open', highlight: true },
@@ -633,14 +633,14 @@ function MetricCard({ label, value }) {
 // Error impact mapping (Refinement 2.2)
 const ERROR_IMPACT = {
   // High severity - affects user signups, core flows
-  'squad.create_failed': { label: 'Squad Creation', severity: 'high' },
-  'squad.join_failed': { label: 'Squad Signups', severity: 'high' },
+  'squad.create_failed': { label: 'Force Creation', severity: 'high' },
+  'squad.join_failed': { label: 'Force Signups', severity: 'high' },
   'user.signup_failed': { label: 'User Signups', severity: 'high' },
   'case.create_failed': { label: 'Case Creation', severity: 'high' },
 
   // Medium severity - affects functionality but not critical paths
-  'squad.search_failed': { label: 'Squad Search', severity: 'medium' },
-  'squad.detail_failed': { label: 'Squad Details', severity: 'medium' },
+  'squad.search_failed': { label: 'Force Search', severity: 'medium' },
+  'squad.detail_failed': { label: 'Force Details', severity: 'medium' },
   'case.status_change_failed': { label: 'Case Updates', severity: 'medium' },
   'case.note_add_failed': { label: 'Case Notes', severity: 'medium' },
   'geocoding.failed': { label: 'Location Data', severity: 'medium' },
@@ -650,7 +650,7 @@ const ERROR_IMPACT = {
   'auth.permission_denied': { label: 'Permission Check', severity: 'medium' },
 
   // Low severity - admin tools, non-critical features
-  'squad.leave_failed': { label: 'Squad Management', severity: 'low' },
+  'squad.leave_failed': { label: 'Force Management', severity: 'low' },
   'admin.test_geocode_run': { label: 'Admin Tools', severity: 'low' },
   'admin.test_email_sent': { label: 'Admin Tools', severity: 'low' },
   'qa.test_executed': { label: 'QA Tests', severity: 'low' },
@@ -683,7 +683,7 @@ function getErrorImpact(eventType) {
   // Check by prefix (e.g., "squad.*" → Squad Operations)
   const prefix = eventType.split('.')[0];
   const prefixMap = {
-    'squad': { label: 'Squad Operations', severity: 'medium' },
+    'squad': { label: 'Force Operations', severity: 'medium' },
     'user': { label: 'User Operations', severity: 'medium' },
     'mission': { label: 'Case Operations', severity: 'medium' },
     'admin': { label: 'Admin Operations', severity: 'low' },

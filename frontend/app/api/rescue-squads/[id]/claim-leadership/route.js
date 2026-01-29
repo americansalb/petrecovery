@@ -25,7 +25,7 @@ export async function POST(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'You must be a squad member to claim leadership' },
+        { error: 'You must be a force member to claim leadership' },
         { status: 403 }
       );
     }
@@ -33,7 +33,7 @@ export async function POST(request, { params }) {
     // Already a leader?
     if (['FOUNDER', 'LEADER'].includes(membership.role)) {
       return NextResponse.json(
-        { error: 'You are already a leader of this squad' },
+        { error: 'You are already a leader of this force' },
         { status: 400 }
       );
     }
@@ -49,7 +49,7 @@ export async function POST(request, { params }) {
 
     if (existingLeaders > 0) {
       return NextResponse.json(
-        { error: 'This squad already has active leadership. Contact them to become a leader.' },
+        { error: 'This force already has active leadership. Contact them to become a leader.' },
         { status: 400 }
       );
     }
@@ -78,7 +78,7 @@ export async function POST(request, { params }) {
     });
 
     return NextResponse.json({
-      message: 'You are now a leader of this squad!',
+      message: 'You are now a leader of this force!',
       role: 'LEADER',
     });
   } catch (error) {

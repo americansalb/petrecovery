@@ -27,7 +27,7 @@ export async function POST(request, { params }) {
     });
 
     if (!membership) {
-      return NextResponse.json({ error: 'Not a squad member' }, { status: 403 });
+      return NextResponse.json({ error: 'Not a force member' }, { status: 403 });
     }
 
     // Find the case assignment for this squad
@@ -39,7 +39,7 @@ export async function POST(request, { params }) {
     });
 
     if (!assignment) {
-      return NextResponse.json({ error: 'Case not assigned to this squad' }, { status: 404 });
+      return NextResponse.json({ error: 'Case not assigned to this force' }, { status: 404 });
     }
 
     // Check if already participating

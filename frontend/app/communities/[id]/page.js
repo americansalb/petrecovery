@@ -454,7 +454,7 @@ export default function CommunityPage({ params }) {
                     color: '#64748b'
                   }}>
                     {sub.memberCount} members
-                    {sub.activeSquadsCount > 0 && ` • ${sub.activeSquadsCount} active squads`}
+                    {sub.activeSquadsCount > 0 && ` • ${sub.activeSquadsCount} active forces`}
                   </div>
                 </Link>
               ))}

@@ -23,7 +23,7 @@ export async function POST(request, { params }) {
     });
 
     if (!squad || squad.isDeleted) {
-      return NextResponse.json({ error: 'Squad not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Force not found' }, { status: 404 });
     }
 
     // Check if already a member
@@ -40,7 +40,7 @@ export async function POST(request, { params }) {
         return NextResponse.json({
           membership: existingMembership,
           alreadyMember: true,
-          message: 'You are already a member of this squad'
+          message: 'You are already a member of this force'
         });
       }
 
@@ -72,7 +72,7 @@ export async function POST(request, { params }) {
       data: {
         rescueSquadId: squadId,
         type: 'MEMBER_JOINED',
-        message: 'joined the squad',
+        message: 'joined the force',
         actorId: session.user.id,
         details: JSON.stringify({}),
       },
@@ -82,7 +82,7 @@ export async function POST(request, { params }) {
   } catch (error) {
     console.error('Error joining squad:', error);
     return NextResponse.json(
-      { error: 'Failed to join squad' },
+      { error: 'Failed to join force' },
       { status: 500 }
     );
   }

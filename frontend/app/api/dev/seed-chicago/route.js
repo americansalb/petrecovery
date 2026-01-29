@@ -315,7 +315,7 @@ export async function POST() {
     // Create activities
     const activityTypes = [
       { type: 'CASE_ACCEPTED', message: 'accepted case' },
-      { type: 'MEMBER_JOINED', message: 'joined the squad' },
+      { type: 'MEMBER_JOINED', message: 'joined the force' },
       { type: 'SIGHTING_REPORTED', message: 'reported a sighting' },
     ];
 
@@ -410,7 +410,7 @@ export async function POST() {
   } catch (error) {
     console.error('Error seeding Chicago squad:', error);
     return NextResponse.json(
-      { error: 'Failed to seed Chicago squad', details: error.message },
+      { error: 'Failed to seed Chicago force', details: error.message },
       { status: 500 }
     );
   }

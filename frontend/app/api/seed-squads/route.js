@@ -5,7 +5,7 @@ import prisma from '@/app/lib/prisma';
 const rescueSquads = [
   // Illinois - Suburban Chicago
   {
-    name: 'Northwest Suburbs Rescue Squad',
+    name: 'Northwest Suburbs Rescue Force',
     city: 'Carpentersville',
     state: 'IL',
     lat: 42.1211,
@@ -14,7 +14,7 @@ const rescueSquads = [
     zips: ['60110', '60118', '60120', '60123', '60124', '60156', '60175', '60195']
   },
   {
-    name: 'DuPage County Rescue Squad',
+    name: 'DuPage County Rescue Force',
     city: 'Naperville',
     state: 'IL',
     lat: 41.7508,
@@ -23,7 +23,7 @@ const rescueSquads = [
     zips: ['60540', '60563', '60564', '60565', '60515', '60516', '60517', '60532']
   },
   {
-    name: 'Lake County Rescue Squad',
+    name: 'Lake County Rescue Force',
     city: 'Waukegan',
     state: 'IL',
     lat: 42.3636,
@@ -32,7 +32,7 @@ const rescueSquads = [
     zips: ['60085', '60087', '60044', '60045', '60047', '60048', '60061', '60064']
   },
   {
-    name: 'South Suburbs Rescue Squad',
+    name: 'South Suburbs Rescue Force',
     city: 'Orland Park',
     state: 'IL',
     lat: 41.6303,
@@ -42,7 +42,7 @@ const rescueSquads = [
   },
   // Major US Metros
   {
-    name: 'New York City Rescue Squad',
+    name: 'New York City Rescue Force',
     city: 'New York',
     state: 'NY',
     lat: 40.7128,
@@ -51,7 +51,7 @@ const rescueSquads = [
     zips: ['10001', '10002', '10003', '10004', '10005', '10006', '10007', '10010', '10011', '10012']
   },
   {
-    name: 'Los Angeles Rescue Squad',
+    name: 'Los Angeles Rescue Force',
     city: 'Los Angeles',
     state: 'CA',
     lat: 34.0522,
@@ -60,7 +60,7 @@ const rescueSquads = [
     zips: ['90001', '90002', '90003', '90004', '90005', '90006', '90007', '90008', '90010', '90011']
   },
   {
-    name: 'Houston Rescue Squad',
+    name: 'Houston Rescue Force',
     city: 'Houston',
     state: 'TX',
     lat: 29.7604,
@@ -69,7 +69,7 @@ const rescueSquads = [
     zips: ['77001', '77002', '77003', '77004', '77005', '77006', '77007', '77008', '77009', '77010']
   },
   {
-    name: 'Phoenix Rescue Squad',
+    name: 'Phoenix Rescue Force',
     city: 'Phoenix',
     state: 'AZ',
     lat: 33.4484,
@@ -78,7 +78,7 @@ const rescueSquads = [
     zips: ['85001', '85002', '85003', '85004', '85006', '85007', '85008', '85009', '85012', '85013']
   },
   {
-    name: 'Philadelphia Rescue Squad',
+    name: 'Philadelphia Rescue Force',
     city: 'Philadelphia',
     state: 'PA',
     lat: 39.9526,
@@ -87,7 +87,7 @@ const rescueSquads = [
     zips: ['19102', '19103', '19104', '19106', '19107', '19109', '19111', '19112', '19114', '19115']
   },
   {
-    name: 'San Diego Rescue Squad',
+    name: 'San Diego Rescue Force',
     city: 'San Diego',
     state: 'CA',
     lat: 32.7157,
@@ -96,7 +96,7 @@ const rescueSquads = [
     zips: ['92101', '92102', '92103', '92104', '92105', '92106', '92107', '92108', '92109', '92110']
   },
   {
-    name: 'Dallas Rescue Squad',
+    name: 'Dallas Rescue Force',
     city: 'Dallas',
     state: 'TX',
     lat: 32.7767,
@@ -105,7 +105,7 @@ const rescueSquads = [
     zips: ['75201', '75202', '75203', '75204', '75205', '75206', '75207', '75208', '75209', '75210']
   },
   {
-    name: 'Austin Rescue Squad',
+    name: 'Austin Rescue Force',
     city: 'Austin',
     state: 'TX',
     lat: 30.2672,
@@ -114,7 +114,7 @@ const rescueSquads = [
     zips: ['78701', '78702', '78703', '78704', '78705', '78721', '78722', '78723', '78724', '78725']
   },
   {
-    name: 'San Francisco Bay Area Rescue Squad',
+    name: 'San Francisco Bay Area Rescue Force',
     city: 'San Francisco',
     state: 'CA',
     lat: 37.7749,
@@ -123,7 +123,7 @@ const rescueSquads = [
     zips: ['94102', '94103', '94104', '94105', '94107', '94108', '94109', '94110', '94111', '94112']
   },
   {
-    name: 'Seattle Rescue Squad',
+    name: 'Seattle Rescue Force',
     city: 'Seattle',
     state: 'WA',
     lat: 47.6062,
@@ -132,7 +132,7 @@ const rescueSquads = [
     zips: ['98101', '98102', '98103', '98104', '98105', '98106', '98107', '98108', '98109', '98112']
   },
   {
-    name: 'Denver Rescue Squad',
+    name: 'Denver Rescue Force',
     city: 'Denver',
     state: 'CO',
     lat: 39.7392,
@@ -141,7 +141,7 @@ const rescueSquads = [
     zips: ['80201', '80202', '80203', '80204', '80205', '80206', '80207', '80209', '80210', '80211']
   },
   {
-    name: 'Boston Rescue Squad',
+    name: 'Boston Rescue Force',
     city: 'Boston',
     state: 'MA',
     lat: 42.3601,
@@ -150,7 +150,7 @@ const rescueSquads = [
     zips: ['02101', '02102', '02103', '02104', '02105', '02106', '02107', '02108', '02109', '02110']
   },
   {
-    name: 'Atlanta Rescue Squad',
+    name: 'Atlanta Rescue Force',
     city: 'Atlanta',
     state: 'GA',
     lat: 33.7490,
@@ -159,7 +159,7 @@ const rescueSquads = [
     zips: ['30301', '30302', '30303', '30304', '30305', '30306', '30307', '30308', '30309', '30310']
   },
   {
-    name: 'Miami Rescue Squad',
+    name: 'Miami Rescue Force',
     city: 'Miami',
     state: 'FL',
     lat: 25.7617,
@@ -168,7 +168,7 @@ const rescueSquads = [
     zips: ['33101', '33109', '33125', '33126', '33127', '33128', '33129', '33130', '33131', '33132']
   },
   {
-    name: 'Detroit Rescue Squad',
+    name: 'Detroit Rescue Force',
     city: 'Detroit',
     state: 'MI',
     lat: 42.3314,
@@ -177,7 +177,7 @@ const rescueSquads = [
     zips: ['48201', '48202', '48203', '48204', '48205', '48206', '48207', '48208', '48209', '48210']
   },
   {
-    name: 'Minneapolis Rescue Squad',
+    name: 'Minneapolis Rescue Force',
     city: 'Minneapolis',
     state: 'MN',
     lat: 44.9778,
@@ -186,7 +186,7 @@ const rescueSquads = [
     zips: ['55401', '55402', '55403', '55404', '55405', '55406', '55407', '55408', '55409', '55410']
   },
   {
-    name: 'Portland Rescue Squad',
+    name: 'Portland Rescue Force',
     city: 'Portland',
     state: 'OR',
     lat: 45.5152,
@@ -195,7 +195,7 @@ const rescueSquads = [
     zips: ['97201', '97202', '97203', '97204', '97205', '97206', '97209', '97210', '97211', '97212']
   },
   {
-    name: 'Las Vegas Rescue Squad',
+    name: 'Las Vegas Rescue Force',
     city: 'Las Vegas',
     state: 'NV',
     lat: 36.1699,
@@ -229,7 +229,7 @@ export async function POST(request) {
         const created = await prisma.rescueSquad.create({
           data: {
             name: squad.name,
-            description: `Pet rescue coordination squad serving the ${squad.city} area`,
+            description: `Pet rescue coordination force serving the ${squad.city} area`,
             city: squad.city,
             state: squad.state,
             zipCodes: JSON.stringify(squad.zips),

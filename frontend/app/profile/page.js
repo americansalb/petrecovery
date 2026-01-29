@@ -338,7 +338,7 @@ export default function ProfilePage() {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
-            { label: 'Squads Joined', value: user.squadsJoinedCount || 0, icon: Users, color: 'text-midnight-600', bg: 'bg-midnight-100' },
+            { label: 'Forces Joined', value: user.squadsJoinedCount || 0, icon: Users, color: 'text-midnight-600', bg: 'bg-midnight-100' },
             { label: 'Areas Marked', value: user.areasMarkedCount || 0, icon: MapPin, color: 'text-green-600', bg: 'bg-green-100' },
             { label: 'Acreage Searched', value: `${(user.totalAcreageSearched || 0).toFixed(1)}`, icon: Target, color: 'text-flash-600', bg: 'bg-flash-100' },
             { label: 'Reunions', value: user.successfulReunions || 0, icon: Heart, color: 'text-red-600', bg: 'bg-red-100' },

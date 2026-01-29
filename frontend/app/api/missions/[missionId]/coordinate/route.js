@@ -97,7 +97,7 @@ export async function GET(request, { params }) {
     if (!userAssignment) {
       console.log('[COORDINATE-API] User is not a member of any assigned squad');
       return NextResponse.json(
-        { error: 'You are not a member of a squad assigned to this case' },
+        { error: 'You are not a member of a force assigned to this case' },
         { status: 403 }
       );
     }

@@ -43,7 +43,7 @@ export default function DivisionPage() {
 
           setSquadData(data);
         } else if (res.status === 404) {
-          setError('Squad not found');
+          setError('Force not found');
         } else {
           const errorData = await res.json().catch(() => ({}));
           setError(`Failed to load division data: ${errorData.error || 'Server error'}`);

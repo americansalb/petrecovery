@@ -191,7 +191,7 @@ export function formatSightingAlert(sightingData) {
 export function formatSquadUpdate(squadData, updateType) {
   const configs = {
     new_member: {
-      title: ':wave: New Squad Member',
+      title: ':wave: New Force Member',
       color: 0x339af0, // Blue
     },
     search_started: {
@@ -208,7 +208,7 @@ export function formatSquadUpdate(squadData, updateType) {
     },
   };
 
-  const config = configs[updateType] || { title: ':bell: Squad Update', color: 0x339af0 };
+  const config = configs[updateType] || { title: ':bell: Force Update', color: 0x339af0 };
 
   return {
     embeds: [
@@ -217,7 +217,7 @@ export function formatSquadUpdate(squadData, updateType) {
         color: config.color,
         fields: [
           {
-            name: 'Squad',
+            name: 'Force',
             value: squadData.squadName,
             inline: true,
           },
@@ -245,7 +245,7 @@ export function formatAreaSummary(squadData) {
         color: 0x845ef7, // Purple
         fields: [
           {
-            name: 'Squad',
+            name: 'Force',
             value: squadData.squadName,
             inline: true,
           },

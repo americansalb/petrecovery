@@ -593,7 +593,7 @@ export async function POST(request) {
         actor_role: null,
         metadata: { city, state, zipCode, country, existingSquadId: existingActive.id, existingSquadName: existingActive.name }
       });
-      return NextResponse.json({ error: 'Squad already exists for this city' }, { status: 400 });
+      return NextResponse.json({ error: 'Force already exists for this city' }, { status: 400 });
     }
 
     // Check if there's a deleted squad we can reactivate

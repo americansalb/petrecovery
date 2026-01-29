@@ -383,7 +383,7 @@ export default function NotificationsPage() {
             <p style={{ color: '#64748b', maxWidth: '400px', margin: '0 auto' }}>
               {filter === 'unread'
                 ? "You're all caught up! Check back later for new updates."
-                : "When you have activity on your cases or squads, you'll see notifications here."}
+                : "When you have activity on your cases or forces, you'll see notifications here."}
             </p>
           </div>
         ) : (

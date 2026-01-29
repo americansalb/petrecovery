@@ -85,7 +85,7 @@ export async function POST(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'You must be a member of this squad to participate' },
+        { error: 'You must be a member of this force to participate' },
         { status: 403 }
       );
     }

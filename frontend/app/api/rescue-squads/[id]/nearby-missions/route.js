@@ -25,7 +25,7 @@ export async function GET(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'Only squad members can view nearby cases' },
+        { error: 'Only force members can view nearby cases' },
         { status: 403 }
       );
     }
@@ -43,7 +43,7 @@ export async function GET(request, { params }) {
     });
 
     if (!squad || !squad.centerLatitude || !squad.centerLongitude) {
-      return NextResponse.json({ error: 'Squad location not configured' }, { status: 400 });
+      return NextResponse.json({ error: 'Force location not configured' }, { status: 400 });
     }
 
     // Find all ACTIVE or IN_PROGRESS cases with valid coordinates

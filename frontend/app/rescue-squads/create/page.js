@@ -145,7 +145,7 @@ export default function CreateSquadPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to create squad');
+        throw new Error(data.error || 'Failed to create force');
       }
 
       // Redirect to the new squad page
@@ -274,7 +274,7 @@ export default function CreateSquadPage() {
                   type="email"
                   value={formData.contactEmail}
                   onChange={e => updateField('contactEmail', e.target.value)}
-                  placeholder="squad@example.com"
+                  placeholder="force@example.com"
                   className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
                 />
               </div>

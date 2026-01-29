@@ -61,7 +61,7 @@ export async function POST(request) {
 
     // Validate required fields
     if (!rescueSquadId || !name) {
-      return NextResponse.json({ error: 'Rescue Squad and name are required' }, { status: 400 });
+      return NextResponse.json({ error: 'Rescue Force and name are required' }, { status: 400 });
     }
 
     // Check if rescue squad exists
@@ -70,7 +70,7 @@ export async function POST(request) {
     });
 
     if (!rescueSquad) {
-      return NextResponse.json({ error: 'Rescue Squad not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Rescue Force not found' }, { status: 404 });
     }
 
     // Check for duplicate division name within this squad

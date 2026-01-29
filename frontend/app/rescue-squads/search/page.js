@@ -270,10 +270,10 @@ export default function RescueSquadSearchPage() {
           router.push(data.redirectTo);
           return;
         }
-        setValidationError(data.error || 'Failed to join squad');
+        setValidationError(data.error || 'Failed to join force');
       }
     } catch (error) {
-      setValidationError('Error joining squad. Please try again.');
+      setValidationError('Error joining force. Please try again.');
     }
   };
 
@@ -292,7 +292,7 @@ export default function RescueSquadSearchPage() {
       }
 
       if (!squadRes.ok && !squadData.alreadyMember) {
-        setValidationError(squadData.error || 'Failed to join squad');
+        setValidationError(squadData.error || 'Failed to join force');
         return;
       }
 
@@ -321,18 +321,18 @@ export default function RescueSquadSearchPage() {
     const isInternational = country !== 'US' && country !== 'MX';
 
     if (!state) {
-      setValidationError(`No squad found for "${city}". Please search by postal code to create a new squad for your area.`);
+      setValidationError(`No force found for "${city}". Please search by postal code to create a new force for your area.`);
       return;
     }
 
     try {
       // For US cities, require zipCode; for international, require lat/lng
       if (!isInternational && (!zipCode || !/^\d{5}$/.test(zipCode))) {
-        setValidationError('Unable to create squad: valid postal code required. Please search by postal code instead.');
+        setValidationError('Unable to create force: valid postal code required. Please search by postal code instead.');
         return;
       }
       if (isInternational && (!lat || !lng)) {
-        setValidationError('Unable to create squad: location coordinates required. Please select a city from the dropdown.');
+        setValidationError('Unable to create force: location coordinates required. Please select a city from the dropdown.');
         return;
       }
 
@@ -349,10 +349,10 @@ export default function RescueSquadSearchPage() {
           router.push(data.redirectTo);
           return;
         }
-        setValidationError(data.error || 'Failed to create squad');
+        setValidationError(data.error || 'Failed to create force');
       }
     } catch (error) {
-      setValidationError('Error creating squad. Please try again.');
+      setValidationError('Error creating force. Please try again.');
     }
   };
 
@@ -606,7 +606,7 @@ export default function RescueSquadSearchPage() {
                                     size="sm"
                                     variant="ghost"
                                     disabled
-                                    title="Join the rescue squad first"
+                                    title="Join the rescue force first"
                                   >
                                     Join Division
                                   </Button>

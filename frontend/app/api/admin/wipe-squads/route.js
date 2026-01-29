@@ -139,7 +139,7 @@ export async function POST(request) {
 
     const result = {
       success: true,
-      message: 'All rescue squad data wiped successfully',
+      message: 'All rescue force data wiped successfully',
       deleted: {
         squads: squadsResult.count,
         members: membersResult.count,
@@ -162,7 +162,7 @@ export async function POST(request) {
 
     return NextResponse.json(
       {
-        error: 'Failed to wipe squad data',
+        error: 'Failed to wipe force data',
         details: error.message,
         code: error.code,
         name: error.name

@@ -44,7 +44,7 @@ export async function PATCH(request, { params }) {
 
     if (!requesterMembership) {
       return NextResponse.json(
-        { error: 'You are not a member of this squad' },
+        { error: 'You are not a member of this force' },
         { status: 403 }
       );
     }
@@ -73,7 +73,7 @@ export async function PATCH(request, { params }) {
 
     if (!targetMember || targetMember.rescueSquadId !== squadId) {
       return NextResponse.json(
-        { error: 'Member not found in this squad' },
+        { error: 'Member not found in this force' },
         { status: 404 }
       );
     }
@@ -107,7 +107,7 @@ export async function PATCH(request, { params }) {
 
       if (!division) {
         return NextResponse.json(
-          { error: 'Division not found in this squad' },
+          { error: 'Division not found in this force' },
           { status: 404 }
         );
       }
@@ -202,7 +202,7 @@ export async function DELETE(request, { params }) {
 
     if (!requesterMembership) {
       return NextResponse.json(
-        { error: 'You are not a member of this squad' },
+        { error: 'You are not a member of this force' },
         { status: 403 }
       );
     }
@@ -222,7 +222,7 @@ export async function DELETE(request, { params }) {
 
     if (!targetMember || targetMember.rescueSquadId !== squadId) {
       return NextResponse.json(
-        { error: 'Member not found in this squad' },
+        { error: 'Member not found in this force' },
         { status: 404 }
       );
     }
@@ -230,7 +230,7 @@ export async function DELETE(request, { params }) {
     // Cannot remove FOUNDER
     if (targetMember.role === 'FOUNDER') {
       return NextResponse.json(
-        { error: 'Cannot remove the founder from the squad' },
+        { error: 'Cannot remove the founder from the force' },
         { status: 403 }
       );
     }

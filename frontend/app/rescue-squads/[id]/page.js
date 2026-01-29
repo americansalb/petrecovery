@@ -53,7 +53,7 @@ export default function SquadPage() {
             setSquadData(mockData);
             setUsingMockData(true);
           } else {
-            setError('Squad not found');
+            setError('Force not found');
           }
         } else {
           // Other error - fall back to mock data or show error
@@ -65,7 +65,7 @@ export default function SquadPage() {
             setUsingMockData(true);
           } else {
             // No mock data available - show the actual error
-            setError(`Failed to load squad data: ${errorData.error || 'Server error'}`);
+            setError(`Failed to load force data: ${errorData.error || 'Server error'}`);
           }
         }
       } catch (err) {
@@ -100,7 +100,7 @@ export default function SquadPage() {
   }
 
   if (error) {
-    const isNotFound = error === 'Squad not found';
+    const isNotFound = error === 'Force not found';
     return (
       <div className="min-h-screen bg-midnight-900 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
