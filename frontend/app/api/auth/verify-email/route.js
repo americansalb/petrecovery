@@ -5,8 +5,6 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { sendEmail, sendVerificationEmail } from '@/app/lib/email';
 import { logEvent } from '@/lib/logging';
@@ -40,10 +38,13 @@ export async function POST(request) {
       );
     }
 
+    // Hash the incoming token to compare against stored hash
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
     // Find user with this token
     const user = await prisma.user.findFirst({
       where: {
-        emailVerifyToken: token,
+        emailVerifyToken: hashedToken,
         emailVerifyExpiry: { gt: new Date() }
       }
     });
@@ -110,7 +111,7 @@ export async function POST(request) {
 }
 
 /**
- * GET - Resend verification email (requires auth)
+ * GET - Resend verification email (unauthenticated, accepts email param)
  */
 export async function GET(request) {
   const correlationId = crypto.randomUUID();
@@ -122,47 +123,46 @@ export async function GET(request) {
   }
 
   try {
-    const session = await getServerSession(authOptions);
+    // Accept email from query param (no session required)
+    const email = request.nextUrl.searchParams.get('email')?.toLowerCase().trim();
 
-    if (!session?.user?.email) {
+    if (!email) {
       return NextResponse.json(
-        { error: 'Please log in to resend verification email' },
-        { status: 401 }
+        { error: 'Email is required' },
+        { status: 400 }
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+    // Generic success response to prevent email enumeration
+    const genericSuccess = NextResponse.json({
+      success: true,
+      message: 'If an account exists with that email, a verification link has been sent.'
     });
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    // Return generic success if user not found or already verified (prevent enumeration)
+    if (!user || user.emailVerified) {
+      return genericSuccess;
     }
 
-    if (user.emailVerified) {
-      return NextResponse.json({
-        success: true,
-        message: 'Your email is already verified.'
-      });
-    }
-
-    // Generate new verification token
-    const verifyToken = crypto.randomBytes(32).toString('hex');
+    // Generate new hashed verification token
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
     const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        emailVerifyToken: verifyToken,
+        emailVerifyToken: hashedToken,
         emailVerifyExpiry: verifyExpiry
       }
     });
 
-    // Send verification email
-    const verifyUrl = `${BASE_URL}/verify-email?token=${verifyToken}`;
+    // Send verification email with raw token in URL
+    const verifyUrl = `${BASE_URL}/verify-email?token=${rawToken}`;
     const emailResult = await sendVerificationEmail(user.email, user.firstName, verifyUrl);
 
     if (!emailResult.success) {
@@ -181,10 +181,7 @@ export async function GET(request) {
       result: 'success'
     });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Verification email sent! Check your inbox.'
-    });
+    return genericSuccess;
 
   } catch (error) {
     console.error('Resend verification error:', error);

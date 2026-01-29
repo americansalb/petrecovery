@@ -46,6 +46,11 @@ export const authOptions = {
           return null;
         }
 
+        // Block login for unverified emails
+        if (!user.emailVerified) {
+          throw new Error('EMAIL_NOT_VERIFIED');
+        }
+
         // Return user object
         return {
           id: user.id,
@@ -55,6 +60,7 @@ export const authOptions = {
           lastName: user.lastName,
           image: user.profileImage,
           role: user.role,
+          emailVerified: user.emailVerified,
         };
       },
     }),
@@ -231,6 +237,7 @@ export const authOptions = {
         token.role = user.role;
         token.firstName = user.firstName;
         token.lastName = user.lastName;
+        token.emailVerified = user.emailVerified;
       }
 
       // OAuth sign-in - ensure user ID is set
@@ -265,6 +272,7 @@ export const authOptions = {
         session.user.role = token.role;
         session.user.firstName = token.firstName;
         session.user.lastName = token.lastName;
+        session.user.emailVerified = token.emailVerified;
       }
       return session;
     },

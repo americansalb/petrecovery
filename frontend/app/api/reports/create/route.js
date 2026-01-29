@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { sendEmail } from '../../../lib/email';
+import { sendEmail, sendVerificationEmail } from '../../../lib/email';
 import { getServerSession } from 'next-auth';
 import { logEvent } from '@/lib/logging';
 import crypto from 'crypto';
@@ -40,45 +40,40 @@ export async function POST(request) {
       firstName = session.user.name || firstName;
     }
 
-    // Validate required fields
-    if (!email || !firstName || !petName || !color || !lastSeenAddress || !center) {
+    // Validate required fields - need at least email OR phone for contact
+    if ((!email && !phone) || !firstName || !petName || !color || !lastSeenAddress || !center) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields. Please provide at least an email or phone number.' },
         { status: 400 }
       );
-    }
-
-    // Check if user exists by email
-    let existingUser = await prisma.user.findUnique({
-      where: { email }
-    });
-
-    // If user exists and phone wasn't provided, try to get it from their record
-    if (existingUser && !phone) {
-      phone = existingUser.phone;
-    }
-
-    // Check phone uniqueness only if phone is provided and user doesn't exist yet
-    if (!existingUser && phone) {
-      const phoneExists = await prisma.user.findFirst({
-        where: { phone }
-      });
-      if (phoneExists && phoneExists.email !== email) {
-        return NextResponse.json(
-          {
-            error: 'Phone number already registered with a different email. Please login or use the email associated with this phone number.',
-            existingEmail: phoneExists.email.substring(0, 3) + '***@' + phoneExists.email.split('@')[1]
-          },
-          { status: 400 }
-        );
-      }
     }
 
     let accountCreated = false;
     let tempPassword = null;
 
     // Use transaction to ensure all related records are created atomically
+    // User lookup is inside the transaction to prevent race conditions (Fix 5)
     const result = await prisma.$transaction(async (tx) => {
+      // Check if user exists by email (inside transaction for serialized access)
+      let existingUser = await tx.user.findUnique({
+        where: { email }
+      });
+
+      // If user exists and phone wasn't provided, try to get it from their record
+      if (existingUser && !phone) {
+        phone = existingUser.phone;
+      }
+
+      // Check phone uniqueness only if phone is provided and user doesn't exist yet
+      if (!existingUser && phone) {
+        const phoneExists = await tx.user.findFirst({
+          where: { phone }
+        });
+        if (phoneExists && phoneExists.email !== email) {
+          throw new Error('PHONE_CONFLICT:' + phoneExists.email.substring(0, 3) + '***@' + phoneExists.email.split('@')[1]);
+        }
+      }
+
       let user = existingUser;
 
       // Create account if doesn't exist (always need user record for pets/cases)
@@ -200,10 +195,38 @@ export async function POST(request) {
         }
       });
 
-      return { user, pet, report };
+      return { user, pet, report, isNewUser: !existingUser };
     });
 
-    const { user, report } = result;
+    const { user, report, isNewUser } = result;
+
+    // Send verification email for ALL new users (Fix 4: unified for guest + createAccount paths)
+    if (isNewUser && !session?.user) {
+      const rawVerifyToken = crypto.randomBytes(32).toString('hex');
+      const hashedVerifyToken = crypto.createHash('sha256').update(rawVerifyToken).digest('hex');
+      const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      // Also set case expiry for unverified users
+      const caseExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          emailVerifyToken: hashedVerifyToken,
+          emailVerifyExpiry: verifyExpiry,
+        }
+      });
+
+      await prisma.case.update({
+        where: { id: report.id },
+        data: { expiresAt: caseExpiry }
+      });
+
+      const BASE_URL = getEmailBaseUrl();
+      const verifyUrl = `${BASE_URL}/verify-email?token=${rawVerifyToken}`;
+      sendVerificationEmail(email, firstName, verifyUrl).catch((err) => {
+        console.error('Failed to send verification email:', err);
+      });
+    }
 
     // Find nearby patrol members (outside transaction as it's read-only)
     const patrolMembers = await prisma.user.findMany({
@@ -233,7 +256,7 @@ export async function POST(request) {
     if (nearbyPatrol.length > 0) {
       await prisma.alert.createMany({
         data: nearbyPatrol.map(member => ({
-          missionId: report.id,
+          caseId: report.id,
           userId: member.id,
           method: member.patrolProfile.alertMethod,
         }))
@@ -608,6 +631,18 @@ export async function POST(request) {
     });
 
   } catch (error) {
+    // Handle phone conflict thrown from inside transaction
+    if (error.message?.startsWith('PHONE_CONFLICT:')) {
+      const maskedEmail = error.message.split('PHONE_CONFLICT:')[1];
+      return NextResponse.json(
+        {
+          error: 'Phone number already registered with a different email. Please login or use the email associated with this phone number.',
+          existingEmail: maskedEmail
+        },
+        { status: 400 }
+      );
+    }
+
     await logEvent({
       event_type: 'case.create_failed',
       correlation_id: correlationId,

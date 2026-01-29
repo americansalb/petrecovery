@@ -118,8 +118,9 @@ export async function POST(request) {
     // Hash password with strong salt rounds
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // Generate email verification token
-    const emailVerifyToken = crypto.randomBytes(32).toString('hex');
+    // Generate email verification token (hash before storing, send raw in email)
+    const rawVerifyToken = crypto.randomBytes(32).toString('hex');
+    const emailVerifyToken = crypto.createHash('sha256').update(rawVerifyToken).digest('hex');
     const emailVerifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     // Create user with waiver acceptance if provided
@@ -142,7 +143,7 @@ export async function POST(request) {
     });
 
     // Send verification email (non-blocking)
-    const verifyUrl = `${BASE_URL}/verify-email?token=${emailVerifyToken}`;
+    const verifyUrl = `${BASE_URL}/verify-email?token=${rawVerifyToken}`;
     sendVerificationEmail(normalizedEmail, sanitizedFirstName, verifyUrl).catch((err) => {
       console.error('Failed to send verification email:', err);
     });
