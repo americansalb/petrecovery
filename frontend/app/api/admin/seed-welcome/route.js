@@ -59,7 +59,7 @@ export async function POST(request) {
         where: {
           rescueSquadId: squad.id,
           type: 'ANNOUNCEMENT',
-          message: { contains: 'Welcome to your local Rescue Force' },
+          message: { contains: 'Welcome to your local Rescue' },
         },
       });
 
