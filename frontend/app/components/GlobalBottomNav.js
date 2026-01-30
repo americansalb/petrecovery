@@ -15,19 +15,8 @@ const navItems = [
 export default function GlobalBottomNav() {
   const pathname = usePathname();
 
-  // Don't show on these routes
-  const hideOnRoutes = [
-    '/',           // Homepage
-    '/login',
-    '/register',
-    '/mission-control', // Has its own nav
-  ];
-
-  const shouldHide = hideOnRoutes.some(route =>
-    pathname === route || pathname.startsWith('/mission-control')
-  );
-
-  if (shouldHide) return null;
+  // Only hide on mission control (has its own nav)
+  if (pathname.startsWith('/mission-control')) return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 lg:hidden">

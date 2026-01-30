@@ -1,13 +1,13 @@
 'use client';
 
 /**
- * Navigation Component - Phase 2 Redesign
+ * Navigation Component - Universal Nav Bar
  *
- * Clean, modern navigation using PetRecovery Design System:
- * - Midnight Blue background (solid, not gradient)
- * - Lucide icons instead of emojis
- * - Flashlight Yellow for CTAs
- * - Consistent with new UI component library
+ * One consistent nav that adapts based on auth state:
+ * - Always visible: Browse links (Database, Shelters, Rescue Forces, Hub)
+ * - Logged-in only: Dashboard, My Pets, My Rescue Forces, Admin, User Menu
+ * - Guest only: Login + Sign Up buttons
+ * - Hidden on: /mission-control (has its own nav)
  */
 
 import { useSession, signOut } from 'next-auth/react';
@@ -35,6 +35,8 @@ import {
   Database,
   MessageCircle,
   Sparkles,
+  LogIn,
+  UserPlus,
 } from 'lucide-react';
 import { Button, Badge, CountBadge } from '@/components/ui';
 import { LOGO_ICON } from '@/lib/brandAssets';
@@ -88,72 +90,19 @@ export default function Navigation() {
     }
   };
 
-  // Don't show nav on landing page
-  if (pathname === '/') return null;
-
-  // Hide nav on auth pages
-  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register') ||
-    pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password');
-  if (isAuthPage) return null;
+  // Mission control has its own custom nav
+  if (pathname.startsWith('/mission-control')) return null;
 
   const toggleDropdown = (name) => {
     setActiveDropdown(activeDropdown === name ? null : name);
   };
-
-  // Guest Navigation
-  if (!session) {
-    return (
-      <nav className="sticky top-0 z-50 bg-midnight-900 border-b border-midnight-800">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl">
-            <img src={LOGO_ICON} alt="ReunitePets" className="h-14 w-auto" />
-            <span>Reunite<span className="text-flash-400">Pets</span></span>
-          </Link>
-
-          <div className="flex items-center gap-2">
-            <Link href="/database" className="hidden md:flex items-center gap-2 px-4 py-2 text-midnight-300 hover:text-white font-medium text-sm rounded-lg hover:bg-midnight-800 transition">
-              <Database className="w-4 h-4" />
-              Pet Database
-            </Link>
-            <Link href="/shelters" className="hidden lg:flex items-center gap-2 px-4 py-2 text-midnight-300 hover:text-white font-medium text-sm rounded-lg hover:bg-midnight-800 transition">
-              <Building2 className="w-4 h-4" />
-              Shelters
-            </Link>
-            <Link href="/rescue-squads/search" className="hidden lg:flex items-center gap-2 px-4 py-2 text-midnight-300 hover:text-white font-medium text-sm rounded-lg hover:bg-midnight-800 transition">
-              <Users className="w-4 h-4" />
-              Rescue Forces
-            </Link>
-
-            {/* Report Buttons for Guest */}
-            <Link href="/report/new" className="hidden md:flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white font-medium text-sm rounded-lg transition">
-              <Bell className="w-4 h-4" />
-              Report Lost
-            </Link>
-            <Link href="/found" className="hidden lg:flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-medium text-sm rounded-lg transition">
-              <CheckCircle className="w-4 h-4" />
-              Report Found
-            </Link>
-
-            <Link href="/login">
-              <Button variant="ghost" size="sm" className="text-white hover:bg-midnight-800">
-                Login
-              </Button>
-            </Link>
-            <Link href="/register">
-              <Button size="sm">Sign Up</Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
-    );
-  }
 
   return (
     <>
       <nav className="sticky top-0 z-50 bg-midnight-900 border-b border-midnight-800">
         <div className="max-w-7xl mx-auto px-4">
           <div className="h-16 flex items-center justify-between gap-4">
-            {/* Logo - always links to home */}
+            {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl shrink-0">
               <img src={LOGO_ICON} alt="ReunitePets" className="h-14 w-auto" />
               <span className="hidden sm:inline">Reunite<span className="text-flash-400">Pets</span></span>
@@ -161,25 +110,7 @@ export default function Navigation() {
 
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
-              {/* Dashboard */}
-              <NavLink href="/dashboard" active={pathname === '/dashboard'}>
-                <Home className="w-4 h-4" />
-                Dashboard
-              </NavLink>
-
-              {/* My Pets Dropdown */}
-              <NavDropdown
-                label="My Pets"
-                icon={PawPrint}
-                active={pathname.startsWith('/pets') || pathname.startsWith('/cases')}
-                isOpen={activeDropdown === 'pets'}
-                onToggle={() => toggleDropdown('pets')}
-              >
-                <DropdownLink href="/pets" icon={PawPrint} title="My Pets" description="View all your pets" />
-                <DropdownLink href="/missions" icon={ClipboardList} title="My Missions" description="Active lost/found reports" />
-              </NavDropdown>
-
-              {/* Search Dropdown - Database, Shelters, Squads */}
+              {/* Always visible: Browse/Search links */}
               <NavDropdown
                 label="Search"
                 icon={Search}
@@ -192,66 +123,89 @@ export default function Navigation() {
                 <DropdownLink href="/rescue-squads/search" icon={Users} title="Find Rescue Forces" description="Volunteer groups near you" />
               </NavDropdown>
 
-              {/* Rescue Hub */}
+              {/* Always visible: Hub */}
               <NavLink href="/hub" active={pathname.startsWith('/hub')}>
                 <Sparkles className="w-4 h-4" />
                 Hub
               </NavLink>
 
-              {/* My Rescue Forces Dropdown - Only shows if user has squads */}
-              {userSquads.length > 0 && (
-                <NavDropdown
-                  label="My Rescue Forces"
-                  icon={Shield}
-                  active={pathname.includes('/rescue-squads') && pathname !== '/rescue-squads/search'}
-                  isOpen={activeDropdown === 'squads'}
-                  onToggle={() => toggleDropdown('squads')}
-                  badge={userSquads.length}
-                >
-                  <div className="max-h-64 overflow-y-auto">
-                    {userSquads.map(squad => (
-                      <Link
-                        key={squad.id}
-                        href={`/rescue-squads/${squad.id}`}
-                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-midnight-50 transition"
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-midnight-900 text-white flex items-center justify-center text-sm font-bold">
-                          {squad.name?.[0] || '?'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-midnight-900 truncate">{squad.name}</div>
-                          <div className="text-xs text-midnight-500">{squad.city}, {squad.state}</div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </NavDropdown>
-              )}
+              {/* Logged-in only items */}
+              {session && (
+                <>
+                  {/* Dashboard */}
+                  <NavLink href="/dashboard" active={pathname === '/dashboard'}>
+                    <Home className="w-4 h-4" />
+                    Dashboard
+                  </NavLink>
 
-              {/* Admin Dropdown */}
-              {session?.user?.role === 'ADMIN' && (
-                <NavDropdown
-                  label="Admin"
-                  icon={Settings}
-                  active={pathname.startsWith('/admin')}
-                  isOpen={activeDropdown === 'admin'}
-                  onToggle={() => toggleDropdown('admin')}
-                >
-                  <DropdownLink href="/admin" icon={BarChart3} title="Dashboard" description="Overview & stats" />
-                  <DropdownLink href="/admin/users" icon={Users} title="Users" description="Manage all users" />
-                  <DropdownLink href="/admin/pets" icon={PawPrint} title="Pets" description="All pet profiles" />
-                  <DropdownLink href="/admin/rescue-squads" icon={Shield} title="Rescue Forces" description="Manage rescue forces" />
-                  <DropdownLink href="/admin/divisions" icon={MapPin} title="Divisions" description="Geographic areas" />
-                  <DropdownLink href="/admin/missions" icon={ClipboardList} title="Missions" description="All lost pet missions" />
-                  <DropdownDivider />
-                  <DropdownLink href="/admin/analytics" icon={BarChart3} title="Analytics" description="Reports & metrics" />
-                </NavDropdown>
+                  {/* My Pets Dropdown */}
+                  <NavDropdown
+                    label="My Pets"
+                    icon={PawPrint}
+                    active={pathname.startsWith('/pets') || pathname.startsWith('/cases')}
+                    isOpen={activeDropdown === 'pets'}
+                    onToggle={() => toggleDropdown('pets')}
+                  >
+                    <DropdownLink href="/pets" icon={PawPrint} title="My Pets" description="View all your pets" />
+                    <DropdownLink href="/missions" icon={ClipboardList} title="My Missions" description="Active lost/found reports" />
+                  </NavDropdown>
+
+                  {/* My Rescue Forces Dropdown */}
+                  {userSquads.length > 0 && (
+                    <NavDropdown
+                      label="My Rescue Forces"
+                      icon={Shield}
+                      active={pathname.includes('/rescue-squads') && pathname !== '/rescue-squads/search'}
+                      isOpen={activeDropdown === 'squads'}
+                      onToggle={() => toggleDropdown('squads')}
+                      badge={userSquads.length}
+                    >
+                      <div className="max-h-64 overflow-y-auto">
+                        {userSquads.map(squad => (
+                          <Link
+                            key={squad.id}
+                            href={`/rescue-squads/${squad.id}`}
+                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-midnight-50 transition"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-midnight-900 text-white flex items-center justify-center text-sm font-bold">
+                              {squad.name?.[0] || '?'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-midnight-900 truncate">{squad.name}</div>
+                              <div className="text-xs text-midnight-500">{squad.city}, {squad.state}</div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </NavDropdown>
+                  )}
+
+                  {/* Admin Dropdown */}
+                  {session?.user?.role === 'ADMIN' && (
+                    <NavDropdown
+                      label="Admin"
+                      icon={Settings}
+                      active={pathname.startsWith('/admin')}
+                      isOpen={activeDropdown === 'admin'}
+                      onToggle={() => toggleDropdown('admin')}
+                    >
+                      <DropdownLink href="/admin" icon={BarChart3} title="Dashboard" description="Overview & stats" />
+                      <DropdownLink href="/admin/users" icon={Users} title="Users" description="Manage all users" />
+                      <DropdownLink href="/admin/pets" icon={PawPrint} title="Pets" description="All pet profiles" />
+                      <DropdownLink href="/admin/rescue-squads" icon={Shield} title="Rescue Forces" description="Manage rescue forces" />
+                      <DropdownLink href="/admin/divisions" icon={MapPin} title="Divisions" description="Geographic areas" />
+                      <DropdownLink href="/admin/missions" icon={ClipboardList} title="Missions" description="All lost pet missions" />
+                      <DropdownDivider />
+                      <DropdownLink href="/admin/analytics" icon={BarChart3} title="Analytics" description="Reports & metrics" />
+                    </NavDropdown>
+                  )}
+                </>
               )}
             </div>
 
-            {/* Right Side - Report Button & User Menu */}
+            {/* Right Side */}
             <div className="flex items-center gap-2">
-              {/* Report Pet CTA - Desktop */}
+              {/* Report Pet CTA - Always visible on desktop */}
               <div className="hidden md:block relative" data-dropdown="report">
                 <button
                   onClick={() => toggleDropdown('report')}
@@ -285,49 +239,65 @@ export default function Navigation() {
                 )}
               </div>
 
-              {/* User Menu - Desktop */}
-              <div className="hidden lg:block relative" data-dropdown="user">
-                <button
-                  onClick={() => toggleDropdown('user')}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-midnight-800 hover:bg-midnight-700 transition"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-flash-400 flex items-center justify-center text-midnight-900 font-bold text-sm">
-                    {session.user.firstName?.[0] || session.user.email?.[0]?.toUpperCase() || 'U'}
-                  </div>
-                  <span className="text-white font-medium text-sm max-w-[100px] truncate">
-                    {session.user.firstName || 'User'}
-                  </span>
-                  <ChevronDown className={`w-4 h-4 text-midnight-400 transition-transform ${activeDropdown === 'user' ? 'rotate-180' : ''}`} />
-                </button>
-                {activeDropdown === 'user' && (
-                  <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-midnight-100 py-2 z-50">
-                    <div className="px-4 py-3 border-b border-midnight-100">
-                      <div className="font-semibold text-midnight-900">{session.user.firstName} {session.user.lastName}</div>
-                      <div className="text-xs text-midnight-500 truncate">{session.user.email}</div>
-                    </div>
-                    <Link href="/profile" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
-                      <User className="w-4 h-4" />
-                      <span className="font-medium">My Profile</span>
-                    </Link>
-                    <Link href="/messages" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
-                      <MessageCircle className="w-4 h-4" />
-                      <span className="font-medium">Messages</span>
-                    </Link>
-                    <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
-                      <Home className="w-4 h-4" />
-                      <span className="font-medium">Dashboard</span>
-                    </Link>
-                    <div className="border-t border-midnight-100 my-1" />
+              {session ? (
+                <>
+                  {/* User Menu - Desktop (logged in) */}
+                  <div className="hidden lg:block relative" data-dropdown="user">
                     <button
-                      onClick={() => signOut({ callbackUrl: '/' })}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 transition"
+                      onClick={() => toggleDropdown('user')}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-midnight-800 hover:bg-midnight-700 transition"
                     >
-                      <LogOut className="w-4 h-4" />
-                      <span className="font-medium">Sign Out</span>
+                      <div className="w-8 h-8 rounded-lg bg-flash-400 flex items-center justify-center text-midnight-900 font-bold text-sm">
+                        {session.user.firstName?.[0] || session.user.email?.[0]?.toUpperCase() || 'U'}
+                      </div>
+                      <span className="text-white font-medium text-sm max-w-[100px] truncate">
+                        {session.user.firstName || 'User'}
+                      </span>
+                      <ChevronDown className={`w-4 h-4 text-midnight-400 transition-transform ${activeDropdown === 'user' ? 'rotate-180' : ''}`} />
                     </button>
+                    {activeDropdown === 'user' && (
+                      <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-midnight-100 py-2 z-50">
+                        <div className="px-4 py-3 border-b border-midnight-100">
+                          <div className="font-semibold text-midnight-900">{session.user.firstName} {session.user.lastName}</div>
+                          <div className="text-xs text-midnight-500 truncate">{session.user.email}</div>
+                        </div>
+                        <Link href="/profile" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
+                          <User className="w-4 h-4" />
+                          <span className="font-medium">My Profile</span>
+                        </Link>
+                        <Link href="/messages" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
+                          <MessageCircle className="w-4 h-4" />
+                          <span className="font-medium">Messages</span>
+                        </Link>
+                        <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
+                          <Home className="w-4 h-4" />
+                          <span className="font-medium">Dashboard</span>
+                        </Link>
+                        <div className="border-t border-midnight-100 my-1" />
+                        <button
+                          onClick={() => signOut({ callbackUrl: '/' })}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 transition"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          <span className="font-medium">Sign Out</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              ) : (
+                /* Guest: Login + Sign Up */
+                <div className="hidden lg:flex items-center gap-2">
+                  <Link href="/login">
+                    <Button variant="ghost" size="sm" className="text-white hover:bg-midnight-800">
+                      Login
+                    </Button>
+                  </Link>
+                  <Link href="/register">
+                    <Button size="sm">Sign Up</Button>
+                  </Link>
+                </div>
+              )}
 
               {/* Mobile Menu Button */}
               <button
@@ -355,18 +325,30 @@ export default function Navigation() {
         }`}>
         {/* Mobile Header */}
         <div className="bg-midnight-900 p-4 text-white">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-flash-400 flex items-center justify-center text-midnight-900 font-bold text-lg">
-              {session.user.firstName?.[0] || session.user.email?.[0]?.toUpperCase() || 'U'}
+          {session ? (
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-flash-400 flex items-center justify-center text-midnight-900 font-bold text-lg">
+                {session.user.firstName?.[0] || session.user.email?.[0]?.toUpperCase() || 'U'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold truncate">{session.user.firstName} {session.user.lastName}</div>
+                <div className="text-sm text-midnight-400 truncate">{session.user.email}</div>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold truncate">{session.user.firstName} {session.user.lastName}</div>
-              <div className="text-sm text-midnight-400 truncate">{session.user.email}</div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <img src={LOGO_ICON} alt="ReunitePets" className="h-10 w-auto" />
+                <span className="font-bold text-lg">Reunite<span className="text-flash-400">Pets</span></span>
+              </div>
+              <button onClick={() => setMobileMenuOpen(false)} className="p-1 rounded-lg hover:bg-midnight-800 transition">
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Mobile Quick Actions */}
+        {/* Mobile Quick Actions - Always visible */}
         <div className="p-4 bg-midnight-50 border-b border-midnight-200">
           <div className="grid grid-cols-2 gap-2">
             <Link
@@ -390,16 +372,10 @@ export default function Navigation() {
 
         {/* Mobile Nav Links */}
         <div className="py-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
-          <MobileNavLink href="/dashboard" icon={Home} label="Dashboard" active={pathname === '/dashboard'} onClick={() => setMobileMenuOpen(false)} />
-          <MobileNavLink href="/messages" icon={MessageCircle} label="Messages" active={pathname.startsWith('/messages')} onClick={() => setMobileMenuOpen(false)} />
-          <MobileNavLink href="/pets" icon={PawPrint} label="My Pets" active={pathname.startsWith('/pets')} onClick={() => setMobileMenuOpen(false)} />
-          <MobileNavLink href="/missions" icon={ClipboardList} label="My Missions" active={pathname.startsWith('/cases')} onClick={() => setMobileMenuOpen(false)} />
-
-          <div className="border-t border-midnight-100 my-2" />
+          {/* Browse section - Always visible */}
           <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
-            Search
+            Browse
           </div>
-
           <MobileNavLink href="/database" icon={Database} label="Pet Database" active={pathname === '/database'} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/shelters" icon={Building2} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/rescue-squads/search" icon={Users} label="Find Rescue Forces" active={pathname === '/rescue-squads/search'} onClick={() => setMobileMenuOpen(false)} />
@@ -410,67 +386,104 @@ export default function Navigation() {
           </div>
           <MobileNavLink href="/hub" icon={Sparkles} label="Rescue Hub" active={pathname.startsWith('/hub')} onClick={() => setMobileMenuOpen(false)} />
 
-          {userSquads.length > 0 && (
+          {/* Auth-only section */}
+          {session && (
             <>
               <div className="border-t border-midnight-100 my-2" />
               <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
-                My Rescue Forces
+                My Account
               </div>
-              {userSquads.slice(0, 5).map(squad => (
-                <Link
-                  key={squad.id}
-                  href={`/rescue-squads/${squad.id}`}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-midnight-50"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-midnight-900 text-white flex items-center justify-center text-sm font-bold">
-                    {squad.name?.[0] || '?'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-midnight-900 truncate text-sm">{squad.name}</div>
-                    <div className="text-xs text-midnight-500">{squad.city}, {squad.state}</div>
-                  </div>
-                </Link>
-              ))}
-            </>
-          )}
+              <MobileNavLink href="/dashboard" icon={Home} label="Dashboard" active={pathname === '/dashboard'} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/messages" icon={MessageCircle} label="Messages" active={pathname.startsWith('/messages')} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/pets" icon={PawPrint} label="My Pets" active={pathname.startsWith('/pets')} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/missions" icon={ClipboardList} label="My Missions" active={pathname.startsWith('/cases')} onClick={() => setMobileMenuOpen(false)} />
 
-          {session?.user?.role === 'ADMIN' && (
-            <>
-              <div className="border-t border-midnight-100 my-2" />
-              <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
-                Admin
-              </div>
-              <MobileNavLink href="/admin" icon={BarChart3} label="Admin Dashboard" active={pathname === '/admin'} onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavLink href="/admin/users" icon={Users} label="Manage Users" active={pathname === '/admin/users'} onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavLink href="/admin/pets" icon={PawPrint} label="Manage Pets" active={pathname === '/admin/pets'} onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavLink href="/admin/rescue-squads" icon={Shield} label="Manage Rescue Forces" active={pathname === '/admin/rescue-squads'} onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavLink href="/admin/divisions" icon={MapPin} label="Manage Divisions" active={pathname === '/admin/divisions'} onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavLink href="/admin/missions" icon={ClipboardList} label="Manage Missions" active={pathname === '/admin/missions'} onClick={() => setMobileMenuOpen(false)} />
+              {userSquads.length > 0 && (
+                <>
+                  <div className="border-t border-midnight-100 my-2" />
+                  <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
+                    My Rescue Forces
+                  </div>
+                  {userSquads.slice(0, 5).map(squad => (
+                    <Link
+                      key={squad.id}
+                      href={`/rescue-squads/${squad.id}`}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-midnight-50"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-midnight-900 text-white flex items-center justify-center text-sm font-bold">
+                        {squad.name?.[0] || '?'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-midnight-900 truncate text-sm">{squad.name}</div>
+                        <div className="text-xs text-midnight-500">{squad.city}, {squad.state}</div>
+                      </div>
+                    </Link>
+                  ))}
+                </>
+              )}
+
+              {session?.user?.role === 'ADMIN' && (
+                <>
+                  <div className="border-t border-midnight-100 my-2" />
+                  <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
+                    Admin
+                  </div>
+                  <MobileNavLink href="/admin" icon={BarChart3} label="Admin Dashboard" active={pathname === '/admin'} onClick={() => setMobileMenuOpen(false)} />
+                  <MobileNavLink href="/admin/users" icon={Users} label="Manage Users" active={pathname === '/admin/users'} onClick={() => setMobileMenuOpen(false)} />
+                  <MobileNavLink href="/admin/pets" icon={PawPrint} label="Manage Pets" active={pathname === '/admin/pets'} onClick={() => setMobileMenuOpen(false)} />
+                  <MobileNavLink href="/admin/rescue-squads" icon={Shield} label="Manage Rescue Forces" active={pathname === '/admin/rescue-squads'} onClick={() => setMobileMenuOpen(false)} />
+                  <MobileNavLink href="/admin/divisions" icon={MapPin} label="Manage Divisions" active={pathname === '/admin/divisions'} onClick={() => setMobileMenuOpen(false)} />
+                  <MobileNavLink href="/admin/missions" icon={ClipboardList} label="Manage Missions" active={pathname === '/admin/missions'} onClick={() => setMobileMenuOpen(false)} />
+                </>
+              )}
             </>
           )}
         </div>
 
         {/* Mobile Footer */}
         <div className="absolute bottom-0 left-0 right-0 border-t border-midnight-200 bg-midnight-50">
-          <Link
-            href="/profile"
-            onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-100"
-          >
-            <User className="w-5 h-5" />
-            <span className="font-medium">My Profile</span>
-          </Link>
-          <button
-            onClick={() => {
-              setMobileMenuOpen(false);
-              signOut({ callbackUrl: '/' });
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50"
-          >
-            <LogOut className="w-5 h-5" />
-            <span className="font-medium">Sign Out</span>
-          </button>
+          {session ? (
+            <>
+              <Link
+                href="/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-100"
+              >
+                <User className="w-5 h-5" />
+                <span className="font-medium">My Profile</span>
+              </Link>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  signOut({ callbackUrl: '/' });
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="font-medium">Sign Out</span>
+              </button>
+            </>
+          ) : (
+            <div className="p-4 flex gap-2">
+              <Link
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-midnight-300 text-midnight-700 rounded-xl font-medium hover:bg-midnight-100 transition"
+              >
+                <LogIn className="w-4 h-4" />
+                Login
+              </Link>
+              <Link
+                href="/register"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-flash-400 text-midnight-900 rounded-xl font-bold hover:bg-flash-500 transition"
+              >
+                <UserPlus className="w-4 h-4" />
+                Sign Up
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </>
