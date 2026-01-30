@@ -526,45 +526,6 @@ export default function Home() {
       {/* Reunion Ticker */}
       <ReunionTicker reunions={ticker} loading={loading} />
 
-      {/* Header - Navy Blue matching dashboard */}
-      <header className="sticky top-0 z-50 bg-midnight-900 border-b border-midnight-800">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl">
-            <img src={LOGO_ICON} alt="ReunitePets" className="h-14 w-auto" />
-            <span className="hidden sm:inline">Reunite<span className="text-flash-400">Pets</span></span>
-          </Link>
-
-          <nav className="flex items-center gap-2 sm:gap-3 text-sm">
-            <Link href="/database" className="flex items-center gap-1.5 px-3 py-2 bg-midnight-800 hover:bg-midnight-700 text-midnight-200 hover:text-white rounded-lg font-medium transition">
-              <Search className="w-4 h-4" />
-              <span className="hidden sm:inline">Search</span>
-            </Link>
-            <Link href="/rescue-squads/search" className="flex items-center gap-1.5 px-3 py-2 bg-midnight-800 hover:bg-midnight-700 text-midnight-200 hover:text-white rounded-lg font-medium transition">
-              <Shield className="w-4 h-4" />
-              <span className="hidden sm:inline">Rescue Forces</span>
-            </Link>
-            <Link href="/shelters" className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-midnight-800 hover:bg-midnight-700 text-midnight-200 hover:text-white rounded-lg font-medium transition">
-              <Building2 className="w-4 h-4" />
-              Shelters
-            </Link>
-            {session ? (
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-1.5 bg-flash-400 text-midnight-900 px-4 py-2 rounded-xl font-bold hover:bg-flash-500 transition shadow-sm"
-              >
-                Dashboard
-              </Link>
-            ) : (
-              <Link
-                href="/login"
-                className="bg-flash-400 text-midnight-900 px-4 py-2 rounded-xl font-bold hover:bg-flash-500 transition"
-              >
-                Login
-              </Link>
-            )}
-          </nav>
-        </div>
-      </header>
 
       {/* Hero */}
       <section className="py-16 md:py-24 relative overflow-hidden bg-gradient-to-b from-flash-50 via-white to-amber-50/30">

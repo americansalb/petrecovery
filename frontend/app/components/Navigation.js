@@ -90,8 +90,12 @@ export default function Navigation() {
     }
   };
 
-  // Mission control has its own custom nav
+  // Hide nav on mission control (has its own nav) and auth pages (keep them clean)
   if (pathname.startsWith('/mission-control')) return null;
+
+  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register') ||
+    pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password');
+  if (isAuthPage) return null;
 
   const toggleDropdown = (name) => {
     setActiveDropdown(activeDropdown === name ? null : name);

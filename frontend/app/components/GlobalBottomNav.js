@@ -15,8 +15,12 @@ const navItems = [
 export default function GlobalBottomNav() {
   const pathname = usePathname();
 
-  // Only hide on mission control (has its own nav)
+  // Hide on mission control (has its own nav) and auth pages (keep them clean)
   if (pathname.startsWith('/mission-control')) return null;
+
+  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register') ||
+    pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password');
+  if (isAuthPage) return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 lg:hidden">
