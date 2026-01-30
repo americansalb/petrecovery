@@ -709,7 +709,7 @@ export default function AdminDivisionRequestsPage() {
                     }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                         <Building2 size={16} />
-                        {request.rescueSquad?.name || 'Unknown Force'}
+                        {request.rescueSquad?.name || 'Unknown Rescue Force'}
                       </span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                         <Users size={16} />

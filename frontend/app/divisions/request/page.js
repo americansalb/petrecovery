@@ -200,7 +200,7 @@ export default function DivisionRequestPage() {
               fontWeight: '700'
             }}
           >
-            ← Back to Forces
+            ← Back to Rescue Forces
           </Link>
         </div>
 

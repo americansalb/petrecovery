@@ -47,7 +47,7 @@ export async function GET(request) {
       case 'squadLeaderboard':
         if (!squadId) {
           return NextResponse.json(
-            { error: 'Force ID required' },
+            { error: 'Rescue Force ID required' },
             { status: 400 }
           );
         }

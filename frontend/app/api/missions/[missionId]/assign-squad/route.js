@@ -74,7 +74,7 @@ export async function DELETE(request, { params }) {
     if (!isAdmin) {
       return NextResponse.json({
         error: 'Permission denied',
-        message: 'Only admins can remove force assignments'
+        message: 'Only admins can remove rescue force assignments'
       }, { status: 403 });
     }
 
@@ -112,8 +112,8 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({
       success: true,
       message: squadId
-        ? 'Force assignment removed'
-        : 'All force assignments removed',
+        ? 'Rescue Force assignment removed'
+        : 'All rescue force assignments removed',
       deletedCount: deleted.count,
     });
   } catch (error) {
@@ -144,7 +144,7 @@ export async function POST(request, { params }) {
 
     if (!squadId) {
       return NextResponse.json({
-        error: 'Force ID required',
+        error: 'Rescue Force ID required',
         message: 'Please provide a squadId in the request body'
       }, { status: 400 });
     }
@@ -181,14 +181,14 @@ export async function POST(request, { params }) {
 
     if (!squad) {
       return NextResponse.json(
-        { error: 'Force not found', code: 'SQUAD_NOT_FOUND' },
+        { error: 'Rescue Force not found', code: 'SQUAD_NOT_FOUND' },
         { status: 404 }
       );
     }
 
     if (!squad.isActive) {
       return NextResponse.json(
-        { error: 'Force is not active', code: 'SQUAD_NOT_ACTIVE' },
+        { error: 'Rescue Force is not active', code: 'SQUAD_NOT_ACTIVE' },
         { status: 400 }
       );
     }
@@ -200,7 +200,7 @@ export async function POST(request, { params }) {
     if (!isOwner && !isAdmin) {
       return NextResponse.json({
         error: 'Permission denied',
-        message: 'Only case owner or admin can assign forces'
+        message: 'Only case owner or admin can assign rescue forces'
       }, { status: 403 });
     }
 
@@ -215,7 +215,7 @@ export async function POST(request, { params }) {
     if (existingAssignment) {
       return NextResponse.json({
         success: true,
-        message: 'Force already assigned to this case',
+        message: 'Rescue Force already assigned to this case',
         assignment: existingAssignment,
       });
     }
@@ -260,7 +260,7 @@ export async function POST(request, { params }) {
 
     return NextResponse.json({
       success: true,
-      message: 'Force assigned successfully',
+      message: 'Rescue Force assigned successfully',
       assignment: assignment,
     });
 
@@ -282,7 +282,7 @@ export async function POST(request, { params }) {
     });
 
     return NextResponse.json({
-      error: 'Failed to assign force',
+      error: 'Failed to assign rescue force',
       message: error.message
     }, { status: 500 });
   }

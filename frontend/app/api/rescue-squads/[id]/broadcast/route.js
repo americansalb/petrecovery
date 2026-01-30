@@ -33,7 +33,7 @@ export async function POST(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'Only force leaders can broadcast' },
+        { error: 'Only rescue force leaders can broadcast' },
         { status: 403 }
       );
     }

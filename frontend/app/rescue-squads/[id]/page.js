@@ -53,7 +53,7 @@ export default function SquadPage() {
             setSquadData(mockData);
             setUsingMockData(true);
           } else {
-            setError('Force not found');
+            setError('Rescue Force not found');
           }
         } else {
           // Other error - fall back to mock data or show error
@@ -65,7 +65,7 @@ export default function SquadPage() {
             setUsingMockData(true);
           } else {
             // No mock data available - show the actual error
-            setError(`Failed to load force data: ${errorData.error || 'Server error'}`);
+            setError(`Failed to load rescue force data: ${errorData.error || 'Server error'}`);
           }
         }
       } catch (err) {
@@ -93,20 +93,20 @@ export default function SquadPage() {
       <div className="min-h-screen bg-midnight-900 flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-flash-400"></div>
-          <p className="mt-4 text-gray-400">Loading force hub...</p>
+          <p className="mt-4 text-gray-400">Loading rescue force hub...</p>
         </div>
       </div>
     );
   }
 
   if (error) {
-    const isNotFound = error === 'Force not found';
+    const isNotFound = error === 'Rescue Force not found';
     return (
       <div className="min-h-screen bg-midnight-900 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
           <div className="text-6xl mb-4">{isNotFound ? '🐾' : '⚠️'}</div>
           <h1 className="text-2xl font-bold text-white mb-2">
-            {isNotFound ? 'Force Not Found' : 'Error Loading Force'}
+            {isNotFound ? 'Rescue Force Not Found' : 'Error Loading Rescue Force'}
           </h1>
           <p className="text-gray-400 mb-6">
             {isNotFound
@@ -124,7 +124,7 @@ export default function SquadPage() {
               href="/rescue-squads/search"
               className="px-6 py-3 bg-flash-500 text-midnight-900 font-semibold rounded-lg hover:bg-flash-600 transition"
             >
-              Find a Force Near You
+              Find a Rescue Force Near You
             </a>
           </div>
         </div>

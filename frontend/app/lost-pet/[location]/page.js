@@ -266,7 +266,7 @@ export default function LocationLandingPage() {
                   fontWeight: 500,
                 }}
               >
-                Start a Force
+                Start a Rescue Force
               </Link>
             </div>
           ) : (

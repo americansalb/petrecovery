@@ -93,7 +93,7 @@ export default function AdminDashboard() {
             <QuickStatCard
               title="Rescue Forces"
               value={stats.totalSquads}
-              change="Active forces"
+              change="Active rescue forces"
             />
           </div>
         )}
@@ -126,7 +126,7 @@ export default function AdminDashboard() {
           />
           <AdminCard
             title="Rescue Forces"
-            description="Manage forces, verify organizations, and review activity"
+            description="Manage rescue forces, verify organizations, and review activity"
             href="/admin/rescue-squads"
             icon="🛡️"
           />

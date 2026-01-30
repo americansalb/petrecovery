@@ -60,7 +60,7 @@ export default function MissionMap({ squad, cases, selectedMission, onSelectCase
 
       L.marker([squad.centerLatitude, squad.centerLongitude], { icon: squadIcon })
         .addTo(mapInstanceRef.current)
-        .bindPopup(`<b>${squad.name}</b><br>Force Headquarters`);
+        .bindPopup(`<b>${squad.name}</b><br>Rescue Force Headquarters`);
 
       // Add radius circle
       if (squad.radiusMiles) {

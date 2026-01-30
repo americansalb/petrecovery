@@ -123,7 +123,7 @@ export async function POST(request, { params }) {
     });
 
     if (!membership) {
-      return NextResponse.json({ error: 'Not a force member' }, { status: 403 });
+      return NextResponse.json({ error: 'Not a rescue force member' }, { status: 403 });
     }
 
     // Only leads and admins can post announcements

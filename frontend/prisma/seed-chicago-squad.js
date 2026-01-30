@@ -417,7 +417,7 @@ async function main() {
 
   const activityTypes = [
     { type: 'CASE_ACCEPTED', message: 'accepted case' },
-    { type: 'MEMBER_JOINED', message: 'joined the force' },
+    { type: 'MEMBER_JOINED', message: 'joined the rescue force' },
     { type: 'SIGHTING_REPORTED', message: 'reported a sighting' },
     { type: 'CASE_RESOLVED', message: 'case resolved - pet reunited!' },
   ];

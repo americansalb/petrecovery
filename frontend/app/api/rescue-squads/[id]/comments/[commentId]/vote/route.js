@@ -43,7 +43,7 @@ export async function POST(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'You must be a force member to vote' },
+        { error: 'You must be a rescue force member to vote' },
         { status: 403 }
       );
     }
@@ -72,7 +72,7 @@ export async function POST(request, { params }) {
 
     if (comment.post.rescueSquadId !== id) {
       return NextResponse.json(
-        { error: 'Comment does not belong to this force' },
+        { error: 'Comment does not belong to this rescue force' },
         { status: 403 }
       );
     }

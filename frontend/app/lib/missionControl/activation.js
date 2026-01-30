@@ -55,7 +55,7 @@ export async function canActivate(missionId, userId) {
     return { allowed: true, role: 'ADMIN' };
   }
 
-  return { allowed: false, reason: 'Only owner or force leaders can activate' };
+  return { allowed: false, reason: 'Only owner or rescue force leaders can activate' };
 }
 
 /**

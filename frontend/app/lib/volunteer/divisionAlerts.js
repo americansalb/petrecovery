@@ -109,7 +109,7 @@ export async function alertSquadNewCase(squadId, missionData) {
   });
 
   if (!squad) {
-    return { success: false, error: 'Force not found' };
+    return { success: false, error: 'Rescue Force not found' };
   }
 
   const results = [];

@@ -256,7 +256,7 @@ async function main() {
     await prisma.rescueSquad.create({
       data: {
         name: squad.name,
-        description: `Pet rescue coordination force serving the ${squad.city} area`,
+        description: `Pet rescue coordination serving the ${squad.city} area`,
         city: squad.city,
         state: squad.state,
         zipCodes: JSON.stringify(squad.zips),

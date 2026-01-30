@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Force Settings Page - Updated with PetRecovery Design System
+ * Rescue Force Settings Page - Updated with PetRecovery Design System
  * Uses: Midnight Blue + Flashlight Yellow color palette
  */
 
@@ -70,7 +70,7 @@ export default function SquadSettingsPage() {
 
       if (!res.ok) {
         if (res.status === 404) {
-          setError('Force not found');
+          setError('Rescue Force not found');
           return;
         }
         throw new Error('Failed to fetch force');
@@ -87,7 +87,7 @@ export default function SquadSettingsPage() {
 
       // Check if user is allowed to access settings
       if (!['FOUNDER', 'LEADER'].includes(userMembership?.role)) {
-        setError('Only founders and leaders can access force settings');
+        setError('Only founders and leaders can access rescue force settings');
         return;
       }
 
@@ -108,7 +108,7 @@ export default function SquadSettingsPage() {
       });
     } catch (err) {
       console.error('Error fetching squad:', err);
-      setError('Failed to load force settings');
+      setError('Failed to load rescue force settings');
     } finally {
       setLoading(false);
     }
@@ -180,7 +180,7 @@ export default function SquadSettingsPage() {
 
   // Remove member
   const handleRemoveMember = async (memberId, memberName) => {
-    if (!confirm(`Are you sure you want to remove ${memberName} from the force?`)) {
+    if (!confirm(`Are you sure you want to remove ${memberName} from the rescue force?`)) {
       return;
     }
 
@@ -197,7 +197,7 @@ export default function SquadSettingsPage() {
       }
 
       await fetchSquadData();
-      setSuccess('Member removed from force');
+      setSuccess('Member removed from rescue force');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       setMemberAction({ loading: null, error: err.message });
@@ -226,7 +226,7 @@ export default function SquadSettingsPage() {
           <p className="text-midnight-500 mb-6">{error}</p>
           <Link href={`/rescue-squads/${squadId}`}>
             <Button leftIcon={ChevronLeft}>
-              Back to Force
+              Back to Rescue Force
             </Button>
           </Link>
         </Card>
@@ -243,11 +243,11 @@ export default function SquadSettingsPage() {
             href={`/rescue-squads/${squadId}`}
             className="inline-flex items-center gap-1 text-flash-600 hover:text-flash-500 text-sm font-semibold mb-3 transition"
           >
-            <ChevronLeft className="w-4 h-4" /> Back to Force
+            <ChevronLeft className="w-4 h-4" /> Back to Rescue Force
           </Link>
           <h1 className="text-2xl font-bold text-midnight-900 flex items-center gap-3">
             <Settings className="w-7 h-7 text-flash-500" />
-            Force Settings
+            Rescue Force Settings
           </h1>
           <p className="text-midnight-500 mt-1">{squad?.name}</p>
         </div>
@@ -283,12 +283,12 @@ export default function SquadSettingsPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-semibold text-midnight-700 mb-2">
-                    Force Description
+                    Rescue Force Description
                   </label>
                   <textarea
                     value={settings.description}
                     onChange={(e) => setSettings(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Describe your force's mission and coverage area..."
+                    placeholder="Describe your rescue force's mission and coverage area..."
                     className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400 resize-none"
                     rows={4}
                   />

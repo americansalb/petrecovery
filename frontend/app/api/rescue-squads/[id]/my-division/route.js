@@ -34,7 +34,7 @@ export async function PATCH(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'You are not a member of this force' },
+        { error: 'You are not a member of this rescue force' },
         { status: 403 }
       );
     }
@@ -52,7 +52,7 @@ export async function PATCH(request, { params }) {
 
       if (!division) {
         return NextResponse.json(
-          { error: 'Division not found in this force' },
+          { error: 'Division not found in this rescue force' },
           { status: 404 }
         );
       }
@@ -179,7 +179,7 @@ export async function GET(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'You are not a member of this force' },
+        { error: 'You are not a member of this rescue force' },
         { status: 403 }
       );
     }

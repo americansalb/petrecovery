@@ -131,7 +131,7 @@ export async function PATCH(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'Only founders and leaders can update force settings' },
+        { error: 'Only founders and leaders can update rescue force settings' },
         { status: 403 }
       );
     }
@@ -209,7 +209,7 @@ export async function PATCH(request, { params }) {
   } catch (error) {
     console.error('Error updating squad:', error);
     return NextResponse.json(
-      { error: 'Failed to update force settings' },
+      { error: 'Failed to update rescue force settings' },
       { status: 500 }
     );
   }

@@ -32,6 +32,6 @@ export async function GET(request) {
     return NextResponse.json({ squads });
   } catch (error) {
     console.error('Error loading squads:', error);
-    return NextResponse.json({ error: 'Failed to load forces' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to load rescue forces' }, { status: 500 });
   }
 }

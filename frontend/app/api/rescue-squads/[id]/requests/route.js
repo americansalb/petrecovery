@@ -32,7 +32,7 @@ export async function POST(request, { params }) {
     });
 
     if (!membership) {
-      return NextResponse.json({ error: 'Not a force member' }, { status: 403 });
+      return NextResponse.json({ error: 'Not a rescue force member' }, { status: 403 });
     }
 
     // Create the request as a SquadTask

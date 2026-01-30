@@ -100,7 +100,7 @@ export async function POST(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'Only force leaders can accept cases' },
+        { error: 'Only rescue force leaders can accept cases' },
         { status: 403 }
       );
     }
@@ -117,7 +117,7 @@ export async function POST(request, { params }) {
 
     if (existingAssignment) {
       return NextResponse.json(
-        { error: 'Your force has already accepted this case' },
+        { error: 'Your rescue force has already accepted this case' },
         { status: 400 }
       );
     }

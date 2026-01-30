@@ -1120,7 +1120,7 @@ export async function notifySquadCaseAssignment({ memberIds, squadName, petName,
   return createBulkNotifications(memberIds, {
     type: 'SQUAD_MESSAGE',
     title: `${squadName}: New case assigned`,
-    message: `Your force has taken on a new case: ${petName} in ${location}. Join the search effort!`,
+    message: `Your rescue force has taken on a new case: ${petName} in ${location}. Join the search effort!`,
     data: { squadName, missionNumber, petName, location },
     actionUrl: `/cases/${missionNumber}/coordinate`,
   });
@@ -1133,7 +1133,7 @@ export async function notifySquadJoinRequest({ leaderIds, squadName, squadId, re
   return createBulkNotifications(leaderIds, {
     type: 'SQUAD_MESSAGE',
     title: `New join request for ${squadName}`,
-    message: `${requesterName} has requested to join your force. Review their request.`,
+    message: `${requesterName} has requested to join your rescue force. Review their request.`,
     data: { squadName, squadId, requesterName },
     actionUrl: `/rescue-squads/${squadId}/members`,
   });

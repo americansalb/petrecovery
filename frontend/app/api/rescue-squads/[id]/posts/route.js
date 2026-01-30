@@ -238,7 +238,7 @@ export async function POST(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'You must be a force member to post' },
+        { error: 'You must be a rescue force member to post' },
         { status: 403 }
       );
     }

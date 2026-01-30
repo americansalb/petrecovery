@@ -162,7 +162,7 @@ export async function POST(request) {
 
     return NextResponse.json(
       {
-        error: 'Failed to wipe force data',
+        error: 'Failed to wipe rescue force data',
         details: error.message,
         code: error.code,
         name: error.name

@@ -136,7 +136,7 @@ export async function POST(request, { params }) {
 
     if (!rescueSquadId) {
       return NextResponse.json(
-        { error: 'No force assigned to this case' },
+        { error: 'No rescue force assigned to this case' },
         { status: 400 }
       );
     }

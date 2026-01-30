@@ -286,7 +286,7 @@ export default function AnalyticsDashboard() {
                 <p className="text-sm text-gray-500">Avg Members</p>
               </div>
             </div>
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Top Forces</h3>
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Top Rescue Forces</h3>
             <div className="space-y-2">
               {analytics.squads.topSquads.slice(0, 5).map((squad) => (
                 <div key={squad.id} className="flex items-center justify-between text-sm">

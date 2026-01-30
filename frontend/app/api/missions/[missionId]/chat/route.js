@@ -111,7 +111,7 @@ export async function POST(request, { params }) {
     if (!rescueSquadId) {
       const squad = await prisma.rescueSquad.create({
         data: {
-          name: `Mission Force`,
+          name: `Mission Rescue Force`,
           caseId: missionId,
         },
       });

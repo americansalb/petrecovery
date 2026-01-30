@@ -43,11 +43,11 @@ export default function WipeSquadsPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to wipe force data');
+        throw new Error(data.error || 'Failed to wipe rescue force data');
       }
 
       setResult(data);
-      setSuccessMessage('All force data has been wiped successfully!');
+      setSuccessMessage('All rescue force data has been wiped successfully!');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -343,7 +343,7 @@ export default function WipeSquadsPage() {
               transition: 'all 0.2s'
             }}
           >
-            {wiping ? 'Wiping Data...' : 'Delete All Force Data'}
+            {wiping ? 'Wiping Data...' : 'Delete All Rescue Force Data'}
           </button>
 
           <button

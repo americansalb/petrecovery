@@ -619,7 +619,7 @@ Every share, every search, every kind word makes a difference. Together, we brin
   } catch (error) {
     console.error('Error fetching squad hub data:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch force hub data', details: error.message },
+      { error: 'Failed to fetch rescue force hub data', details: error.message },
       { status: 500 }
     );
   }

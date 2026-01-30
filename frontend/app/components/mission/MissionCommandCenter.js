@@ -143,7 +143,7 @@ export default function MissionCommandCenter({ missionId, missionNumber, onClose
         id: 'squad_assigned',
         type: 'team',
         icon: '👥',
-        title: 'Force assigned',
+        title: 'Rescue Force assigned',
         description: `${data.squad.displayName || data.squad.name} joined`,
         timestamp: new Date(data.updatedAt || data.createdAt),
       });

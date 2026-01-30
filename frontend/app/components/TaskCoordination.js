@@ -674,7 +674,7 @@ export default function TaskCoordination({ squadId, missionId, caseName, userRol
               <div style={{ fontSize: '0.9rem', color: '#64748b' }}>
                 {isLeader
                   ? 'Create tasks to coordinate search efforts with your team'
-                  : 'Force leaders will create tasks to organize the search'}
+                  : 'Rescue Force leaders will create tasks to organize the search'}
               </div>
             </div>
           )}
