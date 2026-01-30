@@ -160,7 +160,7 @@ export default function SquadHeaderV2({
                 onClick={() => router.push(`/rescue-squads/${squad.id}`)}
                 className="px-4 py-2 rounded-full text-sm font-medium bg-slate-800/50 text-slate-300 hover:bg-slate-700/50 border border-slate-700/50 hover:border-slate-600 transition-all duration-200"
               >
-                ← View Full Squad
+                ← View Full Rescue Force
               </button>
               <DivisionChip active={true} label={currentDivision?.name || 'Division'} />
               {divisions.filter(d => d.id !== currentDivisionId).map(div => (

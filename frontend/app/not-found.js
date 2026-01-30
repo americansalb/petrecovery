@@ -138,7 +138,7 @@ export default function NotFound() {
             </Link>
             <span style={{ color: '#d1d5db' }}>|</span>
             <Link href="/rescue-squads" style={{ color: '#2563eb', textDecoration: 'none' }}>
-              Find Squads
+              Find Rescue Forces
             </Link>
             <span style={{ color: '#d1d5db' }}>|</span>
             <Link href="/login" style={{ color: '#2563eb', textDecoration: 'none' }}>

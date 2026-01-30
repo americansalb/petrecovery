@@ -94,7 +94,7 @@ export default function DivisionPage() {
               href={`/rescue-squads/${squadId}`}
               className="px-6 py-3 bg-flash-500 text-midnight-900 font-semibold rounded-lg hover:bg-flash-600 transition"
             >
-              View Full Squad
+              View Full Rescue Force
             </a>
           </div>
         </div>
