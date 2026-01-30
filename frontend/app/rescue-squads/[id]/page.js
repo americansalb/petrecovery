@@ -15,7 +15,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import SquadHubV2 from '@/components/squad/SquadHubV2';
-// V3 attempt: import SquadHubV3 from '@/components/squad/SquadHubV3';
 import { getMockSquadData } from '@/lib/mockSquadData';
 
 export default function SquadPage() {
