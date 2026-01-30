@@ -20,7 +20,7 @@ import MissionsModeV2 from './MissionsModeV2';
 import CommunityModeV2 from './CommunityModeV2';
 import DivisionPreviewCard from './DivisionPreviewCard';
 
-export default function SquadHubV2({ initialData, squadId, isDivisionPage = false, currentDivisionId = null }) {
+export default function SquadHubV2({ initialData, squadId, isDivisionPage = false, currentDivisionId = null, onRefresh }) {
   // Active mode: 'community' or 'missions'
   const [activeMode, setActiveMode] = useState('community');
 
@@ -98,6 +98,7 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
         membership={membership}
         isDivisionPage={isDivisionPage}
         currentDivisionId={currentDivisionId}
+        onRefresh={onRefresh}
       />
 
       {/* Mode Tabs - Layered Folder Style */}
@@ -134,8 +135,7 @@ export default function SquadHubV2({ initialData, squadId, isDivisionPage = fals
             cityName={squad.cityName}
             squadId={squadId}
             onCaseUpdate={() => {
-              // TODO: Implement proper refresh - for now just reload the page
-              window.location.reload();
+              if (onRefresh) onRefresh();
             }}
           />
         )}

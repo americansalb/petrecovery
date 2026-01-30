@@ -19,6 +19,7 @@ export default function SquadHeaderV2({
   membership,
   isDivisionPage = false,
   currentDivisionId = null,
+  onRefresh,
 }) {
   const router = useRouter();
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
@@ -33,7 +34,7 @@ export default function SquadHeaderV2({
         method: 'POST',
       });
       if (res.ok) {
-        window.location.reload();
+        if (onRefresh) onRefresh();
       }
     } catch (error) {
       console.error('Failed to join squad:', error);

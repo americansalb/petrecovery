@@ -74,14 +74,11 @@ export default function PhotoUploadModal({ isOpen, onClose, onUpload, squadId })
         throw new Error(updateData.error || updateData.details || 'Failed to update squad photo');
       }
 
-      // Callback to parent
+      // Callback to parent to update UI with new photo
       onUpload(uploadData.url);
 
       // Close modal
       onClose();
-
-      // Reload page to show new photo
-      window.location.reload();
     } catch (error) {
       console.error('Upload error:', error);
       alert(`Upload failed: ${error.message}`);

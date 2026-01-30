@@ -12,7 +12,7 @@
  * Falls back to mock data if the API fails (for development)
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import SquadHubV2 from '@/components/squad/SquadHubV2';
 import { getMockSquadData } from '@/lib/mockSquadData';
@@ -26,66 +26,55 @@ export default function SquadPage() {
   const [error, setError] = useState(null);
   const [usingMockData, setUsingMockData] = useState(false);
 
-  useEffect(() => {
-    async function fetchSquadData() {
-      setLoading(true);
-      setError(null);
+  const fetchSquadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-      try {
-        // Try to fetch real data from the hub API
-        const res = await fetch(`/api/rescue-squads/${squadId}/hub`);
+    try {
+      const res = await fetch(`/api/rescue-squads/${squadId}/hub`);
 
-        if (res.ok) {
-          const data = await res.json();
-          console.log('[SquadHub Debug] API response:', {
-            squadId: data.squad?.id,
-            squadName: data.squad?.displayName,
-            casesCount: data.cases?.length || 0,
-            cases: data.cases,
-          });
-          setSquadData(data);
-          setUsingMockData(false);
-        } else if (res.status === 404) {
-          // Squad not found - try mock data for known city slugs
-          const mockData = getMockSquadData(squadId);
-          if (mockData && mockData.squad) {
-            setSquadData(mockData);
-            setUsingMockData(true);
-          } else {
-            setError('Rescue Force not found');
-          }
-        } else {
-          // Other error - fall back to mock data or show error
-          const errorData = await res.json().catch(() => ({}));
-          console.error('Hub API error:', errorData);
-          const mockData = getMockSquadData(squadId);
-          if (mockData && mockData.squad) {
-            setSquadData(mockData);
-            setUsingMockData(true);
-          } else {
-            // No mock data available - show the actual error
-            setError(`Failed to load rescue force data: ${errorData.error || 'Server error'}`);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch hub data:', err);
-        // Network error - fall back to mock data or show error
+      if (res.ok) {
+        const data = await res.json();
+        setSquadData(data);
+        setUsingMockData(false);
+      } else if (res.status === 404) {
         const mockData = getMockSquadData(squadId);
         if (mockData && mockData.squad) {
           setSquadData(mockData);
           setUsingMockData(true);
         } else {
-          setError('Failed to connect to server. Please try again.');
+          setError('Rescue Force not found');
         }
-      } finally {
-        setLoading(false);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        console.error('Hub API error:', errorData);
+        const mockData = getMockSquadData(squadId);
+        if (mockData && mockData.squad) {
+          setSquadData(mockData);
+          setUsingMockData(true);
+        } else {
+          setError(`Failed to load rescue force data: ${errorData.error || 'Server error'}`);
+        }
       }
+    } catch (err) {
+      console.error('Failed to fetch hub data:', err);
+      const mockData = getMockSquadData(squadId);
+      if (mockData && mockData.squad) {
+        setSquadData(mockData);
+        setUsingMockData(true);
+      } else {
+        setError('Failed to connect to server. Please try again.');
+      }
+    } finally {
+      setLoading(false);
     }
+  }, [squadId]);
 
+  useEffect(() => {
     if (squadId) {
       fetchSquadData();
     }
-  }, [squadId]);
+  }, [squadId, fetchSquadData]);
 
   if (loading) {
     return (
@@ -146,7 +135,7 @@ export default function SquadPage() {
           Using mock data (real squad not found in database)
         </div>
       )}
-      <SquadHubV2 initialData={squadData} squadId={resolvedSquadId} />
+      <SquadHubV2 initialData={squadData} squadId={resolvedSquadId} onRefresh={fetchSquadData} />
     </>
   );
 }
