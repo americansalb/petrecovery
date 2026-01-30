@@ -89,10 +89,6 @@ model User {
   approvedCommunities Community[] @relation("CommunityApprover")
   communityPosts  CommunityPost[]
 
-  // Lost Pet Case Relations (Phase 13-14)
-  createdCases    LostPetCase[]
-  caseNotes       LostPetCaseNote[]
-
   // OAuth Accounts (Phase 7)
   accounts        Account[]
   emailPreferences EmailPreference?
@@ -102,9 +98,6 @@ model User {
   phoneVerifications PhoneVerification[]
   lastLoginAt     DateTime?
   profileImage    String?
-
-  // Cases where this user is the primary coordinator (Phase 22-24)
-  coordinatedCases LostPetCase[]  @relation("CaseCoordinator")
 
   // Volunteer Coordination (Phases 1-10)
   searchedGridCells GridCell[]
@@ -260,13 +253,6 @@ enum LegalDocumentType {
   TERMS_OF_SERVICE
   LIABILITY_WAIVER
   PRIVACY_POLICY
-}
-
-enum LostPetCaseStatus {
-  OPEN
-  ACTIVE_SEARCH
-  RESOLVED
-  CLOSED_OTHER
 }
 
 // ============================================================================
@@ -644,7 +630,6 @@ model RescueSquad {
   caseAssignments  CaseAssignment[]
   divisions        Division[]
   divisionRequests DivisionRequest[]
-  cases            LostPetCase[]  // Phase 13-14: Lost Pet Cases MVP
   activities       SquadActivity[]
   tasks            SquadTask[]
   joinRequests     SquadJoinRequest[]
@@ -1400,90 +1385,6 @@ enum CommunityRole {
 }
 
 // ============================================================================
-// LOST PET CASE SYSTEM (Phase 13-14 - MVP)
-// ============================================================================
-
-model LostPetCase {
-  id            String            @id @default(cuid())
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-
-  caseNumber    String            @unique
-
-  // Pet info
-  petName       String?
-  petSpecies    PetSpecies
-  petBreed      String?
-  petColor      String?
-  petDescription String?
-
-  // Location
-  city          String
-  state         String
-  zipCode       String?
-  lastSeenLandmark String?
-  lastSeenAt    DateTime?
-
-  // Status
-  status        LostPetCaseStatus @default(OPEN)
-  statusReason  String?
-  isUrgent      Boolean           @default(false)
-
-  // Contact
-  contactName   String?
-  contactPhone  String?
-  contactEmail  String?
-
-  // Public Visibility (Phase 15-16)
-  isPublic      Boolean           @default(false)
-  publicContactOk Boolean         @default(false)
-  source        String            @default("ADMIN")  // "ADMIN" or "PUBLIC_REPORT"
-
-  // Phase 1.4: Matching fields
-  reportType    String            @default("LOST")   // "LOST" or "FOUND"
-  latitude      Float?
-  longitude     Float?
-  photoUrls     String            @default("[]")     // JSON array of photo URLs
-
-  // Relations
-  createdById   String
-  createdBy     User              @relation(fields: [createdById], references: [id], onDelete: Cascade)
-
-  squadId       String?
-  squad         RescueSquad?      @relation(fields: [squadId], references: [id], onDelete: SetNull)
-
-  // NEW: Optional primary coordinator for this case (Phase 22-24)
-  coordinatorId String?
-  coordinator   User?             @relation("CaseCoordinator", fields: [coordinatorId], references: [id], onDelete: SetNull)
-
-  notes         LostPetCaseNote[]
-  shelterIntakes ShelterIntake[]
-
-  @@index([city, state])
-  @@index([status])
-  @@index([squadId])
-  @@index([isPublic, status])
-  @@index([coordinatorId])
-}
-
-model LostPetCaseNote {
-  id         String      @id @default(cuid())
-  createdAt  DateTime    @default(now())
-
-  caseId     String
-  case       LostPetCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
-
-  authorId   String
-  author     User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  type       String      @default("NOTE")
-  content    String
-  metadata   String      @default("{}")
-
-  @@index([caseId])
-}
-
-// ============================================================================
 // PHASE 1: SOCIAL SHARING
 // ============================================================================
 
@@ -1770,7 +1671,6 @@ model ShelterIntake {
 
   // Matching
   matchedCaseId String?
-  matchedCase   LostPetCase? @relation(fields: [matchedCaseId], references: [id], onDelete: SetNull)
   matchScore    Float?
   matchedAt     DateTime?
   matchStatus   String?  // PENDING, CONFIRMED, REJECTED
@@ -2964,6 +2864,7 @@ model SearchSession {
   @@index([missionId])
   @@index([status])
   @@index([userId])
+  @@index([gridCellId])
 }
 
 model LocationPing {
@@ -3354,6 +3255,7 @@ model MissionVolunteer {
   @@index([missionId])
   @@index([status])
   @@index([userId])
+  @@index([assignedZoneId])
 }
 
 model MissionZone {
@@ -3397,6 +3299,7 @@ model MissionZone {
   @@index([missionId])
   @@index([status])
   @@index([probability])
+  @@index([assignedToId])
 }
 
 model MissionSighting {
@@ -3529,6 +3432,7 @@ model MissionLog {
   @@index([missionId])
   @@index([action])
   @@index([createdAt])
+  @@index([userId])
 }
 
 model MissionBroadcast {
@@ -3549,6 +3453,7 @@ model MissionBroadcast {
   @@index([missionId])
   @@index([squadId])
   @@index([createdAt])
+  @@index([senderId])
 }
 
 model MissionThankYou {
