@@ -112,7 +112,7 @@ export default function PhotoUploadModal({ isOpen, onClose, onUpload, squadId })
 
         {/* Header */}
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-white mb-2">Upload Squad Photo</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">Upload Rescue Force Photo</h2>
           <p className="text-slate-400">Choose a photo to represent your rescue force</p>
         </div>
 

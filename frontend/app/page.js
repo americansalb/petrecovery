@@ -1033,7 +1033,7 @@ export default function Home() {
                     {searchResults.length === 0 ? (
                       'No rescue forces found in this area'
                     ) : (
-                      <>Found <span className="font-bold text-flash-400">{searchResults.length}</span> squads near you</>
+                      <>Found <span className="font-bold text-flash-400">{searchResults.length}</span> rescue forces near you</>
                     )}
                   </p>
                   <button

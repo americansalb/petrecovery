@@ -544,17 +544,17 @@ export default function RescueSquadSearchPage() {
                       {item.exists && item.squad ? (
                         item.squad.isMember ? (
                           <Button onClick={() => router.push(`/rescue-squads/${item.squad.id}`)}>
-                            View Squad
+                            View Rescue Force
                           </Button>
                         ) : (
                           <Button variant="success" onClick={() => handleJoin(item.squad.id)}>
-                            Join Squad
+                            Join Rescue Force
                           </Button>
                         )
                       ) : (
                         <Button onClick={() => handleCreate(item.city, item.state, searchLocation?.zipCode)}>
                           <Plus className="w-4 h-4 mr-1" />
-                          Create Squad
+                          Create Rescue Force
                         </Button>
                       )}
                     </div>

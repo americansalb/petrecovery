@@ -220,7 +220,7 @@ export default function SquadHubV3({ initialData, squadId }) {
 
           <ExpandablePanel
             icon={MessageSquare}
-            title="Squad Chat"
+            title="Rescue Force Chat"
             summary={`${chatMessages.length} messages`}
             badge={chatMessages.length > 0 ? 'new' : null}
             badgeColor="flash"
@@ -481,7 +481,7 @@ function SquadChatPanel({ squadId, messages: initialMessages }) {
           <div className="text-center py-8">
             <div className="text-4xl mb-3">💬</div>
             <p className="text-slate-400">No messages yet</p>
-            <p className="text-slate-500 text-sm mt-1">Say hello to your squad!</p>
+            <p className="text-slate-500 text-sm mt-1">Say hello to your rescue force!</p>
           </div>
         ) : (
           messages.map((msg, i) => (
@@ -506,7 +506,7 @@ function SquadChatPanel({ squadId, messages: initialMessages }) {
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Message your squad..."
+          placeholder="Message your rescue force..."
           className="flex-1 p-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm"
         />
         <button

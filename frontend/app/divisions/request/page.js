@@ -315,7 +315,7 @@ export default function DivisionRequestPage() {
                       fontSize: '1rem'
                     }}
                   >
-                    <option value="">Select a squad...</option>
+                    <option value="">Select a rescue force...</option>
                     {mySquads.map(squad => (
                       <option key={squad.id} value={squad.id}>
                         {squad.name}

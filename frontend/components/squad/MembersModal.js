@@ -71,7 +71,7 @@ export default function MembersModal({ isOpen, onClose, squadId, currentUserId, 
               <Users className="text-flash-400" size={24} />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white">Squad Members</h2>
+              <h2 className="text-2xl font-bold text-white">Rescue Force Members</h2>
               <p className="text-sm text-slate-400">{totalCount || members.length} total members</p>
             </div>
           </div>

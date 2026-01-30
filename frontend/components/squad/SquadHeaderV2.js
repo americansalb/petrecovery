@@ -190,7 +190,7 @@ export default function SquadHeaderV2({
                 >
                   <div className="flex items-center gap-2">
                     <Shield size={16} />
-                    <span>Join This Squad</span>
+                    <span>Join This Rescue Force</span>
                   </div>
                 </button>
               )}
