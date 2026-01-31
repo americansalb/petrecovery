@@ -17,6 +17,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/app/components/ui/Toast';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
@@ -1003,6 +1004,7 @@ export default function MissionCommandCenter({ missionId, missionNumber, onClose
 // Sighting Form Modal Component
 // ============================================================================
 function SightingFormModal({ missionId, onClose, onSuccess }) {
+  const toast = useToast();
   const [location, setLocation] = useState(null);
   const [address, setAddress] = useState('');
   const [description, setDescription] = useState('');
@@ -1049,10 +1051,10 @@ function SightingFormModal({ missionId, onClose, onSuccess }) {
       if (res.ok) {
         onSuccess();
       } else {
-        alert('Failed to submit sighting. Please try again.');
+        toast.error('Failed to submit sighting. Please try again.');
       }
     } catch (err) {
-      alert('Error submitting sighting.');
+      toast.error('Error submitting sighting.');
     } finally {
       setSubmitting(false);
     }

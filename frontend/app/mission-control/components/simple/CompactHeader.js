@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/app/components/ui/Toast';
 import {
   ArrowLeft,
   MoreVertical,
@@ -30,6 +31,7 @@ export default function CompactHeader({
   onShowSighting
 }) {
   const router = useRouter();
+  const toast = useToast();
   const [showMenu, setShowMenu] = useState(false);
 
   const petName = mission?.petName || 'Unknown Pet';
@@ -60,7 +62,7 @@ export default function CompactHeader({
     } else {
       // Fallback: copy URL
       navigator.clipboard.writeText(window.location.href);
-      alert('Link copied to clipboard!');
+      toast.success('Link copied to clipboard!');
     }
   };
 

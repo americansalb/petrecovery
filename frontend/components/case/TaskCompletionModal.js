@@ -13,8 +13,10 @@
 
 import { useState, useEffect } from 'react';
 import { MapPin, Calendar, CheckCircle2, X, Phone, Share2, Search } from 'lucide-react';
+import { useToast } from '@/app/components/ui/Toast';
 
 export default function TaskCompletionModal({ task, onClose, onComplete }) {
+  const toast = useToast();
   const [details, setDetails] = useState({
     notes: '',
     // Flyer specific
@@ -136,12 +138,12 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
           }));
         },
         (err) => {
-          alert('Could not get your location. Please enable location services.');
+          toast.error('Could not get your location. Please enable location services.');
           console.error('Geolocation error:', err);
         }
       );
     } else {
-      alert('Geolocation is not supported by your browser.');
+      toast.error('Geolocation is not supported by your browser.');
     }
   };
 
@@ -160,12 +162,12 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
           address: data[0].display_name,
         };
       } else {
-        alert('Address not found. Please try a different address or zip code.');
+        toast.error('Address not found. Please try a different address or zip code.');
         return null;
       }
     } catch (error) {
       console.error('Geocoding error:', error);
-      alert('Could not find location. Please check your internet connection.');
+      toast.error('Could not find location. Please check your internet connection.');
       return null;
     }
   };
@@ -175,7 +177,7 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
     if (locationMode === 'manual') {
       // Manual address entry
       if (!manualAddress.trim()) {
-        alert('Please enter an address or zip code');
+        toast.error('Please enter an address or zip code');
         return;
       }
 
@@ -204,12 +206,12 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
             setDetails(prev => ({ ...prev, [fieldName]: gpsData }));
           },
           (err) => {
-            alert('Could not get your location. Please enable location services or switch to manual entry.');
+            toast.error('Could not get your location. Please enable location services or switch to manual entry.');
             console.error('Geolocation error:', err);
           }
         );
       } else {
-        alert('Geolocation is not supported. Please use manual entry.');
+        toast.error('Geolocation is not supported. Please use manual entry.');
       }
     }
   };
@@ -231,12 +233,12 @@ export default function TaskCompletionModal({ task, onClose, onComplete }) {
           }));
         },
         (err) => {
-          alert('Could not get your location. Please enable location services.');
+          toast.error('Could not get your location. Please enable location services.');
           console.error('Geolocation error:', err);
         }
       );
     } else {
-      alert('Geolocation is not supported by your browser.');
+      toast.error('Geolocation is not supported by your browser.');
     }
   };
 

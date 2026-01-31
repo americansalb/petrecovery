@@ -15,6 +15,7 @@
  */
 
 import { useState, useCallback, useRef, useMemo } from 'react';
+import { useToast } from '@/app/components/ui/Toast';
 import dynamic from 'next/dynamic';
 import useFlyerTracking from '@/app/mission-control/hooks/useFlyerTracking';
 
@@ -43,6 +44,7 @@ const FLYER_BASE_POINTS = 8;
 const PHOTO_BONUS_POINTS = 3;
 
 export default function FlyerTracker({ missionId, lastSeenLocation, petName, onClose }) {
+  const toast = useToast();
   const {
     flyers,
     coldSpots,
@@ -86,7 +88,7 @@ export default function FlyerTracker({ missionId, lastSeenLocation, petName, onC
       // Auto-hide success after 3 seconds
       setTimeout(() => setShowSuccess(false), 3000);
     } else {
-      alert(result.error || 'Failed to mark flyer');
+      toast.error(result.error || 'Failed to mark flyer');
     }
   }, [postFlyer, photoUrl, notes]);
 

@@ -32,6 +32,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { SARAMA_AVATAR, LOGO_PRIMARY, LOGO_ICON } from '@/lib/brandAssets';
+import { useToast } from '@/app/components/ui/Toast';
 
 // Auth Modal Component
 const AuthModal = ({ isOpen, onClose, squadToJoin, onAuthSuccess }) => {
@@ -265,6 +266,7 @@ const ReunionTicker = ({ reunions = [], loading }) => {
 export default function Home() {
   const { data: session, update: updateSession } = useSession();
   const router = useRouter();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [locationQuery, setLocationQuery] = useState('');
   const [locating, setLocating] = useState(false);
@@ -361,7 +363,7 @@ export default function Home() {
 
   const handleUseLocation = async () => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser');
+      toast.error('Geolocation is not supported by your browser');
       return;
     }
     setLocating(true);
@@ -399,12 +401,12 @@ export default function Home() {
                 setSearchResults(results);
               }
             } else {
-              alert('Could not determine your location. Please enter a city or zip code.');
+              toast.error('Could not determine your location. Please enter a city or zip code.');
             }
           }
         } catch (e) {
           console.error(e);
-          alert('Unable to get your location. Please enter a city or zip code.');
+          toast.error('Unable to get your location. Please enter a city or zip code.');
         } finally {
           setSearching(false);
           setLocating(false);
@@ -412,7 +414,7 @@ export default function Home() {
       },
       (error) => {
         setLocating(false);
-        alert('Unable to get your location. Please enter a city or zip code.');
+        toast.error('Unable to get your location. Please enter a city or zip code.');
       }
     );
   };
@@ -463,12 +465,12 @@ export default function Home() {
         if (data.code === 'WAIVER_NOT_ACCEPTED') {
           router.push(data.redirectTo);
         } else {
-          alert(data.error || 'Failed to create rescue force');
+          toast.error(data.error || 'Failed to create rescue force');
         }
       }
     } catch (e) {
       console.error(e);
-      alert('Failed to create rescue force');
+      toast.error('Failed to create rescue force');
     } finally {
       setCreatingSquad(null);
     }
@@ -486,11 +488,11 @@ export default function Home() {
         router.push(`/rescue-squads/${squad.id}?joined=true`);
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to join rescue force');
+        toast.error(data.error || 'Failed to join rescue force');
       }
     } catch (e) {
       console.error(e);
-      alert('Failed to join rescue force');
+      toast.error('Failed to join rescue force');
     } finally {
       setJoiningSquad(null);
     }

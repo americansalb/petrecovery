@@ -9,10 +9,12 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useToast } from '@/app/components/ui/Toast';
 
 export default function SettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const toast = useToast();
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab') || 'account';
 
@@ -152,7 +154,7 @@ export default function SettingsPage() {
                   onClick={() => {
                     if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
                       // TODO: Implement account deletion
-                      alert('Account deletion is not yet implemented. Please contact support.');
+                      toast.warning('Account deletion is not yet implemented. Please contact support.');
                     }
                   }}
                   className="px-4 py-2 border-2 border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition font-medium"

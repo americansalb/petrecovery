@@ -11,6 +11,7 @@ import { useState, useEffect, use } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/app/components/ui/Toast';
 import {
   Pin, Lock, CheckCircle, AlertTriangle, MessageSquare, Eye,
   Clock, Heart, ThumbsUp, Trash2, Loader2, Send, MapPin,
@@ -21,6 +22,7 @@ export default function ThreadPage({ params }) {
   const { slug } = use(params);
   const { data: session } = useSession();
   const router = useRouter();
+  const toast = useToast();
 
   const [thread, setThread] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -81,12 +83,12 @@ export default function ThreadPage({ params }) {
         setReplyContent('');
         setQuoting(null);
       } else if (data.code === 'EMAIL_NOT_VERIFIED') {
-        alert('Please verify your email to post. Check your inbox.');
+        toast.warning('Please verify your email to post. Check your inbox.');
       } else {
-        alert(data.error || 'Failed to post');
+        toast.error(data.error || 'Failed to post.');
       }
     } catch (err) {
-      alert('Failed to post reply');
+      toast.error('Failed to post reply.');
     } finally {
       setSubmitting(false);
     }
@@ -147,10 +149,10 @@ export default function ThreadPage({ params }) {
       if (result.success) {
         fetchThread();
       } else {
-        alert(result.error || 'Action failed');
+        toast.error(result.error || 'Action failed.');
       }
     } catch (err) {
-      alert('Action failed');
+      toast.error('Action failed.');
     }
   };
 

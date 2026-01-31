@@ -9,6 +9,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/app/components/ui/Toast';
 import Link from 'next/link';
 import {
   Building2,
@@ -39,6 +40,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function AdminShelterRequestsPage() {
+  const toast = useToast();
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -110,7 +112,7 @@ export default function AdminShelterRequestsPage() {
       setReviewNotes('');
       fetchRequests();
     } catch (err) {
-      alert('Error: ' + err.message);
+      toast.error('Error: ' + err.message);
     } finally {
       setProcessingId(null);
     }
@@ -118,7 +120,7 @@ export default function AdminShelterRequestsPage() {
 
   const handleReject = async (claimId) => {
     if (!reviewNotes.trim()) {
-      alert('Please provide a reason for rejection');
+      toast.warning('Please provide a reason for rejection');
       return;
     }
 
@@ -144,7 +146,7 @@ export default function AdminShelterRequestsPage() {
       setReviewNotes('');
       fetchRequests();
     } catch (err) {
-      alert('Error: ' + err.message);
+      toast.error('Error: ' + err.message);
     } finally {
       setProcessingId(null);
     }

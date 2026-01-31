@@ -13,8 +13,10 @@
 
 import { useState } from 'react';
 import { CheckCircle2, MapPin } from 'lucide-react';
+import { useToast } from '@/app/components/ui/Toast';
 
 export default function SightingFormModal({ missionId, onClose, onSuccess }) {
+  const toast = useToast();
   const [location, setLocation] = useState(null);
   const [address, setAddress] = useState('');
   const [description, setDescription] = useState('');
@@ -85,11 +87,11 @@ export default function SightingFormModal({ missionId, onClose, onSuccess }) {
         onSuccess?.();
       } else {
         const error = await res.json().catch(() => ({}));
-        alert(error.message || 'Failed to submit sighting');
+        toast.error(error.message || 'Failed to submit sighting.');
       }
     } catch (err) {
       console.error('Error submitting sighting:', err);
-      alert('Error submitting sighting. Please try again.');
+      toast.error('Error submitting sighting. Please try again.');
     } finally {
       setSubmitting(false);
     }
