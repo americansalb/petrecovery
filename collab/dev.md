@@ -238,3 +238,64 @@ Architect was right — I swapped inline hex colors for generic Tailwind (`blue-
 All pushed to `rename-rescue-squads`. Ready for re-review of `f0c4d3e`.
 
 ---
+
+## [2026-01-30 — Deep verification fixes — commit `b590f08`]
+
+Read the deep verification review in `architect.md`. 10 action items, 5 must-fix, 3 should-fix, 2 deferred. Addressed all 8 non-deferred items in one commit.
+
+### Must-fix items (1-5)
+
+**1. Schema migration for LostPetCase drop.**
+Created `prisma/migrations/20260130_remove_lost_pet_case/migration.sql` that drops `LostPetCaseNote`, `LostPetCase`, and `LostPetCaseStatus` enum. This ensures fresh `prisma migrate deploy` runs won't have drift between migration history (which creates the table) and the final schema (which doesn't define it).
+
+Note: This is a manually created migration. On next `prisma migrate dev`, Prisma will register it in the migration history. If the tables don't exist in the target database (already cleaned up), the `IF EXISTS` guards prevent errors.
+
+**2. Division page onRefresh prop.**
+Extracted `fetchData` into `useCallback` with `[squadId, divisionId]` dependency in `rescue-squads/[id]/divisions/[divisionId]/page.js`. Passed `onRefresh={fetchData}` to `SquadHubV2`. Same pattern as the parent squad page (`rescue-squads/[id]/page.js`). Mutations on division pages now trigger data refresh.
+
+**3. Wrong authOptions import paths.**
+Three files were using `await import('@/app/api/auth/[...nextauth]/route')` — a dynamic import from the NextAuth route file. Changed all three to `await import('@/app/lib/auth')`:
+- `app/api/missions/[missionId]/chat/route.js`
+- `app/api/rescue-squads/[id]/announcements/route.js`
+- `app/api/rescue-squads/[id]/chat/route.js`
+
+**4. Auth on search/[caseId]/field/route.js.**
+Added `getServerSession(authOptions)` check to both GET and POST handlers. Previously had `import { getServerSession }` but never called it — both handlers were completely open.
+
+**5. Geocode coordinate validation.**
+Added range validation for reverse geocoding: `parseFloat` + `isNaN` check + range bounds (`-90 ≤ lat ≤ 90`, `-180 ≤ lon ≤ 180`). Returns 400 with "Invalid coordinates" for garbage input.
+
+### Should-fix items (6-8)
+
+**6. Competing toast systems consolidated.**
+Removed the entire custom toast UI from `RealtimeProvider.js` (~70 lines): the `toasts` state, `dismissToast` callback, the inline-styled toast container at `bottom: 1rem`, the `getToastColor` helper, and the `<style jsx global>` block. RealtimeProvider now only manages notifications state. When it gets wired into the app, it should use the global `useToast()` from ToastProvider for any toast display.
+
+Note: RealtimeProvider is currently not imported anywhere — it's defined but unused. The toast removal is preemptive cleanup so there's no conflict when it eventually gets integrated.
+
+**7. 'use client' contamination in layout.js.**
+Created `app/components/ClientProviders.js` — a thin `'use client'` wrapper that renders `<ToastProvider>`. `layout.js` now imports `ClientProviders` instead of `ToastProvider` directly. This keeps the root layout as a server component (preserving `metadata` export) while the client boundary is properly contained in the wrapper.
+
+**8. Auth on dev/seed-chicago.**
+Added admin role check: `getServerSession(authOptions)` + `session.user.role !== 'ADMIN'` → 403. Prevents accidental use if deployed to production.
+
+### Deferred items (9-10)
+
+**9. Rate limit by user ID instead of IP** — Broader middleware refactor. The in-memory rate limiter needs Redis first (D1). Deferring.
+
+**10. emergency/route.js GET auth policy** — Need product decision on whether emergency data should be publicly accessible. Leaving as-is pending guidance.
+
+### All commits this session
+
+| Commit | Description |
+|--------|-------------|
+| `37059ed` | Geocode authOptions one-liner |
+| `dbabc4e` | authOptions sweep — 50 API routes |
+| `936f0df` | Alerts page Tailwind rewrite (v1) |
+| `298b489` | Mount ToastProvider in layout |
+| `3b2acd4` | Remove 5.7MB city JSON from CitySelector |
+| `f0c4d3e` | Fix 3 rejected commits (alerts design system, conversations bugs, CitySelector race condition) |
+| `b590f08` | Fix 8 deep verification issues (migration, division onRefresh, import paths, auth gaps, geocode validation, toast consolidation, client boundary, seed auth) |
+
+**Ready for review.**
+
+---
