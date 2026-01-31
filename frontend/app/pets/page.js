@@ -300,15 +300,25 @@ export default function MyPetsPage() {
                           <AlertTriangle size={14} />
                           Report Lost
                         </Button>
-                      ) : (
+                      ) : pet.cases[0]?.caseNumber ? (
                         <Button
                           variant="primary"
-                          href={`/cases/${pet.cases[0].caseNumber}`}
+                          href={`/mission-control?mission=${pet.cases[0].caseNumber}`}
                           size="sm"
                           className="flex-[2]"
                         >
                           <Eye size={14} />
                           View Case
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="primary"
+                          href={`/report/new?petId=${pet.id}`}
+                          size="sm"
+                          className="flex-[2]"
+                        >
+                          <AlertTriangle size={14} />
+                          Report Lost
                         </Button>
                       )}
                       <button

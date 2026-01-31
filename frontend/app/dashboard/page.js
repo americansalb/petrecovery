@@ -38,11 +38,18 @@ export default function DashboardPage() {
       if (!session?.user) return;
       try {
         const res = await fetch('/api/dashboard');
-        if (!res.ok) throw new Error('Failed to fetch');
+        if (!res.ok) {
+          if (res.status === 401) {
+            router.push('/login');
+            return;
+          }
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.details || body.error || 'Server error');
+        }
         const data = await res.json();
         setUserData(data);
       } catch (err) {
-        setError('Failed to load dashboard');
+        setError(err.message || 'Failed to load dashboard');
       } finally {
         setLoading(false);
       }

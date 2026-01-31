@@ -86,6 +86,7 @@ export default function useMissionControl(session) {
   // Fetch specific mission by ID
   const fetchMission = useCallback(async (id) => {
     if (!id) return;
+    if (!session?.user) return;
     setSwitching(true);
     setError(null);
 
@@ -149,7 +150,7 @@ export default function useMissionControl(session) {
       setSwitching(false);
       setLoading(false);
     }
-  }, []);
+  }, [session]);
 
   // Fetch sightings for active mission
   const fetchSightings = useCallback(async () => {

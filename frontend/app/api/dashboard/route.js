@@ -119,18 +119,23 @@ export async function GET(request) {
     );
 
     // Get Mission Control status for each case
-    const missionStatuses = await prisma.missionControl.findMany({
-      where: { caseId: { in: missionIds } },
-      select: {
-        caseId: true,
-        mode: true,
-        activatedAt: true,
-        activeVolunteers: {
-          where: { status: 'ACTIVE' },
-          select: { id: true }
+    let missionStatuses = [];
+    try {
+      missionStatuses = await prisma.missionControl.findMany({
+        where: { caseId: { in: missionIds } },
+        select: {
+          caseId: true,
+          mode: true,
+          activatedAt: true,
+          activeVolunteers: {
+            where: { status: 'ACTIVE' },
+            select: { id: true }
+          }
         }
-      }
-    });
+      });
+    } catch (err) {
+      console.error('Dashboard: missionControl query failed:', err.message);
+    }
     const missionMap = Object.fromEntries(
       missionStatuses.map(m => [m.caseId, {
         isLive: ['LIVE_SEARCH', 'CONTAINMENT', 'TRAP_OPS'].includes(m.mode),
@@ -372,34 +377,39 @@ export async function GET(request) {
 
     // First, cleanup any stale GPS sessions (older than 30 minutes)
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
-    await prisma.searchSession.updateMany({
-      where: {
-        userId: user.id,
-        status: { in: ['READY', 'ACTIVE'] },
-        startedAt: { lt: thirtyMinutesAgo },
-      },
-      data: {
-        status: 'COMPLETED',
-        endedAt: new Date(),
-        endReason: 'AUTO_CLEANUP',
-      },
-    });
+    let activeSearchSessions = [];
+    try {
+      await prisma.searchSession.updateMany({
+        where: {
+          userId: user.id,
+          status: { in: ['READY', 'ACTIVE'] },
+          startedAt: { lt: thirtyMinutesAgo },
+        },
+        data: {
+          status: 'COMPLETED',
+          endedAt: new Date(),
+          endReason: 'AUTO_CLEANUP',
+        },
+      });
 
-    // Fetch ONLY recent active GPS search sessions (started within last 30 min)
-    const activeSearchSessions = await prisma.searchSession.findMany({
-      where: {
-        userId: user.id,
-        status: 'ACTIVE',
-        startedAt: { gte: thirtyMinutesAgo },
-      },
-      select: {
-        id: true,
-        missionId: true,
-        status: true,
-        startedAt: true,
-        validatedDistanceMiles: true,
-      },
-    });
+      // Fetch ONLY recent active GPS search sessions (started within last 30 min)
+      activeSearchSessions = await prisma.searchSession.findMany({
+        where: {
+          userId: user.id,
+          status: 'ACTIVE',
+          startedAt: { gte: thirtyMinutesAgo },
+        },
+        select: {
+          id: true,
+          missionId: true,
+          status: true,
+          startedAt: true,
+          validatedDistanceMiles: true,
+        },
+      });
+    } catch (err) {
+      console.error('Dashboard: searchSession query failed:', err.message);
+    }
 
     // Get case details for active searches
     const activeSearchCaseIds = activeSearchSessions.map(s => s.missionId);
