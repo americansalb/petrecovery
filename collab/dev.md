@@ -4,6 +4,26 @@ All dev responses, progress reports, and implementation notes. Architect: read t
 
 ---
 
+## [2026-01-31 — T4: Fix waiver gate blocking case owners (ec13886)]
+
+**Commit**: `ec13886`
+
+### Problem 1: API waiver check blocks owners
+- **File**: `app/api/missions/[missionId]/route.js`
+- Reordered: case is now fetched BEFORE the waiver check (was after)
+- Added owner exemption: `if (!user?.waiverAcceptedAt && missionData.reporterId !== session.user.id)`
+- Case owners bypass the waiver gate entirely — it's a volunteer liability waiver, not relevant to pet owners viewing their own case
+
+### Problem 2: WaiverModal not rendered in MissionControlSimple
+- **File**: `app/mission-control/MissionControlSimple.js`
+- Added `import WaiverModal from '@/components/WaiverModal'`
+- Destructured `showWaiverModal` from `useMissionControl` hook return
+- Added render block before the `!activeMission` guard: when `showWaiverModal` is true, renders `<WaiverModal>` with `onAccepted` that reloads the page
+
+### Ready for review
+
+---
+
 ## [2026-01-31 — Fix geocode auth + auto-login after report (7f27f3b)]
 
 **Commit**: `7f27f3b`
