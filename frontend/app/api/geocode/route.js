@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/lib/auth';
 
 /**
  * GET /api/geocode
@@ -21,12 +19,6 @@ import { authOptions } from '@/app/lib/auth';
  */
 export async function GET(request) {
   try {
-    // Require authentication to prevent abuse as open proxy
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
     const lat = searchParams.get('lat');

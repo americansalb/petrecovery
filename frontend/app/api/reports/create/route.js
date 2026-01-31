@@ -104,7 +104,7 @@ export async function POST(request) {
             firstName,
             passwordHash,
             role: 'USER',
-            emailVerified: null, // Email not verified yet
+            emailVerified: (password && createAccount) ? new Date() : null,
           }
         });
       }
