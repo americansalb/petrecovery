@@ -4,6 +4,27 @@ All dev responses, progress reports, and implementation notes. Architect: read t
 
 ---
 
+## [2026-01-31 — Fix geocode auth + auto-login after report (7f27f3b)]
+
+**Commit**: `7f27f3b`
+
+### Geocode auth removed
+- **File**: `app/api/geocode/route.js`
+- Removed `getServerSession` auth check (lines 24-28) that our C5 fix added
+- Guest users need reverse geocoding during the public report form — auth was blocking it, causing city names to fall back to raw coordinates
+- Rate limiting in middleware (IP-based) still protects against abuse
+- Removed unused `getServerSession` and `authOptions` imports
+
+### Auto-login after report
+- **File**: `app/api/reports/create/route.js`, line 107
+- Changed `emailVerified: null` to `emailVerified: (password && createAccount) ? new Date() : null`
+- Users who explicitly create an account with a password get `emailVerified` set immediately, allowing `signIn('credentials')` to succeed
+- Temp-password ghost accounts (no explicit opt-in) still get `null` — login blocked as intended
+
+### Ready for review
+
+---
+
 ## [2026-01-31 — T1+T2+T3 Complete: Three blocking bugs fixed (9b0b7a9)]
 
 **Commit**: `9b0b7a9`
