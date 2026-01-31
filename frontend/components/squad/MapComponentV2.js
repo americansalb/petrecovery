@@ -75,7 +75,6 @@ export default function MapComponentV2({
             geometry = typeof squad.customBoundary === 'string'
               ? JSON.parse(squad.customBoundary)
               : squad.customBoundary;
-            console.log('[Map] Using stored boundary for', squad.cityName);
           } catch (e) {
             console.error('[Map] Failed to parse stored boundary:', e);
           }
@@ -99,8 +98,6 @@ export default function MapComponentV2({
           };
           const countryName = countryNames[country] || country;
           const searchQuery = state ? `${cityName}, ${state}, ${countryName}` : `${cityName}, ${countryName}`;
-
-          console.log('[Map] Fetching boundary from Nominatim for', searchQuery);
 
           // Use backend proxy to avoid CORS issues
           const response = await fetch(
@@ -259,14 +256,12 @@ export default function MapComponentV2({
 
         // Add click event that will definitely work
         marker.on('click', (e) => {
-          console.log('Marker clicked!', missionData.id);
           onCaseClick(missionData.id);
         });
 
         // Also add click handler to the HTML element for better reliability
         marker.getElement()?.addEventListener('click', (e) => {
           e.stopPropagation();
-          console.log('Marker HTML clicked!', missionData.id);
           onCaseClick(missionData.id);
         });
 

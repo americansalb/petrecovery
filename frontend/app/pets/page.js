@@ -36,7 +36,6 @@ export default function MyPetsPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      console.log('[PETS] User not authenticated, redirecting to login');
       router.push('/login?callbackUrl=/pets');
     }
   }, [status, router]);
@@ -48,13 +47,10 @@ export default function MyPetsPage() {
   }, [status]);
 
   const fetchPets = async () => {
-    console.log('[PETS] Fetching pets list');
     try {
       const res = await fetch('/api/pets');
-      console.log('[PETS] Response status:', res.status);
       if (!res.ok) throw new Error('Failed to fetch pets');
       const data = await res.json();
-      console.log('[PETS] Fetched pets:', data.pets?.length || 0);
       setPets(data.pets || []);
     } catch (err) {
       console.error('[PETS] Fetch error:', err);
@@ -76,18 +72,14 @@ export default function MyPetsPage() {
     setDeletingId(petId);
     setError(null);
 
-    console.log('[PETS] Deleting pet:', petId);
-
     try {
       const res = await fetch(`/api/pets/${petId}`, { method: 'DELETE' });
       const data = await res.json();
-      console.log('[PETS] Delete response:', res.status, data);
 
       if (!res.ok) {
         throw new Error(data.error || 'Failed to delete pet');
       }
 
-      console.log('[PETS] Pet deleted successfully');
       setPets(pets.filter(p => p.id !== petId));
       setSuccessMessage(`${petName}'s profile has been deleted.`);
     } catch (err) {

@@ -19,14 +19,9 @@ function ResetPasswordForm() {
   const [status, setStatus] = useState('idle'); // idle, loading, success, error
   const [message, setMessage] = useState('');
 
-  console.log('[RESET-PASSWORD-PAGE] Component rendered');
-  console.log(`[RESET-PASSWORD-PAGE] Token present: ${!!token}`);
-  console.log(`[RESET-PASSWORD-PAGE] Token prefix: ${token ? token.substring(0, 8) + '...' : 'NONE'}`);
-
   // Check for token on mount
   useEffect(() => {
     if (!token) {
-      console.log('[RESET-PASSWORD-PAGE] No token found in URL');
       setStatus('error');
       setMessage('Invalid reset link. Please request a new password reset.');
     }
@@ -34,11 +29,9 @@ function ResetPasswordForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('[RESET-PASSWORD-PAGE] Form submitted');
 
     // Validate passwords match
     if (password !== confirmPassword) {
-      console.log('[RESET-PASSWORD-PAGE] Passwords do not match');
       setStatus('error');
       setMessage('Passwords do not match.');
       return;
@@ -46,7 +39,6 @@ function ResetPasswordForm() {
 
     // Validate password length
     if (password.length < 8) {
-      console.log('[RESET-PASSWORD-PAGE] Password too short');
       setStatus('error');
       setMessage('Password must be at least 8 characters long.');
       return;
@@ -56,29 +48,23 @@ function ResetPasswordForm() {
     setMessage('');
 
     try {
-      console.log('[RESET-PASSWORD-PAGE] Sending request to API...');
       const response = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),
       });
 
-      console.log(`[RESET-PASSWORD-PAGE] Response status: ${response.status}`);
       const data = await response.json();
-      console.log('[RESET-PASSWORD-PAGE] Response data:', data);
 
       if (response.ok) {
-        console.log('[RESET-PASSWORD-PAGE] Password reset successful!');
         setStatus('success');
         setMessage(data.message);
 
         // Redirect to login after 3 seconds
-        console.log('[RESET-PASSWORD-PAGE] Redirecting to login in 3 seconds...');
         setTimeout(() => {
           router.push('/login');
         }, 3000);
       } else {
-        console.log('[RESET-PASSWORD-PAGE] Error:', data.error);
         setStatus('error');
         setMessage(data.error || 'Something went wrong. Please try again.');
       }

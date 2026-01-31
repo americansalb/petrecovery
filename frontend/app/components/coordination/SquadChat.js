@@ -31,11 +31,6 @@ export default function SquadChat({
   const messagesEndRef = useRef(null);
   const pollIntervalRef = useRef(null);
 
-  console.log('[SQUAD-CHAT] Component rendering');
-  console.log(`[SQUAD-CHAT] Assignment ID: ${assignmentId}`);
-  console.log(`[SQUAD-CHAT] Is participant: ${isParticipant}`);
-  console.log(`[SQUAD-CHAT] Is leader: ${isLeader}`);
-
   // Scroll to bottom of messages
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -45,7 +40,6 @@ export default function SquadChat({
   const fetchMessages = useCallback(async () => {
     if (!assignmentId) return;
 
-    console.log('[SQUAD-CHAT] Fetching messages...');
     try {
       const res = await fetch(`/api/assignments/${assignmentId}/messages?limit=100`);
 
@@ -54,8 +48,6 @@ export default function SquadChat({
       }
 
       const data = await res.json();
-      console.log(`[SQUAD-CHAT] Fetched ${data.messages?.length || 0} messages`);
-
       setMessages(data.messages || []);
       setError(null);
     } catch (err) {
@@ -72,7 +64,6 @@ export default function SquadChat({
 
     // Poll for new messages every 5 seconds
     pollIntervalRef.current = setInterval(() => {
-      console.log('[SQUAD-CHAT] Polling for new messages');
       fetchMessages();
     }, 5000);
 
@@ -94,10 +85,6 @@ export default function SquadChat({
 
     if (!newMessage.trim() || !isParticipant || sending) return;
 
-    console.log('[SQUAD-CHAT] Sending message...');
-    console.log(`[SQUAD-CHAT] Content: ${newMessage.substring(0, 50)}...`);
-    console.log(`[SQUAD-CHAT] Is announcement: ${isAnnouncement}`);
-
     setSending(true);
     setError(null);
 
@@ -117,8 +104,6 @@ export default function SquadChat({
       }
 
       const data = await res.json();
-      console.log('[SQUAD-CHAT] Message sent successfully');
-
       // Add message to list
       setMessages((prev) => [...prev, data.message]);
       setNewMessage('');

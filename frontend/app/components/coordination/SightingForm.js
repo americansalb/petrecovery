@@ -40,15 +40,10 @@ export default function SightingForm({
   const markerRef = useRef(null);
   const sightingsLayerRef = useRef(null);
 
-  console.log('[SIGHTING] Component rendering');
-  console.log(`[SIGHTING] Assignment ID: ${assignmentId}`);
-  console.log(`[SIGHTING] Is participant: ${isParticipant}`);
-
   // Fetch sightings
   const fetchSightings = useCallback(async () => {
     if (!assignmentId) return;
 
-    console.log('[SIGHTING] Fetching sightings...');
     try {
       const res = await fetch(`/api/assignments/${assignmentId}/sightings`);
 
@@ -57,8 +52,6 @@ export default function SightingForm({
       }
 
       const data = await res.json();
-      console.log(`[SIGHTING] Fetched ${data.sightings?.length || 0} sightings`);
-
       setSightings(data.sightings || []);
       setError(null);
     } catch (err) {
@@ -72,8 +65,6 @@ export default function SightingForm({
   // Initialize map
   useEffect(() => {
     if (typeof window === 'undefined' || !mapRef.current) return;
-
-    console.log('[SIGHTING] Initializing map...');
 
     import('leaflet').then((L) => {
       if (mapInstanceRef.current) {
@@ -129,7 +120,6 @@ export default function SightingForm({
       map.on('click', (e) => {
         if (isReporting) {
           const location = [e.latlng.lat, e.latlng.lng];
-          console.log(`[SIGHTING] Location selected: ${location}`);
           setSelectedLocation(location);
 
           // Update or create marker
@@ -227,7 +217,6 @@ export default function SightingForm({
 
   // Start reporting mode
   const startReporting = () => {
-    console.log('[SIGHTING] Starting reporting mode');
     setIsReporting(true);
     setSelectedLocation(null);
     setConfidenceLevel(5);
@@ -242,7 +231,6 @@ export default function SightingForm({
 
   // Cancel reporting
   const cancelReporting = () => {
-    console.log('[SIGHTING] Cancelling reporting');
     setIsReporting(false);
     setSelectedLocation(null);
 
@@ -266,10 +254,6 @@ export default function SightingForm({
     }
     setValidationError(null);
 
-    console.log('[SIGHTING] Submitting sighting...');
-    console.log(`[SIGHTING] Location: ${selectedLocation}`);
-    console.log(`[SIGHTING] Confidence: ${confidenceLevel}`);
-
     setSubmitting(true);
     setError(null);
 
@@ -291,8 +275,6 @@ export default function SightingForm({
         const data = await res.json();
         throw new Error(data.error || 'Failed to submit sighting');
       }
-
-      console.log('[SIGHTING] Sighting submitted successfully');
 
       // Reset state
       cancelReporting();

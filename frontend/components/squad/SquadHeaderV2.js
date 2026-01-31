@@ -208,7 +208,6 @@ export default function SquadHeaderV2({
         isOpen={showPhotoUpload}
         onClose={() => setShowPhotoUpload(false)}
         onUpload={(url) => {
-          console.log('Photo uploaded:', url);
         }}
         squadId={squad.id}
       />
