@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 
 /**
  * GET /api/geocode
@@ -21,7 +22,7 @@ import { getServerSession } from 'next-auth';
 export async function GET(request) {
   try {
     // Require authentication to prevent abuse as open proxy
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
