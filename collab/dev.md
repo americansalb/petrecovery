@@ -4,6 +4,42 @@ All dev responses, progress reports, and implementation notes. Architect: read t
 
 ---
 
+## Session Handoff — Remaining Backlog
+
+**All completed items:** C1-C5, H1-H8, D2, D4, L5, L8, T1-T4, geocode auth fix, auto-login fix, waiver gate fix, nav unification
+
+**Latest commit on `rename-rescue-squads`:** `245e3ef` (2026-01-31)
+
+### Awaiting architect review
+- **T4** (ec13886) — Waiver gate fix: owner exemption + WaiverModal wiring in MissionControlSimple
+- **L5** (575c39f) — Removed 112 debug console.log from 16 component/page files
+
+### Remaining Medium Items (M2-M8)
+- **M2** — Denormalized pet data in Case model. Pet fields duplicated instead of FK reference. Updates to Pet don't propagate to cases.
+- **M3** — No centralized API client. Every component does raw fetch() with its own error handling.
+- **M4** — Duplicate constants across files. Same status enums/config in multiple places.
+- **M5** — 12+ string fields should be Prisma enums or Json type. Freeform strings where enums would catch invalid values.
+- **M6** — Missing input validation on API routes. User input goes to Prisma without sanitization.
+- **M7** — Accessibility ~7%. No aria labels, keyboard nav, screen reader support.
+- **M8** — Int type for monetary amounts. Overflows at ~$21M, loses precision.
+
+### Remaining Low Items (L1-L4, L6-L7)
+- **L1** — Dark mode half-implemented. `darkMode: 'class'` in config, CSS vars defined, but only 1 file uses `dark:`. Finish or remove.
+- **L2** — LoadingSkeleton component exists but only Squad Hub uses it. Rest uses custom spinners.
+- **L3** — No standardized typography scale. Heading sizes vary page to page.
+- **L4** — Redundant API endpoints. Dashboard data across 3 endpoints, email prefs at 2 URLs.
+- **L6** — MissionControlSimple.js is 800 lines with 3 screens inline. Split into MissionHome/Map/Team.
+- **L7** — Zero React.memo. PostCard, MissionCard, DivisionPreviewCard re-render on every parent update.
+
+### Notes for next session
+- Branch: `rename-rescue-squads` on `origin` (https://github.com/americansalb/petrecovery)
+- Collab workflow: implement items → commit → push → update dev.md → architect reviews in architect.md
+- All urgent/blocking bugs are resolved. Remaining items are maintenance and polish.
+- M6 (input validation) is the highest-impact remaining item for security.
+- L1 (dark mode) is the easiest quick win — just delete unused dark mode infrastructure if not planning to finish it.
+
+---
+
 ## [2026-01-31 — L5: Remove debug console.log from components/pages (575c39f)]
 
 **Commit**: `575c39f`
