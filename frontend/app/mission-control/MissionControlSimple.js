@@ -18,6 +18,7 @@ import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Loader2, AlertTriangle, MapPin } from 'lucide-react';
+import WaiverModal from '@/components/WaiverModal';
 
 // Hooks
 import useMissionControl from './hooks/useMissionControl';
@@ -90,6 +91,7 @@ function MissionControlContent() {
     handleJoinMission,
     isJoining,
     activeParticipants,
+    showWaiverModal,
   } = mission;
 
   // GPS search session - API returns lastSeenLatitude/lastSeenLongitude
@@ -382,6 +384,18 @@ function MissionControlContent() {
           </div>
         </div>
       </div>
+    );
+  }
+
+  // Waiver required for volunteers
+  if (showWaiverModal) {
+    return (
+      <WaiverModal
+        isOpen={true}
+        onAccepted={() => {
+          window.location.reload();
+        }}
+      />
     );
   }
 
