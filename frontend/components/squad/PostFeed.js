@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { TrendingUp, Clock, Trophy, Plus, Users } from 'lucide-react';
+import { useToast } from '@/app/components/ui/Toast';
 import PostCard from './PostCard';
 
 export default function PostFeed({
@@ -18,6 +19,7 @@ export default function PostFeed({
   onViewMembers,
   membersCount = 0,
 }) {
+  const toast = useToast();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('hot'); // 'hot', 'new', 'top'
@@ -68,6 +70,7 @@ export default function PostFeed({
       }
     } catch (error) {
       console.error('Failed to vote:', error);
+      toast.error('Failed to vote.');
     }
   };
 
@@ -87,6 +90,7 @@ export default function PostFeed({
       }
     } catch (error) {
       console.error('Failed to comment:', error);
+      toast.error('Failed to post comment.');
     }
   };
 

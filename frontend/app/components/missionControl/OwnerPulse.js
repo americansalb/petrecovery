@@ -77,7 +77,7 @@ export default function OwnerPulse({ missionId, mission, onUpdate }) {
         body: JSON.stringify({ action: 'TRIGGER_CALL_MODE' }),
       });
       triggerHaptic('warning');
-      alert('Call mode activated! All volunteers are playing your voice clip.');
+      toast.success('Call mode activated! All volunteers are playing your voice clip.');
     } catch (err) {
       console.error('Error triggering call mode:', err);
       toast.error('Failed to activate call mode.');

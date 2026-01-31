@@ -435,6 +435,7 @@ function TeamList({ participants, currentUserId, isCoordinator, getSessionDurati
 
 // Task List Component
 function TaskList({ tasks, missionData, currentUserId, isCoordinator, showNewTask, setShowNewTask, onTaskUpdate }) {
+  const toast = useToast();
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',

@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { Shield, Users, MapPin, Camera, Target, Heart, Radio } from 'lucide-react';
+import { useToast } from '@/app/components/ui/Toast';
 import { useRouter } from 'next/navigation';
 import PhotoUploadModal from './PhotoUploadModal';
 import MembersModal from './MembersModal';
@@ -22,6 +23,7 @@ export default function SquadHeaderV2({
   onRefresh,
 }) {
   const router = useRouter();
+  const toast = useToast();
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const cityName = squad.cityName || 'Unknown City';
@@ -38,6 +40,7 @@ export default function SquadHeaderV2({
       }
     } catch (error) {
       console.error('Failed to join squad:', error);
+      toast.error('Failed to join rescue force.');
     }
   };
 

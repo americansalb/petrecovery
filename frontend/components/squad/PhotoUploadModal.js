@@ -2,8 +2,10 @@
 
 import { useState, useRef } from 'react';
 import { X, Upload, Camera } from 'lucide-react';
+import { useToast } from '@/app/components/ui/Toast';
 
 export default function PhotoUploadModal({ isOpen, onClose, onUpload, squadId }) {
+  const toast = useToast();
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -15,13 +17,13 @@ export default function PhotoUploadModal({ isOpen, onClose, onUpload, squadId })
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
+      toast.error('Please select an image file.');
       return;
     }
 
     // Validate file size (10MB max)
     if (file.size > 10 * 1024 * 1024) {
-      alert('File must be less than 10MB');
+      toast.error('File must be less than 10MB.');
       return;
     }
 
@@ -81,7 +83,7 @@ export default function PhotoUploadModal({ isOpen, onClose, onUpload, squadId })
       onClose();
     } catch (error) {
       console.error('Upload error:', error);
-      alert(`Upload failed: ${error.message}`);
+      toast.error(`Upload failed: ${error.message}`);
     } finally {
       setUploading(false);
     }
