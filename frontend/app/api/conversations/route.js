@@ -210,8 +210,10 @@ export async function GET(request) {
 
     // Pagination
     const { searchParams } = new URL(request.url);
-    const take = Math.min(parseInt(searchParams.get('limit') || '20', 10) || 20, 100);
-    const skip = parseInt(searchParams.get('offset') || '0', 10) || 0;
+    const rawLimit = parseInt(searchParams.get('limit'), 10);
+    const take = Math.min(isNaN(rawLimit) ? 20 : Math.max(rawLimit, 0), 100);
+    const rawOffset = parseInt(searchParams.get('offset'), 10);
+    const skip = isNaN(rawOffset) ? 0 : Math.max(rawOffset, 0);
 
     // Get conversations with last message included
     const [conversations, totalCount] = await Promise.all([
@@ -244,13 +246,24 @@ export async function GET(request) {
       })
     ]);
 
+    // Early return if no conversations
+    if (conversations.length === 0) {
+      return NextResponse.json({
+        conversations: [],
+        total: totalCount,
+        limit: take,
+        offset: skip
+      });
+    }
+
     // Batch: collect all unique case IDs and other-party user IDs
     const caseIds = new Set();
     const otherPartyIds = new Set();
     for (const conv of conversations) {
-      caseIds.add(conv.lostCaseId);
-      caseIds.add(conv.foundCaseId);
-      otherPartyIds.add(conv.ownerId === user.id ? conv.finderId : conv.ownerId);
+      if (conv.lostCaseId) caseIds.add(conv.lostCaseId);
+      if (conv.foundCaseId) caseIds.add(conv.foundCaseId);
+      const otherPartyId = conv.ownerId === user.id ? conv.finderId : conv.ownerId;
+      if (otherPartyId) otherPartyIds.add(otherPartyId);
     }
 
     // 2 bulk queries instead of 4*N individual queries

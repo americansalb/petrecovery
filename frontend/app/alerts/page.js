@@ -4,6 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft, Plus, AlertTriangle, Search } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Card, CardFooter } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export default function AlertsPage() {
   const { data: session, status } = useSession();
@@ -71,8 +75,8 @@ export default function AlertsPage() {
 
   if (status === 'loading' || (status === 'authenticated' && loading)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div>Loading alerts...</div>
+      <div className="min-h-screen flex items-center justify-center bg-midnight-50">
+        <div className="text-midnight-600">Loading alerts...</div>
       </div>
     );
   }
@@ -85,9 +89,9 @@ export default function AlertsPage() {
     switch (status) {
       case 'OPEN': return 'text-red-600';
       case 'ACTIVE': return 'text-red-600';
-      case 'FOUND': return 'text-emerald-500';
-      case 'CLOSED': return 'text-gray-500';
-      default: return 'text-gray-500';
+      case 'FOUND': return 'text-green-600';
+      case 'CLOSED': return 'text-midnight-500';
+      default: return 'text-midnight-500';
     }
   };
 
@@ -95,9 +99,9 @@ export default function AlertsPage() {
     switch (status) {
       case 'OPEN': return 'bg-red-100';
       case 'ACTIVE': return 'bg-red-100';
-      case 'FOUND': return 'bg-emerald-100';
-      case 'CLOSED': return 'bg-gray-100';
-      default: return 'bg-gray-100';
+      case 'FOUND': return 'bg-green-100';
+      case 'CLOSED': return 'bg-midnight-100';
+      default: return 'bg-midnight-100';
     }
   };
 
@@ -111,24 +115,23 @@ export default function AlertsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 font-sans">
+    <div className="min-h-screen bg-midnight-50 font-sans">
       {/* Header */}
-      <div className="bg-blue-800 text-white p-4 shadow-md sticky top-0 z-50">
+      <div className="bg-midnight-900 text-white p-4 shadow-md sticky top-0 z-50">
         <div className="max-w-3xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-white no-underline text-2xl">
-              ←
+            <Link href="/dashboard" className="text-white no-underline" aria-label="Back to dashboard">
+              <ArrowLeft size={24} />
             </Link>
             <div>
               <h1 className="text-2xl font-bold">Community Alerts</h1>
-              <p className="text-sm opacity-90">{alerts.length} active in your area</p>
+              <p className="text-sm text-midnight-300">{alerts.length} active in your area</p>
             </div>
           </div>
-          <Link
-            href="/report/new"
-            className="px-4 py-2 bg-red-600 rounded-lg text-white no-underline text-sm font-semibold"
-          >
-            + Report
+          <Link href="/report/new">
+            <Button variant="danger" size="sm" leftIcon={Plus} aria-label="Report a lost or found pet">
+              Report
+            </Button>
           </Link>
         </div>
       </div>
@@ -136,124 +139,133 @@ export default function AlertsPage() {
       <div className="max-w-3xl mx-auto p-4">
         {/* Error Message */}
         {error && (
-          <div className="bg-red-100 border border-red-200 text-red-800 p-4 rounded-lg mb-4 flex justify-between items-center">
-            <span>{error}</span>
-            <button
-              onClick={fetchAlerts}
-              className="px-3 py-1 bg-red-800 text-white border-none rounded cursor-pointer"
-            >
-              Retry
-            </button>
-          </div>
+          <Card variant="danger" padding="md" className="mb-4">
+            <div className="flex justify-between items-center">
+              <span className="text-red-800">{error}</span>
+              <Button variant="danger" size="sm" onClick={fetchAlerts}>
+                Retry
+              </Button>
+            </div>
+          </Card>
         )}
 
         {/* Filters */}
-        <div className="bg-white rounded-xl p-4 mb-4 shadow-sm">
+        <Card padding="md" className="mb-4">
           <div className="mb-4">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-midnight-700 mb-2">
               Pet Type
             </label>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap" role="group" aria-label="Filter by pet type">
               {['all', 'dog', 'cat', 'bird', 'other'].map((type) => (
-                <button
+                <Button
                   key={type}
+                  variant={filter === type ? 'secondary' : 'outline'}
+                  size="sm"
                   onClick={() => setFilter(type)}
-                  className={`px-4 py-2 border-none rounded-lg text-sm font-semibold cursor-pointer ${
-                    filter === type
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-800'
-                  }`}
+                  aria-label={`Filter by ${type === 'all' ? 'all pets' : type + 's'}`}
+                  aria-pressed={filter === type}
                 >
                   {type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1) + 's'}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label htmlFor="search-radius" className="block text-sm font-semibold text-midnight-700 mb-2">
               Search Radius: {searchRadius} miles
             </label>
             <input
+              id="search-radius"
               type="range"
               min="1"
               max="50"
               value={searchRadius}
               onChange={(e) => setSearchRadius(e.target.value)}
               className="w-full"
+              aria-label={`Search radius: ${searchRadius} miles`}
             />
           </div>
-        </div>
+        </Card>
 
         {/* Alerts List */}
         {alerts.length === 0 && !loading ? (
-          <div className="bg-white rounded-xl py-12 px-4 text-center text-gray-500">
-            <div className="text-5xl mb-2">🐾</div>
-            <p className="font-semibold mb-2">No alerts found</p>
-            <p className="text-sm">
-              {filter !== 'all' ? 'Try selecting "All" to see more results' : 'No lost pets reported yet'}
-            </p>
-          </div>
+          <Card padding="none">
+            <EmptyState
+              icon={Search}
+              iconColor="amber"
+              title="No alerts found"
+              description={filter !== 'all' ? 'Try selecting "All" to see more results' : 'No lost pets reported yet'}
+              tip="Check back regularly — alerts update as new reports come in."
+              action={{ label: 'Report a Pet', href: '/report/new', icon: Plus }}
+            />
+          </Card>
         ) : (
           <div className="flex flex-col gap-4">
             {alerts.map((alert) => (
               <Link
                 key={alert.id}
                 href={`/alerts/${alert.missionNumber || alert.id}`}
-                className="bg-white rounded-xl p-5 shadow-md no-underline text-inherit block border-2 border-transparent hover:border-blue-200 transition-colors"
+                className="no-underline text-inherit block"
               >
-                {/* Header */}
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-2xl">{getSpeciesEmoji(alert.petSpecies)}</span>
-                      <h3 className="text-xl font-bold text-gray-800">
-                        {alert.petName || 'Unknown Pet'}
-                      </h3>
-                      {alert.isUrgent && (
-                        <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-semibold">
-                          URGENT
+                <Card hover padding="md">
+                  {/* Header */}
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-2xl" role="img" aria-label={alert.petSpecies || 'Pet'}>
+                          {getSpeciesEmoji(alert.petSpecies)}
                         </span>
-                      )}
-                      <span className={`px-2 py-1 ${getStatusBg(alert.status)} ${getStatusColor(alert.status)} rounded text-xs font-semibold`}>
-                        {alert.status}
-                      </span>
+                        <h3 className="text-xl font-bold text-midnight-900">
+                          {alert.petName || 'Unknown Pet'}
+                        </h3>
+                        {alert.isUrgent && (
+                          <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-semibold">
+                            URGENT
+                          </span>
+                        )}
+                        <span className={`px-2 py-1 ${getStatusBg(alert.status)} ${getStatusColor(alert.status)} rounded text-xs font-semibold`}>
+                          {alert.status}
+                        </span>
+                      </div>
+                      <p className="text-sm text-midnight-500">
+                        {alert.petBreed || alert.petSpecies} • {alert.petColor || 'Unknown color'}
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-500">
-                      {alert.petBreed || alert.petSpecies} • {alert.petColor || 'Unknown color'}
-                    </p>
-                  </div>
-                  <div className="text-right text-sm text-gray-500">
-                    <div>{getTimeAgo(alert.lastSeenAt || alert.createdAt)}</div>
-                    <div className="font-semibold text-blue-600">{alert.missionNumber}</div>
-                  </div>
-                </div>
-
-                {/* Location */}
-                <div className="flex items-start gap-2 mb-3 p-3 bg-gray-50 rounded-lg">
-                  <span className="text-base">📍</span>
-                  <div className="flex-1">
-                    <div className="text-sm font-semibold text-gray-800 mb-1">Last Seen</div>
-                    <div className="text-sm text-gray-500">
-                      {alert.lastSeenLandmark || `${alert.city}, ${alert.state}`}{alert.zipCode && ` (${alert.zipCode})`}
+                    <div className="text-right text-sm text-midnight-500">
+                      <div>{getTimeAgo(alert.lastSeenAt || alert.createdAt)}</div>
+                      <div className="font-semibold text-midnight-700">{alert.missionNumber}</div>
                     </div>
                   </div>
-                </div>
 
-                {/* Description */}
-                {alert.petDescription && (
-                  <div className="text-sm text-gray-500 mb-3">
-                    <strong className="text-gray-800">Description:</strong> {alert.petDescription.substring(0, 150)}{alert.petDescription.length > 150 ? '...' : ''}
+                  {/* Location */}
+                  <div className="flex items-start gap-2 mb-3 p-3 bg-midnight-50 rounded-lg">
+                    <span className="text-base" role="img" aria-label="Location">📍</span>
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-midnight-800 mb-1">Last Seen</div>
+                      <div className="text-sm text-midnight-500">
+                        {alert.lastSeenLandmark || `${alert.city}, ${alert.state}`}{alert.zipCode && ` (${alert.zipCode})`}
+                      </div>
+                    </div>
                   </div>
-                )}
 
-                {/* Footer */}
-                <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-                  <div className="text-sm text-gray-500">Case #{alert.missionNumber}</div>
-                  <span className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">
-                    View Details →
-                  </span>
-                </div>
+                  {/* Description */}
+                  {alert.petDescription && (
+                    <div className="text-sm text-midnight-500 mb-3">
+                      <strong className="text-midnight-800">Description:</strong> {alert.petDescription.substring(0, 150)}{alert.petDescription.length > 150 ? '...' : ''}
+                    </div>
+                  )}
+
+                  {/* Footer */}
+                  <CardFooter>
+                    <div className="text-sm text-midnight-500">Case #{alert.missionNumber}</div>
+                    <div className="ml-auto">
+                      <Button variant="secondary" size="sm">
+                        View Details
+                      </Button>
+                    </div>
+                  </CardFooter>
+                </Card>
               </Link>
             ))}
           </div>

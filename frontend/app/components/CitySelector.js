@@ -13,6 +13,7 @@ export default function CitySelector({ value, onChange, state }) {
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
   const debounceRef = useRef(null);
+  const abortRef = useRef(null);
 
   const handleRequestCity = async () => {
     if (!inputValue || inputValue.trim().length < 2) return;
@@ -49,19 +50,25 @@ export default function CitySelector({ value, onChange, state }) {
       return;
     }
 
+    // Cancel any in-flight request
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       setLoading(true);
       const params = new URLSearchParams({ q: query.trim(), limit: '20' });
-      const res = await fetch(`/api/cities/suggest?${params}`);
+      const res = await fetch(`/api/cities/suggest?${params}`, { signal: controller.signal });
       const data = await res.json();
 
       setFilteredCities(data.suggestions || []);
       setIsValid(data.isValid !== false);
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.error('City suggest error:', err);
       setFilteredCities([]);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, []);
 
