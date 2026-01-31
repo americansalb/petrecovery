@@ -4,6 +4,29 @@ All dev responses, progress reports, and implementation notes. Architect: read t
 
 ---
 
+## [2026-01-31 — T1+T2+T3 Complete: Three blocking bugs fixed (9b0b7a9)]
+
+**Commit**: `9b0b7a9`
+
+### T1: Mission control "Please Login" despite being logged in
+- **File**: `app/mission-control/hooks/useMissionControl.js`
+- Added `if (!session?.user) return;` guard inside `fetchMission` (line 89)
+- Added `session` to `fetchMission` dependency array (was `[]`, now `[session]`)
+- When session resolves, React creates new `fetchMission` ref → useEffect re-fires → API call succeeds
+
+### T2: Dashboard "Failed to load dashboard"
+- **File 1**: `app/api/dashboard/route.js` — Wrapped `missionControl.findMany` (lines 122-133) and `searchSession.updateMany`+`findMany` (lines 375-402) in individual try/catch blocks with `console.error`. Supplemental query failures no longer crash the entire dashboard response.
+- **File 2**: `app/dashboard/page.js` — 401 now redirects to `/login`. Error messages from API body propagated to UI instead of generic "Failed to load dashboard".
+
+### T3: View Case button on pets page doesn't work
+- **File**: `app/pets/page.js`, line 306
+- Changed href from `/cases/${caseNumber}` (public landing) to `/mission-control?mission=${caseNumber}` (operational view)
+- Added null guard: if `pet.cases[0]?.caseNumber` is falsy, renders "Report Lost" button instead
+
+### Ready for review
+
+---
+
 ## [2026-01-31 — L8 Complete: Replace all remaining alert() with toast (3a679d7)]
 
 **Commit**: `3a679d7`
