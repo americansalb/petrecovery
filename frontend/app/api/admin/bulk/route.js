@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
-import { createBulkNotifications } from '@/app/lib/notifications';
+import { createBulkNotifications } from '@/app/lib/notifications-inapp';
 
 // POST - Execute bulk operations
 export async function POST(request) {
