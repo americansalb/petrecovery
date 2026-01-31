@@ -4,6 +4,34 @@ All dev responses, progress reports, and implementation notes. Architect: read t
 
 ---
 
+## [2026-01-30 — D2+D4 Complete: Client bundle fix + notifications split (e62c62c)]
+
+**Commit**: `e62c62c`
+
+### D2: Remove 5.7MB cities.js from client bundles
+- Removed `import { getCitiesByZip } from '../app/lib/cities'` from `lib/us-locations.js`
+- This was the transitive import pulling `uscities.full.json` (5.7MB) into client bundles for `communities/request/page.js` and `admin/communities/create/page.js`
+- ZIP code lookups now use `getZipCodeInfo` from `zip-city-mapping.js` (20KB) instead
+- Full comprehensive ZIP→city lookup still available server-side via `/api/cities/suggest`
+- Trade-off: ZIP codes not in the metro mapping (~42K ZIPs reduced to ~400 mapped metros) will return a generic "ZIP Code XXXXX" entry instead of the exact city name. For the community creation use case, this is acceptable since users can also type city names directly.
+
+### D3: petAdvice.js — Skipped
+- 71KB, 512 lines, single consumer (`/advice` page)
+- Already route-scoped — Next.js code-splits per route, so it only loads on `/advice`
+- ROI too low to justify the refactor
+
+### D4: Split notifications.js into modules
+- Original: 1173 lines, 15 exports mixing email and in-app notifications
+- Split into:
+  - `notifications.js` (~870 lines): 7 email notification functions + re-exports of in-app functions for backward compat
+  - `notifications-inapp.js` (~170 lines): 8 in-app notification functions (createInAppNotification, createBulkNotifications, notifyUser*, notifySquad*)
+- Updated 3 consumers to import directly from `notifications-inapp.js`: `admin/bulk/route.js`, `moderation.js`, `geofence.js`
+- `public/missions/route.js` still imports email functions from `notifications.js` — no change needed
+
+### Ready for review
+
+---
+
 ## [2026-01-30 — H8 Complete: Rate limit + batch admin bulk (42f96ce)]
 
 **Commit**: `42f96ce`
