@@ -401,15 +401,8 @@ export function getZipCodeInfo(zipCode) {
     }
   }
 
-  // If not in our database, return a generic structure
-  // The API endpoint will validate using external geocoding
-  return {
-    zipCode: cleaned.substring(0, 5),
-    city: null,  // Will be filled by API
-    metro: null,
-    metroValue: null,
-    needsGeocode: true
-  };
+  // ZIP not in our mapping — return null so callers use their own fallback
+  return null;
 }
 
 /**
