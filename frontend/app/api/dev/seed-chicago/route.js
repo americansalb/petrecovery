@@ -1,15 +1,22 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
 
 /**
- * POST /api/admin/seed-chicago
+ * POST /api/dev/seed-chicago
  *
  * Seeds the Chicago Rescue Squad with test data.
- * This endpoint should only be used in development.
+ * Requires ADMIN role to prevent accidental use in production.
  */
 export async function POST() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     console.log('Seeding Chicago Rescue Force...');
 
     // Check if Chicago squad already exists

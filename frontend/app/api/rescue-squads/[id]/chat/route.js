@@ -16,7 +16,7 @@ export async function GET(request, { params }) {
       prisma = (await import('@/app/lib/prisma')).default;
       const nextAuth = await import('next-auth');
       getServerSession = nextAuth.getServerSession;
-      const authModule = await import('@/app/api/auth/[...nextauth]/route');
+      const authModule = await import('@/app/lib/auth');
       authOptions = authModule.authOptions;
     } catch (importError) {
       return NextResponse.json(
@@ -108,7 +108,7 @@ export async function POST(request, { params }) {
       prisma = (await import('@/app/lib/prisma')).default;
       const nextAuth = await import('next-auth');
       getServerSession = nextAuth.getServerSession;
-      const authModule = await import('@/app/api/auth/[...nextauth]/route');
+      const authModule = await import('@/app/lib/auth');
       authOptions = authModule.authOptions;
     } catch (importError) {
       return NextResponse.json(

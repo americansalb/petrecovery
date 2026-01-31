@@ -41,6 +41,12 @@ export async function GET(request) {
 
     // Reverse geocoding (coordinates to address)
     if (lat && lon) {
+      const latNum = parseFloat(lat);
+      const lonNum = parseFloat(lon);
+      if (isNaN(latNum) || isNaN(lonNum) || latNum < -90 || latNum > 90 || lonNum < -180 || lonNum > 180) {
+        return NextResponse.json({ error: 'Invalid coordinates' }, { status: 400 });
+      }
+
       const params = new URLSearchParams({
         lat,
         lon,

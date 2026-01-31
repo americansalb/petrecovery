@@ -9,7 +9,7 @@
  * Reuses SquadHubV2 component with isDivisionPage=true
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import SquadHubV2 from '@/components/squad/SquadHubV2';
 
@@ -22,44 +22,42 @@ export default function DivisionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      setError(null);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-      try {
-        // Fetch squad hub data (same API, but we'll filter on client side)
-        const res = await fetch(`/api/rescue-squads/${squadId}/hub`);
+    try {
+      const res = await fetch(`/api/rescue-squads/${squadId}/hub`);
 
-        if (res.ok) {
-          const data = await res.json();
+      if (res.ok) {
+        const data = await res.json();
 
-          // Verify division exists in this squad
-          const division = data.divisions?.find(d => d.id === divisionId);
-          if (!division) {
-            setError('Division not found');
-            return;
-          }
-
-          setSquadData(data);
-        } else if (res.status === 404) {
-          setError('Rescue Force not found');
-        } else {
-          const errorData = await res.json().catch(() => ({}));
-          setError(`Failed to load division data: ${errorData.error || 'Server error'}`);
+        const division = data.divisions?.find(d => d.id === divisionId);
+        if (!division) {
+          setError('Division not found');
+          return;
         }
-      } catch (err) {
-        console.error('Failed to fetch division data:', err);
-        setError('Failed to connect to server. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    }
 
+        setSquadData(data);
+      } else if (res.status === 404) {
+        setError('Rescue Force not found');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setError(`Failed to load division data: ${errorData.error || 'Server error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to fetch division data:', err);
+      setError('Failed to connect to server. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [squadId, divisionId]);
+
+  useEffect(() => {
     if (squadId && divisionId) {
       fetchData();
     }
-  }, [squadId, divisionId]);
+  }, [squadId, divisionId, fetchData]);
 
   if (loading) {
     return (
@@ -112,6 +110,7 @@ export default function DivisionPage() {
       squadId={squadId}
       isDivisionPage={true}
       currentDivisionId={divisionId}
+      onRefresh={fetchData}
     />
   );
 }

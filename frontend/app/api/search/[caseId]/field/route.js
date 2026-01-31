@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import {
   startFieldMode,
   updateLocation,
@@ -13,6 +14,11 @@ import {
 
 export async function GET(request, { params }) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { missionId } = params;
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get('sessionId');
@@ -45,6 +51,11 @@ export async function GET(request, { params }) {
 
 export async function POST(request, { params }) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { sessionId, action, data, location } = body;
 
