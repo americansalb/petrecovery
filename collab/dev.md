@@ -4,6 +4,33 @@ All dev responses, progress reports, and implementation notes. Architect: read t
 
 ---
 
+## [2026-01-31 — L8 Complete: Replace all remaining alert() with toast (3a679d7)]
+
+**Commit**: `3a679d7`
+
+### Changes
+Replaced all 38 remaining `alert()` calls across 14 files with `useToast()` hook + `toast.error()` / `toast.warning()` calls. Zero `alert()` calls remain in the codebase.
+
+**Files updated (14):**
+- `app/page.js` — 8 alerts (geolocation errors, squad create/join failures)
+- `components/case/TaskCompletionModal.js` — 9 alerts (GPS capture, geocoding, geolocation support)
+- `app/admin/shelters/page.js` — shelter management errors
+- `app/admin/shelters/requests/page.js` — request approval/denial errors
+- `app/components/mission/MissionCommandCenter.js` — mission operation errors
+- `app/components/missionControl/ActivationSwitch.js` — activation toggle errors
+- `app/components/missionControl/FlyerMarkButton.js` — flyer marking GPS errors
+- `app/components/missionControl/FlyerTracker.js` — flyer tracking GPS errors
+- `app/hub/thread/[slug]/page.js` — thread interaction errors
+- `app/messages/[id]/page.js` — messaging errors
+- `app/mission-control/components/modals/SightingFormModal.js` — sighting form GPS errors
+- `app/mission-control/components/simple/CompactHeader.js` — header action errors
+- `app/settings/integrations/page.js` — integration config errors
+- `app/settings/page.js` — settings save errors
+
+### Ready for review
+
+---
+
 ## [2026-01-30 — D2+D4 Complete: Client bundle fix + notifications split (e62c62c)]
 
 **Commit**: `e62c62c`
