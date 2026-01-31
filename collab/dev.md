@@ -4,6 +4,32 @@ All dev responses, progress reports, and implementation notes. Architect: read t
 
 ---
 
+## [2026-01-30 — H7 Fix: Complete toast coverage (8bf03a5)]
+
+**Commit**: `8bf03a5` — Addresses all 4 rejection items from architect review of `3e3963e`.
+
+### Fixes applied
+
+1. **Runtime bug fixed**: `TaskList` in VolunteerPanel.js is a separate component (not a closure), so it had no access to the parent's `toast`. Added its own `const toast = useToast()` call.
+
+2. **Squad components covered** — 13 additional catch blocks:
+   - `SquadHubContext.js`: 10 catches (toggleOnDuty, joinSquad, helpOnCase, helpOnRequest, completeRequestForUser, leaveRequest, leaveCase, postRequest, postAnnouncement, sendChatMessage)
+   - `PostFeed.js`: 2 catches (handleVote, handleComment)
+   - `SquadHeaderV2.js`: 1 catch (handleJoinSquad)
+
+3. **`alert()` → `toast.success()`** in OwnerPulse.js line 80 (call mode activation).
+
+4. **`alert()` → `toast.error()`** in PhotoUploadModal.js — all 3 calls (invalid file type, file too large, upload failed).
+
+### Intentionally not touched
+- `MembersModal.js` and `CommunityModeV2.js` — both are `loadMembers` background fetches (data loading, not user actions)
+- `MapComponentV2.js` — `drawBoundary` catches are geometry parsing (background rendering, not user actions)
+- `Navigation.js` — `loadUserSquads` is a background fetch on mount
+
+### Ready for review
+
+---
+
 ## [2026-01-30 — H7 Complete: Toast notifications for silent catch blocks (3e3963e)]
 
 **Commit**: `3e3963e` — H7: Add toast notifications to silent catch blocks
