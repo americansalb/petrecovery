@@ -71,13 +71,7 @@ export default function AlertsPage() {
 
   if (status === 'loading' || (status === 'authenticated' && loading)) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#f3f4f6',
-      }}>
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div>Loading alerts...</div>
       </div>
     );
@@ -89,11 +83,21 @@ export default function AlertsPage() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'OPEN': return '#dc2626';
-      case 'ACTIVE': return '#dc2626';
-      case 'FOUND': return '#10b981';
-      case 'CLOSED': return '#6b7280';
-      default: return '#6b7280';
+      case 'OPEN': return 'text-red-600';
+      case 'ACTIVE': return 'text-red-600';
+      case 'FOUND': return 'text-emerald-500';
+      case 'CLOSED': return 'text-gray-500';
+      default: return 'text-gray-500';
+    }
+  };
+
+  const getStatusBg = (status) => {
+    switch (status) {
+      case 'OPEN': return 'bg-red-100';
+      case 'ACTIVE': return 'bg-red-100';
+      case 'FOUND': return 'bg-emerald-100';
+      case 'CLOSED': return 'bg-gray-100';
+      default: return 'bg-gray-100';
     }
   };
 
@@ -107,106 +111,58 @@ export default function AlertsPage() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#f3f4f6',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-    }}>
+    <div className="min-h-screen bg-gray-100 font-sans">
       {/* Header */}
-      <div style={{
-        backgroundColor: '#1e40af',
-        color: 'white',
-        padding: '1rem',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-      }}>
-        <div style={{
-          maxWidth: '800px',
-          margin: '0 auto',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <Link href="/dashboard" style={{ color: 'white', textDecoration: 'none', fontSize: '1.5rem' }}>
+      <div className="bg-blue-800 text-white p-4 shadow-md sticky top-0 z-50">
+        <div className="max-w-3xl mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard" className="text-white no-underline text-2xl">
               ←
             </Link>
             <div>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Community Alerts</h1>
-              <p style={{ fontSize: '0.875rem', opacity: 0.9 }}>{alerts.length} active in your area</p>
+              <h1 className="text-2xl font-bold">Community Alerts</h1>
+              <p className="text-sm opacity-90">{alerts.length} active in your area</p>
             </div>
           </div>
-          <Link href="/report/new" style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: '#dc2626',
-            borderRadius: '0.5rem',
-            color: 'white',
-            textDecoration: 'none',
-            fontSize: '0.875rem',
-            fontWeight: '600',
-          }}>
+          <Link
+            href="/report/new"
+            className="px-4 py-2 bg-red-600 rounded-lg text-white no-underline text-sm font-semibold"
+          >
             + Report
           </Link>
         </div>
       </div>
 
-      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '1rem' }}>
+      <div className="max-w-3xl mx-auto p-4">
         {/* Error Message */}
         {error && (
-          <div style={{
-            backgroundColor: '#fee2e2',
-            border: '1px solid #fecaca',
-            color: '#991b1b',
-            padding: '1rem',
-            borderRadius: '0.5rem',
-            marginBottom: '1rem',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}>
+          <div className="bg-red-100 border border-red-200 text-red-800 p-4 rounded-lg mb-4 flex justify-between items-center">
             <span>{error}</span>
-            <button onClick={fetchAlerts} style={{
-              padding: '0.25rem 0.75rem',
-              backgroundColor: '#991b1b',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.25rem',
-              cursor: 'pointer',
-            }}>
+            <button
+              onClick={fetchAlerts}
+              className="px-3 py-1 bg-red-800 text-white border-none rounded cursor-pointer"
+            >
               Retry
             </button>
           </div>
         )}
 
         {/* Filters */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '0.75rem',
-          padding: '1rem',
-          marginBottom: '1rem',
-          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
-        }}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>
+        <div className="bg-white rounded-xl p-4 mb-4 shadow-sm">
+          <div className="mb-4">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               Pet Type
             </label>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div className="flex gap-2 flex-wrap">
               {['all', 'dog', 'cat', 'bird', 'other'].map((type) => (
                 <button
                   key={type}
                   onClick={() => setFilter(type)}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    backgroundColor: filter === type ? '#2563eb' : '#e5e7eb',
-                    color: filter === type ? 'white' : '#1f2937',
-                    border: 'none',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                  }}
+                  className={`px-4 py-2 border-none rounded-lg text-sm font-semibold cursor-pointer ${
+                    filter === type
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-800'
+                  }`}
                 >
                   {type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1) + 's'}
                 </button>
@@ -215,93 +171,70 @@ export default function AlertsPage() {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               Search Radius: {searchRadius} miles
             </label>
-            <input type="range" min="1" max="50" value={searchRadius} onChange={(e) => setSearchRadius(e.target.value)} style={{ width: '100%' }} />
+            <input
+              type="range"
+              min="1"
+              max="50"
+              value={searchRadius}
+              onChange={(e) => setSearchRadius(e.target.value)}
+              className="w-full"
+            />
           </div>
         </div>
 
         {/* Alerts List */}
         {alerts.length === 0 && !loading ? (
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '0.75rem',
-            padding: '3rem 1rem',
-            textAlign: 'center',
-            color: '#6b7280',
-          }}>
-            <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🐾</div>
-            <p style={{ fontWeight: '600', marginBottom: '0.5rem' }}>No alerts found</p>
-            <p style={{ fontSize: '0.875rem' }}>
+          <div className="bg-white rounded-xl py-12 px-4 text-center text-gray-500">
+            <div className="text-5xl mb-2">🐾</div>
+            <p className="font-semibold mb-2">No alerts found</p>
+            <p className="text-sm">
               {filter !== 'all' ? 'Try selecting "All" to see more results' : 'No lost pets reported yet'}
             </p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="flex flex-col gap-4">
             {alerts.map((alert) => (
               <Link
                 key={alert.id}
                 href={`/alerts/${alert.missionNumber || alert.id}`}
-                style={{
-                  backgroundColor: 'white',
-                  borderRadius: '0.75rem',
-                  padding: '1.25rem',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                  textDecoration: 'none',
-                  color: 'inherit',
-                  display: 'block',
-                  border: '2px solid transparent',
-                }}
+                className="bg-white rounded-xl p-5 shadow-md no-underline text-inherit block border-2 border-transparent hover:border-blue-200 transition-colors"
               >
                 {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                <div className="flex justify-between items-start mb-3">
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                      <span style={{ fontSize: '1.5rem' }}>{getSpeciesEmoji(alert.petSpecies)}</span>
-                      <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937' }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-2xl">{getSpeciesEmoji(alert.petSpecies)}</span>
+                      <h3 className="text-xl font-bold text-gray-800">
                         {alert.petName || 'Unknown Pet'}
                       </h3>
                       {alert.isUrgent && (
-                        <span style={{ padding: '0.25rem 0.5rem', backgroundColor: '#fef3c7', color: '#b45309', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: '600' }}>
+                        <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-semibold">
                           URGENT
                         </span>
                       )}
-                      <span style={{
-                        padding: '0.25rem 0.5rem',
-                        backgroundColor: alert.status === 'OPEN' ? '#fee2e2' : '#d1fae5',
-                        color: getStatusColor(alert.status),
-                        borderRadius: '0.25rem',
-                        fontSize: '0.75rem',
-                        fontWeight: '600',
-                      }}>
+                      <span className={`px-2 py-1 ${getStatusBg(alert.status)} ${getStatusColor(alert.status)} rounded text-xs font-semibold`}>
                         {alert.status}
                       </span>
                     </div>
-                    <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                    <p className="text-sm text-gray-500">
                       {alert.petBreed || alert.petSpecies} • {alert.petColor || 'Unknown color'}
                     </p>
                   </div>
-                  <div style={{ textAlign: 'right', fontSize: '0.875rem', color: '#6b7280' }}>
+                  <div className="text-right text-sm text-gray-500">
                     <div>{getTimeAgo(alert.lastSeenAt || alert.createdAt)}</div>
-                    <div style={{ fontWeight: '600', color: '#2563eb' }}>{alert.missionNumber}</div>
+                    <div className="font-semibold text-blue-600">{alert.missionNumber}</div>
                   </div>
                 </div>
 
                 {/* Location */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '0.5rem',
-                  marginBottom: '0.75rem',
-                  padding: '0.75rem',
-                  backgroundColor: '#f9fafb',
-                  borderRadius: '0.5rem',
-                }}>
-                  <span style={{ fontSize: '1rem' }}>📍</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#1f2937', marginBottom: '0.25rem' }}>Last Seen</div>
-                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                <div className="flex items-start gap-2 mb-3 p-3 bg-gray-50 rounded-lg">
+                  <span className="text-base">📍</span>
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold text-gray-800 mb-1">Last Seen</div>
+                    <div className="text-sm text-gray-500">
                       {alert.lastSeenLandmark || `${alert.city}, ${alert.state}`}{alert.zipCode && ` (${alert.zipCode})`}
                     </div>
                   </div>
@@ -309,28 +242,15 @@ export default function AlertsPage() {
 
                 {/* Description */}
                 {alert.petDescription && (
-                  <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.75rem' }}>
-                    <strong style={{ color: '#1f2937' }}>Description:</strong> {alert.petDescription.substring(0, 150)}{alert.petDescription.length > 150 ? '...' : ''}
+                  <div className="text-sm text-gray-500 mb-3">
+                    <strong className="text-gray-800">Description:</strong> {alert.petDescription.substring(0, 150)}{alert.petDescription.length > 150 ? '...' : ''}
                   </div>
                 )}
 
                 {/* Footer */}
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingTop: '0.75rem',
-                  borderTop: '1px solid #e5e7eb',
-                }}>
-                  <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Case #{alert.missionNumber}</div>
-                  <span style={{
-                    padding: '0.5rem 1rem',
-                    backgroundColor: '#2563eb',
-                    color: 'white',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
-                    fontWeight: '600',
-                  }}>
+                <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+                  <div className="text-sm text-gray-500">Case #{alert.missionNumber}</div>
+                  <span className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">
                     View Details →
                   </span>
                 </div>
