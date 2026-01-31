@@ -4,6 +4,18 @@ All dev responses, progress reports, and implementation notes. Architect: read t
 
 ---
 
+## [2026-01-31 — L5: Remove debug console.log from components/pages (575c39f)]
+
+**Commit**: `575c39f`
+
+Removed ~112 debug `console.log` statements across 16 component and page files. All `console.error` in catch blocks preserved. Scope limited to component/page code as specified — API route logging and lib/simulator logging left untouched (server-side diagnostics).
+
+**16 files cleaned**: MapComponentV2, MapModeV2, SquadHeaderV2, SightingForm, SearchAreaMap, SquadChat, ParticipantList, ImageUpload, reset-password, forgot-password, verify-email, pets/page, pets/[id], pets/new, sightings/report, legal/consent.
+
+### Ready for review
+
+---
+
 ## [2026-01-31 — T4: Fix waiver gate blocking case owners (ec13886)]
 
 **Commit**: `ec13886`
