@@ -11,6 +11,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useToast } from '@/app/components/ui/Toast';
 
 const STATUS_CONFIG = {
   READY: { label: 'Ready', color: 'bg-blue-500', icon: '🔵', pulse: false },
@@ -41,6 +42,7 @@ export default function VolunteerPanel({
   userRole,
   onUpdate
 }) {
+  const toast = useToast();
   const [participants, setParticipants] = useState([]);
   const [mySession, setMySession] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -124,6 +126,7 @@ export default function VolunteerPanel({
       }
     } catch (err) {
       console.error('Error checking in:', err);
+      toast.error('Failed to check in. Please try again.');
     } finally {
       setActionLoading(false);
     }
@@ -149,6 +152,7 @@ export default function VolunteerPanel({
       }
     } catch (err) {
       console.error('Error toggling pause:', err);
+      toast.error('Failed to update session status.');
     } finally {
       setActionLoading(false);
     }
@@ -173,6 +177,7 @@ export default function VolunteerPanel({
       }
     } catch (err) {
       console.error('Error checking out:', err);
+      toast.error('Failed to check out. Please try again.');
     } finally {
       setActionLoading(false);
     }
@@ -462,6 +467,7 @@ function TaskList({ tasks, missionData, currentUserId, isCoordinator, showNewTas
       }
     } catch (err) {
       console.error('Error creating task:', err);
+      toast.error('Failed to create task.');
     } finally {
       setSubmitting(false);
     }
@@ -480,6 +486,7 @@ function TaskList({ tasks, missionData, currentUserId, isCoordinator, showNewTas
       }
     } catch (err) {
       console.error('Error updating task:', err);
+      toast.error('Failed to update task.');
     }
   };
 

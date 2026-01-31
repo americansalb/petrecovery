@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useToast } from '@/app/components/ui/Toast';
 import {
   Bell,
   AlertCircle,
@@ -25,6 +26,7 @@ const NOTIFICATION_ICONS = {
 export default function NotificationBell() {
   const { data: session } = useSession();
   const router = useRouter();
+  const toast = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -104,6 +106,7 @@ export default function NotificationBell() {
       }
     } catch (err) {
       console.error('Error marking notification as read:', err);
+      toast.error('Failed to mark notification as read.');
     }
   };
 

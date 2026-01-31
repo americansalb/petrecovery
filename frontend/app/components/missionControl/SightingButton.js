@@ -12,6 +12,7 @@
 
 import { useState, useRef } from 'react';
 import { TOUCH_TARGETS, triggerHaptic, announce } from '@/app/lib/missionControl/accessibility';
+import { useToast } from '@/app/components/ui/Toast';
 
 export default function SightingButton({
   missionId,
@@ -20,6 +21,7 @@ export default function SightingButton({
   petName,
   onSightingReported,
 }) {
+  const toast = useToast();
   const [stage, setStage] = useState('READY'); // READY, CONFIRM, REPORTING, FREEZE
   const [confidence, setConfidence] = useState(null);
   const [holdProgress, setHoldProgress] = useState(0);
@@ -89,6 +91,7 @@ export default function SightingButton({
       }
     } catch (err) {
       console.error('Sighting report error:', err);
+      toast.error('Failed to report sighting. Please try again.');
     }
   };
 

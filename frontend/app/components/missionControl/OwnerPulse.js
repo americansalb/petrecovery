@@ -12,6 +12,7 @@
 
 import { useState, useEffect } from 'react';
 import { TOUCH_TARGETS, triggerHaptic } from '@/app/lib/missionControl/accessibility';
+import { useToast } from '@/app/components/ui/Toast';
 
 const OWNER_ACTIVITIES = [
   { id: 'AT_HOME', label: 'At home', icon: '🏠' },
@@ -22,6 +23,7 @@ const OWNER_ACTIVITIES = [
 ];
 
 export default function OwnerPulse({ missionId, mission, onUpdate }) {
+  const toast = useToast();
   const [ownerView, setOwnerView] = useState(null);
   const [showCallMode, setShowCallMode] = useState(false);
   const [showBroadcast, setShowBroadcast] = useState(false);
@@ -63,6 +65,7 @@ export default function OwnerPulse({ missionId, mission, onUpdate }) {
       setShowBroadcast(false);
     } catch (err) {
       console.error('Error updating status:', err);
+      toast.error('Failed to update status.');
     }
   };
 
@@ -77,6 +80,7 @@ export default function OwnerPulse({ missionId, mission, onUpdate }) {
       alert('Call mode activated! All volunteers are playing your voice clip.');
     } catch (err) {
       console.error('Error triggering call mode:', err);
+      toast.error('Failed to activate call mode.');
     }
   };
 
