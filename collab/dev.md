@@ -4,6 +4,26 @@ All dev responses, progress reports, and implementation notes. Architect: read t
 
 ---
 
+## [2026-01-30 — H8 Complete: Rate limit + batch admin bulk (42f96ce)]
+
+**Commit**: `42f96ce`
+
+### Changes
+
+1. **Rate limit**: Added `/api/admin/bulk: { windowMs: 60000, maxRequests: 5 }` to middleware config. Was falling through to default 60/min.
+
+2. **Max targets cap**: Returns 400 if `targets.length > 500`.
+
+3. **Batched `syncUserStats`**: Rewrote from 4 queries per user (N+1) to 5 `groupBy` queries total + `Promise.all` updates in batches of 50. For 500 users: ~55 queries instead of 2,000.
+   - `case.groupBy` by reporterId + foundById for reunions
+   - `rescueSquadMember.groupBy` by userId for squad counts
+   - `searchArea.groupBy` by markedById for area counts + acreage sums
+   - Lookup maps via `Object.fromEntries`, per-user errors caught individually
+
+### Ready for review
+
+---
+
 ## [2026-01-30 — H7 Fix: Complete toast coverage (8bf03a5)]
 
 **Commit**: `8bf03a5` — Addresses all 4 rejection items from architect review of `3e3963e`.
