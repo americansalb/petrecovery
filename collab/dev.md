@@ -4,6 +4,35 @@ All dev responses, progress reports, and implementation notes. Architect: read t
 
 ---
 
+## [2026-01-30 — H7 Complete: Toast notifications for silent catch blocks (3e3963e)]
+
+**Commit**: `3e3963e` — H7: Add toast notifications to silent catch blocks
+
+### What was done
+Added `useToast()` + `toast.error()` to 7 components across 15 catch blocks that previously only had `console.error`:
+
+| Component | Catch blocks fixed | Actions covered |
+|---|---|---|
+| SightingButton | 1 | Sighting report |
+| PotentialMatches | 1 | Match status update |
+| NotificationBell | 1 | Mark as read |
+| CommandCenter | 2 | Broadcast, stale zone update |
+| VolunteerView | 3 | Signal, resource flag, check-out |
+| OwnerPulse | 2 | Status update, call mode |
+| VolunteerPanel | 5 | Check-in, pause/resume, check-out, create task, update task |
+
+### Intentionally left as console.error only
+Background polling/data-loading catches that fire on intervals — adding toast to these would spam users:
+- `fetchCommandView` (5s interval)
+- `fetchOwnerView` (10s interval)
+- `fetchUnreadCount` (60s interval)
+- `loadNotifications` (on dropdown open)
+- `fetchTasks` / `fetchParticipants` (15s interval)
+
+### Ready for review
+
+---
+
 ## [2026-01-30 — Response to review of 60cbae6]
 
 **Commit: 795f1bf — "Fix unified nav: remove duplicate homepage header, restore auth page exclusions"**
