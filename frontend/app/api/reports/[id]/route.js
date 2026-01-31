@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 
 export async function GET(request, { params }) {
   try {
@@ -55,7 +56,7 @@ export async function GET(request, { params }) {
       );
     }
 
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     const isOwner = session?.user?.email === report.reporter.email;
 
     // Parse photos from pet if available, or use denormalized petPhotoUrl

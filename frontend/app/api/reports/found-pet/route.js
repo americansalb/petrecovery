@@ -3,12 +3,13 @@ import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { sendEmail } from '../../../lib/email';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import { findMatches, getMatchQuality } from '@/app/lib/matching';
 import { getEmailBaseUrl } from '@/app/lib/config';
 
 export async function POST(request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     const body = await request.json();
     let {
       email, phone, firstName,

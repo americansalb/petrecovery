@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import {
   getLeadershipDashboard,
   approveJoinRequest,
@@ -20,7 +21,7 @@ import {
 export async function GET(request, { params }) {
   try {
     const { squadId } = params;
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -51,7 +52,7 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
   try {
     const { squadId } = params;
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
       return NextResponse.json(

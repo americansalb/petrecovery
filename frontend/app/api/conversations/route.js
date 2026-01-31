@@ -7,6 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { sendEmail } from '@/app/lib/email';
 import { sendPushToUser, PUSH_TEMPLATES, isPushConfigured } from '@/app/lib/push';
@@ -18,7 +19,7 @@ import { getEmailBaseUrl } from '@/app/lib/config';
  */
 export async function POST(request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -194,7 +195,7 @@ export async function POST(request) {
  */
 export async function GET(request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import {
   getCasePriority,
   activatePriorityMode,
@@ -63,7 +64,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
 
     // Some priority actions require authentication
     const body = await request.json();

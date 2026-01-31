@@ -10,6 +10,7 @@
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { getPointsService } from '@/lib/actions';
 import { quickJoinCase } from '@/app/lib/volunteer/quickJoin';
@@ -285,7 +286,7 @@ export async function POST(request, { params }) {
 
   try {
     const [session, body] = await Promise.all([
-      getServerSession(),
+      getServerSession(authOptions),
       request.json(),
     ]);
 
@@ -653,7 +654,7 @@ export async function GET(request, { params }) {
   const { missionId } = params;
 
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

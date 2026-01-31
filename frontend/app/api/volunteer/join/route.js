@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import { quickJoinCase, getVolunteerStatus } from '@/app/lib/volunteer/quickJoin';
 
 export async function POST(request) {
@@ -20,7 +21,7 @@ export async function POST(request) {
     }
 
     // Get user session if logged in
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
 
     const result = await quickJoinCase(missionId, {
@@ -60,7 +61,7 @@ export async function GET(request) {
       );
     }
 
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ isVolunteering: false });
     }

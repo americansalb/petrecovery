@@ -3,6 +3,7 @@ import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { sendEmail, sendVerificationEmail } from '../../../lib/email';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import { logEvent } from '@/lib/logging';
 import crypto from 'crypto';
 import { getEmailBaseUrl } from '@/app/lib/config';
@@ -15,7 +16,7 @@ export async function POST(request) {
   const correlationId = crypto.randomUUID();
 
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     const body = await request.json();
     let {
       email, phone, firstName,

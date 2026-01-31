@@ -6,6 +6,7 @@
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import {
   generateSearchGrid,
   getSuggestedArea,
@@ -43,7 +44,7 @@ export async function POST(request, { params }) {
     const body = await request.json();
     const { action, location, cellId, sessionId, result: searchResult } = body;
 
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
 
     switch (action) {

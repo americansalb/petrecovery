@@ -21,7 +21,7 @@ const feedbackStore = [];
 
 export async function POST(request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     const body = await request.json();
 
     const { rating, category, message, feature, missionId, timestamp, userAgent } = body;
