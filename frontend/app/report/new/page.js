@@ -72,6 +72,7 @@ export default function ReportLostPet() {
   const [center, setCenter] = useState(null);
   const [detectedLocation, setDetectedLocation] = useState(null); // Browser GPS at time of report [lat, lon]
   const [locationDenied, setLocationDenied] = useState(false); // true if user denied geolocation permission
+  const [locationAccuracy, setLocationAccuracy] = useState(null); // GPS accuracy in meters
   const [lastSeenAddress, setLastSeenAddress] = useState('');
   const [cityName, setCityName] = useState('');
   const [isGettingLocation, setIsGettingLocation] = useState(true);
@@ -128,6 +129,7 @@ export default function ReportLostPet() {
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
   const circleRef = useRef(null);
+  const watchIdRef = useRef(null); // GPS watchPosition ID
 
   // Everyone starts at step 1 (location) for better engagement
   // Only set on initial load, not when auth changes mid-flow (e.g. auto-login after submit)
@@ -167,12 +169,21 @@ export default function ReportLostPet() {
     }
   }, []);
 
-  // Auto-detect location via GPS - required for reporting
+  // Auto-detect location via GPS - uses watchPosition for progressive accuracy
+  // On mobile, first reading is often cell-tower (1-10km accuracy).
+  // watchPosition keeps refining until GPS lock (~10-50m accuracy).
   const detectLocation = async () => {
-    if (locationLocked) return; // Don't override user's confirmed selection
+    if (locationLocked) return;
+
+    // Clear any previous watch
+    if (watchIdRef.current != null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
 
     setIsGettingLocation(true);
     setLocationDenied(false);
+    setLocationAccuracy(null);
 
     if (!navigator.geolocation) {
       setIsGettingLocation(false);
@@ -180,29 +191,78 @@ export default function ReportLostPet() {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        // accuracy is in meters — if over 5km, likely IP/cell-tower, not GPS
-        if (accuracy > 5000) {
-          console.warn('[Location] Low accuracy:', accuracy, 'm — prompting user');
-        }
+    let bestAccuracy = Infinity;
+    let settled = false; // true once we have a good-enough reading
+
+    const onPosition = async (position) => {
+      const { latitude, longitude, accuracy } = position.coords;
+      console.log('[Location] Got position, accuracy:', Math.round(accuracy), 'm');
+
+      // Only update if this reading is more accurate than what we have
+      if (accuracy < bestAccuracy) {
+        bestAccuracy = accuracy;
         setCenter([latitude, longitude]);
-        setDetectedLocation([latitude, longitude]); // Snapshot browser GPS
+        setDetectedLocation([latitude, longitude]);
+        setLocationAccuracy(Math.round(accuracy));
         setLocationDenied(false);
+
         const result = await reverseGeocode(latitude, longitude);
         setLastSeenAddress(result.address);
         setCityName(result.city);
-        setIsGettingLocation(false);
-      },
-      (err) => {
-        console.error('[Location] Geolocation error:', err.code, err.message);
+        setIsGettingLocation(false); // Show the map as soon as we have any reading
+      }
+
+      // Stop watching once we have good GPS accuracy (<150m)
+      if (accuracy < 150 && !settled) {
+        settled = true;
+        if (watchIdRef.current != null) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+          watchIdRef.current = null;
+        }
+      }
+    };
+
+    const onError = (err) => {
+      console.error('[Location] Geolocation error:', err.code, err.message);
+      // Only show denied state if we never got any reading
+      if (bestAccuracy === Infinity) {
         setIsGettingLocation(false);
         setLocationDenied(true);
-      },
-      { timeout: 15000, enableHighAccuracy: true, maximumAge: 0 }
+      }
+      if (watchIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      onPosition,
+      onError,
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
     );
+
+    // Safety: stop watching after 25 seconds no matter what
+    setTimeout(() => {
+      if (watchIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      // If we never got any position, show denied
+      if (bestAccuracy === Infinity) {
+        setIsGettingLocation(false);
+        setLocationDenied(true);
+      }
+    }, 25000);
   };
+
+  // Cleanup watchPosition on unmount
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1158,6 +1218,19 @@ export default function ReportLostPet() {
 
             {center && !locationDenied && (
               <div className="px-6 pb-4 flex-shrink-0">
+                {/* Low accuracy warning */}
+                {locationAccuracy && locationAccuracy > 1000 && !locationLocked && (
+                  <div className="rounded-xl p-3 mb-2 bg-amber-50 border border-amber-200 flex items-start gap-2">
+                    <AlertTriangle size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-medium text-amber-800">Approximate location (~{locationAccuracy > 1000 ? `${Math.round(locationAccuracy / 1000)}km` : `${locationAccuracy}m`})</p>
+                      <p className="text-xs text-amber-600 mt-0.5">
+                        Your GPS is still locking in. Drag the pin to the correct spot, or wait a moment for a better reading.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className={`rounded-2xl p-4 shadow-sm border ${locationLocked ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -1167,12 +1240,18 @@ export default function ReportLostPet() {
                         </div>
                       )}
                       <p className="text-sm text-gray-600 truncate">{lastSeenAddress || 'Location set'}</p>
+                      {locationAccuracy && !locationLocked && (
+                        <p className={`text-xs mt-0.5 ${locationAccuracy < 150 ? 'text-green-500' : locationAccuracy < 1000 ? 'text-amber-500' : 'text-red-500'}`}>
+                          {locationAccuracy < 150 ? 'GPS locked' : locationAccuracy < 1000 ? 'Refining...' : 'Low accuracy'} — {locationAccuracy < 1000 ? `${locationAccuracy}m` : `${Math.round(locationAccuracy / 1000)}km`}
+                        </p>
+                      )}
                     </div>
                     <button
                       onClick={() => {
                         localStorage.removeItem('reportLocation');
                         setLocationLocked(false);
                         setDetectedLocation(null);
+                        setLocationAccuracy(null);
                         detectLocation();
                       }}
                       className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 flex-shrink-0"
