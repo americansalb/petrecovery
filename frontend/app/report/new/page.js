@@ -71,6 +71,7 @@ export default function ReportLostPet() {
   // Data state
   const [center, setCenter] = useState(null);
   const [detectedLocation, setDetectedLocation] = useState(null); // Browser GPS at time of report [lat, lon]
+  const [locationDenied, setLocationDenied] = useState(false); // true if user denied geolocation permission
   const [lastSeenAddress, setLastSeenAddress] = useState('');
   const [cityName, setCityName] = useState('');
   const [isGettingLocation, setIsGettingLocation] = useState(true);
@@ -166,33 +167,41 @@ export default function ReportLostPet() {
     }
   }, []);
 
-  // Auto-detect location (only on first load, respects locationLocked)
+  // Auto-detect location via GPS - required for reporting
   const detectLocation = async () => {
-    if (locationLocked) return; // Don't override user's manual selection
+    if (locationLocked) return; // Don't override user's confirmed selection
 
     setIsGettingLocation(true);
+    setLocationDenied(false);
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          setCenter([latitude, longitude]);
-          setDetectedLocation([latitude, longitude]); // Snapshot browser GPS
-          const result = await reverseGeocode(latitude, longitude);
-          setLastSeenAddress(result.address);
-          setCityName(result.city);
-          setIsGettingLocation(false);
-        },
-        () => {
-          // Geolocation failed - user will need to search
-          setIsGettingLocation(false);
-        },
-        { timeout: 10000, enableHighAccuracy: true }
-      );
-    } else {
-      // No geolocation - user will need to search
+    if (!navigator.geolocation) {
       setIsGettingLocation(false);
+      setLocationDenied(true);
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        // accuracy is in meters — if over 5km, likely IP/cell-tower, not GPS
+        if (accuracy > 5000) {
+          console.warn('[Location] Low accuracy:', accuracy, 'm — prompting user');
+        }
+        setCenter([latitude, longitude]);
+        setDetectedLocation([latitude, longitude]); // Snapshot browser GPS
+        setLocationDenied(false);
+        const result = await reverseGeocode(latitude, longitude);
+        setLastSeenAddress(result.address);
+        setCityName(result.city);
+        setIsGettingLocation(false);
+      },
+      (err) => {
+        console.error('[Location] Geolocation error:', err.code, err.message);
+        setIsGettingLocation(false);
+        setLocationDenied(true);
+      },
+      { timeout: 15000, enableHighAccuracy: true, maximumAge: 0 }
+    );
   };
 
   useEffect(() => {
@@ -690,7 +699,7 @@ export default function ReportLostPet() {
 
   const canProceed = () => {
     switch (step) {
-      case 1: return !!center;
+      case 1: return !!center && !!detectedLocation;
       case 2: return !!petType;
       case 3: return !!petName.trim();
       case 4: // Pet details - size for dogs, indoor/outdoor for cats
@@ -1096,45 +1105,14 @@ export default function ReportLostPet() {
           </div>
         )}
 
-        {/* Step 1: Location */}
+        {/* Step 1: Location - GPS required */}
         {step === 1 && (
           <div className="flex-1 flex flex-col min-h-0">
             <div className="px-6 py-3 relative z-30">
               <h1 className="text-xl font-bold text-gray-900 mb-1">Where was {petName || 'your pet'} last seen?</h1>
-
-              {/* Address Search */}
-              <div className="relative mt-2">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={addressSearch}
-                  onChange={(e) => {
-                    setAddressSearch(e.target.value);
-                    searchAddress(e.target.value);
-                  }}
-                  placeholder="Search address..."
-                  className="w-full pl-10 pr-4 py-3 text-base bg-white border border-gray-200 rounded-xl focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none"
-                />
-                {isSearching && (
-                  <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />
-                )}
-
-                {/* Search Results Dropdown - Apple Maps autocomplete */}
-                {searchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
-                    {searchResults.map((result, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => selectSearchResult(result)}
-                        className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0"
-                      >
-                        <p className="font-medium text-gray-900 truncate">{result.name}</p>
-                        <p className="text-xs text-gray-500 truncate">{result.address}</p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {center && !locationDenied && (
+                <p className="text-sm text-gray-500">Drag the pin or tap the map to adjust the exact spot</p>
+              )}
             </div>
 
             <div className="flex-1 relative z-10 mx-4 mb-2 rounded-2xl overflow-hidden shadow-lg border border-gray-100 min-h-[300px]">
@@ -1144,17 +1122,33 @@ export default function ReportLostPet() {
                     <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
                       <Navigation size={28} className="text-blue-500 animate-pulse" />
                     </div>
-                    <p className="text-gray-600 font-medium">Finding your location...</p>
+                    <p className="text-gray-600 font-medium">Detecting your location...</p>
+                    <p className="text-gray-400 text-xs mt-1">Please allow location access when prompted</p>
                   </div>
                 </div>
-              ) : !center ? (
+              ) : locationDenied || !center ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-50 to-red-50">
                   <div className="text-center px-6">
-                    <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-3">
-                      <MapPin size={28} className="text-orange-500" />
+                    <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-3">
+                      <AlertTriangle size={28} className="text-red-500" />
                     </div>
-                    <p className="text-gray-900 font-semibold mb-1">Enter your location</p>
-                    <p className="text-gray-500 text-sm">Type an address or city in the search box above</p>
+                    <p className="text-gray-900 font-semibold mb-2">Location access required</p>
+                    <p className="text-gray-500 text-sm mb-4">
+                      To report a lost pet, we need your location to coordinate the search. Please enable location services in your browser settings and tap the button below.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setLocationDenied(false);
+                        detectLocation();
+                      }}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-red-500 text-white rounded-xl font-medium shadow-lg hover:bg-red-600 transition-colors"
+                    >
+                      <Navigation size={16} /> Try again
+                    </button>
+                    <p className="text-gray-400 text-xs mt-3">
+                      On iPhone: Settings &gt; Safari &gt; Location<br />
+                      On Android: Tap the lock icon in the address bar
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -1162,7 +1156,7 @@ export default function ReportLostPet() {
               )}
             </div>
 
-            {center && (
+            {center && !locationDenied && (
               <div className="px-6 pb-4 flex-shrink-0">
                 <div className={`rounded-2xl p-4 shadow-sm border ${locationLocked ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'}`}>
                   <div className="flex items-start justify-between gap-2">
@@ -1178,7 +1172,7 @@ export default function ReportLostPet() {
                       onClick={() => {
                         localStorage.removeItem('reportLocation');
                         setLocationLocked(false);
-                        setCenter(null);
+                        setDetectedLocation(null);
                         detectLocation();
                       }}
                       className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 flex-shrink-0"
