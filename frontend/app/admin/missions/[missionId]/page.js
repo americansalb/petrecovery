@@ -43,18 +43,18 @@ export default function CaseDetailPage({ params }) {
   // Auth check and redirect
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/login?callbackUrl=' + encodeURIComponent('/admin/missions/' + params.id));
+      router.push('/login?callbackUrl=' + encodeURIComponent('/admin/missions/' + params.missionId));
     } else if (status === 'authenticated' && !isAdmin(session)) {
       router.push('/dashboard');
     }
-  }, [status, session, router, params.id]);
+  }, [status, session, router, params.missionId]);
 
   // Fetch case data
   useEffect(() => {
     if (status === 'authenticated' && isAdmin(session)) {
       fetchMission();
     }
-  }, [status, session, params.id]);
+  }, [status, session, params.missionId]);
 
   // Fetch assignment options (Phase 22-24: TASK-R05)
   useEffect(() => {
@@ -93,7 +93,7 @@ export default function CaseDetailPage({ params }) {
     setLegalError(null);
 
     try {
-      const response = await fetch('/api/missions/' + params.id);
+      const response = await fetch('/api/missions/' + params.missionId);
       const data = await response.json();
 
       if (!response.ok) {
@@ -111,8 +111,10 @@ export default function CaseDetailPage({ params }) {
         throw new Error(data.error || 'Failed to fetch case');
       }
 
-      setMissionData(data.case);
-      setNewStatus(data.case.status);
+      // API returns case object directly (not wrapped in { case: ... })
+      const caseData = data.case || data;
+      setMissionData(caseData);
+      setNewStatus(caseData.status);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -126,7 +128,7 @@ export default function CaseDetailPage({ params }) {
     setUpdatingStatus(true);
     setStatusUpdateError(null);
     try {
-      const response = await fetch('/api/missions/' + params.id + '/status', {
+      const response = await fetch('/api/missions/' + params.missionId + '/status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -164,7 +166,7 @@ export default function CaseDetailPage({ params }) {
     setAddingNote(true);
     setNoteError(null);
     try {
-      const response = await fetch('/api/missions/' + params.id + '/notes', {
+      const response = await fetch('/api/missions/' + params.missionId + '/notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: noteContent.trim() })
@@ -198,7 +200,7 @@ export default function CaseDetailPage({ params }) {
     setAssignmentMessage(null);
 
     try {
-      const response = await fetch('/api/missions/' + params.id + '/assign-coordinator', {
+      const response = await fetch('/api/missions/' + params.missionId + '/assign-coordinator', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ coordinatorId })
@@ -226,7 +228,7 @@ export default function CaseDetailPage({ params }) {
     setAssignmentMessage(null);
 
     try {
-      const response = await fetch('/api/missions/' + params.id + '/assign-squad', {
+      const response = await fetch('/api/missions/' + params.missionId + '/assign-squad', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ squadId })
