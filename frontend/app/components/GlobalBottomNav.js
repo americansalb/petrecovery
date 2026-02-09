@@ -20,11 +20,12 @@ export default function GlobalBottomNav() {
     '/',           // Homepage
     '/login',
     '/register',
+    '/report',     // Report wizard has its own full-screen layout
     '/mission-control', // Has its own nav
   ];
 
   const shouldHide = hideOnRoutes.some(route =>
-    pathname === route || pathname.startsWith('/mission-control')
+    pathname === route || pathname.startsWith('/mission-control') || pathname.startsWith('/report')
   );
 
   if (shouldHide) return null;
