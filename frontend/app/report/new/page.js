@@ -131,6 +131,33 @@ export default function ReportLostPet() {
   const circleRef = useRef(null);
   const watchIdRef = useRef(null); // GPS watchPosition ID
 
+  // Unique session ID for this wizard visit (persists across re-detections)
+  const wizardSessionId = useRef(
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `ws-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+  );
+  const locationLogIdRef = useRef(null); // ID of the latest location log entry
+
+  // Fire-and-forget: log a GPS detection to the server
+  const logLocationDetection = (lat, lon, accuracy, address, city) => {
+    fetch('/api/location-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        latitude: lat,
+        longitude: lon,
+        accuracy,
+        address,
+        city,
+        sessionId: wizardSessionId.current,
+      }),
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data?.id) locationLogIdRef.current = data.id; })
+      .catch(() => {}); // Silent fail — don't block the wizard
+  };
+
   // Everyone starts at step 1 (location) for better engagement
   // Only set on initial load, not when auth changes mid-flow (e.g. auto-login after submit)
   const hasInitialized = useRef(false);
@@ -210,6 +237,9 @@ export default function ReportLostPet() {
         setLastSeenAddress(result.address);
         setCityName(result.city);
         setIsGettingLocation(false); // Show the map as soon as we have any reading
+
+        // Log this detection to the server (fire-and-forget)
+        logLocationDetection(latitude, longitude, Math.round(accuracy), result.address, result.city);
       }
 
       // Stop watching once we have good GPS accuracy (<150m)
@@ -721,6 +751,7 @@ export default function ReportLostPet() {
           cityName,
           selectedPetId: selectedPet?.id,
           detectedLocation, // Browser GPS at time of report [lat, lon]
+          locationLogSessionId: wizardSessionId.current, // Link to location detection logs
           createAccount: !isLoggedIn && createAccount,
           password: !isLoggedIn && createAccount ? password : undefined,
         }),

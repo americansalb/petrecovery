@@ -35,6 +35,7 @@ import {
   Database,
   MessageCircle,
   Sparkles,
+  Crosshair,
 } from 'lucide-react';
 import { Button, Badge, CountBadge } from '@/components/ui';
 import { LOGO_ICON } from '@/lib/brandAssets';
@@ -243,6 +244,7 @@ export default function Navigation() {
                   <DropdownLink href="/admin/rescue-squads" icon={Shield} title="Rescue Squads" description="Manage squads" />
                   <DropdownLink href="/admin/divisions" icon={MapPin} title="Divisions" description="Geographic areas" />
                   <DropdownLink href="/admin/missions" icon={ClipboardList} title="Missions" description="All lost pet missions" />
+                  <DropdownLink href="/admin/location-logs" icon={Crosshair} title="Location Logs" description="GPS detections from wizard" />
                   <DropdownDivider />
                   <DropdownLink href="/admin/analytics" icon={BarChart3} title="Analytics" description="Reports & metrics" />
                 </NavDropdown>
@@ -447,6 +449,7 @@ export default function Navigation() {
               <MobileNavLink href="/admin/rescue-squads" icon={Shield} label="Manage Squads" active={pathname === '/admin/rescue-squads'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/admin/divisions" icon={MapPin} label="Manage Divisions" active={pathname === '/admin/divisions'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/admin/missions" icon={ClipboardList} label="Manage Missions" active={pathname === '/admin/missions'} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/admin/location-logs" icon={Crosshair} label="Location Logs" active={pathname === '/admin/location-logs'} onClick={() => setMobileMenuOpen(false)} />
             </>
           )}
         </div>

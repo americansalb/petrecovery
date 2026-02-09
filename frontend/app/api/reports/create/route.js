@@ -24,6 +24,7 @@ export async function POST(request) {
       petSize, isIndoorCat, // New fields for probability zones
       photos, locationType, cityName, selectedPetId,
       detectedLocation, // Browser GPS at time of report [lat, lon]
+      locationLogSessionId, // Session ID linking to LocationDetectionLog entries
       createAccount, password // Account creation consent fields
     } = body;
 
@@ -628,6 +629,14 @@ export async function POST(request) {
           error_message: err.message
         });
       });
+    }
+
+    // Mark location detection logs as submitted (fire-and-forget)
+    if (locationLogSessionId) {
+      prisma.locationDetectionLog.updateMany({
+        where: { sessionId: locationLogSessionId },
+        data: { submitted: true, caseNumber: report.caseNumber },
+      }).catch(err => console.error('[LocationLog] Failed to mark as submitted:', err));
     }
 
     return NextResponse.json({

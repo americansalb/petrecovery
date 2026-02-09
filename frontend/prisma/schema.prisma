@@ -2119,6 +2119,38 @@ model GPSBreadcrumb {
   @@index([createdAt])
 }
 
+// Location Detection Log - tracks every GPS detection from the report wizard
+// Even if the user doesn't submit a report, we log the detection for admin review
+model LocationDetectionLog {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  // Who
+  userId      String?  // null if not logged in
+  sessionId   String   // Browser-generated session ID to group detections
+
+  // Device
+  userAgent   String?
+  ipAddress   String?
+
+  // Location
+  latitude    Float
+  longitude   Float
+  accuracy    Float?   // GPS accuracy in meters
+
+  // Reverse geocoded
+  address     String?
+  city        String?
+
+  // Outcome
+  submitted   Boolean  @default(false) // Did they actually submit a report?
+  caseNumber  String?  // If submitted, the case number
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([sessionId])
+}
+
 // ============================================================================
 // PHASE 14: VOLUNTEER MANAGEMENT
 // ============================================================================

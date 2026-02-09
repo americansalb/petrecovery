@@ -125,6 +125,12 @@ export default function AdminDashboard() {
             icon="📋"
           />
           <AdminCard
+            title="Location Logs"
+            description="GPS detections from the wizard — even without submission"
+            href="/admin/location-logs"
+            icon="📡"
+          />
+          <AdminCard
             title="Rescue Squads"
             description="Manage squads, verify organizations, and review activity"
             href="/admin/rescue-squads"
