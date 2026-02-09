@@ -333,7 +333,7 @@ export default function CaseDetailPage({ params }) {
         <div style={{ marginBottom: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
             <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#111827', margin: 0 }}>
-              {missionData.missionNumber}
+              {missionData.caseNumber || missionData.missionNumber}
               <span style={{
                 fontSize: '0.75rem',
                 padding: '0.125rem 0.5rem',
@@ -370,7 +370,7 @@ export default function CaseDetailPage({ params }) {
             )}
           </div>
           <p style={{ color: '#6b7280', margin: 0 }}>
-            {missionData.city}, {missionData.state}
+            {missionData.lastSeenAddress || ''}
           </p>
         </div>
 
@@ -492,9 +492,9 @@ export default function CaseDetailPage({ params }) {
 
             {/* Contact Information */}
             <Section title="Contact Information">
-              <Field label="Name" value={missionData.contactName || '—'} />
-              <Field label="Phone" value={missionData.contactPhone || '—'} />
-              <Field label="Email" value={missionData.contactEmail || '—'} />
+              <Field label="Name" value={missionData.ownerName || missionData.contactName || '—'} />
+              <Field label="Phone" value={missionData.ownerPhone || missionData.contactPhone || '—'} />
+              <Field label="Email" value={missionData.ownerEmail || missionData.contactEmail || '—'} />
             </Section>
 
             {/* Case Notes */}
@@ -551,8 +551,8 @@ export default function CaseDetailPage({ params }) {
 
               {/* Notes List */}
               <div>
-                {missionData.notes && missionData.notes.length > 0 ? (
-                  missionData.notes.map((note) => {
+                {(missionData.updates || missionData.notes || []).length > 0 ? (
+                  (missionData.updates || missionData.notes || []).map((note) => {
                     const typeColors = {
                       'STATUS_CHANGE': { bg: '#fef3c7', color: '#92400e', label: 'Status Change' },
                       'NOTE': { bg: '#e0e7ff', color: '#3730a3', label: 'Note' }
@@ -804,10 +804,10 @@ export default function CaseDetailPage({ params }) {
               <Field label="Updated" value={new Date(missionData.updatedAt).toLocaleString()} />
               <Field
                 label="Created By"
-                value={(missionData.createdBy.firstName || '') + ' ' + (missionData.createdBy.lastName || '')}
+                value={((missionData.reporter || missionData.createdBy)?.firstName || '') + ' ' + ((missionData.reporter || missionData.createdBy)?.lastName || '')}
               />
-              {missionData.createdBy.email && (
-                <Field label="Email" value={missionData.createdBy.email} />
+              {(missionData.reporter || missionData.createdBy)?.email && (
+                <Field label="Email" value={(missionData.reporter || missionData.createdBy).email} />
               )}
             </Section>
           </div>
