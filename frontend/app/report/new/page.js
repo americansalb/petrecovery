@@ -70,6 +70,7 @@ export default function ReportLostPet() {
 
   // Data state
   const [center, setCenter] = useState(null);
+  const [detectedLocation, setDetectedLocation] = useState(null); // Browser GPS at time of report [lat, lon]
   const [lastSeenAddress, setLastSeenAddress] = useState('');
   const [cityName, setCityName] = useState('');
   const [isGettingLocation, setIsGettingLocation] = useState(true);
@@ -176,6 +177,7 @@ export default function ReportLostPet() {
         async (position) => {
           const { latitude, longitude } = position.coords;
           setCenter([latitude, longitude]);
+          setDetectedLocation([latitude, longitude]); // Snapshot browser GPS
           const result = await reverseGeocode(latitude, longitude);
           setLastSeenAddress(result.address);
           setCityName(result.city);
@@ -649,6 +651,7 @@ export default function ReportLostPet() {
           locationType: 'address',
           cityName,
           selectedPetId: selectedPet?.id,
+          detectedLocation, // Browser GPS at time of report [lat, lon]
           createAccount: !isLoggedIn && createAccount,
           password: !isLoggedIn && createAccount ? password : undefined,
         }),

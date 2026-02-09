@@ -23,6 +23,7 @@ export async function POST(request) {
       lastSeenAddress, center, radiusMiles, timeElapsed, petType,
       petSize, isIndoorCat, // New fields for probability zones
       photos, locationType, cityName, selectedPetId,
+      detectedLocation, // Browser GPS at time of report [lat, lon]
       createAccount, password // Account creation consent fields
     } = body;
 
@@ -168,6 +169,14 @@ export async function POST(request) {
         petDescription = `${indoorStatus}. ${petDescription}`;
       }
 
+      // Calculate distance between reporter's detected location and selected last-seen location
+      const reporterLat = detectedLocation?.[0] || null;
+      const reporterLon = detectedLocation?.[1] || null;
+      let reporterToLastSeenMiles = null;
+      if (reporterLat && reporterLon && center[0] && center[1]) {
+        reporterToLastSeenMiles = Math.round(calculateDistance(reporterLat, reporterLon, center[0], center[1]) * 100) / 100;
+      }
+
       const report = await tx.case.create({
         data: {
           caseNumber,
@@ -189,6 +198,9 @@ export async function POST(request) {
           lastSeenLongitude: center[1],
           lastSeenAddress,
           searchRadius: radiusMiles,
+          reporterLatitude: reporterLat,
+          reporterLongitude: reporterLon,
+          reporterToLastSeenMiles,
           escapeScenario: 'unknown',
           status: 'ACTIVE',
           priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'NORMAL',

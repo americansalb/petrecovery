@@ -418,6 +418,11 @@ model Case {
   lastSeenAddress String
   searchRadius    Float    @default(5) // Miles
 
+  // Reporter's detected location (browser geolocation at time of report)
+  reporterLatitude  Float?
+  reporterLongitude Float?
+  reporterToLastSeenMiles Float? // Distance from reporter to last seen location
+
   // Incident
   escapeScenario  String
   escapeDetails   String?

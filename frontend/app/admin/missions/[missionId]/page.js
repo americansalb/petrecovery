@@ -424,14 +424,68 @@ export default function CaseDetailPage({ params }) {
 
             {/* Last Seen Location */}
             <Section title="Last Seen Location">
+              <Field label="Address" value={missionData.lastSeenAddress || '—'} />
               <Field label="City" value={missionData.city} />
               <Field label="State" value={missionData.state} />
               <Field label="ZIP Code" value={missionData.zipCode || '—'} />
               <Field label="Landmark" value={missionData.lastSeenLandmark || '—'} />
               <Field
+                label="Last Seen GPS"
+                value={missionData.lastSeenLatitude && missionData.lastSeenLongitude
+                  ? `${missionData.lastSeenLatitude.toFixed(6)}, ${missionData.lastSeenLongitude.toFixed(6)}`
+                  : '—'}
+              />
+              <Field
                 label="Last Seen At"
                 value={missionData.lastSeenAt ? new Date(missionData.lastSeenAt).toLocaleString() : '—'}
               />
+            </Section>
+
+            {/* Reporter Location vs Last Seen */}
+            <Section title="Reporter Location Analysis">
+              <Field
+                label="Reporter Detected GPS"
+                value={missionData.reporterLatitude && missionData.reporterLongitude
+                  ? `${missionData.reporterLatitude.toFixed(6)}, ${missionData.reporterLongitude.toFixed(6)}`
+                  : 'Not detected (geolocation denied or unavailable)'}
+              />
+              <Field
+                label="Last Seen GPS"
+                value={missionData.lastSeenLatitude && missionData.lastSeenLongitude
+                  ? `${missionData.lastSeenLatitude.toFixed(6)}, ${missionData.lastSeenLongitude.toFixed(6)}`
+                  : '—'}
+              />
+              {missionData.reporterToLastSeenMiles != null ? (
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    color: '#6b7280',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    marginBottom: '0.25rem'
+                  }}>
+                    Distance (Reporter → Last Seen)
+                  </div>
+                  <div style={{
+                    display: 'inline-block',
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    background: missionData.reporterToLastSeenMiles <= 1 ? '#d1fae5' :
+                                missionData.reporterToLastSeenMiles <= 10 ? '#fef3c7' : '#fee2e2',
+                    color: missionData.reporterToLastSeenMiles <= 1 ? '#065f46' :
+                           missionData.reporterToLastSeenMiles <= 10 ? '#92400e' : '#991b1b',
+                  }}>
+                    {missionData.reporterToLastSeenMiles < 0.1
+                      ? `${Math.round(missionData.reporterToLastSeenMiles * 5280)} ft`
+                      : `${missionData.reporterToLastSeenMiles.toFixed(2)} mi`}
+                  </div>
+                </div>
+              ) : (
+                <Field label="Distance (Reporter → Last Seen)" value="—" />
+              )}
             </Section>
 
             {/* Contact Information */}
