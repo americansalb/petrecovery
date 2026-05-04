@@ -43,12 +43,19 @@ const SOURCES = new Set(['register', 'foundPet', 'lostPet', 'oauth']);
  * @param {string} [input.profileImage]  OAuth-only.
  * @param {boolean} [input.acceptedTerms]
  * @param {string} [input.correlationId] For audit log correlation.
+ * @param {object} [input.tx]            Optional Prisma transaction client.
+ *   When supplied, the User row is created via `tx` so the caller can keep
+ *   user creation atomic with downstream pet/case writes. Side effects
+ *   (verification email, audit log) are deferred — caller must invoke the
+ *   returned `commitSideEffects()` after the transaction commits, otherwise
+ *   they would be observable even if the tx rolled back.
  *
  * @returns {Promise<{
  *   user: object,
  *   requiresVerification: boolean,
  *   tempPassword: string | null,
- *   rawVerifyToken: string | null
+ *   rawVerifyToken: string | null,
+ *   commitSideEffects: () => Promise<void>
  * }>}
  *
  * Throws on duplicate email — caller is responsible for the user-facing
@@ -66,6 +73,7 @@ export async function createUser(input) {
     profileImage,
     acceptedTerms,
     correlationId,
+    tx,
   } = input;
 
   if (!SOURCES.has(source)) {
@@ -78,13 +86,17 @@ export async function createUser(input) {
     throw new Error('createUser: password is required for source=register');
   }
 
+  const db = tx ?? prisma;
   const normalizedEmail = email.toLowerCase().trim();
 
-  // Hash the password — for non-register sources, generate a random one so the
-  // user can recover the account via the standard Forgot Password flow.
+  // Password rules:
+  //   - OAuth: no password (account recovers via the OAuth provider).
+  //   - Caller supplied one: use it.
+  //   - Otherwise (e.g. guest foundPet/lostPet report): generate a random
+  //     temp password so the user can recover via Forgot Password later.
   let tempPassword = null;
   let passwordToHash = password;
-  if (source !== 'register' && source !== 'oauth') {
+  if (!passwordToHash && source !== 'oauth') {
     tempPassword =
       crypto.randomBytes(16).toString('base64url') +
       crypto.randomBytes(16).toString('base64url');
@@ -109,7 +121,7 @@ export async function createUser(input) {
     emailVerifyExpiry = new Date(Date.now() + VERIFY_TOKEN_TTL_MS);
   }
 
-  const user = await prisma.user.create({
+  const user = await db.user.create({
     data: {
       email: normalizedEmail,
       firstName: firstName.trim().substring(0, 100),
@@ -128,34 +140,48 @@ export async function createUser(input) {
     },
   });
 
-  // Fire-and-forget email + audit log. Failures here must not break the
-  // creation — the user can re-trigger verification via Resend.
-  if (rawVerifyToken) {
-    const verifyUrl = `${getEmailBaseUrl()}/verify-email?token=${rawVerifyToken}`;
-    sendVerificationEmail(normalizedEmail, user.firstName, verifyUrl).catch(
-      (err) => console.error('[userService] verification email failed:', err)
-    );
-  }
+  // Side effects are wrapped in a callback so transactional callers can defer
+  // them until after commit. Non-transactional callers can invoke immediately.
+  const commitSideEffects = async () => {
+    if (rawVerifyToken) {
+      const verifyUrl = `${getEmailBaseUrl()}/verify-email?token=${rawVerifyToken}`;
+      sendVerificationEmail(normalizedEmail, user.firstName, verifyUrl).catch(
+        (err) => console.error('[userService] verification email failed:', err)
+      );
+    }
+    logEvent({
+      event_type: `auth.user_created.${source}`,
+      correlation_id: correlationId,
+      resource_type: 'user',
+      resource_id: user.id,
+      action: 'create',
+      result: 'success',
+      metadata: {
+        source,
+        email_prefix: normalizedEmail.substring(0, 3),
+        requires_verification: !isOAuth,
+      },
+    }).catch(() => {});
+  };
 
-  logEvent({
-    event_type: `auth.user_created.${source}`,
-    correlation_id: correlationId,
-    resource_type: 'user',
-    resource_id: user.id,
-    action: 'create',
-    result: 'success',
-    metadata: {
-      source,
-      email_prefix: normalizedEmail.substring(0, 3),
-      requires_verification: !isOAuth,
-    },
-  }).catch(() => {});
+  // No transaction: fire side effects eagerly, return a no-op callback.
+  if (!tx) {
+    await commitSideEffects();
+    return {
+      user,
+      requiresVerification: !isOAuth,
+      tempPassword,
+      rawVerifyToken,
+      commitSideEffects: async () => {},
+    };
+  }
 
   return {
     user,
     requiresVerification: !isOAuth,
     tempPassword,
     rawVerifyToken,
+    commitSideEffects,
   };
 }
 

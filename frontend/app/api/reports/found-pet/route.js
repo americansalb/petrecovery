@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
-import bcrypt from 'bcryptjs';
 import { sendEmail } from '../../../lib/email';
 import { getServerSession } from 'next-auth';
 import { findMatches, getMatchQuality } from '@/app/lib/matching';
 import { getEmailBaseUrl } from '@/app/lib/config';
+import { createUser } from '@/app/lib/userService';
 
 export async function POST(request) {
   try {
@@ -60,23 +60,19 @@ export async function POST(request) {
     }
 
     let accountCreated = false;
-    let tempPassword = null;
 
-    // 2. Create account if doesn't exist
+    // 2. Create account if doesn't exist. Routed through userService so this
+    // path uses the same bcrypt cost (12), audit logging, and verification
+    // email as `/api/auth/register`. The user receives a verification email
+    // and must click the link before they can log in.
     if (!user) {
-      tempPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12);
-      const passwordHash = await bcrypt.hash(tempPassword, 10);
-
-      user = await prisma.user.create({
-        data: {
-          email,
-          phone,
-          firstName,
-          passwordHash,
-          role: 'USER',
-        }
+      const result = await createUser({
+        source: 'foundPet',
+        email,
+        phone,
+        firstName,
       });
-
+      user = result.user;
       accountCreated = true;
     }
 
@@ -266,44 +262,43 @@ export async function POST(request) {
       );
     }
 
-    // 6. Send email in background (don't wait for it)
-    if (accountCreated && tempPassword) {
-      // Send email asynchronously - don't block the response
+    // 6. Send a thank-you email in the background. The verification email
+    // (with the link to activate the account) is sent separately by
+    // userService — we don't include credentials here so this email is safe
+    // to forward, save, or auto-archive.
+    if (accountCreated) {
       sendEmail({
         to: email,
         subject: 'Thank You for Reporting a Found Pet - PetRecovery.org',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #10b981;">🎉 Thank You for Helping!</h2>
+            <h2 style="color: #10b981;">Thank You for Helping!</h2>
             <p>Hi ${firstName},</p>
-            <p>Thank you for reporting a found ${petType}! Your kindness helps reunite pets with their families.</p>
+            <p>Thank you for reporting a found ${petType}. Your kindness helps reunite pets with their families.</p>
 
             <p>We've notified <strong>${nearbyMatches.length} nearby owner${nearbyMatches.length !== 1 ? 's' : ''}</strong> who reported a lost ${petType} matching this description.</p>
 
-            <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
-              <h3 style="margin-top: 0;">Your Account</h3>
-              <p>We've created an account for you:</p>
-              <p><strong>Email:</strong> ${email}<br/>
-              <strong>Temporary Password:</strong> <code style="background: #d1fae5; padding: 2px 6px; border-radius: 3px;">${tempPassword}</code></p>
+            <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">Verify your email</h3>
+              <p>We've created an account for you so you can stay updated on this case. Please check your inbox for a verification email and click the link inside to activate your account.</p>
+              <p style="margin: 0;"><small>Didn't get it? You can request a new verification email any time from the login page.</small></p>
             </div>
 
             <div style="background: #dbeafe; border-left: 4px solid #0ea5e9; padding: 15px; margin: 20px 0;">
-              <h3 style="margin-top: 0; color: #0c4a6e;">🦸 Welcome to the Patrol!</h3>
-              <p>You've been automatically added to our community patrol. You can now:</p>
+              <h3 style="margin-top: 0; color: #0c4a6e;">Welcome to the Patrol</h3>
+              <p>Once verified, you'll be able to:</p>
               <ul style="margin: 10px 0;">
-                <li>View all lost & found pets in your area</li>
+                <li>View all lost &amp; found pets in your area</li>
                 <li>Access the searchable pet database</li>
                 <li>Receive alerts about missing pets nearby</li>
                 <li>Help reunite more pets with their families</li>
               </ul>
             </div>
 
-            <p><a href="${getEmailBaseUrl()}/login" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Login to Dashboard</a></p>
-
             <p><small style="color: #6b7280;">Please keep the pet safe until the owner contacts you. If no one claims the pet, consider local animal shelters or rescue organizations.</small></p>
           </div>
-        `
-      }).catch(err => console.error('Email send failed:', err));
+        `,
+      }).catch((err) => console.error('Email send failed:', err));
     }
 
     // Return immediately without waiting for email

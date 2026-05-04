@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
-import bcrypt from 'bcryptjs';
-import { sendEmail, sendVerificationEmail } from '../../../lib/email';
+import { sendEmail } from '../../../lib/email';
+import { createUser } from '@/app/lib/userService';
 import { getServerSession } from 'next-auth';
 import { logEvent } from '@/lib/logging';
 import crypto from 'crypto';
-import { getEmailBaseUrl } from '@/app/lib/config';
 
 // Allow large body for base64 image uploads and longer timeout
 export const maxDuration = 30;
@@ -49,7 +48,6 @@ export async function POST(request) {
     }
 
     let accountCreated = false;
-    let tempPassword = null;
 
     // Use transaction to ensure all related records are created atomically
     // User lookup is inside the transaction to prevent race conditions (Fix 5)
@@ -75,37 +73,29 @@ export async function POST(request) {
       }
 
       let user = existingUser;
+      let userServiceCommit = null;
 
-      // Create account if doesn't exist (always need user record for pets/cases)
+      // Create account if doesn't exist (we always need a user record for
+      // pets/cases). Routed through userService so all user-creation paths
+      // share bcrypt cost (12), audit logging, and verification token shape.
+      // Side effects (verification email, audit log) are deferred via
+      // commitSideEffects until the transaction commits below.
       if (!user) {
-        let passwordHash;
-
-        if (password && createAccount) {
-          // User explicitly opted in with password
-          passwordHash = await bcrypt.hash(password, 12);
-          accountCreated = true;
-        } else if (session?.user) {
-          // Logged in via session
-          tempPassword = crypto.randomBytes(12).toString('base64');
-          passwordHash = await bcrypt.hash(tempPassword, 12);
-          accountCreated = true;
-        } else {
-          // Guest report - create account but user didn't opt in for full access
-          tempPassword = crypto.randomBytes(12).toString('base64');
-          passwordHash = await bcrypt.hash(tempPassword, 12);
-          // accountCreated stays false - they didn't explicitly create account
-        }
-
-        user = await tx.user.create({
-          data: {
-            email,
-            phone,
-            firstName,
-            passwordHash,
-            role: 'USER',
-            emailVerified: null, // Email not verified yet
-          }
+        const explicitOptIn = Boolean(password && createAccount);
+        const result = await createUser({
+          tx,
+          source: 'lostPet',
+          email,
+          phone,
+          firstName,
+          password: explicitOptIn ? password : undefined,
         });
+        user = result.user;
+        userServiceCommit = result.commitSideEffects;
+        // accountCreated tracks whether the user explicitly opted in. When
+        // false, the user still gets a verifiable account but downstream
+        // emails treat them as a guest.
+        accountCreated = explicitOptIn;
       }
 
       // Use existing pet if selectedPetId provided, otherwise create new
@@ -195,36 +185,29 @@ export async function POST(request) {
         }
       });
 
-      return { user, pet, report, isNewUser: !existingUser };
+      return {
+        user,
+        pet,
+        report,
+        isNewUser: !existingUser,
+        userServiceCommit,
+      };
     });
 
-    const { user, report, isNewUser } = result;
+    const { user, report, isNewUser, userServiceCommit } = result;
 
-    // Send verification email for ALL new users (Fix 4: unified for guest + createAccount paths)
+    // Verification email + audit log for new users — fired only after the
+    // transaction commits, so a rollback can't leave a token pointing at a
+    // non-existent user. userService owns the token shape and email content.
+    // Cases reported by unverified users get an expiry so they don't pollute
+    // the active queue forever.
     if (isNewUser && !session?.user) {
-      const rawVerifyToken = crypto.randomBytes(32).toString('hex');
-      const hashedVerifyToken = crypto.createHash('sha256').update(rawVerifyToken).digest('hex');
-      const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-      // Also set case expiry for unverified users
+      if (userServiceCommit) await userServiceCommit();
+
       const caseExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          emailVerifyToken: hashedVerifyToken,
-          emailVerifyExpiry: verifyExpiry,
-        }
-      });
-
       await prisma.case.update({
         where: { id: report.id },
-        data: { expiresAt: caseExpiry }
-      });
-
-      const BASE_URL = getEmailBaseUrl();
-      const verifyUrl = `${BASE_URL}/verify-email?token=${rawVerifyToken}`;
-      sendVerificationEmail(email, firstName, verifyUrl).catch((err) => {
-        console.error('Failed to send verification email:', err);
+        data: { expiresAt: caseExpiry },
       });
     }
 
@@ -538,55 +521,36 @@ export async function POST(request) {
       }
     });
 
-    // Send email in background
+    // Welcome email — sent when the user explicitly opted into an account.
+    // The verification link itself is sent separately by userService; this
+    // email confirms the report and points at the inbox.
     if (accountCreated) {
-      if (tempPassword) {
-        // Legacy flow: send welcome email with temp password
-        sendEmail({
-          to: email,
-          subject: 'Your PetRecovery.org Account - Lost Pet Alert Created',
-          html: buildWelcomeEmail(firstName, petName, email, tempPassword, nearbyPatrol.length)
-        }).catch(err => {
-          logEvent({
-            event_type: 'email.send_failed',
-            correlation_id: correlationId,
-            resource_type: 'email',
-            action: 'create',
-            result: 'failure',
-            error_message: err.message
-          });
+      sendEmail({
+        to: email,
+        subject: 'Welcome to PetRecovery.org - Verify Your Email',
+        html: `
+          <h2>Welcome to PetRecovery.org, ${firstName}!</h2>
+          <p>Your lost pet report for <strong>${petName}</strong> has been submitted.</p>
+          <p><strong>Case Number:</strong> ${report.caseNumber}</p>
+          <p>To activate your account and access your case dashboard, please click the verification link in the separate email we just sent you.</p>
+          <p><strong>Next steps:</strong></p>
+          <ul>
+            <li>Verify your email so you can log in</li>
+            <li>Coordinate with your assigned rescue squad</li>
+            <li>Update case information as needed</li>
+          </ul>
+          <p>We'll send you updates when volunteers report sightings.</p>
+        `,
+      }).catch((err) => {
+        logEvent({
+          event_type: 'email.send_failed',
+          correlation_id: correlationId,
+          resource_type: 'email',
+          action: 'create',
+          result: 'failure',
+          error_message: err.message,
         });
-      } else if (createAccount && password) {
-        // New flow: user chose to create account with their own password
-        // Send verification email (will be implemented in Phase 3.1)
-        sendEmail({
-          to: email,
-          subject: 'Welcome to PetRecovery.org - Verify Your Email',
-          html: `
-            <h2>Welcome to PetRecovery.org, ${firstName}!</h2>
-            <p>Thank you for creating an account. Your lost pet report for <strong>${petName}</strong> has been submitted successfully.</p>
-            <p><strong>Case Number:</strong> ${report.caseNumber}</p>
-            <p>You can now log in with your email (${email}) and the password you created.</p>
-            <p><strong>Next steps:</strong></p>
-            <ul>
-              <li>Log in to view your case dashboard</li>
-              <li>Coordinate with your assigned rescue squad</li>
-              <li>Update information as needed</li>
-            </ul>
-            <p>We'll send you updates when volunteers report sightings.</p>
-            <p>Email verification link will be sent separately (coming soon).</p>
-          `
-        }).catch(err => {
-          logEvent({
-            event_type: 'email.send_failed',
-            correlation_id: correlationId,
-            resource_type: 'email',
-            action: 'create',
-            result: 'failure',
-            error_message: err.message
-          });
-        });
-      }
+      });
     }
 
     // Send guest report email if account was not explicitly created
@@ -687,24 +651,3 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-function buildWelcomeEmail(firstName, petName, email, tempPassword, patrolCount) {
-  const baseUrl = getEmailBaseUrl();
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #dc2626;">Lost Pet Alert Created</h2>
-      <p>Hi ${firstName},</p>
-      <p>Your lost pet alert for <strong>${petName}</strong> has been created and ${patrolCount} patrol member${patrolCount !== 1 ? 's' : ''} in your area ${patrolCount !== 1 ? 'have' : 'has'} been notified.</p>
-
-      <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
-        <h3 style="margin-top: 0;">Your Account</h3>
-        <p>We've created an account for you:</p>
-        <p><strong>Email:</strong> ${email}<br/>
-        <strong>Temporary Password:</strong> <code style="background: #fee2e2; padding: 2px 6px; border-radius: 3px;">${tempPassword}</code></p>
-      </div>
-
-      <p><a href="${baseUrl}/login" style="display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Login to Dashboard</a></p>
-
-      <p><small style="color: #6b7280;">We recommend changing your password after logging in.</small></p>
-    </div>
-  `;
-}
