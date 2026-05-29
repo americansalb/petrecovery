@@ -86,7 +86,7 @@ export default function AdvicePage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: theme.gradients.hope,
+      background: 'linear-gradient(to bottom, #f8fafc 0%, #eef2f7 100%)',
       fontFamily: theme.fonts.sans,
     }}>
       {/* Header */}
@@ -108,10 +108,7 @@ export default function AdvicePage() {
             style={{
               fontSize: '1.75rem',
               fontWeight: '800',
-              background: theme.gradients.sunset,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
+              color: '#0f172a',
               textDecoration: 'none',
             }}
           >
@@ -134,10 +131,7 @@ export default function AdvicePage() {
           <h1 style={{
             fontSize: '2.5rem',
             fontWeight: '900',
-            background: theme.gradients.hope,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
+            color: '#0f172a',
             marginBottom: '0.5rem',
           }}>
             What To Do If Your Pet Is Lost
@@ -172,35 +166,59 @@ export default function AdvicePage() {
               gap: '1rem',
             }}>
               {[
-                { type: 'dog', emoji: '🐕', label: 'Dog', gradient: theme.gradients.sunset },
-                { type: 'cat', emoji: '🐈', label: 'Cat', gradient: theme.gradients.ocean },
-                { type: 'bird', emoji: '🦜', label: 'Bird', gradient: theme.gradients.forest },
-                { type: 'other', emoji: '🐰', label: 'Other Pet', gradient: theme.gradients.hope },
-              ].map(({ type, emoji, label, gradient }) => (
+                { type: 'dog', emoji: '🐕', label: 'Dog', accent: '#3b82f6' },
+                { type: 'cat', emoji: '🐈', label: 'Cat', accent: '#8b5cf6' },
+                { type: 'bird', emoji: '🦜', label: 'Bird', accent: '#10b981' },
+                { type: 'other', emoji: '🐰', label: 'Other Pet', accent: '#f59e0b' },
+              ].map(({ type, emoji, label, accent }) => (
                 <button
                   key={type}
                   onClick={() => handlePetTypeSelect(type)}
                   style={{
-                    padding: '1.5rem',
-                    background: gradient,
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: theme.radius.lg,
-                    fontSize: '1.25rem',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    boxShadow: theme.shadows.md,
-                    transition: 'transform 0.2s',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
                     gap: '1rem',
+                    width: '100%',
+                    padding: '1.1rem 1.25rem',
+                    background: '#ffffff',
+                    color: '#0f172a', // midnight-900
+                    border: '2px solid #e2e8f0', // midnight-200
+                    borderRadius: '1rem',
+                    fontSize: '1.15rem',
+                    fontWeight: '700',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease',
+                    boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
-                  onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#facc15'; // flash-400
+                    e.currentTarget.style.boxShadow = '0 6px 18px rgba(15,23,42,0.10)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(15,23,42,0.04)';
+                    e.currentTarget.style.transform = 'none';
+                  }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = '#facc15'; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; }}
                 >
-                  <span style={{ fontSize: '2rem' }}>{emoji}</span>
-                  {label}
+                  <span style={{
+                    width: '44px',
+                    height: '44px',
+                    flexShrink: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '0.75rem',
+                    background: `${accent}1a`, // ~10% tint, keeps per-type recognition
+                    fontSize: '1.5rem',
+                  }}>
+                    {emoji}
+                  </span>
+                  <span style={{ flex: 1 }}>{label}</span>
+                  <span style={{ color: '#94a3b8', fontSize: '1.4rem', lineHeight: 1 }} aria-hidden="true">›</span>
                 </button>
               ))}
             </div>
