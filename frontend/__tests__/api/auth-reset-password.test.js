@@ -5,17 +5,14 @@
 
 import { NextRequest } from 'next/server';
 
-// Mock prisma before importing route
-const mockPrisma = {
-  user: {
-    findUnique: jest.fn(),
-    update: jest.fn(),
-  },
-};
-
+// Mock prisma with the mock object defined INSIDE the factory (avoids the
+// "Cannot access 'mockPrisma' before initialization" TDZ when the route's
+// hoisted prisma import fires this factory). Aliased as `mockPrisma` below.
 jest.mock('@/app/lib/prisma', () => ({
   __esModule: true,
-  default: mockPrisma,
+  default: {
+    user: { findUnique: jest.fn(), update: jest.fn() },
+  },
 }));
 
 // Mock bcrypt
@@ -37,6 +34,10 @@ jest.mock('@/lib/logging', () => ({
 
 // Import the route handler after mocks
 import { POST } from '@/app/api/auth/reset-password/route';
+import prisma from '@/app/lib/prisma';
+
+// Alias the imported mocked default so existing `mockPrisma.*` refs work unchanged.
+const mockPrisma = prisma;
 
 describe('POST /api/auth/reset-password', () => {
   beforeEach(() => {
