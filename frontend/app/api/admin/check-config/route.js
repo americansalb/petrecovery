@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
+import { isAdmin } from '@/app/lib/authz';
 
 /**
  * GET /api/admin/check-config
@@ -12,12 +13,17 @@ export async function GET(request) {
   try {
     const session = await getServerSession(authOptions);
 
-    // Only allow authenticated users
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
+    }
+
+    // In-handler admin re-check (fresh role): this returns storage credential
+    // prefixes, so it must not rely on middleware or a stale JWT alone.
+    if (!(await isAdmin(session.user.id))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     console.log('[CONFIG CHECK] User:', session.user.email);
@@ -118,10 +124,7 @@ export async function GET(request) {
     console.error('[CONFIG CHECK] Error:', error);
 
     return NextResponse.json(
-      {
-        error: 'Configuration check failed',
-        details: error.message,
-      },
+      { error: 'Configuration check failed' },
       { status: 500 }
     );
   }
