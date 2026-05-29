@@ -46,9 +46,15 @@ export const authOptions = {
           return null;
         }
 
-        // Block login for unverified emails
+        // Block login for unverified emails. Return null (same as a bad
+        // password) rather than a distinct error: throwing EMAIL_NOT_VERIFIED
+        // leaked a registration oracle on the raw /api/auth/callback/credentials
+        // response (registered+unverified vs unknown email were distinguishable).
+        // The login UI already shows a generic message, so this is no UX change;
+        // guiding unverified users to re-verify belongs on a separate,
+        // rate-limited resend path (follow-up), not the login error.
         if (!user.emailVerified) {
-          throw new Error('EMAIL_NOT_VERIFIED');
+          return null;
         }
 
         // Return user object
