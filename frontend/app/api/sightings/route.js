@@ -9,6 +9,8 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
+import { createInAppNotification } from '@/app/lib/notifications-inapp';
+import { sendEmail } from '@/app/lib/email';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -122,12 +124,53 @@ export async function POST(request) {
       }
     });
 
-    // TODO: Send notification to pet owner about the sighting
-    // This will be implemented in the notifications task
+    // Notify the pet owner about the sighting (in-app + email). Best-effort and
+    // isolated so it can't fail the sighting submission — but the response copy
+    // below only claims "notified" when we actually delivered (no false hope).
+    let ownerNotified = false;
+    try {
+      const sightedCase = await prisma.case.findUnique({
+        where: { id: targetCaseId },
+        select: {
+          caseNumber: true,
+          petName: true,
+          reporterId: true,
+          reporter: { select: { email: true } },
+        },
+      });
+      if (sightedCase?.reporterId) {
+        await createInAppNotification({
+          userId: sightedCase.reporterId,
+          type: 'SIGHTING',
+          title: `New sighting of ${sightedCase.petName || 'your pet'}`,
+          message: `Someone reported a possible sighting${location ? ` near ${location}` : ''}. Tap to view the details.`,
+          actionUrl: sightedCase.caseNumber ? `/cases/${sightedCase.caseNumber}` : null,
+          data: { sightingId: sighting.id },
+        });
+        if (sightedCase.reporter?.email) {
+          await sendEmail({
+            to: sightedCase.reporter.email,
+            subject: `New sighting reported for ${sightedCase.petName || 'your lost pet'} — ReunitePets.org`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #10b981;">A new sighting was reported</h2>
+                <p>Someone just reported a possible sighting of ${sightedCase.petName || 'your lost pet'}${location ? ` near ${location}` : ''}.</p>
+                <p><a href="${process.env.NEXT_PUBLIC_BASE_URL || ''}${sightedCase.caseNumber ? `/cases/${sightedCase.caseNumber}` : '/dashboard'}" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">View the sighting</a></p>
+              </div>
+            `,
+          });
+        }
+        ownerNotified = true;
+      }
+    } catch (err) {
+      console.error('Sighting owner-notify failed:', err?.message);
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Sighting reported successfully! The owner has been notified.',
+      message: ownerNotified
+        ? 'Sighting reported — the owner has been notified.'
+        : 'Sighting reported successfully.',
       sighting: {
         id: sighting.id,
         missionId: targetCaseId
