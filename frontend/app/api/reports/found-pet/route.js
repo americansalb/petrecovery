@@ -6,6 +6,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { findMatches } from '@/app/lib/matching';
 import { getEmailBaseUrl } from '@/app/lib/config';
+import { createInAppNotification } from '@/app/lib/notifications-inapp';
 
 export async function POST(request) {
   try {
@@ -255,21 +256,58 @@ export async function POST(request) {
     // matches down to score 30 but the UI claimed "owners notified" for all of
     // them while only score>=50 actually got an alert — false hope on the worst
     // day. The notify set must equal what we claim to have notified.
-    const notifiedMatches = matches.filter(m => m.band === 'actionable').map(m => m.case);
+    // CORE LOOP (CRIT-A/B): actually DELIVER to the owner (in-app + email),
+    // not just write a dead Alert row, and use the correct Alert.caseId (the
+    // prior missionId field doesn't exist → it 500'd the whole report on the
+    // exact high-confidence match that matters). Each recipient is isolated so
+    // one failure can't fail the report save or truncate the rest; notifiedCount
+    // counts only owners actually notified (honest copy).
+    const actionableMatches = matches.filter(m => m.band === 'actionable').map(m => m.case);
+    let notifiedCount = 0;
 
-    if (notifiedMatches.length > 0) {
-      await Promise.all(
-        notifiedMatches.map(match =>
-          prisma.alert.create({
-            data: {
-              missionId: match.id,
-              userId: match.reporterId,
-              method: 'EMAIL',
-            }
-          })
-        )
-      );
-    }
+    await Promise.all(actionableMatches.map(async (match) => {
+      try {
+        const ownerPetName = match.pet?.name || 'your pet';
+
+        await createInAppNotification({
+          userId: match.reporterId,
+          type: 'FOUND_MATCH',
+          title: `Possible match for ${ownerPetName}`,
+          message: `Someone just reported a found ${petType} that may match your lost pet. Tap to review and connect.`,
+          actionUrl: match.missionNumber ? `/cases/${match.missionNumber}` : null,
+          data: { foundCaseId: report.id },
+        });
+
+        if (match.reporter?.email) {
+          await sendEmail({
+            to: match.reporter.email,
+            subject: `Possible match for your lost ${petType} — ReunitePets.org`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #10b981;">A possible match for ${ownerPetName}</h2>
+                <p>Good news — someone in your area just reported a found ${petType} that may match your lost pet.</p>
+                <p><a href="${getEmailBaseUrl()}${match.missionNumber ? `/cases/${match.missionNumber}` : '/dashboard'}" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">Review the match</a></p>
+                <p><small style="color:#6b7280;">ReunitePets never asks for payment to reconnect you with your pet. Review the match safely through the site.</small></p>
+              </div>
+            `,
+          });
+        }
+
+        await prisma.alert.create({
+          data: {
+            caseId: match.id,
+            userId: match.reporterId,
+            method: 'EMAIL',
+            deliveredAt: new Date(),
+          },
+        });
+
+        notifiedCount++;
+      } catch (err) {
+        console.error('Owner match-notify failed for case', match.id, err?.message);
+        // Isolated — never fail the report save or block other recipients.
+      }
+    }));
 
     // 6. Send email in background (don't wait for it)
     if (accountCreated && tempPassword) {
@@ -283,7 +321,7 @@ export async function POST(request) {
             <p>Hi ${firstName},</p>
             <p>Thank you for reporting a found ${petType}! Your kindness helps reunite pets with their families.</p>
 
-            <p>We've notified <strong>${notifiedMatches.length} nearby owner${notifiedMatches.length !== 1 ? 's' : ''}</strong> who reported a lost ${petType} matching this description.</p>
+            <p>We've notified <strong>${notifiedCount} nearby owner${notifiedCount !== 1 ? 's' : ''}</strong> who reported a lost ${petType} matching this description.</p>
 
             <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
               <h3 style="margin-top: 0;">Your Account</h3>
@@ -316,7 +354,7 @@ export async function POST(request) {
       success: true,
       reportId: report.id,
       accountCreated,
-      matchesNotified: notifiedMatches.length,
+      matchesNotified: notifiedCount,
       potentialMatches: formattedMatches, // §4d no-PII shape
     });
 
