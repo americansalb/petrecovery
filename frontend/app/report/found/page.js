@@ -1,4 +1,5 @@
 'use client';
+// UI: found-flow step-1 restyled onto design-system tokens (ui-architect)
 
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
@@ -296,7 +297,7 @@ export default function ReportFoundPet() {
                 style={{
                   flex: 1,
                   height: '6px',
-                  backgroundColor: step >= s ? '#dc2626' : '#e5e7eb',
+                  backgroundColor: step >= s ? '#10b981' : '#e5e7eb', // emerald = FOUND accent (red is the LOST semantic)
                   borderRadius: '3px',
                 }}
               />
@@ -351,15 +352,15 @@ export default function ReportFoundPet() {
 
             <div style={{
               display: 'grid',
-              gap: '1rem',
-              maxWidth: '400px',
+              gap: '0.75rem',
+              maxWidth: '420px',
               margin: '0 auto',
             }}>
               {[
-                { type: 'dog', label: '🐕 Dog', color: '#3b82f6' },
-                { type: 'cat', label: '🐈 Cat', color: '#8b5cf6' },
-                { type: 'bird', label: '🦜 Bird', color: '#10b981' },
-                { type: 'other', label: '🐰 Other Pet', color: '#f59e0b' },
+                { type: 'dog', emoji: '🐕', label: 'Dog', accent: '#3b82f6' },
+                { type: 'cat', emoji: '🐈', label: 'Cat', accent: '#8b5cf6' },
+                { type: 'bird', emoji: '🦜', label: 'Bird', accent: '#10b981' },
+                { type: 'other', emoji: '🐰', label: 'Other Pet', accent: '#f59e0b' },
               ].map((pet) => (
                 <button
                   key={pet.type}
@@ -368,18 +369,50 @@ export default function ReportFoundPet() {
                     setStep(2);
                   }}
                   style={{
-                    padding: '1.5rem',
-                    background: pet.color,
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: theme.radius.lg,
-                    fontSize: '1.3rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1rem',
+                    width: '100%',
+                    padding: '1.1rem 1.25rem',
+                    background: '#ffffff',
+                    color: '#0f172a', // midnight-900
+                    border: '2px solid #e2e8f0', // midnight-200
+                    borderRadius: '1rem',
+                    fontSize: '1.15rem',
                     fontWeight: '700',
+                    textAlign: 'left',
                     cursor: 'pointer',
-                    boxShadow: theme.shadows.md,
+                    transition: 'border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease',
+                    boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
                   }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#facc15'; // flash-400
+                    e.currentTarget.style.boxShadow = '0 6px 18px rgba(15,23,42,0.10)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(15,23,42,0.04)';
+                    e.currentTarget.style.transform = 'none';
+                  }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = '#facc15'; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; }}
                 >
-                  {pet.label}
+                  <span style={{
+                    width: '44px',
+                    height: '44px',
+                    flexShrink: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '0.75rem',
+                    background: `${pet.accent}1a`, // ~10% tint, keeps per-type recognition
+                    fontSize: '1.5rem',
+                  }}>
+                    {pet.emoji}
+                  </span>
+                  <span style={{ flex: 1 }}>{pet.label}</span>
+                  <span style={{ color: '#94a3b8', fontSize: '1.4rem', lineHeight: 1 }} aria-hidden="true">›</span>
                 </button>
               ))}
             </div>
