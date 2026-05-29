@@ -125,7 +125,11 @@ describe('Reunion loop: FOUND report -> owner notification', () => {
     // would have made this null/undefined / a broken link).
     expect(createInAppNotification.mock.calls[0][0].actionUrl).toBe('/cases/CASE-2026-000123');
 
-    // Alert persisted with caseId, NOT the non-existent missionId (CRIT-B contract):
+    // Alert persisted with caseId (CRIT-B). NOTE: this is the ALERT model
+    // specifically — its schema field is caseId and it has NO missionId. This is
+    // NOT a blanket "missionId is always wrong" rule: @map'd models
+    // (CaseAssignment) and MissionControl children DO use missionId. Per-model
+    // schema-match, not a sweep (architect msg 587).
     expect(prisma.alert.create).toHaveBeenCalledTimes(1);
     const alertData = prisma.alert.create.mock.calls[0][0].data;
     expect(alertData.caseId).toBe('lost-case-1');
