@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { isAdmin } from '@/app/lib/authz';
 
 /**
  * GET /api/rescue-squads/[id]/posts
@@ -37,10 +38,25 @@ export async function GET(request, { params }) {
       orderBy = [{ createdAt: 'desc' }];
     }
 
-    // Fetch posts with author and vote information
     const session = await getServerSession(authOptions);
     const currentUserId = session?.user?.id;
 
+    // SEC-12: squad posts are operational coordination (can hold owner PII,
+    // addresses, search plans) → member-private. Only an active member or an
+    // admin may read the feed. A public community face, if wanted, is a separate
+    // curated PII-free surface, not this raw operational feed.
+    if (!currentUserId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    const membership = await prisma.rescueSquadMember.findFirst({
+      where: { rescueSquadId: id, userId: currentUserId, isActive: true },
+      select: { id: true },
+    });
+    if (!membership && !(await isAdmin(currentUserId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Fetch posts with author and vote information
     const posts = await prisma.squadPost.findMany({
       where,
       orderBy,
