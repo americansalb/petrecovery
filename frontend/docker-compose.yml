@@ -55,7 +55,9 @@ services:
       - DATABASE_URL=postgresql://petrecovery:petrecovery_dev_password@db:5432/petrecovery
       - REDIS_URL=redis://redis:6379
       - NEXTAUTH_URL=http://localhost:3000
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-change-me-in-production}
+      # No insecure default: a known JWT secret lets anyone forge an ADMIN token.
+      # `:?` makes compose fail-fast if NEXTAUTH_SECRET is unset.
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:?NEXTAUTH_SECRET must be set to a strong random value}
     ports:
       - "3000:3000"
     healthcheck:
