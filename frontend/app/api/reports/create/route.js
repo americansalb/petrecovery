@@ -24,7 +24,8 @@ export async function POST(request) {
       lastSeenAddress, center, radiusMiles, timeElapsed, petType,
       petSize, isIndoorCat, // New fields for probability zones
       photos, locationType, cityName, selectedPetId,
-      createAccount, password // Account creation consent fields
+      createAccount, password, // Account creation consent fields
+      reporterLocation // Reporter's auto-detected GPS [lat, lng]
     } = body;
 
     // For dogs, use petSize if provided (more specific than generic size)
@@ -190,6 +191,10 @@ export async function POST(request) {
           lastSeenLongitude: center[1],
           lastSeenAddress,
           searchRadius: radiusMiles,
+          // Guard on null, not truthiness: a valid 0.0 coordinate (equator /
+          // prime meridian) is falsy and `0 || null` would drop it.
+          reporterLatitude: reporterLocation?.[0] != null ? reporterLocation[0] : null,
+          reporterLongitude: reporterLocation?.[1] != null ? reporterLocation[1] : null,
           escapeScenario: 'unknown',
           status: 'ACTIVE',
           priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'NORMAL',
@@ -245,7 +250,7 @@ export async function POST(request) {
 
     // Filter by distance and create alerts
     const nearbyPatrol = patrolMembers.filter(member => {
-      if (!member.profile?.latitude || !member.profile?.longitude) return false;
+      if (member.profile?.latitude == null || member.profile?.longitude == null) return false;
       const distance = calculateDistance(
         center[0], center[1],
         member.profile.latitude, member.profile.longitude
@@ -523,7 +528,16 @@ export async function POST(request) {
       });
     }
 
-    // Log success
+    // Calculate distance between reporter and last-seen location (if both available)
+    let reporterToLastSeenMiles = null;
+    if (reporterLocation?.[0] != null && reporterLocation?.[1] != null && center?.[0] != null && center?.[1] != null) {
+      reporterToLastSeenMiles = calculateDistance(
+        reporterLocation[0], reporterLocation[1],
+        center[0], center[1]
+      );
+    }
+
+    // Log success with both location data points
     await logEvent({
       event_type: 'case.created',
       correlation_id: correlationId,
@@ -535,7 +549,10 @@ export async function POST(request) {
       metadata: {
         petName,
         accountCreated,
-        patrolAlerted: nearbyPatrol.length
+        patrolAlerted: nearbyPatrol.length,
+        lastSeenLocation: { lat: center[0], lng: center[1], address: lastSeenAddress },
+        reporterLocation: reporterLocation ? { lat: reporterLocation[0], lng: reporterLocation[1] } : null,
+        reporterToLastSeenMiles: reporterToLastSeenMiles !== null ? parseFloat(reporterToLastSeenMiles.toFixed(2)) : null,
       }
     });
 
@@ -629,6 +646,11 @@ export async function POST(request) {
       assignedSquad,
       squadsNotified: assignedSquads.length,
       allAssignedSquads: assignedSquads,
+      locations: {
+        lastSeen: { lat: center[0], lng: center[1] },
+        reporter: reporterLocation ? { lat: reporterLocation[0], lng: reporterLocation[1] } : null,
+        distanceMiles: reporterToLastSeenMiles !== null ? parseFloat(reporterToLastSeenMiles.toFixed(2)) : null,
+      },
     });
 
   } catch (error) {
