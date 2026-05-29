@@ -803,10 +803,11 @@ export default function ReportFoundPet() {
             </p>
 
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
+              <label htmlFor="found-petname" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
                 Name (if visible on collar/tag)
               </label>
               <input
+                id="found-petname"
                 type="text"
                 value={reportData.petName}
                 onChange={(e) => setReportData({ ...reportData, petName: e.target.value })}
@@ -846,10 +847,11 @@ export default function ReportFoundPet() {
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
+              <label htmlFor="found-size" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
                 Size
               </label>
               <select
+                id="found-size"
                 value={reportData.size}
                 onChange={(e) => setReportData({ ...reportData, size: e.target.value })}
                 style={{
@@ -887,13 +889,14 @@ export default function ReportFoundPet() {
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
+              <label htmlFor="found-photos" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
                 Photos of the Pet You Found
               </label>
               <p style={{ fontSize: '0.9rem', color: theme.colors.gray[600], marginBottom: '0.5rem' }}>
                 Upload up to 5 clear photos to help identify the pet (max 5MB each)
               </p>
               <input
+                id="found-photos"
                 type="file"
                 accept="image/*"
                 multiple
@@ -952,10 +955,11 @@ export default function ReportFoundPet() {
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
+              <label htmlFor="found-marks" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
                 Distinctive Marks, Features, or Collar Information
               </label>
               <textarea
+                id="found-marks"
                 value={reportData.distinctiveMarks}
                 onChange={(e) => setReportData({ ...reportData, distinctiveMarks: e.target.value })}
                 placeholder="Collar color and type, tags (if any), unique markings, scars, behavior when approached, microchip visible? Very friendly/scared/aggressive?"
