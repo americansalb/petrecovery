@@ -147,3 +147,68 @@ describe('SEC-3: GET /api/reports/[id] PII brokering', () => {
     expect(body.reporter.phone).toBeUndefined();
   });
 });
+
+/**
+ * SEC-19: a pet's exact last-seen point is usually near the owner's home, so an
+ * anonymous viewer of the (public, shareable) case page must get a coarse
+ * (~1km / neighborhood) location; authenticated searchers get exact.
+ */
+describe('SEC-19: primary-case location coarsening', () => {
+  const LOST_PRECISE = {
+    id: 'lost-precise',
+    caseNumber: 'CASE-2026-000777',
+    reportType: 'LOST',
+    status: 'ACTIVE',
+    petName: 'Rex',
+    petSpecies: 'DOG',
+    petBreed: 'Labrador',
+    petColor: 'black',
+    petSize: 'LARGE',
+    petDescription: 'x',
+    petPhotoUrl: null,
+    lastSeenAt: new Date('2026-05-20T00:00:00Z'),
+    createdAt: new Date('2026-05-20T00:00:00Z'),
+    lastSeenAddress: '742 Evergreen Terrace, Springfield, IL',
+    lastSeenLatitude: 40.123456,
+    lastSeenLongitude: -75.654321,
+    searchRadius: 5,
+    hasReward: false,
+    rewardAmount: null,
+    escapeScenario: 'unknown',
+    escapeDetails: null,
+    ownerName: 'Owner',
+    ownerEmail: 'owner@example.com',
+    ownerPhone: '555-9999',
+    pet: null,
+    reporter: { id: 'owner-u', firstName: 'Owner', email: 'owner@example.com', phone: '555-9999' },
+    sightings: [],
+    missionControl: null,
+    assignments: [],
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    prisma.case.findUnique.mockResolvedValue(LOST_PRECISE);
+    prisma.case.findMany.mockResolvedValue([]); // LOST → no potentialMatches
+  });
+
+  test('anonymous viewer gets coarsened coords + street-dropped address + approximate flag', async () => {
+    getServerSession.mockResolvedValue(null);
+    const res = await GET(new NextRequest('http://localhost:3000/api/reports/lost-precise'), { params: { id: 'lost-precise' } });
+    const body = await res.json();
+    expect(body.report.locationPrecision).toBe('approximate');
+    expect(body.report.lastSeenLatitude).toBe(40.12); // 2-decimal coarsening
+    expect(body.report.lastSeenLongitude).toBe(-75.65);
+    expect(body.report.lastSeenAddress).not.toContain('742 Evergreen Terrace');
+  });
+
+  test('authenticated searcher gets exact location', async () => {
+    getServerSession.mockResolvedValue({ user: { id: 'some-searcher', email: 'searcher@example.com' } });
+    const res = await GET(new NextRequest('http://localhost:3000/api/reports/lost-precise'), { params: { id: 'lost-precise' } });
+    const body = await res.json();
+    expect(body.report.locationPrecision).toBe('exact');
+    expect(body.report.lastSeenLatitude).toBe(40.123456);
+    expect(body.report.lastSeenLongitude).toBe(-75.654321);
+    expect(body.report.lastSeenAddress).toBe('742 Evergreen Terrace, Springfield, IL');
+  });
+});
