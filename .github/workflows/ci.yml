@@ -5,9 +5,9 @@ name: CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [pet_main, report-wizard-v2]
   pull_request:
-    branches: [main, develop]
+    branches: [pet_main]
 
 env:
   NODE_VERSION: '20'
@@ -63,9 +63,21 @@ jobs:
         working-directory: frontend
         run: npx prisma generate
 
-      - name: Run tests
+      # REAL merge gate (blocking): security/contract regressions for the
+      # report-wizard-v2 surface. These must stay green to merge.
+      - name: Run security & contract tests (required)
         working-directory: frontend
-        run: npm test || echo "Tests not configured"
+        run: npx jest __tests__/api/analyze-pet.test.js __tests__/api/finder-funnel.contract.test.js --no-coverage --ci
+
+      # Full unit suite — TEMPORARILY non-blocking. The legacy suites
+      # (auth-register, auth-reset-password, sightings, logging) currently fail
+      # to load with "Cannot access 'mockPrisma' before initialization" (ESM
+      # import-hoist vs. jest.mock factory closing over a const, triggered once
+      # app/lib/auth.js began touching prisma at module load). Tracked for repair;
+      # flip this to a hard gate once green. See Tester report.
+      - name: Run full unit suite (non-blocking until legacy suites repaired)
+        working-directory: frontend
+        run: npm test || echo "::warning::legacy unit suite is RED (mockPrisma TDZ) — repair tracked, see Tester report"
 
   # Job 3: Build
   build:
@@ -109,7 +121,7 @@ jobs:
     name: E2E Tests
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/pet_main'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -154,7 +166,7 @@ jobs:
     name: Docker Build
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/pet_main'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
