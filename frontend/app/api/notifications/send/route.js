@@ -8,6 +8,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import webpush from 'web-push';
+import { isAdmin, userHasCaseAuthority, userIsSquadLeader } from '@/app/lib/authz';
 
 // Configure web-push with VAPID keys
 // These should be in environment variables
@@ -46,6 +47,23 @@ export async function POST(request) {
         { error: 'Title and body required' },
         { status: 400 }
       );
+    }
+
+    // AUTHORIZATION: this endpoint can push to our trusted notification channel,
+    // so the caller must be authorized for the chosen target scope. Otherwise any
+    // logged-in user could phish every user via targetUserIds.
+    let authorized = false;
+    if (targetUserIds && targetUserIds.length > 0) {
+      // Arbitrary fan-out to specific users → platform admins only.
+      authorized = await isAdmin(session.user.id);
+    } else if (squadId) {
+      authorized = await userIsSquadLeader(session.user.id, squadId);
+    } else if (missionId) {
+      // mission routes use the caseId as the mission identifier.
+      authorized = await userHasCaseAuthority(session.user.id, missionId);
+    }
+    if (!authorized) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Build the where clause for finding subscriptions

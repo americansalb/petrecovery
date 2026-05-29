@@ -41,7 +41,7 @@ export async function GET(request, { params }) {
               select: {
                 id: true,
                 name: true,
-                avatarUrl: true,
+                logoUrl: true,
               }
             }
           }
@@ -84,8 +84,10 @@ export async function GET(request, { params }) {
           pet: true,
           reporter: {
             select: {
+              // No phone here: matched owners' contact must NOT leak to a
+              // (possibly unauthenticated) viewer of a FOUND report. Contact
+              // happens through brokered relay, not raw PII in the payload.
               firstName: true,
-              phone: true,
             }
           }
         }
@@ -117,7 +119,7 @@ export async function GET(request, { params }) {
           lastSeenAddress: lostCase.lastSeenAddress,
           distance: lostCase.distance.toFixed(1),
           reporterName: lostCase.reporter.firstName,
-          reporterPhone: lostCase.reporter.phone,
+          // reporterPhone intentionally omitted — brokered contact only.
         }));
     }
 
@@ -175,7 +177,7 @@ export async function GET(request, { params }) {
       rescueSquads: report.assignments?.map(a => ({
         id: a.rescueSquad.id,
         name: a.rescueSquad.name,
-        avatarUrl: a.rescueSquad.avatarUrl,
+        logoUrl: a.rescueSquad.logoUrl,
         status: a.status,
       })) || [],
     }, { status: 200 });
@@ -183,7 +185,7 @@ export async function GET(request, { params }) {
   } catch (error) {
     console.error('Error fetching report:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
