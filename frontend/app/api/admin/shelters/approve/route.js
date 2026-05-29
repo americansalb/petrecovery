@@ -105,7 +105,7 @@ export async function POST(request) {
           to: claimant.email,
           subject: `Your shelter account has been approved - ${shelter?.name}`,
           html: `
-            <h2>Welcome to PetRecovery!</h2>
+            <h2>Welcome to ReunitePets!</h2>
             <p>Hi ${claimant.firstName},</p>
             <p>Great news! Your request to manage <strong>${shelter?.name}</strong> has been approved.</p>
             <p>You can now access your shelter dashboard to:</p>
@@ -149,7 +149,7 @@ export async function POST(request) {
           html: `
             <h2>Shelter Request Update</h2>
             <p>Hi ${claimant.firstName},</p>
-            <p>Thank you for your interest in joining PetRecovery with <strong>${shelter?.name}</strong>.</p>
+            <p>Thank you for your interest in joining ReunitePets with <strong>${shelter?.name}</strong>.</p>
             <p>Unfortunately, we were unable to approve your request at this time.</p>
             ${reviewNotes ? `<p><strong>Reason:</strong> ${reviewNotes}</p>` : ''}
             <p>If you believe this was a mistake or have additional information to provide, please contact us.</p>
