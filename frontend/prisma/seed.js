@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const prisma = new PrismaClient();
 
@@ -10,19 +11,29 @@ async function main() {
   // ADMIN USER
   // ============================================================================
 
+  // Admin seed credentials must NEVER be a repo literal (a hardcoded
+  // password lands in git history and, when seeded onto a shared DB, becomes a
+  // known-credential backdoor admin). Take them from env, or generate a strong
+  // random password and print it ONCE.
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'contact@aalb.org';
+  let adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  let generatedPassword = false;
+  if (!adminPassword) {
+    adminPassword = crypto.randomBytes(18).toString('base64url'); // ~24 chars, high entropy
+    generatedPassword = true;
+  }
+
   // Check if admin user already exists
   const existingAdmin = await prisma.user.findUnique({
-    where: { email: 'contact@aalb.org' }
+    where: { email: adminEmail }
   });
 
   if (!existingAdmin) {
-    // Hash the admin password
-    const passwordHash = await bcrypt.hash('winner', 10);
+    const passwordHash = await bcrypt.hash(adminPassword, 10);
 
-    // Create admin user
-    const admin = await prisma.user.create({
+    await prisma.user.create({
       data: {
-        email: 'contact@aalb.org',
+        email: adminEmail,
         passwordHash,
         firstName: 'Admin',
         role: 'ADMIN',
@@ -31,8 +42,12 @@ async function main() {
     });
 
     console.log('✅ Admin user created successfully');
-    console.log('   Email: contact@aalb.org');
-    console.log('   Password: winner');
+    console.log(`   Email: ${adminEmail}`);
+    if (generatedPassword) {
+      console.log(`   Password (generated, shown once — store it now): ${adminPassword}`);
+    } else {
+      console.log('   Password: (from SEED_ADMIN_PASSWORD env)');
+    }
     console.log('   Role: ADMIN');
   } else {
     console.log('ℹ️  Admin user already exists');
