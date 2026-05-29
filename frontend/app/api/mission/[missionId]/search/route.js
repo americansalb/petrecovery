@@ -313,8 +313,26 @@ export async function POST(request, { params }) {
         return handleStart(user.id, missionId, body);
       case 'ping':
         return handlePing(body);
+      // The live client (useSearchSession) sends 'mark' with a { point } object,
+      // not 'ping' with flat coords — without this adapter every breadcrumb fell
+      // through to 400, so sessions recorded 0 pings → 0 distance → 0 points →
+      // empty coverage map. Adapt the client's payload to handlePing.
+      case 'mark': {
+        const p = body.point || {};
+        return handlePing({
+          sessionId: body.sessionId,
+          latitude: p.lat,
+          longitude: p.lng,
+          accuracy: p.accuracy,
+          isValid: p.inZone,
+        });
+      }
       case 'end':
         return handleEnd(user.id, missionId, body);
+      // Client 'cancel' = end the session without it counting; handleEnd awards 0
+      // for a below-minimum session, so route it there with a CANCELLED reason.
+      case 'cancel':
+        return handleEnd(user.id, missionId, { sessionId: body.sessionId, reason: 'CANCELLED' });
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
