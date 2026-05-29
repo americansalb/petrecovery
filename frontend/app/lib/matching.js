@@ -119,11 +119,28 @@ export function calculateColorSimilarity(color1, color2) {
 }
 
 /**
+ * A coordinate of exactly 0 (equator / prime meridian) is valid, so coordinate
+ * presence MUST be tested with Number.isFinite, never truthiness — otherwise a
+ * real match on the 0-meridian silently loses all location points and can fall
+ * below the notification floor. (Shared helper so this anti-pattern stops
+ * recurring — dev-challenger msg 382, evil-architect CORR-1.)
+ */
+export function hasCoords(lat, lng) {
+  return Number.isFinite(lat) && Number.isFinite(lng);
+}
+
+/** First finite coordinate among the candidates (preserves a valid 0), else null. */
+function pickCoord(...vals) {
+  for (const v of vals) if (Number.isFinite(v)) return v;
+  return null;
+}
+
+/**
  * Calculate distance between two points using Haversine formula
  * Returns distance in miles
  */
 export function calculateDistance(lat1, lon1, lat2, lon2) {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
+  if (!hasCoords(lat1, lon1) || !hasCoords(lat2, lon2)) return Infinity;
 
   const R = 3959; // Earth's radius in miles
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -250,13 +267,13 @@ export function calculateMatchScore(foundPet, lostCase, options = {}) {
   scores.species = 25;
   details.speciesMatch = true;
 
-  // 2. Location (25 points)
-  const foundLat = foundPet.latitude || foundPet.lastSeenLatitude;
-  const foundLon = foundPet.longitude || foundPet.lastSeenLongitude;
-  const lostLat = lostCase.latitude || lostCase.lastSeenLatitude;
-  const lostLon = lostCase.longitude || lostCase.lastSeenLongitude;
+  // 2. Location (25 points) — pickCoord/hasCoords preserve a valid 0 coordinate
+  const foundLat = pickCoord(foundPet.latitude, foundPet.lastSeenLatitude);
+  const foundLon = pickCoord(foundPet.longitude, foundPet.lastSeenLongitude);
+  const lostLat = pickCoord(lostCase.latitude, lostCase.lastSeenLatitude);
+  const lostLon = pickCoord(lostCase.longitude, lostCase.lastSeenLongitude);
 
-  if (foundLat && foundLon && lostLat && lostLon) {
+  if (hasCoords(foundLat, foundLon) && hasCoords(lostLat, lostLon)) {
     const distance = calculateDistance(foundLat, foundLon, lostLat, lostLon);
     details.distance = Math.round(distance * 10) / 10;
 
@@ -367,8 +384,15 @@ export function findMatches(targetCase, candidateCases, options = {}) {
         ...matchResult,
       };
     })
-    .filter(m => m.eligible && m.score >= minScore)
-    .sort((a, b) => b.score - a.score)
+    // Keep eligible matches AND any 'actionable'-band match (e.g. a microchip
+    // identity match, pTrueMatch=1.0) even if its RAW score is low — a
+    // deterministic match must never be filtered out by the fuzzy minScore.
+    .filter(m => (m.eligible && m.score >= minScore) || m.band === 'actionable')
+    // Rank by calibrated probability first (so microchip / high-confidence rises
+    // to the top regardless of raw score), then raw score as a tiebreaker.
+    // Sorting by raw score alone would bury a definitive identity match beneath
+    // a high-scoring guess (dev-challenger msg 382).
+    .sort((a, b) => (b.pTrueMatch - a.pTrueMatch) || (b.score - a.score))
     .slice(0, maxResults);
 
   return matches;
