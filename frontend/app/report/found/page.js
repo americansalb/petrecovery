@@ -445,7 +445,7 @@ export default function ReportFoundPet() {
               Enter the address or zip code where you found the pet
             </p>
 
-            <label style={{
+            <label htmlFor="found-address" style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontWeight: '700',
@@ -454,6 +454,7 @@ export default function ReportFoundPet() {
               Found At Address or Zip Code
             </label>
             <input
+              id="found-address"
               type="text"
               value={foundAddress}
               onChange={(e) => setFoundAddress(e.target.value)}
@@ -473,7 +474,7 @@ export default function ReportFoundPet() {
               }}
             />
 
-            <label style={{
+            <label htmlFor="found-time" style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontWeight: '700',
@@ -482,6 +483,7 @@ export default function ReportFoundPet() {
               When did you find them?
             </label>
             <select
+              id="found-time"
               value={timeElapsed}
               onChange={(e) => setTimeElapsed(e.target.value)}
               style={{
@@ -618,7 +620,7 @@ export default function ReportFoundPet() {
                 style={{
                   flex: 2,
                   padding: '1rem',
-                  background: '#dc2626',
+                  background: '#10b981', // emerald = FOUND primary CTA (consistent across steps)
                   color: 'white',
                   border: 'none',
                   borderRadius: theme.radius.lg,
@@ -673,10 +675,11 @@ export default function ReportFoundPet() {
             )}
 
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
+              <label htmlFor="found-name" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
                 Your Name
               </label>
               <input
+                id="found-name"
                 type="text"
                 value={reportData.firstName}
                 onChange={(e) => setReportData({ ...reportData, firstName: e.target.value })}
@@ -693,10 +696,11 @@ export default function ReportFoundPet() {
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
+              <label htmlFor="found-email" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
                 Email
               </label>
               <input
+                id="found-email"
                 type="email"
                 value={reportData.email}
                 onChange={(e) => setReportData({ ...reportData, email: e.target.value })}
@@ -713,10 +717,11 @@ export default function ReportFoundPet() {
             </div>
 
             <div style={{ marginBottom: '2rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
+              <label htmlFor="found-phone" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
                 Phone Number
               </label>
               <input
+                id="found-phone"
                 type="tel"
                 value={reportData.phone}
                 onChange={(e) => setReportData({ ...reportData, phone: e.target.value })}
@@ -755,7 +760,7 @@ export default function ReportFoundPet() {
                 style={{
                   flex: 2,
                   padding: '1rem',
-                  background: (reportData.firstName && reportData.email && reportData.phone) ? '#dc2626' : '#cbd5e1',
+                  background: (reportData.firstName && reportData.email && reportData.phone) ? '#10b981' : '#cbd5e1',
                   color: 'white',
                   border: 'none',
                   borderRadius: theme.radius.lg,
@@ -1201,7 +1206,7 @@ export default function ReportFoundPet() {
               style={{
                 display: 'inline-block',
                 padding: '1.25rem 2.5rem',
-                background: '#dc2626',
+                background: '#10b981', // emerald = FOUND positive CTA (was red, the LOST semantic)
                 color: 'white',
                 border: 'none',
                 borderRadius: theme.radius.lg,
