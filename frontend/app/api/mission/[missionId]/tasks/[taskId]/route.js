@@ -38,7 +38,7 @@ export async function GET(request, { params }) {
 
     // Get squad task if exists
     const squadTask = await prisma.squadTask.findFirst({
-      where: { missionId, taskType: taskId },
+      where: { caseId: missionId, taskType: taskId },
       include: {
         participants: {
           include: {
@@ -164,7 +164,7 @@ export async function POST(request, { params }) {
 async function handleJoin(userId, missionId, taskId) {
   // Get or create squad task
   let squadTask = await prisma.squadTask.findFirst({
-    where: { missionId, taskType: taskId },
+    where: { caseId: missionId, taskType: taskId },
   });
 
   if (!squadTask) {
@@ -183,7 +183,7 @@ async function handleJoin(userId, missionId, taskId) {
     squadTask = await prisma.squadTask.create({
       data: {
         rescueSquad: { connect: { id: rescueSquad.id } },
-        missionId,
+        caseId: missionId,
         taskType: taskId,
         title: taskId,
         type: 'OTHER',
@@ -225,7 +225,7 @@ async function handleJoin(userId, missionId, taskId) {
 
 async function handleLeave(userId, missionId, taskId) {
   const squadTask = await prisma.squadTask.findFirst({
-    where: { missionId, taskType: taskId },
+    where: { caseId: missionId, taskType: taskId },
   });
 
   if (!squadTask) {
@@ -264,7 +264,7 @@ async function handleRequestHelp(userId, missionId, taskId, body) {
 
   // Get or create squad task
   let squadTask = await prisma.squadTask.findFirst({
-    where: { missionId, taskType: taskId },
+    where: { caseId: missionId, taskType: taskId },
   });
 
   if (!squadTask) {
@@ -283,7 +283,7 @@ async function handleRequestHelp(userId, missionId, taskId, body) {
     squadTask = await prisma.squadTask.create({
       data: {
         rescueSquad: { connect: { id: rescueSquad.id } },
-        missionId,
+        caseId: missionId,
         taskType: taskId,
         title: taskId,
         type: 'OTHER',

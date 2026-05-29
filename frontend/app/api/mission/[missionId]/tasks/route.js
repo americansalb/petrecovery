@@ -55,7 +55,8 @@ export async function GET(request, { params }) {
 
     // Get squad tasks for this case
     const squadTasks = await prisma.squadTask.findMany({
-      where: { missionId },
+      where: { caseId: missionId }, // SquadTask's field is caseId (no @map); missionId var = the case id
+
       include: {
         participants: {
           include: {

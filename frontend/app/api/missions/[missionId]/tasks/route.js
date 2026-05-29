@@ -45,10 +45,10 @@ export async function GET(request, { params }) {
     const tasks = await prisma.squadTask.findMany({
       where: {
         rescueSquadId,
-        missionId: missionData.id,
+        caseId: missionData.id, // SquadTask field is caseId (no @map)
       },
       include: {
-        assignee: {
+        assignedTo: {
           select: {
             id: true,
             firstName: true,
@@ -167,14 +167,14 @@ export async function POST(request, { params }) {
     const task = await prisma.squadTask.create({
       data: {
         rescueSquadId,
-        missionId: missionData.id,
+        caseId: missionData.id, // SquadTask field is caseId (no @map)
         title: title.trim(),
         description: description?.trim() || null,
         type: type || 'OTHER',
         priority: priority || 'MEDIUM',
-        status: status || 'OPEN',
-        assigneeId: assigneeId || session.user.id || null,
-        creatorId: session.user.id,
+        status: status || 'AVAILABLE', // 'OPEN' is not a valid status (enum: AVAILABLE/IN_PROGRESS/NEEDS_HELP/COMPLETED/BLOCKED)
+        assignedToId: assigneeId || session.user.id || null, // field is assignedToId, not assigneeId
+        createdById: session.user.id, // field is createdById, not creatorId
         latitude: latitude || null,
         longitude: longitude || null,
         address: address || null,
@@ -184,7 +184,7 @@ export async function POST(request, { params }) {
         completionNotes: completionNotes || null,
       },
       include: {
-        assignee: {
+        assignedTo: {
           select: {
             id: true,
             firstName: true,
@@ -201,7 +201,7 @@ export async function POST(request, { params }) {
 
     await prisma.caseUpdate.create({
       data: {
-        missionId: missionData.id,
+        caseId: missionData.id, // CaseUpdate field is caseId (no missionId)
         authorId: session.user.id,
         content: activityMessage,
         isUpdate: true,
