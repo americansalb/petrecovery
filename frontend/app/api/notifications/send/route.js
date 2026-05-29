@@ -73,8 +73,9 @@ export async function POST(request) {
       // Send to specific users
       whereClause.userId = { in: targetUserIds };
     } else if (squadId) {
-      // Send to all squad members
-      const members = await prisma.squadMembership.findMany({
+      // Send to all active squad members. (Model is RescueSquadMember — the
+      // previous prisma.squadMembership doesn't exist and 500'd this path.)
+      const members = await prisma.rescueSquadMember.findMany({
         where: {
           rescueSquadId: squadId,
           isActive: true,
@@ -84,33 +85,27 @@ export async function POST(request) {
       });
       whereClause.userId = { in: members.map(m => m.userId) };
     } else if (missionId) {
-      // Send to all active volunteers in a mission
-      const volunteers = await prisma.missionVolunteer.findMany({
-        where: {
-          missionControlId: missionId,
-          status: 'ACTIVE',
+      // missionId is the CASE id. Resolve the case's MissionControl (caseId is
+      // @unique) and notify its active volunteers via the activeVolunteers
+      // relation. (Previously queried missionVolunteer by missionControlId =
+      // caseId → always 0 rows; a second dead branch used a nonexistent
+      // `volunteers` relation. Consolidated + corrected here.)
+      const mission = await prisma.missionControl.findUnique({
+        where: { caseId: missionId },
+        include: {
+          activeVolunteers: {
+            where: { status: 'ACTIVE' },
+            select: { userId: true },
+          },
         },
-        select: { userId: true },
       });
-      const userIds = volunteers.map(v => v.userId).filter(Boolean);
+      const userIds = (mission?.activeVolunteers || [])
+        .map(v => v.userId)
+        .filter(Boolean);
       if (userIds.length === 0) {
         return NextResponse.json({ sent: 0, failed: 0 });
       }
       whereClause.userId = { in: userIds };
-    } else if (missionId) {
-      // Send to all users who have interacted with this case
-      // (volunteers, squad members assigned, etc.)
-      const mission = await prisma.missionControl.findFirst({
-        where: { caseId: missionId },
-        include: {
-          volunteers: { select: { userId: true } },
-        },
-      });
-
-      if (mission?.volunteers) {
-        const userIds = mission.volunteers.map(v => v.userId).filter(Boolean);
-        whereClause.userId = { in: userIds };
-      }
     }
 
     // Get subscriptions
