@@ -4,7 +4,7 @@ import puppeteer from 'puppeteer-core';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const BASE = 'http://localhost:3000';
+const BASE = process.env.BASE_URL || 'http://localhost:5757'; // project dev runs on :5757
 const OUT = path.resolve(process.cwd(), '../docs/analysis/screenshots');
 const CHROME = ['C:/Program Files/Google/Chrome/Application/chrome.exe'].find((p) => fs.existsSync(p));
 

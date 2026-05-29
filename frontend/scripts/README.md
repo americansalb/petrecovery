@@ -9,7 +9,8 @@ Built by the UI Architect; useful for anyone doing visual QA or browser smoke ch
 npm i -D puppeteer-core      # ~3MB, no bundled browser
 ```
 Uses your **installed** Chrome (or Edge) — auto-detected, or set `CHROME_PATH`.
-Requires the dev server running (`npm run dev` on :3000).
+Requires the dev server running. **This project's `next dev` runs on :5757** (not
+the default :3000) — the scripts default to :5757; override with `BASE_URL`.
 
 ## Tools
 

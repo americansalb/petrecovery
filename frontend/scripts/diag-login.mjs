@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer-core';
 import fs from 'node:fs';
 const CHROME = ['C:/Program Files/Google/Chrome/Application/chrome.exe'].find((p) => fs.existsSync(p));
-const BASE = 'http://localhost:3000';
+const BASE = process.env.BASE_URL || 'http://localhost:5757';
 const EMAIL = process.env.LOGIN_EMAIL || 'contact@aalb.org';
 const PW = process.env.LOGIN_PASSWORD || 'winner';
 

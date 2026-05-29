@@ -9,7 +9,8 @@ import puppeteer from 'puppeteer-core';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const BASE = process.env.BASE_URL || 'http://localhost:3000';
+// This project's next dev runs on :5757 (not the default :3000). Override with BASE_URL.
+const BASE = process.env.BASE_URL || 'http://localhost:5757';
 const OUT = path.resolve(process.cwd(), '../docs/analysis/screenshots');
 const CHROME =
   process.env.CHROME_PATH ||
