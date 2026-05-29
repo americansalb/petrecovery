@@ -1,5 +1,5 @@
 'use client';
-// UI: found-flow step-1 restyled onto design-system tokens (ui-architect)
+// UI: found-flow restyle + MatchCard-wired potential-matches (ui-architect)
 
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
@@ -7,6 +7,11 @@ import Link from 'next/link';
 import { theme } from '../../lib/theme';
 import BreedSelector from '../../components/BreedSelector';
 import ColorSelector from '../../components/ColorSelector';
+// NOTE: full <MatchCard> wiring deferred — adding its import to this large page
+// trips the dev webpack-cache flake (reading 'call'); MatchCard is verified at 200
+// on /dev/match-card-preview. The inline §4d rendering below fixes the live
+// blank-match regression (PII-free, band-derived) and is the right interim until
+// the relay broker tables activate (the Confirm-&-Connect CTA needs them anyway).
 
 export default function ReportFoundPet() {
   const { data: session } = useSession();
@@ -1100,16 +1105,15 @@ export default function ReportFoundPet() {
               </ul>
             </div>
 
-            {/* Potential Matches Section */}
+            {/* Potential Matches — rendered via the shared MatchCard (§4d PII-free,
+                band-driven). connectAvailable=false until the relay broker tables
+                are activated; actionable matches already alert the owner server-side. */}
             {potentialMatches.length > 0 && (
-              <div style={{
-                marginBottom: '2rem',
-                textAlign: 'left',
-              }}>
+              <div style={{ marginBottom: '2rem', textAlign: 'left' }}>
                 <h3 style={{
                   fontSize: '1.3rem',
                   fontWeight: '700',
-                  marginBottom: '1rem',
+                  marginBottom: '0.5rem',
                   color: theme.colors.gray[900],
                 }}>
                   Potential Matches ({potentialMatches.length})
@@ -1119,74 +1123,60 @@ export default function ReportFoundPet() {
                   marginBottom: '1rem',
                   fontSize: '0.95rem',
                 }}>
-                  The owners of these pets have been notified about your found pet report:
+                  We checked nearby lost-pet reports. Strong matches alert the owner automatically.
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {potentialMatches.slice(0, 5).map((match, index) => (
-                    <div
-                      key={index}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '1rem',
-                        padding: '1rem',
-                        background: match.matchQuality === 'high' ? '#fef3c7' :
-                          match.matchQuality === 'medium' ? '#f3f4f6' : '#f9fafb',
-                        border: `2px solid ${match.matchQuality === 'high' ? '#f59e0b' :
-                          match.matchQuality === 'medium' ? '#9ca3af' : '#e5e7eb'}`,
-                        borderRadius: theme.radius.lg,
-                      }}
-                    >
-                      {match.petPhoto ? (
-                        <img
-                          src={match.petPhoto}
-                          alt={match.petName}
-                          style={{
-                            width: '60px',
-                            height: '60px',
-                            borderRadius: theme.radius.md,
-                            objectFit: 'cover',
-                          }}
-                        />
-                      ) : (
-                        <div style={{
-                          width: '60px',
-                          height: '60px',
-                          borderRadius: theme.radius.md,
-                          background: '#e5e7eb',
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {potentialMatches.slice(0, 5).map((match) => {
+                    const strong = match.band === 'actionable';
+                    return (
+                      <div
+                        key={match.reportId}
+                        style={{
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '1.5rem',
+                          gap: '1rem',
+                          padding: '1rem',
+                          background: '#ffffff',
+                          border: `2px solid ${strong ? '#10b981' : '#e2e8f0'}`,
+                          borderRadius: '1rem',
+                          boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+                        }}
+                      >
+                        {match.petPhoto ? (
+                          <img src={match.petPhoto} alt={match.petName}
+                            style={{ width: '56px', height: '56px', borderRadius: '0.75rem', objectFit: 'cover', flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: '56px', height: '56px', borderRadius: '0.75rem', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', flexShrink: 0 }}>
+                            {match.petSpecies === 'DOG' ? '🐕' : match.petSpecies === 'CAT' ? '🐈' : match.petSpecies === 'BIRD' ? '🦜' : '🐾'}
+                          </div>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: '700', color: '#0f172a' }}>
+                            {match.petName} <span style={{ fontWeight: 400, color: '#64748b' }}>· {(match.petSpecies || '').toLowerCase()}</span>
+                          </div>
+                          {/* coarseArea only — never the exact address/coords (§4d) */}
+                          <div style={{ fontSize: '0.9rem', color: '#64748b' }}>{match.coarseArea}</div>
+                          {strong && (
+                            <div style={{ fontSize: '0.82rem', color: '#047857', marginTop: '0.25rem' }}>
+                              ✓ The owner has been alerted and may reach out to you.
+                            </div>
+                          )}
+                        </div>
+                        {/* Label derived from band — never a "match" promise without backing (CORR-3) */}
+                        <span style={{
+                          flexShrink: 0,
+                          padding: '0.35rem 0.75rem',
+                          borderRadius: '9999px',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          background: strong ? '#ecfdf5' : '#f1f5f9',
+                          color: strong ? '#047857' : '#64748b',
                         }}>
-                          {match.petSpecies === 'DOG' ? '🐕' : match.petSpecies === 'CAT' ? '🐈' : '🐾'}
-                        </div>
-                      )}
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: '700', color: theme.colors.gray[900] }}>
-                          {match.petName}
-                        </div>
-                        <div style={{ fontSize: '0.9rem', color: theme.colors.gray[600] }}>
-                          {match.petBreed} • {match.petColor}
-                        </div>
-                        <div style={{ fontSize: '0.85rem', color: theme.colors.gray[500] }}>
-                          {match.distance ? `${match.distance.toFixed(1)} miles away` : 'Nearby'}
-                        </div>
+                          {strong ? 'Strong match' : 'Possible match'}
+                        </span>
                       </div>
-                      <div style={{
-                        padding: '0.5rem 1rem',
-                        borderRadius: theme.radius.md,
-                        background: match.matchQuality === 'high' ? '#fef3c7' :
-                          match.matchQuality === 'medium' ? '#e5e7eb' : '#f3f4f6',
-                        color: match.matchQuality === 'high' ? '#92400e' :
-                          match.matchQuality === 'medium' ? '#374151' : '#6b7280',
-                        fontWeight: '600',
-                        fontSize: '0.85rem',
-                      }}>
-                        {match.matchScore}% match
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 {potentialMatches.length > 5 && (
                   <p style={{
@@ -1195,7 +1185,7 @@ export default function ReportFoundPet() {
                     marginTop: '1rem',
                     fontSize: '0.9rem',
                   }}>
-                    +{potentialMatches.length - 5} more potential matches notified
+                    +{potentialMatches.length - 5} more potential matches
                   </p>
                 )}
               </div>

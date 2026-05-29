@@ -38,6 +38,7 @@ import {
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { cn } from '../ui/utils';
+import { matchIsActionable, bandLabel } from './matchGating';
 
 // The confidence floor lives in ONE place: the server (getConfidenceBand in
 // @/app/lib/matching). This card TRUSTS the server-computed `band`/`canConnect`
@@ -54,18 +55,6 @@ const SPECIES_EMOJI = {
 
 function speciesEmoji(species) {
   return SPECIES_EMOJI[(species || 'OTHER').toUpperCase()] || SPECIES_EMOJI.OTHER;
-}
-
-/**
- * Label is derived from the server `band` — the SAME signal that gates the CTA —
- * so the label and the actionability can never tell different stories (per
- * dev-challenger watch-item: no "Good Match" label without a way to act on it).
- * Returns null when no match-quality label should show (suppress band).
- */
-function bandLabel(band) {
-  if (band === 'actionable') return { text: 'Strong match', tone: 'text-flash-700' };
-  if (band === 'feed') return { text: 'Possible match · under review', tone: 'text-midnight-500' };
-  return null; // suppress → honest status carries the message, no label
 }
 
 function MatchPhoto({ photo, name, species }) {
@@ -94,7 +83,7 @@ function MatchPhoto({ photo, name, species }) {
  * @param {function} openRelay   async (matchId) => {threadId, antiScamBanner, counterpartyHandle, coarseArea}. Defaults to the live endpoint.
  * @param {function} sendMessage async (threadId, body) => void. Defaults to the live endpoint.
  */
-export function MatchCard({ match, onEvent, openRelay, sendMessage }) {
+export function MatchCard({ match, onEvent, openRelay, sendMessage, connectAvailable = true }) {
   const {
     matchId,
     petPhoto,
@@ -108,13 +97,9 @@ export function MatchCard({ match, onEvent, openRelay, sendMessage }) {
   } = match || {};
 
   const isVerifiedOwner = matchSource === 'microchip';
-  // Fail-CLOSED (per dev-challenger msg 460): show the actionable CTA + owner-push
-  // state ONLY on the positive condition — server says band==='actionable' AND
-  // canConnect===true (or it's a microchip match). A missing/unknown band or a
-  // falsy canConnect yields NO CTA, never an accidental one. Two match producers
-  // exist (calculateMatchScore + the inline matcher); not every payload is
-  // guaranteed well-formed, so absence of the trusted field must DENY, not allow.
-  const actionable = isVerifiedOwner || (band === 'actionable' && canConnect === true);
+  // Gating + label both come from the pure, unit-tested matchGating module — the
+  // fail-closed CTA decision lives in exactly one place (see matchGating.js).
+  const actionable = matchIsActionable(match);
   const label = isVerifiedOwner ? null : bandLabel(band);
 
   // idle → connecting → relay (thread open) | dismissed
@@ -209,32 +194,55 @@ export function MatchCard({ match, onEvent, openRelay, sendMessage }) {
 
       {actionable ? (
         <div className="mt-4">
-          {!isVerifiedOwner && (
-            <p className="text-sm font-medium text-midnight-800 mb-2">Is this them?</p>
+          {connectAvailable ? (
+            <>
+              {!isVerifiedOwner && (
+                <p className="text-sm font-medium text-midnight-800 mb-2">Is this them?</p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="primary"
+                  size="md"
+                  loading={phase === 'connecting'}
+                  onClick={handleConfirm}
+                  leftIcon={isVerifiedOwner ? ShieldCheck : undefined}
+                >
+                  {isVerifiedOwner ? 'Connect with owner' : 'Confirm & connect'}
+                </Button>
+                {!isVerifiedOwner && (
+                  <Button variant="outline" size="md" onClick={handleNotMine} disabled={phase === 'connecting'}>
+                    Not a match
+                  </Button>
+                )}
+              </div>
+              {error && <BrokerError kind={error} />}
+            </>
+          ) : (
+            // Relay broker not active yet: the owner is already alerted server-side
+            // (owner-notify fires for actionable matches), so tell the truth rather
+            // than show a Confirm CTA that can't open a thread.
+            <OwnerAlerted />
           )}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="primary"
-              size="md"
-              loading={phase === 'connecting'}
-              onClick={handleConfirm}
-              leftIcon={isVerifiedOwner ? ShieldCheck : undefined}
-            >
-              {isVerifiedOwner ? 'Connect with owner' : 'Confirm & connect'}
-            </Button>
-            {!isVerifiedOwner && (
-              <Button variant="outline" size="md" onClick={handleNotMine} disabled={phase === 'connecting'}>
-                Not a match
-              </Button>
-            )}
-          </div>
-          {error && <BrokerError kind={error} />}
         </div>
       ) : (
         // Below the P(true) floor: honest status, no Confirm, no owner alert.
         <HonestStatus />
       )}
     </Card>
+  );
+}
+
+/** Interim actionable state when the relay broker isn't live yet. Truthful: the
+ *  owner-notify already fired server-side, so we say so instead of a dead CTA. */
+function OwnerAlerted() {
+  return (
+    <div className="flex items-start gap-2 rounded-xl bg-green-50 border border-green-200 p-3 text-sm text-green-800">
+      <ShieldCheck className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" aria-hidden="true" />
+      <p>
+        The owner has been alerted about your found report and may reach out to you directly.
+        In-app messaging is rolling out soon.
+      </p>
+    </div>
   );
 }
 

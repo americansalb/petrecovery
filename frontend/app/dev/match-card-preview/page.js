@@ -130,6 +130,10 @@ export default function MatchCardPreview() {
           <MatchCard match={SAMPLES.malformed} onEvent={onEvent} openRelay={mockOpenRelay} sendMessage={mockSend} />
         </Section>
 
+        <Section title="Actionable, relay not live yet (connectAvailable=false)" note="Interim state on report/found until the relay broker activates: truthful 'owner alerted' note, no dead CTA. This is what ships now.">
+          <MatchCard match={SAMPLES.actionable} connectAvailable={false} onEvent={onEvent} openRelay={mockOpenRelay} sendMessage={mockSend} />
+        </Section>
+
         <Section title="Empty — no matches yet">
           <NoMatchesYet />
         </Section>
