@@ -11,6 +11,11 @@ on:
 
 env:
   NODE_VERSION: '20'
+  # SAFETY: force a dummy DB URL for ALL jobs so postinstall (`prisma generate`)
+  # and any step can never reach the SHARED remote Render Postgres. A real
+  # DATABASE_URL here would let an accidental db op nuke live data on every CI
+  # run. Never set repo secrets to the shared DB for CI. (EA/dev msg 465/472.)
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_dummy
 
 jobs:
   # Job 1: Lint and Type Check
