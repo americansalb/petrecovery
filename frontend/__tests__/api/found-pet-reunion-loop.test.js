@@ -120,6 +120,11 @@ describe('Reunion loop: FOUND report -> owner notification', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     expect(sendEmail.mock.calls[0][0].to).toBe(OWNER_EMAIL);
 
+    // The "last inch": the notification must be CLICKABLE to the match — the
+    // actionUrl resolves to the case by caseNumber (the missionNumber alias bug
+    // would have made this null/undefined / a broken link).
+    expect(createInAppNotification.mock.calls[0][0].actionUrl).toBe('/cases/CASE-2026-000123');
+
     // Alert persisted with caseId, NOT the non-existent missionId (CRIT-B contract):
     expect(prisma.alert.create).toHaveBeenCalledTimes(1);
     const alertData = prisma.alert.create.mock.calls[0][0].data;
