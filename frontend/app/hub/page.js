@@ -130,23 +130,23 @@ export default function HubPage() {
   return (
     <div className="min-h-screen bg-slate-100">
       {/* Forum Header */}
-      <div className="bg-gradient-to-r from-blue-700 to-blue-900 text-white">
+      <div className="bg-gradient-to-r from-midnight-800 to-midnight-950 text-white">
         <div className="max-w-5xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-flash-400/20 text-flash-400 rounded-lg flex items-center justify-center">
                 <MessageSquare size={28} />
               </div>
               <div>
                 <h1 className="text-2xl font-bold">Rescue Hub</h1>
-                <p className="text-blue-200 text-sm">Pet Recovery Community Forum</p>
+                <p className="text-midnight-300 text-sm">ReunitePets Community Forum</p>
               </div>
             </div>
 
             {authStatus === 'authenticated' ? (
               <Link
                 href="/hub/new"
-                className="flex items-center gap-2 px-4 py-2 bg-white text-blue-700 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-flash-400 text-midnight-900 rounded-lg font-semibold hover:bg-flash-300 transition-colors"
               >
                 <Plus size={18} />
                 New Thread
