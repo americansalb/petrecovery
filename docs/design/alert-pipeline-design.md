@@ -24,6 +24,12 @@ enum AlertStatus { PENDING SENT FAILED DEAD }
 ## Producer (the bridge, step 1)
 On a notifiable event: upsert Alert row(s) (PENDING) keyed by the unique tuple, THEN attempt an inline send (best-effort). On success → SENT + deliveredAt; on throw → leave PENDING with lastError. The inline attempt is isolated per recipient and never fails the originating request (BR-1 isolation). The row persists regardless, so the drain can finish what the inline attempt couldn't.
 
+## Latency: inline-first, drain-as-backstop (NOT drain-as-primary)
+The reunion alert is the most time-critical message in the product (first hours dominate recovery), so the drain must NOT add a cron-interval of latency to the happy path. The inline send (step 1) delivers MOST alerts in-request, instantly. The drain only ever touches rows that are NOT yet delivered (`deliveredAt IS NULL`) — i.e. failures/transients. A Render-cron minimum (~1 min) is acceptable for RETRY of failures; it would NOT be acceptable as the primary path. (Evil-Architect msg 521.)
+
+## Delivery-level idempotency (prevents double "found!" alerts)
+Creation-level dedup (the unique tuple) stops duplicate ROWS, but the inline-send-succeeds-then-status-write-fails race could let the drain re-send the SAME alert → a distraught owner hears "your pet was found" twice. So idempotency must be on DELIVERY, not just creation: the sender (inline OR drain) first CLAIMS the row with a conditional update — `UPDATE Alert SET status='SENDING' WHERE id=? AND status IN ('PENDING','FAILED')` — and only dispatches if it won the claim (rowcount=1). After dispatch: `SENT`+deliveredAt on success, or back to `FAILED`+attempts++ on throw. A concurrent/second attempt sees `SENDING`/`SENT` and skips. At-most-once delivery per (recipient, event, channel). (Evil-Architect msg 521; also closes CORR-6.)
+
 ## Consumer (the drain — new)
 `POST /api/cron/process-alerts` (protected by a `CRON_SECRET` header; NOT session — it's a machine endpoint):
 - Select `status IN (PENDING, FAILED) AND attempts < MAX_ATTEMPTS` (e.g. MAX=5), oldest first, small batch (e.g. 50).
@@ -32,6 +38,9 @@ On a notifiable event: upsert Alert row(s) (PENDING) keyed by the unique tuple, 
 - Backoff: skip a FAILED row until `lastAttemptAt + backoff(attempts)` (exponential) has passed — implement as a `WHERE lastAttemptAt < now - interval` clause keyed off attempts, or a simple `nextAttemptAt` column.
 - `logEvent` each attempt+result (resource_type 'alert', action 'transition', result success/failure) — feeds delivery observability and the conversion funnel.
 - Schedule: Render Cron Job (or platform scheduler) hitting the endpoint every 1–2 min. The bridge's inline send means most alerts go out instantly; the drain is the retry/backstop for the ones that didn't.
+
+## Out of scope (flagged): real-time SSE is multi-instance-unsafe
+SSE (`sse/notifications.js`) keeps an in-PROCESS connection map → `broadcastToUser` can't reach a client connected to another instance. It's a dead-end today (never called). IF real-time push is wired later, the consumer must publish via a shared pub/sub (Redis), not the in-memory map. Not part of this outbox; noted so it isn't assumed working. (Evil-Architect msg 521.)
 
 ## Why this shape (not a heavyweight queue)
 - The codebase has no worker/queue service; an outbox-in-Postgres + cron drain is the standard, dependency-free durable pattern and fits Prisma/Render. Redis is present but used for rate-limiting, not a job runner — don't overbuild.
