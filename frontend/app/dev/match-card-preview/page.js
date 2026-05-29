@@ -34,6 +34,7 @@ const SAMPLES = {
     coarseArea: 'Near Eastside · ~1km',
     pTrueMatch: 0.82,
     matchSource: 'visual',
+    band: 'actionable',
     canConnect: true,
   },
   verified: {
@@ -42,11 +43,12 @@ const SAMPLES = {
     petName: 'Bella',
     species: 'CAT',
     coarseArea: 'Near Riverside · ~1km',
-    pTrueMatch: 0.99,
+    pTrueMatch: 1.0,
     matchSource: 'microchip',
+    band: 'actionable',
     canConnect: true,
   },
-  belowFloor: {
+  feed: {
     matchId: 'm3',
     petPhoto: '',
     petName: 'Unknown',
@@ -54,6 +56,18 @@ const SAMPLES = {
     coarseArea: 'Near Downtown · ~2km',
     pTrueMatch: 0.55,
     matchSource: 'attribute',
+    band: 'feed',
+    canConnect: false,
+  },
+  suppress: {
+    matchId: 'm4',
+    petPhoto: '',
+    petName: 'Unknown',
+    species: 'CAT',
+    coarseArea: 'Near Midtown · ~3km',
+    pTrueMatch: 0.3,
+    matchSource: 'attribute',
+    band: 'suppress',
     canConnect: false,
   },
 };
@@ -92,8 +106,12 @@ export default function MatchCardPreview() {
           <MatchCard match={SAMPLES.verified} onEvent={onEvent} openRelay={mockOpenRelay} sendMessage={mockSend} />
         </Section>
 
-        <Section title="Below P(true) floor (0.55)" note="Honest status, no Confirm, no owner alert.">
-          <MatchCard match={SAMPLES.belowFloor} onEvent={onEvent} openRelay={mockOpenRelay} sendMessage={mockSend} />
+        <Section title="Feed band (0.40–0.70)" note="'Possible match · under review' label, NO Confirm, NO owner alert — label matches actionability.">
+          <MatchCard match={SAMPLES.feed} onEvent={onEvent} openRelay={mockOpenRelay} sendMessage={mockSend} />
+        </Section>
+
+        <Section title="Suppress band (<0.40)" note="No match label at all; honest status carries the message.">
+          <MatchCard match={SAMPLES.suppress} onEvent={onEvent} openRelay={mockOpenRelay} sendMessage={mockSend} />
         </Section>
 
         <Section title="Empty — no matches yet">

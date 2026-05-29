@@ -39,7 +39,10 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { cn } from '../ui/utils';
 
-const PUSH_FLOOR = 0.7; // P(true-match) — see spec §6/§8; contract, not raw score.
+// The confidence floor lives in ONE place: the server (getConfidenceBand in
+// @/app/lib/matching). This card TRUSTS the server-computed `band`/`canConnect`
+// and never re-implements the threshold — so lowering the floor server-side can
+// never leave the card hiding a CTA the server intended to show.
 
 const SPECIES_EMOJI = {
   DOG: '🐕',
@@ -53,11 +56,16 @@ function speciesEmoji(species) {
   return SPECIES_EMOJI[(species || 'OTHER').toUpperCase()] || SPECIES_EMOJI.OTHER;
 }
 
-/** Honest, calibrated confidence label — text+icon, never color-only. */
-function confidenceLabel(pTrue) {
-  if (pTrue >= 0.85) return 'Strong match';
-  if (pTrue >= PUSH_FLOOR) return 'Likely match';
-  return 'Possible match';
+/**
+ * Label is derived from the server `band` — the SAME signal that gates the CTA —
+ * so the label and the actionability can never tell different stories (per
+ * dev-challenger watch-item: no "Good Match" label without a way to act on it).
+ * Returns null when no match-quality label should show (suppress band).
+ */
+function bandLabel(band) {
+  if (band === 'actionable') return { text: 'Strong match', tone: 'text-flash-700' };
+  if (band === 'feed') return { text: 'Possible match · under review', tone: 'text-midnight-500' };
+  return null; // suppress → honest status carries the message, no label
 }
 
 function MatchPhoto({ photo, name, species }) {
@@ -96,10 +104,14 @@ export function MatchCard({ match, onEvent, openRelay, sendMessage }) {
     pTrueMatch = 0,
     matchSource = 'attribute',
     canConnect = false,
+    band, // 'actionable' | 'feed' | 'suppress' — server single source of truth (getConfidenceBand)
   } = match || {};
 
   const isVerifiedOwner = matchSource === 'microchip';
-  const actionable = isVerifiedOwner || (canConnect && pTrueMatch >= PUSH_FLOOR);
+  // Trust the server gate. Microchip is always actionable; otherwise honor canConnect.
+  const effectiveBand = isVerifiedOwner ? 'actionable' : (band || (canConnect ? 'actionable' : 'feed'));
+  const actionable = isVerifiedOwner || canConnect || effectiveBand === 'actionable';
+  const label = isVerifiedOwner ? null : bandLabel(effectiveBand);
 
   // idle → connecting → relay (thread open) | dismissed
   const [phase, setPhase] = useState('idle');
@@ -170,17 +182,12 @@ export function MatchCard({ match, onEvent, openRelay, sendMessage }) {
                 <ShieldCheck className="w-4 h-4" aria-hidden="true" />
                 Verified owner
               </span>
-            ) : (
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1 font-semibold text-sm whitespace-nowrap',
-                  actionable ? 'text-flash-700' : 'text-midnight-500'
-                )}
-              >
+            ) : label ? (
+              <span className={cn('inline-flex items-center gap-1 font-semibold text-sm whitespace-nowrap', label.tone)}>
                 <BadgeCheck className="w-4 h-4" aria-hidden="true" />
-                {confidenceLabel(pTrueMatch)}
+                {label.text}
               </span>
-            )}
+            ) : null}
           </div>
 
           {/* Coarse area only — never exact coordinates (contract §4c). */}
