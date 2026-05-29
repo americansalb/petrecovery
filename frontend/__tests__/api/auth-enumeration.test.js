@@ -61,3 +61,34 @@ describe('SEC-22: login does not leak an account-enumeration oracle', () => {
     expect(result).toMatchObject({ id: 'u1', role: 'USER' });
   });
 });
+
+/**
+ * Auth-regression discriminator (EA msg 649): if a known login symptom is
+ * "200 but no session", confirm the login->session CHAIN itself isn't broken at
+ * the code level. This proves session establishment works for a valid user, so
+ * a credential failing in the wild points to a rotated/changed cred (SEC-18
+ * resolved) rather than a universal auth regression. Also locks the jwt/session
+ * callbacks, which were previously untested.
+ */
+describe('login -> jwt -> session chain is intact', () => {
+  const { jwt, session } = authOptions.callbacks;
+
+  test('a valid verified user flows authorize -> jwt -> session and gets a populated session', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'admin-1', email: 'a@x.com', firstName: 'A', lastName: 'D', role: 'ADMIN',
+      passwordHash: 'h', emailVerified: new Date(), profileImage: null,
+    });
+    bcrypt.compare.mockResolvedValue(true);
+
+    const user = await authorize(creds);
+    expect(user).toMatchObject({ id: 'admin-1', role: 'ADMIN' });
+
+    const token = await jwt({ token: {}, user });
+    expect(token.id).toBe('admin-1');
+    expect(token.role).toBe('ADMIN');
+
+    const sess = await session({ session: { user: {} }, token });
+    expect(sess.user.id).toBe('admin-1');
+    expect(sess.user.role).toBe('ADMIN');
+  });
+});
