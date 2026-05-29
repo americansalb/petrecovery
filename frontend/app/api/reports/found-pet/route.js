@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { sendEmail } from '../../../lib/email';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
-import { findMatches, getMatchQuality } from '@/app/lib/matching';
+import { findMatches } from '@/app/lib/matching';
 import { getEmailBaseUrl } from '@/app/lib/config';
 
 export async function POST(request) {
@@ -224,38 +224,42 @@ export async function POST(request) {
 
     // Run matching algorithm
     const matches = findMatches(foundData, candidates, {
-      minScore: 30, // Show all reasonable matches
+      minScore: 30,
       maxResults: 20,
     });
 
-    // Format matches for response
-    const formattedMatches = matches.map(match => {
-      const quality = getMatchQuality(match.score);
-      const c = match.case;
+    // Format matches for response — §4d no-PII shape (this payload can reach an
+    // unauthenticated finder). NO owner name, exact address, or raw coords; only
+    // pet fields + coarseArea + the calibrated band/confidence. Drop 'suppress'.
+    const formattedMatches = matches
+      .filter(match => match.band !== 'suppress')
+      .map(match => {
+        const c = match.case;
+        return {
+          reportId: c.id,
+          petName: c.pet?.name || c.petName || 'Unknown',
+          petSpecies: c.petSpecies,
+          petBreed: c.petBreed,
+          petColor: c.petColor,
+          petPhoto: c.pet?.primaryPhotoUrl || c.petPhotoUrl,
+          coarseArea: coarseArea(c.lastSeenAddress, match.details?.distance),
+          pTrueMatch: match.pTrueMatch,
+          matchSource: match.matchSource,
+          band: match.band,
+          canConnect: match.band === 'actionable',
+        };
+      });
 
-      return {
-        reportId: c.id,
-        petName: c.pet?.name || c.petName || 'Unknown',
-        petSpecies: c.petSpecies,
-        petBreed: c.petBreed,
-        petColor: c.petColor,
-        petPhoto: c.pet?.primaryPhotoUrl || c.petPhotoUrl,
-        ownerName: c.reporter?.firstName || c.ownerName,
-        lastSeenAddress: c.lastSeenAddress,
-        lastSeenAt: c.lastSeenAt,
-        matchScore: match.score,
-        matchQuality: quality,
-        distance: match.details?.distance,
-      };
-    });
+    // CRUELTY GATE (CORR-3): only notify the owner for 'actionable'-band matches
+    // (pTrueMatch >= PUSH_FLOOR), NOT every shown match. Previously we showed
+    // matches down to score 30 but the UI claimed "owners notified" for all of
+    // them while only score>=50 actually got an alert — false hope on the worst
+    // day. The notify set must equal what we claim to have notified.
+    const notifiedMatches = matches.filter(m => m.band === 'actionable').map(m => m.case);
 
-    // Filter to high-quality matches for notifications
-    const nearbyMatches = matches.filter(m => m.score >= 50).map(m => m.case);
-
-    // Create alerts for potential matches
-    if (nearbyMatches.length > 0) {
+    if (notifiedMatches.length > 0) {
       await Promise.all(
-        nearbyMatches.map(match =>
+        notifiedMatches.map(match =>
           prisma.alert.create({
             data: {
               missionId: match.id,
@@ -279,7 +283,7 @@ export async function POST(request) {
             <p>Hi ${firstName},</p>
             <p>Thank you for reporting a found ${petType}! Your kindness helps reunite pets with their families.</p>
 
-            <p>We've notified <strong>${nearbyMatches.length} nearby owner${nearbyMatches.length !== 1 ? 's' : ''}</strong> who reported a lost ${petType} matching this description.</p>
+            <p>We've notified <strong>${notifiedMatches.length} nearby owner${notifiedMatches.length !== 1 ? 's' : ''}</strong> who reported a lost ${petType} matching this description.</p>
 
             <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
               <h3 style="margin-top: 0;">Your Account</h3>
@@ -312,17 +316,39 @@ export async function POST(request) {
       success: true,
       reportId: report.id,
       accountCreated,
-      matchesNotified: nearbyMatches.length,
-      potentialMatches: formattedMatches, // Include detailed matches for display
+      matchesNotified: notifiedMatches.length,
+      potentialMatches: formattedMatches, // §4d no-PII shape
     });
 
   } catch (error) {
     console.error('❌ Found pet report creation error:', error);
     return NextResponse.json(
-      { error: 'Failed to create report', details: error.message },
+      { error: 'Failed to create report' },
       { status: 500 }
     );
   }
+}
+
+/**
+ * Privacy-preserving coarse area for a match (mirrors reports/[id]): drop the
+ * street-level address segment and bucket distance so an unauthenticated finder
+ * never sees the exact missing location.
+ */
+function coarseArea(address, distanceMiles) {
+  let region = 'Nearby area';
+  if (typeof address === 'string' && address.includes(',')) {
+    const rest = address.split(',').slice(1).join(',').trim();
+    if (rest) region = rest;
+  }
+  let proximity = '';
+  if (typeof distanceMiles === 'number' && Number.isFinite(distanceMiles)) {
+    const bucket =
+      distanceMiles <= 1 ? '~1 mi' :
+      distanceMiles <= 3 ? '~3 mi' :
+      distanceMiles <= 6 ? '~6 mi' : '~10+ mi';
+    proximity = ` · within ${bucket}`;
+  }
+  return `${region}${proximity}`;
 }
 
 function calculateFoundTime(timeElapsed) {
@@ -338,16 +364,4 @@ function calculateFoundTime(timeElapsed) {
   };
   const hoursAgo = hours[timeElapsed] || 12;
   return new Date(now.getTime() - hoursAgo * 60 * 60 * 1000);
-}
-
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 3959; // Earth's radius in miles
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
 }
