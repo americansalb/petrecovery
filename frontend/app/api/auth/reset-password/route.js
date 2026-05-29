@@ -9,7 +9,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
-import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
+import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
@@ -20,7 +20,7 @@ export async function POST(request) {
   const correlationId = crypto.randomUUID();
 
   // Apply strict rate limiting
-  const rateLimitResult = withRateLimit(request, RateLimitPresets.AUTH, 'auth:reset-password');
+  const rateLimitResult = await withRateLimitAsync(request, RateLimitPresets.AUTH, 'auth:reset-password');
   if (!rateLimitResult.success) {
     await logEvent({
       event_type: 'auth.reset_password_rate_limited',

@@ -11,7 +11,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { sendEmail } from '@/app/lib/email';
 import { logEvent } from '@/lib/logging';
-import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
+import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import crypto from 'crypto';
 import { getEmailBaseUrl } from '@/app/lib/config';
 
@@ -26,7 +26,7 @@ export async function POST(request) {
   const correlationId = crypto.randomUUID();
 
   // Apply strict rate limiting
-  const rateLimitResult = withRateLimit(request, RateLimitPresets.AUTH, 'auth:forgot-password');
+  const rateLimitResult = await withRateLimitAsync(request, RateLimitPresets.AUTH, 'auth:forgot-password');
   if (!rateLimitResult.success) {
     await logEvent({
       event_type: 'auth.forgot_password_rate_limited',
