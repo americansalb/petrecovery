@@ -70,6 +70,18 @@ const SAMPLES = {
     band: 'suppress',
     canConnect: false,
   },
+  // Fail-safe: a malformed/legacy payload (canConnect true but NO band) must NOT
+  // surface a CTA — absence of the trusted field denies, never allows.
+  malformed: {
+    matchId: 'm5',
+    petPhoto: '',
+    petName: 'Unknown',
+    species: 'DOG',
+    coarseArea: 'Near Westend · ~2km',
+    pTrueMatch: 0.9,
+    matchSource: 'attribute',
+    canConnect: true, // truthy, but band is undefined → fail-closed → no CTA
+  },
 };
 
 function Section({ title, note, children }) {
@@ -112,6 +124,10 @@ export default function MatchCardPreview() {
 
         <Section title="Suppress band (<0.40)" note="No match label at all; honest status carries the message.">
           <MatchCard match={SAMPLES.suppress} onEvent={onEvent} openRelay={mockOpenRelay} sendMessage={mockSend} />
+        </Section>
+
+        <Section title="Malformed payload (fail-closed)" note="canConnect:true but band undefined → NO CTA. Absence of the trusted field denies, never allows.">
+          <MatchCard match={SAMPLES.malformed} onEvent={onEvent} openRelay={mockOpenRelay} sendMessage={mockSend} />
         </Section>
 
         <Section title="Empty — no matches yet">

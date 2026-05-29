@@ -108,10 +108,14 @@ export function MatchCard({ match, onEvent, openRelay, sendMessage }) {
   } = match || {};
 
   const isVerifiedOwner = matchSource === 'microchip';
-  // Trust the server gate. Microchip is always actionable; otherwise honor canConnect.
-  const effectiveBand = isVerifiedOwner ? 'actionable' : (band || (canConnect ? 'actionable' : 'feed'));
-  const actionable = isVerifiedOwner || canConnect || effectiveBand === 'actionable';
-  const label = isVerifiedOwner ? null : bandLabel(effectiveBand);
+  // Fail-CLOSED (per dev-challenger msg 460): show the actionable CTA + owner-push
+  // state ONLY on the positive condition — server says band==='actionable' AND
+  // canConnect===true (or it's a microchip match). A missing/unknown band or a
+  // falsy canConnect yields NO CTA, never an accidental one. Two match producers
+  // exist (calculateMatchScore + the inline matcher); not every payload is
+  // guaranteed well-formed, so absence of the trusted field must DENY, not allow.
+  const actionable = isVerifiedOwner || (band === 'actionable' && canConnect === true);
+  const label = isVerifiedOwner ? null : bandLabel(band);
 
   // idle → connecting → relay (thread open) | dismissed
   const [phase, setPhase] = useState('idle');
