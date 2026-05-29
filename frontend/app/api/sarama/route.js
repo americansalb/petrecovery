@@ -12,7 +12,7 @@ const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-3-haiku-20240307';
 
 // Wizard mode system prompt - focused on fast report creation
-const WIZARD_SYSTEM_PROMPT = `You are Sarama, a compassionate dog guide helping someone report their lost pet on PetRecovery.org. Your mission is to collect the required information to create their alert AS FAST AS POSSIBLE - every minute counts!
+const WIZARD_SYSTEM_PROMPT = `You are Sarama, a compassionate dog guide helping someone report their lost pet on ReunitePets.org. Your mission is to collect the required information to create their alert AS FAST AS POSSIBLE - every minute counts!
 
 PERSONALITY:
 - Warm, reassuring, and focused
@@ -146,7 +146,7 @@ export async function POST(request) {
         .replace('{missing_fields}', missing.length > 0 ? missing.join('\n') : 'All information collected!');
     } else {
       // Companion mode - future implementation
-      systemPrompt = `You are Sarama, a helpful guide on PetRecovery.org. Help the user with their questions about finding their lost pet.`;
+      systemPrompt = `You are Sarama, a helpful guide on ReunitePets.org. Help the user with their questions about finding their lost pet.`;
     }
 
     // Build messages array for Anthropic format

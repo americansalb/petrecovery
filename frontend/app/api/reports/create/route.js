@@ -562,7 +562,7 @@ export async function POST(request) {
         // Legacy flow: send welcome email with temp password
         sendEmail({
           to: email,
-          subject: 'Your PetRecovery.org Account - Lost Pet Alert Created',
+          subject: 'Your ReunitePets.org Account - Lost Pet Alert Created',
           html: buildWelcomeEmail(firstName, petName, email, tempPassword, nearbyPatrol.length)
         }).catch(err => {
           logEvent({
@@ -579,9 +579,9 @@ export async function POST(request) {
         // Send verification email (will be implemented in Phase 3.1)
         sendEmail({
           to: email,
-          subject: 'Welcome to PetRecovery.org - Verify Your Email',
+          subject: 'Welcome to ReunitePets.org - Verify Your Email',
           html: `
-            <h2>Welcome to PetRecovery.org, ${firstName}!</h2>
+            <h2>Welcome to ReunitePets.org, ${firstName}!</h2>
             <p>Thank you for creating an account. Your lost pet report for <strong>${petName}</strong> has been submitted successfully.</p>
             <p><strong>Case Number:</strong> ${report.caseNumber}</p>
             <p>You can now log in with your email (${email}) and the password you created.</p>

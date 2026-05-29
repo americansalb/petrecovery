@@ -318,7 +318,7 @@ export async function POST(request) {
       // Send email asynchronously - don't block the response
       sendEmail({
         to: email,
-        subject: 'Thank You for Reporting a Found Pet - PetRecovery.org',
+        subject: 'Thank You for Reporting a Found Pet - ReunitePets.org',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #10b981;">🎉 Thank You for Helping!</h2>

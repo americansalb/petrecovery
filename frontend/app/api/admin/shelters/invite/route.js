@@ -82,11 +82,11 @@ export async function POST(request) {
 
     await sendEmail({
       to: shelterEmail,
-      subject: `You're invited to join PetRecovery.org - ${shelterName}`,
+      subject: `You're invited to join ReunitePets.org - ${shelterName}`,
       html: `
-        <h2>Welcome to PetRecovery!</h2>
+        <h2>Welcome to ReunitePets!</h2>
         <p>Hi ${contactName || 'there'},</p>
-        <p>You've been invited to create a shelter account for <strong>${shelterName}</strong> on PetRecovery.org.</p>
+        <p>You've been invited to create a shelter account for <strong>${shelterName}</strong> on ReunitePets.org.</p>
         ${message ? `<p><em>"${message}"</em></p>` : ''}
         <p>With your free shelter account, you can:</p>
         <ul>

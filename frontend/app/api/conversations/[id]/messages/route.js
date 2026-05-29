@@ -107,7 +107,7 @@ export async function POST(request, { params }) {
     if (otherParty?.email) {
       sendEmail({
         to: otherParty.email,
-        subject: `New message about ${lostCase?.petName || 'a pet'} - PetRecovery.org`,
+        subject: `New message about ${lostCase?.petName || 'a pet'} - ReunitePets.org`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #10b981;">You have a new message!</h2>

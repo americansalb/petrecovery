@@ -126,7 +126,7 @@ export async function POST(request) {
     if (otherParty?.email) {
       sendEmail({
         to: otherParty.email,
-        subject: `New Message About ${petName} - PetRecovery.org`,
+        subject: `New Message About ${petName} - ReunitePets.org`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #10b981;">Someone wants to connect about a potential match!</h2>
@@ -146,7 +146,7 @@ export async function POST(request) {
             </p>
 
             <p style="color: #6b7280; font-size: 14px;">
-              For your safety, communicate through PetRecovery.org until you're ready to share contact information.
+              For your safety, communicate through ReunitePets.org until you're ready to share contact information.
             </p>
           </div>
         `
