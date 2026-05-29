@@ -27,8 +27,17 @@ On a notifiable event: upsert Alert row(s) (PENDING) keyed by the unique tuple, 
 ## Latency: inline-first, drain-as-backstop (NOT drain-as-primary)
 The reunion alert is the most time-critical message in the product (first hours dominate recovery), so the drain must NOT add a cron-interval of latency to the happy path. The inline send (step 1) delivers MOST alerts in-request, instantly. The drain only ever touches rows that are NOT yet delivered (`deliveredAt IS NULL`) — i.e. failures/transients. A Render-cron minimum (~1 min) is acceptable for RETRY of failures; it would NOT be acceptable as the primary path. (Evil-Architect msg 521.)
 
-## Delivery-level idempotency (prevents double "found!" alerts)
-Creation-level dedup (the unique tuple) stops duplicate ROWS, but the inline-send-succeeds-then-status-write-fails race could let the drain re-send the SAME alert → a distraught owner hears "your pet was found" twice. So idempotency must be on DELIVERY, not just creation: the sender (inline OR drain) first CLAIMS the row with a conditional update — `UPDATE Alert SET status='SENDING' WHERE id=? AND status IN ('PENDING','FAILED')` — and only dispatches if it won the claim (rowcount=1). After dispatch: `SENT`+deliveredAt on success, or back to `FAILED`+attempts++ on throw. A concurrent/second attempt sees `SENDING`/`SENT` and skips. At-most-once delivery per (recipient, event, channel). (Evil-Architect msg 521; also closes CORR-6.)
+## Delivery semantics: at-LEAST-once for the reunion alert (NOT at-most-once)
+The naive claim pattern biases at-most-once, which is the WRONG default for THIS message class: a LOST "your pet was found" alert = a pet not recovered (catastrophic); a DUPLICATE "found!" = mildly annoying. So the reunion-alert class biases **at-least-once** — never lose it, accept a rare duplicate — then collapses the duplicate at the provider. (Evil-Architect msg 528, Dev-Challenger msg 529 — converged independently.)
+
+### Claim as a LEASE, not a terminal state (fixes the orphan-row silent drop)
+Creation-level dedup (the unique tuple) stops duplicate ROWS. For delivery, the sender (inline OR drain) CLAIMS the row: `UPDATE Alert SET status='SENDING', lastAttemptAt=now() WHERE id=? AND status IN ('PENDING','FAILED')`, dispatch only if rowcount=1. After dispatch: `SENT`+deliveredAt on success, `FAILED`+attempts++ on throw.
+
+THE ORPHAN BUG this would create if SENDING were terminal: claim → dispatch → process CRASHES (serverless timeout / cold-stop — routine) before writing SENT/FAILED → row stuck in SENDING forever → drain (which only picks PENDING/FAILED) NEVER retries → the alert is silently lost, reintroducing the exact failure this tier exists to prevent. So SENDING is a TIME-BOUNDED LEASE: the drain ALSO reclaims stale claims —
+`WHERE status IN ('PENDING','FAILED') OR (status='SENDING' AND lastAttemptAt < now() - LEASE_TIMEOUT)` (LEASE_TIMEOUT ≈ 2× max send timeout). A crashed claim's lease expires, the drain re-claims (still atomic — one drainer wins), and it retries. At-most-once on the happy path, at-least-eventually on crash.
+
+### Collapse the rare duplicate at the provider (→ near-exactly-once)
+The lease-reclaim can double-DISPATCH if the crash happened AFTER the provider sent but before the status write. Collapse it where the provider supports it: pass a provider-side idempotency/dedup key keyed on `(recipient, event, channel)` to Resend (Idempotency-Key) / Twilio. A reclaim-retry that re-dispatches is then de-duped provider-side → at-least-once delivery WITHOUT a user-visible duplicate. Best of both: never lost, rarely duplicated, duplicate collapsed. (Also closes CORR-6.)
 
 ## Consumer (the drain — new)
 `POST /api/cron/process-alerts` (protected by a `CRON_SECRET` header; NOT session — it's a machine endpoint):
