@@ -81,7 +81,7 @@ export async function POST(request, { params }) {
     // Create update/note
     const update = await prisma.caseUpdate.create({
       data: {
-        missionId: params.missionId,
+        caseId: params.missionId, // CaseUpdate's field is caseId (no missionId) — was 500ing every note POST
         authorId: session.user.id,
         content: content.trim(),
         isUpdate: true,

@@ -167,7 +167,7 @@ export async function POST(request, { params }) {
       // Create status change note
       await tx.caseUpdate.create({
         data: {
-          missionId: params.missionId,
+          caseId: params.missionId, // CaseUpdate's field is caseId (no missionId) — was 500ing the whole status transaction
           authorId: session.user.id,
           content: `Status changed from ${oldStatus} to ${status}${resolutionNotes ? '. Notes: ' + resolutionNotes : ''}`,
           isUpdate: true,

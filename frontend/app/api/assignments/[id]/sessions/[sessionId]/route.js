@@ -153,11 +153,13 @@ export async function PATCH(request, { params }) {
         break;
 
       case 'update_location':
-        if (location?.latitude && location?.longitude) {
+        if (location?.latitude != null && location?.longitude != null) {
+          // SearchSession stores location as currentLocation (JSON) +
+          // lastLocationUpdate; lastLatitude/lastLongitude/lastLocationAt don't
+          // exist on the model and 500'd update_location.
           updateData = {
-            lastLatitude: location.latitude,
-            lastLongitude: location.longitude,
-            lastLocationAt: new Date(),
+            currentLocation: JSON.stringify({ lat: location.latitude, lng: location.longitude }),
+            lastLocationUpdate: new Date(),
           };
         }
         break;
@@ -179,7 +181,7 @@ export async function PATCH(request, { params }) {
     if (logMessage) {
       await prisma.caseUpdate.create({
         data: {
-          missionId: searchSession.participant.assignment.case.id,
+          caseId: searchSession.participant.assignment.case.id, // CaseUpdate's field is caseId (no missionId)
           authorId: session.user.id,
           content: logMessage,
           isUpdate: true,
