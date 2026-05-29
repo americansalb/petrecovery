@@ -11,7 +11,7 @@ import { OPERATION_MODES, VOLUNTEER_STATUS, ZONE_STATUS } from './index';
 /**
  * Get or create mission state for a case
  */
-export async function getMissionState(missionId) {
+export async function getMissionState(missionId, { createIfMissing = false } = {}) {
   let mission = await prisma.missionControl.findUnique({
     where: { missionId },
     include: {
@@ -43,6 +43,12 @@ export async function getMissionState(missionId) {
       resources: true,
     }
   });
+
+  if (!mission && !createIfMissing) {
+    // Read-only callers (e.g. GET) must not write on read — return null so the
+    // caller can 404 instead of materializing a MissionControl row on demand.
+    return null;
+  }
 
   if (!mission) {
     // Create inactive mission state

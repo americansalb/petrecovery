@@ -158,6 +158,36 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Permission check (mirrors POST): only the case owner, admin/moderator, or
+    // an assigned participant may read case notes — they aren't public.
+    const existingCase = await prisma.case.findUnique({
+      where: { id: params.missionId },
+      select: {
+        id: true,
+        reporterId: true,
+        assignments: {
+          select: {
+            participants: {
+              where: { userId: session.user.id },
+              select: { id: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!existingCase) {
+      return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
+    }
+
+    const isOwner = existingCase.reporterId === session.user.id;
+    const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
+    const isParticipant = existingCase.assignments.some(a => a.participants.length > 0);
+
+    if (!isOwner && !isAdmin && !isParticipant) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
+    }
+
     // Get case updates/notes
     const updates = await prisma.caseUpdate.findMany({
       where: { missionId: params.missionId },
@@ -181,8 +211,7 @@ export async function GET(request, { params }) {
   } catch (error) {
     console.error('Error fetching case notes:', error);
     return NextResponse.json({
-      error: 'Failed to fetch notes',
-      message: error.message
+      error: 'Failed to fetch notes'
     }, { status: 500 });
   }
 }

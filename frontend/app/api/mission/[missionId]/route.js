@@ -13,8 +13,19 @@ import { activateMission, pauseMission, resumeMission } from '@/app/lib/missionC
 
 export async function GET(request, { params }) {
   try {
+    // Require auth: mission state exposes exact last-seen coords + live
+    // volunteer GPS, so it must not be readable by anonymous callers.
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const { missionId } = params;
 
+    // createIfMissing:false — GET must not write on read (no row materialization).
     const state = await getMissionState(missionId);
 
     if (!state) {
