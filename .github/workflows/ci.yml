@@ -70,7 +70,7 @@ jobs:
       # (no .unref()) that otherwise keeps jest alive — flagged for an .unref() fix.
       - name: Run security, contract & engine tests (required)
         working-directory: frontend
-        run: npx jest --testPathPattern="(analyze-pet|finder-funnel|matching|rateLimit-global)" --no-coverage --ci --forceExit
+        run: npx jest --testPathPattern="(analyze-pet|finder-funnel|matching|rateLimit-global|report-log)" --no-coverage --ci --forceExit
 
       # Full unit suite — TEMPORARILY non-blocking. The legacy suites
       # (auth-register, auth-reset-password, sightings, logging) currently fail
