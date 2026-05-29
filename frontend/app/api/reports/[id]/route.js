@@ -59,6 +59,13 @@ export async function GET(request, { params }) {
 
     const session = await getServerSession(authOptions);
     const isOwner = session?.user?.email === report.reporter.email;
+    // SEC-19/SEC-10: the case page is public/shareable, but a pet's exact
+    // last-seen point is usually near the owner's home/routine — exposing precise
+    // coords + street address to anonymous viewers is a stalking/safety risk.
+    // So: authenticated searchers get EXACT location; anonymous viewers get a
+    // coarse (~1km / neighborhood) view. Coordinates round to 2 decimals (~1.1km).
+    const isAuthed = Boolean(session?.user?.id);
+    const coarsenCoord = (n) => (typeof n === 'number' ? Math.round(n * 100) / 100 : n);
 
     // Parse photos from pet if available, or use denormalized petPhotoUrl
     let photos = [];
@@ -119,9 +126,10 @@ export async function GET(request, { params }) {
         reportType: report.reportType,
         status: report.status,
         lastSeenAt: report.lastSeenAt,
-        lastSeenAddress: report.lastSeenAddress,
-        lastSeenLatitude: report.lastSeenLatitude,
-        lastSeenLongitude: report.lastSeenLongitude,
+        lastSeenAddress: isAuthed ? report.lastSeenAddress : coarseArea(report.lastSeenAddress, null),
+        lastSeenLatitude: isAuthed ? report.lastSeenLatitude : coarsenCoord(report.lastSeenLatitude),
+        lastSeenLongitude: isAuthed ? report.lastSeenLongitude : coarsenCoord(report.lastSeenLongitude),
+        locationPrecision: isAuthed ? 'exact' : 'approximate',
         searchRadius: report.searchRadius,
         hasReward: report.hasReward,
         rewardAmount: report.rewardAmount,
@@ -152,12 +160,14 @@ export async function GET(request, { params }) {
       sightings: report.sightings.map(s => ({
         id: s.id,
         sightedAt: s.sightedAt,
-        address: s.address,
+        // Same coarse-for-anonymous treatment: exact sighting coords + reporter
+        // name only for authenticated searchers.
+        address: isAuthed ? s.address : coarseArea(s.address, null),
         description: s.description,
         certaintyLevel: s.certaintyLevel,
-        reportedBy: s.reportedBy.firstName,
-        latitude: s.latitude,
-        longitude: s.longitude,
+        reportedBy: isAuthed ? s.reportedBy.firstName : null,
+        latitude: isAuthed ? s.latitude : coarsenCoord(s.latitude),
+        longitude: isAuthed ? s.longitude : coarsenCoord(s.longitude),
         isVerified: s.isVerified,
       })),
       potentialMatches, // Empty array for LOST pets, populated for FOUND pets
