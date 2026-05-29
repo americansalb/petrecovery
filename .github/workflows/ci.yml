@@ -63,24 +63,16 @@ jobs:
         working-directory: frontend
         run: npx prisma generate
 
-      # REAL merge gate (blocking): security/contract/engine regressions for the
-      # report-wizard-v2 surface. Allowlist pattern (not the whole suite) so the
-      # floor is green-and-real today while the legacy suites' mockPrisma TDZ is
-      # repaired. --forceExit: rateLimit.js has a module-level cleanup setInterval
-      # (no .unref()) that otherwise keeps jest alive — flagged for an .unref() fix.
-      - name: Run security, contract & engine tests (required)
+      # REAL merge gate (blocking): the FULL unit suite must pass. The legacy
+      # mockPrisma TDZ failures are repaired; the only excluded file is the
+      # pre-Jest logging.test.js (jest.config testPathIgnorePatterns — pending an
+      # async-aware rewrite). No coverage threshold here so the gate blocks on
+      # correctness/security regressions without flaking on the 20% target.
+      # --forceExit: rateLimit.js's cleanup setInterval lacks .unref() and would
+      # otherwise keep jest alive — flagged for a one-line .unref() fix.
+      - name: Run unit tests (required)
         working-directory: frontend
-        run: npx jest --testPathPattern="(analyze-pet|finder-funnel|matching|rateLimit-global|report-log)" --no-coverage --ci --forceExit
-
-      # Full unit suite — TEMPORARILY non-blocking. The legacy suites
-      # (auth-register, auth-reset-password, sightings, logging) currently fail
-      # to load with "Cannot access 'mockPrisma' before initialization" (ESM
-      # import-hoist vs. jest.mock factory closing over a const, triggered once
-      # app/lib/auth.js began touching prisma at module load). Tracked for repair;
-      # flip this to a hard gate once green. See Tester report.
-      - name: Run full unit suite (non-blocking until legacy suites repaired)
-        working-directory: frontend
-        run: npm test || echo "::warning::legacy unit suite is RED (mockPrisma TDZ) — repair tracked, see Tester report"
+        run: npx jest --ci --forceExit
 
   # Job 3: Build
   build:
