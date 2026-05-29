@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { isAdmin } from '@/app/lib/authz';
 
 const WELCOME_MESSAGE = `Welcome to your local Rescue Force!
 
@@ -23,10 +24,14 @@ export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
 
-    // Allow anyone to run this for now (in production, require admin)
-    // if (!session || session.user.role !== 'ADMIN') {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    // Admin-gated: this creates a role:'ADMIN' system user, so leaving it open
+    // was a privilege-escalation backdoor. Re-check fresh role in-handler.
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!(await isAdmin(session.user.id))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Get all active rescue squads
     const squads = await prisma.rescueSquad.findMany({
