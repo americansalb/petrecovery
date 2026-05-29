@@ -7,11 +7,7 @@ import Link from 'next/link';
 import { theme } from '../../lib/theme';
 import BreedSelector from '../../components/BreedSelector';
 import ColorSelector from '../../components/ColorSelector';
-// NOTE: full <MatchCard> wiring deferred — adding its import to this large page
-// trips the dev webpack-cache flake (reading 'call'); MatchCard is verified at 200
-// on /dev/match-card-preview. The inline §4d rendering below fixes the live
-// blank-match regression (PII-free, band-derived) and is the right interim until
-// the relay broker tables activate (the Confirm-&-Connect CTA needs them anyway).
+import { MatchCard } from '../../../components/case/MatchCard';
 
 export default function ReportFoundPet() {
   const { data: session } = useSession();
@@ -1126,57 +1122,23 @@ export default function ReportFoundPet() {
                   We checked nearby lost-pet reports. Strong matches alert the owner automatically.
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {potentialMatches.slice(0, 5).map((match) => {
-                    const strong = match.band === 'actionable';
-                    return (
-                      <div
-                        key={match.reportId}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '1rem',
-                          padding: '1rem',
-                          background: '#ffffff',
-                          border: `2px solid ${strong ? '#10b981' : '#e2e8f0'}`,
-                          borderRadius: '1rem',
-                          boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
-                        }}
-                      >
-                        {match.petPhoto ? (
-                          <img src={match.petPhoto} alt={match.petName}
-                            style={{ width: '56px', height: '56px', borderRadius: '0.75rem', objectFit: 'cover', flexShrink: 0 }} />
-                        ) : (
-                          <div style={{ width: '56px', height: '56px', borderRadius: '0.75rem', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', flexShrink: 0 }}>
-                            {match.petSpecies === 'DOG' ? '🐕' : match.petSpecies === 'CAT' ? '🐈' : match.petSpecies === 'BIRD' ? '🦜' : '🐾'}
-                          </div>
-                        )}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: '700', color: '#0f172a' }}>
-                            {match.petName} <span style={{ fontWeight: 400, color: '#64748b' }}>· {(match.petSpecies || '').toLowerCase()}</span>
-                          </div>
-                          {/* coarseArea only — never the exact address/coords (§4d) */}
-                          <div style={{ fontSize: '0.9rem', color: '#64748b' }}>{match.coarseArea}</div>
-                          {strong && (
-                            <div style={{ fontSize: '0.82rem', color: '#047857', marginTop: '0.25rem' }}>
-                              ✓ The owner has been alerted and may reach out to you.
-                            </div>
-                          )}
-                        </div>
-                        {/* Label derived from band — never a "match" promise without backing (CORR-3) */}
-                        <span style={{
-                          flexShrink: 0,
-                          padding: '0.35rem 0.75rem',
-                          borderRadius: '9999px',
-                          fontSize: '0.8rem',
-                          fontWeight: 700,
-                          background: strong ? '#ecfdf5' : '#f1f5f9',
-                          color: strong ? '#047857' : '#64748b',
-                        }}>
-                          {strong ? 'Strong match' : 'Possible match'}
-                        </span>
-                      </div>
-                    );
-                  })}
+                  {potentialMatches.slice(0, 5).map((match) => (
+                    <MatchCard
+                      key={match.reportId}
+                      connectAvailable={false}
+                      match={{
+                        matchId: match.reportId,
+                        petPhoto: match.petPhoto,
+                        petName: match.petName,
+                        species: match.petSpecies,
+                        coarseArea: match.coarseArea,
+                        pTrueMatch: match.pTrueMatch,
+                        matchSource: match.matchSource,
+                        band: match.band,
+                        canConnect: match.canConnect,
+                      }}
+                    />
+                  ))}
                 </div>
                 {potentialMatches.length > 5 && (
                   <p style={{
