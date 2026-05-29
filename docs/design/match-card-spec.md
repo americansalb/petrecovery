@@ -1,7 +1,15 @@
 # Match Card — Design Spec (v1)
 
-**Owner:** UI Architect · **Status:** Draft for review · **Contract:** `.vaak/vision.md §4c` (relay/connect broker)
-**Surface:** `frontend/app/report/found/page.js:1065` (FOUND success → Potential Matches) and the future no-signup finder flow.
+**Owner:** UI Architect · **Status:** Partially shipped (see Implementation Status) · **Contract:** `.vaak/vision.md §4c/§4d` (relay/connect broker)
+**Surface:** `frontend/app/report/found/page.js` (FOUND success → Potential Matches) and the future no-signup finder flow.
+
+## Implementation Status (live)
+- ✅ **MatchCard component** — `components/case/MatchCard.jsx`, on shared Card/Button/tokens. Gating + label in pure `components/case/matchGating.js` (fail-closed: CTA only on `band==='actionable' && canConnect===true`, or microchip). Verified at 200 on `/dev/match-card-preview`.
+- ✅ **Fail-closed CI test** — `__tests__/components/match-gating.test.js` (9 cases): missing/garbage band ⇒ no CTA. Locks the security invariant.
+- ✅ **report/found success matches** — wired to the §4d shape via an **inline** render (PII-free: petName + coarseArea only; band-derived Strong/Possible label; truthful "owner alerted" for actionable per the CORR-3 cruelty gate). Fixes the blank-match regression from the §4d contract change.
+- ⏳ **Full `<MatchCard>` import into report/found** — DEFERRED. Adding the import to that large page tripped the dev webpack-cache flake (`reading 'call'`); MatchCard itself is fine (preview = 200). Re-attempt on a clean build (fresh `.next`).
+- ⏳ **Live Confirm-&-Connect CTA** — gated on `connectAvailable`; shows the "owner alerted" interim until the relay broker tables are activated (architect's `MatchConnection`/`RelayMessage` + manual CREATE-TABLE SQL, not a `db push`). Endpoints exist at `/api/relay/{token}`; `openRelay`/`sendMessage` are overridable for the live swap.
+- ⏳ **RelayThread owner-reply poll** — needs `GET /api/relay/{token}` wired at integration time.
 
 This spec defines the visual states, data contract, and component decomposition for the match card. It is the front-half of Phase-2 (REACH + ACT) pulled forward to ride alongside existing-loop instrumentation: it turns the **passive** match list ("owners have been notified") into an **actionable, relay-brokered** Confirm-&-Connect moment — and instruments the `matched → contacted → reunited` drop-off.
 
