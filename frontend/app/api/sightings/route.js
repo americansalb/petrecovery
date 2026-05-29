@@ -11,6 +11,7 @@ import { logEvent } from '@/lib/logging';
 import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import { createInAppNotification } from '@/app/lib/notifications-inapp';
 import { sendEmail } from '@/app/lib/email';
+import { getEmailBaseUrl } from '@/app/lib/config';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -155,7 +156,7 @@ export async function POST(request) {
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #10b981;">A new sighting was reported</h2>
                 <p>Someone just reported a possible sighting of ${sightedCase.petName || 'your lost pet'}${location ? ` near ${location}` : ''}.</p>
-                <p><a href="${process.env.NEXT_PUBLIC_BASE_URL || ''}${sightedCase.caseNumber ? `/cases/${sightedCase.caseNumber}` : '/dashboard'}" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">View the sighting</a></p>
+                <p><a href="${getEmailBaseUrl()}${sightedCase.caseNumber ? `/cases/${sightedCase.caseNumber}` : '/dashboard'}" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">View the sighting</a></p>
               </div>
             `,
           });

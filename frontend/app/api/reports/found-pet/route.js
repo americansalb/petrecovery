@@ -208,6 +208,10 @@ export async function POST(request) {
     const candidates = lostPetCases.map(c => ({
       id: c.id,
       missionNumber: c.caseNumber,
+      caseNumber: c.caseNumber,        // self-documenting; used for the owner's match link
+      petName: c.petName,
+      petPhotoUrl: c.petPhotoUrl,
+      lastSeenAddress: c.lastSeenAddress, // so coarseArea() yields the real region, not "Nearby area"
       petSpecies: c.petSpecies,
       petBreed: c.petBreed || '',
       petColor: c.petColor,
@@ -274,7 +278,7 @@ export async function POST(request) {
           type: 'FOUND_MATCH',
           title: `Possible match for ${ownerPetName}`,
           message: `Someone just reported a found ${petType} that may match your lost pet. Tap to review and connect.`,
-          actionUrl: match.missionNumber ? `/cases/${match.missionNumber}` : null,
+          actionUrl: match.caseNumber ? `/cases/${match.caseNumber}` : null,
           data: { foundCaseId: report.id },
         });
 
@@ -286,7 +290,7 @@ export async function POST(request) {
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #10b981;">A possible match for ${ownerPetName}</h2>
                 <p>Good news — someone in your area just reported a found ${petType} that may match your lost pet.</p>
-                <p><a href="${getEmailBaseUrl()}${match.missionNumber ? `/cases/${match.missionNumber}` : '/dashboard'}" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">Review the match</a></p>
+                <p><a href="${getEmailBaseUrl()}${match.caseNumber ? `/cases/${match.caseNumber}` : '/dashboard'}" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">Review the match</a></p>
                 <p><small style="color:#6b7280;">ReunitePets never asks for payment to reconnect you with your pet. Review the match safely through the site.</small></p>
               </div>
             `,
