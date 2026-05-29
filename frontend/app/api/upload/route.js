@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import { logEvent } from '@/lib/logging';
+import prisma from '@/app/lib/prisma';
+import { isAdmin } from '@/app/lib/authz';
 import crypto from 'crypto';
 
 /**
@@ -356,6 +358,43 @@ export async function DELETE(request) {
         { error: 'Invalid filename' },
         { status: 400 }
       );
+    }
+
+    // SECURITY (IDOR): photo URLs are public, so auth alone let any logged-in
+    // user delete anyone's pet photo. Require ownership: the caller must be an
+    // admin, or own a Pet/Case that references this file. The stored values are
+    // full CDN URLs that contain the filename path, so `contains: filename` matches.
+    if (!(await isAdmin(session.user.id))) {
+      const [ownedPet, ownedCase] = await Promise.all([
+        prisma.pet.findFirst({
+          where: {
+            ownerId: session.user.id,
+            OR: [
+              { photos: { contains: filename } },
+              { primaryPhotoUrl: { contains: filename } },
+            ],
+          },
+          select: { id: true },
+        }),
+        prisma.case.findFirst({
+          where: { reporterId: session.user.id, petPhotoUrl: { contains: filename } },
+          select: { id: true },
+        }),
+      ]);
+
+      if (!ownedPet && !ownedCase) {
+        await logEvent({
+          event_type: 'upload.delete_forbidden',
+          correlation_id: correlationId,
+          resource_type: 'upload',
+          action: 'delete',
+          result: 'failure',
+          error_code: 'NOT_OWNER',
+          actor_id: session.user.id,
+          metadata: { filename },
+        });
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     console.log(`[UPLOAD] Deleting: ${filename}`);
