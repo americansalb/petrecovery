@@ -180,6 +180,9 @@ export async function GET(request) {
     // Group assignments by case
     const assignmentsByCaseId = {};
     for (const assignment of caseAssignments) {
+      // CaseAssignment.rescueSquadId is nullable, so rescueSquad can be null —
+      // accessing .id/.name unguarded 500'd the entire dashboard. Skip those.
+      if (!assignment.rescueSquad) continue;
       if (!assignmentsByCaseId[assignment.missionId]) {
         assignmentsByCaseId[assignment.missionId] = [];
       }
