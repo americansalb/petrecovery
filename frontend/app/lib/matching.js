@@ -251,7 +251,12 @@ export function calculateMatchScore(foundPet, lostCase, options = {}) {
   const foundSpecies = (foundPet.petSpecies || foundPet.species || '').toUpperCase();
   const lostSpecies = (lostCase.petSpecies || lostCase.species || '').toUpperCase();
 
-  if (foundSpecies !== lostSpecies) {
+  // A microchip is ground truth (identity), so the FUZZY species gate must not
+  // veto it: a chip registered to a cat but the found-pet logged as a dog is a
+  // data-entry error to SURFACE, not a reason to silently discard a definitive
+  // identity match. Only attribute/visual matches are gated on species here.
+  // (dev-challenger msg 412 — pairs with the pTrueMatch sort fix.)
+  if (foundSpecies !== lostSpecies && matchSource !== 'microchip') {
     return {
       score: 0,
       maxScore: 100,
