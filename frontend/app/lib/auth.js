@@ -17,6 +17,12 @@ import AppleProvider from 'next-auth/providers/apple';
 import prisma from './prisma';
 import bcrypt from 'bcryptjs';
 
+/**
+ * @type {import('next-auth').AuthOptions}
+ * Typed so `session.strategy: 'jwt'` is the literal SessionStrategy (not widened
+ * to `string`) — otherwise the 12 .ts routes calling getServerSession(authOptions)
+ * fail `next build`'s type check and block the merge.
+ */
 export const authOptions = {
   providers: [
     // Email/Password credentials
@@ -120,7 +126,11 @@ export const authOptions = {
   },
 
   session: {
-    strategy: 'jwt',
+    // Cast the literal so authOptions' inferred type satisfies NextAuth's
+    // SessionStrategy ('jwt'|'database'). In a .js file 'jwt' infers as `string`,
+    // which made getServerSession(authOptions) fail `next build` type-check in
+    // the 12 .ts routes that import it (dev/jest don't type-check; build does).
+    strategy: /** @type {import('next-auth').SessionStrategy} */ ('jwt'),
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
 
