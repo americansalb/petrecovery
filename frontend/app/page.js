@@ -613,21 +613,29 @@ export default function Home() {
                 <div className="h-9 w-48 bg-white/10 rounded-full animate-pulse" />
               ) : (
                 <>
-                  <div className="flex items-center gap-2 bg-white/5 border border-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
-                    <Heart className="w-5 h-5 text-rose-400 fill-rose-400" />
-                    <span className="font-bold text-white">{metrics.petsReunited.toLocaleString()}</span>
-                    <span className="text-midnight-300">happy reunions</span>
-                  </div>
-                  <div className="flex items-center gap-2 bg-white/5 border border-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
-                    <Shield className="w-5 h-5 text-flash-400" />
-                    <span className="font-bold text-white">{metrics.activeSquads}</span>
-                    <span className="text-midnight-300">neighborhood rescue forces</span>
-                  </div>
-                  <div className="flex items-center gap-2 bg-white/5 border border-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
-                    <Users className="w-5 h-5 text-flash-300" />
-                    <span className="font-bold text-white">{metrics.totalVolunteers?.toLocaleString() || 0}</span>
-                    <span className="text-midnight-300">caring neighbors</span>
-                  </div>
+                  {/* Hide-when-0: pre-launch, a real "0 happy reunions" reads worse
+                      than simply not showing the stat. Only surface real traction. */}
+                  {metrics.petsReunited > 0 && (
+                    <div className="flex items-center gap-2 bg-white/5 border border-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
+                      <Heart className="w-5 h-5 text-rose-400 fill-rose-400" />
+                      <span className="font-bold text-white">{metrics.petsReunited.toLocaleString()}</span>
+                      <span className="text-midnight-300">happy reunions</span>
+                    </div>
+                  )}
+                  {metrics.activeSquads > 0 && (
+                    <div className="flex items-center gap-2 bg-white/5 border border-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
+                      <Shield className="w-5 h-5 text-flash-400" />
+                      <span className="font-bold text-white">{metrics.activeSquads}</span>
+                      <span className="text-midnight-300">neighborhood rescue forces</span>
+                    </div>
+                  )}
+                  {metrics.totalVolunteers > 0 && (
+                    <div className="flex items-center gap-2 bg-white/5 border border-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
+                      <Users className="w-5 h-5 text-flash-300" />
+                      <span className="font-bold text-white">{metrics.totalVolunteers.toLocaleString()}</span>
+                      <span className="text-midnight-300">caring neighbors</span>
+                    </div>
+                  )}
                 </>
               )}
             </motion.div>
@@ -1191,27 +1199,37 @@ export default function Home() {
             </div>
           </motion.div>
 
-          {/* Stats row - warmer */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
-            className="flex flex-wrap justify-center gap-10 mt-12 text-center"
-          >
-            <div className="bg-midnight-700/30 px-6 py-4 rounded-2xl">
-              <div className="text-3xl font-bold text-flash-400">{metrics.activeSquads}</div>
-              <div className="text-midnight-300 text-sm">Active Rescue Forces</div>
-            </div>
-            <div className="bg-midnight-700/30 px-6 py-4 rounded-2xl">
-              <div className="text-3xl font-bold text-flash-400">{metrics.citiesCovered || 0}</div>
-              <div className="text-midnight-300 text-sm">Cities Covered</div>
-            </div>
-            <div className="bg-midnight-700/30 px-6 py-4 rounded-2xl">
-              <div className="text-3xl font-bold text-flash-400">{metrics.weeklyReunions || 0}</div>
-              <div className="text-midnight-300 text-sm">Reunions This Week</div>
-            </div>
-          </motion.div>
+          {/* Stats row - hide-when-0: only render the row once there's real
+              traction, and within it only the stats that are non-zero. A row of
+              "0 / 0 / 0" reads as a dead/unlaunched product. */}
+          {(metrics.activeSquads > 0 || metrics.citiesCovered > 0 || metrics.weeklyReunions > 0) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3 }}
+              className="flex flex-wrap justify-center gap-10 mt-12 text-center"
+            >
+              {metrics.activeSquads > 0 && (
+                <div className="bg-midnight-700/30 px-6 py-4 rounded-2xl">
+                  <div className="text-3xl font-bold text-flash-400">{metrics.activeSquads}</div>
+                  <div className="text-midnight-300 text-sm">Active Rescue Forces</div>
+                </div>
+              )}
+              {metrics.citiesCovered > 0 && (
+                <div className="bg-midnight-700/30 px-6 py-4 rounded-2xl">
+                  <div className="text-3xl font-bold text-flash-400">{metrics.citiesCovered}</div>
+                  <div className="text-midnight-300 text-sm">Cities Covered</div>
+                </div>
+              )}
+              {metrics.weeklyReunions > 0 && (
+                <div className="bg-midnight-700/30 px-6 py-4 rounded-2xl">
+                  <div className="text-3xl font-bold text-flash-400">{metrics.weeklyReunions}</div>
+                  <div className="text-midnight-300 text-sm">Reunions This Week</div>
+                </div>
+              )}
+            </motion.div>
+          )}
         </div>
       </section>
 

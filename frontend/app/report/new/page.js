@@ -1050,7 +1050,7 @@ export default function ReportLostPet() {
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <Link href="/dashboard" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none', padding: '4px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)' }}>Dashboard</Link>
-            <Link href="/my-pets" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none', padding: '4px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)' }}>My Pets</Link>
+            <Link href="/pets" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none', padding: '4px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)' }}>My Pets</Link>
             <Link href="/hub" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none', padding: '4px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)' }}>Hub</Link>
           </div>
         </div>
