@@ -1093,7 +1093,7 @@ export default function Home() {
                             <button
                               onClick={() => handleCreateSquad(squad)}
                               disabled={creatingSquad === `${squad.city}-${squad.state}`}
-                              className="bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2 shadow-lg"
+                              className="bg-emerald-700 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2 shadow-lg"
                             >
                               {creatingSquad === `${squad.city}-${squad.state}` ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1408,7 +1408,7 @@ export default function Home() {
               </ul>
             </div>
           </div>
-          <div className="border-t border-gray-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+          <div className="border-t border-gray-800 pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-400">
             <p>© {new Date().getFullYear()} ReunitePets.org</p>
             <div className="flex items-center gap-6">
               <Link href="/privacy" className="hover:text-white transition">Privacy</Link>
